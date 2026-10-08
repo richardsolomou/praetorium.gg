@@ -60,6 +60,18 @@ it('keeps ordinary battle command payloads out of telemetry', async () => {
   ])
 })
 
+it('records the refusal code but not its message for a refused command', async () => {
+  mocks.submit.mockResolvedValue({ result: { outcome: 'refused', code: 'stratagem-limit', reason: 'Grenade has been used this turn' } })
+  await invokeSubmit({ data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'reset-setup' } }) })
+  expect(mocks.capture.mock.calls).toEqual([
+    [
+      'actor',
+      'battle_command_submitted',
+      { command: 'reset-setup', outcome: 'refused', reason: 'stratagem-limit', duration_ms: expect.any(Number) },
+    ],
+  ])
+})
+
 it('reports no preset size for an automatically configured battle', async () => {
   await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', limit: null, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([['actor', 'battle_created', { practice: false, limit: null, player_count: 2, casual: true }]])

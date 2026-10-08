@@ -196,6 +196,7 @@ export const submit = createServerFn({ method: 'POST' })
       await app().telemetry.capture(player.id, 'battle_command_submitted', {
         command: command.kind,
         outcome: result.result.outcome,
+        ...(result.result.outcome === 'refused' ? { reason: result.result.code } : {}),
         ...(command.kind === 'set-setup-step' ? { setup_step: command.step } : {}),
         duration_ms: Math.round(performance.now() - startedAt),
       })

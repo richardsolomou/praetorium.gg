@@ -25,7 +25,7 @@ Important count/identity meanings:
 - `roster_imported` means parsing. `roster_import_saved` and `guest_roster_saved` mean the request succeeded; uncertain-response retries can repeat a guest completion. Use unique people for conversion.
 - Roster `unit_count` counts attached character/bodyguard as one fielded unit through `attachedUnitCount`. Request metrics and import `pick_count` count payload picks instead.
 - `detachment_rules_covered` requires every selected detachment to resolve to supported Game Datacards semantics, including imported options. Missing selections remain uncovered.
-- `battle_command_submitted` includes kind/outcome, not the command payload. Appended `set-setup-step` commands measure reached setup steps.
+- `battle_command_submitted` includes kind/outcome, not the command payload. A refused command adds `reason`, a `RefusalCode` from `src/core/battle.ts`, never the refusal message, which can name units, cards, and numbers; read it with `command`, since codes are shared across command kinds. `unclassified` is a refusal the server's rules did not reproduce, expected only while releases overlap. Stale outcomes carry no reason because a sequence mismatch is their only cause. Appended `set-setup-step` commands measure reached setup steps.
 - Onboarding stores/captures reading-tour answers, skips, and welcome; domain-derived progress does not emit a duplicate completion event.
 - Simulator open/completion/failure are bounded per mounted session/matchup, with `source` identifying standalone, roster, or battle.
 

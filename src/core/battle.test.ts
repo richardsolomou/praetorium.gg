@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   borrowedDispositionError,
   type Command,
+  commandRefusal,
   optionalRules,
   pickedOptionalRules,
   GAME_SIZES,
@@ -928,5 +929,24 @@ describe('setup', () => {
   it('allows replacing your roster after play starts', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, ALICE, roster('Corrected roster'))).toBeNull()
+  })
+})
+
+describe('refusal codes', () => {
+  it('names an outsider refusal with a stable code beside its message', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    expect(commandRefusal(state, CAROL, advance())).toEqual({ code: 'not-seated', message: 'you are not in this battle' })
+  })
+
+  it('gives the same code to every command refused for a battle that is not running', () => {
+    const state = reduceBattle(PLAYERS, [])
+    const codes = [advance(), { kind: 'adjust-cp', delta: 1 } as Command, { kind: 'pause-clock' } as Command].map(
+      (command) => commandRefusal(state, ALICE, command)?.code,
+    )
+    expect(codes).toEqual(['battle-not-running', 'battle-not-running', 'battle-not-running'])
+  })
+
+  it('answers no refusal for a legal command', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log(...started())), ALICE, advance())).toBeNull()
   })
 })
