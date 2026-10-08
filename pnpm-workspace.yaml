@@ -18,6 +18,8 @@ minimumReleaseAgeExclude:
   # of the age threshold and can be dropped once it passes.
   - posthog-node@5.52.3
   - '@posthog/core@1.54.1'
+  # Coherence adoption needs 1.2.0's practices; drop once it passes the threshold.
+  - '@posthog/coherence@1.2.0'
 minimumReleaseAge: 10080
 patchedDependencies:
   '@better-auth/oauth-provider@1.7.5': patches/@better-auth__oauth-provider@1.7.5.patch

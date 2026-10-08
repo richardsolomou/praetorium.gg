@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "project": "praetorium",
+  "concepts": [
+    {
+      "name": "battle",
+      "definition": "One game between seated players: its table shape is fixed at creation, its armies are frozen copies of saved rosters, and its score, phase, round, missions and casualties are folded from its command log."
+    },
+    {
+      "name": "command log",
+      "definition": "The append-only sequence of commands a battle persists; score, phase, round, missions and casualties are folded from it, undo appends a command rather than deleting one, and a submission names the expectedSeq it extends."
+    },
+    {
+      "name": "catalogue",
+      "definition": "The community rules data rosters are priced and validated against and the public reference is drawn from: BSData definitions, MFM points, Game Datacards rules and missions, and Battlemaster terrain, read only from a verified catalogue snapshot."
+    },
+    {
+      "name": "catalogue snapshot",
+      "definition": "An immutable, checksummed package of every pinned catalogue source with its manifest, provenance and change history; the release pins one in catalogue/lock.json and current.json points at the latest verified one."
+    },
+    {
+      "name": "correction patch",
+      "definition": "An authored source correction in catalogue/patches/, minimal and source-pinned with verified provenance, applied during materialization; a stale one fails the build and leaves the previous output intact."
+    },
+    {
+      "name": "roster",
+      "definition": "A player's saved army list: RosterPick choices for one faction, detachment and battle size that rebuild, price and validate against the current catalogue, with private, unlisted or public visibility."
+    },
+    {
+      "name": "loadout",
+      "definition": "The equipment chosen for a unit's models within the option groups its datasheet offers; choices apply before nested weapon spreads and model allocations."
+    },
+    {
+      "name": "frozen army",
+      "definition": "The copy of a roster attached to a battle: selections, cards, unit keys, model counts and supported wound values frozen on the server after an ownership, price and legality recheck, so later saved-roster edits or deletion cannot rewrite the battle."
+    },
+    {
+      "name": "league",
+      "definition": "An organizer's recurring competition that runs registration, sealed rosters and entrant-started battles as a series of league events; it generates no pairings, schedules or standings."
+    },
+    {
+      "name": "league event",
+      "definition": "One registration cycle of a league: its entrants, assignments, teams and sealed rosters belong to it, at most one is open at a time, and reveal closes it irreversibly."
+    },
+    {
+      "name": "sealed roster",
+      "definition": "A league entrant's roster, repriced, validated and frozen at submission into the league event; saved-roster edits never change it, and only a deliberate replacement before reveal or an organizer unseal after it does."
+    },
+    {
+      "name": "audience",
+      "definition": "Who may watch a player's battles: anyone, friends or nobody. A battle takes the narrowest preference of everyone seated in it; a player with no preference is public."
+    },
+    {
+      "name": "practice opponent",
+      "definition": "A seat backed by an account without credentials, played from a seated player's roster; battles with one are excluded from feeds, standings and service records."
+    }
+  ]
+}
