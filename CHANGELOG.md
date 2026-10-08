@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.108.1
+
+### Patch Changes
+
+- 7443cdb: Use BSData's Space Marines codex for every Space Marines chapter, with its unit limits.
+- 7443cdb: Keep Space Marines lists saved on the provisional codex, moving their units, detachments, matching options and Warlord to the current data.
+- 7443cdb: Offer Invader ATVs to Space Marines lists again.
+- 032d75f: Offer Ceramite Sentinels only to Imperial Fists lists.
+- 7443cdb: Give Sammael and Suboden Khan the Mobile keyword their datasheets print.
+
 ## 0.108.0
 
 ### Minor Changes
