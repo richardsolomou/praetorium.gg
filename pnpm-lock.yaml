@@ -169,8 +169,8 @@ importers:
         specifier: 0.14.1
         version: 0.14.1
       '@posthog/coherence':
-        specifier: ^1.2.0
-        version: 1.2.0
+        specifier: ^1.5.2
+        version: 1.5.2
       '@posthog/rollup-plugin':
         specifier: 1.6.1
         version: 1.6.1(rollup@4.63.2)
@@ -2433,8 +2433,8 @@ packages:
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
 
-  '@posthog/coherence@1.2.0':
-    resolution: {integrity: sha512-jEQHlA8hSC1lDhkb6liEZZPIYWQ0rACgeUKf/brAnfSb6zfttOsgJfaTJpCnAeId0ieU8sZOHDcDvx87TmOdhg==}
+  '@posthog/coherence@1.5.2':
+    resolution: {integrity: sha512-bY0hO7e9/ertoQ5sjZ9+k7zoCrPEeEw4NlD44Enal+ikGfjqAcYk7ko8zon1xOCR1zGVGcZY4BxG/cj460VGKA==}
     engines: {node: '>=22.18'}
     os: [darwin, linux]
     hasBin: true
@@ -9944,7 +9944,7 @@ snapshots:
     dependencies:
       detect-libc: 2.1.2
 
-  '@posthog/coherence@1.2.0':
+  '@posthog/coherence@1.5.2':
     optionalDependencies:
       pyright: 1.1.414
       typescript: 5.9.3
