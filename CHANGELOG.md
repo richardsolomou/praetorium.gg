@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.111.1
+
+### Patch Changes
+
+- 99bfc6c: Clarify unavailable battle setup sections, highlight the viewed section, and keep secondary choices and unit lists visible.
+
 ## 0.111.0
 
 ### Minor Changes
