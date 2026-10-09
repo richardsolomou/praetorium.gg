@@ -703,8 +703,7 @@ test('a card names its own condition, and what their turn owed is asked as the t
           await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
         }).toPass({ timeout: 10_000 })
       }
-      await alice.getByRole('button', { name: `Change secondaries for ${aliceName}` }).click()
-      const prep = alice.getByRole('group', { name: 'Secondary play' }).locator('..')
+      const prep = alice.getByRole('group', { name: 'Secondary play' }).first().locator('..')
       await press(prep.getByRole('button', { name: 'Fixed' }))
       for (const card of ['Assassination', 'Engage on All Fronts']) {
         await press(prep.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`, 'i') }))
@@ -764,9 +763,8 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
     guestRoster: bobRoster,
     beforeStart: async () => {
       // Any player at the table can choose either side's secondaries.
-      const chooseFixed = async (page: Page, name: string, side: number) => {
+      const chooseFixed = async (page: Page, side: number) => {
         await setupStep(page, 'Secondaries')
-        await page.getByRole('button', { name: `Change secondaries for ${name}` }).click()
         const prep = page.getByRole('group', { name: 'Secondary play' }).nth(side).locator('..')
         const fixed = prep.getByRole('button', { name: 'Fixed' })
         const press = async (button: Locator) => {
@@ -783,15 +781,15 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
         await press(prep.getByRole('button', { name: /^(Select|Remove) Bring It Down$/ }))
         await expect(prep).toHaveAttribute('data-secondary-deck-ready', 'true')
       }
-      await chooseFixed(alice, aliceName, 0)
-      await chooseFixed(alice, bobName, 1)
+      await chooseFixed(alice, 0)
+      await chooseFixed(alice, 1)
       await alice.reload()
       await setupStep(alice, 'Secondaries')
-      // A finished fixed hand reads as one line on every device.
+      // Fixed choices remain editable after reloading.
       const hands = alice.getByRole('region', { name: 'Secondaries' }).locator('[data-secondary-deck-ready="true"]')
       await expect(hands).toHaveCount(2)
       for (const side of [0, 1]) {
-        await expect(hands.nth(side)).toContainText(/Fixed/i)
+        await expect(hands.nth(side).getByRole('button', { name: /^Fixed/ })).toHaveAttribute('aria-pressed', 'true')
         await expect(hands.nth(side)).toContainText(/Engage on All Fronts/i)
         await expect(hands.nth(side)).toContainText(/Bring It Down/i)
       }

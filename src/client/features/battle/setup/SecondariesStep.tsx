@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { FIXED_SECONDARIES } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import { fixedHandShort, type Side } from '../../../sides'
@@ -15,13 +14,10 @@ type Props = { view: BattleView; sides: Side[]; send: SendCommand; pending: bool
  * player can referee the choices for both sides from one device.
  */
 export function SecondariesStep({ view, sides, send, pending }: Props) {
-  /** Sides this device has opened. Tactical is the default, so a side reads as one line until someone changes it. */
-  const [opened, setOpened] = useState<number[]>([])
   return (
     <div data-onboarding="battle-setup-secondaries" className={`grid gap-3 ${sides.length > 1 ? 'lg:grid-cols-2' : ''}`}>
       {sides.map((side) => {
         const short = fixedHandShort(side)
-        const open = short || opened.includes(side.index)
         return (
           <SetupSidePanel key={side.index} side={side} className="space-y-3">
             {/* Said where the choice is made, because a hand short of its two stops the battle starting. */}
@@ -30,17 +26,9 @@ export function SecondariesStep({ view, sides, send, pending }: Props) {
                 Need {FIXED_SECONDARIES}, selected {side.secondaries.length}
               </p>
             ) : null}
-            {open ? <p className="text-xs text-dim">{cardsBlurb(side)}</p> : null}
+            <p className="text-xs text-dim">{cardsBlurb(side)}</p>
             {/* Each side's primary follows from its own matchup, which the fold already put on it. */}
-            <Prep
-              view={view}
-              side={side}
-              missionId={side.mission?.id ?? null}
-              send={send}
-              pending={pending}
-              open={open}
-              onOpen={() => setOpened((current) => [...current, side.index])}
-            />
+            <Prep view={view} side={side} missionId={side.mission?.id ?? null} send={send} pending={pending} />
           </SetupSidePanel>
         )
       })}
