@@ -1,4 +1,5 @@
 import { rosterSnapshot } from '../core/rosterSnapshot'
+import { ROSTER_NOT_USABLE } from '../core/rosterUse'
 import { enforces } from '../core/battle'
 import { app } from './app'
 import { unitBattleDetailsIn } from './catalogue'
@@ -37,7 +38,7 @@ export async function rosterForUse(userId: string, rosterId: string) {
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)
   if (!priced) throw new Response('army data is not available', { status: 409 })
   const error = rosterUseError(priced, saved.limit, saved.waivedRules)
-  if (error) throw new Response(`fix roster errors before using it: ${error}`, { status: 409 })
+  if (error) throw new Response(`${ROSTER_NOT_USABLE}: ${error}`, { status: 409 })
   const details = unitBattleDetailsIn(
     catalogue,
     saved.catalogueId,
