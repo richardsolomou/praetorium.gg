@@ -47,8 +47,9 @@ struct BattleSnapshot: Decodable {
     turnElapsedMs / 1000 + (turnRunning ? min(age(at: date), 45) : 0)
   }
 
-  func elapsedLabel(at date: Date) -> String {
+  func elapsedLabel(at date: Date, showsSeconds: Bool = true) -> String {
     let total = Int64(max(0, elapsed(at: date)))
+    if !showsSeconds { return "\(total / 60)m" }
     if total >= 3600 {
       return String(format: "%lld:%02lld:%02lld", total / 3600, (total / 60) % 60, total % 60)
     }

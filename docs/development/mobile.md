@@ -59,6 +59,8 @@ Notification taps use the same trusted navigation as links, including cold launc
 
 The first version is a read-only battle companion. Keep the live battle open on the iPhone for updates. The watch shows the last read’s age, changes to a saved view after 45 seconds, and stops estimating elapsed time at that boundary. Leaving the tracker clears the snapshot; delivery can be delayed while the devices are disconnected. Reminder dismissal is local to the watch and lasts while that reminder remains in the current batch. Optional reminder haptics run only while the watch application is active, and repeat reads do not tap again.
 
+Always On dims the display and normally reduces frontmost app updates to minute cadence. Show elapsed minutes without seconds in reduced luminance or minute cadence; keep the 45-second stale boundary. The SwiftUI WatchConnectivity background handler waits for activation and pending delivery, then applies the latest application context before completing; cancellation ends the wait. Delivery and wrist-down display refresh are scheduled by watchOS, so incoming scores are not guaranteed to appear immediately. Users can extend how long the battle stays onscreen in the Watch’s Settings → General → Return to Clock → Praetorium. See [Apple’s Always On guidance](https://developer.apple.com/documentation/watchos-apps/designing-your-app-for-the-always-on-state) and [timeline update constraints](https://developer.apple.com/documentation/watchos-apps/updating-watchos-apps-with-timelines).
+
 Install a watchOS simulator runtime through Xcode, then run:
 
 ```sh
@@ -66,9 +68,9 @@ just watch-test
 just watch-simulator
 ```
 
-`watch-simulator` builds an unsigned Debug watch application, opens a dedicated simulator, and saves battle/objective/reminder screenshots under `mobile/.simulator-derived/watch/`. Set `WATCH_SIMULATOR_UDID` to use another available watch simulator. The `--demo`, `--page`, and `--stale` launch arguments are Debug-only; the demo contains illustrative personal notes and objective names, not a rules reference. A normal launch waits for the paired iPhone.
+`watch-simulator` builds an unsigned Debug watch application, opens a dedicated simulator, and saves battle/objective/reminder screenshots under `mobile/.simulator-derived/watch/`. Set `WATCH_SIMULATOR_UDID` to use another available watch simulator. The `--demo`, `--page`, `--stale`, and `--dimmed` launch arguments are Debug-only; the demo contains illustrative personal notes and objective names, not a rules reference. `--dimmed` exercises the reduced-luminance layout; it does not simulate system suspension or background delivery. A normal launch waits for the paired iPhone.
 
-After changing the companion, run its Swift tests, adjacent web/bridge tests, `just check`, and the native release-mode journey. Inspect the running interface on 42 mm and 46 mm watches. Observe the clock through the full fresh-to-saved transition and confirm reminder dismissal, empty state, and account/battle clearing. Simulator screenshots do not prove paired delivery or physical haptics: verify those on a signed iPhone and Watch before release. Register and provision `gg.praetorium.watch` as the companion target before using the delivery workflow’s frozen credentials.
+After changing the companion, run its Swift tests, adjacent web/bridge tests, `just check`, and the native release-mode journey. Inspect the running interface on 42 mm and 46 mm watches. Observe the clock through the full fresh-to-saved transition and confirm reminder dismissal, empty state, and account/battle clearing. Simulator screenshots do not prove wrist-down refresh, paired delivery, or physical haptics: verify those on a signed iPhone and Watch before release. Register and provision `gg.praetorium.watch` as the companion target before using the delivery workflow’s frozen credentials.
 
 ## Check it
 
