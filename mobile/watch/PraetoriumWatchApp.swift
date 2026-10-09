@@ -10,5 +10,8 @@ struct PraetoriumWatchApp: App {
         .environmentObject(store)
         .preferredColorScheme(.dark)
     }
+    .backgroundTask(.watchConnectivity) {
+      await store.refreshInBackground()
+    }
   }
 }

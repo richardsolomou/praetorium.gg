@@ -8,6 +8,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
   var battle: BattleSnapshot? { state.battle }
   @Published var connectionError: String?
   private let logger = Logger(subsystem: "gg.praetorium.watch", category: "sync")
+  private var activationFinished = false
 
   override init() {
     super.init()
@@ -24,6 +25,27 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
   var reminders: [BattleReminder] { state.reminders }
 
   func dismiss(_ reminder: BattleReminder) { state.dismiss(reminder) }
+
+  @MainActor
+  func refreshInBackground() async {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--demo") { return }
+    #endif
+    let session = WCSession.default
+    // Keep the system task alive until activation and queued delivery finish.
+    while !activationFinished
+      || (session.activationState == .activated && session.hasContentPending)
+    {
+      do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+    }
+    let context = session.receivedApplicationContext
+    guard !Task.isCancelled, session.activationState == .activated,
+      let snapshot = decodeContext(context)
+    else { return }
+    receive(
+      snapshot, deliveredAt: context["sentAt"] as? Double ?? 0,
+      notify: false)
+  }
 
   func receive(_ string: String, deliveredAt: Double, notify: Bool = true) {
     let next = string.isEmpty ? nil : BattleSnapshot.decode(string)
@@ -45,9 +67,11 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     _ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
     error: Error?
   ) {
-    let snapshot = decodeContext(session.receivedApplicationContext)
-    let deliveredAt = session.receivedApplicationContext["sentAt"] as? Double ?? 0
+    let context = session.receivedApplicationContext
+    let snapshot = decodeContext(context)
+    let deliveredAt = context["sentAt"] as? Double ?? 0
     DispatchQueue.main.async { [self] in
+      activationFinished = true
       if let error {
         logger.error("Watch activation failed: \(error.localizedDescription, privacy: .public)")
         connectionError = "Open Praetorium on your iPhone to connect."

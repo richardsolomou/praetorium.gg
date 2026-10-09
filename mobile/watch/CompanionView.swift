@@ -5,6 +5,15 @@ private let panel = Color(red: 0.08, green: 0.11, blue: 0.13)
 private let redSide = Color(red: 0.96, green: 0.46, blue: 0.43)
 private let blueSide = Color(red: 0.47, green: 0.71, blue: 0.96)
 
+extension EnvironmentValues {
+  fileprivate var companionLuminanceReduced: Bool {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--dimmed") { return true }
+    #endif
+    return isLuminanceReduced
+  }
+}
+
 struct CompanionView: View {
   @EnvironmentObject private var store: WatchStore
   @State private var page = 0
@@ -61,10 +70,11 @@ struct CompanionView: View {
 }
 
 private struct BattleGlance: View {
+  @Environment(\.companionLuminanceReduced) private var isLuminanceReduced
   let battle: BattleSnapshot
 
   var body: some View {
-    TimelineView(.periodic(from: .now, by: 1)) { timeline in
+    TimelineView(.periodic(from: .now, by: isLuminanceReduced ? 60 : 1)) { timeline in
       ScrollView {
         VStack(spacing: 4) {
           HStack {
@@ -97,9 +107,13 @@ private struct BattleGlance: View {
               .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Text(battle.elapsedLabel(at: timeline.date))
-              .font(.system(size: 17, weight: .semibold, design: .monospaced)).monospacedDigit()
-              .lineLimit(1).minimumScaleFactor(0.7)
+            Text(
+              battle.elapsedLabel(
+                at: timeline.date,
+                showsSeconds: !isLuminanceReduced && timeline.cadence <= .seconds)
+            )
+            .font(.system(size: 17, weight: .semibold, design: .monospaced)).monospacedDigit()
+            .lineLimit(1).minimumScaleFactor(0.7)
           }.padding(.horizontal, 3)
           SyncStatus(battle: battle, now: timeline.date)
         }.padding(.horizontal, 2)
@@ -212,14 +226,17 @@ private struct RemindersView: View {
 }
 
 private struct SyncStatus: View {
+  @Environment(\.companionLuminanceReduced) private var isLuminanceReduced
   let battle: BattleSnapshot
   let now: Date
 
   var body: some View {
     Text(
-      battle.isFresh(at: now)
-        ? "Updated \(ageLabel(battle.age(at: now)))"
-        : "Saved · \(ageLabel(battle.age(at: now)))"
+      isLuminanceReduced
+        ? (battle.isFresh(at: now) ? "Updated" : "Saved")
+        : battle.isFresh(at: now)
+          ? "Updated \(ageLabel(battle.age(at: now)))"
+          : "Saved · \(ageLabel(battle.age(at: now)))"
     )
     .font(.system(size: 10)).foregroundStyle(battle.isFresh(at: now) ? Color.secondary : .orange)
     .multilineTextAlignment(.center).frame(maxWidth: .infinity)

@@ -45,6 +45,23 @@ final class BattleSessionTests: XCTestCase {
       [short.elapsedLabel(at: now), long.elapsedLabel(at: now)], ["12:34", "3:58:00"])
   }
 
+  func testReducedDisplayOmitsSecondsForShortAndLongTurns() throws {
+    let now = Date(timeIntervalSince1970: 100)
+    let labels = try [0.0, 59_000, 60_000, 754_000, 14_280_000].map { elapsed in
+      try snapshot(["turnRunning": false, "turnElapsedMs": elapsed])
+        .elapsedLabel(at: now, showsSeconds: false)
+    }
+    XCTAssertEqual(labels, ["0m", "0m", "1m", "12m", "238m"])
+  }
+
+  func testReducedDisplayStillStopsEstimatingWhenSnapshotIsSaved() throws {
+    let battle = try snapshot(["updatedAt": 100_000, "turnElapsedMs": 90_000])
+    XCTAssertEqual(
+      [120.0, 145, 400].map {
+        battle.elapsedLabel(at: Date(timeIntervalSince1970: $0), showsSeconds: false)
+      }, ["1m", "2m", "2m"])
+  }
+
   func testWatchDismissalSurvivesRefreshOfSameReminder() throws {
     var session = BattleSession()
     let battle = try snapshot()
