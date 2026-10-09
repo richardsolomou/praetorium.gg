@@ -5,6 +5,7 @@ it.each([
   new Event('error'),
   { code: 11, message: 'connection closed' },
   Object.assign(new Error(''), { name: 'UnauthorizedError' }),
+  new DOMException('signal timed out', 'TimeoutError'),
   new Error('Failed to verify token: '),
   new Error('Failed to verify token: Unauthorized'),
   new TypeError('Failed to fetch'),
