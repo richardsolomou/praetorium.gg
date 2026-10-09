@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
@@ -200,7 +200,39 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
       complete: complete['pre-battle'],
     },
   ]
-  const at = SECTION_IDS.indexOf(next)
+  const [at, setAt] = useState(0)
+  const indexBar = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const first = document.getElementById('setup-armies')
+      const margin = first ? Number.parseFloat(getComputedStyle(first).scrollMarginTop) : 0
+      const top = Math.max(indexBar.current?.getBoundingClientRect().bottom ?? 0, margin) + 1
+      let viewed = 0
+      SECTION_IDS.forEach((id, index) => {
+        const section = document.getElementById(`setup-${id}`)
+        if (section && section.getBoundingClientRect().top <= top) viewed = index
+      })
+      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) viewed = SECTION_IDS.length - 1
+      setAt(viewed)
+    }
+    const schedule = () => {
+      frame ||= requestAnimationFrame(update)
+    }
+    const observer = new ResizeObserver(schedule)
+    const page = indexBar.current?.parentElement
+    if (page) observer.observe(page)
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
+    update()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      cancelAnimationFrame(frame)
+    }
+  }, [])
 
   // A twist belongs to the pack that prints it, so changing the pack drops it above.
   const chosenPack = references?.packs.find((pack) => pack.id === view.settings.missionPackId)
@@ -242,11 +274,12 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
        * The index of the page, pinned the way the tracker pins its scoreboard. A section
        * is a press away from anywhere, and the one the table owes next is marked.
        */}
-      <div className="sticky top-12 z-20 border-b border-edge bg-void/95 backdrop-blur">
+      <div ref={indexBar} className="sticky top-12 z-20 border-b border-edge bg-void/95 backdrop-blur">
         <StepRail
           steps={steps}
           at={at}
-          onGo={(step) => document.getElementById(`setup-${SECTION_IDS[step]}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          next={SECTION_IDS.indexOf(next)}
+          onGo={(step) => document.getElementById(`setup-${SECTION_IDS[step]}`)?.scrollIntoView({ block: 'start' })}
         />
       </div>
 
@@ -341,6 +374,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
         <SetupSection
           id="mission"
+          locked={!youHaveAnArmy}
           number={2}
           name="Mission"
           complete={complete.mission}
@@ -419,6 +453,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
         <SetupSection
           id="battlefield"
+          locked={!ready || (!kotc && !complete.mission)}
           number={3}
           name="Battlefield"
           complete={complete.battlefield}
@@ -446,6 +481,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
         <SetupSection
           id="defender"
+          locked={!complete.armies}
           number={4}
           name="Defender"
           complete={complete.defender}
@@ -461,6 +497,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
         <SetupSection
           id="secondaries"
+          locked={!ready}
           number={5}
           name="Secondaries"
           complete={complete.secondaries}
@@ -476,6 +513,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
         <SetupSection
           id="reserves"
+          locked={!youHaveAnArmy}
           number={6}
           name="Reserves"
           complete={complete.reserves}
@@ -486,27 +524,20 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           ) : null}
         </SetupSection>
 
-        <SetupSection id="deploy" number={7} name="Deploy" complete={complete.deploy} onboarding="battle-setup-deploy">
-          {youHaveAnArmy ? (
-            isOpen('deploy') ? (
-              <DeployStep sides={table} defender={defender} />
-            ) : (
-              <FoldedLine
-                summary={
-                  defender
-                    ? `Sides alternate setting up units, starting with ${sideName(defender)} as the defender.`
-                    : 'Sides alternate setting up units, starting with the defender.'
-                }
-                action="Show units"
-                actionLabel="Show units that set up outside their deployment zone"
-                onAction={() => toggle('deploy')}
-              />
-            )
-          ) : null}
+        <SetupSection
+          id="deploy"
+          number={7}
+          name="Deploy"
+          complete={complete.deploy}
+          locked={!view.deploymentId || !view.attackerId}
+          onboarding="battle-setup-deploy"
+        >
+          {youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
         </SetupSection>
 
         <SetupSection
           id="first-turn"
+          locked={!view.deploymentId || !view.attackerId}
           number={8}
           name="First turn"
           complete={complete['first-turn']}
@@ -520,23 +551,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
         <SetupSection
           id="pre-battle"
+          locked={!firstSide}
           number={9}
           name="Pre-battle rules"
           complete={complete['pre-battle']}
           hint="Units with a pre-battle move make it now, before the first Command phase."
         >
-          {view.deploymentId && ready ? (
-            isOpen('pre-battle') ? (
-              <PreBattleRulesStep sides={table} first={firstSide} />
-            ) : (
-              <FoldedLine
-                summary={`Sides alternate${firstSide ? `, starting with ${sideName(firstSide)}` : ''}. Start battle opens the first Command phase.`}
-                action="Show units"
-                actionLabel="Show units with pre-battle moves"
-                onAction={() => toggle('pre-battle')}
-              />
-            )
-          ) : null}
+          {youHaveAnArmy ? <PreBattleRulesStep sides={table} first={firstSide} /> : null}
         </SetupSection>
       </div>
 
@@ -577,6 +598,7 @@ function SetupSection({
   number,
   name,
   complete,
+  locked = false,
   needed = false,
   hint,
   onboarding,
@@ -586,6 +608,7 @@ function SetupSection({
   number: number
   name: string
   complete: boolean
+  locked?: boolean
   /** Whether the hint names something the table still owes, rather than describing the section. */
   needed?: boolean
   hint?: string
@@ -593,7 +616,13 @@ function SetupSection({
   children: ReactNode
 }) {
   return (
-    <section id={`setup-${id}`} data-onboarding={onboarding} aria-labelledby={`setup-${id}-title`} className="scroll-mt-32 space-y-3">
+    <section
+      id={`setup-${id}`}
+      data-onboarding={onboarding}
+      data-locked={locked}
+      aria-labelledby={`setup-${id}-title`}
+      className={`scroll-mt-32! space-y-3 transition-opacity ${locked ? 'opacity-40' : ''}`}
+    >
       <div className="space-y-1 border-b border-edge pb-1.5">
         <h2 id={`setup-${id}-title`} className="flex items-center gap-2 text-base">
           <span

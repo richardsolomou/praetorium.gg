@@ -5,6 +5,7 @@ import {
   chooseBattlefield,
   createBattle,
   createRoster,
+  recordFirstTurn,
   setupStep,
   signUp,
   uniqueName,
@@ -36,6 +37,11 @@ test('battle setup stays shared and does not wait for the other device', async (
   expect(await initialResponse.text()).not.toContain(aliceRoster)
   await alice.reload()
 
+  const rail = alice.getByRole('navigation', { name: 'Setup sections' })
+  await expect(rail.locator('[data-step="Armies"]')).toHaveAttribute('aria-current', 'location')
+  for (const name of ['Mission', 'Battlefield', 'Defender', 'Secondaries', 'Reserves', 'Deploy', 'First turn', 'Pre-battle rules']) {
+    await expect(alice.getByRole('region', { name, exact: true })).toHaveCSS('opacity', '0.4')
+  }
   await expect(alice.getByText('Determined by your rosters')).toBeVisible()
   await expect(alice.locator('[data-step="Armies"]')).toContainText('0/2 armies')
   await expect(alice.locator('nav[aria-label="Setup sections"] button[data-step="Format"]')).toHaveCount(0)
@@ -65,6 +71,12 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(alice.getByText('Strike Force · 2000 points', { exact: true })).toBeVisible()
   await expect(bob.getByText('Strike Force · 2000 points', { exact: true })).toBeVisible()
   await expect(alice.locator('[data-step="Armies"]')).toContainText('2/2 armies')
+  await expect(alice.getByRole('region', { name: 'Defender', exact: true })).toHaveCSS('opacity', '1')
+  for (const name of ['Deploy', 'Pre-battle rules']) {
+    const section = alice.getByRole('region', { name, exact: true })
+    await expect(section.locator('article')).toHaveCount(2)
+    await expect(section.getByRole('button', { name: /^Show units/ })).toHaveCount(0)
+  }
 
   await attachRoster(alice, incursionRoster)
   await expect(bob.getByText(incursionRoster, { exact: true }).first()).toBeVisible()
@@ -95,6 +107,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await alice.keyboard.press('Escape')
 
   await chooseBattlefield(alice)
+  await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveCSS('opacity', '0.4')
   await expect(bob.getByRole('button', { name: /^Selected layout / })).toBeVisible()
   // The board itself is what opens the board, rather than a button beside it.
   await alice
@@ -119,6 +132,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await Promise.all([defender.click(), aliceDefender.click()])
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
+  await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveCSS('opacity', '1')
   await expect(defender).toContainText('Defender · deploys first')
   await expect(defenderChoice.getByRole('button', { name: new RegExp(bobName) })).toContainText('Attacker · deploys second')
   await bob.screenshot({ path: 'test-results/setup-defender.png', fullPage: true })
@@ -134,19 +148,23 @@ test('battle setup stays shared and does not wait for the other device', async (
   const secondaries = alice.getByRole('region', { name: 'Secondaries' })
   await expect(secondaries.getByText(aliceName, { exact: true })).toHaveCount(1)
   await expect(secondaries.getByText(bobName, { exact: true })).toHaveCount(1)
-  await expect(secondaries.getByRole('button', { name: `Change secondaries for ${aliceName}` })).toBeVisible()
-  await expect(secondaries.getByRole('button', { name: `Change secondaries for ${bobName}` })).toBeVisible()
+  await expect(secondaries.getByRole('group', { name: 'Secondary play' })).toHaveCount(2)
+  await expect(secondaries.getByRole('button', { name: /^Fixed/ })).toHaveCount(2)
+  await expect(secondaries.getByRole('button', { name: /^Tactical/ })).toHaveCount(2)
+  await expect(secondaries.getByRole('button', { name: /^Change secondaries for / })).toHaveCount(0)
   await alice.evaluate(() => window.scrollTo(0, 0))
   await alice.screenshot({ path: 'test-results/setup-armies.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
   await alice.screenshot({ path: 'test-results/setup-armies-phone.png', fullPage: true })
 
   await alice.setViewportSize({ width: 1440, height: 900 })
-  await setupStep(alice, 'Reserves')
+  await rail.locator('[data-step="Reserves"]').click()
   const reserves = alice.getByRole('region', { name: 'Reserves' })
+  await expect(rail.locator('[data-step="Reserves"]')).toHaveAttribute('aria-current', 'location')
+  await expect(rail.locator('[data-step="First turn"]')).not.toHaveAttribute('aria-current')
+
   await expect(reserves.getByText(/\d+\/1000 reserve points/)).toHaveCount(2)
-  await expect(reserves.getByRole('button', { name: `Change reserves for ${bobName}` })).toBeVisible()
-  await reserves.getByRole('button', { name: `Change reserves for ${aliceName}` }).click()
+  await expect(reserves.getByRole('button', { name: /^Change reserves for / })).toHaveCount(0)
   const aliceArmy = reserves.locator('article').filter({ hasText: aliceRoster })
   await expect(aliceArmy.getByText('0/1000 reserve points')).toBeVisible()
   await aliceArmy.getByRole('button', { name: 'Start Immortals in Strategic reserves', exact: true }).click()
@@ -156,6 +174,17 @@ test('battle setup stays shared and does not wait for the other device', async (
   await alice.setViewportSize({ width: 390, height: 844 })
   expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await alice.screenshot({ path: 'test-results/setup-reserves-phone.png', fullPage: true })
+  for (const name of ['Pre-battle rules', 'Deploy', 'Armies']) {
+    await rail.locator(`[data-step="${name}"]`).scrollIntoViewIfNeeded()
+    await rail.locator(`[data-step="${name}"]`).click()
+    await expect(rail.locator(`[data-step="${name}"]`)).toHaveAttribute('aria-current', 'location')
+  }
+  await alice.mouse.move(195, 400)
+  await alice.mouse.wheel(0, 2000)
+  await expect(rail.locator('[data-step="Armies"]')).not.toHaveAttribute('aria-current')
+  await expect(alice.getByRole('region', { name: 'Pre-battle rules', exact: true })).toHaveCSS('opacity', '0.4')
+  await recordFirstTurn(alice)
+  await expect(alice.getByRole('region', { name: 'Pre-battle rules', exact: true })).toHaveCSS('opacity', '1')
 })
 
 test('both devices settle mandatory tactical cards without racing', async ({ browser }) => {
@@ -248,6 +277,8 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
   await expect(alice.getByRole('region', { name: 'Secondaries' }).getByText(bobName, { exact: true })).toHaveCount(1)
   await expect(alice.locator('[data-setup-bar]')).not.toContainText('Mission cards')
   await expect(bob.locator('[data-setup-bar]')).not.toContainText('Mission cards')
+  await expect(alice.getByRole('region', { name: 'Secondaries' }).getByRole('button', { name: /^Tactical/ })).toHaveCount(2)
+  await expect(alice.getByRole('region', { name: 'Secondaries' }).getByRole('button', { name: /^Fixed/ })).toHaveCount(0)
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await alice.screenshot({ path: 'test-results/setup-mandatory-secondaries.png', fullPage: true })

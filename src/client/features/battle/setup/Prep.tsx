@@ -8,7 +8,7 @@ import { FIXED_SECONDARIES, isKotcLimit, SECONDARY_MODES } from '../../../../cor
 import { detachmentRulesQuery, gameReferencesQuery } from '../../../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { armyRulesRequest, sideStratagems } from '../sideRules'
-import { canWritePrep, sideName } from '../../../sides'
+import { canWritePrep } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { MissionName, type ReferenceCard } from '../MissionCards'
 import { CHOOSABLE, CHOSEN } from './chrome'
@@ -20,10 +20,6 @@ type Props = {
   missionId: string | null
   send: SendCommand
   pending: boolean
-  /** Whether this device shows the choice itself rather than its one-line summary. */
-  open: boolean
-  /** Opens the choice. */
-  onOpen: () => void
 }
 
 /**
@@ -37,7 +33,7 @@ type Props = {
  * its own detachment. The pool and choices target the side captain, while any seated
  * player may record them from the device at the table.
  */
-export function Prep({ view, side, missionId, send, pending, open, onOpen }: Props) {
+export function Prep({ view, side, missionId, send, pending }: Props) {
   const captain = side.captain
   const tacticalOnly = isKotcLimit(view.settings.limit)
   const writes = canWritePrep(view)
@@ -146,7 +142,7 @@ export function Prep({ view, side, missionId, send, pending, open, onOpen }: Pro
     view.seq,
   ])
 
-  if (!writes || !open) {
+  if (!writes) {
     return (
       <div data-secondary-deck-ready={deckReady} className="flex flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 text-sm">
@@ -160,11 +156,6 @@ export function Prep({ view, side, missionId, send, pending, open, onOpen }: Pro
               : 'drawn as the battle runs'}
           </span>
         </p>
-        {writes ? (
-          <Button variant="outline" size="sm" className="shrink-0" aria-label={`Change secondaries for ${sideName(side)}`} onClick={onOpen}>
-            Change
-          </Button>
-        ) : null}
       </div>
     )
   }
