@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.111.4
+
+### Patch Changes
+
+- 0a3a8da: Stop reporting recoverable realtime request timeouts as unexpected errors.
+
 ## 0.111.3
 
 ### Patch Changes

@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
   invalidateQueries: vi.fn(async () => {}),
   captureException: vi.fn(),
+  useQuery: vi.fn(),
   sockets: [] as { connected?: (current: unknown) => void; failed?: (current: unknown, error: unknown) => void; applied?: () => void }[],
 }))
 
@@ -13,6 +14,7 @@ vi.mock('react', () => ({
   useState: () => [false, vi.fn()],
 }))
 vi.mock('@tanstack/react-query', () => ({
+  useQuery: mocks.useQuery,
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
 }))
 vi.mock('posthog-js', () => ({ posthog: { captureException: mocks.captureException } }))
@@ -46,7 +48,7 @@ vi.mock('../spacetime/generated', () => ({
   },
 }))
 
-import { useSpacetimeLiveBattle, useSpacetimeLiveProduct } from './spacetimeLive'
+import { useRealtimeConfig, useSpacetimeLiveBattle, useSpacetimeLiveProduct } from './spacetimeLive'
 
 let cleanups: (() => void)[] = []
 
@@ -59,6 +61,7 @@ beforeEach(() => {
   mocks.sockets.length = 0
   mocks.invalidateQueries.mockClear()
   mocks.captureException.mockClear()
+  mocks.useQuery.mockReset()
 })
 
 afterEach(() => {
@@ -73,6 +76,21 @@ function mount() {
   cleanups = mocks.effects.map((effect) => effect()).filter((cleanup): cleanup is () => void => typeof cleanup === 'function')
 }
 
+it('does not capture or log a realtime configuration timeout', () => {
+  mocks.useQuery.mockReturnValue({ error: new DOMException('signal timed out', 'TimeoutError') })
+  useRealtimeConfig()
+  mount()
+  expect([mocks.captureException.mock.calls.length, vi.mocked(console.error).mock.calls.length]).toEqual([0, 0])
+})
+
+it('captures an unexpected realtime configuration error', () => {
+  const error = new Error('Invalid realtime configuration')
+  mocks.useQuery.mockReturnValue({ error })
+  useRealtimeConfig()
+  mount()
+  expect(mocks.captureException.mock.calls).toEqual([[error, { operation: 'spacetime_realtime' }]])
+})
+
 it.each([401, 403, 404, 429, 503])('rechecks authentication only for a refused signed-in ticket (HTTP %s)', async (status) => {
   vi.stubGlobal(
     'fetch',
@@ -84,16 +102,24 @@ it.each([401, 403, 404, 429, 503])('rechecks authentication only for a refused s
   expect(mocks.invalidateQueries.mock.calls).toEqual(status === 401 ? [[{ queryKey: ['me'] }]] : [])
 })
 
-it('does not recheck authentication or capture network failures on ticket retries', async () => {
-  const fetch = vi.fn(async () => {
-    throw new TypeError('Load failed')
-  })
-  vi.stubGlobal('fetch', fetch)
-  useSpacetimeLiveProduct({ mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' }, true)
-  mount()
-  await vi.advanceTimersByTimeAsync(15_000)
-  expect([fetch.mock.calls.length, mocks.invalidateQueries.mock.calls.length, mocks.captureException.mock.calls.length]).toEqual([3, 0, 0])
-})
+it.each([new TypeError('Load failed'), new DOMException('signal timed out', 'TimeoutError')])(
+  'retries recoverable ticket failures without authentication checks or error reports: %s',
+  async (error) => {
+    const fetch = vi.fn(async () => {
+      throw error
+    })
+    vi.stubGlobal('fetch', fetch)
+    useSpacetimeLiveProduct({ mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' }, true)
+    mount()
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect([
+      fetch.mock.calls.length,
+      mocks.invalidateQueries.mock.calls.length,
+      mocks.captureException.mock.calls.length,
+      vi.mocked(console.error).mock.calls.length,
+    ]).toEqual([3, 0, 0, 0])
+  },
+)
 
 it.each(['product', 'battle'] as const)('recovers a %s subscription after socket errors without capturing raw events', async (surface) => {
   vi.stubGlobal(
