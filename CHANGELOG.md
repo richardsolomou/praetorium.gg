@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.111.6
+
+### Patch Changes
+
+- 1a91197: Show Titanicus Traitoris army rules from BSData when Game Datacards has no faction file.
+
 ## 0.111.5
 
 ### Patch Changes
