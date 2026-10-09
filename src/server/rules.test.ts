@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, it } from 'vitest'
 import { hasDetachmentSemantics, loadRules, missionFor } from './rules'
 import { missionCardsFromDatacards } from './datacardMissions'
 import { stratagemLimit } from './datacards'
+import { bookOf } from './catalogue.fixtures'
+import { factionsFor } from './factionReferences'
 
 let directory: string
 const write = (file: string, value: unknown) => {
@@ -264,6 +266,52 @@ it('leaves an ambiguous catalogue army rule unselected', () => {
     },
   })
   expect(rules().supplementalArmyRules.has('adeptus-titanicus')).toBe(false)
+})
+
+it('shows a sole catalogue army rule when the faction has no datacards file', () => {
+  write(path.join(directory, 'definitions', 'Chaos - Titanicus Traitoris.json'), {
+    catalogue: {
+      name: 'Chaos - Titanicus Traitoris',
+      rules: [{ id: 'towering', name: 'Towering Example', description: 'Choose one Chaos Titan as your Warlord.' }],
+    },
+  })
+  write(path.join(directory, 'definitions', 'Imperium - Adeptus Titanicus.json'), {
+    catalogue: {
+      name: 'Imperium - Adeptus Titanicus',
+      rules: [{ id: 'loyalist', name: 'Towering Example', description: 'Choose one Imperial Titan as your Warlord.' }],
+    },
+  })
+  const catalogue = bookOf({
+    name: 'Chaos - Titanicus Traitoris',
+    selectionEntries: [{ id: 'warhound', name: 'Warhound Titan', type: 'model' }],
+  })
+  expect(factionsFor(catalogue, rules()).factions[0]?.armyRules).toEqual([
+    { name: 'Towering Example', description: 'Choose one Chaos Titan as your Warlord.' },
+  ])
+})
+
+it('leaves army rules ambiguous when the faction has no datacards file', () => {
+  write(path.join(directory, 'definitions', 'Chaos - Titanicus Traitoris.json'), {
+    catalogue: {
+      name: 'Chaos - Titanicus Traitoris',
+      rules: [
+        { id: 'first', name: 'Towering Example', description: 'One rule.' },
+        { id: 'second', name: 'Other Rule', description: 'Another rule.' },
+      ],
+    },
+  })
+  expect(rules().supplementalArmyRules.has('titanicus-traitoris')).toBe(false)
+})
+
+it('does not publish a library as a faction when it has no datacards file', () => {
+  write(path.join(directory, 'definitions', 'Library - Titans.json'), {
+    catalogue: {
+      name: 'Library - Titans',
+      library: true,
+      rules: [{ id: 'towering', name: 'Towering Example', description: 'One rule.' }],
+    },
+  })
+  expect(rules().supplementalArmyRules.has('titans')).toBe(false)
 })
 
 it('reads a missing ability from its faction library alias', () => {
