@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "battleId": "simulator-demo",
+  "viewerId": "demo-player",
+  "seq": 42,
+  "updatedAt": 0,
+  "round": 3,
+  "rounds": 5,
+  "phase": "shooting",
+  "activeSide": 0,
+  "paused": false,
+  "turnElapsedMs": 754000,
+  "turnRunning": true,
+  "sides": [
+    {
+      "index": 0,
+      "name": "Richard",
+      "yours": true,
+      "vp": 35,
+      "cp": 4
+    },
+    {
+      "index": 1,
+      "name": "Alex",
+      "yours": false,
+      "vp": 28,
+      "cp": 2
+    }
+  ],
+  "objectives": [
+    {
+      "id": "primary",
+      "name": "Primary mission",
+      "kind": "Primary",
+      "points": 20,
+      "summary": "Check the mission card on your iPhone for its scoring conditions."
+    },
+    {
+      "id": "secondary-1",
+      "name": "Secure the flank",
+      "kind": "Secondary",
+      "points": 8,
+      "summary": "Your active secondary mission. Check its full card on your iPhone before scoring."
+    },
+    {
+      "id": "secondary-2",
+      "name": "Hold the centre",
+      "kind": "Secondary",
+      "points": 7,
+      "summary": "Your active secondary mission. Check its full card on your iPhone before scoring."
+    }
+  ],
+  "reminders": [
+    {
+      "id": "3:richard:shooting:ability-1",
+      "title": "Check weapon abilities",
+      "unit": "Your shooting units",
+      "moment": "Start of your Shooting phase",
+      "description": "Check the abilities on the attacking unit\u2019s datasheet before rolling your attacks."
+    },
+    {
+      "id": "3:richard:shooting:ability-2",
+      "title": "Plan your next move",
+      "unit": null,
+      "moment": "Your Shooting phase",
+      "description": "Review your objectives before committing your remaining attacks."
+    }
+  ],
+  "moreReminders": 0
+}

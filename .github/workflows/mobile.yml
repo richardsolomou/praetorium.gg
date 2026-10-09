@@ -12,7 +12,13 @@ on:
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
+      - scripts/provisionWatchIos.js
   workflow_dispatch:
+    inputs:
+      provision_watch:
+        description: Register and provision the Watch target using the existing iPhone distribution certificate
+        type: boolean
+        default: false
 
 concurrency:
   group: mobile-ios-delivery
@@ -24,7 +30,7 @@ permissions:
 jobs:
   deliver:
     name: Deliver iOS
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 360
     env:
@@ -62,6 +68,9 @@ jobs:
             echo "EXPO_ASC_KEY_ID=$APP_STORE_CONNECT_KEY_ID"
             echo "EXPO_ASC_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID"
           } >> "$GITHUB_ENV"
+      - name: Provision the Watch signing profile
+        if: github.event_name == 'workflow_dispatch' && inputs.provision_watch
+        run: pnpm --package=eas-cli@23.2.0 dlx -c 'node scripts/provisionWatchIos.js'
       - name: Build the canary iOS application
         env:
           EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
@@ -73,6 +82,7 @@ jobs:
       - name: Upload the canary iOS application
         run: bundle exec fastlane ios upload ipa:"$RUNNER_TEMP/mobile-build/praetorium-canary.ipa"
       - name: Publish the compatible canary update
+        if: github.ref == 'refs/heads/main'
         env:
           EAS_ENVIRONMENT: preview
           MOBILE_UPDATE_CHANNEL: canary
@@ -82,14 +92,17 @@ jobs:
       - name: Remove the canary build workspace
         run: rm -rf "${RUNNER_TEMP:?}/eas-local-build-canary"
       - name: Build the stable iOS application
+        if: github.ref == 'refs/heads/main'
         env:
           EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
           EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-local-build-stable
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 build --platform ios --profile production --local --output "$RUNNER_TEMP/mobile-build/praetorium-stable.ipa" --freeze-credentials --non-interactive
       - name: Upload the stable iOS application
+        if: github.ref == 'refs/heads/main'
         run: bundle exec fastlane ios upload ipa:"$RUNNER_TEMP/mobile-build/praetorium-stable.ipa"
       - name: Publish the compatible stable update
+        if: github.ref == 'refs/heads/main'
         env:
           EAS_ENVIRONMENT: production
           MOBILE_UPDATE_CHANNEL: stable
@@ -97,6 +110,7 @@ jobs:
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$GITHUB_SHA" --non-interactive
       - name: Sync App Store metadata
+        if: github.ref == 'refs/heads/main'
         working-directory: mobile
         run: |
           jq --arg path "$APP_STORE_CONNECT_KEY_PATH" --arg id "$APP_STORE_CONNECT_KEY_ID" --arg issuer "$APP_STORE_CONNECT_ISSUER_ID" \

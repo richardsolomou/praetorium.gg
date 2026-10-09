@@ -145,3 +145,10 @@ e2e-trace *args:
 e2e-durations run:
     gh run download {{ run }} --pattern 'e2e-report-*' --dir "${TMPDIR:-/tmp}/praetorium-e2e-reports-{{ run }}"
     pnpm exec tsx scripts/e2eShard.ts --record "${TMPDIR:-/tmp}"/praetorium-e2e-reports-{{ run }}/*/*.json
+
+# Build the native watch companion and capture its three screens with debug demo data
+watch-simulator:
+    pnpm exec tsx scripts/watchSimulator.ts
+
+watch-test:
+    swift test --package-path mobile/watch

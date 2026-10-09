@@ -2,12 +2,15 @@ import { parseSavedReference, type SavedReference } from './offlineReference'
 import { APP_URL, classifyNavigation } from './navigation'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
 
+import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
+
 const MAX_SHARE_TITLE_LENGTH = 160
 const MAX_SHARE_URL_LENGTH = 2_048
 const MAX_OPEN_WINDOW_URL_LENGTH = 2_048
 const MAX_PRINT_HTML_LENGTH = 2_000_000
 
 export type NativeActionRequest =
+  | { kind: 'watch-battle'; snapshot: WatchBattle | null }
   | { kind: 'app-snapshot'; id: string; snapshot: AppSnapshot | null }
   | { kind: 'offline-save'; id: string; reference: SavedReference }
   | { kind: 'back-gesture'; enabled: boolean }
@@ -32,6 +35,10 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
   try {
     const value = JSON.parse(message) as Record<string, unknown>
     if (value.version !== 3) return null
+    if (value.type === 'native-watch-battle' && new TextEncoder().encode(message).length <= MAX_WATCH_MESSAGE_BYTES) {
+      const snapshot = value.snapshot === null ? null : parseWatchBattle(value.snapshot)
+      return value.snapshot === null || snapshot ? { kind: 'watch-battle', snapshot } : null
+    }
     if (
       value.type === 'native-app-snapshot' &&
       typeof value.id === 'string' &&
@@ -136,3 +143,13 @@ export const NATIVE_BRIDGE_SCRIPT = `(() => {
     window.ReactNativeWebView.postMessage(JSON.stringify({ version: 3, type: 'native-print', html: '<!DOCTYPE html>' + root.outerHTML }));
   };
 })(); true;`
+
+export function nativeWatchCapabilityScript(enabled: boolean) {
+  return `(() => {
+    if (!window.PraetoriumNative) return;
+    const capabilities = window.PraetoriumNative.capabilities.filter(value => value !== 'watch-battle');
+    ${enabled ? "capabilities.push('watch-battle');" : ''}
+    window.PraetoriumNative = Object.freeze({ ...window.PraetoriumNative, capabilities });
+    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'));
+  })(); true;`
+}

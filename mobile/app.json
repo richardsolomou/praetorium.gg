@@ -147,11 +147,24 @@
       ],
       "expo-localization",
       "expo-notifications",
-      ["posthog-react-native/expo", { "skipOnConflict": true }]
+      [
+        "posthog-react-native/expo",
+        {
+          "skipOnConflict": true
+        }
+      ],
+      "./plugins/withWatchCompanion"
     ],
     "extra": {
       "eas": {
-        "projectId": "8715c39f-ed12-43a3-aed7-6d32b16cd158"
+        "projectId": "8715c39f-ed12-43a3-aed7-6d32b16cd158",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [{ "targetName": "PraetoriumWatch", "bundleIdentifier": "gg.praetorium.watch" }]
+            }
+          }
+        }
       }
     },
     "owner": "richardsolomou",

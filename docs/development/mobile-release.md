@@ -24,6 +24,8 @@ Before submission, check [Apple's SDK minimums](https://developer.apple.com/news
 
 The iOS delivery workflow passes the GitHub App Store Connect key to EAS for builds and metadata sync. It does not need a separate App Store Connect key stored in Expo.
 
+The embedded Watch application uses `gg.praetorium.watch` and its own App Store provisioning profile, sharing the phone's distribution certificate. `mobile/app.json` declares `PraetoriumWatch` to EAS before prebuild so managed builds collect both targets' credentials. Provision it through the delivery workflow's `provision_watch` input before merging; GitHub's stored Apple key handles registration and EAS credential storage without a local login. [`scripts/provisionWatchIos.js`](../../scripts/provisionWatchIos.js) uses the pinned EAS CLI's credential APIs because its non-interactive build command cannot select a distribution certificate for a new target. It retains an existing valid Watch profile and validates a new profile before the frozen build. EAS applies the remote build number to both targets. The Watch target includes its own privacy manifest for local UserDefaults preferences.
+
 ## Build and upload
 
 Run the repository gate first:
@@ -32,7 +34,7 @@ Run the repository gate first:
 just check
 ```
 
-[`.github/workflows/mobile.yml`](../../.github/workflows/mobile.yml) owns iOS delivery after matching changes reach `main`. It builds/signs locally through EAS with frozen managed credentials, then Fastlane uploads and waits for TestFlight processing, followed by the compatible EAS Update. Canary precedes stable; only one delivery runs at a time. Pull requests validate without distribution. The stable path also syncs `mobile/store.config.json`. This automation uploads builds and updates; it does not submit them for public App Store review.
+[`.github/workflows/mobile.yml`](../../.github/workflows/mobile.yml) owns iOS delivery after matching changes reach `main`. It builds/signs on the GitHub runner through EAS with frozen managed credentials, then Fastlane uploads and waits for TestFlight processing, followed by the compatible EAS Update. Canary precedes stable; only one delivery runs at a time. Pull requests validate without distribution. A manual dispatch on a feature branch builds and uploads only the canary binary; it does not publish OTA updates or run stable delivery. The stable path also syncs `mobile/store.config.json`. This automation uploads builds and updates; it does not submit them for public App Store review.
 
 [`mobile/eas.json`](../../mobile/eas.json) owns profiles, environments, channels, and build-number increments. Canary uses preview and stable uses production. Updates target the native fingerprint; incompatible binaries cannot receive them. Android delivery remains manual and disabled until the physical-device and Google account gates pass.
 
@@ -43,6 +45,14 @@ gh workflow run mobile.yml --ref main
 ```
 
 Inspect the workflow run before you restart it. Do not start a second delivery while one is running.
+
+To provision the Watch target and verify a feature branch through TestFlight, use its branch name:
+
+```sh
+gh workflow run mobile.yml --ref feat/apple-watch-companion -f provision_watch=true
+```
+
+Use GitHub's existing signing secrets first when local credentials are missing or stale. Check the delivery run before asking for a local Apple login or replacement key; a local authentication failure does not establish that CI's key is invalid.
 
 After completing physical-device verification and the Google account requirements, configure a Google Play service account in EAS. Run these commands from `mobile/`:
 

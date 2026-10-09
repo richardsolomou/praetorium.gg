@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react'
+
 type NativeCapability =
   | 'app-snapshot'
   | 'account'
@@ -11,6 +13,7 @@ type NativeCapability =
   | 'open-window'
   | 'print'
   | 'share'
+  | 'watch-battle'
 
 declare global {
   interface Window {
@@ -170,4 +173,23 @@ export function requestNativeOfflineSave(doc: { html: string; savedAt: number })
     window.addEventListener('praetorium-native-offline', listen)
     if (!send('offline-reference', { type: 'native-offline-save', id, ...doc })) finish(false)
   })
+}
+
+export function setNativeWatchBattle(snapshot: import('../contracts/watchBattle').WatchBattle | null) {
+  return send('watch-battle', { type: 'native-watch-battle', snapshot })
+}
+
+export function supportsNativeWatchBattle() {
+  return supports('watch-battle')
+}
+
+export function useNativeWatchBattleAvailability() {
+  return useSyncExternalStore(
+    (changed) => {
+      window.addEventListener('praetorium-native-capabilities', changed)
+      return () => window.removeEventListener('praetorium-native-capabilities', changed)
+    },
+    supportsNativeWatchBattle,
+    () => false,
+  )
 }
