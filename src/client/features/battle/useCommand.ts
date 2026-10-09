@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Command, SubmitResult } from '../../../core/battle'
+import { isRosterNotUsable } from '../../../core/rosterUse'
 import { isSignedOut } from '../../../core/session'
 import { submit } from '../../../server/functions'
 import { battleQuery, meQuery } from '../../queries'
@@ -101,7 +102,7 @@ export function useCommand(token: string, seq: number) {
             void queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
             void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
           } else {
-            posthog.captureException(error, { operation: 'battle_command' })
+            if (!isRosterNotUsable(error)) posthog.captureException(error, { operation: 'battle_command' })
             setProblem(errorMessage(error))
           }
         }
