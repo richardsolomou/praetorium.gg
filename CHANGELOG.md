@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.111.5
+
+### Patch Changes
+
+- 54e674a: Stop reporting a refused over-limit or illegal roster in a battle as an application error.
+
 ## 0.111.4
 
 ### Patch Changes
