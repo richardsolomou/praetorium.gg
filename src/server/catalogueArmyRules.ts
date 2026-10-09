@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { CatalogueFile } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
-import { datacardsFactionKeys, type LoadedDatacards } from './datacards'
+import { datacardsFactionKeys, type FactionContent, type LoadedDatacards } from './datacards'
 import { joinKey } from './rulesSource'
 
 export function missingArmyRulesFromCatalogue(directory: string, datacards: LoadedDatacards) {
@@ -14,19 +14,29 @@ export function missingArmyRulesFromCatalogue(directory: string, datacards: Load
       .split(' - ')
       .at(-1)
       ?.replace(/ Library$| \(11e\)$/g, '') ?? ''
-  for (const content of new Set(datacards.factions.values())) {
+  const catalogues = files.flatMap((file) => {
+    const parsed = JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8')) as CatalogueFile
+    return parsed.catalogue ? [{ name: leafOf(file.slice(0, -5)), catalogue: parsed.catalogue }] : []
+  })
+  const contents = new Map<string, Pick<FactionContent, 'name' | 'armyRules' | 'factionAbilityNames'>>(
+    [...new Set(datacards.factions.values())].map((content) => [routeSlug(content.name), content]),
+  )
+  for (const { catalogue } of catalogues) {
+    const name = leafOf(catalogue.name)
+    if (catalogue.library || [...datacardsFactionKeys(name)].some((key) => datacards.factions.has(key))) continue
+    contents.set(routeSlug(name), { name, armyRules: [], factionAbilityNames: new Set() })
+  }
+  for (const content of contents.values()) {
     const missing = [...content.factionAbilityNames].filter(
       (name) => !content.armyRules.some((rule) => joinKey(name) === joinKey(rule.name)),
     )
     if (!missing.length && content.armyRules.length) continue
     const names = datacardsFactionKeys(content.name)
-    const catalogues = files.flatMap((file) => {
-      if (!names.has(routeSlug(leafOf(file.slice(0, -5))))) return []
-      const parsed = JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8')) as CatalogueFile
-      return parsed.catalogue && names.has(routeSlug(leafOf(parsed.catalogue.name))) ? [parsed.catalogue] : []
-    })
+    const matching = catalogues.flatMap(({ name, catalogue }) =>
+      names.has(routeSlug(name)) && names.has(routeSlug(leafOf(catalogue.name))) ? [catalogue] : [],
+    )
     if (!content.armyRules.length) {
-      const candidates = catalogues.flatMap((catalogue) =>
+      const candidates = matching.flatMap((catalogue) =>
         (catalogue.rules ?? []).filter((rule) => !rule.hidden && rule.name && rule.description),
       )
       if (candidates.length === 1 && !missing.some((name) => joinKey(name) === joinKey(candidates[0]!.name!))) {
@@ -35,7 +45,7 @@ export function missingArmyRulesFromCatalogue(directory: string, datacards: Load
     }
     if (!missing.length) continue
     const rules = missing.flatMap((name) => {
-      const candidates = catalogues.flatMap((catalogue) =>
+      const candidates = matching.flatMap((catalogue) =>
         [...(catalogue.rules ?? []), ...(catalogue.sharedRules ?? [])]
           .filter((rule) => !rule.hidden && rule.name && rule.description && joinKey(name) === joinKey(rule.name))
           .map((rule) => ({ rule, catalogue })),

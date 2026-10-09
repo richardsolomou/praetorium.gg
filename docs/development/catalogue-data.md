@@ -72,6 +72,8 @@ Faction-scoped aliases and declared parents resolve rules and detachments. Do no
 
 Descriptions and ability definitions require exact, unambiguous joins. An empty named section is not permission to borrow matching prose from anywhere: a complete matching definition must belong to the correct faction/section. Missing enhancement/stratagem details finish loading as unavailable. Unit upgrades and character enhancements stay distinct, retaining source eligibility.
 
+Missing army-rule prose can use an unambiguous matching BSData rule from the faction's books. When the faction has no army-rule cards or no Game Datacards file, only a sole visible top-level catalogue rule can supply the unnamed army rule. Library catalogues do not create factions; ambiguous candidates stay unavailable. `catalogueArmyRules.ts` owns this fallback, verified through `rules.test.ts`.
+
 `GAME_SIZES` is a stable saved-roster/command protocol, not replaced by mission-pack size records. Source construction constraints remain authoritative. Collection membership records ownership, not model quantity.
 
 ## Building units

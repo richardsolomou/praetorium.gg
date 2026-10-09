@@ -104,7 +104,7 @@ export function loadRules(
   const factions = factionsFromDatacards(datacards, iconDirectory)
   const catalogueRules = missingArmyRulesFromCatalogue(path.join(directory, 'definitions'), datacards)
   const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
-  const supplementalArmyRules = new Map<string, { name: string; description: string }[]>()
+  const supplementalArmyRules = new Map(catalogueRules)
   for (const content of new Set(datacards.factions.values())) {
     const faction = routeSlug(content.name)
     const sourceRules = catalogueRules.get(faction) ?? []
