@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.111.0
+
+### Minor Changes
+
+- 3060d4a: Add an Apple Watch battle companion for scores, objectives, and personal reminders.
+
 ## 0.110.0
 
 ### Minor Changes
