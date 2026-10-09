@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.111.2
+
+### Patch Changes
+
+- 5b1a6bf: Handle Watch background updates and adapt the battle clock to the dimmed display.
+
 ## 0.111.1
 
 ### Patch Changes
