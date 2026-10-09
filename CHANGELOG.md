@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.111.3
+
+### Patch Changes
+
+- 2f89fb3: Stop reporting a rejected realtime socket token that the connection recovers from with a new ticket.
+
 ## 0.111.2
 
 ### Patch Changes
