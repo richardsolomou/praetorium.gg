@@ -4,6 +4,7 @@ import { unpackRuntimeData } from '../../contracts/runtimeData'
 import { catalogueFromIndex, type LoadedCatalogue } from '../../shared/catalogueIndex'
 import type { LoadedRules } from '../../shared/rules'
 import { referenceData } from './runtime'
+import { calculationRead } from './calculationRead'
 import type { OfflineConstructionSource } from '../../contracts/offlineReference'
 
 const cache = new WeakMap<OfflineConstructionSource, ReturnType<typeof buildConstruction>>()
@@ -38,12 +39,17 @@ export function localConstruction(catalogueId?: string) {
 
 export function constructionRead<T>(
   local: (data: NonNullable<ReturnType<typeof localConstruction>>) => T,
-  online: () => Promise<T>,
+  online: (signal?: AbortSignal) => Promise<T>,
   catalogueId?: string,
+  signal?: AbortSignal,
 ): Promise<T> {
-  const data = localConstruction(catalogueId)
-  if (data) return Promise.resolve(local(data))
-  if (typeof window !== 'undefined' && !navigator.onLine)
-    return Promise.reject(new Error('Download this army’s rules online before using them offline.'))
-  return online()
+  return calculationRead(
+    online,
+    (error) => {
+      const data = localConstruction(catalogueId)
+      if (data) return local(data)
+      throw error ?? new Error('Download this army’s rules online before using them offline.')
+    },
+    signal,
+  )
 }

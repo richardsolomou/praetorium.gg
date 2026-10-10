@@ -735,12 +735,8 @@ export class PraetoriumService {
 
   private async visibleScreen(history: BattleHistory, userId: string | null, rules?: BattleReadRules | null): Promise<BattleScreen> {
     const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
+    if (viewerId !== SPECTATOR_ID) return this.seatedScreen(history, viewerId, rules)
     const screen = this.battleScreen(history, viewerId, rules)
-    // A seated player sees the timeline only once the battle is over; until then they are playing it.
-    if (viewerId !== SPECTATOR_ID)
-      return screen.view.status === 'finished'
-        ? { ...screen, timeline: this.replayTimeline(history, this.viewerReport(history, viewerId, rules)) }
-        : screen
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
     // the seats were filled when the battle was created.
     if (!screen.view.leagueToken && !(await this.mayWatch(history, userId))) return { kind: 'unavailable' }
@@ -839,7 +835,7 @@ export class PraetoriumService {
         serverSeq: history.log.at(-1)?.seq ?? 0,
         serverNow: this.clock(),
       },
-      screen: this.battleScreen(history, userId, rules),
+      screen: this.seatedScreen(history, userId, rules),
     }
   }
 
@@ -914,13 +910,20 @@ export class PraetoriumService {
         return { ...submitted, secondaries }
       },
     )
-    return { result, screen: this.battleScreen({ ...seats, log }, userId, rules) }
+    return { result, screen: this.seatedScreen({ ...seats, log }, userId, rules) }
   }
 
   /** Opening a battle stream is an authorization decision. */
   async userBattleId(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
     return seats.battle.id
+  }
+
+  private seatedScreen(history: BattleHistory, userId: string, rules?: BattleReadRules | null): SeatedScreen {
+    const screen = this.battleScreen(history, userId, rules)
+    return screen.view.status === 'finished'
+      ? { ...screen, timeline: this.replayTimeline(history, this.viewerReport(history, userId, rules)) }
+      : screen
   }
 
   /** The only place a visibility-filtered battle view is built. */

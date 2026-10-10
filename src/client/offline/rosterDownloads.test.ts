@@ -5,8 +5,16 @@ import { saveRosterSchema } from '../../contracts/schemas'
 import { rosterAccess, rosterBootstrap, saveRoster, savedRosterSummaries, projectLocalState } from '../functions'
 import { configureLocalRuntime, localEngine, stopLocalRuntime } from './localRuntime'
 
-const mocks = vi.hoisted(() => ({ access: vi.fn(), bootstrap: vi.fn(), summaries: vi.fn(), syncRoster: vi.fn(), storage: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  access: vi.fn(),
+  bootstrap: vi.fn(),
+  summaries: vi.fn(),
+  syncRoster: vi.fn(),
+  storage: vi.fn(),
+  price: vi.fn(),
+}))
 vi.mock('../../server/functions', () => ({
+  priceRoster: mocks.price,
   rosterAccess: mocks.access,
   rosterBootstrap: mocks.bootstrap,
   savedRosterSummaries: mocks.summaries,
@@ -14,7 +22,10 @@ vi.mock('../../server/functions', () => ({
 vi.mock('../../server/functions/offline', () => ({ syncRoster: mocks.syncRoster, syncAction: vi.fn(), syncBattleCommand: vi.fn() }))
 vi.mock('./localStorage', () => ({ localStateStorage: mocks.storage }))
 vi.mock('../nativeBridge', () => ({ nativeBridgeVersion: () => undefined }))
-vi.mock('./construction', () => ({ localConstruction: () => null }))
+vi.mock('./construction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./construction')>()),
+  localConstruction: () => null,
+}))
 vi.mock('./runtime', () => ({ referenceData: () => undefined }))
 const client = new QueryClient()
 const original = {
@@ -48,6 +59,7 @@ beforeEach(() => {
       return state
     },
   })
+  mocks.price.mockResolvedValue(null)
   mocks.syncRoster.mockResolvedValue({ outcome: 'applied', version: 2 })
   client.clear()
   client.setQueryData(['me'], { id: 'alice' })
