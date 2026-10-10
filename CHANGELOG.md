@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.0
+
+### Minor Changes
+
+- 3323840: Invite an opponent from the New battle dialog when you have no friends yet, instead of finding only practice opponents there.
+
 ## 0.114.0
 
 ### Minor Changes
