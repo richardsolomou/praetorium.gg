@@ -233,6 +233,83 @@ it('preserves data-update history identities when a preview becomes the default'
   expect(catalogueChanges(before, after)).toEqual({ factions: [], omitted: 0 })
 })
 
+async function materializeChapterEdition() {
+  const original = fetch
+  vi.stubGlobal('fetch', async (url: string | URL) => {
+    if (String(url).includes(`/${catalogueSources.definitions.repository}/`)) {
+      return archive({
+        'Marines.json': book('Custodes', 100, 'old-detachment'),
+        'System.json': JSON.stringify(system),
+        'Chapter.json': JSON.stringify({
+          catalogue: {
+            id: 'chapter',
+            name: 'Chapter',
+            catalogueLinks: [{ targetId: 'cat', importRootEntries: true }],
+            selectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: points(50) }],
+          },
+        }),
+        'Unrelated.json': JSON.stringify({
+          catalogue: { id: 'unrelated', name: 'Unrelated', selectionEntries: [{ id: 'other', name: 'Other', type: 'unit' }] },
+        }),
+      })
+    }
+    if (String(url).includes(`/${catalogueSources.datacards.repository}/`)) {
+      return archive({
+        '11th/gdc/Custodes.json': JSON.stringify({
+          name: 'Custodes',
+          datasheets: [{ name: { en: 'Guard' } }],
+          detachments: [{ name: { en: 'codex-detachment' }, detachmentPoints: 1, forceDisposition: { name: { en: 'Disruption' } } }],
+        }),
+      })
+    }
+    return original(url)
+  })
+  const manifest = composition()
+  const edition = manifest.editions[0]!.edition
+  edition.catalogueIds = ['chapter']
+  const directory = await materialize(manifest)
+  const target = path.join(directory, 'editions', edition.id)
+  return { directory, target, edition }
+}
+
+it('records inherited unit price changes without recording unrelated support factions', async () => {
+  const { directory, target, edition } = await materializeChapterEdition()
+  const before = compiledChangeSource(directory, CANONICAL_CATALOGUE_SOURCE_NAMES)!
+  fs.writeFileSync(path.join(target, 'definitions', 'Marines.json'), book('Custodes', 135, 'codex-detachment'))
+  const after = compiledChangeSource(directory, CANONICAL_CATALOGUE_SOURCE_NAMES)!
+  expect({
+    changes: catalogueChanges(before, after).factions.map((faction) => ({ catalogueId: faction.catalogueId, changes: faction.changes })),
+    unrelated: after.datasheets.some((sheet) => sheet.catalogueId === `${edition.id}~unrelated`),
+  }).toEqual({
+    changes: [
+      {
+        catalogueId: 'custodes-codex~cat',
+        changes: [
+          { kind: 'datasheet-points', id: 'guard-offer', name: 'Guard', rows: [{ models: null, condition: null, from: '120', to: '135' }] },
+        ],
+      },
+    ],
+    unrelated: false,
+  })
+})
+
+it('records inherited detachment price changes in their qualified reference home', async () => {
+  const { directory, target } = await materializeChapterEdition()
+  const before = compiledChangeSource(directory, CANONICAL_CATALOGUE_SOURCE_NAMES)!
+  const file = path.join(target, 'datacards', '11th', 'gdc', 'Custodes.json')
+  const updated = JSON.parse(fs.readFileSync(file, 'utf8'))
+  updated.detachments[0].detachmentPoints = 2
+  fs.writeFileSync(file, JSON.stringify(updated))
+  const after = compiledChangeSource(directory, CANONICAL_CATALOGUE_SOURCE_NAMES)!
+  expect(catalogueChanges(before, after).factions).toEqual([
+    {
+      catalogueId: 'custodes-codex~cat',
+      faction: 'Custodes · Custodes codex · Preview',
+      changes: [{ kind: 'detachment-points', id: 'codex-detachment', name: 'codex-detachment', from: '1', to: '2' }],
+    },
+  ])
+})
+
 it('promotes the preview without changing saved catalogue IDs or replacing old data', async () => {
   const manifest = composition()
   const edition = manifest.editions[0]!.edition

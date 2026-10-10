@@ -21,6 +21,7 @@ type Roster = {
 type Props = {
   roster: Roster
   faction: ListBuilderProps['initialFaction']
+  snapshotEdition?: ListBuilderProps['snapshotEdition']
   editable: boolean
   battle?: string
   resolvePersistedRoster?: boolean
@@ -36,6 +37,7 @@ const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabl
 export function RosterEditor({
   roster,
   faction,
+  snapshotEdition,
   editable,
   battle,
   resolvePersistedRoster = true,
@@ -51,6 +53,7 @@ export function RosterEditor({
         prep={roster.prep ?? NO_PREP}
         initial={roster}
         initialFaction={faction}
+        snapshotEdition={snapshotEdition}
         editable={editable}
         battle={battle}
         resolvePersistedRoster={resolvePersistedRoster}

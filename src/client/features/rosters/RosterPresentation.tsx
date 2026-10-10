@@ -37,6 +37,7 @@ type RosterHeaderProps = {
   /** What an unnamed list is called. Shown as the title itself where nobody can type. */
   placeholder?: string
   faction?: PresentedFaction | null
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
   factionLoading?: boolean
   points?: number | null
   limit?: number
@@ -97,6 +98,7 @@ export function RosterHeader({
   maxLength,
   placeholder,
   faction,
+  edition = faction?.edition,
   factionLoading = false,
   points,
   limit,
@@ -144,16 +146,9 @@ export function RosterHeader({
             data-slot="roster-meta"
             className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {faction?.edition ? (
-              <span
-                title={editionLabel(faction.edition)}
-                className={`chip shrink-0 ${faction.edition.status === 'preview' ? 'text-warning' : 'text-dim'}`}
-              >
-                {faction.edition.status === 'preview'
-                  ? 'Preview'
-                  : faction.edition.status === 'retired'
-                    ? 'Previous'
-                    : faction.edition.name}
+            {edition ? (
+              <span title={editionLabel(edition)} className={`chip shrink-0 ${edition.status === 'preview' ? 'text-warning' : 'text-dim'}`}>
+                {edition.status === 'preview' ? 'Preview' : edition.status === 'retired' ? 'Previous' : edition.name}
               </span>
             ) : null}
             {faction ? (

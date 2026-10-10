@@ -37,6 +37,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
           source: 'editable',
         }}
         faction={faction}
+        snapshotEdition={built.edition ?? null}
         editable={false}
         resolvePersistedRoster={false}
         frozen={reading.frozen}
@@ -50,6 +51,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
         <RosterHeader
           name={roster.name}
           faction={faction}
+          edition={built?.edition ?? null}
           factionLoading={Boolean(built) && factionResult.isLoading}
           points={built ? total(built) : undefined}
           limit={built?.limit}
@@ -84,7 +86,7 @@ export function rosterReading(roster: Roster): { kind: 'text' } | { kind: 'roste
   if (!built) return { kind: 'text' }
   if (roster.id && built.picks && built.detachmentIds) return { kind: 'roster' }
   if (!built.units.some((unit) => unit.group !== undefined)) return { kind: 'text' }
-  return { kind: 'roster', frozen: { edition: built.edition, units: built.units, points: total(built), detachments: detachments(built) } }
+  return { kind: 'roster', frozen: { units: built.units, points: total(built), detachments: detachments(built) } }
 }
 
 const total = (built: Built) => built.units.reduce((points, unit) => points + unit.points, 0)

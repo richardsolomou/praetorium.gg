@@ -6,6 +6,7 @@ import type { SnapshotSourceName } from '../../src/server/catalogueSources'
 import path from 'node:path'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { type CatalogueEdition, editionLabel } from '../../src/core/catalogueEdition'
+import { factionsFor } from '../../src/server/factionReferences'
 
 const priced = ({ name, points }: { name: string; points: number | null }) => ({ name, points })
 
@@ -61,7 +62,8 @@ function compiledEditionChangeSource(
   if (missing.length) throw new Error(`it carries no ${missing.join(', ')}`)
   const catalogue = loadCatalogue(directory, edition)
   if (!catalogue) return null
-  const canonical = compileCanonicalCatalogueFromSnapshot(catalogue, snapshotRules(directory, catalogue), directory)
+  const rules = snapshotRules(directory, catalogue)
+  const canonical = compileCanonicalCatalogueFromSnapshot(catalogue, rules, directory)
   const publishedIds = new Set(canonical.datasheets.map((sheet) => sheet.id))
   const offers = catalogue.factions.flatMap((faction) =>
     [...datasheetsOf(catalogue.index, faction.id)].filter((id) => publishedIds.has(id)).map((id) => ({ catalogueId: faction.id, id })),
@@ -69,13 +71,30 @@ function compiledEditionChangeSource(
   const source = changeSource(canonical, offers)
   if (!edition) return source
   const ids = new Set(edition.catalogueIds.map((id) => `${edition.id}~${id}`))
+  const offeredIds = new Set(offers.filter((offer) => ids.has(offer.catalogueId)).map((offer) => offer.id))
+  const detachmentRoutes = new Set(
+    factionsFor(catalogue, rules)
+      .factions.filter((faction) => ids.has(faction.id))
+      .flatMap((faction) =>
+        faction.detachments.flatMap(({ referenceRoute }) =>
+          referenceRoute ? [`${referenceRoute.catalogueId}\0${referenceRoute.slug}`] : [],
+        ),
+      ),
+  )
+  const datasheets = source.datasheets.filter((sheet) => ids.has(sheet.catalogueId) || offeredIds.has(sheet.id))
+  const retainedSheets = new Set(datasheets.map((sheet) => `${sheet.catalogueId}\0${sheet.id}`))
+  const referencedDetachments = new Set(
+    canonical.detachments
+      .filter((detachment) => detachmentRoutes.has(`${detachment.catalogueId}\0${detachment.slug}`))
+      .map((detachment) => `${detachment.catalogueId}\0${detachment.id}`),
+  )
   return {
-    datasheets: source.datasheets
-      .filter((sheet) => ids.has(sheet.catalogueId))
-      .map((sheet) => ({ ...sheet, faction: `${sheet.faction} · ${editionLabel(edition)}` })),
+    datasheets: datasheets.map((sheet) => ({ ...sheet, faction: `${sheet.faction} · ${editionLabel(edition)}` })),
     detachments: source.detachments
-      .filter((detachment) => ids.has(detachment.catalogueId))
+      .filter((detachment) => ids.has(detachment.catalogueId) || referencedDetachments.has(`${detachment.catalogueId}\0${detachment.id}`))
       .map((detachment) => ({ ...detachment, faction: `${detachment.faction} · ${editionLabel(edition)}` })),
-    datasheetOffers: source.datasheetOffers?.filter((offer) => ids.has(offer.catalogueId)),
+    datasheetOffers: source.datasheetOffers?.filter(
+      (offer) => ids.has(offer.catalogueId) || retainedSheets.has(`${offer.catalogueId}\0${offer.id}`),
+    ),
   }
 }

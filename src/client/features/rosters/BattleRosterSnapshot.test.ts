@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import type { Roster } from '../../../core/battle'
 import { BattleRosterSnapshot, rosterReading } from './BattleRosterSnapshot'
 
@@ -25,6 +26,44 @@ const built = (overrides: Partial<NonNullable<Roster['built']>> = {}): NonNullab
 })
 
 describe('battle roster snapshot', () => {
+  it.each(['linked', 'frozen', 'text'] as const)('retains snapshot version metadata for a %s roster after promotion', async (reading) => {
+    for (const hasEdition of [true, false]) {
+      const queryClient = new QueryClient()
+      const catalogueId = 'codex~death-guard'
+      const edition = { id: 'codex', name: 'Death Guard codex', status: 'preview' as const }
+      queryClient.setQueryData(['faction', catalogueId], {
+        id: catalogueId,
+        slug: catalogueId,
+        displayName: 'Death Guard',
+        name: 'Death Guard',
+        icon: null,
+        detachments: [],
+        edition: { ...edition, status: 'released' },
+      })
+      const roster = {
+        ...(reading === 'linked' ? { id: 'saved' } : {}),
+        name: 'Fielded army',
+        text: 'Frozen army text',
+        built: built({
+          catalogueId,
+          edition: hasEdition ? edition : undefined,
+          picks: [],
+          detachmentIds: [],
+          units: reading === 'text' ? [unit({ group: undefined })] : [unit()],
+        }),
+      }
+      const routeTree = createRootRoute({ component: () => createElement(BattleRosterSnapshot, { roster }) })
+      const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: ['/'] }) })
+      await router.load()
+      const markup = renderToStaticMarkup(
+        createElement(QueryClientProvider, { client: queryClient }, createElement(RouterProvider, { router })),
+      )
+      if (hasEdition) expect(markup).toContain('title="Death Guard codex · Preview"')
+      else expect(markup).not.toContain('Death Guard codex')
+      queryClient.clear()
+    }
+  })
+
   it('shows a text-only roster without a faction loader', () => {
     const queryClient = new QueryClient()
     const markup = renderToStaticMarkup(

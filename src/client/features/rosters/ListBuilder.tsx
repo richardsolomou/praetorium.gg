@@ -105,6 +105,7 @@ type Props = {
     updatedAt?: number
   }
   initialFaction?: RosterSetupFaction | null
+  snapshotEdition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
   /**
    * A list as a battle froze it.
    *
@@ -135,7 +136,6 @@ type Props = {
 }
 
 export type FrozenRoster = {
-  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'>
   units: NonNullable<Roster['built']>['units']
   points: number
   detachments: readonly { id?: string; name: string; points?: number | null }[]
@@ -164,6 +164,7 @@ export function ListBuilder({
   prep,
   initial,
   initialFaction,
+  snapshotEdition,
   frozen,
   variants = NO_VARIANTS,
   differences = null,
@@ -832,7 +833,8 @@ export function ListBuilder({
         onNameChange={editable ? (event) => setName(event.target.value) : undefined}
         maxLength={ROSTER_NAME_MAX_LENGTH}
         placeholder={label || 'Named from what is in it'}
-        faction={frozen && faction ? { ...faction, edition: frozen.edition ?? null } : faction}
+        faction={faction}
+        edition={snapshotEdition}
         factionLoading={factionLoading}
         limit={limit}
         unitCount={fieldedUnitCount}
