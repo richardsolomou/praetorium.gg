@@ -18,7 +18,7 @@ import {
   userSchema,
   setOwnPasswordSchema,
   unlinkOwnAccountSchema,
-} from '../schemas'
+} from '../../contracts/schemas'
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
 

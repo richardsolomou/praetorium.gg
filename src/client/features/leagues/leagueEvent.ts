@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
-import type { openLeague } from '../../../server/functions'
+import type { openLeague } from '../../functions'
 import { leaguesQuery } from '../../queries'
 
 export type League = NonNullable<Awaited<ReturnType<typeof openLeague>>>

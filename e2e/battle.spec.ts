@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import {
   advance,
+  retryUntilVisible,
   advanceButton,
   attachRoster,
   befriend,
@@ -360,8 +361,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     .first()
   await expect(spectatorMission).toBeVisible()
   const missionName = (await spectatorMission.getAttribute('aria-label'))?.replace(/^Read /, '')
-  await spectatorMission.click()
-  await expect(spectator.getByRole('dialog', { name: missionName })).toBeVisible()
+  await retryUntilVisible(spectator.getByRole('dialog', { name: missionName }), () => spectatorMission.click())
   await expect(spectator.getByText('Spectators can follow the score, armies, and event log without changing the battle.')).toHaveCount(0)
 
   // The side panel is the way out of a battle to whoever is playing it and to what
@@ -467,6 +467,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await alice.screenshot({ path: 'test-results/scoring-undo-restored.png' })
 
   // Hold Bob's first submission so Alice deterministically wins this race.
+  await expect.poll(() => bob.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction))).toBe(true)
   const answerName = await answer.getAttribute('aria-label')
   await bobScoring.getByRole('button', { name: answerName ?? '', exact: true }).click()
   let releaseBob = () => {}
@@ -532,6 +533,14 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   }
   await bobConfirmation
   await bob.unroute('**/*')
+  await expect(bob.getByText('Review saved changes', { exact: true })).toBeVisible()
+  await bob.getByRole('dialog', { name: 'Discard tactical secondaries?' }).getByRole('button', { name: 'Minimize dialog' }).click()
+  await bob.getByRole('button', { name: 'Details', exact: true }).click()
+  const saved = bob.getByRole('dialog', { name: 'Saved changes' })
+  await saved.getByRole('button', { name: 'Use server version' }).click()
+  await bob.getByRole('alertdialog').getByRole('button', { name: 'Discard changes', exact: true }).click()
+  await expect(bob.getByRole('alertdialog')).toBeHidden()
+  await expect(saved).toBeHidden()
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
   await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
   await expect(

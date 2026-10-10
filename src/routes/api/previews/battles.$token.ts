@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { battlePreview } from '../../../client/linkPreview'
 import { app } from '../../../server/app'
 import { previewResponse } from '../../../server/previewImage'
-import { tokenSchema } from '../../../server/schemas'
+import { tokenSchema } from '../../../contracts/schemas'
 
 /** A live score moves, so its picture is held briefly; a finished one only changes if the battle is reopened. */
 const LIVE_SECONDS = 60

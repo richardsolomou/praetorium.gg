@@ -1,4 +1,4 @@
-import type { gameReferences } from '../../../server/functions'
+import type { gameReferences } from '../../functions'
 import { routeSlug } from '../../../core/slug'
 
 type GameReferences = Awaited<ReturnType<typeof gameReferences>> | undefined

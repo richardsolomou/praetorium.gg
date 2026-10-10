@@ -30,9 +30,9 @@ import { mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints } from '
 import { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
-import { type LoadedCatalogue } from './catalogueIndex'
+import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
-import type { PriceInput } from './schemas'
+import type { PriceInput } from '../contracts/schemas'
 
 export { rosterDetachments }
 export { heldWargear } from './heldWargear'

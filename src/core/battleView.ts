@@ -14,6 +14,7 @@ import {
   SECONDARY_GUIDE,
   TACTICAL_HAND_SIZE,
   sameSide,
+  playsSide,
   scoringDue,
   secretSettlementActionPlayerId,
   type Secondary,
@@ -188,8 +189,7 @@ export function battleView(
    * it. Without this its hand would be hidden from the only person able to play it.
    */
   const plays = (side: number) => {
-    const seated = state.players.filter((player) => player.side === side)
-    return seated.some((player) => player.id === viewerId) || seated.every((player) => automated.has(player.id))
+    return playsSide(state, viewerId, side)
   }
   return {
     token: battle.token,

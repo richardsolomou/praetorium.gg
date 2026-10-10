@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { RosterPick } from '../../../core/roster'
-import { picksSchema } from '../../../server/schemas'
+import { picksSchema } from '../../../contracts/schemas'
 import { positionedPicks } from './rosterPicks'
 import { draftKey, savedDraft } from './rosterDraft'
 

@@ -661,8 +661,8 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
 
 test('Tipping Point shows five layout objectives with a shared central area', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/reconnaissance')
-  await page.getByRole('button', { name: 'Enlarge terrain layout A: Tipping Point' }).click()
   const dialog = page.getByRole('dialog')
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Tipping Point' }).click())
   await expect(dialog.getByText('Objective terrain', { exact: true }).first()).toBeVisible()
   await expect(dialog.locator('svg title').filter({ hasText: /^Objective marker outside terrain \(40 mm\)$/ })).toHaveCount(0)
   const objectives = dialog.locator('svg title').filter({ hasText: /^Objective terrain$/ })
@@ -676,8 +676,8 @@ test('Tipping Point shows five layout objectives with a shared central area', as
 
 test('Purge and Reconnaissance show two independent central objectives', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/purge-the-foe/reconnaissance')
-  await page.getByRole('button', { name: 'Enlarge terrain layout A: Hammer and Anvil' }).click()
   const dialog = page.getByRole('dialog')
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Hammer and Anvil' }).click())
   await expect(dialog.locator('svg title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(6)
   for (const position of ['35.0015 23.7515', '24.9985 20.2485']) {
     await expect(dialog.locator(`svg g[transform^="translate(${position})"] title`).filter({ hasText: /^Objective terrain$/ })).toHaveCount(

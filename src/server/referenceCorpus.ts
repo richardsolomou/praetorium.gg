@@ -6,7 +6,7 @@ import { routeSlug } from '../core/slug'
 import { compileCanonicalDetachments } from './canonicalCatalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { DATACARDS_ATTRIBUTION } from './datacards'
-import { gameReferencesFor } from './gameReferences'
+import { gameReferencesFor } from '../shared/gameReferences'
 import { RULES_DATA_ATTRIBUTION, type LoadedRules } from './rules'
 import { referenceText } from './referenceText'
 

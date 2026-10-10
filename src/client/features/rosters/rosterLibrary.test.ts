@@ -4,7 +4,7 @@ import type { RosterSetup } from './RosterSetupDialog'
 import type { RosterPick } from '../../../core/roster'
 
 const reads = vi.hoisted(() => ({ sharedRoster: vi.fn(), saveRoster: vi.fn() }))
-vi.mock('../../../server/functions', () => ({
+vi.mock('../../functions', () => ({
   ...reads,
   copyRoster: vi.fn(),
   deleteRoster: vi.fn(),

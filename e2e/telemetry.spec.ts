@@ -94,7 +94,10 @@ test('an unmatched import reports one failed attempt and no completed save', asy
     ])
 })
 
-test('an import reports saving only after the write succeeds, including a retry', async ({ page }) => {
+test('a connected legacy shell import reports saving only after the write succeeds, including a retry', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
+  })
   await signUp(page, uniqueName('Import retry analytics'))
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { bookOf, categories } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
-import { rosterCombatant } from './rosterCombatRules'
+import { rosterCombatant } from '../shared/rosterCombatRules'
 import { combatRuleChoices } from '../core/combatRules'
 
 const profile = (id: string, name: string, typeName: string, values: Record<string, string>) => ({

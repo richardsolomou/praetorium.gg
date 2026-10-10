@@ -1,5 +1,7 @@
 appId: gg.praetorium
 ---
+- launchApp:
+    stopApp: false
 - extendedWaitUntil:
     visible: 03. Moving
     timeout: 30000
@@ -8,6 +10,9 @@ appId: gg.praetorium
 - tapOn: Praetorium home
 - assertVisible: '(?i)Welcome back, Native.*'
 - takeScreenshot: native-home-after-renderer-recovery
+- tapOn: Rosters
+- assertVisible: 'EDITED NATIVE ARMY OFFLINE.*'
+- takeScreenshot: native-edit-after-renderer-recovery
 - tapOn: More
 - tapOn:
     text: RULES Game reference
@@ -17,4 +22,7 @@ appId: gg.praetorium
     direction: DOWN
     centerElement: true
 - tapOn: '03\. Moving.*'
+- extendedWaitUntil:
+    notVisible: Find a rule
+    timeout: 30000
 - assertVisible: 03. Moving

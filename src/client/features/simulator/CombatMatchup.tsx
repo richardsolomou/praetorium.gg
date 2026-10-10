@@ -1,3 +1,4 @@
+import CombatWorker from './combatWorker'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -298,7 +299,7 @@ export function CombatMatchup({
       stop()
     }
     try {
-      worker = new Worker(new URL('./combat.worker.ts', import.meta.url), { type: 'module' })
+      worker = new CombatWorker()
       worker.onmessage = (event: MessageEvent<CombatAnswer>) => {
         if (active) {
           setOutcome({ key: requestKey, attempt: retry, answer: event.data })

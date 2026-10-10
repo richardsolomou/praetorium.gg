@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { battlesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { deleteBattle } from '../../../server/functions'
+import { deleteBattle } from '../../functions'
 import type { Battle } from './battle'
 
 /**

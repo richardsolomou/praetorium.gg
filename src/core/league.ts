@@ -206,3 +206,11 @@ export function readsAlliedLeagueRoster(
   }
   return false
 }
+
+export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {
+  const selected = snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
+  return {
+    count: selected.length,
+    eligible: selected.every((unit) => unit.warlordEligible ?? (legacy || unit.group === 'character' || unit.group === 'epic-hero')),
+  }
+}

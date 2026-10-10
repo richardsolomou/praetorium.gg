@@ -88,7 +88,7 @@ it.skipIf(!url || !database || !token)('advances standings revision only when a 
     expect((await send(userId, 2, { kind: 'begin-battle', firstPlayerId: userId })).result.outcome).toBe('appended')
     expect(await operator.publicStandingsRevision()).toBe(before)
 
-    expect((await send(userId, 3, { kind: 'end-battle' })).result.outcome).toBe('appended')
+    expect((await send(userId, 3, { kind: 'end-battle', reason: 'conceded', concededBy: userId })).result.outcome).toBe('appended')
     const finished = await operator.publicStandingsRevision()
     expect(BigInt(finished)).toBeGreaterThan(BigInt(before))
 

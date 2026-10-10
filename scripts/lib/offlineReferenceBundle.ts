@@ -2,20 +2,25 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
+import { readdirSync, readFileSync } from 'node:fs'
+import type { CatalogueFile } from '../../src/core/catalogue'
+import { packRuntimeData } from '../../src/contracts/runtimeData'
 import { loadCatalogue, isReferenceDatasheet } from '../../src/server/catalogueIndex'
 import { loadRules } from '../../src/server/rules'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
-import { detachmentsOffering } from '../../src/server/factionReferences'
-import { unitsIn } from '../../src/server/cataloguePicker'
-import { detachmentReference } from '../../src/server/detachmentReference'
+import { detachmentsOffering } from '../../src/shared/factionReferences'
+import { unitsIn } from '../../src/shared/cataloguePicker'
+import { detachmentReference } from '../../src/shared/detachmentReference'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../../src/server/referenceCatalogue'
-import { gameReferencesFor } from '../../src/server/gameReferences'
+import { gameReferencesFor } from '../../src/shared/gameReferences'
+import { readCatalogueComposition } from '../../src/server/catalogueComposition'
+import { editionCatalogueId } from '../../src/core/catalogueEdition'
 import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { routeSlug } from '../../src/core/slug'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
 import { MAX_OFFLINE_BYTES, MAX_OFFLINE_QUERIES, type OfflineReferenceBundle } from '../../src/contracts/offlineReference'
 
-export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'queries' | 'search'>) {
+export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'queries' | 'search' | 'construction'>) {
   if (content.queries.length > MAX_OFFLINE_QUERIES) throw new Error('Offline reference has too many entries')
   const revision = createHash('sha256').update(JSON.stringify(content)).digest('hex')
   const json = Buffer.from(JSON.stringify({ version: 1, revision, ...content }))
@@ -58,6 +63,7 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     revision: versioned.revision,
     factions,
   })
+  put(['combat-units'], versions.combatUnits())
   const referenceFactions = [...factions]
   const queued = new Set(factions.map((faction) => faction.id))
   const queueReference = (catalogueId: string) => {
@@ -120,7 +126,29 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
       templates: rules.terrainTemplates,
     })
   put(['deployments'], rules.deployments)
-  const { revision, compressed } = encodeReferenceBundle({ queries, search: versions.searchIndex()! })
+  const constructionFor = (target: string, selectedCatalogue: typeof catalogue, selectedRules: typeof rules) => ({
+    version: 1 as const,
+    revision: selectedCatalogue.index.revision,
+    ...(selectedCatalogue.edition ? { edition: selectedCatalogue.edition } : {}),
+    files: readdirSync(path.join(target, 'definitions'))
+      .filter((name) => name.endsWith('.json'))
+      .sort()
+      .map((name): CatalogueFile => JSON.parse(readFileSync(path.join(target, 'definitions', name), 'utf8'))),
+    datacards: packRuntimeData(selectedCatalogue.datacards),
+    mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
+    rules: packRuntimeData(selectedRules),
+  })
+  const construction = {
+    ...constructionFor(directory, catalogue, rules),
+    editions: (readCatalogueComposition(directory)?.editions ?? []).map(({ edition }) => {
+      const id = editionCatalogueId(edition.id, edition.catalogueIds[0]!)
+      const selectedCatalogue = versions.catalogueFor(id)
+      const selectedRules = versions.rulesFor(id)
+      if (!selectedCatalogue || !selectedRules) throw new Error(`Offline construction data is unavailable for ${id}`)
+      return constructionFor(path.join(directory, 'editions', edition.id), selectedCatalogue, selectedRules)
+    }),
+  }
+  const { revision, compressed } = encodeReferenceBundle({ queries, search: versions.searchIndex()!, construction })
   const bundle = `/assets/reference-${revision}.bin`
   await writeFile(path.join(outDir, bundle), compressed)
   await writeFile(path.join(outDir, 'offline-reference-version.json'), JSON.stringify({ revision, bundle }))

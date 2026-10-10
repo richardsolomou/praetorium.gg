@@ -12,18 +12,18 @@ import type {
   CanonicalSourceName,
 } from '../contracts/catalogue'
 import type { RuleDocument } from '../contracts/rules'
-import { datasheetIn } from './catalogue'
+import { datasheetIn } from '../shared/catalogue'
 import { catalogueDirectory, datasheetsOf, isReferenceDatasheet, loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
-import { isMatchedPlayDatasheet } from './cataloguePicker'
+import { isMatchedPlayDatasheet } from '../shared/cataloguePicker'
 import { DATACARDS_ATTRIBUTION } from './datacards'
-import { datacardOf } from './datasheetJoin'
-import { describeDatasheetAbilitiesWithContributions } from './datasheetDescriptions'
-import { detachmentReference } from './detachmentReference'
-import { factionsFor } from './factionReferences'
-import { factionDisplayName } from './factionNames'
+import { datacardOf } from '../shared/datasheetJoin'
+import { describeDatasheetAbilitiesWithContributions } from '../shared/datasheetDescriptions'
+import { detachmentReference } from '../shared/detachmentReference'
+import { factionsFor } from '../shared/factionReferences'
+import { factionDisplayName } from '../shared/factionNames'
 import { loadRules, type LoadedRules } from './rules'
 import { mfmAttribution, mfmCostRows } from './mfm'
-import { mfmUnitFor } from './unitPoints'
+import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
 export const CANONICAL_CATALOGUE_COMPILER_VERSION = 3 as const

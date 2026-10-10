@@ -3,7 +3,7 @@ import { Route } from './optimize'
 
 const { catalogueFor, rulesFor, candidates } = vi.hoisted(() => ({ catalogueFor: vi.fn(), rulesFor: vi.fn(), candidates: vi.fn() }))
 vi.mock('../../../server/app', () => ({ app: () => ({ catalogueFor, rulesFor }) }))
-vi.mock('../../../server/combatLoadouts', () => ({ combatLoadoutCandidates: candidates }))
+vi.mock('../../../shared/combatLoadouts', () => ({ combatLoadoutCandidates: candidates }))
 beforeEach(() => {
   vi.stubEnv('APP_URL', 'https://praetorium.gg')
   vi.resetAllMocks()

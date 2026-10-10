@@ -12,14 +12,18 @@ appId: gg.praetorium
     timeout: 30000
 - assertNotVisible: Welcome back
 - takeScreenshot: native-auth-refreshed
-- tapOn: Praetorium home
-- extendedWaitUntil:
-    visible: Allow notifications
-    timeout: 30000
-- takeScreenshot: native-notification-offer
-- tapOn: Allow notifications
-- takeScreenshot: native-notification-permission
-- tapOn: Allow
-- extendedWaitUntil:
-    notVisible: Get notified about your games
-    timeout: 30000
+- runFlow:
+    when:
+      true: ${NATIVE_OFFLINE_VERIFY != '1'}
+    commands:
+      - tapOn: Praetorium home
+      - extendedWaitUntil:
+          visible: Allow notifications
+          timeout: 30000
+      - takeScreenshot: native-notification-offer
+      - tapOn: Allow notifications
+      - takeScreenshot: native-notification-permission
+      - tapOn: Allow
+      - extendedWaitUntil:
+          notVisible: Get notified about your games
+          timeout: 30000

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { catalogueEditionSchema, editionCatalogueFiles, picksForCatalogueEdition } from './catalogueEdition'
+import { catalogueEditionSchema, editionCatalogueFiles, picksForCatalogueEdition, leagueEditionError } from './catalogueEdition'
 import type { CatalogueFile } from './catalogue'
 
 const preview = {
@@ -85,4 +85,11 @@ it('qualifies books and their references without changing unit or option identit
     { catalogue: { id: 'custodes-codex~library' } },
   ])
   expect(files[0]!.catalogue?.id).toBe('custodes')
+})
+
+it.each(['released', 'retired'] as const)('allows %s codexes in leagues', (status) => {
+  expect(leagueEditionError({ status })).toBeNull()
+})
+it('rejects preview codexes in leagues', () => {
+  expect(leagueEditionError({ status: 'preview' })).toBe('preview codex rules cannot be submitted to a league')
 })

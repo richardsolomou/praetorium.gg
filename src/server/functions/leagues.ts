@@ -20,7 +20,7 @@ import {
   submitLeagueRosterSchema,
   tokenSchema,
   updateLeagueSchema,
-} from '../schemas'
+} from '../../contracts/schemas'
 
 export const listLeagues = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.leagues(await currentUserId())))
 

@@ -7,7 +7,7 @@ import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { friendInviteQuery, friendshipsQuery, meQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { acceptFriendInvite } from '../../../server/functions'
+import { acceptFriendInvite } from '../../functions'
 
 export function FriendInvitePage({ token }: { token: string }) {
   const { data: invite } = useQuery(friendInviteQuery(token))

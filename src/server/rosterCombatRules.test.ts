@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { combatRuleAppliesTo, combatRuleChoices } from '../core/combatRules'
 import { bookOf, categories } from './catalogue.fixtures'
-import { datasheetAbilitiesIn, datasheetIn } from './catalogue'
-import { rosterCombatant } from './rosterCombatRules'
-import { rosterDatasheetContext } from './rosterDatasheetContext'
+import { datasheetAbilitiesIn, datasheetIn } from '../shared/catalogue'
+import { rosterCombatant } from '../shared/rosterCombatRules'
+import { rosterDatasheetContext } from '../shared/rosterDatasheetContext'
 
 const aura =
   'While a friendly **ARMY** unit (excluding **MONSTER** and **TITANIC** units) is within 6" of this model, each time a model in that unit makes an attack, if that model has the **CULT** keyword or that enemy unit is the closest eligible target, that attack has the [SUSTAINED HITS 1] ability.'

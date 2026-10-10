@@ -1,7 +1,7 @@
 import type { CatalogueIndex, Definition, Profile } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type SectionProse } from './datacards'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../shared/rulesSource'
 
 /** Fill an undescribed card section only from a complete matching entry in the same faction’s books; a title match alone can name unrelated wargear. */
 export function catalogueSections(index: CatalogueIndex): SectionProse {

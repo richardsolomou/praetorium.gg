@@ -2,7 +2,7 @@ import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../.
 import type { RosterReminder } from '../../../core/reminders'
 import type { RosterPick } from '../../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
-import type { saveRoster } from '../../../server/functions'
+import type { saveRoster } from '../../functions'
 import { normalisePicks } from './rosterPicks'
 
 /** A list exactly as the builder's autosave sends it. */

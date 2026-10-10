@@ -1,6 +1,8 @@
+import { parseLocalState } from '../contracts/localState'
 import { useSyncExternalStore } from 'react'
 
 type NativeCapability =
+  | 'local-state'
   | 'app-snapshot'
   | 'account'
   | 'app-navigation'
@@ -41,6 +43,72 @@ function send(capability: NativeCapability, message: Record<string, unknown>) {
   if (!supports(capability) || !window.ReactNativeWebView) return false
   window.ReactNativeWebView.postMessage(JSON.stringify({ version: 3, ...message }))
   return true
+}
+
+export type NativeLocalState = { epoch: string; state: import('../contracts/localState').LocalState | null; saved: boolean }
+export function supportsNativeLocalState() {
+  return supports('local-state')
+}
+
+export function requestNativeLocalState(
+  owner: string,
+  write?: { state: import('../contracts/localState').LocalState | null; epoch: string; expectedRevision: number },
+): Promise<NativeLocalState> {
+  const id = crypto.randomUUID()
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      clearTimeout(timer)
+      window.removeEventListener('praetorium-native-local-state', listen)
+    }
+    const listen = (event: Event) => {
+      const answer = (event as CustomEvent<NativeLocalState & { id?: string; error?: string }>).detail
+      if (!answer || answer.id !== id) return
+      finish()
+      if (
+        answer.error ||
+        typeof answer.epoch !== 'string' ||
+        (answer.state !== null && (!parseLocalState(answer.state) || answer.state.owner !== owner))
+      )
+        reject(new Error(answer.error ?? 'Changes could not be saved on this device.'))
+      else resolve(answer)
+    }
+    const timer = setTimeout(() => {
+      finish()
+      reject(new Error('This device did not confirm saving your changes.'))
+    }, 10_000)
+    window.addEventListener('praetorium-native-local-state', listen)
+    if (!send('local-state', { type: 'native-local-state', owner, id, ...write })) {
+      finish()
+      reject(new Error('Device storage is unavailable.'))
+    }
+  })
+}
+
+export function exportNativeWork(state: import('../contracts/localState').LocalState): Promise<boolean> {
+  if (!supportsNativeLocalState()) return Promise.resolve(false)
+  const id = crypto.randomUUID()
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      clearTimeout(timer)
+      window.removeEventListener('praetorium-native-export-work', listen)
+    }
+    const listen = (event: Event) => {
+      const answer = (event as CustomEvent<{ id: string; error?: string }>).detail
+      if (!answer || answer.id !== id) return
+      finish()
+      if (answer.error) reject(new Error(answer.error))
+      else resolve(true)
+    }
+    const timer = setTimeout(() => {
+      finish()
+      reject(new Error('The export did not finish. Try again.'))
+    }, 120_000)
+    window.addEventListener('praetorium-native-export-work', listen)
+    if (!send('local-state', { type: 'native-export-work', id, state })) {
+      finish()
+      resolve(false)
+    }
+  })
 }
 
 export function setNativeBattleActive(active: boolean) {

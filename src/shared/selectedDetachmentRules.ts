@@ -1,6 +1,6 @@
 import type { Stratagem } from '../core/battle'
 import { detachmentNamed } from './factionReferences'
-import type { DetachmentRulesDetail } from './rulesFactions'
+import type { DetachmentRulesDetail } from '../contracts/factions'
 
 export function selectedDetachmentRules(
   names: readonly string[],

@@ -4,7 +4,7 @@ import { catalogueEditionId, editionCatalogueId, editionLabel } from '../core/ca
 import { loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
 import { readCatalogueComposition } from './catalogueComposition'
 import { loadRules, type LoadedRules } from './rules'
-import { factionsFor } from './factionReferences'
+import { factionsFor } from '../shared/factionReferences'
 import { compileCanonicalCatalogueFromSnapshot } from './canonicalCatalogue'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { routeSlug } from '../core/slug'

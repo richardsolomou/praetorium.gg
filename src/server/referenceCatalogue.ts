@@ -1,7 +1,7 @@
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import { datasheetInBySlug } from './catalogue'
+import { datasheetInBySlug } from '../shared/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { describeDatasheetAbilities } from './datasheetDescriptions'
+import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
 import type { LoadedRules } from './rules'
 import { ruleIndexOf, ruleSectionOf } from './rulesCore'
 

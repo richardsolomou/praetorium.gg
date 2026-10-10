@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { createBattle, submit } from './battles'
-import { createBattleSchema, submitSchema } from '../schemas'
+import { createBattleSchema, submitSchema } from '../../contracts/schemas'
 
 const mocks = vi.hoisted(() => ({ capture: vi.fn(), createBattle: vi.fn(), submit: vi.fn() }))
 

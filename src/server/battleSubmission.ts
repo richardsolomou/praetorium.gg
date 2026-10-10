@@ -1,6 +1,6 @@
 import type { Command } from '../core/battle'
 import type { z } from 'zod'
-import type { submitSchema } from './schemas'
+import type { submitSchema } from '../contracts/schemas'
 import { rosterForUse } from './rosterUsage'
 
 export async function submittedBattleCommand(userId: string, submitted: z.infer<typeof submitSchema>['command']): Promise<Command> {

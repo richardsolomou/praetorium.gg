@@ -1,3 +1,5 @@
+import { localCombatStream } from '../../offline/combatStream'
+import CombatWorker from './combatWorker'
 import { useContext, useEffect, useRef, useState } from 'react'
 import {
   compareOutcomes,
@@ -72,20 +74,28 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     setError(null)
     timer = setTimeout(() => fail('The full search could not finish. The best loadout found so far has been kept.'), 120_000)
     try {
-      const response = await fetch('/api/simulator/optimize', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          catalogueId: combatant.catalogueId,
-          detachmentIds: combatant.detachmentIds,
-          picks: combatant.picks.positioned,
-          pickIndex: combatant.pickIndex,
-        }),
-      })
+      const input = {
+        catalogueId: combatant.catalogueId,
+        detachmentIds: combatant.detachmentIds,
+        picks: combatant.picks.positioned,
+        pickIndex: combatant.pickIndex,
+      }
+      const response =
+        localCombatStream(input, controller.signal) ??
+        (await fetch('/api/simulator/optimize', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            catalogueId: combatant.catalogueId,
+            detachmentIds: combatant.detachmentIds,
+            picks: combatant.picks.positioned,
+            pickIndex: combatant.pickIndex,
+          }),
+        }))
       if (!response.ok || !response.body) throw new Error('The loadout could not be loaded. Try again.')
       const count = Math.min(4, Math.max(1, navigator.hardwareConcurrency ?? 2))
-      for (let at = 0; at < count; at++) workers.push(new Worker(new URL('./combat.worker.ts', import.meta.url), { type: 'module' }))
+      for (let at = 0; at < count; at++) workers.push(new CombatWorker())
       let best: OptimizedLoadout | undefined =
         context.result && combatant.pick
           ? {

@@ -2,8 +2,8 @@ import type { z } from 'zod'
 import { ROSTER_NAME_MAX_LENGTH } from '../core/battle'
 import { variantName } from '../core/rosterVariants'
 import { app } from './app'
-import { calculateRosterTotals } from './pricing'
-import type { saveRosterSchema } from './schemas'
+import { calculateRosterTotals } from '../shared/pricing'
+import type { saveRosterSchema } from '../contracts/schemas'
 
 export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveRosterSchema>, baseRosterId: string | null = null) {
   const instance = app()

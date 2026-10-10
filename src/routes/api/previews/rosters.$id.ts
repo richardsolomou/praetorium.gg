@@ -3,7 +3,7 @@ import { rosterPreview } from '../../../client/linkPreview'
 import { app } from '../../../server/app'
 import { previewResponse } from '../../../server/previewImage'
 import { cachedRosterPrice } from '../../../server/rosterPrices'
-import { rosterIdSchema } from '../../../server/schemas'
+import { rosterIdSchema } from '../../../contracts/schemas'
 
 /** An owner can rename a list or take it private, so its picture is not held for long. */
 const ROSTER_SECONDS = 300

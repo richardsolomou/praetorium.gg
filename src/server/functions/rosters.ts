@@ -5,10 +5,16 @@ import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { calculateRosterPrice } from '../pricing'
+import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
-import { exportRosterFile, importRosterCatalogueId, importRosterFaction, importRosterFile, matchesImportFaction } from '../rosterFiles'
+import {
+  exportRosterFile,
+  importRosterCatalogueId,
+  importRosterFaction,
+  importRosterFile,
+  matchesImportFaction,
+} from '../../shared/rosterFiles'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
 import { variantDifferences } from '../rosterDifferences'
 import { copyOwnedRoster, saveOwnedRoster } from '../saveOwnedRoster'
@@ -24,7 +30,7 @@ import {
   rosterVisibilitySchema,
   saveRosterSchema,
   userSchema,
-} from '../schemas'
+} from '../../contracts/schemas'
 
 export const priceRoster = createServerFn({ method: 'POST' })
   .validator(priceSchema)

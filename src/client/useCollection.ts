@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { setOwned } from '../server/functions'
+import { setOwned } from './functions'
 import { collectionQuery } from './queries'
 
 export function useCollectionMutation() {

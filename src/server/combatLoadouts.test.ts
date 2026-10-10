@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SelectionEntry } from '../core/catalogue'
 import { bookOf, points } from './catalogue.fixtures'
-import { combatLoadoutSpace } from './combatLoadouts'
+import { combatLoadoutSpace } from '../shared/combatLoadouts'
 
 const weapon = (id: string, name: string): SelectionEntry => ({
   id,

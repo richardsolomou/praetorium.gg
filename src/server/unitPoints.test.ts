@@ -2,9 +2,9 @@ import { expect, it } from 'vitest'
 import { evaluate } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { bookOf, card, points, withCards } from './catalogue.fixtures'
-import { priceOf } from './catalogueUnit'
-import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from './pricing'
-import { unitPointAdjustment } from './unitPoints'
+import { priceOf } from '../shared/catalogueUnit'
+import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
+import { unitPointAdjustment } from '../shared/unitPoints'
 import { mfmWargearOptionPoints } from './mfm'
 
 const loaded = bookOf({

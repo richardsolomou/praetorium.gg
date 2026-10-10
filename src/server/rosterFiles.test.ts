@@ -3,7 +3,7 @@ import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
 import { descriptionKey } from './datacards'
-import { exportRosterFile, importRosterFile, importRosterCatalogueId } from './rosterFiles'
+import { exportRosterFile, importRosterFile, importRosterCatalogueId } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }

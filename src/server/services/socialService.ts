@@ -1,3 +1,4 @@
+import { offlineIdentifier } from '../offlineContext'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import { randomToken } from 'ras-stack/auth'
@@ -77,7 +78,7 @@ export class SocialService {
   }
 
   async createFriendInvite(userId: string) {
-    const token = randomToken()
+    const token = offlineIdentifier('inviteToken', randomToken)
     await this.repository.replaceFriendInvite(userId, token, this.clock())
     return { token }
   }

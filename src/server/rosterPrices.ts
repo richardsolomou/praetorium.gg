@@ -1,6 +1,6 @@
 import { app } from './app'
 import type { BuiltUnit } from '../core/roster'
-import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from './pricing'
+import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
 import { type RosterVerdict, rosterVerdict } from './rosterStatus'
 
 /**

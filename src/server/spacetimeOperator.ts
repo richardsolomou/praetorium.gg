@@ -1,3 +1,4 @@
+import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
@@ -5,7 +6,7 @@ import { commandSchema } from '../core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import type { PlayerDefaults } from '../core/playerDefaults'
-import { playerDefaultsSchema } from './schemas'
+import { playerDefaultsSchema } from '../contracts/schemas'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 
 const rosterRow = z.strictObject({
@@ -45,7 +46,15 @@ const pushTarget = z.strictObject({ userId: z.string(), token: z.string() })
 const battleSnapshot = z.strictObject({
   battle: z.strictObject({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
   seats: z.array(z.strictObject({ id: z.string(), side: z.number().int(), automated: z.boolean() })),
-  log: z.array(z.strictObject({ seq: z.number().int(), by: z.string(), at: z.number().int(), command: commandSchema })),
+  log: z.array(
+    z.strictObject({
+      seq: z.number().int(),
+      by: z.string(),
+      at: z.number().int(),
+      command: commandSchema,
+      operationId: z.uuid().optional(),
+    }),
+  ),
 })
 const battleFeedResult = z.strictObject({
   battles: z.array(z.strictObject({ ...battleSnapshot.shape, at: z.number().int() })),
@@ -158,6 +167,15 @@ type SaveRosterInput = {
   visibility: RosterVisibility
   source: RosterSource
   now: number
+}
+
+export class SpacetimeRequestError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message)
+  }
 }
 
 export class SpacetimeOperator {
@@ -291,7 +309,16 @@ export class SpacetimeOperator {
   }
 
   async submit(
-    input: { battleId: string; userId: string; expectedSeq: number; command: Command; now: number },
+    input: {
+      battleId: string
+      userId: string
+      expectedSeq: number
+      command: Command
+      now: number
+      operationId?: string
+      fingerprint?: string
+      recordedAt?: number
+    },
     validateState?: (state: ReturnType<typeof reduceBattle>) => Refusal | null,
     resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
   ): Promise<{ result: SubmitResult; log: LoggedCommand[] }> {
@@ -310,7 +337,10 @@ export class SpacetimeOperator {
       input.battleId,
       input.userId,
       input.expectedSeq,
-      JSON.stringify(command),
+      JSON.stringify({
+        ...command,
+        ...(input.operationId ? { $sync: { operationId: input.operationId, fingerprint: input.fingerprint, at: input.recordedAt } } : {}),
+      }),
       input.now,
       externalRefusal?.message ?? '',
     ])
@@ -462,6 +492,15 @@ export class SpacetimeOperator {
     return z.array(rosterRow).parse(await this.read('rosters_by_user', [userId, publicOnly, limit]))
   }
 
+  async syncRoster(input: { row: string; operationId: string; fingerprint: string; expectedVersion: number | null; deleted: boolean }) {
+    return z
+      .discriminatedUnion('outcome', [
+        z.object({ outcome: z.literal('applied'), version: z.number().int().nonnegative(), deleted: z.boolean() }),
+        z.object({ outcome: z.enum(['conflict', 'refused']), message: z.string() }),
+      ])
+      .parse(await this.read('sync_roster', [JSON.stringify(input)]))
+  }
+
   async saveRoster(input: SaveRosterInput) {
     const response = await this.call('save_roster', [
       JSON.stringify({
@@ -589,7 +628,30 @@ export class SpacetimeOperator {
     return JSON.parse(z.string().parse(await response.json())) as unknown
   }
 
-  private async call(reducer: string, arguments_: unknown[]) {
+  async syncReceipt(id: string, owner: string, fingerprint: string) {
+    return z
+      .object({ outcome: z.enum(['applied', 'refused']), message: z.string() })
+      .nullable()
+      .parse(await this.read('sync_receipt', [id, owner, fingerprint]))
+  }
+
+  private async call(reducer: string, arguments_: unknown[]): Promise<Response> {
+    const context = offlineContext.getStore()
+    if (context && SYNC_PRODUCT_ACTIONS.has(reducer)) {
+      if (context.wrote) throw new Error('A saved action must commit in one transaction.')
+      context.wrote = true
+      const response = await this.call('sync_product', [
+        JSON.stringify({
+          id: context.id,
+          owner: context.owner,
+          fingerprint: context.fingerprint,
+          createdAt: context.createdAt,
+          name: reducer,
+          args: arguments_,
+        }),
+      ])
+      return new Response(z.string().parse(await response.json()), { headers: { 'content-type': 'application/json' } })
+    }
     const endpoint = new URL(`/v1/database/${this.database}/call/${reducer}`, this.baseUrl)
     const response = await this.request(endpoint, {
       method: 'POST',
@@ -603,7 +665,10 @@ export class SpacetimeOperator {
       signal: AbortSignal.timeout(10_000),
     })
     if (!response.ok)
-      throw new Error(`SpacetimeDB ${reducer} failed with HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`)
+      throw new SpacetimeRequestError(
+        response.status,
+        `SpacetimeDB ${reducer} failed with HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`,
+      )
     return response
   }
 }

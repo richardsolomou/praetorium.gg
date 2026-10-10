@@ -1,5 +1,6 @@
 import { isWatchCompanionAvailable, publishWatchBattle, subscribeWatchAvailability } from './src/watchCompanion'
 import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './src/offlineReferenceStorage'
+import { readLocalState, storeLocalState } from './src/localStateStorage'
 import { appSnapshotScript, storeAppSnapshot } from './src/appSnapshotStorage'
 import { APP_URL } from './src/navigation'
 import { StatusBar } from 'expo-status-bar'
@@ -10,6 +11,7 @@ import * as Print from 'expo-print'
 import * as WebBrowser from 'expo-web-browser'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { File, Paths } from 'expo-file-system'
 import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
@@ -305,6 +307,39 @@ function AppShell() {
   const handleNativeAction = useCallback(
     async (action: NativeActionRequest) => {
       switch (action.kind) {
+        case 'export-work': {
+          let error: string | undefined
+          const file = new File(Paths.cache, `praetorium-offline-${action.id}.json`)
+          try {
+            if (Platform.OS !== 'ios') throw new Error('File export is currently available on iOS and the website.')
+            file.write(JSON.stringify(action.state, null, 2))
+            await Share.share({ url: file.uri, title: 'Praetorium saved changes' })
+          } catch (problem) {
+            error = problem instanceof Error ? problem.message : 'Your saved changes could not be exported.'
+          } finally {
+            if (file.exists) file.delete()
+          }
+          webView.current?.injectJavaScript(
+            `window.dispatchEvent(new CustomEvent('praetorium-native-export-work', { detail: ${JSON.stringify({ id: action.id, error }).replaceAll('<', '\u003c')} })); true;`,
+          )
+          break
+        }
+        case 'local-state': {
+          let answer
+          try {
+            answer =
+              action.state === undefined
+                ? { ...readLocalState(action.owner), saved: true }
+                : storeLocalState(action.owner, action.state, action.epoch!, action.expectedRevision!, action.id)
+          } catch (error) {
+            captureNativeException('local_state_save', error)
+            answer = { saved: false, error: 'Changes could not be saved on this device.' }
+          }
+          webView.current?.injectJavaScript(
+            `window.dispatchEvent(new CustomEvent('praetorium-native-local-state', { detail: ${JSON.stringify({ id: action.id, ...answer }).replaceAll('<', '\\u003c')} })); true;`,
+          )
+          break
+        }
         case 'watch-battle':
           await publishWatchBattle(action.snapshot)
           break

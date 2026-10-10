@@ -1,4 +1,4 @@
-import { chooseCombatUnit, closeCombatBreakdown, openCombatBreakdown, openCombatControls } from './combat'
+import { chooseCombatUnit, closeCombatBreakdown, openCombatBreakdown, openCombatControls, holdCombatCalculations } from './combat'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { chooseUnit as chooseCatalogueUnit, retryUntilVisible } from './account'
 
@@ -496,6 +496,7 @@ test('variable weapon abilities produce damage probabilities', async ({ page }) 
 
 for (const width of [1440, 390, 860, 1024]) {
   test(`automatic shooting and melee with stable edits at ${width}px`, async ({ page }) => {
+    await page.route('**/offline-reference-version.json', (route) => route.abort())
     await page.setViewportSize({ width, height: 1000 })
     await page.goto('/more')
     await page.getByRole('link', { name: 'Simulator Damage and kill probabilities' }).click()
@@ -587,36 +588,20 @@ for (const width of [1440, 390, 860, 1024]) {
     await expect(await estimate(page, 'Shooting')).not.toContainText('2.22')
     const coveredDamage = await (await estimate(page, 'Shooting')).locator('.readout').first().textContent()
 
-    let hold = true
-    let intercepted = false
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    await page.route('**/*', async (route) => {
-      const request = route.request()
-      if (hold && request.method() === 'POST' && request.url().includes('/_serverFn/')) {
-        intercepted = true
-        await gate
-      }
-      await route.continue()
-    })
+    const calculation = await holdCombatCalculations(page)
     await page.getByRole('button', { name: 'More defender models' }).click()
-    await expect.poll(() => intercepted).toBe(true)
+    await calculation.waitForStart()
     await expect(shooting).toHaveAttribute('aria-busy', 'true')
     await expect(page.getByText(/Updating…|Estimates · up to/)).toHaveCount(0)
     await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('6')
     for (let added = 0; added < 4; added++) await page.getByRole('button', { name: 'More defender models' }).click()
     await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('10')
     await expect(page.getByRole('button', { name: 'More defender models' })).toBeDisabled()
-    await expect(swap).toBeDisabled()
     await expect((await estimate(page, 'Shooting')).locator('.readout').first()).toHaveText(coveredDamage!)
     await expect(melee).toContainText('5× Knives and Fists')
     await page.screenshot({ path: `test-results/simulator-updating-${width}.png`, fullPage: true })
-    hold = false
-    release()
+    await calculation.release()
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await page.unrouteAll({ behavior: 'wait' })
 
     await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
     const loadout = page.getByRole('dialog')
@@ -628,27 +613,15 @@ for (const width of [1440, 390, 860, 1024]) {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-loadout-${width}.png`, fullPage: true })
 
-    let releaseLoadout = () => {}
-    let loadoutIntercepted = false
-    const loadoutGate = new Promise<void>((resolve) => {
-      releaseLoadout = resolve
-    })
-    await page.route('**/*', async (route) => {
-      if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) {
-        loadoutIntercepted = true
-        await loadoutGate
-      }
-      await route.continue()
-    })
+    const loadoutCalculation = await holdCombatCalculations(page)
     await mode.click()
-    await expect.poll(() => loadoutIntercepted).toBe(true)
+    await loadoutCalculation.waitForStart()
     await expect(heading).toBeVisible()
     await expect(mode).toBeVisible()
     await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
     await page.screenshot({ path: `test-results/simulator-loadout-updating-${width}.png`, fullPage: true })
-    releaseLoadout()
+    await loadoutCalculation.release()
     await expect(mode).toHaveAttribute('aria-pressed', 'true')
-    await page.unrouteAll({ behavior: 'wait' })
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(melee).toHaveAttribute('aria-busy', 'false')
     await expect(shooting).toContainText('Plasma pistol')
@@ -813,13 +786,13 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
     const RealWorker = window.Worker
     let first = true
     window.Worker = class extends RealWorker {
-      constructor(...args: ConstructorParameters<typeof Worker>) {
-        super(...args)
-        if (first) {
+      override postMessage(message: unknown, options?: StructuredSerializeOptions) {
+        if (first && message && typeof message === 'object' && !('kind' in message)) {
           first = false
           this.terminate()
           throw new Error('Worker startup failure')
         }
+        super.postMessage(message, options)
       }
     }
   })

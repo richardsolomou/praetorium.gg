@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveRosterSchema } from '../../../server/schemas'
+import { saveRosterSchema } from '../../../contracts/schemas'
 import {
   claimInput,
   clearGuestDraft,

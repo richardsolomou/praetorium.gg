@@ -18,7 +18,7 @@
 
 Persist commands, not a second score, phase, round, mission, or casualty state. Every command kind must be covered by both `commandRefusal` and `apply`; every refusal pairs a stable `RefusalCode` with its player-facing message, including the server's rules-dependent refusals in `service.ts`. Repository submission reads, validates, and appends atomically. The product module returns only the message, so `SpacetimeOperator.submit` derives the code by folding the log the module refused against.
 
-`expectedSeq` covers the whole log. A mismatch returns `stale`; never automatically resend with a newer sequence. `useCommand` serializes taps and installs the returned screen before the next command. A stale/refused command discards queued work based on that sequence while preserving work built from a newer realtime screen; a failed automatic background write, such as derived setup cards, discards nothing.
+`expectedSeq` covers the whole log. A mismatch returns `stale`; never automatically resend with a newer sequence. `useCommand` serializes taps and installs the returned screen before the next command. A stale/refused command discards queued work based on that sequence while preserving work built from a newer realtime screen; a failed automatic background write, such as derived setup cards or empty turn settlement, discards nothing. Connected automatic writes use authoritative submission when the battle has no saved local work, then download and save its history before displaying the response. Offline automatic writes remain durable and follow any saved commands in order.
 
 Undo appends a command naming the latest active action. It preserves history and may rewind across turns. Scoring settlement, tactical draws, and discard/CP actions are each atomic undo targets. Start and shared prompt bookkeeping are outside the undo chain. Every required prompt keeps Undo available when rewinding reopens it.
 
@@ -77,3 +77,13 @@ Players choose practice opponents in the ordinary New battle dialog and control 
 ## Verification
 
 Run adjacent domain tests and relevant `e2e/battle*.spec.ts`, `e2e/team-battle.spec.ts`, and guest flows. Cover competing sequences, no automatic stale retry, atomic settlement/undo, cross-device prompts, historical secrets, audience changes, frozen rosters, casualties, and the clock across a full rewind/pause/reopen cycle. Follow [Interface verification](interface.md#verification) for rendered surfaces.
+
+## Offline battles
+
+The client saves seated battle workspaces and commands in the account’s durable local state. Commands use the same core validation and log fold as hosted play; scores, phases and rounds are derived from that history. Public construction data supplies mission validation and pricing. Practice opponents can play from one device; shared battles require the other players’ updates to synchronize before they become visible. Private mission identities and decks are filtered when a workspace is downloaded.
+
+A queued command keeps its operation ID, expected sequence, validation-data revision, recorded time and resolved random draw through retries. Reconnect accepts each command once or retains a conflict for review when another device advanced the history or the downloaded army/game rules changed. Missing authoritative data leaves commands pending; already accepted commands still acknowledge after a rules update. Do not automatically rebase a played command, validate it under a different rules revision, or choose new random cards while replaying it. Export the saved history before discarding a conflict. Run `e2e/offline-work.spec.ts` for offline creation, setup, draws, phase advancement, cold reopen and database-verified reconnect sync.
+
+A deleted or inaccessible battle becomes a retained refusal so unrelated resources can sync. Authentication failures, rate limits and service outages remain retryable. Apply this distinction throughout validation, append and acknowledgement reads.
+
+Battle-creation acknowledgements download their workspace inside the server's refusal handling, including receipt recovery. A missing workspace must not leave an accepted creation blocking the queue. Local active battles omit the replay timeline; finished timelines index report labels by sequence.

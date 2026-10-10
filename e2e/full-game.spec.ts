@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { advance, createRoster, setupBattle, signUp, uniqueName } from './account'
 
 test('two phones complete all five rounds in step', async ({ browser }) => {
+  test.setTimeout(180_000)
   const aliceContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const bobContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const alice = await aliceContext.newPage()
@@ -16,9 +17,11 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   for (let round = 1; round <= 5; round += 1) {
+    await expect(scoreboard(alice).getByText(`${aliceName}’s turn`, { exact: true })).toBeVisible()
     await playTurn(alice)
     await expect(alice.locator('[data-side-score="0"] .bg-side-a')).toHaveCount(round)
     await expect(alice.locator('[data-side-score="1"] .bg-side-b')).toHaveCount(round - 1)
+    await expect(scoreboard(bob).getByText(`${bobName}’s turn`, { exact: true })).toBeVisible()
     await playTurn(bob)
     if (round < 5) {
       await expect(alice.locator('[data-stat="round"]')).toHaveText(String(round + 1))

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { contextualAbilityNamesIn, datasheetIn, datasheetViewsIn } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, datasheetViewsIn } from '../shared/catalogue'
 import { bookOf, profileOperationCases } from './catalogue.fixtures'
-import { describeDatasheetAbilities } from './datasheetDescriptions'
-import { deploymentRules } from './rosterDeployment'
+import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
+import { deploymentRules } from '../shared/rosterDeployment'
 
 describe('the profile modifiers on a datasheet', () => {
   it('shows an unconditional weapon ability granted by the selected detachment', () => {

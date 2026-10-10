@@ -6,7 +6,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import { Button } from '@/components/ui/button'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import type { GlobalSearchResult } from '../../../server/functions'
+import type { GlobalSearchResult } from '../../functions'
 import { globalSearchQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'

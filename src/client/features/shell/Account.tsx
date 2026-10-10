@@ -1,3 +1,5 @@
+import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
+import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
@@ -31,15 +33,27 @@ function useAccountControls() {
 
   const signOut = () => {
     void (async () => {
+      if (await hasLocalChanges()) {
+        window.dispatchEvent(new Event('praetorium-open-sync'))
+        return
+      }
+      const owner = me?.id
       // Forgotten while the session still exists, since the server only lets an account remove its own device.
       await forgetThisDevice()
-      await authClient.signOut()
+      const result = await authClient.signOut()
+      if (result.error) throw new Error('Sign-out failed. Your saved work is still on this device. Try again.')
+      stopLocalRuntime()
+      if (owner)
+        await clearLocalState(owner, true).catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_local_work' }))
       reconcileAppAccount(queryClient, null)
       queryClient.setQueryData(['me'], null)
       await clearSavedApp().catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_saved_data' }))
       await queryClient.invalidateQueries()
       await navigate({ to: '/' })
-    })()
+    })().catch((error: unknown) => {
+      posthog.captureException(error, { operation: 'sign_out' })
+      window.alert(error instanceof Error ? error.message : 'Sign-out failed. Try again.')
+    })
   }
 
   return { me, onboarding, signOut }

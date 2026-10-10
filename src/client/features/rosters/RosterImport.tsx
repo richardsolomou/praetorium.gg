@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { importRoster, saveRoster } from '../../../server/functions'
+import { importRoster, saveRoster } from '../../functions'
 import { errorMessage } from '../../queryClient'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 

@@ -41,9 +41,12 @@ it('loads a bounded roster page without reading the full library', async () => {
   expect(rostersByUser).not.toHaveBeenCalled()
 })
 
-it('reports the write time it stored on a saved roster', async () => {
+it('reports the persisted version when the database advances it beyond the clock', async () => {
   const saveRoster = vi.fn().mockResolvedValue('updated')
-  const service = new RosterService({ saveRoster } as unknown as RepositoryPort, () => 1_234)
+  const service = new RosterService(
+    { saveRoster, roster: vi.fn().mockResolvedValue({ ...row, updatedAt: 1_235 }) } as unknown as RepositoryPort,
+    () => 1_234,
+  )
   const roster = {
     id: 'roster-1',
     name: 'Army',
@@ -59,7 +62,7 @@ it('reports the write time it stored on a saved roster', async () => {
 
   const { updatedAt } = await service.saveRoster('user-1', roster)
 
-  expect(updatedAt).toBe(saveRoster.mock.calls[0]![0].now)
+  expect(updatedAt).toBe(1_235)
 })
 
 it('lists a library summary saved against the retired Marine codex under its current faction', async () => {

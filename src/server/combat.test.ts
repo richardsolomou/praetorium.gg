@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { DEFAULT_COMBAT_OPTIONS, calculateCombat } from '../core/combat'
 import { combatPlan } from '../core/combatProfiles'
 import { bookOf } from './catalogue.fixtures'
-import { datasheetViewsIn } from './catalogue'
+import { datasheetViewsIn } from '../shared/catalogue'
 
 const weaponProfile = (id: string, name: string, typeName = 'Ranged Weapons') => ({
   id,

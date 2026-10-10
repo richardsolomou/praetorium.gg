@@ -1,8 +1,9 @@
+import { buildLeagueBattle, LeagueBattleSetupError } from '../../shared/leagueBattle'
+import { offlineContext, offlineIdentifier } from '../offlineContext'
 import { randomId, randomToken } from 'ras-stack/auth'
-import { GAME_SIZES, type Command, type Roster } from '../../core/battle'
+import { type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
 import {
-  alliedLeagueRosterLimit,
   leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
@@ -27,12 +28,12 @@ export class LeagueService {
 
   async createLeague(ownerId: string, input: LeagueDetails & { format?: TableShape; rosterLimit?: number; ownerPlays: boolean }) {
     const { format, rosterLimit, ...details } = input
-    const token = randomToken()
-    const eventToken = randomToken()
+    const token = offlineIdentifier('leagueToken', randomToken)
+    const eventToken = offlineIdentifier('eventToken', randomToken)
     const result = await this.repository.createLeague({
-      id: randomId(),
+      id: offlineIdentifier('leagueId', randomId),
       token,
-      eventId: randomId(),
+      eventId: offlineIdentifier('eventId', randomId),
       eventToken,
       ownerId,
       ...details,
@@ -51,10 +52,10 @@ export class LeagueService {
     input: LeagueDetails & { format?: TableShape; rosterLimit?: number; ownerPlays: boolean },
   ) {
     const { format, rosterLimit, ...details } = input
-    const eventToken = randomToken()
+    const eventToken = offlineIdentifier('eventToken', randomToken)
     const rule = eventRule({ format, rosterLimit })
     const result = await this.repository.createLeagueEvent({
-      id: randomId(),
+      id: offlineIdentifier('eventId', randomId),
       token: eventToken,
       leagueToken: token,
       ownerId,
@@ -199,7 +200,7 @@ export class LeagueService {
   }
 
   async assignLeagueTeam(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
-    const result = await this.repository.assignLeagueTeam(token, ownerId, userIds, randomId(), eventToken)
+    const result = await this.repository.assignLeagueTeam(token, ownerId, userIds, offlineIdentifier('teamId', randomId), eventToken)
     if (result === 'updated' || typeof result === 'object') {
       if (typeof result === 'object' && result.resealIds.length)
         this.notifier.notify([
@@ -310,125 +311,24 @@ export class LeagueService {
   ) {
     const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
     if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different league entrants', { status: 400 })
-    const token = randomToken()
-    const id = randomId()
+    const token = offlineIdentifier('battleToken', randomToken)
+    const id = offlineIdentifier('battleId', randomId)
     const result = await this.repository.createLeagueBattle(
-      { id, token, leagueToken, eventToken, userId, userIds: [userId, ...invited], now: this.clock() },
+      {
+        id,
+        token,
+        leagueToken,
+        eventToken,
+        userId,
+        userIds: [userId, ...invited],
+        now: offlineContext.getStore()?.createdAt ?? this.clock(),
+      },
       (league) => {
-        if (league.revealedAt === null) throw new Response('reveal the league rosters before starting a battle', { status: 409 })
-        const expectedPlayers = league.format === '2v2' ? 4 : league.format === '2v1' ? 3 : 2
-        if (league.format === '2v2' && !LEAGUE_TEAM_ROSTER_LIMITS.some((candidate) => candidate === league.rosterLimit)) {
-          throw new Response('sealed rosters use an unsupported doubles force size', { status: 409 })
-        }
-        if (league.format !== '2v2' && (league.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1)) {
-          throw new Response('choose accepted entrants with sealed rosters', { status: 403 })
-        }
-        const rosters = new Map(
-          league.entries.map((entry) => {
-            if (!entry.snapshot) throw new Error('accepted league entrant has no roster snapshot')
-            return [entry.userId, parseRosterSnapshot(entry.snapshot)] as const
-          }),
-        )
-        let participantIds = [userId, ...invited]
-        let allyIds: string[] = []
-        let opponentIds = [opponentId]
-        if (league.format === '2v2') {
-          if (invited.length !== 1 || allyId || secondOpponentId) throw new Response('choose one opposing doubles team', { status: 400 })
-          const ownTeamId = league.entries.find((entry) => entry.userId === userId)?.teamId
-          const opposingTeamId = league.entries.find((entry) => entry.userId === opponentId)?.teamId
-          if (!ownTeamId || !opposingTeamId || ownTeamId === opposingTeamId)
-            throw new Response('choose an opposing doubles team', { status: 409 })
-          const ownTeam = league.entries.filter((entry) => entry.teamId === ownTeamId)
-          const opposingTeam = league.entries.filter((entry) => entry.teamId === opposingTeamId)
-          if (ownTeam.length !== 2 || opposingTeam.length !== 2)
-            throw new Response('doubles teams must contain exactly two entrants', { status: 409 })
-          allyIds = ownTeam.filter((entry) => entry.userId !== userId).map((entry) => entry.userId)
-          opponentIds = [opponentId, ...opposingTeam.filter((entry) => entry.userId !== opponentId).map((entry) => entry.userId)]
-          participantIds = [userId, ...allyIds, ...opponentIds]
-        }
-        const ownRoster = rosters.get(userId)
-        const opponentRoster = rosters.get(opponentIds[0]!)
-        const limit = league.format === null ? ownRoster?.built?.limit : league.rosterLimit
-        if (!ownRoster || !opponentRoster || limit === null || limit === undefined)
-          throw new Response('sealed rosters use an invalid battle size', { status: 409 })
-        if (
-          league.format !== '2v1' &&
-          league.format !== '2v2' &&
-          (ownRoster.built?.limit !== limit || opponentRoster.built?.limit !== limit)
-        ) {
-          throw new Response('sealed rosters must use the same battle size', { status: 409 })
-        }
-        if (!GAME_SIZES.some((size) => size.limit === limit))
-          throw new Response('sealed rosters use an unsupported battle size', { status: 409 })
-
-        if (league.format === '2v1') {
-          const requirements = new Map(league.entries.map((entry) => [entry.userId, entry.requiredLimit]))
-          const alliedLimit = alliedLeagueRosterLimit(limit)
-          const creatorLimit = requirements.get(userId)
-          if (creatorLimit === limit) {
-            if (
-              allyId ||
-              !secondOpponentId ||
-              requirements.get(opponentId) !== alliedLimit ||
-              requirements.get(secondOpponentId) !== alliedLimit
-            ) {
-              throw new Response('a solo entrant must face two allied entrants', { status: 409 })
-            }
-            opponentIds = [opponentId, secondOpponentId]
-          } else {
-            if (
-              creatorLimit !== alliedLimit ||
-              !allyId ||
-              secondOpponentId ||
-              requirements.get(allyId) !== alliedLimit ||
-              requirements.get(opponentId) !== limit
-            ) {
-              throw new Response('an allied entrant must choose one allied teammate and one solo opponent', { status: 409 })
-            }
-            allyIds = [allyId]
-          }
-          for (const entry of league.entries) {
-            const rosterLimit = rosters.get(entry.userId)?.built?.limit
-            if (rosterLimit !== entry.requiredLimit) throw new Response('a sealed roster does not match its assigned size', { status: 409 })
-          }
-        }
-        if (league.format === '2v2') {
-          const requiredLimit = alliedLeagueRosterLimit(limit)
-          if (participantIds.some((playerId) => rosters.get(playerId)?.built?.limit !== requiredLimit))
-            throw new Response('every doubles roster must use half the force size', { status: 409 })
-        }
-
-        const initialCommands: Command[] = [
-          {
-            kind: 'configure-battle',
-            limit,
-            missionPackId,
-            terrainLayoutId: null,
-            twistId: null,
-            teamBattle: league.format === '2v1' || league.format === '2v2',
-            playerCount: expectedPlayers,
-            clockLimitMinutes: null,
-          },
-          { kind: 'attach-roster', playerId: userId, roster: ownRoster, prep: null, painted: true },
-          { kind: 'attach-roster', playerId: opponentIds[0]!, roster: opponentRoster, prep: null, painted: true },
-          ...participantIds
-            .filter((playerId) => playerId !== userId && playerId !== opponentIds[0])
-            .map((playerId) => ({ kind: 'attach-roster' as const, playerId, roster: rosters.get(playerId)!, prep: null, painted: true })),
-          { kind: 'lock-league-rosters', leagueToken, eventToken: league.eventToken },
-        ]
-        return {
-          allyIds,
-          opponentIds,
-          initialCommands,
-          result: {
-            token,
-            format: league.format,
-            requiredLimit:
-              league.format === '2v2'
-                ? alliedLeagueRosterLimit(limit)
-                : (league.entries.find((entry) => entry.userId === userId)?.requiredLimit ?? limit),
-            participantIds,
-          },
+        try {
+          return buildLeagueBattle(league, userId, leagueToken, opponentId, missionPackId, token, allyId, secondOpponentId)
+        } catch (error) {
+          if (error instanceof LeagueBattleSetupError) throw new Response(error.message, { status: error.status })
+          throw error
         }
       },
     )

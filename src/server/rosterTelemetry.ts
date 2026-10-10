@@ -1,8 +1,8 @@
 import { routeSlug } from '../core/slug'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { detachmentNamed } from './factionReferences'
-import { factionDisplayName } from './factionNames'
-import { rosterDetachments } from './rosterDetachments'
+import { detachmentNamed } from '../shared/factionReferences'
+import { factionDisplayName } from '../shared/factionNames'
+import { rosterDetachments } from '../shared/rosterDetachments'
 import { type LoadedRules, rulesFaction } from './rules'
 
 type RosterTelemetryInput = {

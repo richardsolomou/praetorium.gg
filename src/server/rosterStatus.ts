@@ -1,5 +1,5 @@
 import { changesTouching, type ListContents, type RecordedChangeSet } from '../core/catalogueChanges'
-import { uniqueNames } from './pricing'
+import { uniqueNames } from '../shared/pricing'
 import { rosterUseProblem } from './rosterUsage'
 
 type PricedList = Parameters<typeof rosterUseProblem>[0] & {

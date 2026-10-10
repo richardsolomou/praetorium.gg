@@ -74,9 +74,9 @@ Compilation writes `.output/canonical-catalogue.json`, outside the activated cac
 | Question                                | Owner                                                                      |
 | --------------------------------------- | -------------------------------------------------------------------------- |
 | Book membership and imports             | `src/server/catalogueIndex.ts`                                             |
-| Applied datasheet projection            | `src/server/catalogue.ts`                                                  |
-| Picker prices/limits and search         | `src/server/cataloguePicker.ts`, `datasheetSearch.ts`                      |
-| Text resolution and joins               | `src/server/catalogueDescriptions.ts`, `datasheetJoin.ts`, `datacards.ts`  |
+| Applied datasheet projection            | `src/shared/catalogue.ts`                                                  |
+| Picker prices/limits and search         | `src/shared/cataloguePicker.ts`, `datasheetSearch.ts`                      |
+| Text resolution and joins               | `src/shared/catalogueDescriptions.ts`, `datasheetJoin.ts`, `datacards.ts`  |
 | Entry/link meaning                      | `src/core/definitions.ts`                                                  |
 | Selection-tree edits                    | `src/core/selection.ts`                                                    |
 | Defaults and choice swaps               | `src/core/expand.ts`                                                       |
@@ -156,6 +156,8 @@ The publisher compiles both verified snapshots with the same code and appends id
 `/data-updates` and faction pages paginate with stable cursors and fragment anchors. Initial HTML includes history, and opening a fragment preserves the native details state. Reference links resolve against current data; removed records have no link. Sitemap `lastmod` comes only from measured changes, never assumed rules-text freshness.
 
 Saved-list assessment reuses pricing's `rosterUseProblem`, bounded to displayed rows and yielding batches for whole-library counts. Compare only newer bounded history and fold net changes, dropping reversals. Real saves advance `updatedAt`; merely opening a list must not. Library count and editor banner share that fold. Never compare frozen battle/league snapshots with current data.
+
+Local library rows use lightweight assessments in a bounded account-scoped cache keyed by roster version and downloaded catalogue revision. Yield before each uncached assessment during background preparation; unchanged refreshes must reuse the result rather than rebuild full unit projections.
 
 ## Verification
 

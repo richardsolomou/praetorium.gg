@@ -6,7 +6,7 @@ import type { SnapshotSourceName } from '../../src/server/catalogueSources'
 import path from 'node:path'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { type CatalogueEdition, editionLabel } from '../../src/core/catalogueEdition'
-import { factionsFor } from '../../src/server/factionReferences'
+import { factionsFor } from '../../src/shared/factionReferences'
 
 const priced = ({ name, points }: { name: string; points: number | null }) => ({ name, points })
 

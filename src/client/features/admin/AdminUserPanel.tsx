@@ -21,7 +21,7 @@ import {
   sendVerificationEmailAsAdmin,
   setAdminRole,
   unlinkSignInMethodAsAdmin,
-} from '../../../server/functions'
+} from '../../functions'
 import { authClient } from '../../authClient'
 import { useDateFormatting } from '../../dates'
 import {

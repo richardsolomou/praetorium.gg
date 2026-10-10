@@ -19,7 +19,7 @@ import { app } from './app'
 import { activeReferenceCorpus } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, referenceFaction } from './referenceService'
-import { rosterCombatant } from './rosterCombatRules'
+import { rosterCombatant } from '../shared/rosterCombatRules'
 
 /**
  * Estimates run synchronously on the shared server, so this is 400 times below the browser worker's bound, about

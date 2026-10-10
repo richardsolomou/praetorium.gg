@@ -11,7 +11,8 @@ import { english, type MissionPack, readMissionPacks } from './missionPacks'
  * Nothing is invented: a pack with no twists offers none, which is what every pack
  * did before this was read at all.
  */
-export type MissionTwist = { id: string; name: string; lore: string | null; rules: string | null }
+import type { MissionTwist } from '../contracts/missions'
+export type { MissionTwist } from '../contracts/missions'
 
 /** Twists by pack, under the same slug `gameReferences` gives that pack. */
 export function loadMissionTwists(directory: string): Map<string, MissionTwist[]> {

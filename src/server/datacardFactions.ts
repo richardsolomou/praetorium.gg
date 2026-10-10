@@ -5,7 +5,7 @@ import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
 import { constructionDetachment, datacardsFactionKeys, type LoadedDatacards } from './datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../shared/rulesSource'
 import type { DetachmentReference, DetachmentRulesDetail, LoadedFactions } from './rulesFactions'
 
 const isUpgrade = (name: string) => /\s*\(upgrade\)\s*$/i.test(name)

@@ -1,5 +1,5 @@
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, type FormatRuleId, type OptionalRuleId } from '../core/battle'
-import { picksSchema, savedPrepSchema } from './schemas'
+import { picksSchema, savedPrepSchema } from '../contracts/schemas'
 import type { SpacetimeOperator } from './spacetimeOperator'
 import { currentRosterIds } from '../core/retiredCatalogueIds'
 

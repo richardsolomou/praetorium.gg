@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:net'
 import { randomUUID } from 'node:crypto'
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 
 export async function reserveLocalPort(requested = 0, fallback = false) {
@@ -49,7 +49,17 @@ function signalChild(child: ChildProcess, signal: NodeJS.Signals) {
     if (process.platform === 'win32') child.kill(signal)
     else process.kill(-child.pid, signal)
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ESRCH') return
+    if (code === 'EPERM' && process.platform === 'darwin' && (child.exitCode !== null || child.signalCode !== null)) {
+      const groups = execFileSync('ps', ['-axo', 'pgid=,stat='], { encoding: 'utf8' })
+      const live = groups.split('\n').some((line) => {
+        const [group, state] = line.trim().split(/\s+/)
+        return Number(group) === child.pid && !state?.startsWith('Z')
+      })
+      if (!live) return
+    }
+    throw new Error(`Could not send ${signal} to local child ${child.pid}.`, { cause: error })
   }
 }
 
@@ -59,7 +69,10 @@ function childExit(child: ChildProcess) {
     : new Promise<void>((resolve) => child.once('exit', () => resolve()))
 }
 
+const stoppedChildren = new WeakSet<ChildProcess>()
+
 export async function stopLocalChildren(children: readonly ChildProcess[]) {
+  children = children.filter((child) => !stoppedChildren.has(child))
   for (const child of children) signalChild(child, 'SIGTERM')
   const exited = Promise.all(children.map(childExit))
   const timeout = new AbortController()
@@ -70,4 +83,5 @@ export async function stopLocalChildren(children: readonly ChildProcess[]) {
   }
   for (const child of children) signalChild(child, 'SIGKILL')
   await exited
+  for (const child of children) stoppedChildren.add(child)
 }

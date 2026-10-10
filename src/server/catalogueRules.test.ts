@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rulesNamed } from './catalogueRules'
+import { rulesNamed } from '../shared/catalogueRules'
 
 describe('keyword rule definitions', () => {
   it.each(['Linked Fire', 'Harpooned', 'Reverberating Summons', 'Psychic Assassin', 'Plasma Warhead', 'Overcharge'])(

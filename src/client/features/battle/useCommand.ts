@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Command, SubmitResult } from '../../../core/battle'
 import { isRosterNotUsable } from '../../../core/rosterUse'
 import { isSignedOut } from '../../../core/session'
-import { submit } from '../../../server/functions'
+import { submit } from '../../functions'
 import { battleQuery, meQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { requestNativeHaptic } from '../../nativeBridge'
@@ -68,8 +68,12 @@ export function useCommand(token: string, seq: number) {
       while (queued.current.length) {
         const item = queued.current.shift()
         if (!item) break
+        seen.current = Math.max(seen.current, item.basedOn)
         try {
-          const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
+          const { result, screen } = await submit(
+            { data: { token, expectedSeq: seen.current, command: item.command } },
+            { background: item.background },
+          )
           const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
           if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
           queryClient.setQueryData(battleQuery(token).queryKey, screen)

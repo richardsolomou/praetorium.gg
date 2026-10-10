@@ -39,7 +39,7 @@ import {
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
-import { copyRoster, exportRoster, saveRoster } from '../../../server/functions'
+import { copyRoster, exportRoster, saveRoster } from '../../functions'
 import { shareLink } from '../../nativeBridge'
 import {
   collectionQuery,

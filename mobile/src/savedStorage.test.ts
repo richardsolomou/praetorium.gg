@@ -97,3 +97,43 @@ it('removes every account snapshot generation on sign-out', () => {
   storeAppSnapshot(null, 'clear')
   expect(readAppSnapshot()).toBeNull()
 })
+
+it('keeps each account’s offline work in its own durable partition', async () => {
+  const { readLocalState, storeLocalState } = await import('./localStateStorage')
+  const { emptyLocalState } = await import('../../src/contracts/localState')
+  const alice = readLocalState('alice')
+  storeLocalState(
+    'alice',
+    { ...emptyLocalState('alice'), documents: { private: { data: 'Alice’s army', serverVersion: null } } },
+    alice.epoch,
+    0,
+    'alice',
+  )
+  expect(readLocalState('bob').state).toBeNull()
+  expect(readLocalState('alice').state?.documents.private?.data).toBe('Alice’s army')
+})
+it('rejects a stale native writer after another window saves', async () => {
+  const { readLocalState, storeLocalState } = await import('./localStateStorage')
+  const { emptyLocalState } = await import('../../src/contracts/localState')
+  const saved = readLocalState('alice')
+  storeLocalState('alice', { ...emptyLocalState('alice'), revision: 1 }, saved.epoch, 0, 'first')
+  expect(storeLocalState('alice', emptyLocalState('alice'), saved.epoch, 0, 'second').saved).toBe(false)
+})
+it('keeps the last durable edit after a native write fails', async () => {
+  const { readLocalState, storeLocalState } = await import('./localStateStorage')
+  const { emptyLocalState } = await import('../../src/contracts/localState')
+  const saved = readLocalState('alice')
+  const first = { ...emptyLocalState('alice'), revision: 1 }
+  storeLocalState('alice', first, saved.epoch, 0, 'first')
+  disk.fault = 'move'
+  expect(() => storeLocalState('alice', { ...first, revision: 2 }, saved.epoch, 1, 'second')).toThrow()
+  disk.fault = ''
+  expect(readLocalState('alice').state).toEqual(first)
+})
+it('prevents a late native save from resurrecting cleared work', async () => {
+  const { readLocalState, storeLocalState } = await import('./localStateStorage')
+  const { emptyLocalState } = await import('../../src/contracts/localState')
+  const saved = readLocalState('alice')
+  storeLocalState('alice', null, saved.epoch, 0, 'clear')
+  expect(storeLocalState('alice', emptyLocalState('alice'), saved.epoch, 0, 'late').saved).toBe(false)
+})

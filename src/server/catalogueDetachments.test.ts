@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import { detachmentCatalogueDetail } from '../shared/catalogueDescriptions'
 import { detachmentsOf } from './catalogueIndex'
 import { buildIndex, type Catalogue, type CatalogueFile } from '../core/catalogue'
 import { ability, bookOf, points, system } from './catalogue.fixtures'

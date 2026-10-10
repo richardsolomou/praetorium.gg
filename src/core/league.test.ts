@@ -4,6 +4,7 @@ import {
   alliedLeagueRosterLimit,
   leagueMinimumPlaces,
   leaguePlacesSeat,
+  leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
   leagueTableShape,
@@ -344,5 +345,25 @@ describe('leagueRevealChecklist', () => {
       'places',
       'lists',
     ])
+  })
+})
+
+describe('sealed Warlords', () => {
+  const roster = (units: NonNullable<Roster['built']>['units']): Roster => ({
+    ...sealedLeagueRoster,
+    built: { ...sealedLeagueRoster.built!, units },
+  })
+  const unit = { key: 'leader', entryId: 'leader', name: 'Leader', models: 1, points: 0, warlord: true, group: 'character' as const }
+  it('counts no Warlord in an empty roster', () => {
+    expect(leagueWarlords([roster([])])).toEqual({ count: 0, eligible: true })
+  })
+  it('counts one eligible Warlord across allied rosters', () => {
+    expect(leagueWarlords([roster([unit]), roster([])])).toEqual({ count: 1, eligible: true })
+  })
+  it('counts multiple Warlords across allied rosters', () => {
+    expect(leagueWarlords([roster([unit]), roster([unit])])).toEqual({ count: 2, eligible: true })
+  })
+  it('honors an explicit ineligible Warlord over its Character group', () => {
+    expect(leagueWarlords([roster([{ ...unit, warlordEligible: false }])])).toEqual({ count: 1, eligible: false })
   })
 })

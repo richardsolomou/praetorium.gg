@@ -29,7 +29,7 @@ export const Route = createFileRoute('/rosters/$id/')({
   loaderDeps: ({ search }) => ({ battle: search.battle, league: search.league, event: search.event }),
   loader: async ({ context, params, deps }) => {
     if (deps.league) {
-      const roster = await context.queryClient.query({ ...leagueRosterQuery(deps.league, deps.event, params.id), staleTime: 'static' })
+      const roster = await context.queryClient.query({ ...leagueRosterQuery(deps.league, deps.event, params.id), staleTime: Infinity })
       if (!roster) throw notFound()
       return { editable: false, snapshot: true, league: true }
     }

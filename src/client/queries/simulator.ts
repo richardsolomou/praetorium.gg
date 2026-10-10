@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { RosterPick } from '../../core/roster'
-import { combatantDatasheet, combatLoadouts, combatUnits } from '../../server/functions'
+import { combatantDatasheet, combatLoadouts, combatUnits } from '../functions'
 
 export const combatUnitsQuery = () => queryOptions({ queryKey: ['combat-units'], queryFn: () => combatUnits(), staleTime: Infinity })
 
