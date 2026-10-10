@@ -8,6 +8,8 @@ Game Datacards supplies printed rules, missions, and stratagems; BSData owns exe
 
 Faction-scoped cards supply stratagem cost, phase, turn, and usage restrictions. Recognized printed timing may fill a missing structured phase. The core once-per-phase restriction applies unless a supported whole-stratagem restriction overrides it. Unsupported card mechanics remain unavailable. Empty timing supplies no extra restriction.
 
+Source stratagem corrections belong in `catalogue/patches/datacards/`. Corrections needed by existing snapshots and battles also pass through `src/core/stratagemCorrections.ts` when reading source cards and folding saved preparation. Cover the corrected phase, opponent-turn refusal, usage limit, and unchanged saved log; do not widen a correction beyond its source card ID and erroneous phase.
+
 `set-prep` records the side's complete cards/stratagem pool and server-verified payouts/timing atomically. Allies pool detachments, while core stratagems appear once. Primary ownership derives from ordered force dispositions and the selected mission pack; a selected pack cannot fall through to another. Tactical decks are authoritative, and text-only rosters cannot invent faction/detachment cards.
 
 ## Scoring

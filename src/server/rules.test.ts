@@ -170,6 +170,24 @@ it('enforces the core once per phase limit for faction and core stratagems', () 
   expect(rules().core[0]?.limit).toBe('phase')
 })
 
+it('corrects Insane Bravery timing from the pinned printed core rule', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'core.json'), {
+    stratagems: [
+      {
+        id: '55e8e302-c2a2-57fb-852d-a88fbb95f6c2',
+        name: { en: 'Insane Bravery' },
+        cost: 1,
+        phase: ['charge'],
+        turn: 'your',
+        restrictions: { en: 'You cannot use this stratagem more than once per battle.' },
+      },
+    ],
+  })
+  expect(rules().core).toEqual([
+    { key: '55e8e302-c2a2-57fb-852d-a88fbb95f6c2', name: 'Insane Bravery', cp: 1, limit: 'battle', phases: ['command'], turn: 'your-turn' },
+  ])
+})
+
 it('uses an explicit whole-stratagem exception without treating a target limit as one', () => {
   expect([
     stratagemLimit('You cannot use this <b>stratagem</b> more than once per battle.'),

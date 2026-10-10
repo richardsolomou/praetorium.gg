@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
+import { correctStratagemTiming } from '../core/stratagemCorrections'
 import type { WhenDrawn } from '../contracts/missions'
 import { localizedField, stratagemLimit, stratagemText } from './datacards'
 import type { MissionAction } from './missionActions'
@@ -70,14 +71,16 @@ export function coreFromDatacards(directory: string): Pick<LoadedCards, 'core' |
       : []
     const turn =
       card.turn === 'your' ? 'your-turn' : card.turn === 'opponents' ? 'opponent-turn' : card.turn === 'either' ? 'either' : undefined
-    core.push({
-      key: card.id,
-      name,
-      cp: card.cost as number,
-      limit: stratagemLimit(localizedField(card, 'restrictions')),
-      ...(phases.length ? { phases } : {}),
-      ...(turn ? { turn } : {}),
-    })
+    core.push(
+      correctStratagemTiming({
+        key: card.id,
+        name,
+        cp: card.cost as number,
+        limit: stratagemLimit(localizedField(card, 'restrictions')),
+        ...(phases.length ? { phases } : {}),
+        ...(turn ? { turn } : {}),
+      }),
+    )
     const description = stratagemText(card)
     if (description) coreDetails.push({ id: card.id, type: typeof card.type === 'string' ? card.type : null, description })
   }
