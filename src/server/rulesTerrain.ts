@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import type { Point, TerrainGeometry } from '../contracts/terrain'
+import { battlemasterObjectiveHosts } from './battlemasterObjectives'
 
 export type { Deployment, Point, TerrainGeometry, TerrainLayout, TerrainTemplate } from '../contracts/terrain'
 
@@ -15,6 +16,8 @@ type Part = {
   rotationDeg: number
   mirroredX: boolean
   mirroredY: boolean
+  boundsWidthIn: number
+  boundsHeightIn: number
   outline: { points: Point[] } | null
   walls: { id?: string; points: Point[]; thicknessIn: number }[]
 }
@@ -26,7 +29,13 @@ type Area = {
   parts: Part[]
 }
 type Layout = {
-  layout?: { id?: string; layoutKey?: string; links?: { page?: string } }
+  layout?: {
+    id?: string
+    layoutKey?: string
+    links?: { page?: string }
+    chapterApprovedSlot?: { archetypeA: string; archetypeB: string; slotIndex: number }
+    chapterApprovedDeploymentKey?: number
+  }
   terrain?: Area[]
 }
 
@@ -76,6 +85,8 @@ export function battlemasterGeometry(directory: string, id: string): TerrainGeom
   const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Layout
   if (!raw.terrain?.length || !matches(raw.layout, id)) return null
   const correction = labelCorrection(directory, id, raw)
+  const liteFile = path.join(directory, 'layouts', `${id}.lite.json`)
+  const objectives = fs.existsSync(liteFile) ? battlemasterObjectiveHosts(raw, JSON.parse(fs.readFileSync(liteFile, 'utf8')), id) : []
   return {
     board: { width: 60, height: 44 },
     areas: raw.terrain.map((area, at) => {
@@ -86,14 +97,19 @@ export function battlemasterGeometry(directory: string, id: string): TerrainGeom
         id: area.id ?? `area-${at + 1}`,
         name,
         points,
-        markers: letters.map((label, index) => ({
-          label,
-          position: boardPoint(
-            { x: (area.footprint.widthIn * (index + 1)) / (letters.length + 1), y: area.footprint.heightIn / 2 },
-            area.footprint,
-          ),
-        })),
-        objective: null,
+        markers: letters.flatMap((label) => {
+          const partLabel = area.name === correction?.areaName && label === correction.to ? correction.from : label
+          const parts = area.parts.filter((part) => part.name === partLabel || (partLabel === 'CD' && part.name === 'CO'))
+          const part = parts.length === 1 ? parts[0] : undefined
+          const partPoints = part?.outline?.points ?? part?.walls.flatMap((wall) => wall.points) ?? []
+          if (!part || !partPoints.length) return []
+          const centre = {
+            x: (Math.min(...partPoints.map((point) => point.x)) + Math.max(...partPoints.map((point) => point.x))) / 2,
+            y: (Math.min(...partPoints.map((point) => point.y)) + Math.max(...partPoints.map((point) => point.y))) / 2,
+          }
+          return [{ label, position: boardPoint(centre, area.footprint, part) }]
+        }),
+        objective: objectives[at] ?? null,
         objectiveGroup: null,
         measurements: placementMeasurements(area),
         parts: area.parts.map((part, partIndex) => ({
@@ -177,7 +193,10 @@ function matches(layout: Layout['layout'], id: string) {
 function boardPoint(point: Point, area: Footprint, part?: Part): Point {
   let placed = point
   if (part) {
-    placed = { x: part.mirroredX ? -placed.x : placed.x, y: part.mirroredY ? -placed.y : placed.y }
+    placed = {
+      x: part.mirroredX ? part.boundsWidthIn - placed.x : placed.x,
+      y: part.mirroredY ? part.boundsHeightIn - placed.y : placed.y,
+    }
     placed = rotate(placed, part.rotationDeg)
     placed = { x: placed.x + part.origin.x, y: placed.y + part.origin.y }
   }

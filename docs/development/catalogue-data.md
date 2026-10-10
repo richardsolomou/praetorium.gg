@@ -21,6 +21,8 @@ Rule references recognize both `Twin Linked` and `Twin-linked` as the same weapo
 
 `pnpm catalogue:materialize` writes `.output/catalogue-data/` or explicit `CATALOGUE_DIR`; single-source output supports patch verification. Publication verifies the uploaded archive before changing `current.json`. Hosted images retain their packaged snapshot until deployment; publication alone does not update live rules. Health waits for catalogue/search preparation. An instance without data can still serve battles and pasted rosters.
 
+Battlemaster materialization fetches detail and Chapter Approved lite data for every layout. Verify layout identity, slot, deployment, instance order, position, and rotation before joining objective codes. New lite files require publishing and pinning a new verified snapshot before deployment; older snapshots retain deployment-objective fallback.
+
 Canonical catalogue output carries a compiler version. When its version is older than the application's compiler, startup recompiles the reference in memory from the verified snapshot's sources. Local generated output must match both the current compiler version and source revisions. Compiler fixes therefore reach reference pages on deployment without changing the pinned upstream data or editing the immutable snapshot.
 
 ### Retired sources
@@ -37,7 +39,7 @@ A retired source stays a known snapshot source name in `catalogueSources.ts`, so
 | Printed composition, loadout, base, mission/rules prose             | Game Datacards, with supported source-backed fallbacks                                           |
 | Reference and evaluated unit points, DP, enhancement/upgrade prices | Pinned MFM when an unambiguous row joins; supported card/evaluator fallback                      |
 | Wargear prices                                                      | MFM only for matching executable options or source-backed pieces; remaining costs stay evaluated |
-| Terrain geometry                                                    | Pinned Battlemaster detail; source-pinned corrections for supported labels                       |
+| Terrain geometry                                                    | Pinned Battlemaster detail and lite objectives; source-pinned label corrections                  |
 
 Do not treat one source as globally authoritative. Replacement profile/ability joins must be unambiguous and preserve selected equipment/context. Conditional price rows require their actual model count and requisition context. Conflicts, missing joins, unsupported labels, and fallbacks remain visible in provenance and `issues`; unknown semantic mappings require a reviewed mapping and test.
 

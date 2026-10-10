@@ -95,6 +95,11 @@ describe('placing a marker in a terrain area', () => {
     expect(terrainMarkerPosition(area, area.markers[0]!)).toEqual({ x: 5, y: 5 })
   })
 
+  it('keeps a part label on a roof when it clears the surrounding walls', () => {
+    const area = { ...openArea(square(0, 0, 10)), parts: [{ id: 'AB', name: 'AB', material: 'dense', roof: square(3, 3, 4), walls: [] }] }
+    expect(terrainMarkerPosition(area, { label: 'AB', position: { x: 5, y: 5 } })).toEqual({ x: 5, y: 5 })
+  })
+
   it('moves a marker that would sit outside its own area', () => {
     const area = openArea(square(0, 0, 10), [{ label: 'AB', position: { x: 50, y: 50 } }])
     // Nowhere near the area is open, so it falls back to the centre, which is.
