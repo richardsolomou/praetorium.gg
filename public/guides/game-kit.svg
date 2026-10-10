@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 340" fill="none">
+  <defs>
+    <linearGradient id="armour" x2="1" y2="1"><stop stop-color="#c4d9c8"/><stop offset="1" stop-color="#547965"/></linearGradient>
+    <g id="model">
+      <ellipse cy="75" rx="30" ry="9" fill="#101719" stroke="#658974"/>
+      <path d="m-15 33-8 33 12 4 10-25 10 25 13-4-11-33" fill="#56735f" stroke="#b7cdbd" stroke-width="2"/>
+      <path d="m-15 4-15 9 4 24 14-5h24l13 5 5-24-15-9Z" fill="url(#armour)" stroke="#c4d9c8" stroke-width="2"/>
+      <rect x="-11" y="-17" width="22" height="25" rx="7" fill="#9bbda4" stroke="#d9e6dc" stroke-width="2"/>
+      <path d="M-7-6H7" stroke="#182b25" stroke-width="4"/>
+      <path d="M-30 21H29V31H-30Z" fill="#293b36" stroke="#bdd1c2" stroke-width="2"/>
+      <path d="M29 22H41V28H29" fill="#94b3a0"/>
+    </g>
+  </defs>
+  <ellipse cx="135" cy="256" rx="90" ry="18" fill="#0b1214"/>
+  <g transform="translate(107 121) scale(.85)"><use href="#model"/></g>
+  <g transform="translate(173 135) scale(.85)"><use href="#model"/></g>
+  <g transform="translate(135 175)"><use href="#model"/></g>
+  <g transform="translate(285 62) rotate(9)">
+    <rect x="10" y="9" width="92" height="117" rx="6" fill="#233235" stroke="#526a6b" stroke-width="2"/>
+    <rect width="92" height="117" rx="6" fill="#cbd5c8" stroke="#edf1e6" stroke-width="2"/>
+    <path d="M20 23H72M20 43H72M20 63H57M20 83H66" stroke="#61776c" stroke-width="5"/>
+    <circle cx="69" cy="98" r="8" fill="#7a9a83"/>
+  </g>
+  <g transform="translate(418 175) rotate(-12)">
+    <rect width="61" height="61" rx="10" fill="#bdcdd6" stroke="#e0e9ec" stroke-width="2"/>
+    <g fill="#2b4654"><circle cx="17" cy="17" r="5"/><circle cx="44" cy="17" r="5"/><circle cx="30" cy="30" r="5"/><circle cx="17" cy="44" r="5"/><circle cx="44" cy="44" r="5"/></g>
+  </g>
+  <g transform="translate(289 226) rotate(4)">
+    <path d="M0 0H106V30H0Z" fill="#c9ab74" stroke="#edcf96" stroke-width="2"/>
+    <path d="M15 0V13M30 0V21M45 0V13M60 0V21M75 0V13M90 0V21" stroke="#604b2e" stroke-width="3"/>
+  </g>
+  <g fill="#bdcdc7" font-family="sans-serif" font-size="21" text-anchor="middle">
+    <text x="135" y="304">Your army</text><text x="334" y="42">List + rules</text><text x="457" y="278">Dice</text><text x="343" y="304">Measure</text>
+  </g>
+</svg>

@@ -6,23 +6,23 @@ export const PRODUCT_GUIDES = [
     steps: [
       {
         title: 'Agree the game before packing',
-        text: 'Confirm the edition, mission pack, points allowance and available time with your opponent. Ask whether they are happy to explain unfamiliar rules and allow corrections while you learn. A smaller agreed game can leave more time to understand each turn.',
+        text: 'Confirm the edition, mission pack, points allowance and available time. Tell your opponent you are learning and agree how to handle corrections.',
       },
       {
         title: 'Bring the list and the tools',
-        text: 'Bring your models, a readable army list, dice, a tape measure and any markers you use for wounds or reminders. Have your current army rules and mission cards available. Charge the device you will use for tracking; a printed list is useful when a screen or connection fails.',
+        text: 'Pack models, your list and current rules, dice, a tape measure and wound markers. Charge your tracking device and keep a readable backup of the list.',
       },
       {
         title: 'Explain the surprises before deployment',
-        text: 'Show your opponent which model represents each unit and weapon. Point out rules that can change their decisions, such as unusual movement, defensive effects or reactions. Ask them to do the same. Agree how each terrain piece will be treated and consult the current terrain rules together when unsure.',
+        text: 'Identify units and equipment, then explain unusual movement, reactions and defensive effects. Agree how each terrain piece works before deployment.',
       },
       {
         title: 'Give your units a first-turn job',
-        text: 'Identify who will protect your home objective, move towards contested objectives and threaten the enemy’s key units. Before placing an important unit, ask what can reach or see it and where it can move next. You do not need to attack with everything on the first turn.',
+        text: 'Choose who holds home, contests objectives and threatens important targets. Before placing a unit, check what can reach it and where it can move next.',
       },
       {
         title: 'Pause at scoring and turn changes',
-        text: 'Read the active mission’s scoring condition and timing before recording points. Confirm the score, command points and any effects that expire with your opponent before advancing. Keep a question list for later rather than trying to learn every possible interaction at once. After the game, choose one deployment or movement decision to improve next time.',
+        text: 'Confirm mission conditions, scores, command points and expiring effects before advancing. After the game, pick one deployment or movement decision to improve.',
       },
     ],
     questions: [
@@ -54,23 +54,23 @@ export const PRODUCT_GUIDES = [
     steps: [
       {
         title: 'Start with a scoring plan',
-        text: 'Read the missions you expect to play. Write down how your army will reach objectives, keep useful units alive and meet secondary conditions. An army that destroys targets can still struggle if nothing is available to do the scoring work.',
+        text: 'Read the missions you expect to play. Name the units that will reach objectives, survive there and meet secondary conditions.',
       },
       {
         title: 'Cover the jobs your plan needs',
-        text: 'Look for units that can hold a safe objective, contest a dangerous one, move to a distant position and threaten tough targets. These are jobs, not compulsory unit categories: one unit may cover several, and your faction may solve them in different ways. Check movement, durability, objective control, weapons and abilities rather than relying on a unit’s name.',
+        text: 'Cover holding, contesting, reaching distant positions and threatening tough targets. These are jobs, not compulsory unit categories; one unit can do more than one.',
       },
       {
         title: 'Budget for support and spare options',
-        text: 'Ask whether an expensive Leader, enhancement or transport improves a job enough to justify what you give up elsewhere. If a single unit is your only way to reach a distant objective or damage a tough target, plan what happens when it is lost. Redundancy can mean a second way to solve the problem rather than a duplicate unit.',
+        text: 'Check what a Leader, enhancement or transport adds to your plan. Have a second way to solve an important problem if your first unit is lost.',
       },
       {
         title: 'Check weapons against likely targets',
-        text: 'Compare an important weapon against both a light unit and a tougher target. In the simulator, use the equipment and effects you can actually bring, then read the chance of the outcome you need. Average damage alone does not tell you how reliably a unit will finish the target. Check any unsupported abilities in the printed rules.',
+        text: 'Compare important weapons into light and tough targets. Use realistic effects in the simulator and read the chance of finishing the target, not just average damage.',
       },
       {
         title: 'Test one change at a time',
-        text: 'Check points and construction warnings before playing. After the game, note which job went unfilled and whether the cause was the list, deployment or movement. Change one unit or loadout and test again. Keeping models you enjoy is a valid constraint; aim for a plan you understand before copying a highly specialised list.',
+        text: 'Check points and construction warnings, then play. Note which job went unfilled and review deployment before changing the list; keeping models you enjoy is a valid constraint.',
       },
     ],
     questions: [
@@ -102,23 +102,23 @@ export const PRODUCT_GUIDES = [
     steps: [
       {
         title: 'Read the mission before moving',
-        text: 'Use the mission pack agreed for this game. For each active mission, identify the scoring moment, eligible units or targets, points available and any limits. Similar card names across packs do not guarantee identical conditions. Keep the current card available instead of relying on a remembered rule.',
+        text: 'Use the agreed mission pack. Check the scoring moment, eligibility, points and limits on the current card; a familiar name does not guarantee familiar conditions.',
       },
       {
         title: 'Choose a mode your army can support',
-        text: 'When your pack offers Fixed and Tactical secondaries, compare the actual choices and scoring conditions. For a recurring plan, ask whether you can keep meeting its conditions against this opponent. For changing cards, ask whether you have spare units and movement to adapt. Neither choice is automatically better for a new player; agree the supported mode and read its rules.',
+        text: 'If the pack offers Fixed and Tactical, compare recurring conditions with the flexibility changing cards need. Choose a mode your units and movement can support.',
       },
       {
         title: 'Assign a unit and a route',
-        text: 'For each scoring opportunity, name the unit that will do it, where that unit needs to be and when it must arrive. Check the card’s eligibility and action restrictions before committing. Do not assume that a unit can both complete the mission and carry out every other task you wanted from it.',
+        text: 'Name the unit, its destination and when it must arrive. Check eligibility and action restrictions before committing it to another task too.',
       },
       {
         title: 'Compare the reward with the cost',
-        text: 'Ask what scoring now exposes and what you may lose next turn. Sending your only tough-target answer into danger for a small reward may weaken the whole plan. A lower-cost unit may do the same job, or protecting a future primary score may matter more. Count the opportunity you give up as well as the points you gain.',
+        text: 'Compare the points with the unit and future scoring you put at risk. Can a lower-cost unit do the same job while preserving your main threat?',
       },
       {
         title: 'Confirm the score and reconsider the next turn',
-        text: 'At the card’s scoring moment, confirm the condition with your opponent and record the result. Follow your pack’s rules for keeping, replacing or discarding cards; do not assume another pack works the same way. Before the next turn, review which scoring units remain and which objectives you can realistically contest.',
+        text: 'Confirm the condition with your opponent at the scoring moment. Follow this pack’s card-management rules and reconsider your next turn with the units you have left.',
       },
     ],
     questions: [

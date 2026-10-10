@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 340" fill="none">
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="m0 0 7 4-7 4" fill="#a5c5b2"/></marker></defs>
+  <rect x="26" y="26" width="508" height="268" rx="8" fill="#182629" stroke="#4e6865" stroke-width="2"/>
+  <path d="M28 27H532V133H28Z" fill="#b97e6520"/>
+  <path d="M28 133H532" stroke="#b9906d" stroke-dasharray="6 5"/>
+  <circle cx="280" cy="86" r="33" fill="#b3a16a15" stroke="#c2af7e" stroke-width="2"/>
+  <circle cx="280" cy="86" r="8" fill="#c2af7e"/>
+  <text x="280" y="43" fill="#d0bf97" font-family="sans-serif" font-size="21" text-anchor="middle">Scoring opportunity</text>
+  <g stroke="#d2e1d4" stroke-width="2" fill="#8db49e"><circle cx="127" cy="210" r="10"/><circle cx="108" cy="232" r="10"/><circle cx="146" cy="232" r="10"/></g>
+  <path d="M148 197Q192 124 241 96" stroke="#a5c5b2" stroke-width="3" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+  <g transform="translate(411 206)"><path d="m-29-14 13-13h33l13 13v31h-59Z" fill="#809e9a" stroke="#c0d6cc" stroke-width="2"/><path d="M-20-18v33M23-18v33" stroke="#273c3b" stroke-width="8"/><path d="M2-25v-17h40v8H12v9" fill="#adc6b9"/><rect x="-10" y="-13" width="24" height="24" rx="4" fill="#bdd0be"/></g>
+  <path d="m391 153 11-11 12 11 11-11 12 11" stroke="#b7cbbf" stroke-width="3"/>
+  <g font-family="sans-serif" font-size="21" text-anchor="middle" fill="#d0ddd5"><text x="127" y="265">Score with a squad</text><text x="411" y="265">Keep your main threat</text></g>
+  <text x="280" y="323" fill="#8ba69c" font-family="sans-serif" font-size="17" text-anchor="middle">Check eligibility. Compare the cost. Then commit.</text>
+</svg>
