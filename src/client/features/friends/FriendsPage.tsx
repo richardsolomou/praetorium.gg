@@ -1,23 +1,20 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Link2, QrCode, RotateCw, UserPlus, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { posthog } from 'posthog-js'
+import { Check, Link2, RotateCw, UserPlus, X } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageContent, PageHeader } from '../../components/Page'
 import { SearchField } from '../../components/SearchField'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
-import { activeFriendInviteQuery, friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../../queries'
+import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { acceptFriend, cancelFriendInvite, createFriendInvite, rejectFriend, removeFriend, requestFriend } from '../../functions'
+import { acceptFriend, rejectFriend, removeFriend, requestFriend } from '../../functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../../core/playerSearch'
 import { errorMessage } from '../../queryClient'
-import { shareLink } from '../../nativeBridge'
-import { useOrigin } from '../../useOrigin'
 import type { OnboardingTarget } from '../onboarding/onboarding'
+import { InviteQr, SHARED_LABEL, useFriendInvite } from './friendInvite'
 
 type Person = { id: string; name: string; image?: string | null }
 
@@ -152,35 +149,7 @@ export function FriendsPage() {
 }
 
 function InviteFriend() {
-  const { data: invite } = useQuery(activeFriendInviteQuery())
-  const queryClient = useQueryClient()
-  const origin = useOrigin()
-  const [feedback, setFeedback] = useState<'copied' | 'shared' | null>(null)
-  const [shareProblem, setShareProblem] = useState<string | null>(null)
-  const refresh = () => queryClient.invalidateQueries({ queryKey: activeFriendInviteQuery().queryKey })
-  const create = useMutation({ mutationFn: () => createFriendInvite(), onSuccess: refresh })
-  const cancel = useMutation({ mutationFn: () => cancelFriendInvite(), onSuccess: refresh })
-  const share = async (token: string) => {
-    setShareProblem(null)
-    try {
-      const result = await shareLink(`${origin}/invite/${token}`, 'Join me on Praetorium')
-      setFeedback(result)
-      posthog.capture('friend_invite_shared', { method: result })
-    } catch (error) {
-      setShareProblem(errorMessage(error))
-    }
-  }
-  const createAndShare = async () => {
-    setFeedback(null)
-    try {
-      const created = await create.mutateAsync()
-      await share(created.token)
-    } catch {
-      // The mutation renders its own error.
-    }
-  }
-  const problem = create.error ?? cancel.error
-  const busy = create.isPending || cancel.isPending
+  const invite = useFriendInvite()
 
   return (
     <section className="border border-edge bg-panel p-4">
@@ -192,83 +161,29 @@ function InviteFriend() {
           </p>
         </div>
         <div data-onboarding="friend-invite" className="flex flex-wrap gap-2">
-          {invite ? (
+          {invite.url ? (
             <>
-              <Button variant="outline" disabled={!origin || busy} onClick={() => void share(invite.token)}>
-                {feedback ? <Check /> : <Link2 />}
-                {feedback === 'shared' ? 'Invite shared' : feedback === 'copied' ? 'Link copied' : 'Share invite'}
+              <Button variant="outline" disabled={invite.busy} onClick={() => void invite.share()}>
+                {invite.feedback ? <Check /> : <Link2 />}
+                {invite.feedback ? SHARED_LABEL[invite.feedback] : 'Share invite'}
               </Button>
-              <InviteQr url={`${origin}/invite/${invite.token}`} disabled={!origin || busy} />
-              <Button variant="ghost" disabled={busy} onClick={() => void createAndShare()}>
+              <InviteQr url={invite.url} disabled={invite.busy} />
+              <Button variant="ghost" disabled={invite.busy} onClick={() => void invite.shareNew()}>
                 <RotateCw /> New link
               </Button>
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => {
-                  setFeedback(null)
-                  cancel.mutate()
-                }}
-              >
+              <Button variant="ghost" disabled={invite.busy} onClick={invite.cancel}>
                 <X /> Cancel
               </Button>
             </>
           ) : (
-            <Button disabled={!origin || busy} onClick={() => void createAndShare()}>
-              <UserPlus /> {create.isPending ? 'Creating…' : 'Create invite link'}
+            <Button disabled={invite.busy} onClick={() => void invite.share()}>
+              <UserPlus /> {invite.creating ? 'Creating…' : 'Create invite link'}
             </Button>
           )}
         </div>
       </div>
-      {problem || shareProblem ? <p className="mt-3 text-sm text-destructive">{problem ? errorMessage(problem) : shareProblem}</p> : null}
+      {invite.problem ? <p className="mt-3 text-sm text-destructive">{invite.problem}</p> : null}
     </section>
-  )
-}
-
-function InviteQr({ url, disabled }: { url: string; disabled: boolean }) {
-  const [open, setOpen] = useState(false)
-  const [image, setImage] = useState<{ url: string; data: string } | null>(null)
-  const [failed, setFailed] = useState(false)
-  useEffect(() => {
-    if (!open) return
-    let active = true
-    setFailed(false)
-    void import('qrcode')
-      .then(({ default: qr }) => qr.toDataURL(url, { width: 256, margin: 2 }))
-      .then((data) => {
-        if (active) setImage({ url, data })
-      })
-      .catch(() => {
-        if (active) setFailed(true)
-      })
-    return () => {
-      active = false
-    }
-  }, [open, url])
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" disabled={disabled} />}>
-        <QrCode /> Scan invite
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Invite a friend</DialogTitle>
-          <DialogDescription>
-            Your friend can scan this one-time link, sign in or create an account, then accept your invite.
-          </DialogDescription>
-        </DialogHeader>
-        {failed ? (
-          <p role="alert" className="text-sm text-destructive">
-            Could not make a QR code. Close this window and use Share invite.
-          </p>
-        ) : image?.url === url ? (
-          <img src={image.data} alt="Friend invite QR code" className="mx-auto size-64 bg-white" />
-        ) : (
-          <output className="text-sm text-dim">Preparing the invite…</output>
-        )}
-        <p className="break-all text-xs text-dim">{url}</p>
-      </DialogContent>
-    </Dialog>
   )
 }
 
