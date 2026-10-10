@@ -29,6 +29,8 @@ import { rosterUseProblem } from '../core/rosterLegality'
 import { referenceData } from './offline/runtime'
 import { variantName } from '../core/rosterVariants'
 import type { LocalState } from '../contracts/localState'
+import { playerDefaults } from './offline/actionFunctions'
+import { localRosterAssessment } from './offline/rosterAssessment'
 
 export * from '../server/functions'
 
@@ -160,8 +162,21 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
     return local ? accessFor(local, await localEngine()?.storage.read()) : null
   try {
     const result = await cachedRead(['roster-access', args.data.id, args.data.battle ?? null], () => server.rosterAccess(args))
-    if (result?.editable || (!result && local !== undefined))
-      await rememberDocument(resource, result?.roster ?? null, result?.roster.updatedAt ?? null)
+    if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
+      const saved = await rememberDocument(
+        resource,
+        result?.roster ?? null,
+        result?.roster.updatedAt ?? null,
+        owner,
+        local?.updatedAt ?? null,
+      )
+      if (saved && saved.serverVersion !== (result?.roster.updatedAt ?? null)) {
+        const current = saved.data as LocalRoster | null
+        const retained = current ? accessFor(current, await localEngine()?.storage.read()) : null
+        localClient()?.setQueryData(['roster-access', args.data.id, args.data.battle ?? null], retained)
+        return retained
+      }
+    }
     if (await hasLocalChanges(resource)) {
       const current = await localDocument<LocalRoster | null>(resource)
       return current ? accessFor(current, await localEngine()?.storage.read()) : null
@@ -190,8 +205,23 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return fromLocal()
   try {
     const result = await cachedRead(['roster-bootstrap', args.data.id, args.data.battle ?? null], () => server.rosterBootstrap(args))
-    if (result?.editable || (!result && local !== undefined))
-      await rememberDocument(resource, result?.roster ?? null, result?.roster.updatedAt ?? null)
+    if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
+      const saved = await rememberDocument(
+        resource,
+        result?.roster ?? null,
+        result?.roster.updatedAt ?? null,
+        owner,
+        local?.updatedAt ?? null,
+      )
+      if (saved && saved.serverVersion !== (result?.roster.updatedAt ?? null)) {
+        const current = saved.data as LocalRoster | null
+        const retained = current
+          ? { ...accessFor(current, await localEngine()?.storage.read()), price: pricedRoster(current), changes: result?.changes ?? [] }
+          : null
+        localClient()?.setQueryData(['roster-bootstrap', args.data.id, args.data.battle ?? null], retained)
+        return retained
+      }
+    }
     if (await hasLocalChanges(resource)) {
       const current = await localDocument<LocalRoster | null>(resource)
       return current
@@ -271,7 +301,8 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
           summaries.filter((entry) => entry.id === baseId || entry.baseRosterId === baseId).map((entry) => entry.name),
         )
       : `Copy of ${roster.name}`.slice(0, 80)
-  const input = { ...draftFor(roster), id: undefined, name, baseRosterId: args.data.variant ? baseId : null }
+  const { rosterVisibility } = await playerDefaults()
+  const input = { ...draftFor(roster), id: undefined, name, visibility: rosterVisibility, baseRosterId: args.data.variant ? baseId : null }
   if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
   const result = await saveRoster({ data: input })
   return { id: result.id }
@@ -280,10 +311,19 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
 function summaryFor(roster: LocalRoster) {
   return { ...roster, unitCount: attachedUnitCount(roster.picks.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))) }
 }
-function overlaySummaries(summaries: Awaited<ReturnType<typeof server.savedRosterSummaries>>, state?: LocalState, all = false) {
+function overlaySummaries(
+  summaries: Awaited<ReturnType<typeof server.savedRosterSummaries>>,
+  state?: LocalState,
+  all = false,
+  retained?: Set<string>,
+) {
   const byId = new Map(summaries.map((roster) => [roster.id, roster]))
   for (const [resource, document] of Object.entries(state?.documents ?? {})) {
-    if (!resource.startsWith('roster:') || (!all && !state?.operations.some((operation) => operation.resource === resource))) continue
+    if (
+      !resource.startsWith('roster:') ||
+      (!all && !retained?.has(resource) && !state?.operations.some((operation) => operation.resource === resource))
+    )
+      continue
     const roster = document.data as LocalRoster | null
     if (!roster) byId.delete(resource.slice(7))
     else byId.set(roster.id, summaryFor(roster))
@@ -379,32 +419,58 @@ export async function savedRosterLoadoutDatasheets(
 }
 
 export async function savedRosterSummaries(): ReturnType<typeof server.savedRosterSummaries> {
+  const engine = localEngine()
+  const owner = localOwner()?.id
+  const assertAccount = () => {
+    if (localOwner()?.id !== owner || localEngine() !== engine) throw new Error('The account changed while loading these rosters.')
+  }
   const summaries = await cachedRead(['saved-roster-summaries'], async () => {
+    const before = await engine?.storage.read()
+    assertAccount()
     const fresh = await server.savedRosterSummaries()
+    assertAccount()
     const ids = new Set(fresh.map((roster) => roster.id))
-    await localEngine()?.storage.change((current) => ({
-      ...current,
-      documents: Object.fromEntries(
-        Object.entries(current.documents).filter(
-          ([resource]) =>
-            !resource.startsWith('roster:') ||
-            ids.has(resource.slice(7)) ||
-            current.operations.some((operation) => operation.resource === resource),
+    const retained = new Set<string>()
+    const saved = await engine?.storage.change((current) => {
+      assertAccount()
+      retained.clear()
+      for (const [resource, document] of Object.entries(current.documents)) {
+        if (!resource.startsWith('roster:')) continue
+        const previous = before?.documents[resource]
+        if (
+          previous?.serverVersion !== document.serverVersion ||
+          (previous?.data as LocalRoster | null | undefined)?.updatedAt !== (document.data as LocalRoster | null)?.updatedAt
+        )
+          retained.add(resource)
+      }
+      return {
+        ...current,
+        documents: Object.fromEntries(
+          Object.entries(current.documents).filter(
+            ([resource]) =>
+              !resource.startsWith('roster:') ||
+              ids.has(resource.slice(7)) ||
+              retained.has(resource) ||
+              current.operations.some((operation) => operation.resource === resource),
+          ),
         ),
-      ),
-    }))
-    return fresh
+      }
+    })
+    return overlaySummaries(fresh, saved, false, retained)
   })
-  const state = await localEngine()?.storage.read()
+  const state = await engine?.storage.read()
+  assertAccount()
   return overlaySummaries(summaries, state, typeof window !== 'undefined' && !navigator.onLine)
 }
 
 export async function savedRosterPage(args: Parameters<typeof server.savedRosterPage>[0]): ReturnType<typeof server.savedRosterPage> {
   if (!localEngine() || !localConstruction()) return server.savedRosterPage(args)
+  const owner = localOwner()!.id
   return Promise.all(
     args.data.ids.map(async (id) => {
       const roster = await sharedRoster({ data: { id } })
-      const price = roster && pricedRoster(roster)
+      const assessment = roster && (await localRosterAssessment(roster, owner))
+      if (localOwner()?.id !== owner) throw new Error('The account changed while loading these rosters.')
       const cached = localClient()
         ?.getQueryCache()
         .findAll({ queryKey: ['saved-roster-page'] })
@@ -412,10 +478,10 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
         .find((row) => row.id === id)
       return {
         id,
-        problem: price && roster ? (rosterUseProblem(price, roster.limit, roster.waivedRules)?.kind ?? null) : null,
+        problem: assessment?.problem ?? null,
         changes: cached?.changes ?? 0,
-        points: price?.points ?? null,
-        label: roster?.name || price?.label || '',
+        points: assessment?.points ?? null,
+        label: assessment?.label ?? '',
         differences: roster ? accessFor(roster, await localEngine()?.storage.read()).differences : null,
       }
     }),

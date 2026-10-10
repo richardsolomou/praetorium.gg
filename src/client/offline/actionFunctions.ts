@@ -20,15 +20,20 @@ import { localConstruction } from './construction'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalRoster } from './localRuntime'
 import { cachedRead } from './reads'
+import type { LocalDocumentUpdate } from './syncEngine'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
 async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
+  const owner = localOwner()?.id
   const resource = queryResource(key)
   const local = await localDocument<T>(resource)
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return local
   const result = await cachedRead(key, online)
-  await rememberDocument(resource, result)
-  return (await hasLocalChanges(resource)) ? ((await localDocument<T>(resource)) ?? result) : result
+  const saved = await rememberDocument(resource, result, null, owner, undefined, JSON.stringify({ data: local }))
+  if (localOwner()?.id !== owner) throw new Error('The account changed while loading this screen.')
+  const retained = saved ? (saved.data as T) : result
+  localClient()?.setQueryData(key, retained)
+  return retained
 }
 
 export const collection = () => accountRead(['collection'], () => server.collection())
@@ -90,9 +95,10 @@ async function deferred(
   identifiers: Record<string, string> = {},
   dependencies?: string[],
   owner?: string,
+  update?: LocalDocumentUpdate,
 ) {
   const normalized = offlineActionSchemas[kind].parse(input)
-  const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, data, dependencies, undefined, owner)
+  const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, data, dependencies, undefined, owner, update)
   if (navigator.onLine) {
     // Transport failures leave the durable action pending for reconnect.
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -120,15 +126,18 @@ function deferredForAccount() {
     data?: unknown,
     identifiers: Record<string, string> = {},
     dependencies?: string[],
-  ) => deferred(kind, input, resource, data, identifiers, dependencies, owner)
+    update?: LocalDocumentUpdate,
+  ) => deferred(kind, input, resource, data, identifiers, dependencies, owner, update)
 }
 
 export async function setOwned(args: Parameters<typeof server.setOwned>[0]): ReturnType<typeof server.setOwned> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.setOwned(args)
   const owned = await collection()
-  const next = args.data.owned ? [...new Set([...owned, args.data.entryId])] : owned.filter((id) => id !== args.data.entryId)
-  await defer('setOwned', args.data, queryResource(['collection']), next)
+  await defer('setOwned', args.data, queryResource(['collection']), undefined, {}, undefined, (current) => {
+    const entries = (current as typeof owned | undefined) ?? owned
+    return args.data.owned ? [...new Set([...entries, args.data.entryId])] : entries.filter((id) => id !== args.data.entryId)
+  })
   return undefined
 }
 export async function setFavouriteFaction(
@@ -137,12 +146,10 @@ export async function setFavouriteFaction(
   const defer = deferredForAccount()
   if (!localEngine()) return server.setFavouriteFaction(args)
   const favourites = await favouriteFactions()
-  await defer(
-    'setFavouriteFaction',
-    args.data,
-    queryResource(['favourite-factions']),
-    args.data.favourite ? [...new Set([...favourites, args.data.catalogueId])] : favourites.filter((id) => id !== args.data.catalogueId),
-  )
+  await defer('setFavouriteFaction', args.data, queryResource(['favourite-factions']), undefined, {}, undefined, (current) => {
+    const entries = (current as typeof favourites | undefined) ?? favourites
+    return args.data.favourite ? [...new Set([...entries, args.data.catalogueId])] : entries.filter((id) => id !== args.data.catalogueId)
+  })
   return null
 }
 export async function setFavouriteDetachment(
@@ -151,13 +158,11 @@ export async function setFavouriteDetachment(
   const defer = deferredForAccount()
   if (!localEngine()) return server.setFavouriteDetachment(args)
   const favourites = await favouriteDetachments()
-  const other = favourites.filter((entry) => entry.catalogueId !== args.data.catalogueId || entry.detachmentId !== args.data.detachmentId)
-  await defer(
-    'setFavouriteDetachment',
-    args.data,
-    queryResource(['favourite-detachments']),
-    args.data.favourite ? [...other, { catalogueId: args.data.catalogueId, detachmentId: args.data.detachmentId }] : other,
-  )
+  await defer('setFavouriteDetachment', args.data, queryResource(['favourite-detachments']), undefined, {}, undefined, (current) => {
+    const entries = (current as typeof favourites | undefined) ?? favourites
+    const other = entries.filter((entry) => entry.catalogueId !== args.data.catalogueId || entry.detachmentId !== args.data.detachmentId)
+    return args.data.favourite ? [...other, { catalogueId: args.data.catalogueId, detachmentId: args.data.detachmentId }] : other
+  })
   return null
 }
 export async function setPlayerDefaults(args: Parameters<typeof server.setPlayerDefaults>[0]): ReturnType<typeof server.setPlayerDefaults> {

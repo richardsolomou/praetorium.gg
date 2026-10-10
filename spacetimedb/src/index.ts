@@ -24,6 +24,7 @@ import { rosterReminderSchema } from '../../src/core/reminders'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
+import { productSyncRefusal } from './syncOutcome'
 
 const settings = table(
   { name: 'settings' },
@@ -2595,42 +2596,15 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
     const action = syncProductActions[input.name as keyof typeof syncProductActions]
     const result = action(tx, input.args)
     const decoded: unknown = typeof result === 'string' ? JSON.parse(result) : result
-    const failures = new Set([
-      'missing',
-      'forbidden',
-      'closed',
-      'sealed',
-      'too-small',
-      'open',
-      'team-minimum',
-      'below-accepted',
-      'full',
-      'not-friends',
-      'wrong-format',
-      'wrong-limit',
-      'unassigned',
-      'invalid-warlords',
-      'not-ready',
-      'not-revealed',
-      'self',
-      'already-friends',
-    ])
-    const outcome =
-      typeof decoded === 'string'
-        ? decoded
-        : decoded && typeof decoded === 'object' && 'outcome' in decoded
-          ? String(decoded.outcome)
-          : null
-    const refused =
-      (outcome !== null && failures.has(outcome)) || (decoded === false && !['cancel_friend_invite', 'remove_battle'].includes(input.name))
+    const refusal = productSyncRefusal(input.name, decoded)
     tx.db.syncReceipts.insert({
       id: input.id,
       owner: input.owner,
       fingerprint: input.fingerprint,
       createdAt: BigInt(now),
       result: productJson(result ?? null),
-      outcome: refused ? 'refused' : 'applied',
-      message: refused ? `The server declined this action (${outcome ?? 'no longer available'}).` : '',
+      outcome: refusal ? 'refused' : 'applied',
+      message: refusal ?? '',
     })
     return productJson(result ?? null)
   }),

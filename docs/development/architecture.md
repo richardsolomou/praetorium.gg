@@ -40,6 +40,10 @@ Keep existing `createServerFn` source paths: the pinned compiler includes filena
 
 `src/client/offline/syncEngine.ts` owns durable enqueue, ordering, dependencies, sender leases, and acknowledgements. IndexedDB transactions and native generation files implement the same account-scoped storage contract. Save before projecting a change into query data. Never replace a later local edit with an earlier acknowledgement or write across an account generation.
 
+Roster-summary pruning captures its initiating account and runtime before awaiting the server. Other downloads carry their initiating account into durable writes. Check the account and writing runtime again inside delayed storage transactions. Roster copies and variants use the account's saved visibility default.
+
+Versioned downloads cannot replace newer acknowledged rosters or battles. Unversioned account downloads retain documents changed since the request started. Summary pruning retains rosters changed since the request started. Return retained documents to query consumers as well as protecting storage. Item deltas for collections and favourites update the current document inside the same transaction that appends the queued action.
+
 `src/server/functions/offline.ts` authenticates queued actions and preserves the ordinary mutation origin checks. SpacetimeDB commits product mutations and retry receipts atomically. Roster versions and battle sequences detect concurrent changes; conflicts remain on the device for review. Fold downloaded battle commands through the existing domain authority, sanitizing private history before download. Public construction bundles serialize the same catalogue and rules used by the server.
 
 ## Tests

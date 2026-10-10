@@ -136,6 +136,8 @@ The publisher compiles both verified snapshots with the same code and appends id
 
 Saved-list assessment reuses pricing's `rosterUseProblem`, bounded to displayed rows and yielding batches for whole-library counts. Compare only newer bounded history and fold net changes, dropping reversals. Real saves advance `updatedAt`; merely opening a list must not. Library count and editor banner share that fold. Never compare frozen battle/league snapshots with current data.
 
+Local library rows use lightweight assessments in a bounded account-scoped cache keyed by roster version and downloaded catalogue revision. Yield before each uncached assessment during background preparation; unchanged refreshes must reuse the result rather than rebuild full unit projections.
+
 ## Verification
 
 Run adjacent evaluator/projection tests, `just points`, and relevant roster/import browser flows. Verify one and multiple carriers through edit, save, reload, preview, View mode, and export. Check every affected rendered surface after a source change: picker, unit card, loadout, roster total, saved-list assessment, reference, and combat projection. Use each distinct conditional price-row shape. A same-named weapon on another datasheet is not proof that this one is wrong.

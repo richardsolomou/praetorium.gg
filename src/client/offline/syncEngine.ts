@@ -9,6 +9,8 @@ export type SyncAnswer =
   | { outcome: 'applied'; data: unknown; serverVersion?: number }
   | { outcome: 'conflict' | 'refused'; message: string }
 
+export type LocalDocumentUpdate = (current: unknown) => unknown
+
 export function discardLocalResource(state: LocalState, resource: string): LocalState {
   if (resource === '*') return { ...state, documents: {}, operations: [] }
   const documents = { ...state.documents }
@@ -39,7 +41,7 @@ export class SyncEngine {
     private readonly changed: (state: LocalState) => void,
   ) {}
 
-  async enqueue(operation: LocalOperation, data?: unknown) {
+  async enqueue(operation: LocalOperation, data?: unknown, update?: LocalDocumentUpdate) {
     const state = await this.storage.change((current) => {
       if (current.operations.some((candidate) => candidate.id === operation.id)) throw new Error('This change is already saved.')
       if (operation.kind === 'battleCommand') {
@@ -57,15 +59,16 @@ export class SyncEngine {
         last.status === 'pending'
       const operations = coalesce ? current.operations.slice(0, -1) : current.operations
       if (operations.length >= MAX_LOCAL_OPERATIONS) throw new Error('Too many unsynced changes. Connect before making more edits.')
+      const projected = update ? update(current.documents[operation.resource]?.data) : data
       const next = {
         ...current,
         operations: [...operations, operation],
         documents:
-          data === undefined
+          projected === undefined
             ? current.documents
             : {
                 ...current.documents,
-                [operation.resource]: { data, serverVersion: current.documents[operation.resource]?.serverVersion ?? null },
+                [operation.resource]: { data: projected, serverVersion: current.documents[operation.resource]?.serverVersion ?? null },
               },
       }
       if (new TextEncoder().encode(JSON.stringify(next)).byteLength > MAX_LOCAL_STATE_BYTES)

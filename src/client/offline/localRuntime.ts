@@ -4,7 +4,7 @@ import { offlineActionKind, offlineActionSchemas, type OfflineActionKind } from 
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import type * as server from '../../server/functions'
 import { syncRoster, syncAction, syncBattleCommand } from '../../server/functions/offline'
-import { SyncEngine, type SyncAnswer } from './syncEngine'
+import { SyncEngine, type SyncAnswer, type LocalDocumentUpdate } from './syncEngine'
 import { nativeBridgeVersion, supportsNativeLocalState } from '../nativeBridge'
 import { localStateStorage } from './localStorage'
 
@@ -121,10 +121,8 @@ async function execute(operation: LocalOperation, state: LocalState): Promise<Sy
   })
   if (answer.outcome !== 'applied') return { outcome: 'refused', message: answer.message }
   if (operation.kind === 'createBattle' || operation.kind === 'createLeagueBattle') {
-    const token = saved.identifiers.battleToken!
-    const { battleWorkspace } = await import('../../server/functions/offline')
-    const { workspace } = await battleWorkspace({ signal: AbortSignal.timeout(15_000), data: { token } })
-    return { outcome: 'applied', data: workspace, serverVersion: workspace.serverSeq }
+    if (!('workspace' in answer)) throw new Error('The saved battle acknowledgement is incomplete. Try syncing again.')
+    return { outcome: 'applied', data: answer.workspace, serverVersion: answer.version }
   }
   if (operation.resource.startsWith('league:')) {
     const { openLeague } = await import('../../server/functions')
@@ -152,14 +150,32 @@ export async function localDocument<T>(resource: string): Promise<T | undefined>
   const state = await engine.storage.read()
   return localOwner()?.id === state.owner ? (state.documents[resource]?.data as T | undefined) : undefined
 }
-export async function rememberDocument(resource: string, data: unknown, serverVersion: number | null = null) {
+export async function rememberDocument(
+  resource: string,
+  data: unknown,
+  serverVersion: number | null = null,
+  owner = localOwner()?.id,
+  expectedVersion?: number | null,
+  expectedDataJson?: string,
+) {
   const engine = localEngine()
   if (!engine) return
-  await engine.storage.change((state) => {
+  const assertAccount = () => {
+    if (localOwner()?.id !== owner || localEngine() !== engine) throw new Error('The account changed while saving this download.')
+  }
+  assertAccount()
+  const saved = await engine.storage.change((state) => {
+    assertAccount()
     if (state.operations.some((operation) => operation.resource === resource)) return state
-    if (resource.startsWith('battle:') && (state.documents[resource]?.serverVersion ?? 0) > (serverVersion ?? 0)) return state
+    if (expectedDataJson !== undefined && JSON.stringify({ data: state.documents[resource]?.data }) !== expectedDataJson) return state
+    if (resource.startsWith('battle:') || resource.startsWith('roster:')) {
+      const currentVersion = state.documents[resource]?.serverVersion ?? null
+      if (serverVersion !== null && (currentVersion ?? 0) > serverVersion) return state
+      if (serverVersion === null && expectedVersion !== undefined && currentVersion !== expectedVersion) return state
+    }
     return { ...state, documents: { ...state.documents, [resource]: { data, serverVersion } } }
   })
+  return saved.documents[resource]
 }
 export async function queueLocal(
   kind: string,
@@ -169,12 +185,13 @@ export async function queueLocal(
   dependencies?: string[],
   id = crypto.randomUUID(),
   expectedOwner = localOwner()?.id,
+  update?: LocalDocumentUpdate,
 ) {
   const engine = localEngine()
   if (!engine) throw new Error('Sign in before saving changes.')
   if (localOwner()?.id !== expectedOwner) throw new Error('The account changed before these edits could be saved.')
   const operation: LocalOperation = { id, kind, input, resource, dependencies, createdAt: Date.now(), status: 'pending' }
-  await engine.enqueue(operation, data)
+  await engine.enqueue(operation, data, update)
   if (navigator.onLine)
     void engine.sync().catch((error) => {
       engine.lastError = error
@@ -185,6 +202,6 @@ export async function hasLocalChanges(resource?: string) {
   const engine = localEngine()
   return engine ? (await engine.storage.read()).operations.some((operation) => !resource || operation.resource === resource) : false
 }
-export async function rememberBattle(workspace: BattleWorkspace) {
-  await rememberDocument(`battle:${workspace.battle.token}`, workspace, workspace.serverSeq)
+export async function rememberBattle(workspace: BattleWorkspace, owner = localOwner()?.id) {
+  await rememberDocument(`battle:${workspace.battle.token}`, workspace, workspace.serverSeq, owner)
 }

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { expect, it } from 'vitest'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { offlineContext } from './offlineContext'
+import { z } from 'zod'
 
 const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
@@ -27,6 +28,96 @@ const rowFor = (owner: string, id = randomUUID()) => ({
   now: Date.now(),
 })
 const fingerprint = 'a'.repeat(64)
+
+it.skipIf(!url || !database || !token)('acknowledges and replays a successfully sealed offline league roster', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const leagueToken = randomUUID()
+  const row = { ...rowFor(owner), limit: 2000 }
+  const id = randomUUID()
+  const context = () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false })
+  try {
+    await operator.saveRoster(row)
+    await operator.leagueCommand(
+      {
+        op: 'create',
+        id: randomUUID(),
+        token: leagueToken,
+        eventId: randomUUID(),
+        eventToken: leagueToken,
+        ownerId: owner,
+        ownerPlays: true,
+        name: 'Offline league',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        playerLimit: 2,
+        recurring: false,
+        format: '1v1',
+        rosterLimit: 2000,
+        now: row.now,
+      },
+      z.null(),
+    )
+    const command = {
+      op: 'submit',
+      token: leagueToken,
+      eventToken: leagueToken,
+      ownerId: owner,
+      userId: owner,
+      rosterId: row.id,
+      rosterName: row.name,
+      rosterLimit: row.limit,
+      rosterUpdatedAt: row.now,
+      now: row.now,
+      snapshot: JSON.stringify({
+        name: row.name,
+        text: row.name,
+        built: {
+          catalogueId: 'test',
+          revision: 'test',
+          limit: 2000,
+          detachment: null,
+          disposition: null,
+          detachmentIds: [],
+          waivedRules: [],
+          picks: [],
+          units: [{ key: 'lord', name: 'Lord', points: 80, models: 1, group: 'character', warlord: true }],
+        },
+      }),
+    }
+    const result = await offlineContext.run(context(), () => operator.leagueCommand(command, z.object({ outcome: z.literal('sealed') })))
+    const retry = await offlineContext.run(context(), () => operator.leagueCommand(command, z.object({ outcome: z.literal('sealed') })))
+    expect({
+      result,
+      retry,
+      receipt: (await operator.syncReceipt(id, owner, fingerprint))?.outcome,
+      snapshot: (await operator.leagueRosters(leagueToken, owner))[0]?.entry.rosterSnapshot,
+    }).toEqual({ result: { outcome: 'sealed' }, retry: { outcome: 'sealed' }, receipt: 'applied', snapshot: command.snapshot })
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
+
+it.skipIf(!url || !database || !token)('acknowledges a notification opt-out and retains its saved value on retry', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const id = randomUUID()
+  const context = () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false })
+  try {
+    await operator.setPushEnabled(owner, true, Date.now())
+    const first = await offlineContext.run(context(), () => operator.setPushEnabled(owner, false, Date.now()))
+    const retry = await offlineContext.run(context(), () => operator.setPushEnabled(owner, false, Date.now()))
+    expect({
+      first,
+      retry,
+      enabled: await operator.pushEnabled(owner),
+      receipt: (await operator.syncReceipt(id, owner, fingerprint))?.outcome,
+    }).toEqual({ first: false, retry: false, enabled: false, receipt: 'applied' })
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
 
 it.skipIf(!url || !database || !token)('commits offline battle creation and its receipt together', async () => {
   const operator = store()

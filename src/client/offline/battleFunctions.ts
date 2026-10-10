@@ -53,14 +53,18 @@ export function workspaceScreen(
     mission: rules ? resolvedMissionForSide(state, rules, side) : null,
   }))
   const viewerSide = workspace.players.find((player) => player.id === viewerId)?.side
-  const report = foldReport(
-    workspace.players,
-    workspace.log,
-    workspace.players.map((player) => player.id),
-    viewerId,
-    workspace.players.map((player) => player.side),
-    rules,
-  )
+  const report =
+    state.status === 'finished'
+      ? foldReport(
+          workspace.players,
+          workspace.log,
+          workspace.players.map((player) => player.id),
+          viewerId,
+          workspace.players.map((player) => player.side),
+          rules,
+        )
+      : []
+  const labels = new Map(report.map((entry) => [entry.seq, entry.text]))
   return {
     kind: 'battle',
     view,
@@ -72,25 +76,29 @@ export function workspaceScreen(
     ),
     mission: missions.find((mission) => mission.side === viewerSide)?.mission ?? null,
     missions,
-    timeline: battleTimeline(
-      workspace.players.map((player) => player.id),
-      workspace.log,
-      workspace.players.map((player) => player.side),
-    ).map((point) => ({ ...point, text: report.find((entry) => entry.seq === point.seq)?.text ?? 'Undone action' })),
+    ...(state.status === 'finished'
+      ? {
+          timeline: battleTimeline(
+            workspace.players.map((player) => player.id),
+            workspace.log,
+            workspace.players.map((player) => player.side),
+          ).map((point) => ({ ...point, text: labels.get(point.seq) ?? 'Undone action' })),
+        }
+      : {}),
   }
 }
 
 export async function openBattle(args: Parameters<typeof server.openBattle>[0]): ReturnType<typeof server.openBattle> {
+  const owner = localOwner()
   const resource = `battle:${args.data.token}`
   const workspace = await localDocument<BattleWorkspace | null>(resource)
   if (workspace === null && (await hasLocalChanges(resource))) return { kind: 'unavailable' }
-  const owner = localOwner()
   if (workspace && owner && (!navigator.onLine || (await hasLocalChanges(resource)))) return workspaceScreen(workspace, owner.id)
   const result = await cachedRead(['battle', args.data.token], async () => {
     const screen = await server.openBattle(args)
     if (screen?.kind === 'battle' && localEngine()) {
       const fresh = await battleWorkspace(args)
-      await rememberBattle(fresh.workspace)
+      await rememberBattle(fresh.workspace, owner?.id)
       if (await hasLocalChanges(resource)) {
         const current = await localDocument<BattleWorkspace>(resource)
         if (current && localOwner()?.id === owner?.id) return workspaceScreen(current, owner!.id)

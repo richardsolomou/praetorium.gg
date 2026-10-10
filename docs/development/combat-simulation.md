@@ -58,6 +58,8 @@ Rank by destruction probability, then models and wounds lost. Every member’s l
 
 Optimization holds model counts and non-weapon choices fixed and searches legal equipment/profile combinations across the whole attached unit, including when opened from a leader. Evaluate every candidate in its full roster context and apply all winning member loadouts together; preserve attachment identities and unrelated picks. Deduplicate equivalent selections and projected combatants without pruning distinct selections that can reach different legal states. Cancel keeps the best result already found. Timeout, unsupported combinations, and memory/work limits must not claim an exact optimum. Read bounds and progress behavior in `src/shared/combatLoadouts.ts` and the simulator worker flow.
 
+Downloaded catalogue candidate discovery runs in an embedded worker, separate from scoring workers. Request one batch at a time and terminate discovery on cancellation, timeout, stream failure or completion. Keep the worker embedded in the saved application so cold offline starts require no network request for it.
+
 ## Coverage audit
 
 `pnpm catalogue:combat` inventories source clauses and raw weapon keyword variants; `--faction` narrows it and `--json` preserves sources and support status. Reports remain outside Git. Compiler wording coverage does not prove matchup eligibility or include every already-projected effect.
