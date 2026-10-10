@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { Check, ChevronRight, Link2 } from 'lucide-react'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
+import { InviteQr, SHARED_LABEL, useFriendInvite } from '../friends/friendInvite'
 import { seatedPlayers, seatsFor, type Seat, type SoloPairRole } from '../../seats'
 import { Choice } from '../../components/Choice'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
@@ -205,23 +206,24 @@ export function CreateBattle() {
             ) : null}
             {opponentQuery.isPending ? (
               <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
-            ) : opponentQuery.error ? null : opponents.length ? (
-              <SeatRows
-                onboarding="battle-seats"
-                idPrefix="battle"
-                seats={seats}
-                seatedIn={seatedIn}
-                groupsFor={(_seat, taken) => seatOptions(opponents, labels, taken)}
-                onPick={(seat, id) => {
-                  changeIntent()
-                  if (seat.side === 'yours') return setAllyId(id)
-                  setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
-                }}
-              />
-            ) : (
-              <p className="border border-edge bg-sunken p-3 text-sm text-dim">
-                No opponents are available yet. Add a friend, then try again.
-              </p>
+            ) : opponentQuery.error ? null : (
+              <>
+                {opponents.length ? (
+                  <SeatRows
+                    onboarding="battle-seats"
+                    idPrefix="battle"
+                    seats={seats}
+                    seatedIn={seatedIn}
+                    groupsFor={(_seat, taken) => seatOptions(opponents, labels, taken)}
+                    onPick={(seat, id) => {
+                      changeIntent()
+                      if (seat.side === 'yours') return setAllyId(id)
+                      setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
+                    }}
+                  />
+                ) : null}
+                {opponents.some((opponent) => !opponent.automated) ? null : <InviteOpponent />}
+              </>
             )}
             {opponents.length ? (
               <SeatMatchup onboarding="battle-sides" seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} />
@@ -258,5 +260,26 @@ export function CreateBattle() {
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Until a player has a friend, the way to seat a real opponent is to invite one. */
+function InviteOpponent() {
+  const invite = useFriendInvite()
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim">
+        <span className="mr-auto">Playing a friend? Invite them, then pick them here.</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={invite.busy} onClick={() => void invite.share()}>
+            {invite.feedback ? <Check /> : <Link2 />}
+            {invite.creating ? 'Creating…' : invite.feedback ? SHARED_LABEL[invite.feedback] : 'Share invite link'}
+          </Button>
+          {invite.url ? <InviteQr url={invite.url} disabled={invite.busy} size="sm" /> : null}
+        </div>
+      </div>
+      {invite.problem ? <p className="text-xs text-destructive">{invite.problem}</p> : null}
+    </div>
   )
 }

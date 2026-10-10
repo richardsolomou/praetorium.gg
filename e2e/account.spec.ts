@@ -323,6 +323,39 @@ test('a one-time link connects a new player after they create an account and acc
   await recipientContext.close()
 })
 
+test('a player without friends invites an opponent from the new battle dialog and then seats them', async ({ browser }) => {
+  const inviterContext = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+  const recipientContext = await browser.newContext()
+  try {
+    const inviter = await inviterContext.newPage()
+    const recipient = await recipientContext.newPage()
+    const inviterName = uniqueName('Battle inviter')
+    const recipientName = uniqueName('Battle invitee')
+    await signUp(inviter, inviterName)
+    await signUp(recipient, recipientName)
+
+    await inviter.goto('/battles')
+    const dialog = inviter.getByRole('dialog', { name: 'Start a battle' })
+    await retryUntilVisible(dialog, () => inviter.getByRole('button', { name: 'New battle' }).click())
+    await dialog.getByRole('button', { name: 'Share invite link', exact: true }).click()
+    await expect(dialog.getByRole('button', { name: 'Link copied', exact: true })).toBeVisible()
+    const inviteUrl = await inviter.evaluate(() => navigator.clipboard.readText())
+
+    await recipient.goto(inviteUrl)
+    await recipient.getByRole('button', { name: 'Accept invite' }).click()
+    await expect(recipient).toHaveURL(/\/friends$/)
+
+    await inviter.reload()
+    await retryUntilVisible(dialog, () => inviter.getByRole('button', { name: 'New battle' }).click())
+    await dialog.getByRole('combobox', { name: 'Opponent' }).click()
+    await expect(inviter.getByRole('option', { name: recipientName, exact: true })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /invite/i })).toHaveCount(0)
+  } finally {
+    await inviterContext.close()
+    await recipientContext.close()
+  }
+})
+
 test('a player can reject an incoming friend request', async ({ browser }) => {
   const requesterContext = await browser.newContext()
   const recipientContext = await browser.newContext()
