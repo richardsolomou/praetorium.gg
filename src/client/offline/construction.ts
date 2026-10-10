@@ -43,7 +43,7 @@ export function constructionRead<T>(
 ): Promise<T> {
   const data = localConstruction(catalogueId)
   if (data) return Promise.resolve(local(data))
-  if (typeof navigator !== 'undefined' && !navigator.onLine)
+  if (typeof window !== 'undefined' && !navigator.onLine)
     return Promise.reject(new Error('Download this army’s rules online before using them offline.'))
   return online()
 }

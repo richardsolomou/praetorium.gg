@@ -69,6 +69,7 @@ it('reuses a selected source and replaces it after a reference refresh', () => {
 
 it('refuses unavailable codexes offline instead of reading base rules or requesting the server', async () => {
   mocks.reference.mockReturnValue({ construction: source(80) })
+  vi.stubGlobal('window', {})
   vi.stubGlobal('navigator', { onLine: false })
   const online = vi.fn()
   await expect(constructionRead(() => 'base', online, 'missing~cat')).rejects.toThrow('Download this army')
@@ -87,4 +88,11 @@ it('namespaces the catalogue used to discover detachments', () => {
   ]
   const selected = buildConstruction(saved)
   expect(selected.catalogue.detachments.get('codex~cat')?.options.map((option) => option.id)).toEqual(['detachment-choice'])
+})
+
+it('uses connected reads when the server navigator has no connectivity property', async () => {
+  mocks.reference.mockReturnValue(undefined)
+  vi.stubGlobal('navigator', { userAgent: 'Node.js' })
+  const online = vi.fn().mockResolvedValue('server')
+  expect(await constructionRead(() => 'local', online)).toBe('server')
 })

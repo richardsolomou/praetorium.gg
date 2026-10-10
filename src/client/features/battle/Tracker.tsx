@@ -15,6 +15,7 @@ import {
 } from '../../missionActionReminders'
 import { appliesInMode } from '../../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from './automaticAttempts'
+import type { SendCommand } from './useCommand'
 import { errorMessage } from '../../queryClient'
 import {
   parseReminderDismissals,
@@ -58,7 +59,7 @@ type Props = {
   clock: BattleClock
   /** Each side's own mission, derived from both armies' dispositions, so it is the same on both devices. */
   missions: { side: number; mission: SideMission | null }[]
-  send: (command: Command) => void
+  send: SendCommand
   pending: boolean
   problem: string | null
 }
@@ -490,7 +491,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)
     )
       return
-    send({ kind: 'settle-opponent-turn' })
+    send({ kind: 'settle-opponent-turn' }, { background: true })
   }, [emptySettlementKey, emptySettlementReady, pending, promptMinimized, send])
   // The win is this device's to celebrate only when the side it is seated on took it.
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)

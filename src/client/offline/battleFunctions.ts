@@ -110,11 +110,15 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
   return result
 }
 
-export async function submit(args: Parameters<typeof server.submit>[0]): ReturnType<typeof server.submit> {
+export async function submit(
+  args: Parameters<typeof server.submit>[0],
+  options?: { background?: boolean },
+): ReturnType<typeof server.submit> {
   const engine = localEngine()
   const owner = localOwner()
   if (!engine || !owner || !localConstruction()) return server.submit(args)
   const resource = `battle:${args.data.token}`
+  if (options?.background && navigator.onLine && !(await hasLocalChanges(resource))) return server.submit(args)
   let workspace = await localDocument<BattleWorkspace>(resource)
   if (navigator.onLine && (!workspace || (workspace.log.at(-1)?.seq ?? 0) < args.data.expectedSeq) && !(await hasLocalChanges(resource))) {
     const fresh = await battleWorkspace({ data: { token: args.data.token } })
