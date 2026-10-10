@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { CreateRoster } from './CreateRoster'
+import { CreateBattle } from '../battles/CreateBattle'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { RosterExportDialog } from './RosterExportDialog'
@@ -123,6 +124,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           <>
             <RosterImport />
             <CreateRoster factionOptions={available?.factions ?? []} />
+            <CreateBattle practice />
           </>
         }
       />

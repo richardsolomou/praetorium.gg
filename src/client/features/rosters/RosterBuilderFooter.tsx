@@ -87,7 +87,7 @@ export function RosterBuilderFooter({
               data-onboarding="roster-picker"
               variant="outline"
               size="sm"
-              className="min-[1300px]:hidden"
+              className="max-sm:min-h-11 min-[1300px]:hidden"
               onClick={() => {
                 advanceOnboarding('roster', 'roster-picker', 'roster-search')
                 onAddUnits()
@@ -98,7 +98,7 @@ export function RosterBuilderFooter({
             </Button>
           ) : null}
           {onSave ? (
-            <Button size="sm" className="min-h-11" onClick={onSave} disabled={!hasUnits}>
+            <Button size="sm" className="max-sm:min-h-11" onClick={onSave} disabled={!hasUnits}>
               Save roster
             </Button>
           ) : null}
@@ -131,6 +131,9 @@ export function RosterBuilderFooter({
       {!frozen && unhandled.length ? (
         <div className="mt-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
           <p className="font-semibold uppercase">Could not check every rule</p>
+          <p className="mt-1">
+            Check these restrictions in the source rules before playing. A points total does not confirm every choice is legal.
+          </p>
           <ul className="mt-1 list-inside list-disc">
             {unhandled.slice(0, 8).map((message) => (
               <li key={message}>{message}</li>

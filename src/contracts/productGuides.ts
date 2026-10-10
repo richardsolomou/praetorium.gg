@@ -65,15 +65,15 @@ export const PRODUCT_GUIDES = [
       },
       {
         title: 'Paste it into Import roster',
-        text: 'Sign in to Praetorium and open Rosters. Choose Import roster, paste the export into Roster text, then choose Import pasted roster. Praetorium matches the text to its current community catalogue.',
+        text: 'Open Rosters and choose Import roster. Paste the export into Roster text, then choose Import pasted roster. You can try this without an account. Praetorium matches the text to its current community catalogue.',
       },
       {
         title: 'Review anything that could not be matched',
-        text: 'If the faction cannot be identified, the import stops. For a recognised faction, the review names units that will not be imported and choices that could not be applied. Correct the text and try again, or choose Import anyway only after reading what will arrive.',
+        text: 'If the faction cannot be identified, the import stops. For a recognised faction, the review names units that will not be imported and choices that could not be applied. Use Edit pasted text to correct them, or accept the incomplete list after reading what will arrive. Visitors choose Open imported draft; signed-in players choose Import anyway when there are unmatched choices.',
       },
       {
-        title: 'Check the saved result',
-        text: 'Open the imported roster and compare its units, model counts, equipment, detachments and points with the original list. Resolve validation messages and choose a force disposition if the imported list requires one. Keep the original export until you have checked the result.',
+        title: 'Check and save the result',
+        text: 'Compare the imported units, model counts, equipment, detachments and points with the original list. Resolve validation messages and choose a force disposition if required. A guest draft stays on this device; choose Save roster and sign in to keep it in your account. Keep the original export until you have checked the result.',
       },
     ],
     questions: [

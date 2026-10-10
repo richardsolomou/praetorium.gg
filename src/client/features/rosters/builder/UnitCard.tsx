@@ -89,6 +89,7 @@ export function UnitCard({
         <Button
           variant="ghost"
           className="absolute inset-0 h-full w-full hover:bg-transparent dark:hover:bg-transparent"
+          data-print-hide
           onClick={onSelect}
           aria-pressed={selected}
           aria-label={unit.name}
@@ -173,7 +174,7 @@ export function UnitCard({
       ))}
 
       {editable && canJoin.length ? (
-        <div className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
+        <div data-print-hide className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -200,7 +201,11 @@ export function UnitCard({
       ) : null}
 
       {/* A wider gap than the rows above it: two counters side by side put one's `+` next to the other's `-`. */}
-      {status ? <div className={`${ROW} relative z-10 flex-wrap gap-x-4 gap-y-1.5 [&_button]:pointer-events-auto`}>{status}</div> : null}
+      {status ? (
+        <div data-print-hide className={`${ROW} relative z-10 flex-wrap gap-x-4 gap-y-1.5 [&_button]:pointer-events-auto`}>
+          {status}
+        </div>
+      ) : null}
     </>
   )
 

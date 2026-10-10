@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -247,6 +247,18 @@ export function RosterSetupDialog({
   }
 
   const title = mode === 'create' ? 'Create roster' : 'Edit roster setup'
+  const missingId = useId()
+  const missing = !draft.catalogueId
+    ? 'Choose your faction.'
+    : loadingFaction
+      ? 'Loading your army choices…'
+      : !draft.detachmentIds.length
+        ? 'Choose a detachment.'
+        : unavailableDetachmentIds.length
+          ? 'Replace the unavailable detachment.'
+          : dispositions.length > 1 && !selectedDisposition
+            ? 'Choose a Force disposition.'
+            : pointsError
   const description = (
     <>
       {mode === 'create'
@@ -460,6 +472,9 @@ export function RosterSetupDialog({
       {dispositions.length ? (
         <fieldset>
           <legend className="rubric">Force disposition</legend>
+          <p className="mt-1 text-xs text-dim">
+            Your Force disposition helps decide your primary mission in battle. Open the selected detachment’s reference to read its rules.
+          </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {dispositions.map((entry) => {
               const chosen = selectedDisposition === entry.id
@@ -534,6 +549,11 @@ export function RosterSetupDialog({
   )
   const actions = (
     <>
+      {missing ? (
+        <output className="mr-auto self-center text-sm text-discarded">
+          <span id={missingId}>{missing}</span>
+        </output>
+      ) : null}
       {inline ? null : (
         <Button variant="ghost" onClick={() => onOpenChange(false)}>
           Cancel
@@ -542,15 +562,8 @@ export function RosterSetupDialog({
       <Button
         data-onboarding="setup-create"
         className="sm:min-w-40"
-        disabled={
-          pending ||
-          loadingFaction ||
-          !draft.catalogueId ||
-          !draft.detachmentIds.length ||
-          unavailableDetachmentIds.length > 0 ||
-          (dispositions.length > 1 && !selectedDisposition) ||
-          Boolean(pointsError)
-        }
+        aria-describedby={missing ? missingId : undefined}
+        disabled={pending || Boolean(missing)}
         onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
       >
         {loadingFaction

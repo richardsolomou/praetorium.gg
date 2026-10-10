@@ -34,9 +34,7 @@ export function unitLimitMessage(entryId: string, held: number, limits: Readonly
   const limit = limits.get(entryId)
   if (limit === undefined) return 'Checking unit limits…'
   if (limit === null || held < limit) return null
-  return limit === 0
-    ? 'Unavailable with the current roster. Check your army’s construction rules.'
-    : `Limit reached (${held}/${limit}). Remove a unit or check your army’s construction rules.`
+  return limit === 0 ? 'Unavailable with the current roster. Check your army’s construction rules.' : 'Limit reached'
 }
 
 export type RequestedUnit = { kind: 'pending' } | { kind: 'add' } | { kind: 'refused'; reason: 'limit' | 'not_offered'; message: string }

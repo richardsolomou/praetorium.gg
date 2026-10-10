@@ -72,6 +72,8 @@ Signed-in tokens are deployment-bound; guests receive restricted native identiti
 
 `src/client/spacetimeConnection.ts` owns jittered, bounded backoff. Only a sustained applied subscription resets it. Only token HTTP 401 rechecks the account; service outages do not sign the player out. Server reads use `rpc()`, mutations use `mutationRpc()`, and sign-in destinations remain local paths.
 
+The roster-library practice entry selects an existing practice seat; players still control both armies, rolls and decisions. It does not introduce an automated opponent.
+
 ## Verification
 
 Run adjacent domain tests and relevant `e2e/battle*.spec.ts`, `e2e/team-battle.spec.ts`, and guest flows. Cover competing sequences, no automatic stale retry, atomic settlement/undo, cross-device prompts, historical secrets, audience changes, frozen rosters, casualties, and the clock across a full rewind/pause/reopen cycle. Follow [Interface verification](interface.md#verification) for rendered surfaces.

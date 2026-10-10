@@ -200,7 +200,9 @@ for (const width of [1440, 390]) {
     }
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
     await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Limit reached (1/1)')
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Limit reached')
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in roster')
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('construction rules')
     await page.screenshot({ path: `test-results/allied-limits-${width}.png` })
     if (width < 1300) await page.getByRole('button', { name: 'Close', exact: true }).click()
     await page.getByRole('button', { name: 'Save roster', exact: true }).click()

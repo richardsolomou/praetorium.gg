@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from 'react'
 
 /** The one date format every screen shows, so lists agree on how a moment reads. */
-export const formatDate = (at: string | number | Date) => new Date(at).toLocaleDateString()
+const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' } as const
+export const formatDate = (at: string | number | Date) => new Date(at).toLocaleDateString(undefined, dateOptions)
 
 /** The one time-of-day format, for entries inside a single day's report. */
 export const formatTime = (at: string | number | Date) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 const utc = {
-  date: (at: string | number | Date) => new Date(at).toLocaleDateString('en-US', { timeZone: 'UTC' }),
+  date: (at: string | number | Date) => new Date(at).toLocaleDateString('en-GB', { ...dateOptions, timeZone: 'UTC' }),
   time: (at: string | number | Date) => new Date(at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
 }
 

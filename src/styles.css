@@ -368,6 +368,21 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   [data-roster-builder] [data-unit] {
     break-inside: avoid;
   }
+
+  [data-native-app-content],
+  [data-native-app-content] > main,
+  [data-roster-builder],
+  [data-roster-builder] > div,
+  [data-slot='roster-units'] {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  [data-roster-builder] button {
+    display: none !important;
+  }
 }
 
 :root {

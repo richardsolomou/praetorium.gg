@@ -1,7 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Link2, RotateCw, UserPlus, X } from 'lucide-react'
-import { useState } from 'react'
+import { Check, Link2, QrCode, RotateCw, UserPlus, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -197,6 +198,7 @@ function InviteFriend() {
                 {feedback ? <Check /> : <Link2 />}
                 {feedback === 'shared' ? 'Invite shared' : feedback === 'copied' ? 'Link copied' : 'Share invite'}
               </Button>
+              <InviteQr url={`${origin}/invite/${invite.token}`} disabled={!origin || busy} />
               <Button variant="ghost" disabled={busy} onClick={() => void createAndShare()}>
                 <RotateCw /> New link
               </Button>
@@ -220,6 +222,53 @@ function InviteFriend() {
       </div>
       {problem || shareProblem ? <p className="mt-3 text-sm text-destructive">{problem ? errorMessage(problem) : shareProblem}</p> : null}
     </section>
+  )
+}
+
+function InviteQr({ url, disabled }: { url: string; disabled: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [image, setImage] = useState<{ url: string; data: string } | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    setFailed(false)
+    void import('qrcode')
+      .then(({ default: qr }) => qr.toDataURL(url, { width: 256, margin: 2 }))
+      .then((data) => {
+        if (active) setImage({ url, data })
+      })
+      .catch(() => {
+        if (active) setFailed(true)
+      })
+    return () => {
+      active = false
+    }
+  }, [open, url])
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="outline" disabled={disabled} />}>
+        <QrCode /> Scan invite
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Invite a friend</DialogTitle>
+          <DialogDescription>
+            Your friend can scan this one-time link, sign in or create an account, then accept your invite.
+          </DialogDescription>
+        </DialogHeader>
+        {failed ? (
+          <p role="alert" className="text-sm text-destructive">
+            Could not make a QR code. Close this window and use Share invite.
+          </p>
+        ) : image?.url === url ? (
+          <img src={image.data} alt="Friend invite QR code" className="mx-auto size-64 bg-white" />
+        ) : (
+          <output className="text-sm text-dim">Preparing the invite…</output>
+        )}
+        <p className="break-all text-xs text-dim">{url}</p>
+      </DialogContent>
+    </Dialog>
   )
 }
 
