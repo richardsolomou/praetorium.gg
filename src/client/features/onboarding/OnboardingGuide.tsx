@@ -76,6 +76,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   const currentFocus = useRef(focus)
   const [target, setTarget] = useState<HTMLElement | undefined>()
   const [atTop, setAtTop] = useState(false)
+  const [covered, setCovered] = useState(false)
   // Named rather than a flag: a step that has just moved on must not read the step before it as lost.
   const [lost, setLost] = useState<OnboardingStepId>()
   const compact = useCompactChrome()
@@ -162,6 +163,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
         (match) => match.getClientRects().length > 0 && !match.closest('[inert]'),
       )
       setTarget(element)
+      setCovered([...document.querySelectorAll('[data-slot="dialog-content"]')].some((dialog) => !dialog.contains(element ?? null)))
       setAtTop(onboardingPromptAtTop(element?.getBoundingClientRect().bottom, window.innerHeight))
       if (element) {
         // A control that goes away while the page settles is waited for again rather than given up on.
@@ -188,8 +190,10 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
    * A prompt either points at the control it describes or, where it cannot, sits
    * where the panel sits. Compact screens are the second case: a pane fills them,
    * so a popup beside it has nowhere to go, and `lost` is the control never arriving.
+   * A compact card also waits while a full-screen dialog hides its control.
    */
-  const prompted = !open && focusedStep ? (target ? (compact ? 'card' : 'anchor') : lost === focus?.step ? 'lost' : undefined) : undefined
+  const placed = target ? (!compact ? 'anchor' : covered ? undefined : 'card') : lost === focus?.step ? 'lost' : undefined
+  const prompted = !open && focusedStep ? placed : undefined
   const anchored = prompted === 'anchor' ? target : undefined
 
   useEffect(() => {
