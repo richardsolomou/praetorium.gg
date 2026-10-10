@@ -43,4 +43,4 @@ Preserve prose, headings, supported lists/tables, clarifications, and labelled f
 
 ## Verification
 
-Cover each independent payout/trigger/usage-limit clause and compare disputed rules with publisher text. Exercise scoring at turn/round boundaries, fixed and tactical modes, caps, draws, returns, and undo. For map changes, compare every affected map with the publisher image for reflection, rotation, wall overlap, objective labels, and placement anchors; inspect preview and enlarged layouts at desktop and phone widths.
+Cover each independent payout/trigger/usage-limit clause and compare disputed rules with publisher text. Exercise scoring at turn/round boundaries, fixed and tactical modes, caps, draws, returns, and undo. Run map browser checks against the snapshot containing the changed source data; an older pin can leave stale assertions passing. For map changes, compare every affected map with the publisher image for reflection, rotation, wall overlap, objective labels, and placement anchors; inspect preview and enlarged layouts at desktop and phone widths.

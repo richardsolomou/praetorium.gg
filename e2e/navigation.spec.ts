@@ -659,17 +659,34 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
   await page.screenshot({ path: 'test-results/terrain-layout-tilt-phone.png' })
 })
 
-test('Tipping Point shows its off-terrain objectives as 40 mm markers', async ({ page }) => {
+test('Tipping Point shows five layout objectives with a shared central area', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/reconnaissance')
   await page.getByRole('button', { name: 'Enlarge terrain layout A: Tipping Point' }).click()
   const dialog = page.getByRole('dialog')
-  await expect(dialog.getByText('40 mm objective marker · outside terrain')).toBeVisible()
-  await expect(dialog.locator('svg title').filter({ hasText: /^Objective marker outside terrain \(40 mm\)$/ })).toHaveCount(5)
-  await expect(dialog.locator('svg title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(0)
+  await expect(dialog.getByText('Objective terrain', { exact: true }).first()).toBeVisible()
+  await expect(dialog.locator('svg title').filter({ hasText: /^Objective marker outside terrain \(40 mm\)$/ })).toHaveCount(0)
+  const objectives = dialog.locator('svg title').filter({ hasText: /^Objective terrain$/ })
+  await expect(objectives).toHaveCount(5)
+  await expect(dialog.locator('svg g[transform^="translate(30 22)"] title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(1)
   await expect(dialog.locator('svg text').filter({ hasText: /^OBJECTIVE$/ })).toHaveCount(5)
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/tipping-point-objective-markers-phone.png' })
+  await page.screenshot({ path: 'test-results/tipping-point-objectives-phone.png' })
+})
+
+test('Purge and Reconnaissance show two independent central objectives', async ({ page }) => {
+  await page.goto('/missions/chapter-approved-2026-2027/matchups/purge-the-foe/reconnaissance')
+  await page.getByRole('button', { name: 'Enlarge terrain layout A: Hammer and Anvil' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.locator('svg title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(6)
+  for (const position of ['35.0015 23.7515', '24.9985 20.2485']) {
+    await expect(dialog.locator(`svg g[transform^="translate(${position})"] title`).filter({ hasText: /^Objective terrain$/ })).toHaveCount(
+      1,
+    )
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.screenshot({ path: 'test-results/purge-recon-objectives-phone.png' })
 })
 
 test('a mission opens while its terrain layouts load', async ({ page }) => {
