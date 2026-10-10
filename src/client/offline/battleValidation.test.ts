@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   submit: vi.fn(),
   changes: vi.fn(),
   remember: vi.fn(),
+  sync: vi.fn(),
 }))
 vi.mock('../../server/functions', () => ({ submit: mocks.submit }))
 vi.mock('../../server/functions/offline', () => ({ battleWorkspace: mocks.workspace }))
@@ -27,6 +28,7 @@ vi.mock('./localRuntime', () => ({
   rememberBattle: mocks.remember,
   rememberDocument: vi.fn(),
   syncLocalWork: vi.fn(),
+  attemptLocalSync: mocks.sync,
 }))
 
 const workspace: BattleWorkspace = {
@@ -177,7 +179,7 @@ it('preserves a local command saved while an automatic settlement response downl
     ...fresh,
     log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command], [ALICE, { kind: 'advance' }]),
   }
-  mocks.changes.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+  mocks.changes.mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(true)
   mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
   mocks.workspace.mockResolvedValue({ workspace: fresh, screen: { kind: 'battle', view: { seq: 10 } } })
   mocks.document.mockResolvedValue(current)
@@ -207,6 +209,24 @@ it('keeps automatic settlement behind existing local battle work while connected
   mocks.changes.mockResolvedValue(true)
   await submit(input, { background: true })
   expect(mocks.queue.mock.calls[0]?.[1]).toMatchObject({ expectedSeq: input.data.expectedSeq, command: input.data.command })
+})
+
+it('submits connected automatic settlement authoritatively after pending player work acknowledges', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  let pending = true
+  mocks.changes.mockImplementation(async () => pending)
+  mocks.sync.mockImplementation(async () => {
+    pending = false
+  })
+  const authoritative = { result: { outcome: 'stale', seq: input.data.expectedSeq + 1 }, screen: null }
+  mocks.submit.mockResolvedValue(authoritative)
+  const answer = await submit(input, { background: true })
+  expect({ answer, synced: mocks.sync.mock.calls.length, queued: mocks.queue.mock.calls }).toEqual({
+    answer: authoritative,
+    synced: 1,
+    queued: [],
+  })
 })
 
 it('saves a player’s connected settlement durably', async () => {
