@@ -86,4 +86,4 @@ A queued command keeps its operation ID, expected sequence, validation-data revi
 
 A deleted or inaccessible battle becomes a retained refusal so unrelated resources can sync. Authentication failures, rate limits and service outages remain retryable. Apply this distinction throughout validation, append and acknowledgement reads.
 
-Battle-creation acknowledgements download their workspace inside the server's refusal handling, including receipt recovery. A missing workspace must not leave an accepted creation blocking the queue. Local active battles omit the replay timeline; finished timelines index report labels by sequence.
+Battle-creation acknowledgements download their workspace inside the server's refusal handling, including receipt recovery. A missing workspace must not leave an accepted creation blocking the queue. Seated active battles omit the replay timeline; finished timelines index report labels by sequence in screen, workspace, and submission responses.
