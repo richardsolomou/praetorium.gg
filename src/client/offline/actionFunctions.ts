@@ -1,4 +1,5 @@
 import { leagueWarlords } from '../../core/league'
+import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
@@ -6,16 +7,7 @@ import { matchingLeagueBattles } from '../../shared/leagueBattleOptions'
 import { onboardingProgress as foldOnboarding, type OnboardingTaskId, type StoredOnboarding } from '../../core/onboarding'
 import * as server from '../../server/functions'
 import { offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
-import {
-  localClient,
-  localOwner,
-  localDocument,
-  localEngine,
-  hasLocalChanges,
-  queueLocal,
-  rememberDocument,
-  syncLocalWork,
-} from './localRuntime'
+import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal, rememberDocument } from './localRuntime'
 import { localConstruction } from './construction'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalRoster } from './localRuntime'
@@ -100,18 +92,7 @@ async function deferred(
   const normalized = offlineActionSchemas[kind].parse(input)
   const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, data, dependencies, undefined, owner, update)
   if (navigator.onLine) {
-    // Transport failures leave the durable action pending for reconnect.
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        syncLocalWork().catch(() => {}),
-        new Promise<void>((resolve) => {
-          timer = setTimeout(resolve, 15_000)
-        }),
-      ])
-    } finally {
-      clearTimeout(timer)
-    }
+    await attemptLocalSync()
     if (localOwner()?.id !== owner) throw new Error('The account changed while saving this action.')
     const saved = (await localEngine()?.storage.read())?.operations.find((candidate) => candidate.id === operation.id)
     if (saved && saved.status !== 'pending') throw new Error(saved.message || 'Review this saved action before continuing.')

@@ -496,6 +496,7 @@ test('variable weapon abilities produce damage probabilities', async ({ page }) 
 
 for (const width of [1440, 390, 860, 1024]) {
   test(`automatic shooting and melee with stable edits at ${width}px`, async ({ page }) => {
+    await page.route('**/offline-reference-version.json', (route) => route.abort())
     await page.setViewportSize({ width, height: 1000 })
     await page.goto('/more')
     await page.getByRole('link', { name: 'Simulator Damage and kill probabilities' }).click()

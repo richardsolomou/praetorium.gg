@@ -2595,7 +2595,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
     if (!Object.hasOwn(syncProductActions, input.name)) throw new SenderError('Unsupported saved action')
     const action = syncProductActions[input.name as keyof typeof syncProductActions]
     const result = action(tx, input.args)
-    const decoded: unknown = typeof result === 'string' ? JSON.parse(result) : result
+    const decoded: unknown = typeof result === 'string' && input.name !== 'set_battle_audience' ? JSON.parse(result) : result
     const refusal = productSyncRefusal(input.name, decoded)
     tx.db.syncReceipts.insert({
       id: input.id,

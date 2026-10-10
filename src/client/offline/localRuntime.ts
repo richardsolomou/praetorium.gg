@@ -144,6 +144,19 @@ export async function syncLocalWork() {
   await engine.sync()
   if (engine.lastError) throw engine.lastError
 }
+export async function attemptLocalSync() {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      syncLocalWork().catch(() => {}),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, 15_000)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 export async function localDocument<T>(resource: string): Promise<T | undefined> {
   const engine = localEngine()
   if (!engine) return undefined

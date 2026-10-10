@@ -1,10 +1,12 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { bookOf, points } from '../../server/catalogue.fixtures'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import { submit } from './battleFunctions'
+import { log, started } from '../../core/battle.fixtures'
 
-const mocks = vi.hoisted(() => ({ construction: vi.fn(), document: vi.fn(), queue: vi.fn() }))
+const mocks = vi.hoisted(() => ({ construction: vi.fn(), document: vi.fn(), queue: vi.fn(), workspace: vi.fn() }))
+vi.mock('../../server/functions/offline', () => ({ battleWorkspace: mocks.workspace }))
 vi.mock('./construction', () => ({ localConstruction: mocks.construction }))
 vi.mock('./localRuntime', () => ({
   localEngine: () => ({ storage: { read: async () => ({ operations: [] }) } }),
@@ -70,6 +72,7 @@ function prepare(cost: number, copies = 1) {
 
 const attach = () => submit({ data: { token: 'battle', expectedSeq: 0, command: { kind: 'attach-saved-roster', rosterId: 'roster' } } })
 beforeEach(() => vi.resetAllMocks())
+afterEach(() => vi.unstubAllGlobals())
 
 it('freezes an offline roster from real pricing and records the validation revision before sync', async () => {
   prepare(80)
@@ -91,4 +94,23 @@ it('refuses a force-wide unit limit violation offline before saving a battle com
   prepare(80, 2)
   await expect(attach()).rejects.toThrow('allows at most 1, has 2')
   expect(mocks.queue).not.toHaveBeenCalled()
+})
+
+it('refreshes a saved workspace that is older than the battle screen before returning a stale response', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: true })
+  const history = log(...started())
+  const fresh = { ...workspace, log: history, serverSeq: history.length }
+  mocks.workspace.mockResolvedValue({ workspace: fresh })
+  mocks.document.mockResolvedValueOnce(workspace).mockResolvedValueOnce(fresh)
+  const answer = await submit({ data: { token: 'battle', expectedSeq: 1, command: { kind: 'attach-saved-roster', rosterId: 'roster' } } })
+  expect(answer.result).toEqual({ outcome: 'stale', seq: history.length })
+})
+
+it('keeps the newer battle screen when its full history has not downloaded offline', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: false })
+  await expect(
+    submit({ data: { token: 'battle', expectedSeq: 1, command: { kind: 'attach-saved-roster', rosterId: 'roster' } } }),
+  ).rejects.toThrow('Reconnect to download the latest battle history before continuing.')
 })

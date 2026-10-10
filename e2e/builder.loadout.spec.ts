@@ -1123,7 +1123,7 @@ for (const width of [390, 1600]) {
     await page.goto(datasheetHref!)
     const firingProfiles = page.getByRole('rowgroup', { name: 'kombi-rokkit profiles', exact: true })
     await expect(firingProfiles).toContainText('2 profiles')
-    await firingProfiles.scrollIntoViewIfNeeded()
+    await firingProfiles.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await expectNoHorizontalOverflow(page.locator('html'))
     await page.screenshot({ path: `test-results/weapon-profile-group-${width}.png` })
   })

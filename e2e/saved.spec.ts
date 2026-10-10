@@ -347,11 +347,14 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   await expect(chooser.locator('[data-roster="Dynasty 2k"]')).toHaveAttribute('aria-pressed', 'false')
 })
 
-test('an open roster follows edits saved in another tab', async ({ page }) => {
+test('a connected legacy shell roster follows other tabs without replacing an unsaved edit', async ({ page }) => {
   await signUp(page, 'Live roster')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Live roster' })
 
   const viewer = await page.context().newPage()
+  await viewer.addInitScript(() => {
+    window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
+  })
   await viewer.goto(page.url())
   await expect(viewer.getByLabel('List name')).toHaveValue('Live roster')
   await viewer.getByRole('button', { name: 'View', exact: true }).click()

@@ -44,6 +44,8 @@ Roster-summary pruning captures its initiating account and runtime before awaiti
 
 Versioned downloads cannot replace newer acknowledged rosters or battles. Unversioned account downloads retain documents changed since the request started. Summary pruning retains rosters changed since the request started. Return retained documents to query consumers as well as protecting storage. Item deltas for collections and favourites update the current document inside the same transaction that appends the queued action.
 
+Do not project clean saved league documents over online query results. A local battle workspace must contain at least the sequence already displayed before validating a command; refresh older workspaces online and retain the newer screen when offline. New online rosters attempt a bounded sync before navigation, after saving durably, so a cold reload can find them on the server.
+
 `src/server/functions/offline.ts` authenticates queued actions and preserves the ordinary mutation origin checks. SpacetimeDB commits product mutations and retry receipts atomically. Roster versions and battle sequences detect concurrent changes; conflicts remain on the device for review. Fold downloaded battle commands through the existing domain authority, sanitizing private history before download. Public construction bundles serialize the same catalogue and rules used by the server.
 
 ## Tests

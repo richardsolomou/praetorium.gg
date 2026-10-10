@@ -58,10 +58,11 @@ export async function befriend(requester: Page, recipient: Page, { beforeAccept 
   await requester.goto('/friends')
   const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: recipientName })
   await retryUntilVisible(sent, async () => {
+    await requester.getByPlaceholder('Search by account name').fill('')
     await requester.getByPlaceholder('Search by account name').fill(recipientName)
     // The row for this player, not whoever the search happens to be showing: results
     // narrow a request behind the typing, and every player found offers the same button.
-    await requester.locator(`[data-person="${recipientName}"]`).getByRole('button', { name: 'Add friend' }).click()
+    await requester.locator(`[data-person="${recipientName}"]`).getByRole('button', { name: 'Add friend' }).click({ timeout: 1_000 })
   })
   await recipient.goto('/friends')
   const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })

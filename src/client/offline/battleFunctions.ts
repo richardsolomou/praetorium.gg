@@ -115,7 +115,12 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   const owner = localOwner()
   if (!engine || !owner || !localConstruction()) return server.submit(args)
   const resource = `battle:${args.data.token}`
-  const workspace = await localDocument<BattleWorkspace>(resource)
+  let workspace = await localDocument<BattleWorkspace>(resource)
+  if (navigator.onLine && (!workspace || (workspace.log.at(-1)?.seq ?? 0) < args.data.expectedSeq) && !(await hasLocalChanges(resource))) {
+    const fresh = await battleWorkspace({ data: { token: args.data.token } })
+    await rememberBattle(fresh.workspace, owner.id)
+    workspace = await localDocument<BattleWorkspace>(resource)
+  }
   if (!workspace) throw new Error('Open this battle online once before making offline changes.')
   if (
     await engine.storage
@@ -124,6 +129,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   )
     throw new Error('Review this battle’s sync conflict before continuing.')
   const state = localBattleState(workspace.players, workspace.log)
+  if (state.seq < args.data.expectedSeq) throw new Error('Reconnect to download the latest battle history before continuing.')
   if (args.data.expectedSeq !== state.seq)
     return { result: { outcome: 'stale', seq: state.seq }, screen: workspaceScreen(workspace, owner.id) }
   if (workspace.log.length >= 10_000) throw new Error('This battle has reached its saved history limit.')

@@ -229,7 +229,7 @@ export function AppShell() {
                 <div
                   data-native-app-content
                   data-immersive={immersive || undefined}
-                  className={immersive ? 'h-[calc(100dvh-3rem)] min-h-0' : 'flex min-h-0 flex-1 flex-col [&>main]:flex-1'}
+                  className={`flex min-h-0 flex-col [&>main]:min-h-0 [&>main]:flex-1 ${immersive ? 'h-[calc(100dvh-3rem)]' : 'flex-1'}`}
                 >
                   <OfflineReference />
                   <AppPersistence />

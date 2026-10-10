@@ -48,8 +48,8 @@ export function SyncStatus() {
       clearTimeout(timer)
       setOnline(navigator.onLine)
       try {
+        operationsPending = true
         await restoreLocalWork()
-        operationsPending = Boolean((await localEngine()?.storage.read())?.operations.length)
         if (navigator.onLine && document.visibilityState === 'visible') {
           const before = (await localEngine()?.storage.read())?.operations.length ?? 0
           await syncLocalWork()
@@ -60,6 +60,7 @@ export function SyncStatus() {
           if (before > after)
             void client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'local-work' && query.queryKey[0] !== 'me' })
         }
+        operationsPending = Boolean((await localEngine()?.storage.read())?.operations.length)
       } catch (error) {
         if (!active) return
         failures++

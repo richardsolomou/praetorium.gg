@@ -11,6 +11,7 @@ import {
   localDocument,
   localEngine,
   queueLocal,
+  attemptLocalSync,
   rememberDocument,
   type LocalRoster,
   type RosterInput,
@@ -281,6 +282,8 @@ export async function saveRoster(args: Parameters<typeof server.saveRoster>[0]):
     undefined,
     owner,
   )
+  if (!previous && navigator.onLine) await attemptLocalSync()
+  if (localOwner()?.id !== owner) throw new Error('The account changed while saving this roster.')
   return { id: input.id, updatedAt: now }
 }
 
@@ -339,6 +342,7 @@ export function projectLocalState(state: LocalState) {
       continue
     }
     if (resource.startsWith('league:')) {
+      if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
       const league = document.data as Awaited<ReturnType<typeof server.openLeague>>
       client.setQueriesData(
         {

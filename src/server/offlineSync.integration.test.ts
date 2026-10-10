@@ -29,6 +29,25 @@ const rowFor = (owner: string, id = randomUUID()) => ({
 })
 const fingerprint = 'a'.repeat(64)
 
+it.skipIf(!url || !database || !token)('acknowledges a plain-string battle audience and replays its receipt', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const id = randomUUID()
+  const context = () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false })
+  try {
+    const first = await offlineContext.run(context(), () => operator.setBattleAudience(owner, 'friends', Date.now()))
+    const retry = await offlineContext.run(context(), () => operator.setBattleAudience(owner, 'friends', Date.now()))
+    expect({
+      first,
+      retry,
+      audience: await operator.battleAudience(owner),
+      receipt: (await operator.syncReceipt(id, owner, fingerprint))?.outcome,
+    }).toEqual({ first: 'friends', retry: 'friends', audience: 'friends', receipt: 'applied' })
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
+
 it.skipIf(!url || !database || !token)('acknowledges and replays a successfully sealed offline league roster', async () => {
   const operator = store()
   const owner = randomUUID()

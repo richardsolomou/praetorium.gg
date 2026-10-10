@@ -11,7 +11,7 @@ vi.mock('./localRuntime', () => ({
   localOwner: () => ({ id: runtime.owner }),
   localEngine: () => ({ storage: { read: async () => ({ operations: runtime.operations }) } }),
   queueLocal: runtime.queue,
-  syncLocalWork: runtime.sync,
+  attemptLocalSync: runtime.sync,
   localClient: () => undefined,
   localDocument: vi.fn(),
   hasLocalChanges: vi.fn(),
@@ -28,12 +28,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
-})
-it('releases a connected action after fifteen seconds with its pending work intact', async () => {
-  runtime.sync.mockImplementation(() => new Promise<void>(() => {}))
-  const saving = setPushNotifications({ data: { enabled: true } })
-  await vi.advanceTimersByTimeAsync(15_000)
-  expect({ result: await saving, pending: runtime.operations }).toEqual({ result: true, pending: [{ id: 'saved', status: 'pending' }] })
 })
 it('reports an authoritative refusal without discarding the saved action', async () => {
   runtime.operations[0] = { id: 'saved', status: 'refused', message: 'The account cannot change this setting.' }

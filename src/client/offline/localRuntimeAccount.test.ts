@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
-import { configureLocalRuntime, rememberDocument, stopLocalRuntime } from './localRuntime'
+import { attemptLocalSync, configureLocalRuntime, localEngine, rememberDocument, stopLocalRuntime } from './localRuntime'
 
 const mocks = vi.hoisted(() => ({ storage: vi.fn() }))
 vi.mock('./localStorage', () => ({ localStateStorage: mocks.storage }))
@@ -15,6 +15,8 @@ beforeEach(() => {
   mocks.storage.mockReset()
 })
 afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
   stopLocalRuntime()
   vi.unstubAllGlobals()
 })
@@ -48,4 +50,25 @@ it('rejects an old downloader after the same account runtime has been replaced',
     },
   })
   await expect(rememberDocument('roster:alice', { name: 'Private army' }, 1, 'alice')).rejects.toThrow('account changed')
+})
+
+it('releases a stalled connected sync after fifteen seconds with pending work intact', async () => {
+  vi.useFakeTimers()
+  vi.stubGlobal('navigator', { onLine: true })
+  const state = emptyLocalState('alice')
+  state.operations.push({ id: 'saved', kind: 'saveRoster', resource: 'roster:1', input: {}, createdAt: 1, status: 'pending' })
+  mocks.storage.mockReturnValue({ read: async () => state })
+  vi.spyOn(localEngine()!, 'sync').mockImplementation(() => new Promise<void>(() => {}))
+  let finished = false
+  const syncing = attemptLocalSync().then(() => {
+    finished = true
+  })
+  await vi.advanceTimersByTimeAsync(14_999)
+  expect(finished).toBe(false)
+  await vi.advanceTimersByTimeAsync(1)
+  await syncing
+  expect({ finished, pending: state.operations.map(({ id, status }) => ({ id, status })) }).toEqual({
+    finished: true,
+    pending: [{ id: 'saved', status: 'pending' }],
+  })
 })
