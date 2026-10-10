@@ -126,7 +126,10 @@ export async function submit(
     const current = await localDocument<BattleWorkspace>(resource)
     return {
       result: answer.result,
-      screen: current && (await hasLocalChanges(resource)) ? workspaceScreen(current, owner.id) : fresh.screen,
+      screen:
+        current && (current.serverSeq > fresh.workspace.serverSeq || (await hasLocalChanges(resource)))
+          ? workspaceScreen(current, owner.id)
+          : fresh.screen,
     }
   }
   let workspace = await localDocument<BattleWorkspace>(resource)

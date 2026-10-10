@@ -185,6 +185,22 @@ it('preserves a local command saved while an automatic settlement response downl
   expect(answer.screen?.kind === 'battle' && answer.screen.view.seq).toBe(11)
 })
 
+it('preserves a newer acknowledged battle while an automatic settlement response downloads', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  const fresh = { ...workspace, log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command]), serverSeq: 10 }
+  const current = {
+    ...fresh,
+    log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command], [ALICE, { kind: 'advance' }]),
+    serverSeq: 11,
+  }
+  mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
+  mocks.workspace.mockResolvedValue({ workspace: fresh, screen: { kind: 'battle', view: { seq: 10 } } })
+  mocks.document.mockResolvedValue(current)
+  const answer = await submit(input, { background: true })
+  expect(answer.screen?.kind === 'battle' && answer.screen.view.seq).toBe(11)
+})
+
 it('keeps automatic settlement behind existing local battle work while connected', async () => {
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
