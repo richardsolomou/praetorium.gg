@@ -24,7 +24,7 @@ Use `visibleLeagueEntries` and `leagueRegistrationFull` for reads and controls. 
 
 Only accepted entrants with resolved size/team assignments may seal. Server submission reprices the selected saved list, checks its exact size and unwaived legality, validates the frozen snapshot, removes the saved ID, and stores it atomically. Incomplete catalogue validation remains a warning. Waived restrictions require confirmation and remain visible in the snapshot.
 
-Preview codex rules cannot be sealed. The catalogue's published release status is checked on the server before pricing; promotion permits a new submission without rewriting previously frozen battle metadata. [Catalogue data](catalogue-data.md#composing-sources-and-publishing-codexes) owns the codex lifecycle.
+Preview rules cannot be sealed. The catalogue's published release status is checked on the server before pricing; promotion permits a new submission without rewriting previously frozen battle metadata. [Catalogue data](catalogue-data.md#composing-sources-and-publishing-rules-versions) owns the rules-version lifecycle.
 
 Outside doubles, every roster has one eligible Warlord. A first doubles roster may have zero or one; once both exist, the team must contain exactly one. Freeze source-backed eligibility rather than inferring it from names.
 

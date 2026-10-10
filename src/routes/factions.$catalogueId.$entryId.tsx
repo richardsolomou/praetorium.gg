@@ -1,13 +1,14 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { FactionDatasheet } from '../client/features/reference/factions/FactionDatasheet'
-import { datasheetSlugQuery, factionQuery } from '../client/queries'
+import { datasheetSlugQuery, loadReferenceFaction } from '../client/queries'
 
 export const Route = createFileRoute('/factions/$catalogueId/$entryId')({
-  beforeLoad: ({ params }) => {
-    throw redirect({ to: '/factions/$catalogueId/datasheets/$entryId', params, replace: true })
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: '/factions/$catalogueId/datasheets/$entryId', params, search, replace: true })
   },
-  loader: async ({ context, params }) => {
-    const faction = await context.queryClient.query({ ...factionQuery(params.catalogueId), staleTime: 'static' })
+  loaderDeps: ({ search }) => ({ rules: search.rules }),
+  loader: async ({ context, params, deps }) => {
+    const faction = await loadReferenceFaction(context.queryClient, params.catalogueId, deps.rules)
     if (!faction || !(await context.queryClient.query({ ...datasheetSlugQuery(faction.id, params.entryId), staleTime: 'static' })))
       throw notFound()
   },

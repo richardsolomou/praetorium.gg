@@ -28,7 +28,7 @@ async function update(catalogueId: string, picks: RosterPick[], nextCatalogueId:
   return reads.saveRoster.mock.calls[0]![0].data.picks
 }
 
-it.each([0, 1, 3])('retains %i units and their choices when library setup switches codex', async (count) => {
+it.each([0, 1, 3])('retains %i units and their choices when library setup switches rules version', async (count) => {
   const picks = Array.from({ length: count }, (_, index) => ({ entryId: `guard-${index}`, choices: { weapon: 'spear' } }))
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
@@ -41,4 +41,21 @@ it('remaps allied catalogue identities without losing attachments or equipment',
 
 it('removes units when library setup chooses another faction', async () => {
   expect(await update('custodes', [{ entryId: 'guard' }], 'marines')).toEqual([])
+})
+
+it('converts the existing roster ID with its preparation and source intact', async () => {
+  const prep = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
+  reads.sharedRoster.mockResolvedValue({ id: 'saved', catalogueId: 'custodes', picks: [{ entryId: 'guard' }], prep, source: 'editable' })
+  const action = useRosterActions('https://praetorium.gg').update as unknown as {
+    mutationFn: (input: { roster: SavedRoster; setup: RosterSetup }) => Promise<unknown>
+  }
+  const setup = { catalogueId: 'preview~custodes', name: 'My roster', limit: 2000, visibility: 'private' } as RosterSetup
+  await action.mutationFn({ roster: { id: 'saved' } as SavedRoster, setup })
+  expect(reads.saveRoster.mock.calls[0]![0].data).toEqual({
+    id: 'saved',
+    ...setup,
+    picks: [{ entryId: 'guard' }],
+    prep,
+    source: 'editable',
+  })
 })

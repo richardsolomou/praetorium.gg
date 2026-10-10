@@ -1,3 +1,5 @@
+import { useReferenceFaction } from './useReferenceFaction'
+import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
@@ -14,7 +16,7 @@ import {
   weaponProfileGroups,
   weaponProfileMode,
 } from '../../../datasheet'
-import { datasheetSlugQuery, factionQuery, referenceChangesQuery } from '../../../queries'
+import { datasheetSlugQuery, referenceChangesQuery } from '../../../queries'
 import { changeDetail } from '../../../catalogueChanges'
 import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
@@ -29,7 +31,7 @@ import type { OnboardingTarget } from '../../onboarding/onboarding'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
-  const { data: faction } = useQuery(factionQuery(params.catalogueId ?? ''))
+  const faction = useReferenceFaction()
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
   if (!sheet || !faction) return null
   const structured = datasheetProfilesByKind(sheet)
@@ -49,10 +51,10 @@ export function FactionDatasheet() {
   return (
     <main id="summary" className="w-full">
       <PageHeader
-        tint={factionColour(faction.slug)}
+        tint={factionColour(faction.slug, faction.displayName)}
         eyebrow={`${faction.displayName} · Datasheet`}
         title={sheet.name}
-        media={<FactionMark id={faction.slug} icon={faction.icon} />}
+        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
         actions={
           <div className="flex flex-wrap items-center gap-1">
             {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
@@ -77,13 +79,15 @@ export function FactionDatasheet() {
             </BreadcrumbItem>
             <BreadcrumbSeparator className="text-dim" />
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
+              <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
                 {faction.displayName}
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="text-dim" />
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} />}>
+              <BreadcrumbLink
+                render={<FactionReferenceLink to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} />}
+              >
                 Datasheets
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -304,14 +308,14 @@ export function Relationships({
             <div className="flex flex-wrap gap-1">
               {relationships.map(({ name, route }) =>
                 route ? (
-                  <Link
+                  <FactionReferenceLink
                     key={name}
                     to="/factions/$catalogueId/datasheets/$entryId"
                     params={{ catalogueId: route.catalogueId, entryId: route.slug }}
                     className={KEYWORD_TAG_CLASS}
                   >
                     {name}
-                  </Link>
+                  </FactionReferenceLink>
                 ) : (
                   <span key={name} className={KEYWORD_TAG_CLASS}>
                     {name}

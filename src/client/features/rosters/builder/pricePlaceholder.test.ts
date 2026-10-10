@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { survivingUnits } from './pricePlaceholder'
+import { samePriceContext, survivingUnits } from './pricePlaceholder'
+import { priceQuery } from '../../../queries'
+
+describe('samePriceContext', () => {
+  const request = (catalogueId = 'cat', detachmentIds = ['host'], limit = 2000, models = 2) =>
+    priceQuery(catalogueId, detachmentIds, 'take-and-hold', limit, [{ entryId: 'squad', models }], [], null, [], true).queryKey
+
+  it('retains checked limits while equipment and model counts change', () => {
+    expect(samePriceContext(request(), request('cat', ['host'], 2000, 3))).toBe(true)
+  })
+
+  it.each([
+    ['other-cat', ['host'], 2000],
+    ['cat', ['other-host'], 2000],
+    ['cat', ['host'], 1000],
+  ] as const)('discards limits when the army setup changes to %s/%s/%i', (catalogueId, detachmentIds, limit) => {
+    expect(samePriceContext(request(), request(catalogueId, [...detachmentIds], limit))).toBe(false)
+  })
+
+  it('does not retain a result before the first check', () => {
+    expect(samePriceContext(undefined, request())).toBe(false)
+  })
+})
 
 describe('survivingUnits', () => {
   const captain = { entryId: 'captain', catalogueId: 'space-marines' }
@@ -10,6 +32,10 @@ describe('survivingUnits', () => {
     expect(
       survivingUnits([{ ...captain, choices: { enhancement: 'relic' } }], [{ ...captain, choices: { enhancement: 'blade' } }]),
     ).toEqual([0])
+  })
+
+  it('keeps picks whose primary catalogue is implicit', () => {
+    expect(survivingUnits([{ entryId: 'captain' }], [{ entryId: 'captain', models: 1 }])).toEqual([0])
   })
 
   it('keeps every price while a unit is appended, leaving the new one to be priced', () => {

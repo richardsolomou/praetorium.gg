@@ -1,5 +1,5 @@
+import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { routeSlug } from '../../../core/slug'
 import { factionFor } from '../../factions'
@@ -28,7 +28,7 @@ export function ArmyIdentity({
 
   return (
     <IdentityLine
-      faction={faction ?? undefined}
+      faction={faction ? { ...faction, edition: army.roster?.built?.edition ?? null } : undefined}
       detachmentNames={detachmentNames}
       trailing={list ? <span className="truncate">{army.roster?.name ?? 'No list'}</span> : null}
       linked={linked}
@@ -82,7 +82,7 @@ function IdentityLine({
   const parts = [
     faction ? (
       linked ? (
-        <Link
+        <FactionReferenceLink
           key="faction"
           to="/factions/$catalogueId"
           params={{ catalogueId: faction.slug }}
@@ -90,14 +90,14 @@ function IdentityLine({
           title={faction.displayName}
           className="inline-flex min-w-0 items-center gap-1 text-bone hover:text-azure"
         >
-          <FactionMark id={faction.slug} icon={faction.icon} size="sm" />
+          <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
           <span aria-hidden className="truncate">
             {faction.displayName}
           </span>
-        </Link>
+        </FactionReferenceLink>
       ) : (
         <span key="faction" className="inline-flex min-w-0 items-center gap-1 text-bone">
-          <FactionMark id={faction.slug} icon={faction.icon} size="sm" />
+          <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
           <span className="truncate">{faction.displayName}</span>
         </span>
       )
@@ -105,7 +105,7 @@ function IdentityLine({
     ...detachmentNames.map((name) => {
       const detachment = linked ? faction?.detachments.find((candidate) => candidate.name === name) : undefined
       return detachment && detachment.referenceRoute !== null ? (
-        <Link
+        <FactionReferenceLink
           key={name}
           to="/factions/$catalogueId/detachments/$detachmentId"
           params={{
@@ -116,7 +116,7 @@ function IdentityLine({
           className="truncate text-bone hover:text-azure"
         >
           {name}
-        </Link>
+        </FactionReferenceLink>
       ) : (
         <span key={name} className="truncate">
           {name}

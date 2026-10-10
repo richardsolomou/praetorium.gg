@@ -48,18 +48,23 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   }
   if (root === 'factions') {
     if (!id) return { section: 'factions', title: 'Factions' }
-    if (child === 'datasheets' && detail) {
+    const versioned = child === 'rules' && detail
+    const factionPath = `/factions/${id}${versioned ? `/rules/${detail}` : ''}`
+    const referenceChild = versioned ? segments[4] : child
+    const referenceDetail = versioned ? segments[5] : detail
+    const version = typeof search.rules === 'string' ? `?${new URLSearchParams({ rules: search.rules })}` : ''
+    if (referenceChild === 'datasheets' && referenceDetail) {
       return {
-        back: { href: `/factions/${id}/datasheets`, label: 'Back to datasheets', preferHistory: true },
+        back: { href: `${factionPath}/datasheets${version}`, label: 'Back to datasheets', preferHistory: true },
         section: 'factions',
         title: 'Datasheet',
       }
     }
-    if (child) {
+    if (referenceChild) {
       return {
-        back: { href: `/factions/${id}`, label: 'Back to faction', preferHistory: true },
+        back: { href: `${factionPath}${version}`, label: 'Back to faction', preferHistory: true },
         section: 'factions',
-        title: child === 'detachments' ? 'Detachment' : 'Datasheets',
+        title: referenceChild === 'detachments' ? 'Detachment' : 'Datasheets',
       }
     }
     return { back: { href: '/factions', label: 'Back to factions', preferHistory: true }, section: 'factions', title: 'Faction' }

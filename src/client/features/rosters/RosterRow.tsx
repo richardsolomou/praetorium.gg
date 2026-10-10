@@ -30,6 +30,7 @@ export function RosterRow({
   actions,
   origin,
   onEdit,
+  onConvert,
   onDelete,
   points,
   label,
@@ -50,6 +51,7 @@ export function RosterRow({
   actions: RosterActions
   origin: string
   onEdit: () => void
+  onConvert: () => void
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
@@ -63,7 +65,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, actions, origin, onEdit, onDelete }
+  const items = { roster, title, actions, origin, onEdit, onConvert, onDelete }
 
   return (
     <ContextMenu>
@@ -135,6 +137,7 @@ function RosterActionItems({
   actions,
   origin,
   onEdit,
+  onConvert,
   onDelete,
   showPrivacy = false,
 }: {
@@ -145,6 +148,7 @@ function RosterActionItems({
   actions: RosterActions
   origin: string
   onEdit: () => void
+  onConvert: () => void
   onDelete: () => void
   /** Only the overflow menu offers making a list private again; the row menu is shorter. */
   showPrivacy?: boolean
@@ -168,6 +172,9 @@ function RosterActionItems({
       </Item>
       <Item onClick={onEdit}>
         <Pencil /> Edit setup
+      </Item>
+      <Item onClick={onConvert}>
+        <Pencil /> Convert rules version
       </Item>
       <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>
         <GitBranchPlus /> New variant

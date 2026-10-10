@@ -91,5 +91,5 @@ it.each(['released', 'retired'] as const)('allows %s codexes in leagues', (statu
   expect(leagueEditionError({ status })).toBeNull()
 })
 it('rejects preview codexes in leagues', () => {
-  expect(leagueEditionError({ status: 'preview' })).toBe('preview codex rules cannot be submitted to a league')
+  expect(leagueEditionError({ status: 'preview' })).toBe('preview rules cannot be submitted to a league')
 })

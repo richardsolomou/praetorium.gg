@@ -1,13 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
+import { useReferenceFaction } from './useReferenceFaction'
+import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
-import { factionQuery } from '../../../queries'
 import { DetachmentReference } from './DetachmentReference'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
 
 export function FactionDetachment() {
   const params = useParams({ strict: false })
-  const { data: faction } = useQuery(factionQuery(params.catalogueId ?? ''))
+  const faction = useReferenceFaction()
   if (!faction) return null
   const detachmentId = faction.detachments.find((detachment) => detachment.slug === params.detachmentId)?.id
 
@@ -29,7 +29,11 @@ export function FactionDetachment() {
               <BreadcrumbItem>
                 <BreadcrumbLink
                   render={
-                    <Link data-onboarding="detachment-breadcrumb" to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />
+                    <FactionReferenceLink
+                      data-onboarding="detachment-breadcrumb"
+                      to="/factions/$catalogueId"
+                      params={{ catalogueId: faction.slug }}
+                    />
                   }
                 >
                   {faction.displayName}

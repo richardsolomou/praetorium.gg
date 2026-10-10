@@ -2,7 +2,8 @@ import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
 import { anySignal } from '../abortSignals'
 export { terrainMatchupIds } from '../../contracts/terrainReference'
 import { referenceRead, offlineSearch } from '../offline/runtime'
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
+import { referenceFactionId } from '../../core/factionReferenceRoute'
 import {
   catalogueStatus,
   datasheetBySlug,
@@ -30,6 +31,13 @@ export const factionQuery = (catalogueId: string) =>
   })
 export const factionIndexQuery = () =>
   queryOptions({ queryKey: ['faction-index'], queryFn: () => referenceRead(['faction-index'], () => factionIndex()), staleTime: Infinity })
+
+export async function loadReferenceFaction(client: QueryClient, catalogueId: string, rules?: string) {
+  if (!rules) return client.query({ ...factionQuery(catalogueId), staleTime: 'static' })
+  const index = await client.query({ ...factionIndexQuery(), staleTime: 'static' })
+  const selected = referenceFactionId(index?.factions ?? [], catalogueId, rules)
+  return selected ? client.query({ ...factionQuery(selected), staleTime: 'static' }) : null
+}
 export const favouriteFactionsQuery = () =>
   queryOptions({
     queryKey: ['favourite-factions'],

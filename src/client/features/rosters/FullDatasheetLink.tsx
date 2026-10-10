@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { ExternalLink } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -10,7 +10,7 @@ export function FullDatasheetLink({ route }: { route: NonNullable<Datasheet['ref
       <TooltipTrigger
         closeOnClick={false}
         render={
-          <Link
+          <FactionReferenceLink
             data-slot="full-datasheet-link"
             to="/factions/$catalogueId/datasheets/$entryId"
             params={{ catalogueId: route.catalogueId, entryId: route.slug }}

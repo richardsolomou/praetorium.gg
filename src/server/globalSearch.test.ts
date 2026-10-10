@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import { categories, points, shelfOf } from './catalogue.fixtures'
-import { searchEverything } from './globalSearch'
+import { compiledGlobalSearchIndex, searchEverything } from './globalSearch'
 import type { LoadedRules } from './rules'
 import type { RuleDocument } from './rulesCore'
+
+it('links preview search results through the stable faction path', () => {
+  const catalogue = shelfOf({
+    id: 'custodes-11e~book',
+    name: 'Adeptus Custodes',
+    selectionEntries: [{ id: 'guard', name: 'Custodian Guard', type: 'unit', costs: points(240) }],
+  })
+  catalogue.edition = {
+    id: 'custodes-11e',
+    name: 'Custodes codex',
+    status: 'preview',
+    default: false,
+    catalogueIds: ['book'],
+    releases: [{ at: 1, status: 'preview' }],
+  }
+  const index = compiledGlobalSearchIndex(catalogue, null)
+  expect([...index.factions, ...index.datasheets].map((entry) => entry.result.href)).toEqual([
+    '/factions/adeptus-custodes/rules/custodes-11e',
+    '/factions/adeptus-custodes/rules/custodes-11e/datasheets/custodian-guard',
+  ])
+})
 
 describe('global datasheet search', () => {
   it('finds a datasheet by structured metadata and explains the match', async () => {

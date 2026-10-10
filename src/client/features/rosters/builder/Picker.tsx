@@ -34,6 +34,7 @@ type Props = {
   onPreview: (entryId: string, name: string) => void
   inRoster: Record<string, number>
   limits: ReadonlyMap<string, number | null>
+  controlsDisabled: boolean
   room: number | null
   battleSize: number
   /** Which of the battle size's restrictions the roster has switched off. */
@@ -68,6 +69,7 @@ export const Picker = memo(function Picker({
   onPreview,
   inRoster,
   limits,
+  controlsDisabled,
   room,
   battleSize,
   waivedRules,
@@ -213,6 +215,7 @@ export const Picker = memo(function Picker({
                         limitMessage={unitLimitMessage(unit.id, held, limits)}
                         held={held}
                         full={full}
+                        controlsDisabled={controlsDisabled}
                         inCollection={collection.has(unit.id)}
                         collectionPending={own.isPending && own.variables?.entryId === unit.id}
                         query={query}
@@ -259,6 +262,7 @@ type PickerRowProps = {
   unit: UnitSummary
   held: number
   full: boolean
+  controlsDisabled: boolean
   inCollection: boolean
   collectionPending: boolean
   query: string
@@ -272,6 +276,7 @@ const PickerRow = memo(function PickerRow({
   unit,
   held,
   full,
+  controlsDisabled,
   inCollection,
   collectionPending,
   query,
@@ -324,7 +329,7 @@ const PickerRow = memo(function PickerRow({
           size="sm"
           className="shrink-0 px-2"
           aria-label={`Add ${unit.name}`}
-          disabled={full}
+          disabled={full || controlsDisabled}
           onClick={() => onAdd(unit.id)}
         >
           <Plus className="size-3" />

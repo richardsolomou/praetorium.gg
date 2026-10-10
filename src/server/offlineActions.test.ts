@@ -28,6 +28,6 @@ it('refuses a queued preview league seal before any server write', async () => {
       catalogueRevision: 'revision',
     })
     .catch((response: Response) => response.text())
-  expect(message).toBe('preview codex rules cannot be submitted to a league')
+  expect(message).toBe('preview rules cannot be submitted to a league')
   expect(submit).not.toHaveBeenCalled()
 })

@@ -78,7 +78,8 @@ export type RosterSetup = {
 
 type Props = {
   open: boolean
-  mode?: 'create' | 'edit'
+  mode?: 'create' | 'edit' | 'convert'
+  sourceCatalogueId?: string
   onOpenChange: (open: boolean) => void
   factionOptions: RosterSetupFactionOption[]
   initialFaction?: RosterSetupFaction | null
@@ -94,6 +95,7 @@ type Props = {
   namePlaceholder?: string
   onSave: (value: RosterSetup) => void
   pending?: boolean
+  saveError?: string
   /** A visitor's list, which stays private until an account saves it and so offers no access to choose. */
   guest?: boolean
   /** Drawn as the page itself rather than over it, for a page that has nothing else to show yet. */
@@ -122,6 +124,7 @@ const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
 export function RosterSetupDialog({
   open,
   mode = 'edit',
+  sourceCatalogueId,
   onOpenChange,
   factionOptions,
   initialFaction,
@@ -131,6 +134,7 @@ export function RosterSetupDialog({
   namePlaceholder,
   onSave,
   pending = false,
+  saveError,
   guest = false,
   inline = false,
 }: Props) {
@@ -234,7 +238,7 @@ export function RosterSetupDialog({
   const editions = factionOptions.filter(
     (entry) =>
       editionFamilyId(entry.id) === editionFamilyId(draft.catalogueId) &&
-      (entry.edition?.status !== 'retired' || entry.id === draft.catalogueId),
+      (mode !== 'create' || entry.edition?.status !== 'retired' || entry.id === draft.catalogueId),
   )
 
   const toggleDetachment = (id: string) => {
@@ -257,24 +261,28 @@ export function RosterSetupDialog({
     })
   }
 
-  const title = mode === 'create' ? 'Create roster' : 'Edit roster setup'
+  const title = mode === 'create' ? 'Create roster' : mode === 'convert' ? 'Convert rules version' : 'Edit roster setup'
   const missingId = useId()
   const missing = !draft.catalogueId
     ? 'Choose your faction.'
     : loadingFaction
       ? 'Loading your army choices…'
-      : !draft.detachmentIds.length
-        ? 'Choose a detachment.'
-        : unavailableDetachmentIds.length
-          ? 'Replace the unavailable detachment.'
-          : dispositions.length > 1 && !selectedDisposition
-            ? 'Choose a Force disposition.'
-            : pointsError
+      : mode === 'convert' && draft.catalogueId === (sourceCatalogueId ?? value.catalogueId)
+        ? 'Choose a different rules version.'
+        : !draft.detachmentIds.length
+          ? 'Choose a detachment.'
+          : unavailableDetachmentIds.length
+            ? 'Replace the unavailable detachment.'
+            : dispositions.length > 1 && !selectedDisposition
+              ? 'Choose a Force disposition.'
+              : pointsError
   const description = (
     <>
       {mode === 'create'
         ? 'Set the roster identity and army rules before adding units.'
-        : 'Set the roster identity and the rules that shape its available units.'}
+        : mode === 'convert'
+          ? 'Convert this roster to another rules version. Your units and choices are kept and checked against its rules.'
+          : 'Set the roster identity and the rules that shape its available units.'}
       {guest ? (
         <>
           {' '}
@@ -288,14 +296,16 @@ export function RosterSetupDialog({
   )
   const fields = (
     <div className={inline ? 'space-y-5' : 'space-y-5 px-5'}>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className={`grid gap-4 ${editions.length > 1 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <div data-onboarding="setup-faction">
           <Label className="eyebrow block" htmlFor="setup-faction">
             Faction
           </Label>
           <SearchableSelect
             id="setup-faction"
+            disabled={mode === 'convert'}
             groups={groups}
+            selectedFaction={faction ?? undefined}
             value={
               factionOptions.find((entry) => entry.isDefault !== false && editionFamilyId(entry.id) === editionFamilyId(draft.catalogueId))
                 ?.id ?? draft.catalogueId
@@ -312,15 +322,50 @@ export function RosterSetupDialog({
             }}
             placeholder="Pick a faction"
             searchPlaceholder="Search factions…"
-            className="mt-1 h-11"
+            className="mt-1 h-auto min-h-11 py-2"
           />
         </div>
+        {editions.length > 1 ? (
+          <div>
+            <Label className="eyebrow block" htmlFor="setup-edition">
+              Rules version
+            </Label>
+            <SearchableSelect
+              id="setup-edition"
+              ariaLabel="Rules version"
+              placeholder="Choose a rules version"
+              value={draft.catalogueId}
+              groups={[
+                {
+                  label: '',
+                  items: editions.map((entry) => ({
+                    value: entry.id,
+                    label: entry.edition ? editionLabel(entry.edition) : entry.isDefault === false ? 'Previous rules' : 'Current rules',
+                  })),
+                },
+              ]}
+              onValueChange={(catalogueId) => {
+                setDetachmentQuery('')
+                changeDraft({ ...draft, catalogueId })
+              }}
+              className="mt-1 h-11"
+            />
+            {hasUnits && value.catalogueId !== draft.catalogueId && !factionChanged ? (
+              <p className="mt-2 text-sm text-dim">
+                Your units and choices will be checked against this rules version. Unavailable choices remain in the list until you replace
+                them.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div data-onboarding="setup-size">
           <Label className="eyebrow block" htmlFor="setup-size">
             Battle size
           </Label>
           <SearchableSelect
             id="setup-size"
+            disabled={mode === 'convert'}
             ariaLabel="Battle size"
             value={String(draft.limit)}
             groups={BATTLE_SIZE_GROUPS}
@@ -339,42 +384,6 @@ export function RosterSetupDialog({
           />
         </div>
       </div>
-
-      {editions.length > 1 ? (
-        <div>
-          <Label className="eyebrow block" htmlFor="setup-edition">
-            Codex
-          </Label>
-          <SearchableSelect
-            id="setup-edition"
-            ariaLabel="Codex"
-            placeholder="Choose a codex"
-            value={draft.catalogueId}
-            groups={[
-              {
-                label: '',
-                items: editions.map((entry) => ({
-                  value: entry.id,
-                  label: entry.edition ? editionLabel(entry.edition) : entry.isDefault === false ? 'Previous rules' : 'Current rules',
-                })),
-              },
-            ]}
-            onValueChange={(catalogueId) => {
-              setDetachmentQuery('')
-              changeDraft({ ...draft, catalogueId })
-            }}
-            className="mt-1 h-11"
-          />
-          {faction?.edition?.status === 'preview' ? (
-            <p className="mt-2 text-sm text-warning">Preview rules have not been officially released.</p>
-          ) : null}
-          {hasUnits && value.catalogueId !== draft.catalogueId && !factionChanged ? (
-            <p className="mt-2 text-sm text-dim">
-              Your units and choices will be checked against this codex. Unavailable choices remain in the list until you replace them.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
 
       <fieldset data-onboarding="setup-detachments">
         <div className="flex items-end justify-between gap-3">
@@ -556,6 +565,7 @@ export function RosterSetupDialog({
         </Label>
         <Input
           id="setup-name"
+          disabled={mode === 'convert'}
           value={draft.name}
           onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
           placeholder={placeholder}
@@ -570,6 +580,7 @@ export function RosterSetupDialog({
           Access
         </Label>
         <Select
+          disabled={mode === 'convert'}
           value={draft.visibility}
           onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
         >
@@ -599,7 +610,11 @@ export function RosterSetupDialog({
   )
   const actions = (
     <>
-      {missing ? (
+      {saveError ? (
+        <p role="alert" className="mr-auto self-center text-sm text-destructive">
+          Could not save roster: {saveError}
+        </p>
+      ) : missing ? (
         <output className="mr-auto self-center text-sm text-discarded">
           <span id={missingId}>{missing}</span>
         </output>
@@ -626,7 +641,9 @@ export function RosterSetupDialog({
               ? inline
                 ? 'Start building'
                 : 'Create roster'
-              : 'Save changes'}
+              : mode === 'convert'
+                ? 'Convert roster'
+                : 'Save changes'}
       </Button>
     </>
   )

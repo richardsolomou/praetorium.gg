@@ -20,6 +20,149 @@ const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 
 const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
 describe('fixed squad sizes', () => {
+  const armedSquad = (sizes: number[]) =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Unit Composition',
+              defaultSelectionEntryId: `size-${sizes[0]}`,
+              constraints: [
+                ...mandatory('composition-min'),
+                { id: 'composition-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: sizes.map((count) => ({
+                id: `size-${count}`,
+                name: `${count} models`,
+                type: 'upgrade',
+                costs: points(count * 90),
+                selectionEntries: [
+                  {
+                    id: `bodies-${count}`,
+                    name: 'Bodies',
+                    type: 'model',
+                    collective: true,
+                    constraints: [
+                      { id: `bodies-${count}-min`, type: 'min', value: count, field: 'selections', scope: 'parent' },
+                      { id: `bodies-${count}-max`, type: 'max', value: count, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntryGroups: [
+                      {
+                        id: `weapons-${count}`,
+                        name: 'Weapons',
+                        defaultSelectionEntryId: `spear-${count}`,
+                        constraints: [
+                          ...mandatory(`weapons-${count}-min`),
+                          { id: `weapons-${count}-max`, type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                        ],
+                        selectionEntries: ['spear', 'axe'].map((name) => ({
+                          id: `${name}-${count}`,
+                          name,
+                          type: 'upgrade',
+                          collective: true,
+                        })),
+                      },
+                    ],
+                  },
+                ],
+              })),
+            },
+          ],
+        },
+      ],
+    })
+
+  it.each([
+    [2, 3],
+    [4, 10],
+  ])('preserves saved weapons when growing a fixed composition from %i to %i', (small, large) => {
+    const index = armedSquad([small, large])
+    const saved = JSON.parse(
+      JSON.stringify({
+        models: large,
+        choices: { composition: `size-${small}` },
+        spreads: { [`composition/size-${small}/bodies-${small}/weapons-${small}`]: { [`spear-${small}`]: 0, [`axe-${small}`]: small } },
+      }),
+    )
+    const built = buildUnit('squad', index, saved.models, saved.choices, { spreads: saved.spreads })!
+    expect({
+      models: modelCountOf(built.selection, index),
+      result: evaluate([built.selection], index),
+      axes: built.choices.find((choice) => choice.name === 'Weapons')?.options.find((option) => option.name === 'axe')?.count,
+    }).toMatchObject({ models: large, result: { points: large * 90, errors: [] }, axes: large })
+  })
+
+  it('shrinks a saved split loadout and allows its weapons to change again', () => {
+    const index = armedSquad([2, 3])
+    const shrunk = buildUnit('squad', index, 2, undefined, {
+      spreads: {
+        'composition/size-3/bodies-3/weapons-3': { 'spear-3': 1, 'axe-3': 2 },
+      },
+    })!
+    expect(evaluate([shrunk.selection], index)).toMatchObject({ points: 180, errors: [] })
+    const weapons = shrunk.choices.find((choice) => choice.name === 'Weapons')!
+    const changed = buildUnit('squad', index, 2, undefined, { spreads: { [weapons.key]: { 'spear-2': 1, 'axe-2': 1 } } })!
+    expect({
+      models: modelCountOf(changed.selection, index),
+      errors: evaluate([changed.selection], index).errors,
+      axes: changed.choices.find((choice) => choice.name === 'Weapons')?.options.find((option) => option.name === 'axe')?.count,
+    }).toEqual({ models: 2, errors: [], axes: 1 })
+  })
+
+  it.each(['spear', 'axe'])('shrinks a fixed composition equipped entirely with %s', (weapon) => {
+    const index = armedSquad([2, 3])
+    const built = buildUnit('squad', index, 2, undefined, {
+      spreads: { 'composition/size-3/bodies-3/weapons-3': { [`${weapon}-3`]: 3 } },
+    })!
+    expect({
+      result: evaluate([built.selection], index),
+      equipped: built.choices.find((choice) => choice.name === 'Weapons')?.options.find((option) => option.name === weapon)?.count,
+    }).toMatchObject({ result: { points: 180, errors: [] }, equipped: 2 })
+  })
+
+  it('does not resurrect an inactive composition through its saved weapon counts', () => {
+    const index = armedSquad([2, 3])
+    const built = buildUnit('squad', index, 3, undefined, {
+      spreads: { 'composition/size-2/bodies-2/weapons-2': { 'spear-2': 0, 'axe-2': 2 } },
+    })!
+    expect(evaluate([built.selection], index)).toMatchObject({ points: 270, errors: [] })
+  })
+
+  it('keeps a new weapon edit ahead of the previous composition’s saved loadout', () => {
+    const index = armedSquad([2, 3])
+    const built = buildUnit('squad', index, 3, undefined, {
+      spreads: {
+        'composition/size-3/bodies-3/weapons-3': { 'spear-3': 2, 'axe-3': 1 },
+        'composition/size-2/bodies-2/weapons-2': { 'spear-2': 0, 'axe-2': 2 },
+      },
+    })!
+    expect(built.choices.find((choice) => choice.name === 'Weapons')?.options.map(({ name, count }) => ({ name, count }))).toEqual([
+      { name: 'spear', count: 2 },
+      { name: 'axe', count: 1 },
+    ])
+  })
+
+  it('carries a saved either-or weapon choice into the requested composition', () => {
+    const index = armedSquad([2, 3])
+    const built = buildUnit('squad', index, 3, { 'composition/size-2/bodies-2/weapons-2': 'axe-2' })!
+    expect(built.choices.find((choice) => choice.name === 'Weapons')?.options.find((option) => option.name === 'axe')?.count).toBe(3)
+  })
+
+  it('keeps the new composition’s default when an old weapon name is ambiguous', () => {
+    const index = armedSquad([2, 3])
+    const group = index.definitions.get('weapons-3')!
+    if ('selectionEntries' in group) group.selectionEntries!.push({ id: 'other-axe', name: 'axe', type: 'upgrade', collective: true })
+    const built = buildUnit('squad', index, 3, undefined, {
+      spreads: { 'composition/size-2/bodies-2/weapons-2': { 'spear-2': 0, 'axe-2': 2 } },
+    })!
+    expect(evaluate([built.selection], index)).toMatchObject({ points: 270, errors: [] })
+  })
+
   const squadNaming = (group: string) =>
     indexOf({
       sharedSelectionEntries: [

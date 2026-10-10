@@ -65,7 +65,7 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
-import { survivingUnits } from './builder/pricePlaceholder'
+import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
@@ -214,6 +214,7 @@ export function ListBuilder({
     updateLoadoutHistory,
   } = useRosterPanes({ path, workspacePath, picks })
   const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
+  const [setupMode, setSetupMode] = useState<'edit' | 'convert'>('edit')
   const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
@@ -417,6 +418,17 @@ export function ListBuilder({
   const saving = !guest && (save.isPending || settledPicks !== positioned || settledListName !== listName)
   const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
+  const priceRequest = priceQuery(
+    catalogueId,
+    detachmentIds,
+    disposition,
+    limit,
+    positioned,
+    waivedRules,
+    borrowedDetachmentId,
+    optionalRules,
+    editable,
+  )
   const {
     data: priced,
     dataUpdatedAt: pricedAt,
@@ -425,7 +437,7 @@ export function ListBuilder({
     isError: priceFailed,
     refetch: retryPrice,
   } = useQuery({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, positioned, waivedRules, borrowedDetachmentId, optionalRules, editable),
+    ...priceRequest,
     // A frozen list already carries its cards and its total; the price is only the
     // applied datasheet behind a unit somebody opened.
     enabled: Boolean(catalogueId) && (!frozen || selected !== null),
@@ -437,7 +449,7 @@ export function ListBuilder({
      * number this page worked out for itself could be wrong in ways it cannot know.
      */
     placeholderData: (previous, previousQuery) => {
-      if (!previous) return undefined
+      if (!previous || !samePriceContext(previousQuery?.queryKey, priceRequest.queryKey)) return undefined
       const kept = survivingUnits(previousQuery?.queryKey.at(-1), picks)
       if (!kept) return undefined
       if (kept.length === previous.units.length && kept.every((at, index) => at === index)) return previous
@@ -459,8 +471,8 @@ export function ListBuilder({
   }, [picks, pricePending, priced, pricedAt])
 
   const unitLimits = useMemo(
-    () => new Map(!pricePending && !priceFailed ? priced?.unitLimits?.map((unit) => [unit.id, unit.limit]) : []),
-    [pricePending, priceFailed, priced?.unitLimits],
+    () => new Map(!priceFailed ? priced?.unitLimits?.map((unit) => [unit.id, unit.limit]) : []),
+    [priceFailed, priced?.unitLimits],
   )
   const units = priced?.units ?? NO_UNITS
   // Keep the saved automatic name visible while an edit is being priced.
@@ -482,8 +494,8 @@ export function ListBuilder({
   const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
   const rosterLoading = !frozen && priceLoading && picks.length > 0
   const edit = useMemo(
-    () => pickEditor(setPicks, { catalogueId, units, limits: unitLimits }, allocateKey),
-    [allocateKey, catalogueId, setPicks, unitLimits, units],
+    () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits }, allocateKey),
+    [allocateKey, catalogueId, pricePending, setPicks, unitLimits, units],
   )
   const editor = useRef(edit)
   /**
@@ -606,7 +618,8 @@ export function ListBuilder({
   )
   const reminderCountsByUnit = useMemo(() => reminderTimingCountsByUnit(reminders), [reminders])
   const cardRelationships = useCardRelationships(picks, units)
-  const openSetup = () =>
+  const openSetup = () => {
+    setSetupMode('edit')
     setSetupDraft({
       name: listName,
       catalogueId,
@@ -618,6 +631,7 @@ export function ListBuilder({
       borrowedDetachmentId,
       visibility,
     })
+  }
   const applySetup = (setup: RosterSetup) => {
     const changedFaction = editionFamilyId(setup.catalogueId) !== editionFamilyId(catalogueId)
     if (setup.catalogueId === catalogueId)
@@ -642,6 +656,8 @@ export function ListBuilder({
   const setupDialog =
     editable && editingSetup ? (
       <RosterSetupDialog
+        mode={setupMode}
+        sourceCatalogueId={catalogueId}
         open={editingSetup}
         onOpenChange={(open) => !open && setSetupDraft(null)}
         factionOptions={factionIndex?.factions ?? []}
@@ -760,6 +776,7 @@ export function ListBuilder({
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
+            controlsDisabled={pricePending}
             room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
             battleSize={limit}
             waivedRules={waivedRules}
@@ -871,22 +888,16 @@ export function ListBuilder({
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-48">
-                  <DropdownMenuItem
-                    onClick={() =>
-                      setSetupDraft({
-                        name: listName,
-                        catalogueId,
-                        detachmentIds,
-                        disposition,
-                        limit,
-                        waivedRules,
-                        optionalRules,
-                        borrowedDetachmentId,
-                        visibility,
-                      })
-                    }
-                  >
+                  <DropdownMenuItem onClick={openSetup}>
                     <Pencil /> Edit roster setup
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      openSetup()
+                      setSetupMode('convert')
+                    }}
+                  >
+                    <SlidersHorizontal /> Convert rules version
                   </DropdownMenuItem>
                   {savedId && !guest ? (
                     <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
@@ -1094,7 +1105,7 @@ export function ListBuilder({
                         onSelect={selectUnit}
                         onRemove={drop}
                         onDuplicate={duplicate}
-                        canDuplicate={canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
+                        canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
                         onOwned={me ? setUnitOwned : undefined}
                         onJoin={join}
                         editable={building}
@@ -1150,7 +1161,7 @@ export function ListBuilder({
                   <Button
                     size="sm"
                     className="px-2"
-                    disabled={!canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                    disabled={pricePending || !canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
                     onClick={() => add(preview.entryId)}
                   >
                     <Plus className="size-3" />

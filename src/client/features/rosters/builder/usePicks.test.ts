@@ -50,6 +50,61 @@ function harness(models = 3) {
 }
 
 describe('consecutive counter presses', () => {
+  it('resizes from the current equipment and removes remembered inactive compositions', () => {
+    let picks: KeyedPick[] = [
+      {
+        key: 0,
+        entryId: 'squad',
+        models: 3,
+        choices: { composition: 'three', banner: 'vexilla' },
+        spreads: {
+          'composition/two/weapons': { spear: 0, axe: 2 },
+          'composition/three/weapons': { spear: 1, axe: 2 },
+          banner: { vexilla: 1 },
+        },
+      },
+    ]
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      {
+        catalogueId: 'cat',
+        units: [
+          {
+            size: { models: 3, min: 2, max: 3, options: [2, 3] },
+            toggles: [],
+            choices: [
+              {
+                key: 'composition',
+                name: 'Unit Composition',
+                options: [
+                  { id: 'two', count: 0 },
+                  { id: 'three', count: 1 },
+                ],
+              },
+              {
+                key: 'composition/three/weapons',
+                options: [
+                  { id: 'spear', count: 1 },
+                  { id: 'axe', count: 2 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      () => 1,
+    )
+    edit.resize(0, () => 2)
+    expect(picks[0]).toMatchObject({
+      models: 2,
+      choices: { banner: 'vexilla' },
+      spreads: { 'composition/three/weapons': { spear: 1, axe: 2 }, banner: { vexilla: 1 } },
+    })
+    expect(picks[0]?.spreads).not.toHaveProperty('composition/two/weapons')
+    expect(picks[0]?.choices).not.toHaveProperty('composition')
+  })
   it('applies each spread press to the counts the pick already holds', () => {
     const { edit, pick } = harness()
     const moveToCarbine = (counts: Record<string, number>) => ({

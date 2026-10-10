@@ -25,7 +25,7 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
     <main className="w-full">
       <PageHeader
         onboarding="roster-data-updates"
-        tint={faction ? factionColour(faction.slug) : undefined}
+        tint={faction ? factionColour(faction.slug, faction.name) : undefined}
         eyebrow="Reference"
         title={faction ? `${faction.name} data updates` : 'Data updates'}
         description={

@@ -246,6 +246,51 @@ test('a failed unit-limit check can be retried without losing the roster', async
   await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
 })
 
+for (const width of [1440, 390]) {
+  test(`the picker retains checked rows during loadout repricing at ${width}px`, async ({ page }) => {
+    await startGuestRoster(page)
+    await add(page, 'Necron Warriors')
+    await page.getByLabel('Add a unit').fill('')
+    await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
+    const checkedRow = (await page.locator('[data-picker-unit="Necron Warriors"]').textContent())!
+    await page.setViewportSize({ width, height: 900 })
+    await page.getByRole('button', { name: 'Necron Warriors', exact: true }).click()
+    const more = page.getByRole('button', { name: 'More models in Necron Warriors' })
+    await expect(more).toBeEnabled()
+    let intercepted = false
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await page.route('**/_serverFn/**', async (route) => {
+      if (route.request().method() === 'POST') {
+        intercepted = true
+        await gate
+      }
+      await route.continue()
+    })
+    try {
+      await more.click()
+      await expect.poll(() => intercepted).toBe(true)
+      if (width < 1300) {
+        await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+        await page.getByRole('button', { name: 'Add units', exact: true }).click()
+      }
+      const picker = page.locator('div[data-onboarding="roster-picker"]')
+      await expect(picker).not.toContainText('Checking unit limits')
+      await expect(picker.locator('[data-picker-unit="Necron Warriors"]')).toHaveText(checkedRow)
+      await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeDisabled()
+      await picker.screenshot({ path: `test-results/picker-repricing-${width}.png` })
+      release()
+      await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
+      await expect(picker).not.toContainText('Checking unit limits')
+    } finally {
+      release()
+      await page.unrouteAll({ behavior: 'wait' })
+    }
+  })
+}
+
 test('a visitor draft built on the retired Marine codex opens and prices on the current book', async ({ page }) => {
   const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
   await page.goto('/rosters')

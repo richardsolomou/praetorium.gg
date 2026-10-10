@@ -3,7 +3,7 @@
   "overlays": [
     {
       "source": "definitions",
-      "repository": "BSData/wh40k-11e",
+      "repository": "richardsolomou/wh40k-11e",
       "branch": "Space-Marine-Codex",
       "license": null,
       "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
@@ -23,8 +23,57 @@
         "Imperium - White Scars.json",
         "Library - Astartes Heresy Legends.json",
         "Warhammer 40,000.json"
-      ]
+      ],
+      "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
     }
   ],
-  "editions": []
+  "editions": [
+    {
+      "edition": {
+        "id": "custodes-11e",
+        "name": "Custodes codex",
+        "status": "preview",
+        "default": false,
+        "catalogueIds": ["1f19-6509-d906-ca10"],
+        "releases": [
+          {
+            "at": 1791660480000,
+            "status": "preview"
+          }
+        ]
+      },
+      "sources": {},
+      "overlays": [
+        {
+          "source": "definitions",
+          "repository": "richardsolomou/wh40k-11e",
+          "branch": "feat/custodes-11e-preview",
+          "revision": "ac5d1848fe0b60158e26518f63b1279aaf47dd96",
+          "license": null,
+          "attribution": "Unofficial Custodes codex preview transcribed from publisher previews and scanned pages; community sheet prices",
+          "files": ["Imperium - Adeptus Custodes.json"]
+        },
+        {
+          "source": "points",
+          "repository": "richardsolomou/wh40k-11e",
+          "branch": "feat/custodes-11e-preview",
+          "revision": "ac5d1848fe0b60158e26518f63b1279aaf47dd96",
+          "license": null,
+          "attribution": "Unofficial Custodes codex preview transcribed from publisher previews and scanned pages; community sheet prices",
+          "path": "data",
+          "files": ["data/adeptus-custodes.yaml"]
+        },
+        {
+          "source": "datacards",
+          "repository": "richardsolomou/wh40k-11e",
+          "branch": "feat/custodes-11e-preview",
+          "revision": "ac5d1848fe0b60158e26518f63b1279aaf47dd96",
+          "license": null,
+          "attribution": "Unofficial Custodes codex preview transcribed from publisher previews and scanned pages; community sheet prices",
+          "path": "11th/gdc",
+          "files": ["11th/gdc/adeptuscustodes.json"]
+        }
+      ]
+    }
+  ]
 }

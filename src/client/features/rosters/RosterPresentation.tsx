@@ -1,3 +1,4 @@
+import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEventHandler, CSSProperties, ReactNode } from 'react'
@@ -8,7 +9,7 @@ import type { OnboardingTarget } from '../onboarding/onboarding'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
-import { type CatalogueEdition, editionLabel } from '../../../core/catalogueEdition'
+import type { CatalogueEdition } from '../../../core/catalogueEdition'
 
 type PresentedFaction = FactionPresentation & {
   edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
@@ -146,19 +147,14 @@ export function RosterHeader({
             data-slot="roster-meta"
             className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {edition ? (
-              <span title={editionLabel(edition)} className={`chip shrink-0 ${edition.status === 'preview' ? 'text-warning' : 'text-dim'}`}>
-                {edition.status === 'preview' ? 'Preview' : edition.status === 'retired' ? 'Previous' : edition.name}
-              </span>
-            ) : null}
             {faction ? (
-              <Link
+              <FactionReferenceLink
                 to="/factions/$catalogueId"
                 params={{ catalogueId: faction.slug }}
                 className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
               >
-                <FactionLabel faction={faction} />
-              </Link>
+                <FactionLabel faction={faction} edition={edition} />
+              </FactionReferenceLink>
             ) : factionLoading ? (
               <Skeleton className="h-5 w-28 shrink-0" aria-label="Loading faction" />
             ) : null}
@@ -183,7 +179,7 @@ export function RosterHeader({
                 <span key={detachment.id ?? detachment.name} className="contents">
                   <span aria-hidden>·</span>
                   {faction && reference && reference.referenceRoute !== null ? (
-                    <Link
+                    <FactionReferenceLink
                       to="/factions/$catalogueId/detachments/$detachmentId"
                       params={{
                         catalogueId: reference.referenceRoute?.catalogueId ?? faction.slug,
@@ -192,7 +188,7 @@ export function RosterHeader({
                       className="shrink-0 text-info hover:text-bone"
                     >
                       {label}
-                    </Link>
+                    </FactionReferenceLink>
                   ) : (
                     <span className="shrink-0">{label}</span>
                   )}

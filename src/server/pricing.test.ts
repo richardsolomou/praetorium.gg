@@ -56,6 +56,83 @@ const rulesWithout = {
   factionRestrictions: new Map(),
 } as Partial<LoadedRules> as LoadedRules
 
+it('prices a saved fixed composition after resizing its equipped models', () => {
+  const loaded = bookOf({
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'composition',
+            name: 'Unit Composition',
+            defaultSelectionEntryId: 'size-2',
+            constraints: [
+              { id: 'composition-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'composition-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [2, 3].map((count) => ({
+              id: `size-${count}`,
+              name: `${count} models`,
+              type: 'upgrade',
+              costs: pointsCost(count * 90),
+              selectionEntries: [
+                {
+                  id: `body-${count}`,
+                  name: 'Body',
+                  type: 'model',
+                  collective: true,
+                  constraints: [
+                    { id: `body-${count}-min`, type: 'min', value: count, field: 'selections', scope: 'parent' },
+                    { id: `body-${count}-max`, type: 'max', value: count, field: 'selections', scope: 'parent' },
+                  ],
+                  selectionEntryGroups: [
+                    {
+                      id: `weapons-${count}`,
+                      name: 'Weapons',
+                      defaultSelectionEntryId: `spear-${count}`,
+                      constraints: [
+                        { id: `weapons-${count}-min`, type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                        { id: `weapons-${count}-max`, type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                      ],
+                      selectionEntries: ['spear', 'axe'].map((name) => ({
+                        id: `${name}-${count}`,
+                        name,
+                        type: 'upgrade',
+                        collective: true,
+                      })),
+                    },
+                  ],
+                },
+              ],
+            })),
+          },
+        ],
+      },
+    ],
+  })
+  const priced = calculateRosterPrice(
+    {
+      catalogueId: 'cat',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2000,
+      units: [
+        {
+          entryId: 'squad',
+          models: 3,
+          choices: { composition: 'size-2' },
+          spreads: { 'composition/size-2/body-2/weapons-2': { 'spear-2': 0, 'axe-2': 2 } },
+        },
+      ],
+    },
+    loaded,
+    rulesWithout,
+  )
+  expect(priced).toMatchObject({ points: 270, errors: [] })
+})
+
 it('marks a saved datasheet missing from the new source as illegal', () => {
   const loaded = bookOf({ selectionEntries: [{ id: 'current', name: 'Current unit', type: 'model', costs: pointsCost(50) }] })
   const priced = calculateRosterPrice(

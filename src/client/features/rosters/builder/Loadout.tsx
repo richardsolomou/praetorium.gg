@@ -4,6 +4,7 @@ import { cloneElement, type ReactElement, useEffect, useRef } from 'react'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
+import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
 import { loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
@@ -298,7 +299,12 @@ function divide(unit: LoadoutUnit): { models: Map<LoadoutModel, Stood>; loose: L
   const stood = new Map(unit.models.flatMap((model) => (standingFor(model) ? [[model, standingFor(model)!] as const] : [])))
   const modelled = new Set(unit.models.flatMap((model) => model.rows.map((row) => row.choiceKey)))
   const carded = new Set([...stood.values()].map((found) => found.option.id))
-  const loose = unit.choices.filter((choice) => !modelled.has(choice.key) && !choice.options.every((option) => carded.has(option.id)))
+  const loose = unit.choices.filter(
+    (choice) =>
+      !(unit.size.options?.length && isUnitCompositionChoice(choice)) &&
+      !modelled.has(choice.key) &&
+      !choice.options.every((option) => carded.has(option.id)),
+  )
 
   // A card only counts its own option where the group is not drawn below as well.
   const models = new Map([...stood].filter(([, found]) => !loose.includes(found.choice)))

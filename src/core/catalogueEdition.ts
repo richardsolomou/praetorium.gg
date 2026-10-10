@@ -78,4 +78,4 @@ export function editionCatalogueFiles(files: readonly CatalogueFile[], edition: 
 }
 
 export const leagueEditionError = (edition?: Pick<CatalogueEdition, 'status'>) =>
-  edition?.status === 'preview' ? 'preview codex rules cannot be submitted to a league' : null
+  edition?.status === 'preview' ? 'preview rules cannot be submitted to a league' : null

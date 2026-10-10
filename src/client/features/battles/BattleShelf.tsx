@@ -1,3 +1,4 @@
+import type { StandingFaction } from '../../../core/standings'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
@@ -135,7 +136,7 @@ function BattleSide({
   seats: {
     player: { id: string; name: string; image: string | null }
     army: string | null
-    faction: { slug: string; displayName: string; icon: string | null } | null
+    faction: StandingFaction | null
     detachments: string[]
   }[]
   score?: number
@@ -169,7 +170,9 @@ function BattleSide({
             </span>
             {seats.map(({ player, army, faction, detachments }) => (
               <span key={player.id || player.name} className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim">
-                {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+                {faction ? (
+                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+                ) : null}
                 <span className="truncate">
                   {faction?.displayName ?? army ?? 'List not attached'}
                   {detachments.length ? <span className="text-faint"> · {detachments.join(' · ')}</span> : null}

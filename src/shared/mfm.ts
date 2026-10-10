@@ -22,15 +22,21 @@ const detachmentSchema = z.object({
 export const factionSchema = z.object({
   slug: z.string(),
   version: z.string(),
+  attribution: z.string().trim().min(1).max(500).optional(),
   detachments: z.array(detachmentSchema).optional(),
   units: z.array(unitSchema),
 })
 export type MfmUnit = z.infer<typeof unitSchema>
 export type MfmIndex = ReadonlyMap<string, z.infer<typeof factionSchema>>
 export function mfmAttribution(index: MfmIndex | null | undefined): string | null {
-  const versions = new Set([...(index?.values() ?? [])].map((faction) => faction.version))
-  if (!versions.size) return null
-  return `Points from BSData Munitorum Field Manual${versions.size === 1 ? ` ${versions.values().next().value}` : ''}`
+  const factions = [...(index?.values() ?? [])]
+  const versions = new Set(factions.filter((faction) => !faction.attribution).map((faction) => faction.version))
+  const attributions = new Set<string>()
+  if (versions.size) {
+    attributions.add(`Points from BSData Munitorum Field Manual${versions.size === 1 ? ` ${versions.values().next().value}` : ''}`)
+  }
+  for (const faction of factions) if (faction.attribution) attributions.add(faction.attribution)
+  return [...attributions].join('. ') || null
 }
 export function mfmDetachment(index: MfmIndex | null | undefined, faction: string, name: string, marineChapter = false) {
   const slugs = [faction, ...(marineChapter && faction !== 'space-marines' ? ['space-marines'] : [])]

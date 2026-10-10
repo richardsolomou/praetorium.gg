@@ -101,6 +101,14 @@ it('refuses exact support reads from unregistered codexes', () => {
   expect(versions(['child']).factionFor('missing~parent')).toBeNull()
 })
 
+it('keeps saved catalogue IDs on their rules when another version becomes the default', () => {
+  const loaded = versions(['parent'], true)
+  expect({ saved: loaded.factionFor('parent')?.id, current: loaded.factionFor('marines')?.id }).toEqual({
+    saved: 'parent',
+    current: 'codex~parent',
+  })
+})
+
 it('preserves base relationship destinations across all factions after codex promotion', () => {
   const loaded = versions(['parent'], true)
   const relationship = { kind: 'leader' as const, name: 'Leader', entryId: 'leader', route: { catalogueId: 'marines', slug: 'leader' } }

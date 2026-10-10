@@ -90,10 +90,18 @@ function assemble(
     models === undefined || !fixedSizes.length
       ? models
       : fixedSizes.reduce((nearest, size) => (Math.abs(size - models) < Math.abs(nearest - models) ? size : nearest))
-  const composed =
+  const sized =
     requestedModels === undefined
       ? chosen
       : withModelComposition(entryId, chosen, requestedModels, new Set(Object.keys(choices ?? {})), index, context)
+  const composed = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => {
+    if (!fixedSizes.length) return tree
+    const request = compositionRequest(sized, key, index)
+    const replacement = request?.options.get(optionId)
+    return request && request.key !== key && replacement && choices?.[request.key] === undefined
+      ? withUnitChoice(tree, request.key, replacement, index, context)
+      : tree
+  }, sized)
   const measured = sizeOf(composed, index)
   const composedSize = fixedSizes.length ? { ...measured, min: fixedSizes[0]!, max: fixedSizes.at(-1)!, options: fixedSizes } : measured
   const modelOption = (optionId: string) => {
@@ -104,13 +112,37 @@ function assemble(
     const definition = index.definitions.get(key.split('/').at(-1) ?? '')
     return definition && childrenOf(resolve(definition, index), index).some((option) => modelOption(option.id))
   }
+  const compositionChoices = fixedSizes.length && context?.spreads ? unitChoices(entryId, composed, index, context) : []
   // Expand loadouts before their nested weapons; settle model allocations afterwards,
   // because a specialist's weapons determine how many bodies its parent group needs.
-  const requests = Object.entries(context?.spreads ?? {}).toSorted(([left], [right]) => {
-    const leftModels = Boolean(modelGroup(left))
-    const rightModels = Boolean(modelGroup(right))
-    return Number(leftModels) - Number(rightModels) || (left.split('/').length - right.split('/').length) * (leftModels ? -1 : 1)
-  })
+  const requests = Object.entries(context?.spreads ?? {})
+    .flatMap(([key, counts]): [string, Record<string, number>][] => {
+      if (!fixedSizes.length) return [[key, counts]]
+      const request = compositionRequest(composed, key, index)
+      if (!request || (request.key !== key && context?.spreads?.[request.key] !== undefined)) return []
+      if (request.key === key) return [[key, counts]]
+      if (Object.entries(counts).some(([id, count]) => count > 0 && !request.options.has(id))) return []
+      const choice = compositionChoices.find((candidate) => candidate.key === request.key)
+      const mapped = Object.fromEntries<number>([
+        ...(choice?.options.map((option) => [option.id, 0] as const) ?? []),
+        ...Object.entries(counts).flatMap(([id, count]) => {
+          const replacement = request.options.get(id)
+          return replacement ? [[replacement, count] as const] : []
+        }),
+      ])
+      let excess = Math.max(0, Object.values(mapped).reduce((sum, count) => sum + count, 0) - (choice?.room ?? Infinity))
+      for (const [id, count] of Object.entries(mapped).toSorted((one, other) => other[1] - one[1])) {
+        const removed = Math.min(count, excess)
+        mapped[id] = count - removed
+        excess -= removed
+      }
+      return [[request.key, mapped]]
+    })
+    .toSorted(([left], [right]) => {
+      const leftModels = Boolean(modelGroup(left))
+      const rightModels = Boolean(modelGroup(right))
+      return Number(leftModels) - Number(rightModels) || (left.split('/').length - right.split('/').length) * (leftModels ? -1 : 1)
+    })
   const governed = (key: string, optionId: string) =>
     modelOption(optionId) && requests.some(([other]) => other.startsWith(`${key}/${optionId}/`))
   const applySpread = (tree: Selection, [key, counts]: [string, Record<string, number>]) => {
@@ -127,10 +159,11 @@ function assemble(
     Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
   )
   const size = modelCountOf(toggled, index) === modelCountOf(composed, index) ? composedSize : sizeOf(toggled, index)
+  const fittedContext = fixedSizes.length ? { ...context, spreads: Object.fromEntries(requests) } : context
 
   if (requestedModels === undefined || !size.path.length || requestedModels === size.models) {
     const fitted = refit(toggled, index, 1, context)
-    return finishUnit(entryId, settleProfileWeaponSwaps(fitted, index, context), size, index, context)
+    return finishUnit(entryId, settleProfileWeaponSwaps(fitted, index, context), size, index, fittedContext)
   }
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
@@ -139,7 +172,7 @@ function assemble(
   const resizedModel = `${size.path.join('/')}/`
   const restored = requests.filter(([key]) => key.startsWith(resizedModel) && !modelGroup(key)).reduce(applySpread, resized)
   const selection = refit(restored, index, 1, context)
-  return finishUnit(entryId, settleProfileWeaponSwaps(selection, index, context), { ...size, models: wanted }, index, context)
+  return finishUnit(entryId, settleProfileWeaponSwaps(selection, index, context), { ...size, models: wanted }, index, fittedContext)
 }
 
 function settleProfileWeaponSwaps(selection: Selection, index: CatalogueIndex, context: BuildContext = {}): Selection {
@@ -181,6 +214,64 @@ function modelCompositionSizes(entryId: string, selection: Selection, index: Cat
     if (sizes.length > 1) return sizes
   }
   return []
+}
+
+/** Carry equipment between fixed compositions only when its catalogue names and types match uniquely. */
+function compositionRequest(
+  selection: Selection,
+  key: string,
+  index: CatalogueIndex,
+): { key: string; options: Map<string, string> } | null {
+  const path: string[] = []
+  let parent = index.definitions.get(selection.id)
+  let changed = false
+  const equivalent = (id: string, options: readonly Option[]) => {
+    const source = index.definitions.get(id)
+    if (!source) return undefined
+    const target = resolve(source, index)
+    const matches = options.filter((option) => {
+      const candidate = resolve(option.definition, index)
+      return candidate.name === target.name && candidate.type === target.type
+    })
+    return options.find((option) => option.id === id) ?? (matches.length === 1 ? matches[0] : undefined)
+  }
+  for (const id of key.split('/')) {
+    if (!parent) return null
+    const target = resolve(parent, index)
+    const options = childrenOf(target, index)
+    const composition =
+      target.type === undefined &&
+      isUnitCompositionChoice({
+        name: target.name ?? '',
+        options: options.map((option) => ({ name: resolve(option.definition, index).name })),
+      })
+    const held = composition ? selectionAt(selection, path)?.selections?.filter((child) => (child.count ?? 1) > 0) : undefined
+    const next: Option | undefined =
+      held?.length === 1
+        ? options.find((option) => option.id === held[0]!.id)
+        : changed
+          ? equivalent(id, options)
+          : options.find((option) => option.id === id)
+    if (!next) return null
+    changed ||= next.id !== id
+    path.push(next.id)
+    parent = next.definition
+  }
+  if (!parent) return null
+  const original = index.definitions.get(key.split('/').at(-1) ?? '')
+  if (!original) return null
+  const destination = childrenOf(resolve(parent, index), index)
+  const options = childrenOf(resolve(original, index), index).flatMap((option) => {
+    const replacement = equivalent(option.id, destination)
+    return replacement ? [[option.id, replacement.id] as const] : []
+  })
+  return { key: path.join('/'), options: new Map(options) }
+}
+
+export function resolveUnitChoice(selection: Selection, key: string, optionId: string, index: CatalogueIndex) {
+  const request = compositionRequest(selection, key, index)
+  const replacement = request?.options.get(optionId)
+  return request && replacement ? { key: request.key, optionId: replacement } : null
 }
 
 function finishUnit(entryId: string, selection: Selection, size: UnitSize, index: CatalogueIndex, context?: BuildContext): BuiltUnit {
@@ -249,7 +340,7 @@ function withModelComposition(
   const fitted = withOptionalModels(selection, models, index)
   if (modelCountOf(fitted, index) === models) return fitted
   for (const choice of unitChoices(entryId, selection, index, context)) {
-    if (explicit.has(choice.key) || choice.room !== 1) continue
+    if ((explicit.has(choice.key) && !isUnitCompositionChoice(choice)) || choice.room !== 1) continue
     for (const option of choice.options) {
       const candidate = withChoice(selection, choice.key, option.id, index)
       if (modelCountOf(candidate, index) === models) return candidate

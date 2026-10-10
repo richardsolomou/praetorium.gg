@@ -159,6 +159,16 @@ it('folds accents and repeated construction suffixes into one join key', () => {
 
 let directory: string | null = null
 
+it('loads authored faction attribution with its reference content', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'preview.json'),
+    JSON.stringify({ name: 'Test', attribution: 'Community codex preview', datasheets: [], detachments: [] }),
+  )
+
+  expect(loadDatacards(directory).factions.get('test')?.attribution).toBe('Community codex preview')
+})
+
 it('loads named and parameterized weapon and core keyword definitions', () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-keywords-'))
   fs.writeFileSync(

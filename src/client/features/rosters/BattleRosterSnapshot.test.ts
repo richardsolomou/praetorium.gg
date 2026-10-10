@@ -58,7 +58,7 @@ describe('battle roster snapshot', () => {
       const markup = renderToStaticMarkup(
         createElement(QueryClientProvider, { client: queryClient }, createElement(RouterProvider, { router })),
       )
-      if (hasEdition) expect(markup).toContain('title="Death Guard codex · Preview"')
+      if (hasEdition) expect(markup).toContain('aria-label="Rules version: Death Guard codex · Preview"')
       else expect(markup).not.toContain('Death Guard codex')
       queryClient.clear()
     }

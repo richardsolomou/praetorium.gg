@@ -34,10 +34,11 @@ import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
 import { useRosterPages } from './rosterPages'
+import { errorMessage } from '../../queryClient'
 
 export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
-type EditingSession = { rosterId: string; draft: RosterSetup }
+type EditingSession = { rosterId: string; draft: RosterSetup; mode?: 'edit' | 'convert' }
 
 const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
@@ -198,6 +199,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                       actions={actions}
                       origin={origin}
                       onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+                      onConvert={() => setEditing({ rosterId: roster.id, draft: setupOf(roster), mode: 'convert' })}
                       onDelete={() => setDeleting(roster)}
                     />
                   )
@@ -264,14 +266,32 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
 
       {editing ? (
         <RosterSetupDialog
+          mode={session?.mode ?? 'edit'}
+          sourceCatalogueId={editing.catalogueId}
           open
-          onOpenChange={(open) => !open && setEditing(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditing(null)
+              actions.update.reset()
+            }
+          }}
           factionOptions={available?.factions ?? []}
           value={session?.draft ?? setupOf(editing)}
-          onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft })}
+          onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft, mode: session?.mode })}
           hasUnits={Boolean(editing.unitCount)}
           pending={actions.update.isPending}
-          onSave={(setup) => actions.update.mutate({ roster: editing, setup }, { onSuccess: () => setEditing(null) })}
+          saveError={actions.update.isError ? errorMessage(actions.update.error) : undefined}
+          onSave={(setup) =>
+            actions.update.mutate(
+              { roster: editing, setup },
+              {
+                onSuccess: () => {
+                  setEditing(null)
+                  if (session?.mode === 'convert') void navigate({ to: '/rosters/$id', params: { id: editing.id } })
+                },
+              },
+            )
+          }
         />
       ) : null}
       <RosterExportDialog text={actions.exportText} onClose={actions.clearExport} />

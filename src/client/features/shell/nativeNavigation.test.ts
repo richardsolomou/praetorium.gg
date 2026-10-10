@@ -3,6 +3,12 @@ import { nativeNavigation } from './nativeNavigation'
 
 describe('native application navigation', () => {
   it.each([
+    ['/factions/adeptus-custodes/datasheets/allarus-custodians', '/factions/adeptus-custodes/datasheets?rules=custodes-11e'],
+    ['/factions/adeptus-custodes/detachments/aquilan-shield', '/factions/adeptus-custodes?rules=custodes-11e'],
+  ])('retains the rules version when returning from %s', (path, href) => {
+    expect(nativeNavigation(path, { rules: 'custodes-11e' }).back?.href).toBe(href)
+  })
+  it.each([
     ['/rosters', { section: 'rosters', title: 'Rosters' }],
     ['/battles', { section: 'battles', title: 'Battles' }],
     ['/leagues', { section: 'leagues', title: 'Leagues' }],
@@ -100,4 +106,10 @@ describe('native application navigation', () => {
       preferHistory: true,
     })
   })
+})
+
+it('keeps the selected version in native reference Back destinations', () => {
+  expect(nativeNavigation('/factions/adeptus-custodes/rules/custodes-11e/datasheets/allarus-custodians').back?.href).toBe(
+    '/factions/adeptus-custodes/rules/custodes-11e/datasheets',
+  )
 })

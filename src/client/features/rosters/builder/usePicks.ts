@@ -1,5 +1,6 @@
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
 import type { RosterPick } from '../../../../core/roster'
+import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { type KeyedPick, positionedPicks } from '../rosterPicks'
 import type { SpreadUpdate } from './loadoutModel'
 
@@ -20,9 +21,9 @@ function emptied(spreads: Record<string, Record<string, number>> | undefined, ke
 
 /** Only what an edit needs to read back off the priced list. */
 type SizedUnit = {
-  size: { models: number; min: number; max: number }
+  size: { models: number; min: number; max: number; options?: number[] }
   toggles: { key: string; name: string }[]
-  choices: { key: string; options: { id: string; count: number }[] }[]
+  choices: { key: string; name?: string; options: { id: string; name?: string; count: number }[] }[]
 }
 
 export function canAddCopy(entryId: string, held: number, limits: ReadonlyMap<string, number | null>) {
@@ -131,7 +132,27 @@ export function pickEditor(
       editAt(index, (pick) => {
         const unit = context.units[index]
         const models = step(pick.models ?? unit?.size.models ?? 0)
-        return { ...pick, models: unit ? Math.min(Math.max(models, unit.size.min), unit.size.max) : models }
+        const compositions = unit?.size.options?.length
+          ? unit.choices.filter((choice) => isUnitCompositionChoice({ name: choice.name ?? '', options: choice.options }))
+          : []
+        const inside = (key: string) => compositions.some((choice) => key === choice.key || key.startsWith(`${choice.key}/`))
+        const equipment = unit?.choices.filter((choice) => inside(choice.key) && !compositions.includes(choice)) ?? []
+        return {
+          ...pick,
+          models: unit ? Math.min(Math.max(models, unit.size.min), unit.size.max) : models,
+          ...(compositions.length
+            ? {
+                choices: Object.fromEntries(Object.entries(pick.choices ?? {}).filter(([key]) => !inside(key))),
+                spreads: Object.fromEntries([
+                  ...Object.entries(pick.spreads ?? {}).filter(([key]) => !inside(key)),
+                  ...equipment.map((choice) => [
+                    choice.key,
+                    pick.spreads?.[choice.key] ?? Object.fromEntries(choice.options.map((option) => [option.id, option.count])),
+                  ]),
+                ]),
+              }
+            : {}),
+        }
       }),
 
     choose: (index: number, key: string, optionId: string) =>

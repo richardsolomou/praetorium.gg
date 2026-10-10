@@ -1,11 +1,13 @@
 import { type BattleState, type LoggedCommand, sideDisposition, sideCaptain, sidePaintedPoints } from '../core/battle'
 import { type BattleMissionRules, missionFor } from './rules'
+import type { StandingFaction } from '../core/standings'
 
 export type BattleFaction = {
   id: string
   slug: string
   displayName: string
   icon: string | null
+  edition?: StandingFaction['edition']
   detachments?: readonly { name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
 }
 
@@ -43,7 +45,9 @@ export function battleSummary(
     // result for the faction that fielded it. A pasted list has none.
     factions: state.players.map((player) => {
       const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
-      return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
+      return faction
+        ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon, edition: player.roster?.built?.edition ?? null }
+        : null
     }),
     detachments: state.players.map(
       (player) =>

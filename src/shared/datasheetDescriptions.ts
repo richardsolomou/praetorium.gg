@@ -133,7 +133,7 @@ export function describeDatasheetAbilitiesWithContributions(
         sheet.keywordRules,
       ),
       detachments,
-      attribution: supplied || suppliedDetachmentDescriptions ? DATACARDS_ATTRIBUTION : null,
+      attribution: supplied || suppliedDetachmentDescriptions ? (factionContent?.attribution ?? DATACARDS_ATTRIBUTION) : null,
     },
     contributions: {
       datacards: filteredFactionAbility || supplied,

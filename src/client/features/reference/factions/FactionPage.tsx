@@ -1,3 +1,4 @@
+import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
@@ -13,33 +14,19 @@ import { PageContent, PageHeader } from '../../../components/Page'
 import { SearchableSelect } from '../../../components/SearchableSelect'
 import { editionFamilyId, editionLabel } from '../../../../core/catalogueEdition'
 import { useDateFormatting } from '../../../dates'
+import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 
-export function FactionPage({ catalogueId }: { catalogueId: string }) {
+export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { catalogueId: string; routeCatalogueId?: string }) {
   const path = useRouterState({ select: (state) => state.location.pathname })
   const { data: faction } = useQuery(factionQuery(catalogueId))
-  const direct = path === `/factions/${catalogueId}`
+  const direct = path === `/factions/${routeCatalogueId}`
   const { data: index } = useQuery({ ...factionIndexQuery(), enabled: direct })
   const navigate = useNavigate()
   const { date } = useDateFormatting()
   const { favourites } = useFavouriteDetachments(direct)
-  if (!direct)
-    return (
-      <>
-        {faction?.edition ? (
-          <p className="border-b border-edge bg-panel px-4 py-2 text-sm text-dim">
-            {editionLabel(faction.edition)}
-            {faction.edition.status === 'preview' ? ' · Not officially released' : ''}
-          </p>
-        ) : null}
-        <Outlet />
-      </>
-    )
+  if (!direct) return <Outlet />
   if (!faction) return null
-  const editions =
-    index?.factions.filter(
-      (entry) =>
-        editionFamilyId(entry.id) === editionFamilyId(faction.id) && (entry.edition?.status !== 'retired' || entry.id === faction.id),
-    ) ?? []
+  const editions = index?.factions.filter((entry) => editionFamilyId(entry.id) === editionFamilyId(faction.id)) ?? []
   const reference = faction.references[0]
   const detachments = favouriteDetachmentsFirst(
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
@@ -50,44 +37,46 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
   return (
     <main className="w-full">
       <PageHeader
-        tint={factionColour(faction.slug)}
+        tint={factionColour(faction.slug, faction.displayName)}
         eyebrow="Faction"
         title={faction.displayName}
-        media={<FactionMark id={faction.slug} icon={faction.icon} size="lg" />}
-        actions={<FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />}
+        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="lg" />}
+        actions={
+          <>
+            {editions.length > 1 ? (
+              <div className="min-w-48 max-w-full">
+                <SearchableSelect
+                  id="reference-edition"
+                  ariaLabel="Rules version"
+                  placeholder="Choose a rules version"
+                  value={faction.id}
+                  groups={[
+                    {
+                      label: '',
+                      items: editions.map((entry) => ({
+                        value: entry.id,
+                        label: entry.edition ? editionLabel(entry.edition) : !entry.isDefault ? 'Previous rules' : 'Current rules',
+                      })),
+                    },
+                  ]}
+                  onValueChange={(id) => {
+                    const selected = editions.find((entry) => entry.id === id)
+                    if (selected) void navigate({ href: factionReferenceHref(selected) })
+                  }}
+                />
+              </div>
+            ) : null}
+            <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
+          </>
+        }
       />
       <PageContent>
         <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
-        {editions.length > 1 ? (
-          <section className="mt-4 space-y-2">
-            <SearchableSelect
-              id="reference-edition"
-              ariaLabel="Codex"
-              placeholder="Choose a codex"
-              value={faction.id}
-              groups={[
-                {
-                  label: '',
-                  items: editions.map((entry) => ({
-                    value: entry.id,
-                    label: entry.edition ? editionLabel(entry.edition) : !entry.isDefault ? 'Previous rules' : 'Current rules',
-                  })),
-                },
-              ]}
-              onValueChange={(id) => {
-                void navigate({ to: '/factions/$catalogueId', params: { catalogueId: id } })
-              }}
-            />
-            {faction.edition?.status === 'preview' ? (
-              <p className="text-sm text-warning">Preview rules have not been officially released.</p>
-            ) : null}
-          </section>
-        ) : null}
         {faction.edition ? (
           <details className="mt-4 border border-edge bg-panel px-3 py-2">
-            <summary className="rubric cursor-pointer">Codex history</summary>
+            <summary className="rubric cursor-pointer">Rules history</summary>
             <ol className="mt-2 space-y-1 text-sm text-dim">
               {faction.edition.releases.map((release) => (
                 <li key={release.at}>
@@ -103,7 +92,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
           </details>
         ) : null}
         <section className="mt-4">
-          <Link
+          <FactionReferenceLink
             data-onboarding="faction-datasheets"
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
@@ -114,7 +103,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
               <span className="readout">{reference?.datasheets ?? 0}</span>
               <ChevronRight className="size-4 text-dim" aria-hidden />
             </span>
-          </Link>
+          </FactionReferenceLink>
           <Link
             to="/data-updates/$catalogueId"
             params={{ catalogueId: faction.slug }}
@@ -183,13 +172,13 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
               )
               return detachment.reference ? (
                 <div key={detachment.id} className="flex items-center gap-1 px-3 py-2.5 hover:bg-raised">
-                  <Link
+                  <FactionReferenceLink
                     to="/factions/$catalogueId/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
                     className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 sm:flex-nowrap"
                   >
                     {content}
-                  </Link>
+                  </FactionReferenceLink>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               ) : (
