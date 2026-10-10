@@ -23,6 +23,45 @@ describe('stratagems', () => {
 
   const alice = (state: ReturnType<typeof reduceBattle>) => state.players.find((player) => player.id === ALICE)
 
+  const bravery = {
+    key: '55e8e302-c2a2-57fb-852d-a88fbb95f6c2',
+    name: 'Insane Bravery',
+    cp: 1,
+    limit: 'battle' as const,
+    phases: ['charge' as const],
+    turn: 'your-turn' as const,
+  }
+  const withBravery = (...after: [string, Command][]) =>
+    log(...armed(), [ALICE, { kind: 'set-prep', stratagems: [bravery], secondaries: [], primary: null, secondaryMode: 'fixed' }], ...after)
+
+  it('allows saved Insane Bravery with the incorrect source phase in the Command phase', () => {
+    expect(validate(reduceBattle(PLAYERS, withBravery()), ALICE, { kind: 'use-stratagem', key: bravery.key })).toBeNull()
+  })
+
+  it('exposes corrected Insane Bravery timing without rewriting the saved log', () => {
+    const history = withBravery()
+    const state = reduceBattle(PLAYERS, history)
+    expect([
+      alice(state)?.stratagems[0]?.phases,
+      (history.at(-1)!.command as Extract<Command, { kind: 'set-prep' }>).stratagems[0]?.phases,
+    ]).toEqual([['command'], ['charge']])
+  })
+
+  it('keeps the once per battle limit after correcting saved Insane Bravery timing', () => {
+    const state = reduceBattle(PLAYERS, withBravery([ALICE, { kind: 'use-stratagem', key: bravery.key }]))
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: bravery.key })).toBe('Insane Bravery has been used this battle')
+  })
+
+  it('refuses corrected Insane Bravery in the Charge phase', () => {
+    const state = reduceBattle(PLAYERS, withBravery(...turns(3, ALICE)))
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: bravery.key })).toBe('Insane Bravery cannot be used in this phase')
+  })
+
+  it('refuses corrected Insane Bravery during the opponent Command phase', () => {
+    const state = reduceBattle(PLAYERS, withBravery(...turns(6, ALICE)))
+    expect(validate(state, ALICE, { kind: 'use-stratagem', key: bravery.key })).toBe('Insane Bravery is used on your turn')
+  })
+
   it('cost command points when used', () => {
     const state = reduceBattle(PLAYERS, log(...armed(), [ALICE, { kind: 'use-stratagem', key: 's1' }]))
     expect(alice(state)?.cp).toBe(3)
