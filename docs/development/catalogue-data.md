@@ -157,7 +157,9 @@ The publisher compiles both verified snapshots with the same code and appends id
 
 Saved-list assessment reuses pricing's `rosterUseProblem`, bounded to displayed rows and yielding batches for whole-library counts. Compare only newer bounded history and fold net changes, dropping reversals. Real saves advance `updatedAt`; merely opening a list must not. Library count and editor banner share that fold. Never compare frozen battle/league snapshots with current data.
 
-Local library rows use lightweight assessments in a bounded account-scoped cache keyed by roster version and downloaded catalogue revision. Yield before each uncached assessment during background preparation; unchanged refreshes must reuse the result rather than rebuild full unit projections.
+Connected construction reads prefer server calculations, including roster prices, picker choices, datasheets, and loadouts. Library rows use the bounded server batch endpoint instead of fetching and pricing every roster on the device. Unsynced choices are sent as calculation inputs; never price the server’s older saved copy in their place. Persist successful screen results through the existing account snapshot, with full price queries keyed by their exact construction inputs.
+
+Calculation requests fall back to downloaded rules on failure or after five seconds; cancellation must not start local calculation. Offline library rows use lightweight assessments in a bounded account-scoped cache keyed by roster version and downloaded catalogue revision. Yield before each uncached assessment; unchanged refreshes must reuse the result rather than rebuild full unit projections. Connected restoration projects only unsynced roster and battle documents, without preparing catalogue indexes for clean downloads.
 
 ## Verification
 

@@ -62,6 +62,8 @@ Home prioritizes the player's active game and actionable items, with public acti
 
 Search keeps a stable panel and prior results while queries settle. Friends search requires a name rather than listing every account. Public guide screenshots use a content hash in their filename; refresh the hash when replacing an image so cached URLs cannot serve stale controls. The onboarding guide opens only by player choice, stays nonmodal, follows real actions, and skips controls absent from the current data. Domain-backed progress is derived; only reading tours, skips, and welcome state are stored.
 
+Finishing an onboarding tour dismisses its prompt only after progress is saved durably. Keep the finish action disabled while saving and retain a retryable prompt on failure; an immediate reload must preserve completion.
+
 Administration uses shared account controls, server-side filtering/pagination, and confirmations for destructive actions. Session tokens never reach the browser. Battle access still uses the ordinary audience check; administrator status is not permission to view private battles. Account cleanup reuses the player's flow and protects administrators from deletion.
 
 [Combat simulation](combat-simulation.md#interface-and-context) owns the shared matchup UI, pinned outcome, loadout odds, and pending states.

@@ -14,8 +14,9 @@ export const combatantDatasheetQuery = (
 ) =>
   queryOptions({
     queryKey: ['combatant-datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, inactivePicks],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       combatantDatasheet({
+        signal,
         data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, inactivePicks: [...inactivePicks] },
       }),
     enabled: Boolean(catalogueId && entryId),
@@ -33,7 +34,7 @@ const loadoutData = ({ catalogueId, detachmentIds, picks, pickIndex }: LoadoutCo
 export const combatLoadoutsQuery = (context: LoadoutContext) =>
   queryOptions({
     queryKey: ['combat-loadouts', context.catalogueId, context.detachmentIds, context.picks, context.pickIndex],
-    queryFn: () => combatLoadouts({ data: loadoutData(context) }),
+    queryFn: ({ signal }) => combatLoadouts({ data: loadoutData(context), signal }),
     enabled: Boolean(context.catalogueId && context.picks[context.pickIndex]),
     staleTime: Infinity,
   })
