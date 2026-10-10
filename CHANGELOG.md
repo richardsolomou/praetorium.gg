@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.112.0
+
+### Minor Changes
+
+- 00d7a78: Import a first army before signing up, clarify roster setup and limits, add friend invite QR codes, improve dates and printed lists, and add practical guides to preparing for a first game, army roles and scoring.
+
+### Patch Changes
+
+- 00d7a78: Keep Home signed in after email authentication when multiple application tabs are open.
+- a6289ef: Give player guides illustrated overviews, image previews and compact reading sections, with shorter advice for first games, army roles and scoring.
+
 ## 0.111.6
 
 ### Patch Changes
