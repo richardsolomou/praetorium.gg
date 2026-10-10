@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.115.2
+
+### Patch Changes
+
+- 6c425dc: Retain community source attribution for authored preview points and faction reference content.
+- 6c425dc: Keep equipment choices when resizing fixed squad compositions and remove the duplicate composition control.
+- 6c425dc: Keep checked unit limits visible in the picker while repricing equipment and model-count edits.
+- 6c425dc: Mark rules versions on faction logos with accessible tooltips, retain faction colors, and switch versions from the reference header and compact faction-card menus. Group roster setup selectors in one row, give versions readable faction URLs and let players explicitly convert existing rosters while retaining unavailable choices for correction. Preserve archived rules sources and recorded battle version labels.
+
 ## 0.115.1
 
 ### Patch Changes
