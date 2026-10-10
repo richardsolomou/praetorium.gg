@@ -74,7 +74,7 @@ for (const guide of guides) {
       await expect(page.getByRole('heading', { level: 1, name: guide.title })).toBeVisible()
       await expect(page.locator('main')).toContainText(guide.fact)
       await expect(page.getByRole('list', { name: 'Steps', exact: true }).getByRole('listitem')).toHaveCount(4)
-      await expect(page.getByRole('heading', { name: /^Worked example:/ })).toBeVisible()
+      await expect(page.locator('h2#worked-example')).toBeVisible()
       await expect(page.getByRole('list', { name: 'Example steps' }).getByRole('listitem')).not.toHaveCount(0)
       const image = page.locator('main figure img')
       await image.scrollIntoViewIfNeeded()

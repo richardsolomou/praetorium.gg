@@ -11,7 +11,7 @@ export function GuidesPage() {
       <PageHeader
         eyebrow="Praetorium"
         title="Player guides"
-        description="Build an army, bring an existing list, test a matchup and track your next game."
+        description="Prepare for a game, give your army a plan and learn how to score. Find help with lists, matchups and tracking too."
       />
       <PageContent className="pt-6">
         <ul className="max-w-3xl divide-y divide-edge border-y border-edge">
@@ -61,29 +61,31 @@ export function GuidePage({ guide }: { guide: ProductGuide }) {
           </ol>
           <section aria-labelledby="worked-example" className="space-y-5 border-t border-edge pt-7">
             <h2 id="worked-example" className="font-display text-2xl">
-              Worked example: {guide.example.title}
+              {guide.example.title}
             </h2>
             <ol aria-label="Example steps" className="list-decimal space-y-3 pl-5 text-sm leading-relaxed text-dim">
               {guide.example.steps.map((step) => (
                 <li key={step}>{step}</li>
               ))}
             </ol>
-            <figure className="space-y-3">
-              <a href={guide.example.image} className="block overflow-hidden rounded border border-edge hover:border-info">
-                <img
-                  src={guide.example.image}
-                  alt={guide.example.imageAlt}
-                  width={guide.example.imageWidth}
-                  height={guide.example.imageHeight}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-auto w-full"
-                />
-              </a>
-              <figcaption className="text-xs leading-relaxed text-dim">
-                {guide.example.caption} Open the screenshot to see the controls.
-              </figcaption>
-            </figure>
+            {'image' in guide.example ? (
+              <figure className="space-y-3">
+                <a href={guide.example.image} className="block overflow-hidden rounded border border-edge hover:border-info">
+                  <img
+                    src={guide.example.image}
+                    alt={guide.example.imageAlt}
+                    width={guide.example.imageWidth}
+                    height={guide.example.imageHeight}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-auto w-full"
+                  />
+                </a>
+                <figcaption className="text-xs leading-relaxed text-dim">
+                  {guide.example.caption} Open the screenshot to see the controls.
+                </figcaption>
+              </figure>
+            ) : null}
           </section>
           <Link to={guide.action.to} className={buttonVariants({ variant: 'outline' })}>
             {guide.action.label}

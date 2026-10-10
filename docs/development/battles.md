@@ -72,7 +72,7 @@ Signed-in tokens are deployment-bound; guests receive restricted native identiti
 
 `src/client/spacetimeConnection.ts` owns jittered, bounded backoff. Only a sustained applied subscription resets it. Only token HTTP 401 rechecks the account; service outages do not sign the player out. Server reads use `rpc()`, mutations use `mutationRpc()`, and sign-in destinations remain local paths.
 
-The roster-library practice entry selects an existing practice seat; players still control both armies, rolls and decisions. It does not introduce an automated opponent.
+Players choose practice opponents in the ordinary New battle dialog and control both armies, rolls and decisions. There is no automated opponent.
 
 ## Verification
 

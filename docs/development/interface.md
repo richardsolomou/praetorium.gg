@@ -6,7 +6,7 @@ Praetorium uses a compact, dark interface. [Product design](../product-design.md
 
 Write for a player building an army or playing Warhammer 40,000. Name the game task, outcome, and next action. Keep implementation terms in technical documentation. Deletion warnings name what will be lost. Marketing leads with player benefits; retain licensing, attribution, and operational detail where readers need them. Avoid unsupported competitor comparisons.
 
-Keep contextual help brief. Keep learning guidance in player guides; do not add standalone simulator examples, tracker-help panels or finished-game score breakdowns. Home keeps its ordinary New battle action; the practice shortcut belongs in the roster library. Show a roster limit count once, beside a short state label; retain explanations for unavailable units.
+Keep contextual help brief. Player guides combine practical preparation, army roles and scoring advice with app walkthroughs; concrete examples do not require screenshots. Keep learning guidance in player guides; do not add standalone simulator examples, tracker-help panels or finished-game score breakdowns. Practice uses the ordinary New battle dialog; do not add a separate practice action. Show a roster limit count once, beside a short state label; retain explanations for unavailable units.
 
 ## Application navigation
 

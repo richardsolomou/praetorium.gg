@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -46,17 +46,10 @@ function seatOptions(
 }
 
 /** Battle creation seats named players; setup chooses size and mission pack. Practice opponents occupy ordinary seats. */
-export function CreateBattle({
-  practice = false,
-  label = practice ? 'Practise a game' : 'New battle',
-}: {
-  practice?: boolean
-  label?: string
-}) {
+export function CreateBattle() {
   const [open, setOpen] = useState(false)
   const opponentQuery = useQuery({ ...opponentsQuery(), enabled: open })
   const opponents = opponentQuery.data ?? []
-  const practiceReady = useRef(false)
   // A chair apiece rather than a list, so filling the second before the first cannot
   // leave a hole where the request expects a player.
   const [theirIds, setTheirIds] = useState<(string | null)[]>([null, null])
@@ -64,12 +57,6 @@ export function CreateBattle({
   const [shape, setShape] = useState<TableShape>('1v1')
   const [soloPairRole, setSoloPairRole] = useState<SoloPairRole>('solo')
   const [leagueMatches, setLeagueMatches] = useState<Awaited<ReturnType<typeof leagueBattleOptions>>>([])
-  useEffect(() => {
-    if (!open || !practice || practiceReady.current || !opponentQuery.isSuccess) return
-    practiceReady.current = true
-    const opponent = opponentQuery.data.find((player) => player.automated)
-    if (opponent) setTheirIds([opponent.id, null])
-  }, [open, practice, opponentQuery.isSuccess, opponentQuery.data])
   const seats = seatsFor(shape, soloPairRole)
   const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
   const seated = seats.every(seatedIn)
@@ -125,13 +112,7 @@ export function CreateBattle({
   const changeOpen = (next: boolean) => {
     if (create.isPending) return
     if (next && !open) {
-      posthog.capture('battle_creation_started', { intent: practice ? 'practice' : 'choose_players' })
-      if (practice) {
-        practiceReady.current = false
-        setShape('1v1')
-        setTheirIds([null, null])
-        setAllyId(null)
-      }
+      posthog.capture('battle_creation_started')
     }
     changeIntent()
     setOpen(next)
@@ -143,7 +124,7 @@ export function CreateBattle({
       <DialogTrigger
         render={<Button data-onboarding="create-battle" onClick={() => advanceOnboarding('battle', 'battle-start', 'battle-format')} />}
       >
-        {label}
+        New battle
       </DialogTrigger>
       <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:max-w-md">
         {leagueMatches.length ? (
@@ -191,11 +172,7 @@ export function CreateBattle({
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
-              <DialogDescription>
-                {practice
-                  ? 'Learn with a practice opponent. You control both armies and rolls; the opponent does not make decisions. Practice games do not affect your record.'
-                  : 'Choose who is playing. A practice opponent lets you control both sides on your own.'}
-              </DialogDescription>
+              <DialogDescription>Choose who is playing. A practice opponent lets you control both sides on your own.</DialogDescription>
             </DialogHeader>
             <div>
               <Choice

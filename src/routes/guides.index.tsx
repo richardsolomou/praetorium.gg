@@ -6,7 +6,8 @@ export const Route = createFileRoute('/guides/')({
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Warhammer 40,000 player guides',
-      description: 'Learn to build and validate an army list, import a roster, compare unit loadouts and track a battle with Praetorium.',
+      description:
+        'Prepare for your first Warhammer 40,000 game, build a balanced army and plan your scoring, with guides to lists, loadouts and battle tracking.',
       path: '/guides',
     }),
   component: GuidesPage,

@@ -33,7 +33,7 @@ Important count/identity meanings:
 
 Browser events receive bounded `feature` and `surface` at the send boundary. Public player guides use the bounded `guides` feature. Detail route parameters never enter `feature`; `surface` distinguishes web and native WebView. Web vitals use the measured `$current_url`, since later SPA navigation can change `$pathname`. Historical queries must use that measured path. Server/native-shell events do not inherit these browser properties.
 
-`guest_roster_imported` means the reviewed import opened as a local draft, not that it was saved. It carries the bounded export source and payload/mismatch counts. `battle_creation_started.intent` distinguishes the practice shortcut from ordinary player selection; actual practice participation remains defined by the seated players.
+`guest_roster_imported` means the reviewed import opened as a local draft, not that it was saved. It carries the bounded export source and payload/mismatch counts. Practice participation is defined by the seated players.
 
 ## Privacy boundary
 
