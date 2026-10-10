@@ -113,6 +113,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
       token: z.string().min(1).max(128),
       expectedSeq: z.number().int().nonnegative().max(10_000),
       recordedAt: z.number().int().nonnegative(),
+      catalogueRevision: z.string().min(1).max(128),
       command: commandSchema,
       capturedRoster: saveRosterSchema.extend({ id: z.string().min(1).max(128) }).optional(),
     }),
@@ -125,12 +126,22 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
       const instance = app()
       let command = data.command
       const replay = await instance.service.hasBattleOperation(data.token, player.id, data.operationId)
+      const rules = await instance.rulesFor()
+      if (!replay) {
+        const catalogue = instance.catalogue()
+        if (!catalogue || !rules) throw new Response('Army and game rules are unavailable. Try syncing again later.', { status: 503 })
+        if (catalogue.index.revision !== data.catalogueRevision)
+          return {
+            outcome: 'conflict' as const,
+            message:
+              'Army or game rules changed while you were offline. Your battle history is saved on this device; review it before syncing.',
+          }
+      }
       if (!replay && command.kind === 'attach-roster' && command.roster.built) {
         const draft = data.capturedRoster
         if (!draft || draft.id !== command.roster.id || !(await instance.service.ownRoster(player.id, draft.id)))
           return { outcome: 'refused' as const, message: 'You do not own the captured roster.' }
         const catalogue = await instance.catalogueFor(draft.catalogueId)
-        const rules = await instance.rulesFor()
         if (!catalogue || !rules || catalogue.index.revision !== command.roster.built.revision)
           return {
             outcome: 'conflict' as const,
@@ -158,7 +169,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
         }
       }
       const fingerprint = createHash('sha256').update(JSON.stringify(data)).digest('hex')
-      const { result } = await instance.service.submit(data.token, player.id, data.expectedSeq, command, await instance.rulesFor(), {
+      const { result } = await instance.service.submit(data.token, player.id, data.expectedSeq, command, rules, {
         operationId: data.operationId,
         fingerprint,
         recordedAt: data.recordedAt,

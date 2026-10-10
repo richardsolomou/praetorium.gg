@@ -119,7 +119,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   if (args.data.expectedSeq !== state.seq)
     return { result: { outcome: 'stale', seq: state.seq }, screen: workspaceScreen(workspace, owner.id) }
   if (workspace.log.length >= 10_000) throw new Error('This battle has reached its saved history limit.')
-  const { catalogue, rules } = localConstruction()!
+  const { catalogue, rules, revision } = localConstruction()!
   let command = submitSchema.parse(args.data).command
   let capturedRoster: LocalRoster | undefined
   if (command.kind === 'attach-saved-roster' || (command.kind === 'attach-roster' && command.roster.built)) {
@@ -170,6 +170,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     expectedSeq: state.seq,
     command,
     recordedAt,
+    catalogueRevision: revision,
     ...(capturedRoster ? { capturedRoster: { ...saveRosterSchema.parse(capturedRoster), id: capturedRoster.id } } : {}),
   }
   const operationId = crypto.randomUUID()

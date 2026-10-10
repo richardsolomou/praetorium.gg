@@ -67,6 +67,18 @@ it('records local commands with nondecreasing timestamps and derives their undo'
     timestamps: [2, 2],
   })
 })
+
+it('refuses offline scoring before the battle starts', () => {
+  expect(() => appendLocalCommand(players, [], ALICE, { kind: 'score', category: 'primary', delta: 5 }, 100)).toThrow(
+    'the battle is not running',
+  )
+})
+
+it('refuses an offline command from a player without a seat', () => {
+  expect(() => appendLocalCommand(players, log(...started()), 'outsider', { kind: 'score', category: 'primary', delta: 5 }, 100)).toThrow(
+    'you are not in this battle',
+  )
+})
 it('retains the selected random card in the recorded command', () => {
   const cards = [
     { key: 'one', name: 'One' },
