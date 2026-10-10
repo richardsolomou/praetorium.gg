@@ -28,13 +28,15 @@ beforeEach(() => {
           },
           parts: [
             {
-              name: 'Wall',
+              name: 'AB',
               material: 'solid',
               hasRoof: false,
               origin: { x: 0, y: 0 },
               rotationDeg: 0,
               mirroredX: false,
               mirroredY: false,
+              boundsWidthIn: 5,
+              boundsHeightIn: 3,
               outline: null,
               walls: [
                 {
@@ -75,6 +77,60 @@ it('places terrain and walls in board coordinates', () => {
         ],
       },
     ],
+  })
+})
+
+it.each([
+  {
+    axis: 'horizontal',
+    mirroredX: true,
+    mirroredY: false,
+    points: [
+      { x: 25, y: 18 },
+      { x: 30, y: 18 },
+      { x: 30, y: 21 },
+    ],
+  },
+  {
+    axis: 'vertical',
+    mirroredX: false,
+    mirroredY: true,
+    points: [
+      { x: 30, y: 21 },
+      { x: 25, y: 21 },
+      { x: 25, y: 18 },
+    ],
+  },
+  {
+    axis: 'both',
+    mirroredX: true,
+    mirroredY: true,
+    points: [
+      { x: 25, y: 21 },
+      { x: 30, y: 21 },
+      { x: 30, y: 18 },
+    ],
+  },
+])('places $axis mirrored walls and roofs within their bounds before rotating', ({ mirroredX, mirroredY, points }) => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const value = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const part = value.terrain[0].parts[0]
+  part.mirroredX = mirroredX
+  part.mirroredY = mirroredY
+  part.rotationDeg = 90
+  part.origin = { x: 1, y: 2 }
+  part.hasRoof = true
+  part.outline = {
+    points: [
+      { x: 0, y: 0 },
+      { x: 5, y: 0 },
+      { x: 5, y: 3 },
+    ],
+  }
+  fs.writeFileSync(file, JSON.stringify(value))
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.parts[0]).toMatchObject({
+    roof: points,
+    walls: [{ points: points.slice(0, 2) }],
   })
 })
 
@@ -119,6 +175,43 @@ it('does not invent placement references when the outline is missing', () => {
 
 it('does not invent objective positions from terrain names', () => {
   expect(battlemasterGeometry(directory, id)?.areas[0]?.objective).toBeNull()
+})
+
+it('anchors a terrain letter at its matching part rather than the footprint centre', () => {
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.markers).toEqual([{ label: 'AB', position: { x: 32, y: 16.5 } }])
+})
+
+it('leaves an ambiguous terrain part unlabelled', () => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+  raw.terrain[0].parts.push(structuredClone(raw.terrain[0].parts[0]))
+  fs.writeFileSync(file, JSON.stringify(raw))
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.markers).toEqual([])
+})
+
+it('reads objectives from the matching layout-specific source', () => {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const slot = { archetypeA: 'purge-the-foe', archetypeB: 'reconnaissance', slotIndex: 1 }
+  raw.layout = { id, chapterApprovedSlot: slot, chapterApprovedDeploymentKey: 3 }
+  fs.writeFileSync(file, JSON.stringify(raw))
+  fs.writeFileSync(
+    path.join(directory, 'layouts', `${id}.lite.json`),
+    JSON.stringify({
+      format: 'battlemaster.tts.chapter-approved-layout-lite',
+      layout: { id, chapterApprovedSlot: slot, chapterApprovedDeploymentKey: 3 },
+      litePayload: {
+        v: 1,
+        k: 'bml',
+        id,
+        b: 'sf60x44',
+        a: 'c',
+        s: ['purge-the-foe', 'reconnaissance', 1, 3],
+        i: [[0, 0.5, 5.5, 90, 0, 'c']],
+      },
+    }),
+  )
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.objective).toEqual({ position: { x: 30.5, y: 16.5 }, group: null })
 })
 
 it('rejects a detail with the wrong identity', () => {

@@ -346,7 +346,7 @@ export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.b
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({
   matchupIds: z.array(slug).min(1).max(2),
-  geometryVersion: z.union([z.literal(2), z.literal(3), z.literal(6)]).optional(),
+  geometryVersion: z.union([z.literal(2), z.literal(3), z.literal(6), z.literal(7)]).optional(),
 })
 /** One section of one rules document, which is as much as a rules page reads. */
 export const ruleSectionSchema = z.object({ documentId: slug, sectionId: slug })

@@ -18,6 +18,18 @@ const unbalanced = layouts.flatMap((layout) => {
   return [layout.id]
 })
 
+const objectiveSources = path.join(directory, 'battlemaster', 'layouts')
+if (fs.existsSync(objectiveSources) && fs.readdirSync(objectiveSources).some((file) => file.endsWith('.lite.json'))) {
+  const catalog = JSON.parse(fs.readFileSync(path.join(directory, 'battlemaster', 'catalog.json'), 'utf8')) as {
+    layouts: { id: string }[]
+  }
+  if (catalog.layouts.some(({ id }) => !fs.existsSync(path.join(objectiveSources, `${id}.lite.json`))))
+    throw new Error('layout-specific objective sources are incomplete')
+  const objectiveLayouts = layouts.filter((layout) => layout.geometry?.areas.some((area) => area.objective)).length
+  console.log(`layout-specific objectives: ${objectiveLayouts}/${available} layouts`)
+  if (objectiveLayouts !== available) throw new Error('terrain layouts have missing source objectives')
+}
+
 console.log(`terrain geometry: ${available}/${layouts.length} layouts`)
 console.log(`terrain marker labels: ${labelled}/${layouts.length} layouts`)
 if (!available) throw new Error('no terrain layout has exact geometry')

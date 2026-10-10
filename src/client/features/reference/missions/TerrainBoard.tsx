@@ -41,6 +41,10 @@ export function TerrainBoard({
   const flipped = deploymentNeedsFlip(deployment?.zones ?? [], board)
   const upright = flipped ? `translate(${board.height} 0) rotate(90)` : `translate(0 ${board.width}) rotate(-90)`
   const objectives = deploymentObjectiveMarkers(layout.geometry, deployment?.objectives ?? [])
+  const objectivePositions = [
+    ...objectives.map((objective) => objective.position),
+    ...(layout.geometry ? objectiveTerrainMarkers(layout.geometry).map((objective) => objective.position) : []),
+  ]
 
   const svg = (
     <svg
@@ -103,12 +107,7 @@ export function TerrainBoard({
         )}
       </g>
       {detailed && layout.geometry ? (
-        <TerrainMeasurements
-          geometry={layout.geometry}
-          flipped={flipped}
-          arrowId={`${patternId}-arrow`}
-          objectives={objectives.map((objective) => objective.position)}
-        />
+        <TerrainMeasurements geometry={layout.geometry} flipped={flipped} arrowId={`${patternId}-arrow`} objectives={objectivePositions} />
       ) : null}
       <g transform={upright}>
         {layout.geometry ? (
@@ -117,7 +116,7 @@ export function TerrainBoard({
             detailed={detailed}
             flipped={flipped}
             zones={deployment?.zones ?? []}
-            objectives={deployment?.objectives ?? []}
+            objectives={objectivePositions}
           />
         ) : null}
         {objectives.map(({ position, kind }) => {
@@ -318,12 +317,10 @@ function TerrainMeasurements({
     ).values(),
   ]
 
-  const occupied: LabelBox[] = [...objectiveTerrainMarkers(geometry).map((objective) => objective.position), ...objectives].map(
-    (position) => {
-      const centre = portraitPoint(position, flipped, geometry.board)
-      return { left: centre.x - 1.3, right: centre.x + 1.3, top: centre.y - 1.3, bottom: centre.y + 1.4 }
-    },
-  )
+  const occupied: LabelBox[] = objectives.map((position) => {
+    const centre = portraitPoint(position, flipped, geometry.board)
+    return { left: centre.x - 1.3, right: centre.x + 1.3, top: centre.y - 1.3, bottom: centre.y + 1.4 }
+  })
   for (const area of geometry.areas) {
     for (const marker of area.markers) {
       const centre = portraitPoint(terrainMarkerPosition(area, marker, objectives), flipped, geometry.board)
