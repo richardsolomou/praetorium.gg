@@ -1,9 +1,10 @@
 import CombatDiscoveryWorker from './combatDiscoveryWorker'
 import type { CombatDiscoveryRequest, CombatDiscoveryAnswer } from './combatDiscovery'
-import { referenceData } from './runtime'
+import { constructionData } from './construction'
+import { combatLoadoutSchema } from '../../contracts/schemas'
 
 export function localCombatStream(input: unknown, signal: AbortSignal): Response | null {
-  const construction = referenceData()?.construction
+  const construction = constructionData(combatLoadoutSchema.parse(input).catalogueId)
   if (!construction) return null
   const worker = new CombatDiscoveryWorker()
   const encoder = new TextEncoder()

@@ -644,6 +644,7 @@ function calculateRoster(
         }))
       : undefined,
     revision: loaded.index.revision,
+    edition: loaded.edition ? { id: loaded.edition.id, name: loaded.edition.name, status: loaded.edition.status } : undefined,
     // Folded here rather than in the browser so a battle snapshot, a library row and
     // the field's own placeholder all read the one answer.
     label: rosterLabel({

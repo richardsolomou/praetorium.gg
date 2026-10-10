@@ -47,7 +47,7 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
     format: 'praetorium.canonical-catalogue.v1',
     compilerVersion: 1,
     revisions: { definitions: 'definitions' },
-    datasheets: [sheet],
+    datasheets: [sheet, { ...sheet, catalogueId: 'preview~cat', faction: 'Test Faction · Preview', composition: ['Preview composition'] }],
     detachments: [detachment],
     ruleDocuments: [],
     issues: [],

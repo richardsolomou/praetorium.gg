@@ -79,6 +79,7 @@ import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
+import { type CatalogueEdition, editionFamilyId, picksForCatalogueEdition } from '../../../core/catalogueEdition'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import type { CombatRoster } from '../simulator/useCombatant'
@@ -104,6 +105,7 @@ type Props = {
     updatedAt?: number
   }
   initialFaction?: RosterSetupFaction | null
+  snapshotEdition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
   /**
    * A list as a battle froze it.
    *
@@ -162,6 +164,7 @@ export function ListBuilder({
   prep,
   initial,
   initialFaction,
+  snapshotEdition,
   frozen,
   variants = NO_VARIANTS,
   differences = null,
@@ -616,8 +619,10 @@ export function ListBuilder({
       visibility,
     })
   const applySetup = (setup: RosterSetup) => {
-    const changedFaction = setup.catalogueId !== catalogueId
-    if (!changedFaction) setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
+    const changedFaction = editionFamilyId(setup.catalogueId) !== editionFamilyId(catalogueId)
+    if (setup.catalogueId === catalogueId)
+      setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
+    else if (!changedFaction) setPicks((current) => picksForCatalogueEdition(current, setup.catalogueId))
     setName(setup.name)
     setCatalogueId(setup.catalogueId)
     setDetachmentIds(setup.detachmentIds)
@@ -829,6 +834,7 @@ export function ListBuilder({
         maxLength={ROSTER_NAME_MAX_LENGTH}
         placeholder={label || 'Named from what is in it'}
         faction={faction}
+        edition={snapshotEdition}
         factionLoading={factionLoading}
         limit={limit}
         unitCount={fieldedUnitCount}

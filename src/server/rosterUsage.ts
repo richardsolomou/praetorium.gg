@@ -1,3 +1,4 @@
+import { leagueEditionError } from '../core/catalogueEdition'
 import { rosterSnapshot } from '../core/rosterSnapshot'
 import { ROSTER_NOT_USABLE } from '../core/rosterUse'
 import { app } from './app'
@@ -7,12 +8,14 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 export { rosterUseProblem, rosterUseError } from '../core/rosterLegality'
 import { rosterUseError } from '../core/rosterLegality'
 
-export async function rosterForUse(userId: string, rosterId: string) {
+export async function rosterForUse(userId: string, rosterId: string, options: { releasedOnly?: boolean } = {}) {
   const saved = await app().service.ownRoster(userId, rosterId)
   if (!saved) throw new Response('you do not own this roster', { status: 403 })
   const catalogue = await app().catalogueFor(saved.catalogueId)
   if (!catalogue) throw new Response('army data is not available', { status: 409 })
-  const rules = await app().rulesFor()
+  const editionError = options.releasedOnly && leagueEditionError(catalogue.edition)
+  if (editionError) throw new Response(editionError, { status: 409 })
+  const rules = await app().rulesFor(saved.catalogueId)
   if (!rules) throw new Response('army rules data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)
   if (!priced) throw new Response('army data is not available', { status: 409 })

@@ -27,6 +27,7 @@ vi.mock('./app', () => ({
     catalogueFor: async () => ({}),
     factionIndexFor: async () => null,
     factionsFor: async () => factions,
+    factionFor: async (id: string) => factions.factions.find((faction) => faction.id === id || faction.slug === id) ?? null,
     canonicalCatalogueFor: async () => canonical,
   }),
 }))

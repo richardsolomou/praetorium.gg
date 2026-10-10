@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
+import { editionCatalogueFiles, type CatalogueEdition } from '../core/catalogueEdition'
 import { loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { loadMfm } from './mfm'
@@ -10,7 +11,7 @@ export * from '../shared/catalogueIndex'
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
   return process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue')
 }
-export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue | null {
+export function loadCatalogue(directory = catalogueDirectory(), edition?: CatalogueEdition): LoadedCatalogue | null {
   const definitions = path.join(directory, 'definitions')
   const revisionFile = path.join(directory, 'revision.json')
   if (!fs.existsSync(definitions) || !fs.existsSync(revisionFile)) return null
@@ -24,10 +25,11 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
     .map((name): CatalogueFile => JSON.parse(fs.readFileSync(path.join(definitions, name), 'utf8')))
   if (!files.length) return null
 
-  const index = buildIndex(files, catalogueRevision(revision))
+  const selectedFiles = edition ? editionCatalogueFiles(files, edition) : files
+  const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }))
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
-  return { ...catalogueFromIndex(index, files, datacards), mfm: loadMfm(directory) }
+  return { ...catalogueFromIndex(index, selectedFiles, datacards), mfm: loadMfm(directory), ...(edition ? { edition } : {}) }
 }
 export function catalogueRevision(revisions: Record<string, string>) {
   return createHash('sha256')

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -11,6 +11,8 @@ import {
 } from '../../src/server/catalogueSources'
 import { fetchBattlemasterInto, fetchInto } from '../../src/server/sync'
 import { applyPatches } from './cataloguePatches'
+import type { CatalogueComposition } from '../../src/server/catalogueComposition'
+import { composeCatalogue, validateCatalogueImports } from './catalogueComposition'
 
 const root = path.resolve(import.meta.dirname, '..', '..')
 
@@ -19,6 +21,7 @@ type MaterializeOptions = {
   disabled?: ReadonlySet<SnapshotSourceName>
   patchesDirectory?: string
   report?: (message: string) => void
+  composition?: CatalogueComposition | null
 }
 
 function selectIcons(directory: string, source: CatalogueSourceConfig['icons']) {
@@ -66,11 +69,31 @@ export async function materializeCatalogue(directory: string, sources = catalogu
         await fetchInto(repository.repository, repository.revision, target, repository.path)
         if (name === 'icons') selectIcons(staged, sources.icons)
       }
-      applyPatches(staged, path.join(patches, name), name)
-      revisions[name] = source.revision
+      const corrections = !options.composition ? applyPatches(staged, path.join(patches, name), name) : null
+      revisions[name] = corrections
+        ? createHash('sha256')
+            .update(JSON.stringify({ base: source.revision, corrections }))
+            .digest('hex')
+        : source.revision
       options.report?.(`${name}: ${source.revision}`)
     }
     fs.writeFileSync(path.join(staged, 'revision.json'), `${JSON.stringify(revisions, null, 2)}\n`)
+    if (options.composition) {
+      const composition = options.source
+        ? {
+            ...options.composition,
+            overlays: options.composition.overlays.filter((overlay) => overlay.source === options.source),
+            editions: [],
+          }
+        : options.composition
+      const omitted = options.source
+        ? new Set<SnapshotSourceName>([...disabled, ...SNAPSHOT_SOURCE_NAMES.filter((name) => name !== options.source)])
+        : disabled
+      await composeCatalogue(staged, sources, composition, patches, omitted, options.report)
+      for (const name of selected.filter((source) => source === 'icons' || source === 'battlemaster'))
+        applyPatches(staged, path.join(patches, name), name)
+      if (!omitted.has('definitions')) validateCatalogueImports(path.join(staged, 'definitions'))
+    }
     fs.rmSync(path.join(staged, '.git'), { recursive: true })
     checkOutput()
     const previous = `${directory}.previous-${randomUUID()}`

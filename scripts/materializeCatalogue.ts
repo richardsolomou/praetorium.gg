@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { catalogueSources, SNAPSHOT_SOURCE_NAMES } from '../src/server/catalogueSources'
+import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { materializeCatalogue } from './lib/catalogueMaterialize'
 
 const source = process.argv[2] === '--source' ? process.argv[3] : undefined
@@ -13,5 +14,6 @@ const directory = process.env.CATALOGUE_DIR ?? path.resolve('.output', ...(sourc
 await materializeCatalogue(directory, catalogueSources, {
   source: source as (typeof SNAPSHOT_SOURCE_NAMES)[number] | undefined,
   report: console.log,
+  composition: readCatalogueComposition(path.resolve('catalogue')),
 })
 console.log(directory)

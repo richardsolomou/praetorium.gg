@@ -15,6 +15,7 @@ import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
+import type { CatalogueEdition } from './catalogueEdition'
 
 /** The phases of a battle round, in the order 11th edition plays them. */
 export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
@@ -74,6 +75,7 @@ export type Roster = {
  */
 type BuiltRoster = {
   catalogueId: string
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'>
   /** The catalogue revision this list was priced and validated against. */
   revision: string
   /** The game size agreed for the battle, so both players see the same ceiling. */

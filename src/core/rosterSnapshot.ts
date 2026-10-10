@@ -4,6 +4,7 @@ import { type FormatRuleId, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import type { UnitGroup } from './unitGroups'
+import { type CatalogueEdition, editionLabel } from './catalogueEdition'
 
 type SavedRoster = {
   id: string
@@ -20,6 +21,7 @@ type SavedRoster = {
 
 type PricedRoster = {
   points: number
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'>
   revision: string
   strategicReserveFactsComplete?: boolean
   /** What an unnamed list is called, frozen here: a battle keeps the name it was fielded under. */
@@ -86,6 +88,7 @@ export function rosterSnapshot(
     remindersEnabled: saved.remindersEnabled ?? true,
     text: [
       `${priced.points} / ${saved.limit} pts`,
+      ...(priced.edition ? [`Codex: ${editionLabel(priced.edition)}`] : []),
       ...priced.detachments.map(
         (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
       ),
@@ -94,6 +97,7 @@ export function rosterSnapshot(
     ].join('\n'),
     built: {
       catalogueId: saved.catalogueId,
+      ...(priced.edition ? { edition: { ...priced.edition } } : {}),
       revision: priced.revision,
       limit: saved.limit,
       ...(priced.strategicReserveFactsComplete ? { strategicReserveLimit: strategicReserveLimit(saved.limit) } : {}),

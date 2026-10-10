@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { localCombatStream } from './combatStream'
 import type { CombatDiscoveryAnswer } from './combatDiscovery'
 
+const input = { catalogueId: 'cat', picks: [{ entryId: 'unit' }], pickIndex: 0 }
+
 const mocks = vi.hoisted(() => ({
   reference: vi.fn(),
   requests: [] as unknown[],
@@ -37,7 +39,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 it('requests candidate batches from the worker only as the stream is consumed', async () => {
-  const response = localCombatStream({ pickIndex: 0 }, new AbortController().signal)!
+  const response = localCombatStream(input, new AbortController().signal)!
   const reader = response.body!.getReader()
   const reading = reader.read()
   await vi.waitFor(() => expect(mocks.requests).toHaveLength(1))
@@ -55,25 +57,25 @@ it('requests candidate batches from the worker only as the stream is consumed', 
   }).toEqual({
     first: '{"candidates":[],"built":0,"scheduled":1,"done":false}\n',
     last: { done: true, value: undefined },
-    requests: [{ kind: 'start', construction: { revision: 'saved' }, input: { pickIndex: 0 } }, { kind: 'next' }],
+    requests: [{ kind: 'start', construction: { revision: 'saved' }, input }, { kind: 'next' }],
     terminated: 1,
   })
 })
 it('terminates discovery immediately when an in-flight search is aborted', async () => {
   const controller = new AbortController()
-  const reader = localCombatStream({}, controller.signal)!.body!.getReader()
+  const reader = localCombatStream(input, controller.signal)!.body!.getReader()
   const reading = reader.read()
   controller.abort(new Error('Cancelled'))
   await expect(reading).rejects.toThrow('Cancelled')
   expect(mocks.terminate).toHaveBeenCalledOnce()
 })
 it('terminates discovery when the stream reader cancels', async () => {
-  const reader = localCombatStream({}, new AbortController().signal)!.body!.getReader()
+  const reader = localCombatStream(input, new AbortController().signal)!.body!.getReader()
   await reader.cancel()
   expect(mocks.terminate).toHaveBeenCalledOnce()
 })
 it('surfaces a discovery error and releases its worker', async () => {
-  const reader = localCombatStream({}, new AbortController().signal)!.body!.getReader()
+  const reader = localCombatStream(input, new AbortController().signal)!.body!.getReader()
   const reading = reader.read()
   await vi.waitFor(() => expect(mocks.requests).toHaveLength(1))
   mocks.worker!.answer({ error: 'Search limit reached' })
@@ -84,7 +86,7 @@ it.each([
   ['onerror', 'Optimization failed. Try again.'],
   ['onmessageerror', 'The loadout search could not be read.'],
 ] as const)('releases a failed discovery worker on %s', async (event, message) => {
-  const reader = localCombatStream({}, new AbortController().signal)!.body!.getReader()
+  const reader = localCombatStream(input, new AbortController().signal)!.body!.getReader()
   const reading = reader.read()
   await vi.waitFor(() => expect(mocks.requests).toHaveLength(1))
   mocks.worker![event]!()
@@ -93,5 +95,14 @@ it.each([
 })
 it('uses the connected stream when construction data has not been downloaded', () => {
   mocks.reference.mockReturnValue(undefined)
-  expect(localCombatStream({}, new AbortController().signal)).toBeNull()
+  expect(localCombatStream(input, new AbortController().signal)).toBeNull()
+})
+
+it('sends the selected edition to the discovery worker', async () => {
+  const construction = { revision: 'edition', edition: { id: 'codex' } }
+  mocks.reference.mockReturnValue({ construction: { revision: 'base', editions: [construction] } })
+  const reader = localCombatStream({ ...input, catalogueId: 'codex~cat' }, new AbortController().signal)!.body!.getReader()
+  await vi.waitFor(() => expect(mocks.requests).toHaveLength(1))
+  expect(mocks.requests[0]).toMatchObject({ construction })
+  await reader.cancel()
 })

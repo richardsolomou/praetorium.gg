@@ -1,6 +1,7 @@
 import { leagueWarlords } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
+import { leagueEditionError } from '../../core/catalogueEdition'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
 import { matchingLeagueBattles } from '../../shared/leagueBattleOptions'
@@ -337,11 +338,13 @@ export async function submitLeagueRoster(
   const defer = deferredForAccount()
   if (!localEngine()) return server.submitLeagueRoster(args)
   const roster = await localDocument<LocalRoster>(`roster:${args.data.rosterId}`)
-  const construction = localConstruction()
+  const construction = roster ? localConstruction(roster.catalogueId) : null
   if (!roster || !construction) {
     if (navigator.onLine) return server.submitLeagueRoster(args)
     throw new Error('Save this roster and army data on this device before sealing it offline.')
   }
+  const editionError = leagueEditionError(construction.catalogue.edition)
+  if (editionError) throw new Error(editionError)
   const league = await openLeague({ data: { token: args.data.token, eventToken: args.data.eventToken } })
   const priced = calculateRosterPrice(savedRosterPriceInput(roster), construction.catalogue, construction.rules)
   if (!priced) throw new Error('Army data is unavailable.')

@@ -5,10 +5,12 @@ import { compareText, sameText } from '../core/text'
 import type { FactionContent, LoadedDatacards } from './datacards'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import type { MfmIndex } from './mfm'
+import type { CatalogueEdition } from '../core/catalogueEdition'
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
 type DetachmentOption = { id: string; name: string; disposition: string | null }
 export type LoadedCatalogue = {
+  edition?: CatalogueEdition
   index: CatalogueIndex
   characteristicNames: Map<string, string>
   factions: { id: string; name: string; references: CatalogueReference[] }[]
@@ -197,7 +199,7 @@ export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, p
   const preferredFaction = preferred ? loaded.factions.find((candidate) => candidate.id === preferred.catalogueId) : undefined
   if (preferred && preferredFaction && isReferenceDatasheet(loaded, preferred.catalogueId, preferred.entryId)) {
     return {
-      catalogueId: routeSlug(factionDisplayName(preferredFaction.name)),
+      catalogueId: loaded.edition ? preferredFaction.id : routeSlug(factionDisplayName(preferredFaction.name)),
       slug: datasheetSlug(loaded, preferred.catalogueId, preferred.entryId),
     }
   }
@@ -208,7 +210,12 @@ export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, p
       const entry = loaded.index.definitions.get(entryId)
       if (!entry || !sameText(nameOf(entry, loaded.index.definitions), name)) return []
       return isReferenceDatasheet(loaded, faction.id, entryId)
-        ? [{ catalogueId: routeSlug(factionDisplayName(faction.name)), slug: datasheetSlug(loaded, faction.id, entryId) }]
+        ? [
+            {
+              catalogueId: loaded.edition ? faction.id : routeSlug(factionDisplayName(faction.name)),
+              slug: datasheetSlug(loaded, faction.id, entryId),
+            },
+          ]
         : []
     }),
   )

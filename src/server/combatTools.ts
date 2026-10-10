@@ -109,20 +109,20 @@ function outcome(result: CombatResult) {
 /** The picks a side names, refusing a faction or unit the simulator does not offer. */
 async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
   const shelves = await app().combatUnitsFor()
-  const canonical = new Map(corpus.catalogue.datasheets.map((sheet) => [sheet.id, sheet]))
+  const canonical = new Map(corpus.catalogue.datasheets.map((sheet) => [`${sheet.catalogueId}:${sheet.id}`, sheet]))
   const resolve = (factionName: string, unitName: string) => {
     const faction = referenceFaction(corpus, factionName)
     const shelf = faction && shelves.find((candidate) => candidate.catalogueId === faction.id)
     if (!faction || !shelf) throw new CombatRefusal([`Faction not found: ${factionName}.`])
     const wanted = unitName.toLocaleLowerCase()
     const unit = shelf.units.find((candidate) => {
-      const sheet = canonical.get(candidate.id)
+      const sheet = canonical.get(`${faction.id}:${candidate.id}`)
       return [candidate.id, candidate.name, sheet?.slug, datasheetCitation(sheet).referenceId].some(
         (value) => value?.toLocaleLowerCase() === wanted,
       )
     })
     if (!unit) throw new CombatRefusal([`${faction.name} has no simulated unit named ${unitName}.`])
-    return { faction, unit, sheet: canonical.get(unit.id) }
+    return { faction, unit, sheet: canonical.get(`${faction.id}:${unit.id}`) }
   }
   const host = resolve(side.faction, side.unit)
   const found = (side.attached ?? []).map((member) => resolve(member.faction ?? side.faction, member.unit))
@@ -142,7 +142,7 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
 async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   const resolved = await sidePicks(corpus, side)
   const instance = app()
-  const [loaded, rules] = await Promise.all([instance.catalogueFor(resolved.catalogueId), instance.rulesFor()])
+  const [loaded, rules] = await Promise.all([instance.catalogueFor(resolved.catalogueId), instance.rulesFor(resolved.catalogueId)])
   if (!loaded) throw new CombatRefusal(['Praetorium reference data is temporarily unavailable.'])
   const projection = rosterCombatant(loaded, rules, {
     catalogueId: resolved.catalogueId,

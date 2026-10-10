@@ -48,7 +48,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
           ? calculateRosterTotals(
               { ...data.roster, units: data.roster.picks },
               await instance.catalogueFor(data.roster.catalogueId),
-              await instance.rosterLabelRulesFor(),
+              await instance.rosterLabelRulesFor(data.roster.catalogueId),
             )
           : null
       const row = {
@@ -156,12 +156,13 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
           if (!draft || draft.id !== command.roster.id || !(await instance.service.ownRoster(player.id, draft.id)))
             return { outcome: 'refused' as const, message: 'You do not own the captured roster.' }
           const catalogue = await instance.catalogueFor(draft.catalogueId)
-          if (!catalogue || !rules || catalogue.index.revision !== command.roster.built.revision)
+          const rosterRules = await instance.rulesFor(draft.catalogueId)
+          if (!catalogue || !rosterRules || catalogue.index.revision !== command.roster.built.revision)
             return {
               outcome: 'conflict' as const,
               message: 'Army data changed while you were offline. Your played roster is saved on this device; review it before syncing.',
             }
-          const priced = calculateRosterPrice({ ...draft, units: draft.picks }, catalogue, rules)
+          const priced = calculateRosterPrice({ ...draft, units: draft.picks }, catalogue, rosterRules)
           const problem = priced && rosterUseError(priced, draft.limit, draft.waivedRules)
           if (!priced || problem) return { outcome: 'refused' as const, message: problem || 'Army data is unavailable.' }
           command = {

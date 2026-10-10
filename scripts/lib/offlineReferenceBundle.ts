@@ -8,12 +8,15 @@ import { packRuntimeData } from '../../src/contracts/runtimeData'
 import { loadCatalogue, isReferenceDatasheet } from '../../src/server/catalogueIndex'
 import { loadRules } from '../../src/server/rules'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
-import { factionsFor, factionIndexFor, detachmentsOffering } from '../../src/shared/factionReferences'
+import { detachmentsOffering } from '../../src/shared/factionReferences'
 import { unitsIn } from '../../src/shared/cataloguePicker'
 import { detachmentReference } from '../../src/shared/detachmentReference'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../../src/server/referenceCatalogue'
 import { gameReferencesFor } from '../../src/shared/gameReferences'
-import { compiledGlobalSearchIndex } from '../../src/server/globalSearch'
+import { readCatalogueComposition } from '../../src/server/catalogueComposition'
+import { editionCatalogueId } from '../../src/core/catalogueEdition'
+import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
+import { routeSlug } from '../../src/core/slug'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
 import { MAX_OFFLINE_BYTES, MAX_OFFLINE_QUERIES, type OfflineReferenceBundle } from '../../src/contracts/offlineReference'
 
@@ -32,10 +35,17 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
   if (!catalogue) throw new Error('Offline reference catalogue is unavailable')
   const rules = loadRules(directory, undefined, undefined, undefined, catalogue.datacards)
   if (!rules) throw new Error('Offline reference rules are unavailable')
-  const canonical = referenceCatalogue(
+  const versions = catalogueEditionLoaders(
     directory,
     () => catalogue,
     () => rules,
+  )
+  const canonical = versions.canonicalCatalogue(
+    referenceCatalogue(
+      directory,
+      () => catalogue,
+      () => rules,
+    ),
   )
   if (!canonical) throw new Error('Offline reference canonical catalogue is unavailable')
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
@@ -44,27 +54,50 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     if (data == null) throw new Error(`Offline reference is incomplete: ${key.join('/')}`)
     queries.push({ key, data })
   }
-  const factions = factionsFor(catalogue, rules).factions.map((faction) => ({
+  const versioned = versions.factions()!
+  const factions = versioned.factions.map((faction) => ({
     ...faction,
-    icon: rules.factionIcons.get(faction.slug) ?? null,
+    icon: rules.factionIcons.get(routeSlug(faction.displayName)) ?? null,
   }))
-  const index = factionIndexFor(catalogue, rules)
   put(['faction-index'], {
-    ...index,
-    factions: index.factions.map((faction) => ({ ...faction, icon: rules.factionIcons.get(faction.slug) ?? null })),
+    revision: versioned.revision,
+    factions,
   })
-  for (const faction of factions) {
+  const referenceFactions = [...factions]
+  const queued = new Set(factions.map((faction) => faction.id))
+  const queueReference = (catalogueId: string) => {
+    const faction = versions.factionFor(catalogueId)
+    if (!faction || queued.has(faction.id)) return
+    queued.add(faction.id)
+    referenceFactions.push({ ...faction, icon: rules.factionIcons.get(routeSlug(faction.displayName)) ?? null })
+  }
+  for (const faction of referenceFactions) {
+    const selectedCatalogue = versions.catalogueFor(faction.id)!
+    const selectedRules = versions.rulesFor(faction.id)
+    if (!selectedRules) throw new Error(`Offline reference rules are unavailable for ${faction.id}`)
+    const selectedCanonical = versions.canonicalFor(faction.id) ?? canonical
+    const selectedSources = { catalogue: () => selectedCatalogue, rules: () => selectedRules, canonicalCatalogue: () => selectedCanonical }
     put(['faction', faction.id], faction)
     put(['faction', faction.slug], faction)
-    const units = unitsIn(catalogue, faction.id, '', { factionCards: true }).filter((unit) =>
-      isReferenceDatasheet(catalogue, faction.id, unit.id),
+    if (faction.isDefault) put(['faction', routeSlug(faction.displayName)], faction)
+    const units = unitsIn(selectedCatalogue, faction.id, '', { factionCards: true }).filter((unit) =>
+      isReferenceDatasheet(selectedCatalogue, faction.id, unit.id),
     )
     put(['faction-datasheets', faction.id, ''], units)
-    for (const unit of units)
-      put(['datasheet-slug', faction.id, unit.slug], referenceDatasheetBySlug(sources, { catalogueId: faction.id, slug: unit.slug }))
-    for (const detachment of faction.detachments)
+    for (const unit of units) {
+      const sheet = referenceDatasheetBySlug(selectedSources, { catalogueId: faction.id, slug: unit.slug })
+      put(['datasheet-slug', faction.id, unit.slug], sheet)
+      for (const relationship of [...(sheet?.attachments ?? []), ...(sheet?.leaders ?? []), ...(sheet?.supporters ?? [])])
+        if (relationship.route) queueReference(relationship.route.catalogueId)
+    }
+    for (const detachment of faction.detachments) {
+      if (detachment.referenceRoute) queueReference(detachment.referenceRoute.catalogueId)
       if (detachment.referenceRoute?.catalogueId === faction.slug)
-        put(['detachment-detail', faction.id, detachment.slug], detachmentReference(catalogue, rules, faction.id, detachment.slug))
+        put(
+          ['detachment-detail', faction.id, detachment.slug],
+          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
+        )
+    }
   }
   const ruleIndex = referenceRuleIndex(sources)
   put(['rule-index'], ruleIndex)
@@ -92,18 +125,29 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
       templates: rules.terrainTemplates,
     })
   put(['deployments'], rules.deployments)
-  const construction = {
+  const constructionFor = (target: string, selectedCatalogue: typeof catalogue, selectedRules: typeof rules) => ({
     version: 1 as const,
-    revision: catalogue.index.revision,
-    files: readdirSync(path.join(directory, 'definitions'))
+    revision: selectedCatalogue.index.revision,
+    ...(selectedCatalogue.edition ? { edition: selectedCatalogue.edition } : {}),
+    files: readdirSync(path.join(target, 'definitions'))
       .filter((name) => name.endsWith('.json'))
       .sort()
-      .map((name): CatalogueFile => JSON.parse(readFileSync(path.join(directory, 'definitions', name), 'utf8'))),
-    datacards: packRuntimeData(catalogue.datacards),
-    mfm: packRuntimeData(catalogue.mfm ?? null),
-    rules: packRuntimeData(rules),
+      .map((name): CatalogueFile => JSON.parse(readFileSync(path.join(target, 'definitions', name), 'utf8'))),
+    datacards: packRuntimeData(selectedCatalogue.datacards),
+    mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
+    rules: packRuntimeData(selectedRules),
+  })
+  const construction = {
+    ...constructionFor(directory, catalogue, rules),
+    editions: (readCatalogueComposition(directory)?.editions ?? []).map(({ edition }) => {
+      const id = editionCatalogueId(edition.id, edition.catalogueIds[0]!)
+      const selectedCatalogue = versions.catalogueFor(id)
+      const selectedRules = versions.rulesFor(id)
+      if (!selectedCatalogue || !selectedRules) throw new Error(`Offline construction data is unavailable for ${id}`)
+      return constructionFor(path.join(directory, 'editions', edition.id), selectedCatalogue, selectedRules)
+    }),
   }
-  const { revision, compressed } = encodeReferenceBundle({ queries, search: compiledGlobalSearchIndex(catalogue, rules), construction })
+  const { revision, compressed } = encodeReferenceBundle({ queries, search: versions.searchIndex()!, construction })
   const bundle = `/assets/reference-${revision}.bin`
   await writeFile(path.join(outDir, bundle), compressed)
   await writeFile(path.join(outDir, 'offline-reference-version.json'), JSON.stringify({ revision, bundle }))

@@ -15,9 +15,9 @@ export const Route = createFileRoute('/api/previews/detachments/$catalogueId/$sl
         previewResponse(async () => {
           if (!detachmentDetailSchema.safeParse(params).success) return null
           const instance = app()
-          const faction = (await instance.factionsFor())?.factions.find((one) => one.slug === params.catalogueId)
+          const faction = await instance.factionFor(params.catalogueId)
           if (!faction) return null
-          const [catalogue, rules] = await Promise.all([instance.catalogueFor(faction.id), instance.rulesFor()])
+          const [catalogue, rules] = await Promise.all([instance.catalogueFor(faction.id), instance.rulesFor(faction.id)])
           const detachment = catalogue && rules ? detachmentReference(catalogue, rules, faction.id, params.slug) : null
           return detachment ? { card: detachmentPreview(detachment.name, faction.displayName).card, maxAge: REFERENCE_SECONDS } : null
         }),

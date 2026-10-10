@@ -133,14 +133,17 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   if (args.data.expectedSeq !== state.seq)
     return { result: { outcome: 'stale', seq: state.seq }, screen: workspaceScreen(workspace, owner.id) }
   if (workspace.log.length >= 10_000) throw new Error('This battle has reached its saved history limit.')
-  const { catalogue, rules, revision } = localConstruction()!
+  const { rules, revision } = localConstruction()!
   let command = submitSchema.parse(args.data).command
   let capturedRoster: LocalRoster | undefined
   if (command.kind === 'attach-saved-roster' || (command.kind === 'attach-roster' && command.roster.built)) {
     const id = command.kind === 'attach-saved-roster' ? command.rosterId : command.roster.id
     capturedRoster = id ? await localDocument<LocalRoster>(`roster:${id}`) : undefined
     if (!capturedRoster) throw new Error('Save this roster on the device before attaching it offline.')
-    const priced = calculateRosterPrice(savedRosterPriceInput(capturedRoster), catalogue, rules)
+    const selected = localConstruction(capturedRoster.catalogueId)
+    if (!selected) throw new Error('Download this army’s rules before attaching it offline.')
+    const { catalogue } = selected
+    const priced = calculateRosterPrice(savedRosterPriceInput(capturedRoster), catalogue, selected.rules)
     const problem = priced && rosterUseError(priced, capturedRoster.limit, capturedRoster.waivedRules)
     if (!priced || problem) throw new Error(problem || 'Army data is unavailable.')
     const roster = rosterSnapshot(

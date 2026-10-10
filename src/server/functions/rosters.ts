@@ -8,7 +8,13 @@ import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
-import { exportRosterFile, importRosterFaction, importRosterFile, matchesImportFaction } from '../../shared/rosterFiles'
+import {
+  exportRosterFile,
+  importRosterCatalogueId,
+  importRosterFaction,
+  importRosterFile,
+  matchesImportFaction,
+} from '../../shared/rosterFiles'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
 import { variantDifferences } from '../rosterDifferences'
 import { copyOwnedRoster, saveOwnedRoster } from '../saveOwnedRoster'
@@ -33,7 +39,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
       const startedAt = performance.now()
       const instance = app()
       const loaded = await instance.catalogueFor(data.catalogueId)
-      const rules = await instance.rulesFor()
+      const rules = await instance.rulesFor(data.catalogueId)
       const result = calculateRosterPrice(data, loaded, rules)
       const userId = await currentUserId()
       if (userId && Math.random() < 0.1)
@@ -234,7 +240,7 @@ export const savedRosterPrice = createServerFn({ method: 'GET' })
 async function captureRosterCreated(userId: string, data: z.infer<typeof saveRosterSchema>, extra: { variant?: boolean } = {}) {
   const instance = app()
   await instance.telemetry.capture(userId, 'roster_created', {
-    ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor()),
+    ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor(data.catalogueId)),
     unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
     source: data.source,
     visibility: data.visibility,
@@ -295,10 +301,18 @@ export const importRoster = createServerFn({ method: 'POST' })
       const instance = app()
       const factionName = importRosterFaction(data.file)
       const factions = (await instance.factionsFor())?.factions ?? []
-      const faction = factionName ? factions.find((candidate) => matchesImportFaction(factionName, candidate.name)) : null
+      const statedCatalogueId = importRosterCatalogueId(data.file)
+      const faction = factionName
+        ? factions.find(
+            (candidate) =>
+              matchesImportFaction(factionName, candidate.name) &&
+              (statedCatalogueId ? candidate.id === statedCatalogueId : candidate.isDefault),
+          )
+        : null
+      if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
       const loaded = faction ? await instance.catalogueFor(faction.id) : null
       if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
-      const rules = await instance.rulesFor()
+      const rules = await instance.rulesFor(faction?.id)
       const result = importRosterFile(
         data,
         loaded,
@@ -331,7 +345,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
       const instance = app()
       const loaded = await instance.catalogueFor(data.catalogueId)
       if (!loaded) throw new Response('army data is not available', { status: 409 })
-      const rules = await instance.rulesFor()
+      const rules = await instance.rulesFor(data.catalogueId)
       const priced = calculateRosterPrice(data, loaded, rules)
       if (!priced) throw new Response('army data is not available', { status: 409 })
       const dispositionNames = (priced.disposition ? [priced.disposition] : priced.dispositions).map(

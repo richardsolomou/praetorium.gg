@@ -160,6 +160,21 @@ describe('the library row for a saved list', () => {
 })
 
 describe('changes that do not need roster pricing', () => {
+  it.each([0, 1, 3])('does not count %i released units changed only in a preview', (count) => {
+    const roster = { ...saved(Array.from({ length: count }, () => 'squad')), id: 'released' }
+    const previewChange = {
+      ...repricedSquad,
+      changes: {
+        ...repricedSquad.changes,
+        factions: repricedSquad.changes.factions.map((faction) => ({ ...faction, catalogueId: 'preview~cat' })),
+      },
+    }
+    expect({
+      unpriced: rosterChangeWithoutPricing(roster, [previewChange]),
+      count: rosterStatus(roster, judged(roster), [previewChange]).changes,
+    }).toEqual({ unpriced: 'unchanged', count: 0 })
+  })
+
   it('prices a list before claiming a changed row for a different model count', () => {
     const roster = saved(['squad'])
     const update = {

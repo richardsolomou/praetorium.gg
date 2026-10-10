@@ -8,7 +8,7 @@ const cache = new Map<string, { version: number; revision: string; data: Assessm
 const CACHE_LIMIT = 500
 
 export async function localRosterAssessment(roster: LocalRoster, owner: string) {
-  const local = localConstruction()
+  const local = localConstruction(roster.catalogueId)
   if (!local) return { points: null, problem: null, label: roster.name }
   const key = JSON.stringify([owner, roster.id])
   const cached = cache.get(key)

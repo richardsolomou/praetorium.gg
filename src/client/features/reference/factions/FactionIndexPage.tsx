@@ -30,7 +30,7 @@ export function FactionIndexPage() {
 
   const wanted = factionQueryText.trim().toLowerCase()
   const matching = data.factions.filter(
-    (entry) => entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted),
+    (entry) => entry.isDefault && (entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted)),
   )
   const favouriteFactions = matching.filter((entry) => favourites.has(entry.id))
   const groups = matching.reduce((grouped, entry) => {

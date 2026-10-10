@@ -1,10 +1,10 @@
 {
   "definitions": {
     "repository": "BSData/wh40k-11e",
-    "branch": "Space-Marine-Codex",
+    "branch": "main",
     "license": null,
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
-    "revision": "f08174b199be16176287c13cb8afb64fde18303f"
+    "revision": "3988a8bdd210f9d31ea5b6782d0016688ccb6815"
   },
   "points": {
     "repository": "BSData/wh40k-11e-mfm",

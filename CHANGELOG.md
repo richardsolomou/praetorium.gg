@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.113.0
+
+### Minor Changes
+
+- a2a5e64: Choose preview codex rules per faction while preserving released rules, saved lists, and codex history.
+
 ## 0.112.3
 
 ### Patch Changes

@@ -70,7 +70,9 @@ export function referenceUnits(
   const book = loaded.factions.find((entry) => entry.id === foundFaction.id)
   const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : foundFaction.name
   const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-  const canonicalById = new Map(corpus.catalogue.datasheets.map((sheet) => [sheet.id, sheet]))
+  const canonicalById = new Map(
+    corpus.catalogue.datasheets.filter((sheet) => sheet.catalogueId === foundFaction.id).map((sheet) => [sheet.id, sheet]),
+  )
   const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize }).map((unit) =>
     unitReference(unit, canonicalById.get(unit.id)),
   )
@@ -88,8 +90,17 @@ export function referenceUnits(
 /** A faction by the id, URL slug, or display name an agent read from the reference. */
 export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
   const wanted = faction.trim().toLocaleLowerCase()
-  return referenceFactions(corpus).find((candidate) =>
-    [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
+  const factions = referenceFactions(corpus)
+  return (
+    factions.find((candidate) => [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted)) ??
+    factions.find((candidate) => {
+      const name = candidate.name.split(' · ')[0]!
+      return (
+        !candidate.name.includes(' · Preview') &&
+        !candidate.name.includes(' · Previous') &&
+        [name.toLocaleLowerCase(), routeSlug(name)].includes(wanted)
+      )
+    })
   )
 }
 
@@ -124,6 +135,8 @@ function unitReference(unit: UnitSummary, sheet: CanonicalDatasheet | undefined)
     ...datasheetCitation(sheet),
   }
 }
+
+export const referenceRecordCatalogueId = (id: string) => /^(?:datasheet|detachment):([^:]+):/.exec(id)?.[1]
 
 export function referenceRecord(corpus: ReferenceCorpus, rules: LoadedRules | null, id: string) {
   const document = corpus.byId.get(id)

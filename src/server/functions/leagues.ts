@@ -117,7 +117,7 @@ export const submitLeagueRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const { saved, snapshot } = await rosterForUse(player.id, data.rosterId)
+      const { saved, snapshot } = await rosterForUse(player.id, data.rosterId, { releasedOnly: true })
       const result = await app().service.submitLeagueRoster(data.token, player.id, saved, snapshot, data.eventToken)
       await app().telemetry.capture(player.id, 'league_roster_submitted', {
         format: result.format,

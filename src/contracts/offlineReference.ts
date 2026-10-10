@@ -2,8 +2,10 @@ import { PUBLIC_REFERENCE_QUERIES } from './appSnapshot'
 import type { GlobalSearchIndex } from './referenceSearch'
 import type { RuntimeData } from './runtimeData'
 import type { CatalogueFile } from '../core/catalogue'
+import { catalogueEditionSchema, type CatalogueEdition } from '../core/catalogueEdition'
 
-export type OfflineConstructionData = {
+export type OfflineConstructionSource = {
+  edition?: CatalogueEdition
   version: 1
   revision: string
   files: CatalogueFile[]
@@ -11,6 +13,8 @@ export type OfflineConstructionData = {
   mfm: RuntimeData
   rules: RuntimeData
 }
+
+export type OfflineConstructionData = OfflineConstructionSource & { editions?: OfflineConstructionSource[] }
 
 export type OfflineReferenceData = {
   version: 1
@@ -37,15 +41,14 @@ export function isReferenceBundle(value: unknown): value is OfflineReferenceBund
     data?.version === 1 &&
     typeof data.revision === 'string' &&
     (data.construction === undefined ||
-      (data.construction.version === 1 &&
-        typeof data.construction.revision === 'string' &&
-        data.construction.revision.length > 0 &&
-        Array.isArray(data.construction.files) &&
-        data.construction.files.length <= 1_000 &&
-        data.construction.files.every((file) => typeof file === 'object' && file !== null) &&
-        data.construction.datacards !== undefined &&
-        data.construction.mfm !== undefined &&
-        data.construction.rules !== undefined)) &&
+      (isConstructionSource(data.construction) &&
+        (data.construction.editions === undefined ||
+          (Array.isArray(data.construction.editions) &&
+            data.construction.editions.length <= 16 &&
+            new Set(data.construction.editions.map((source) => source?.edition?.id)).size === data.construction.editions.length &&
+            data.construction.editions.every(
+              (edition) => isConstructionSource(edition) && catalogueEditionSchema.safeParse(edition.edition).success,
+            ))))) &&
     Array.isArray(data.queries) &&
     data.queries.length <= MAX_OFFLINE_QUERIES &&
     data.queries.every((entry) => Array.isArray(entry?.key) && PUBLIC_REFERENCE_QUERIES.has(String(entry.key[0]))) &&
@@ -53,5 +56,19 @@ export function isReferenceBundle(value: unknown): value is OfflineReferenceBund
     ['factions', 'detachments', 'datasheets', 'missions', 'rules'].every((key) =>
       Array.isArray(data.search[key as keyof typeof data.search]),
     )
+  )
+}
+
+function isConstructionSource(data: OfflineConstructionSource) {
+  return (
+    data?.version === 1 &&
+    typeof data.revision === 'string' &&
+    data.revision.length > 0 &&
+    Array.isArray(data.files) &&
+    data.files.length <= 1_000 &&
+    data.files.every((file) => typeof file === 'object' && file !== null) &&
+    data.datacards !== undefined &&
+    data.mfm !== undefined &&
+    data.rules !== undefined
   )
 }

@@ -12,7 +12,7 @@ export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveR
     ? calculateRosterTotals(
         { ...data, units: data.picks },
         await instance.catalogueFor(data.catalogueId),
-        await instance.rosterLabelRulesFor(),
+        await instance.rosterLabelRulesFor(data.catalogueId),
       )
     : null
   return instance.service.saveRoster(userId, {

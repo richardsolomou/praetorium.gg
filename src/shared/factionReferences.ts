@@ -7,6 +7,7 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmDetachmentFor } from './mfm'
+import { catalogueEditionId } from '../core/catalogueEdition'
 
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
@@ -41,7 +42,10 @@ function referenceDetachmentRoute(
   detachment: { id: string; name: string },
 ) {
   if (isReferenceDetachment(loaded, rules, faction, detachment)) {
-    return { catalogueId: routeSlug(factionDisplayName(faction.name, rules?.factionNames)), slug: routeSlug(detachment.name) }
+    return {
+      catalogueId: loaded.edition ? faction.id : routeSlug(factionDisplayName(faction.name, rules?.factionNames)),
+      slug: routeSlug(detachment.name),
+    }
   }
   const ownerId = loaded.index.catalogueOf.get(detachment.id)
   const owner = loaded.factions.find((candidate) => candidate.id === ownerId)
@@ -55,7 +59,10 @@ function referenceDetachmentRoute(
     )
   })
   if (ownerOptions?.length !== 1) return null
-  return { catalogueId: routeSlug(factionDisplayName(owner.name, rules?.factionNames)), slug: routeSlug(ownerOptions[0]!.name) }
+  return {
+    catalogueId: loaded.edition ? owner.id : routeSlug(factionDisplayName(owner.name, rules?.factionNames)),
+    slug: routeSlug(ownerOptions[0]!.name),
+  }
 }
 
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
@@ -67,7 +74,10 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   return {
     summary: {
       id: faction.id,
-      slug: slugId,
+      slug: loaded.edition ? faction.id : slugId,
+      edition: loaded.edition ?? null,
+      baseCatalogueId: catalogueEditionId(faction.id) ? faction.id.split('~')[1]! : faction.id,
+      isDefault: loaded.edition ? loaded.edition.default : true,
       name: faction.name,
       displayName,
       icon: rules?.factionIcons?.has(slugId)
@@ -138,8 +148,8 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
         armyRules: [
           ...(content?.armyRules.length
             ? content.armyRules
-            : rules?.factionRules?.get(summary.slug)
-              ? [rules.factionRules.get(summary.slug)!]
+            : rules?.factionRules?.get(routeSlug(summary.displayName))
+              ? [rules.factionRules.get(routeSlug(summary.displayName))!]
               : []),
           ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
         ],
