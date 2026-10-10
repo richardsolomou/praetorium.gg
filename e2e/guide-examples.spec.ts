@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test'
 import { add } from './builder.harness'
-import { advance, attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, waitForRosterSave } from './account'
+import {
+  advance,
+  attachRoster,
+  createBattle,
+  createRoster,
+  PRACTICE_OPPONENT,
+  retryUntilVisible,
+  signUp,
+  startBattle,
+  waitForRosterSave,
+} from './account'
 import { chooseCombatUnit, closeCombatBreakdown } from './combat'
 
 test.use({ viewport: { width: 1440, height: 1100 } })
@@ -8,7 +18,7 @@ test.use({ viewport: { width: 1440, height: 1100 } })
 test('the army guide example keeps a five-model Immortals draft through reload and a new tab', async ({ page }, testInfo) => {
   await page.goto('/rosters')
   const setup = page.getByRole('region', { name: 'Create roster' })
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
+  await retryUntilVisible(page.getByPlaceholder('Search factions…'), () => setup.getByRole('combobox', { name: 'Faction' }).click())
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()

@@ -1009,6 +1009,16 @@ export function ListBuilder({
         {setupDialog}
       </RosterHeader>
 
+      <div className="hidden px-3 py-2 text-xs print:block">
+        <p>
+          {guest ? 'Draft on this device' : 'Army list'} · {points}/{limit} points
+        </p>
+        {!frozen && illegal ? <p>Resolve roster validation messages before playing this list.</p> : null}
+        {!frozen && over ? <p>Over the points limit.</p> : null}
+        {!frozen && priced?.unhandled.length ? <p>Some restrictions could not be checked. Read the source rules before playing.</p> : null}
+        {waivedRules.length ? <p>Some construction rules are waived; check the roster setup.</p> : null}
+      </div>
+
       <RosterBody threeColumn={editable}>
         {editable ? (
           <div className="contents min-[1300px]:flex min-[1300px]:min-h-0 min-[1300px]:min-w-0">
@@ -1099,7 +1109,19 @@ export function ListBuilder({
               </span>
             </output>
           ) : faction || frozen ? (
-            <p className="py-6 text-sm text-faint">{building ? 'Pick a unit to start building.' : 'This roster has no units.'}</p>
+            building ? (
+              <div className="space-y-3 py-6">
+                <h2 className="text-xl">Add your first unit</h2>
+                <p className="max-w-sm text-sm text-dim">
+                  Search for a unit you own or want to field. Then choose its model count and equipment in Loadout.
+                </p>
+                <Button variant="outline" className="min-[1300px]:hidden" onClick={openPicker}>
+                  Choose a unit
+                </Button>
+              </div>
+            ) : (
+              <p className="py-6 text-sm text-faint">This roster has no units.</p>
+            )
           ) : (
             <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
           )}

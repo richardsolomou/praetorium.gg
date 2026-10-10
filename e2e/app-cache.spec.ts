@@ -152,3 +152,31 @@ test('sign-out finishes when saved-device storage is unavailable', async ({ page
   await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toHaveCount(0)
   expect(errors).toEqual([])
 })
+
+test('email sign-in settles across two open Home tabs without alternating account state', async ({ page, context }, testInfo) => {
+  await page.goto('/')
+  await expect.poll(() => savedState(page)).toContain('"owner":null')
+  const other = await context.newPage()
+  await other.goto('/')
+  await expect(other.getByRole('heading', { level: 1 })).toContainText('Build your army')
+  await page.goto('/sign-in')
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Email').fill('preview@praetorium.gg')
+  await page.getByLabel('Password').fill('preview-preview-preview')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  for (const tab of [page, other]) {
+    await expect(tab.getByRole('heading', { level: 1 })).toHaveText('Welcome back, Preview')
+  }
+  const transitions = await other.evaluate(async () => {
+    let signedOut = false
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('h1')?.textContent?.includes('Build your army')) signedOut = true
+    })
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true })
+    await new Promise((resolve) => setTimeout(resolve, 10_000))
+    observer.disconnect()
+    return signedOut
+  })
+  expect(transitions).toBe(false)
+  await other.screenshot({ path: testInfo.outputPath('signed-in-home-stable.png') })
+})

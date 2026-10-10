@@ -13,7 +13,7 @@ import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 /** A list whose faction was recognised, which is the only thing an import cannot do without. */
-type Matched = Imported & { catalogueId: string; source: NonNullable<Imported['source']> }
+export type MatchedImport = Imported & { catalogueId: string; source: NonNullable<Imported['source']> }
 
 /** Each name the import refused, on its own line, so the player reads why rather than only what. */
 const explain = (unknown: readonly { name: string; reason: string }[]) =>
@@ -44,7 +44,7 @@ function Shortfall({ title, rows }: { title: string; rows: readonly { key: strin
   )
 }
 
-export function RosterImport() {
+export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport) => void }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const navigate = useNavigate()
@@ -52,7 +52,7 @@ export function RosterImport() {
 
   const keep = useMutation({
     onError: () => posthog.capture('roster_import_save_failed', { reason: 'request' }),
-    mutationFn: async (imported: Matched) => {
+    mutationFn: async (imported: MatchedImport) => {
       const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
       const { id } = await saveRoster({
         data: {
@@ -85,7 +85,7 @@ export function RosterImport() {
 
   const bring = useMutation({
     onMutate: () => posthog.capture('roster_import_submitted', { input: 'text' }),
-    mutationFn: async (file: string): Promise<Matched> => {
+    mutationFn: async (file: string): Promise<MatchedImport> => {
       const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
         posthog.capture('roster_import_failed', { reason: 'request', input: 'text' })
         throw error
@@ -96,12 +96,8 @@ export function RosterImport() {
       }
       return { ...imported, catalogueId: imported.catalogueId, source: imported.source }
     },
-    // What the datasheets cannot be given is the player's to settle: the list is held back
-    // until they have read what could not be placed and said to import it anyway. A unit
-    // that matched nothing is named here too rather than refusing the whole list, since
-    // the rest of it is still the list they asked for.
     onSuccess: (imported) => {
-      if (!imported.unknown.length && !imported.unplaced.length) keep.mutate(imported)
+      if (!onImport && !imported.unknown.length && !imported.unplaced.length) keep.mutate(imported)
       else
         posthog.capture('roster_import_review_required', {
           missing_count: imported.unknown.length,
@@ -110,9 +106,21 @@ export function RosterImport() {
     },
   })
 
-  const review = bring.data && (bring.data.unknown.length || bring.data.unplaced.length) ? bring.data : null
+  const review = bring.data && (onImport || bring.data.unknown.length || bring.data.unplaced.length) ? bring.data : null
   const working = bring.isPending || keep.isPending
   const failure = bring.error ?? keep.error
+
+  const accept = (imported: MatchedImport) => {
+    if (!onImport) return keep.mutate(imported)
+    onImport(imported)
+    posthog.capture('guest_roster_imported', {
+      source: imported.source,
+      pick_count: imported.units.length,
+      missing_count: imported.unknown.length,
+      unplaced_count: imported.unplaced.length,
+    })
+    setOpen(false)
+  }
 
   const show = () => {
     posthog.capture('roster_import_started', { input: 'text' })
@@ -126,19 +134,28 @@ export function RosterImport() {
       <Button data-onboarding="roster-import" variant="outline" onClick={show}>
         <FileUp /> Import roster
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(next) => !working && setOpen(next)}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Import roster</DialogTitle>
             <DialogDescription>
               {review
-                ? 'Not everything this list states could be placed. Import it anyway and it arrives as named below.'
+                ? 'Review the matched list and any missing choices before continuing.'
                 : 'Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit.'}
             </DialogDescription>
           </DialogHeader>
 
           {review ? (
             <div className="space-y-3">
+              <p className="text-sm">
+                <span className="font-semibold">{review.name}</span> · {review.units.length} matched{' '}
+                {review.units.length === 1 ? 'entry' : 'entries'}
+              </p>
+              {review.unknown.length || review.unplaced.length ? (
+                <p className="text-xs text-dim">
+                  Missing units will be left out. Unmatched equipment uses the datasheet defaults; check it in the builder.
+                </p>
+              ) : null}
               <Shortfall
                 title="Will not be imported"
                 rows={review.unknown.map((entry) => ({ key: entry.name, name: entry.name, lines: [entry.reason] }))}
@@ -151,9 +168,30 @@ export function RosterImport() {
                   lines: entry.choices.map((choice) => `Could not apply ${choice.name}: ${choice.reason}`),
                 }))}
               />
-              <Button className="w-full" disabled={working} onClick={() => keep.mutate(review)}>
-                {keep.isPending ? <LoaderCircle className="animate-spin" /> : <TriangleAlert />}
-                Import anyway
+              <Button className="w-full" disabled={working} onClick={() => accept(review)}>
+                {keep.isPending ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : onImport && !review.unknown.length && !review.unplaced.length ? (
+                  <Copy />
+                ) : (
+                  <TriangleAlert />
+                )}
+                {onImport ? 'Open imported draft' : 'Import anyway'}
+              </Button>
+              {onImport ? (
+                <p className="text-xs text-dim">
+                  No account needed. This device keeps the draft; sign in when you want to save it to your account.
+                </p>
+              ) : null}
+              <Button
+                variant="outline"
+                disabled={working}
+                onClick={() => {
+                  bring.reset()
+                  keep.reset()
+                }}
+              >
+                Edit pasted text
               </Button>
             </div>
           ) : (
@@ -168,6 +206,7 @@ export function RosterImport() {
                 placeholder="Paste Games Workshop roster text…"
                 className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
                 disabled={working}
+                maxLength={200_000}
               />
               <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
                 {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
@@ -182,7 +221,7 @@ export function RosterImport() {
             </p>
           ) : null}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
+            <Button variant="ghost" disabled={working} onClick={() => setOpen(false)}>
               Cancel
             </Button>
           </DialogFooter>

@@ -26,6 +26,7 @@ import {
 import { ListBuilder } from './ListBuilder'
 import { RosterBody, RosterShell } from './RosterPresentation'
 import { RosterSetupDialog } from './RosterSetupDialog'
+import { RosterImport } from './RosterImport'
 
 const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
@@ -96,9 +97,26 @@ export function GuestRoster({
           title="Build a roster"
           description="Pick an army and start adding units. This device keeps your list until you sign in to save it."
           actions={
-            <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonVariants({ variant: 'outline' })}>
-              Sign in
-            </Link>
+            <>
+              <RosterImport
+                onImport={(imported) => {
+                  const started = newGuestDraft({
+                    ...EMPTY_SETUP,
+                    name: imported.name,
+                    catalogueId: imported.catalogueId,
+                    detachmentIds: imported.detachmentIds,
+                    disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
+                    limit: 'limit' in imported && imported.limit ? imported.limit : EMPTY_SETUP.limit,
+                  })
+                  started.draft = { ...started.draft, picks: imported.units, source: imported.source }
+                  setUnkept(!writeGuestDraft(started))
+                  onStart(started)
+                }}
+              />
+              <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonVariants({ variant: 'outline' })}>
+                Sign in
+              </Link>
+            </>
           }
         />
         <PageContent className="pt-6">

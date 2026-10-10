@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
@@ -111,7 +111,9 @@ export function CreateBattle() {
   }
   const changeOpen = (next: boolean) => {
     if (create.isPending) return
-    if (next && !open) posthog.capture('battle_creation_started')
+    if (next && !open) {
+      posthog.capture('battle_creation_started')
+    }
     changeIntent()
     setOpen(next)
   }
@@ -170,7 +172,7 @@ export function CreateBattle() {
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
-              <DialogDescription>Choose who is playing. A practice opponent lets you play on your own.</DialogDescription>
+              <DialogDescription>Choose who is playing. A practice opponent lets you control both sides on your own.</DialogDescription>
             </DialogHeader>
             <div>
               <Choice
@@ -227,6 +229,19 @@ export function CreateBattle() {
             {create.error || opponentQuery.error ? (
               <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
             ) : null}
+            <p className="text-xs text-dim">
+              Choose saved armies for both sides in setup. One device can record the whole game.{' '}
+              <Link
+                to="/guides/$guideId"
+                params={{ guideId: 'track-a-battle' }}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-info underline"
+              >
+                Read the battle guide
+              </Link>
+              .
+            </p>
             <DialogFooter>
               <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
                 Cancel

@@ -122,6 +122,8 @@ A visitor keeps one draft in browser storage, shared by its tabs and surviving r
 
 Imports accept supported text exports, not `.ros`/`.rosz`. Unknown factions refuse; unmatched units or choices are reported for confirmation, never silently dropped or substituted. `importMismatch.ts` owns the explanation. Treat fixed equipment and named models as already placed; equipment, enhancement, Warlord, size, and attachment mismatches need their distinct reasons. Export current choices, including only the selected force disposition.
 
+Visitors review every supported text import before opening their one local draft. The review counts matched payload entries and names missing units or choices; correction returns to the retained text. Account saving uses the existing explicit guest claim. Exercise picker and reference-page refusals whenever unit-limit messages change. Do not overwrite an existing visitor draft through an import shortcut.
+
 ## Data updates
 
 `changes/history.json` is validated, bounded, and immutable inside the snapshot. `src/core/catalogueChanges.ts` compares source-faithful reference data; `src/server/catalogueHistory.ts` loads it, and `catalogueChangeLog.ts` projects page/history reads. Missing history yields an empty state, not inferred changes.

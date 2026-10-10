@@ -3,12 +3,11 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import type { ReportEntry } from '../../../core/battleReport'
-import { formatDate } from '../../dates'
 import { Report } from './Report'
 
 it('shows the dates of events on different days in the battle report', () => {
-  const first = new Date(2026, 0, 2, 12)
-  const second = new Date(2026, 0, 3, 12)
+  const first = new Date('2026-01-02T12:00:00Z')
+  const second = new Date('2026-01-03T12:00:00Z')
   const entry = (seq: number, at: Date): ReportEntry => ({
     seq,
     at: at.getTime(),
@@ -26,8 +25,8 @@ it('shows the dates of events on different days in the battle report', () => {
     ),
   )
 
-  expect(markup).toContain(formatDate(first))
-  expect(markup).toContain(formatDate(second))
+  expect(markup).toContain('2 Jan 2026')
+  expect(markup).toContain('3 Jan 2026')
 })
 
 it('shows how long a phase and its turn took beside the line that ends them', () => {

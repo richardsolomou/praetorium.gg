@@ -1,5 +1,149 @@
 export const PRODUCT_GUIDES = [
   {
+    slug: 'prepare-your-first-game',
+    title: 'Prepare for your first game',
+    description: 'A practical checklist for arriving ready, agreeing the table and getting through your first turns.',
+    steps: [
+      {
+        title: 'Agree the game before packing',
+        text: 'Confirm the edition, mission pack, points allowance and available time with your opponent. Ask whether they are happy to explain unfamiliar rules and allow corrections while you learn. A smaller agreed game can leave more time to understand each turn.',
+      },
+      {
+        title: 'Bring the list and the tools',
+        text: 'Bring your models, a readable army list, dice, a tape measure and any markers you use for wounds or reminders. Have your current army rules and mission cards available. Charge the device you will use for tracking; a printed list is useful when a screen or connection fails.',
+      },
+      {
+        title: 'Explain the surprises before deployment',
+        text: 'Show your opponent which model represents each unit and weapon. Point out rules that can change their decisions, such as unusual movement, defensive effects or reactions. Ask them to do the same. Agree how each terrain piece will be treated and consult the current terrain rules together when unsure.',
+      },
+      {
+        title: 'Give your units a first-turn job',
+        text: 'Identify who will protect your home objective, move towards contested objectives and threaten the enemy’s key units. Before placing an important unit, ask what can reach or see it and where it can move next. You do not need to attack with everything on the first turn.',
+      },
+      {
+        title: 'Pause at scoring and turn changes',
+        text: 'Read the active mission’s scoring condition and timing before recording points. Confirm the score, command points and any effects that expire with your opponent before advancing. Keep a question list for later rather than trying to learn every possible interaction at once. After the game, choose one deployment or movement decision to improve next time.',
+      },
+    ],
+    questions: [
+      {
+        question: 'Do I need to memorise every rule?',
+        answer:
+          'No. Know where to find your unit profiles, key abilities and scoring conditions. Tell your opponent you are learning and look up uncertain interactions together.',
+      },
+      {
+        question: 'What should I practise on my own?',
+        answer:
+          'Lay out your army, identify each unit’s job and rehearse finding its rules. A practice battle can teach the tracker, but it does not simulate an opponent’s choices or move models for you.',
+      },
+    ],
+    example: {
+      title: 'A ten-minute table check',
+      steps: [
+        'Compare lists and identify any models or equipment that need explaining.',
+        'Walk around the battlefield together. Agree terrain treatment, locate the objectives and read when the mission scores.',
+        'Tell your opponent about one important reaction in your army and ask about theirs. Then decide which of your units will hold home, contest the middle and stay protected for later.',
+      ],
+    },
+    action: { to: '/battles', label: 'Open Battles' },
+  },
+  {
+    slug: 'build-a-balanced-army',
+    title: 'Give every unit a job',
+    description: 'Build an army that can score, move and handle different targets without chasing a tournament list.',
+    steps: [
+      {
+        title: 'Start with a scoring plan',
+        text: 'Read the missions you expect to play. Write down how your army will reach objectives, keep useful units alive and meet secondary conditions. An army that destroys targets can still struggle if nothing is available to do the scoring work.',
+      },
+      {
+        title: 'Cover the jobs your plan needs',
+        text: 'Look for units that can hold a safe objective, contest a dangerous one, move to a distant position and threaten tough targets. These are jobs, not compulsory unit categories: one unit may cover several, and your faction may solve them in different ways. Check movement, durability, objective control, weapons and abilities rather than relying on a unit’s name.',
+      },
+      {
+        title: 'Budget for support and spare options',
+        text: 'Ask whether an expensive Leader, enhancement or transport improves a job enough to justify what you give up elsewhere. If a single unit is your only way to reach a distant objective or damage a tough target, plan what happens when it is lost. Redundancy can mean a second way to solve the problem rather than a duplicate unit.',
+      },
+      {
+        title: 'Check weapons against likely targets',
+        text: 'Compare an important weapon against both a light unit and a tougher target. In the simulator, use the equipment and effects you can actually bring, then read the chance of the outcome you need. Average damage alone does not tell you how reliably a unit will finish the target. Check any unsupported abilities in the printed rules.',
+      },
+      {
+        title: 'Test one change at a time',
+        text: 'Check points and construction warnings before playing. After the game, note which job went unfilled and whether the cause was the list, deployment or movement. Change one unit or loadout and test again. Keeping models you enjoy is a valid constraint; aim for a plan you understand before copying a highly specialised list.',
+      },
+    ],
+    questions: [
+      {
+        question: 'Is there a correct percentage for each role?',
+        answer:
+          'No universal split fits every faction, mission or game size. Start with the jobs your chosen army needs and review how it performs in your own games.',
+      },
+      {
+        question: 'Does a legal list mean it is balanced?',
+        answer:
+          'No. Validation checks supported construction restrictions. It cannot decide whether you have enough movement, scoring options or reliable answers to the armies you face.',
+      },
+    ],
+    example: {
+      title: 'Find the missing job',
+      steps: [
+        'Your favourite units are strong into elite targets, but all need to stay together to receive their support effects.',
+        'Ask who can hold home and reach a distant objective without breaking that group. If the answer is nobody, compare adding a mobile utility unit with adding more damage.',
+        'Play the revised list and record whether that unit created a scoring opportunity. If it did not, review its deployment and route before replacing it.',
+      ],
+    },
+    action: { to: '/rosters', label: 'Build your army' },
+  },
+  {
+    slug: 'plan-your-scoring',
+    title: 'Plan your scoring and secondaries',
+    description: 'Turn mission cards into a plan: what must happen, which unit can do it and what you risk to score.',
+    steps: [
+      {
+        title: 'Read the mission before moving',
+        text: 'Use the mission pack agreed for this game. For each active mission, identify the scoring moment, eligible units or targets, points available and any limits. Similar card names across packs do not guarantee identical conditions. Keep the current card available instead of relying on a remembered rule.',
+      },
+      {
+        title: 'Choose a mode your army can support',
+        text: 'When your pack offers Fixed and Tactical secondaries, compare the actual choices and scoring conditions. For a recurring plan, ask whether you can keep meeting its conditions against this opponent. For changing cards, ask whether you have spare units and movement to adapt. Neither choice is automatically better for a new player; agree the supported mode and read its rules.',
+      },
+      {
+        title: 'Assign a unit and a route',
+        text: 'For each scoring opportunity, name the unit that will do it, where that unit needs to be and when it must arrive. Check the card’s eligibility and action restrictions before committing. Do not assume that a unit can both complete the mission and carry out every other task you wanted from it.',
+      },
+      {
+        title: 'Compare the reward with the cost',
+        text: 'Ask what scoring now exposes and what you may lose next turn. Sending your only tough-target answer into danger for a small reward may weaken the whole plan. A lower-cost unit may do the same job, or protecting a future primary score may matter more. Count the opportunity you give up as well as the points you gain.',
+      },
+      {
+        title: 'Confirm the score and reconsider the next turn',
+        text: 'At the card’s scoring moment, confirm the condition with your opponent and record the result. Follow your pack’s rules for keeping, replacing or discarding cards; do not assume another pack works the same way. Before the next turn, review which scoring units remain and which objectives you can realistically contest.',
+      },
+    ],
+    questions: [
+      {
+        question: 'Should I chase every secondary?',
+        answer:
+          'No. Some opportunities cost more than they return. Check whether attempting one stops you protecting an objective, preserving an important unit or scoring later.',
+      },
+      {
+        question: 'Does Praetorium decide whether I met the condition?',
+        answer:
+          'Players judge the board and confirm eligibility. Praetorium tracks supported scoring and limits, but it does not know model positions or resolve every card condition for you.',
+      },
+    ],
+    example: {
+      title: 'Score now or preserve a threat?',
+      steps: [
+        'A current card offers a scoring opportunity in an exposed area. Your mobile utility unit and your main damage unit can both reach it.',
+        'Check whether each unit is eligible and what the task prevents it doing. Compare the risk of losing each with the points the card awards.',
+        'If the utility unit can complete the task, it may preserve your damage unit for next turn. If neither option is worth the risk, reconsider the attempt and consult the pack’s card-management rules.',
+      ],
+    },
+    action: { to: '/missions', label: 'Read the missions' },
+  },
+  {
     slug: 'build-an-army',
     title: 'How to build and check a Warhammer 40,000 army list',
     description:
@@ -30,7 +174,7 @@ export const PRODUCT_GUIDES = [
       {
         question: 'Do I need an account to build an army?',
         answer:
-          'No. You can build a list as a visitor. The draft stays on this device across visits. An account is required to save it to your library, open it on another device, import a roster or play a battle.',
+          'No. You can build a list as a visitor. The draft stays on this device across visits. An account is required to save it to your library, open it on another device or play a battle.',
       },
       {
         question: 'Does validation cover every rule?',
@@ -65,15 +209,15 @@ export const PRODUCT_GUIDES = [
       },
       {
         title: 'Paste it into Import roster',
-        text: 'Sign in to Praetorium and open Rosters. Choose Import roster, paste the export into Roster text, then choose Import pasted roster. Praetorium matches the text to its current community catalogue.',
+        text: 'Open Rosters and choose Import roster. Paste the export into Roster text, then choose Import pasted roster. You can try this without an account. Praetorium matches the text to its current community catalogue.',
       },
       {
         title: 'Review anything that could not be matched',
-        text: 'If the faction cannot be identified, the import stops. For a recognised faction, the review names units that will not be imported and choices that could not be applied. Correct the text and try again, or choose Import anyway only after reading what will arrive.',
+        text: 'If the faction cannot be identified, the import stops. For a recognised faction, the review names units that will not be imported and choices that could not be applied. Use Edit pasted text to correct them, or accept the incomplete list after reading what will arrive. Visitors choose Open imported draft; signed-in players choose Import anyway when there are unmatched choices.',
       },
       {
-        title: 'Check the saved result',
-        text: 'Open the imported roster and compare its units, model counts, equipment, detachments and points with the original list. Resolve validation messages and choose a force disposition if the imported list requires one. Keep the original export until you have checked the result.',
+        title: 'Check and save the result',
+        text: 'Compare the imported units, model counts, equipment, detachments and points with the original list. Resolve validation messages and choose a force disposition if required. A guest draft stays on this device; choose Save roster and sign in to keep it in your account. Keep the original export until you have checked the result.',
       },
     ],
     questions: [

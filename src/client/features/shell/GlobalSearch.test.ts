@@ -23,5 +23,9 @@ describe('search shortcut label', () => {
 
 describe('matchingPages', () => {
   it('finds the builder and its guide after typing', () =>
-    expect(matchingPages('build').map((page) => page.label)).toEqual(['New roster', 'How to build and check a Warhammer 40,000 army list']))
+    expect(matchingPages('build').map((page) => page.label)).toEqual([
+      'New roster',
+      'Give every unit a job',
+      'How to build and check a Warhammer 40,000 army list',
+    ]))
 })

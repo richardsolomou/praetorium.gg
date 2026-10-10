@@ -13,8 +13,8 @@ it('renders dates and times consistently before hydration while retaining local 
       return createElement('span', null, `${date(at)} ${time(at)}`)
     }
 
-    expect(renderToStaticMarkup(createElement(Timestamp))).toBe('<span>9/20/2026 12:30 AM</span>')
-    expect(`${formatDate(at)} ${formatTime(at)}`).toBe('9/19/2026 05:30 PM')
+    expect(renderToStaticMarkup(createElement(Timestamp))).toBe('<span>20 Sept 2026 12:30 AM</span>')
+    expect(`${formatDate(at)} ${formatTime(at)}`).toBe('Sep 19, 2026 05:30 PM')
   } finally {
     process.env.TZ = previousTimeZone
   }

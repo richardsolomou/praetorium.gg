@@ -48,6 +48,8 @@ Preserve no-spill weapon damage, current-model damage, allocation order, mixed d
 
 Use the fetched edition's attack and ability rules, not remembered rules from another edition. The reference roller and scripted/exhaustive tests establish sequence behavior; sampled larger matchups supplement them. Runtime input/work bounds, worker timeout, cancellation, and independent phase failure remain part of correctness.
 
+Rules/buffs and manual modifiers begin folded, except restored manual adjustments.
+
 ## Loadout odds
 
 Only standalone and roster experiments expose legal alternative-loadout odds and Optimize; battle loadouts stay frozen. Build alternatives through the evaluator in full context and score their real carriers through the same rules/adjustments as the matchup. Confirm the current carriers reproduce the main attack before comparing alternatives.

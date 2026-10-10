@@ -3,7 +3,7 @@ import { afterInitialScreen } from './background'
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { APP_SNAPSHOT_QUERIES } from '../../contracts/appSnapshot'
-import { captureAppSnapshot, restoreAppSnapshot, reconcileAppAccount } from './appSnapshot'
+import { captureAppSnapshot, restoreAppSnapshot } from './appSnapshot'
 import { APP_ACCOUNT_EVENT, clearSavedApp, readAppSnapshot, writeAppSnapshot } from './appStorage'
 import {
   battlesQuery,
@@ -38,12 +38,13 @@ export function AppPersistence() {
     let saving = Promise.resolve()
     let refreshing = false
     let pendingRefresh = false
+    let accountChangePending = false
     const save = () => {
-      if (!ready) return
+      if (!ready || accountChangePending) return
       clearTimeout(timer)
       saving = saving
         .catch(() => {})
-        .then(() => (active ? writeAppSnapshot(captureAppSnapshot(client)) : undefined))
+        .then(() => (active && !accountChangePending ? writeAppSnapshot(captureAppSnapshot(client)) : undefined))
         .catch(() => {})
     }
     const unsubscribe = client.getQueryCache().subscribe((event) => {
@@ -68,6 +69,7 @@ export function AppPersistence() {
       try {
         const me = await client.query({ ...meQuery(), staleTime: 0 })
         if (!active) return
+        if (!pendingRefresh) accountChangePending = false
         await client.invalidateQueries({
           predicate: (query) => APP_SNAPSHOT_QUERIES.has(String(query.queryKey[0])) && query.queryKey[0] !== 'me',
         })
@@ -132,13 +134,11 @@ export function AppPersistence() {
     const reconnect = () => void refresh()
     const accountChanged = (event: StorageEvent) => {
       if (event.key !== APP_ACCOUNT_EVENT) return
-      void client.cancelQueries().then(async () => {
-        reconcileAppAccount(client, null)
-        client.setQueryData(['me'], null)
-        window.PraetoriumAppSnapshot = undefined
-        await readAppSnapshot().catch(() => null)
-        void refresh()
-      })
+      accountChangePending = true
+      window.PraetoriumAppSnapshot = undefined
+      void readAppSnapshot()
+        .catch(() => null)
+        .then(() => refresh())
     }
     const cancelInitial = afterInitialScreen(router, () => {
       if (window.PraetoriumAppSnapshot) {

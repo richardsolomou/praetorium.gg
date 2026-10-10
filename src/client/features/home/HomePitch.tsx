@@ -92,8 +92,8 @@ export function HomeIncluded() {
         <p className="mt-2 font-rules text-sm leading-relaxed text-dim">
           Paste a Games Workshop text export from BattleBase or New Recruit. Review any unmatched units or options.
         </p>
-        <Link to="/sign-in" search={{ next: '/rosters', join: true }} className={buttonVariants({ className: 'mt-5 w-full' })}>
-          Create an account to import
+        <Link to="/rosters" className={buttonVariants({ className: 'mt-5 w-full' })}>
+          Try importing a list
         </Link>
       </aside>
     </section>

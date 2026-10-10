@@ -122,6 +122,7 @@ export function CombatMatchup({
   loadoutSpace?: LoadoutSpace | null
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
+  const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
   const [preferences, setPreferences] = useState<Record<string, string>>(initialSettings?.preferences ?? {})
   const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>(initialSettings?.excluded ?? { ranged: [], melee: [] })
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
@@ -605,7 +606,7 @@ export function CombatMatchup({
               )
             })}
           </div>
-          <details data-combat-buffs open className="mt-3 border-t border-edge">
+          <details data-combat-buffs className="mt-3 border-t border-edge">
             <summary
               data-onboarding="simulator-buffs"
               className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -618,7 +619,7 @@ export function CombatMatchup({
             </div>
           </details>
           <section aria-label="Modifiers" className="border-t border-edge">
-            <details data-manual-modifiers open>
+            <details data-manual-modifiers open={modifiersOpen} onToggle={(event) => setModifiersOpen(event.currentTarget.open)}>
               <summary
                 data-onboarding="simulator-modifiers"
                 className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"

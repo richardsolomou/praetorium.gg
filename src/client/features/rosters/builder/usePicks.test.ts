@@ -168,7 +168,7 @@ describe('a unit a reference page asks the builder to add', () => {
     expect(requestedUnit('squad', 3, limits)).toEqual({
       kind: 'refused',
       reason: 'limit',
-      message: 'Limit reached (3/3). Remove a unit or check your army’s construction rules.',
+      message: 'Limit reached',
     })
   })
 

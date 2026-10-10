@@ -118,11 +118,12 @@ test('creating an account from the home page opens the sign-up form', async ({ p
   await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
 })
 
-test('importing from the home page signs up into the roster library', async ({ page }) => {
+test('importing from the home page opens the guest builder', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: 'Create an account to import' }).click()
+  await page.getByRole('link', { name: 'Try importing a list' }).click()
 
-  await expect(page).toHaveURL('/sign-in?next=%2Frosters&join=true')
+  await expect(page).toHaveURL('/rosters')
+  await expect(page.getByRole('button', { name: 'Import roster', exact: true })).toBeVisible()
 })
 
 test('the home page links to GitHub Sponsors', async ({ page }) => {
@@ -361,3 +362,17 @@ test('a player profile fits a phone', async ({ page }) => {
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
+
+for (const width of [390, 1440]) {
+  test(`a finished featured battle omits the repeated result at ${width}px`, async ({ page }, testInfo) => {
+    await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE token = 'preview-league-battle-duel'`
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/')
+    const featured = page.locator('[data-home-featured]')
+    await expect(featured).toHaveAttribute('href', '/battles/preview-league-battle-duel')
+    await expect(featured.getByText('35', { exact: true })).toBeVisible()
+    await expect(featured).not.toContainText('wins')
+    await featured.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath('finished-featured-battle.png') })
+  })
+}

@@ -71,4 +71,8 @@ describe('battle card battlefield label', () => {
   it('keeps a concession visible', () => {
     expect(render({ status: 'finished', result: { concededBy: 'bob', reason: 'conceded' } })).toContain(' · conceded')
   })
+
+  it('does not repeat the score as a result sentence', () => {
+    expect(render({ status: 'finished', scores: [35, 0], result: { concededBy: null, reason: 'completed' } })).not.toContain('wins')
+  })
 })
