@@ -121,6 +121,10 @@
     {
       "name": "seat",
       "definition": "A player's place on a side of a battle; creation seats the whole table at once, reads never take a seat, and seated players operate the battle."
+    },
+    {
+      "name": "friend",
+      "definition": "An account another account has accepted through a request or one-time invite; only friends and practice opponents can be seated in an ordinary battle."
     }
   ]
 }
