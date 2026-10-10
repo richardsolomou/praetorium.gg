@@ -1,5 +1,7 @@
 appId: gg.praetorium
 ---
+- launchApp:
+    stopApp: false
 - extendedWaitUntil:
     visible: '(?i)Welcome back, Native.*'
     timeout: 30000

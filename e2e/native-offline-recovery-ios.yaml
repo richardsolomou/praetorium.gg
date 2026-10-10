@@ -1,5 +1,7 @@
 appId: gg.praetorium
 ---
+- launchApp:
+    stopApp: false
 - extendedWaitUntil:
     visible: 03. Moving
     timeout: 30000

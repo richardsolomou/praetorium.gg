@@ -1,5 +1,7 @@
 appId: gg.praetorium
 ---
+- launchApp:
+    stopApp: false
 - extendedWaitUntil:
     visible: Praetorium home
     timeout: 30000

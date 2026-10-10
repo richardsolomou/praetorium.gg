@@ -47,6 +47,8 @@ Owned rosters are prepared in the background, along with preferences, current pe
 
 Run `just e2e-native-offline-ios` after changing saved launch or storage. It verifies authentication without depending on external push-token registration, then extends the journey with a cold launch while the service is unreachable, saved Home/rosters/battles, durable roster edits and battle commands with database-verified reconnect sync, unvisited references, real renderer termination and recovery while disconnected, and foreground refresh that preserves the open rule. Also verify airplane mode and reopening on a signed physical iPhone; Android needs an available emulator or device.
 
+Each independently invoked offline Maestro flow foregrounds the application without stopping it. The TypeScript journey owns cold app termination and renderer termination; flow startup must preserve that saved state and current route.
+
 Set `NATIVE_AUTH_KEEP_STACK=1` only when leaving a verified simulator preview running. Its origin and owning process are recorded in the ignored `mobile/.simulator-derived/native-auth-e2e/preview-owner.json`; stop that process to clean up its stack.
 
 ## Notifications
