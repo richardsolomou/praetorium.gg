@@ -44,7 +44,8 @@ describe('terrain reference input', () => {
     expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 2 })).toEqual({ ...legacy, geometryVersion: 2 })
     expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 3 })).toEqual({ ...legacy, geometryVersion: 3 })
     expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 6 })).toEqual({ ...legacy, geometryVersion: 6 })
-    expect(terrainReferencesSchema.safeParse({ ...legacy, geometryVersion: 7 }).success).toBe(false)
+    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 7 })).toEqual({ ...legacy, geometryVersion: 7 })
+    expect(terrainReferencesSchema.safeParse({ ...legacy, geometryVersion: 8 }).success).toBe(false)
   })
 })
 

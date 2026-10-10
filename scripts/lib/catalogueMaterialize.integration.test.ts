@@ -13,6 +13,13 @@ let directory: string
 const catalogKey = 'pinned catalog'
 const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
 const owner = '01234567-89ab-cdef-0123-456789abcdef'
+const slot = { archetypeA: 'purge-the-foe', archetypeB: 'reconnaissance', slotIndex: 1 }
+const terrain = [{ footprint: { origin: { x: 0, y: 0 }, widthIn: 4, heightIn: 2, rotationDeg: 0 } }]
+const objectiveLayout = {
+  format: 'battlemaster.tts.chapter-approved-layout-lite',
+  layout: { id, chapterApprovedSlot: slot, chapterApprovedDeploymentKey: 3 },
+  litePayload: { v: 1, k: 'bml', id, b: 'sf60x44', a: 'c', s: ['purge-the-foe', 'reconnaissance', 1, 3], i: [[0, 2, 1, 0, 0, 'c']] },
+}
 
 function sources() {
   return {
@@ -47,7 +54,8 @@ function downloads() {
     if (target.includes('/v1.1/public/tts/layouts')) {
       return Response.json({ catalogKey, layouts: [{ id, owner, layoutKey: 'layout-key' }] })
     }
-    return Response.json({ layout: { id, layoutKey: 'layout-key' } })
+    if (target.includes('/chapter-approved-layout-lite')) return Response.json(objectiveLayout)
+    return Response.json({ layout: { id, layoutKey: 'layout-key', chapterApprovedSlot: slot, chapterApprovedDeploymentKey: 3 }, terrain })
   })
 }
 
@@ -194,22 +202,47 @@ it('accepts the current Battlemaster detail identity', async () => {
             catalogKey,
             layouts: [{ id, owner, ownerUsername: 'superwutz', name: 'Test layout', updatedAt, layoutKey: `${id}@${updatedAt}` }],
           })
-        : Response.json({
-            format: 'battlemaster.data.layout',
-            layout: {
-              name: 'Test layout',
-              owner: 'superwutz',
-              updatedAt,
-              layoutKey: '76fdff708ff2926a',
-              links: { page: `https://battlemaster.online/community/layout/${owner}/${id}` },
-            },
-            terrain: [],
-          }),
+        : String(url).includes('/chapter-approved-layout-lite')
+          ? Response.json(objectiveLayout)
+          : Response.json({
+              format: 'battlemaster.data.layout',
+              layout: {
+                name: 'Test layout',
+                owner: 'superwutz',
+                updatedAt,
+                layoutKey: '76fdff708ff2926a',
+                links: { page: `https://battlemaster.online/community/layout/${owner}/${id}` },
+                chapterApprovedSlot: slot,
+                chapterApprovedDeploymentKey: 3,
+              },
+              terrain,
+            }),
     ),
   )
   await materializeCatalogue(directory, sources(), { source: 'battlemaster', patchesDirectory: path.join(root, 'patches') })
 
   expect(fs.existsSync(path.join(directory, 'battlemaster', 'layouts', `${id}.json`))).toBe(true)
+})
+
+it('materializes layout objectives with their pinned terrain detail', async () => {
+  await materializeCatalogue(directory, sources(), { source: 'battlemaster', patchesDirectory: path.join(root, 'patches') })
+  expect(JSON.parse(fs.readFileSync(path.join(directory, 'battlemaster', 'layouts', `${id}.lite.json`), 'utf8'))).toEqual(objectiveLayout)
+})
+
+it('preserves the active source when objective terrain does not match', async () => {
+  fs.mkdirSync(directory)
+  fs.writeFileSync(path.join(directory, 'current.json'), '{}')
+  const download = downloads()
+  const stale = structuredClone(objectiveLayout)
+  stale.litePayload.i[0]![1] = 20
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string | URL) => (String(url).includes('/chapter-approved-layout-lite') ? Response.json(stale) : download(url))),
+  )
+  await expect(
+    materializeCatalogue(directory, sources(), { source: 'battlemaster', patchesDirectory: path.join(root, 'patches') }),
+  ).rejects.toThrow('objective terrain 1')
+  expect(fs.readdirSync(directory)).toEqual(['current.json'])
 })
 
 it('rejects selected icons containing scripts', async () => {

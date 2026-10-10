@@ -18,6 +18,30 @@ import {
 } from './account'
 import { productSql } from './storage'
 
+test('Insane Bravery is usable once in your Command phase and survives reload', async ({ page }) => {
+  await signUp(page, uniqueName('Bravery'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Bravery roster' })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const use = side.getByRole('button', { name: 'Use Insane Bravery', exact: true })
+  await side.getByRole('button', { name: '+1 CP', exact: true }).click()
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(use).toBeEnabled()
+    await use.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: `test-results/insane-bravery-${width}.png` })
+  }
+  await use.click()
+  await expect(use).toBeDisabled()
+  await page.reload()
+  await expect(use).toHaveAttribute('title', 'Insane Bravery has been used this battle')
+  await side.getByRole('button', { name: 'About Insane Bravery', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Insane Bravery', exact: true })).toContainText('used 1x this battle')
+})
+
 test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page, browser }) => {
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   const opponentName = uniqueName('Scoring opponent')

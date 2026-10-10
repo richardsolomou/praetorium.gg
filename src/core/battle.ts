@@ -14,6 +14,7 @@ import { appliesInMode, cardsDue, cardsDueFromTheirTurn, type MissionAward } fro
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
+import { correctStratagemTiming } from './stratagemCorrections'
 
 /** The phases of a battle round, in the order 11th edition plays them. */
 export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
@@ -2088,7 +2089,7 @@ function applyPrep(player: PlayerState, prep: BattlePrep | null | undefined) {
       Object.values(player.scoredByRound).reduce((total, scores) => total + (scores[round] ?? 0), 0) -
       (player.correctionByRound.secondary[round] ?? 0),
   )
-  player.stratagems = chosen.stratagems.map((stratagem) => ({ ...stratagem, name: stratagem.name.trim() }))
+  player.stratagems = chosen.stratagems.map((stratagem) => correctStratagemTiming({ ...stratagem, name: stratagem.name.trim() }))
   player.secondaries = chosen.secondaries.map((secondary) => ({
     ...(deck?.find((candidate) => candidate.key === secondary.key) ?? secondary),
     name: (deck?.find((candidate) => candidate.key === secondary.key)?.name ?? secondary.name).trim(),

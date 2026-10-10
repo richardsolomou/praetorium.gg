@@ -205,6 +205,31 @@ function renderBoard(geometry: TerrainGeometry, detailed: boolean, flipped = fal
 }
 
 describe('source-backed battlefield annotations', () => {
+  it.each([false, true])('shows six independent layout objectives, including both central areas (detailed: %s)', (detailed) => {
+    const positions = [
+      { x: 25, y: 20 },
+      { x: 35, y: 24 },
+      { x: 12, y: 12 },
+      { x: 48, y: 32 },
+      { x: 25, y: 7 },
+      { x: 35, y: 37 },
+    ]
+    const markup = renderBoard(
+      {
+        board,
+        areas: positions.map((position, index) => ({ ...terrainArea(`area-${index}`), objective: { position, group: null } })),
+      },
+      detailed,
+      false,
+      [{ x: 30, y: 22 }],
+    )
+    expect(
+      [...markup.matchAll(/<g transform="translate\(([^)]+)\) rotate\(90\)">[\s\S]*?<title>Objective terrain<\/title>/g)].map(
+        (match) => match[1],
+      ),
+    ).toEqual(['25 20', '35 24', '12 12', '48 32', '25 7', '35 37'])
+  })
+
   it.each([false, true])('shows the grouped unlettered objective, not lettered non-objectives (detailed: %s)', (detailed) => {
     const geometry: TerrainGeometry = {
       board,

@@ -8,6 +8,8 @@ Game Datacards supplies printed rules, missions, and stratagems; BSData owns exe
 
 Faction-scoped cards supply stratagem cost, phase, turn, and usage restrictions. Recognized printed timing may fill a missing structured phase. The core once-per-phase restriction applies unless a supported whole-stratagem restriction overrides it. Unsupported card mechanics remain unavailable. Empty timing supplies no extra restriction.
 
+Source stratagem corrections belong in `catalogue/patches/datacards/`. Corrections needed by existing snapshots and battles also pass through `src/core/stratagemCorrections.ts` when reading source cards and folding saved preparation. Cover the corrected phase, opponent-turn refusal, usage limit, and unchanged saved log; do not widen a correction beyond its source card ID and erroneous phase.
+
 `set-prep` records the side's complete cards/stratagem pool and server-verified payouts/timing atomically. Allies pool detachments, while core stratagems appear once. Primary ownership derives from ordered force dispositions and the selected mission pack; a selected pack cannot fall through to another. Tactical decks are authoritative, and text-only rosters cannot invent faction/detachment cards.
 
 ## Scoring
@@ -27,9 +29,11 @@ Mission actions and reminder text must come from the same pack as the card. Conf
 
 ## Deployment patterns
 
-Match layout names through pinned source references; missing or ambiguous geometry cannot start a battle. Keep deployment zones, objectives, footprints, walls, and roofs from the same layout. Objective flags determine marker type, not terrain letters. Leave ambiguous labels absent.
+Match layout names through pinned source references; missing or ambiguous geometry cannot start a battle. Keep deployment zones, objectives, footprints, walls, and roofs from the same layout. Battlemaster lite objective codes identify each objective terrain area; merge only the explicit `c1`/`c2` linked pair. Layout objectives replace generic deployment points. Terrain letters identify parts: anchor each badge to the matching transformed part, allowing roof placement while keeping walls and objectives clear. Leave ambiguous labels absent.
 
 Placement arrows anchor to real outline corners; an angled footprint needs a second corner on a straight edge. Derive distances from board dimensions and format them with `terrainGeometry.ts` to the nearest eighth inch. Distinguish printed dimensions from approximate traced positions.
+
+Reflect Battlemaster parts within their declared bounds before applying part and footprint rotations. Geometry changes must advance `TERRAIN_GEOMETRY_VERSION` and its accepted server schema so saved reference queries refresh.
 
 King of the Colosseum uses [Play On Tabletop's published rules](https://playontabletop.com/kotc/) and the verified source patch. Its traced terrain is approximate; the printed board/deployment dimensions are not. The sole valid battlefield is selected automatically and remains enlargeable. [Catalogue data](catalogue-data.md#pricing-and-legality) owns its construction rules and optional homebrew.
 
@@ -41,4 +45,4 @@ Preserve prose, headings, supported lists/tables, clarifications, and labelled f
 
 ## Verification
 
-Cover each independent payout/trigger/usage-limit clause and compare disputed rules with publisher text. Exercise scoring at turn/round boundaries, fixed and tactical modes, caps, draws, returns, and undo. For map changes, compare every affected map with the publisher image for reflection, rotation, wall overlap, objective labels, and placement anchors; inspect preview and enlarged layouts at desktop and phone widths.
+Cover each independent payout/trigger/usage-limit clause and compare disputed rules with publisher text. Exercise scoring at turn/round boundaries, fixed and tactical modes, caps, draws, returns, and undo. Run map browser checks against the snapshot containing the changed source data; an older pin can leave stale assertions passing. For map changes, compare every affected map with the publisher image for reflection, rotation, wall overlap, objective labels, and placement anchors; inspect preview and enlarged layouts at desktop and phone widths.

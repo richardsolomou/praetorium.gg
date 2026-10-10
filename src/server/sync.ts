@@ -5,6 +5,7 @@ import { unzipSync } from 'fflate'
 import { type BattlemasterSource } from './catalogueSources'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { fetchWithRetry } from './fetch'
+import { battlemasterObjectiveHosts } from './battlemasterObjectives'
 
 export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; detail: string | null }
 
@@ -58,7 +59,10 @@ type BattlemasterDetail = {
     owner?: string
     updatedAt?: string
     links?: { page?: string }
+    chapterApprovedSlot?: { archetypeA: string; archetypeB: string; slotIndex: number }
+    chapterApprovedDeploymentKey?: number
   }
+  terrain?: { footprint: { origin: { x: number; y: number }; widthIn: number; heightIn: number; rotationDeg: number } }[]
 }
 
 const MAX_BATTLEMASTER_FILE_BYTES = 5 * 1024 * 1024
@@ -86,8 +90,7 @@ export async function fetchBattlemasterInto(source: BattlemasterSource, target: 
     if (!/^terrain-[0-9a-f-]+$/.test(entry.id)) throw new Error(`unsafe layout id ${entry.id}`)
     if (!/^[0-9a-f-]+$/.test(entry.owner)) throw new Error(`unsafe owner id for ${entry.id}`)
     const detailUrl = new URL(`/v1/public/data/layouts/${entry.owner}/${entry.id}`, source.baseUrl)
-    // Deliberately sequential: the public API and small production instances should
-    // not absorb a 45-request burst for data that changes only when the pin moves.
+    // Fetch sequentially to avoid bursting the public API.
     const detailResponse = await fetchWithRetry(detailUrl)
     if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
     const bytes = new Uint8Array(await detailResponse.arrayBuffer())
@@ -97,6 +100,27 @@ export async function fetchBattlemasterInto(source: BattlemasterSource, target: 
     const detail = JSON.parse(new TextDecoder().decode(bytes)) as BattlemasterDetail
     if (!battlemasterDetailMatches(entry, detail, source.baseUrl)) throw new Error(`${entry.id} changed during sync`)
     fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.json`), bytes)
+    const slot = detail.layout?.chapterApprovedSlot
+    if (!slot) throw new Error(`${entry.id} has no Chapter Approved slot`)
+    const liteUrl = new URL('/v1/public/tts/chapter-approved-layout-lite', source.baseUrl)
+    for (const [key, value] of Object.entries({
+      owner: source.owner,
+      archetypeA: slot.archetypeA,
+      archetypeB: slot.archetypeB,
+      slot: String(slot.slotIndex),
+      text: '0',
+    })) {
+      liteUrl.searchParams.set(key, value)
+    }
+    const liteResponse = await fetchWithRetry(liteUrl)
+    if (!liteResponse.ok) throw new Error(`${entry.id} objective layout answered ${liteResponse.status}`)
+    const liteBytes = new Uint8Array(await liteResponse.arrayBuffer())
+    if (liteBytes.length > MAX_BATTLEMASTER_FILE_BYTES)
+      throw new Error(`${entry.id} objective layout exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
+    total += liteBytes.length
+    if (total > MAX_BATTLEMASTER_TOTAL_BYTES) throw new Error(`layouts exceed ${MAX_BATTLEMASTER_TOTAL_BYTES} bytes`)
+    battlemasterObjectiveHosts(detail, JSON.parse(new TextDecoder().decode(liteBytes)), entry.id)
+    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.lite.json`), liteBytes)
   }
 
   fs.rmSync(target, { recursive: true, force: true })

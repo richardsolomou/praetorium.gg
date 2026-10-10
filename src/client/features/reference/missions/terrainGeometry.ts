@@ -67,7 +67,6 @@ function markerPositionIsOpen(
     )
   )
     return false
-  if (area.parts.some((part) => part.roof?.length && pointInPolygon(candidate, part.roof))) return false
   return area.parts.every((part) =>
     part.walls.every((wall) =>
       wall.points.every((point, index) => {
