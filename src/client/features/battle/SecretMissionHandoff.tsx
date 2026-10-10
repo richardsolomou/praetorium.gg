@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { type Side, sideName } from '../../sides'
 import type { Command } from '../../../core/battle'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
@@ -20,7 +20,7 @@ export function SecretMissionHandoff({ side, pending, onReveal, onCancel, undoab
   return (
     <>
       <BattlePromptDialog open minimizedLabel={`Secret Mission · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
-        <BattleDialogContent showCloseButton={Boolean(onCancel)} minimizeDisabled={pending} className="sm:max-w-md">
+        <BattleDialogContent showCloseButton={Boolean(onCancel)} minimizeDisabled={pending}>
           <DialogHeader>
             <DialogTitle>Secret Mission action · {sideName(side)}</DialogTitle>
             <DialogDescription>

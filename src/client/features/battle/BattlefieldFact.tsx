@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { isKotcLimit } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import { KOTC_MATCHUP_ID, type Deployment } from '../../../contracts/terrain'
 import { terrainMatchupIds, terrainReferencesQuery } from '../../queries'
 import { sides } from '../../sides'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { Fact } from '../../components/Fact'
 import { deploymentObjectiveMarkers, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
 import { TerrainBoard } from '../reference/missions/TerrainBoard'
@@ -54,24 +54,26 @@ export function BattlefieldFact({
           >
             {value}
           </DialogTrigger>
-          <DialogContent className="sm:max-w-xl">
+          <DialogContent size="md">
             <DialogHeader>
               <DialogTitle>{deployment.name}</DialogTitle>
               <DialogDescription>{layout?.name ?? 'Battlefield layout'}</DialogDescription>
             </DialogHeader>
-            {view.settings.terrainLayoutId && !layout ? (
-              <output className="text-dim">
-                {references.isFetching ? 'Loading battlefield…' : 'The saved battlefield layout is unavailable.'}
-              </output>
-            ) : (
-              <TerrainBoard
-                layout={layout ?? { name: deployment.name, pieces: [], geometry: null }}
-                deployment={deployment}
-                templates={references.data?.templates ?? []}
-                ariaLabel={`${deployment.name} battlefield map`}
-                className="mx-auto max-h-[calc(100dvh-10rem)] w-full"
-              />
-            )}
+            <DialogBody>
+              {view.settings.terrainLayoutId && !layout ? (
+                <output className="text-dim">
+                  {references.isFetching ? 'Loading battlefield…' : 'The saved battlefield layout is unavailable.'}
+                </output>
+              ) : (
+                <TerrainBoard
+                  layout={layout ?? { name: deployment.name, pieces: [], geometry: null }}
+                  deployment={deployment}
+                  templates={references.data?.templates ?? []}
+                  ariaLabel={`${deployment.name} battlefield map`}
+                  className="mx-auto max-h-[calc(100dvh-10rem)] w-full"
+                />
+              )}
+            </DialogBody>
           </DialogContent>
         </Dialog>
       </dd>

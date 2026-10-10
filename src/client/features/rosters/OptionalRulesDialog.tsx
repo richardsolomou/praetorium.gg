@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { type OptionalRule, plays } from '../../../core/battle'
 
 type BorrowableDetachment = { id: string; name: string; points: number | null }
@@ -37,8 +37,8 @@ export function OptionalRulesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto p-0 sm:max-w-2xl">
-        <DialogHeader className="border-b border-edge px-5 py-4">
+      <DialogContent size="md">
+        <DialogHeader>
           <DialogTitle className="text-2xl">Optional rules</DialogTitle>
           <DialogDescription>
             Homebrew this battle size can be played with. None of it is on unless this roster picks it, and what it picks is shown wherever
@@ -46,7 +46,7 @@ export function OptionalRulesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 px-5 pb-5">
+        <DialogBody className="gap-5">
           <div className="space-y-2">
             {offered.map((rule) => {
               const on = plays(picked, rule.id)
@@ -124,7 +124,7 @@ export function OptionalRulesDialog({
               ) : null}
             </fieldset>
           ) : null}
-        </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   )

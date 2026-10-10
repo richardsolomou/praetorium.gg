@@ -1,7 +1,7 @@
 import { Minus } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useState, type ComponentProps } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '../../components/Dialog'
 
 type Props = ComponentProps<typeof Dialog> & {
   minimizedLabel?: string
@@ -91,27 +91,30 @@ export function BattlePromptDialog({
 
 export function BattleDialogContent({
   children,
-  showCloseButton,
   minimizeDisabled = false,
   ...props
 }: ComponentProps<typeof DialogContent> & { minimizeDisabled?: boolean }) {
   const inspect = useContext(InspectContext)
   return (
-    <DialogContent {...props} showCloseButton={showCloseButton} data-battle-dialog-content>
+    <DialogContent
+      {...props}
+      data-battle-dialog-content
+      actions={
+        inspect ? (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Minimize dialog"
+            title="Minimize dialog"
+            disabled={minimizeDisabled}
+            onClick={inspect}
+          >
+            <Minus />
+          </Button>
+        ) : null
+      }
+    >
       {children}
-      {inspect ? (
-        <Button
-          variant="outline"
-          size="icon-sm"
-          className={`absolute top-2 ${showCloseButton === false ? 'right-2' : 'right-12'}`}
-          aria-label="Minimize dialog"
-          title="Minimize dialog"
-          disabled={minimizeDisabled}
-          onClick={inspect}
-        >
-          <Minus />
-        </Button>
-      ) : null}
     </DialogContent>
   )
 }

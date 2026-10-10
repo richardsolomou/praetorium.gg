@@ -5,7 +5,6 @@ import { posthog } from 'posthog-js'
 import QRCode from 'qrcode'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -17,6 +16,7 @@ import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } fro
 import { accountMethodsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
 import { GithubSupporter } from './GithubSupporter'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
 
@@ -397,7 +397,7 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
 
   return (
     <form
-      className="space-y-4"
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
         setBusy(true)
@@ -418,31 +418,33 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
         window.location.assign('/')
       }}
     >
-      {hasPassword ? (
-        <div className="space-y-2">
-          <Label htmlFor="delete-account-password">Confirm your password</Label>
-          <Input
-            id="delete-account-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
+      <DialogBody>
+        {hasPassword ? (
+          <div className="space-y-2">
+            <Label htmlFor="delete-account-password">Confirm your password</Label>
+            <Input
+              id="delete-account-password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-dim">Your recent Apple, Google or Discord sign-in confirms this request.</p>
+        )}
+        <label className="flex items-start gap-3 text-sm text-dim">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 accent-destructive"
+            checked={confirmed}
+            onChange={(event) => setConfirmed(event.target.checked)}
           />
-        </div>
-      ) : (
-        <p className="text-sm text-dim">Your recent Apple, Google or Discord sign-in confirms this request.</p>
-      )}
-      <label className="flex items-start gap-3 text-sm text-dim">
-        <input
-          type="checkbox"
-          className="mt-0.5 size-4 accent-destructive"
-          checked={confirmed}
-          onChange={(event) => setConfirmed(event.target.checked)}
-        />
-        <span>I understand that my account and its battles cannot be recovered.</span>
-      </label>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <span>I understand that my account and its battles cannot be recovered.</span>
+        </label>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </DialogBody>
       <DialogFooter>
         <Button type="submit" variant="destructive" disabled={busy || !confirmed || (hasPassword && !password)}>
           {busy ? 'Deleting…' : 'Permanently delete account'}
@@ -488,7 +490,7 @@ function AccountDialog({
 }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="ph-no-capture sm:max-w-lg">
+      <DialogContent className="ph-no-capture">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
@@ -505,7 +507,7 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
   const [error, setError] = useState('')
   return (
     <form
-      className="space-y-4"
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
         setBusy(true)
@@ -520,19 +522,21 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
         }
       }}
     >
-      <div className="space-y-2">
-        <Label htmlFor="create-password">New password</Label>
-        <Input
-          id="create-password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          minLength={PASSWORD_MIN_LENGTH}
-          autoComplete="new-password"
-          required
-        />
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <DialogBody>
+        <div className="space-y-2">
+          <Label htmlFor="create-password">New password</Label>
+          <Input
+            id="create-password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            minLength={PASSWORD_MIN_LENGTH}
+            autoComplete="new-password"
+            required
+          />
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </DialogBody>
       <DialogFooter>
         <Button type="submit" disabled={busy || password.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Creating…' : 'Create password'}
@@ -549,7 +553,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState('')
   return (
     <form
-      className="space-y-4"
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
         setBusy(true)
@@ -564,31 +568,33 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
         setBusy(false)
       }}
     >
-      <p className="text-sm text-dim">Changing your password signs out every other device.</p>
-      <div className="space-y-2">
-        <Label htmlFor="current-password">Current password</Label>
-        <Input
-          id="current-password"
-          type="password"
-          value={currentPassword}
-          onChange={(event) => setCurrentPassword(event.target.value)}
-          autoComplete="current-password"
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="new-password">New password</Label>
-        <Input
-          id="new-password"
-          type="password"
-          value={newPassword}
-          onChange={(event) => setNewPassword(event.target.value)}
-          minLength={PASSWORD_MIN_LENGTH}
-          autoComplete="new-password"
-          required
-        />
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <DialogBody>
+        <p className="text-sm text-dim">Changing your password signs out every other device.</p>
+        <div className="space-y-2">
+          <Label htmlFor="current-password">Current password</Label>
+          <Input
+            id="current-password"
+            type="password"
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="new-password">New password</Label>
+          <Input
+            id="new-password"
+            type="password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            minLength={PASSWORD_MIN_LENGTH}
+            autoComplete="new-password"
+            required
+          />
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </DialogBody>
       <DialogFooter>
         <Button type="submit" disabled={busy || newPassword.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Changing…' : 'Change password'}
@@ -612,8 +618,10 @@ function RemoveMethodDialog({
   const label = method === 'credential' ? 'password sign-in' : SOCIAL_AUTH_PROVIDER_NAMES[method]
   return (
     <AccountDialog title={method === 'credential' ? 'Remove password sign-in' : `Unlink ${label}`} onClose={onClose}>
-      <p className="text-sm text-dim">You will no longer be able to sign in with {label}. Your other linked method will keep working.</p>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <DialogBody>
+        <p className="text-sm text-dim">You will no longer be able to sign in with {label}. Your other linked method will keep working.</p>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </DialogBody>
       <DialogFooter>
         <Button
           type="button"
@@ -656,13 +664,15 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
 
   if (verified) {
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-dim">Save these one-time recovery codes somewhere secure. Each code can be used once.</p>
-        <div className="grid grid-cols-2 gap-2 border border-edge bg-sunken p-3 font-mono text-sm">
-          {backupCodes.map((backupCode) => (
-            <span key={backupCode}>{backupCode}</span>
-          ))}
-        </div>
+      <>
+        <DialogBody>
+          <p className="text-sm text-dim">Save these one-time recovery codes somewhere secure. Each code can be used once.</p>
+          <div className="grid grid-cols-2 gap-2 border border-edge bg-sunken p-3 font-mono text-sm">
+            {backupCodes.map((backupCode) => (
+              <span key={backupCode}>{backupCode}</span>
+            ))}
+          </div>
+        </DialogBody>
         {/* Reading order on a phone: copying comes before the button that puts the codes away for good. */}
         <DialogFooter className="flex-col">
           <Button
@@ -686,14 +696,14 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
             I saved my recovery codes
           </Button>
         </DialogFooter>
-      </div>
+      </>
     )
   }
 
   if (!totpURI) {
     return (
       <form
-        className="space-y-4"
+        className="contents"
         onSubmit={async (event) => {
           event.preventDefault()
           setBusy(true)
@@ -709,18 +719,20 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
           setBusy(false)
         }}
       >
-        <div className="space-y-2">
-          <Label htmlFor="two-factor-password">Confirm your password</Label>
-          <Input
-            id="two-factor-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <DialogBody>
+          <div className="space-y-2">
+            <Label htmlFor="two-factor-password">Confirm your password</Label>
+            <Input
+              id="two-factor-password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        </DialogBody>
         <DialogFooter>
           <Button type="submit" disabled={busy || !password}>
             {busy ? 'Starting…' : 'Continue'}
@@ -732,7 +744,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
 
   return (
     <form
-      className="space-y-4"
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
         setBusy(true)
@@ -746,24 +758,26 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         setBusy(false)
       }}
     >
-      <p className="text-sm text-dim">Scan this QR code in your authenticator app, then enter its current code.</p>
-      {qrCode ? <img src={qrCode} alt="Authenticator setup QR code" className="mx-auto size-60 border border-edge bg-white p-2" /> : null}
-      <details className="text-sm text-dim">
-        <summary className="cursor-pointer">Cannot scan the QR code?</summary>
-        <code className="mt-2 block break-all bg-sunken p-2 text-xs">{totpURI}</code>
-      </details>
-      <div className="space-y-2">
-        <Label htmlFor="two-factor-setup-code">Authenticator code</Label>
-        <Input
-          id="two-factor-setup-code"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          required
-        />
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <DialogBody>
+        <p className="text-sm text-dim">Scan this QR code in your authenticator app, then enter its current code.</p>
+        {qrCode ? <img src={qrCode} alt="Authenticator setup QR code" className="mx-auto size-60 border border-edge bg-white p-2" /> : null}
+        <details className="text-sm text-dim">
+          <summary className="cursor-pointer">Cannot scan the QR code?</summary>
+          <code className="mt-2 block break-all bg-sunken p-2 text-xs">{totpURI}</code>
+        </details>
+        <div className="space-y-2">
+          <Label htmlFor="two-factor-setup-code">Authenticator code</Label>
+          <Input
+            id="two-factor-setup-code"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            required
+          />
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </DialogBody>
       <DialogFooter>
         <Button type="submit" disabled={busy || !code.trim()}>
           {busy ? 'Verifying…' : 'Verify and enable'}
@@ -779,7 +793,7 @@ function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }
   const [error, setError] = useState('')
   return (
     <form
-      className="space-y-4"
+      className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
         setBusy(true)
@@ -793,19 +807,21 @@ function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }
         setBusy(false)
       }}
     >
-      <p className="text-sm text-dim">Your account returns to password-only sign-in and unused recovery codes stop working.</p>
-      <div className="space-y-2">
-        <Label htmlFor="disable-two-factor-password">Confirm your password</Label>
-        <Input
-          id="disable-two-factor-password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
-          required
-        />
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <DialogBody>
+        <p className="text-sm text-dim">Your account returns to password-only sign-in and unused recovery codes stop working.</p>
+        <div className="space-y-2">
+          <Label htmlFor="disable-two-factor-password">Confirm your password</Label>
+          <Input
+            id="disable-two-factor-password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </DialogBody>
       <DialogFooter>
         <Button type="submit" variant="destructive" disabled={busy || !password}>
           {busy ? 'Turning off…' : 'Turn off two-factor authentication'}

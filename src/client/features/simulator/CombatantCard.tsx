@@ -3,7 +3,7 @@ import { useContext, useState, type ReactNode } from 'react'
 import { Plus, Settings, WandSparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
 import { modelCountChoices } from '../../../core/unitSize'
 import { FactionLabel, FactionMark } from '../../components/FactionMark'
@@ -430,23 +430,25 @@ export function CombatantCard({
           if (!open) setSurvivorIndex(null)
         }}
       >
-        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{side} survivors</DialogTitle>
           </DialogHeader>
-          {combatant.sheets.data ? (
-            <CombatSurvivorControls
-              key={companionSurvivors?.allocationKey ?? combatant.allocationKey}
-              original={companionSurvivors?.original ?? combatant.sheets.data.carriers}
-              models={companionSurvivors?.models ?? models}
-              selected={companionSurvivors ? companionSurvivors.selected : combatant.survivors}
-              onSelect={(carriers) => {
-                if (companionSurvivors) combatant.setAllocation(companionSurvivors.allocationKey, carriers)
-                else combatant.setSurvivors(carriers)
-                setSurvivorIndex(null)
-              }}
-            />
-          ) : null}
+          <DialogBody>
+            {combatant.sheets.data ? (
+              <CombatSurvivorControls
+                key={companionSurvivors?.allocationKey ?? combatant.allocationKey}
+                original={companionSurvivors?.original ?? combatant.sheets.data.carriers}
+                models={companionSurvivors?.models ?? models}
+                selected={companionSurvivors ? companionSurvivors.selected : combatant.survivors}
+                onSelect={(carriers) => {
+                  if (companionSurvivors) combatant.setAllocation(companionSurvivors.allocationKey, carriers)
+                  else combatant.setSurvivors(carriers)
+                  setSurvivorIndex(null)
+                }}
+              />
+            ) : null}
+          </DialogBody>
         </DialogContent>
       </Dialog>
       <Dialog
@@ -455,8 +457,8 @@ export function CombatantCard({
           if (!open) setLoadoutIndex(null)
         }}
       >
-        <DialogContent className="flex h-[calc(100dvh-2rem)] sm:max-w-2xl min-w-0 flex-col gap-0 overflow-hidden p-0">
-          <DialogHeader className="shrink-0 flex-row items-center justify-between gap-3 border-b border-edge p-4 pr-12">
+        <DialogContent size="md" fill>
+          <DialogHeader>
             <DialogTitle className="min-w-0">
               {side} · {loadoutIndex === null ? 'Loadout' : (members.find((member) => member.index === loadoutIndex)?.name ?? 'Loadout')}
             </DialogTitle>

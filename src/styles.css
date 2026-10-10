@@ -185,21 +185,24 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     bottom: calc(5rem + env(safe-area-inset-bottom));
   }
 
-  html:has([data-battle-prompt]) [data-slot='dialog-content'] {
-    top: calc((100dvh - 4rem - env(safe-area-inset-bottom)) / 2);
-    max-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
-  }
-
-  html [data-slot='dialog-content'][data-mobile-fullscreen],
-  html:has([data-battle-prompt]) [data-slot='dialog-content'][data-mobile-fullscreen] {
-    top: 0;
-    left: 0;
+  /* A compact dialog is a screen of its own; `src/client/components/Dialog.tsx` keeps its header in place. */
+  html [data-slot='dialog-content'] {
+    inset: 0;
     width: 100%;
     max-width: none;
-    height: calc(100dvh - 4rem - env(safe-area-inset-bottom));
-    max-height: calc(100dvh - 4rem - env(safe-area-inset-bottom));
+    height: 100dvh;
+    max-height: none;
     translate: none;
-    border-radius: 0;
+    border-width: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Battle prompts leave the application tabs reachable. */
+  html:has([data-battle-prompt]) [data-slot='dialog-content'] {
+    bottom: auto;
+    height: calc(100dvh - 4rem - env(safe-area-inset-bottom));
+    padding-bottom: 0;
   }
 
   html:not([data-native-app='true']) [data-web-app-chrome] {

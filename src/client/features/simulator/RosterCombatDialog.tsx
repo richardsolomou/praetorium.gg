@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from '../battle/BattlePromptDialog'
 import { CombatSimulatorMatchup } from './CombatSimulator'
 import type { CombatRoster } from './useCombatant'
@@ -17,13 +17,13 @@ export function CombatDialog({ children, onClose, battle = false }: { children: 
   const Content = battle ? BattleDialogContent : DialogContent
   return (
     <Root open onOpenChange={(open) => !open && onClose()} minimizedLabel="Combat simulator" resumeLabel="Return to simulator">
-      <Content data-mobile-fullscreen className="flex h-[90dvh] min-w-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogHeader className="shrink-0 border-b border-edge p-4 pr-12">
+      <Content size="md" fill>
+        <DialogHeader>
           <DialogTitle>Combat simulator</DialogTitle>
         </DialogHeader>
-        <div data-simulator-scroll className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+        <DialogBody data-simulator-scroll className="block p-0">
           {children}
-        </div>
+        </DialogBody>
       </Content>
     </Root>
   )

@@ -12,7 +12,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { alliedLeagueRosterLimit, leagueRevealChecklist, type LeagueEntryView, type LeagueRevealCheck } from '../../../core/league'
 import {
@@ -24,6 +23,7 @@ import {
   revealLeague,
   unsealLeagueRoster,
 } from '../../functions'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { friendshipsQuery } from '../../queries'
@@ -783,7 +783,7 @@ function AddFriends({ league, token }: { league: League; token: string }) {
         <UserPlus /> Add friends
       </Button>
       <Dialog open={open} onOpenChange={(next) => !add.isPending && setOpen(next)}>
-        <DialogContent showCloseButton={!add.isPending} aria-busy={add.isPending} className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+        <DialogContent showCloseButton={!add.isPending} aria-busy={add.isPending}>
           <DialogHeader>
             <DialogTitle className="text-2xl">Add friends</DialogTitle>
             <DialogDescription>
@@ -791,39 +791,41 @@ function AddFriends({ league, token }: { league: League; token: string }) {
               {places === null ? '' : ` ${places === 1 ? '1 place' : `${places} places`} left.`}
             </DialogDescription>
           </DialogHeader>
-          {!friendships ? (
-            <p className="text-sm text-dim">Loading friends…</p>
-          ) : !candidates.length ? (
-            <p className="text-sm text-dim">
-              {friendships.friends.length ? 'Every friend is already in this event.' : 'Add friends first, then enter them here.'}
-            </p>
-          ) : (
-            <ul className="divide-y divide-edge border border-edge bg-panel">
-              {candidates.map((friend) => {
-                const checked = picked.includes(friend.id)
-                return (
-                  <li key={friend.id}>
-                    <label className="flex cursor-pointer items-center gap-3 p-3 pointer-coarse:min-h-11">
-                      <input
-                        type="checkbox"
-                        className="size-5 accent-parchment"
-                        checked={checked}
-                        disabled={add.isPending || (!checked && places !== null && picked.length >= places)}
-                        onChange={() => setPicked(checked ? picked.filter((id) => id !== friend.id) : [...picked, friend.id])}
-                      />
-                      <PlayerAvatar name={friend.name} image={friend.image} className="size-8 text-3xs" />
-                      <span className="min-w-0 truncate font-bold uppercase">{friend.name}</span>
-                    </label>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          {add.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(add.error)}
-            </p>
-          ) : null}
+          <DialogBody>
+            {!friendships ? (
+              <p className="text-sm text-dim">Loading friends…</p>
+            ) : !candidates.length ? (
+              <p className="text-sm text-dim">
+                {friendships.friends.length ? 'Every friend is already in this event.' : 'Add friends first, then enter them here.'}
+              </p>
+            ) : (
+              <ul className="divide-y divide-edge border border-edge bg-panel">
+                {candidates.map((friend) => {
+                  const checked = picked.includes(friend.id)
+                  return (
+                    <li key={friend.id}>
+                      <label className="flex cursor-pointer items-center gap-3 p-3 pointer-coarse:min-h-11">
+                        <input
+                          type="checkbox"
+                          className="size-5 accent-parchment"
+                          checked={checked}
+                          disabled={add.isPending || (!checked && places !== null && picked.length >= places)}
+                          onChange={() => setPicked(checked ? picked.filter((id) => id !== friend.id) : [...picked, friend.id])}
+                        />
+                        <PlayerAvatar name={friend.name} image={friend.image} className="size-8 text-3xs" />
+                        <span className="min-w-0 truncate font-bold uppercase">{friend.name}</span>
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {add.error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {errorMessage(add.error)}
+              </p>
+            ) : null}
+          </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={add.isPending} onClick={() => setOpen(false)}>
               Cancel

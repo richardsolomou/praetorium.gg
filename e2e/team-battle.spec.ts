@@ -42,7 +42,7 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
   await page.screenshot({ path: `test-results/${screenshot}-desktop.png`, fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  expect(await dialog.locator('[data-slot="dialog-body"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: `test-results/${screenshot}-phone.png`, fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 }

@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QrCode } from 'lucide-react'
 import { useEffect, useState, type ComponentProps } from 'react'
 import { posthog } from 'posthog-js'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { activeFriendInviteQuery } from '../../queries'
 import { cancelFriendInvite, createFriendInvite } from '../../functions'
 import { errorMessage } from '../../queryClient'
@@ -88,23 +88,25 @@ export function InviteQr({
       <DialogTrigger render={<Button variant="outline" {...trigger} disabled={disabled} />}>
         <QrCode /> Scan invite
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite a friend</DialogTitle>
           <DialogDescription>
             Your friend can scan this one-time link, sign in or create an account, then accept your invite.
           </DialogDescription>
         </DialogHeader>
-        {failed ? (
-          <p role="alert" className="text-sm text-destructive">
-            Could not make a QR code. Close this window and use Share invite.
-          </p>
-        ) : image?.url === url ? (
-          <img src={image.data} alt="Friend invite QR code" className="mx-auto size-64 bg-white" />
-        ) : (
-          <output className="text-sm text-dim">Preparing the invite…</output>
-        )}
-        <p className="break-all text-xs text-dim">{url}</p>
+        <DialogBody>
+          {failed ? (
+            <p role="alert" className="text-sm text-destructive">
+              Could not make a QR code. Close this window and use Share invite.
+            </p>
+          ) : image?.url === url ? (
+            <img src={image.data} alt="Friend invite QR code" className="mx-auto size-64 bg-white" />
+          ) : (
+            <output className="text-sm text-dim">Preparing the invite…</output>
+          )}
+          <p className="break-all text-xs text-dim">{url}</p>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   )

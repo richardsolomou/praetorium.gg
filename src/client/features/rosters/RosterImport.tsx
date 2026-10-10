@@ -4,9 +4,9 @@ import { Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { importRoster, saveRoster } from '../../functions'
 import { errorMessage } from '../../queryClient'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
@@ -135,7 +135,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
         <FileUp /> Import roster
       </Button>
       <Dialog open={open} onOpenChange={(next) => !working && setOpen(next)}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle className="text-2xl">Import roster</DialogTitle>
             <DialogDescription>
@@ -145,81 +145,83 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
             </DialogDescription>
           </DialogHeader>
 
-          {review ? (
-            <div className="space-y-3">
-              <p className="text-sm">
-                <span className="font-semibold">{review.name}</span> · {review.units.length} matched{' '}
-                {review.units.length === 1 ? 'entry' : 'entries'}
-              </p>
-              {review.unknown.length || review.unplaced.length ? (
-                <p className="text-xs text-dim">
-                  Missing units will be left out. Unmatched equipment uses the datasheet defaults; check it in the builder.
+          <DialogBody>
+            {review ? (
+              <div className="space-y-3">
+                <p className="text-sm">
+                  <span className="font-semibold">{review.name}</span> · {review.units.length} matched{' '}
+                  {review.units.length === 1 ? 'entry' : 'entries'}
                 </p>
-              ) : null}
-              <Shortfall
-                title="Will not be imported"
-                rows={review.unknown.map((entry) => ({ key: entry.name, name: entry.name, lines: [entry.reason] }))}
-              />
-              <Shortfall
-                title="Will arrive as their datasheets build them"
-                rows={review.unplaced.map((entry) => ({
-                  key: entry.unit,
-                  name: entry.unit,
-                  lines: entry.choices.map((choice) => `Could not apply ${choice.name}: ${choice.reason}`),
-                }))}
-              />
-              <Button className="w-full" disabled={working} onClick={() => accept(review)}>
-                {keep.isPending ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : onImport && !review.unknown.length && !review.unplaced.length ? (
-                  <Copy />
-                ) : (
-                  <TriangleAlert />
-                )}
-                {onImport ? 'Open imported draft' : 'Import anyway'}
-              </Button>
-              {onImport ? (
-                <p className="text-xs text-dim">
-                  No account needed. This device keeps the draft; sign in when you want to save it to your account.
-                </p>
-              ) : null}
-              <Button
-                variant="outline"
-                disabled={working}
-                onClick={() => {
-                  bring.reset()
-                  keep.reset()
-                }}
-              >
-                Edit pasted text
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="roster-text" className="eyebrow">
-                Roster text
-              </Label>
-              <Textarea
-                id="roster-text"
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                placeholder="Paste Games Workshop roster text…"
-                className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
-                disabled={working}
-                maxLength={200_000}
-              />
-              <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
-                {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
-                Import pasted roster
-              </Button>
-            </div>
-          )}
+                {review.unknown.length || review.unplaced.length ? (
+                  <p className="text-xs text-dim">
+                    Missing units will be left out. Unmatched equipment uses the datasheet defaults; check it in the builder.
+                  </p>
+                ) : null}
+                <Shortfall
+                  title="Will not be imported"
+                  rows={review.unknown.map((entry) => ({ key: entry.name, name: entry.name, lines: [entry.reason] }))}
+                />
+                <Shortfall
+                  title="Will arrive as their datasheets build them"
+                  rows={review.unplaced.map((entry) => ({
+                    key: entry.unit,
+                    name: entry.unit,
+                    lines: entry.choices.map((choice) => `Could not apply ${choice.name}: ${choice.reason}`),
+                  }))}
+                />
+                <Button className="w-full" disabled={working} onClick={() => accept(review)}>
+                  {keep.isPending ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : onImport && !review.unknown.length && !review.unplaced.length ? (
+                    <Copy />
+                  ) : (
+                    <TriangleAlert />
+                  )}
+                  {onImport ? 'Open imported draft' : 'Import anyway'}
+                </Button>
+                {onImport ? (
+                  <p className="text-xs text-dim">
+                    No account needed. This device keeps the draft; sign in when you want to save it to your account.
+                  </p>
+                ) : null}
+                <Button
+                  variant="outline"
+                  disabled={working}
+                  onClick={() => {
+                    bring.reset()
+                    keep.reset()
+                  }}
+                >
+                  Edit pasted text
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="roster-text" className="eyebrow">
+                  Roster text
+                </Label>
+                <Textarea
+                  id="roster-text"
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder="Paste Games Workshop roster text…"
+                  className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
+                  disabled={working}
+                  maxLength={200_000}
+                />
+                <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
+                  {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
+                  Import pasted roster
+                </Button>
+              </div>
+            )}
 
-          {failure ? (
-            <p role="alert" className="whitespace-pre-line text-sm text-destructive">
-              {errorMessage(failure)}
-            </p>
-          ) : null}
+            {failure ? (
+              <p role="alert" className="whitespace-pre-line text-sm text-destructive">
+                {errorMessage(failure)}
+              </p>
+            ) : null}
+          </DialogBody>
           <DialogFooter>
             <Button variant="ghost" disabled={working} onClick={() => setOpen(false)}>
               Cancel

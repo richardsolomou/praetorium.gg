@@ -2,16 +2,6 @@ import { ArrowDownUp, ListFilter } from 'lucide-react'
 import { Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
@@ -22,6 +12,17 @@ import {
 import { Label } from '@/components/ui/label'
 import { GAME_SIZES } from '../../../core/battle'
 import type { RosterVisibility } from '../../../core/savedRoster'
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../../components/Dialog'
 import { SearchableSelect, type SearchableGroup } from '../../components/SearchableSelect'
 import type { RosterSort } from './rosterSort'
 
@@ -119,7 +120,7 @@ export function RosterFilters({
             <DialogTitle>Filter rosters</DialogTitle>
             <DialogDescription>Narrow the library to the lists you want to see.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
+          <DialogBody className="gap-3">
             <Field
               label="Battle size"
               value={value.limit ? String(value.limit) : 'all'}
@@ -138,7 +139,7 @@ export function RosterFilters({
               groups={SHARING_GROUPS}
               onChange={(chosen) => onChange({ ...value, visibility: chosen === 'all' ? undefined : (chosen as RosterVisibility) })}
             />
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="ghost" disabled={!active} onClick={() => onChange({ sort: value.sort })} className="sm:mr-auto sm:ml-0">
               Clear filters

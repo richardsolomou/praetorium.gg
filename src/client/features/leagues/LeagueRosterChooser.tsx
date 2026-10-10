@@ -3,8 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { FileLock2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { errorMessage } from '../../queryClient'
 import { savedRosterSummariesQuery } from '../../queries'
 import { RosterChoices } from '../rosters/RosterChoices'
@@ -36,7 +36,7 @@ export function RosterChooser({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle className="text-2xl">Seal a roster</DialogTitle>
           <DialogDescription>
@@ -45,33 +45,35 @@ export function RosterChooser({
               : `Only your ${requiredLimit.toLocaleString()}-point lists. Nobody sees it until reveal, and you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>
-        {error || rosterQuery.error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(error ?? rosterQuery.error)}
-          </p>
-        ) : null}
-        {rosterQuery.isPending ? (
-          <RosterChooserSkeleton />
-        ) : rosters.length ? (
-          <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={(roster) => setSelectedId(roster.id)} />
-        ) : (
-          <div className="border border-edge bg-panel p-5 text-center">
-            <p className="text-sm text-dim">
-              {requiredLimit === null
-                ? 'Build or import a list first.'
-                : `Build or import a ${requiredLimit.toLocaleString()}-point list first.`}
+        <DialogBody>
+          {error || rosterQuery.error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(error ?? rosterQuery.error)}
             </p>
-            <Button
-              className="mt-3"
-              nativeButton={false}
-              render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
-            >
-              Go to rosters
-            </Button>
-          </div>
-        )}
+          ) : null}
+          {rosterQuery.isPending ? (
+            <RosterChooserSkeleton />
+          ) : rosters.length ? (
+            <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={(roster) => setSelectedId(roster.id)} />
+          ) : (
+            <div className="border border-edge bg-panel p-5 text-center">
+              <p className="text-sm text-dim">
+                {requiredLimit === null
+                  ? 'Build or import a list first.'
+                  : `Build or import a ${requiredLimit.toLocaleString()}-point list first.`}
+              </p>
+              <Button
+                className="mt-3"
+                nativeButton={false}
+                render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
+              >
+                Go to rosters
+              </Button>
+            </div>
+          )}
+        </DialogBody>
         {rosters.length ? (
-          <DialogFooter className="sticky bottom-0 bg-popover">
+          <DialogFooter>
             <Button variant="outline" disabled={pending} onClick={onClose}>
               Cancel
             </Button>

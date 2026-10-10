@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -295,7 +295,7 @@ export function RosterSetupDialog({
     </>
   )
   const fields = (
-    <div className={inline ? 'space-y-5' : 'space-y-5 px-5'}>
+    <div className="space-y-5">
       <div className={`grid gap-4 ${editions.length > 1 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <div data-onboarding="setup-faction">
           <Label className="eyebrow block" htmlFor="setup-faction">
@@ -677,23 +677,23 @@ export function RosterSetupDialog({
         </section>
       ) : (
         <Dialog open={open} onOpenChange={onOpenChange}>
-          <DialogContent className="p-0 sm:max-w-2xl">
-            <DialogHeader className="border-b border-edge px-5 py-4">
+          <DialogContent size="md">
+            <DialogHeader>
               <DialogTitle className="text-2xl">{title}</DialogTitle>
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
-            {fields}
-            <DialogFooter className="m-0 px-5 py-4">{actions}</DialogFooter>
+            <DialogBody>{fields}</DialogBody>
+            <DialogFooter>{actions}</DialogFooter>
           </DialogContent>
         </Dialog>
       )}
       <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
-        <DialogContent id="detachment-reference-dialog" initialFocus={false} className="p-0 sm:max-w-5xl">
+        <DialogContent id="detachment-reference-dialog" initialFocus={false} size="lg">
           <DialogHeader className="sr-only">
             <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
             <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>
           </DialogHeader>
-          <div className="p-5">
+          <DialogBody>
             {reference ? (
               <DetachmentReference
                 catalogueId={reference.catalogueId}
@@ -702,7 +702,7 @@ export function RosterSetupDialog({
                 faction={faction?.id === reference.catalogueId ? faction : undefined}
               />
             ) : null}
-          </div>
+          </DialogBody>
         </DialogContent>
       </Dialog>
     </>

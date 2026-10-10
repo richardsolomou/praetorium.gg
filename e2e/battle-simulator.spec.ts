@@ -51,7 +51,7 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
     await survivors.screenshot({ path: `test-results/simulator-unit-equipment-survivors-${width}.png` })
-    expect(await survivors.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    expect(await survivors.locator('[data-slot="dialog-body"]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
   }
   await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
@@ -90,7 +90,7 @@ for (const width of [1440, 390, 900]) {
     await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
     await squad.getByRole('button', { name: 'Take a wound off Intercessor Squad' }).click()
     await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
-    expect(await army.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    expect(await army.locator('[data-slot="dialog-body"]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
     await expect(army.getByRole('button', { name: /^Simulate/ })).toHaveCount(0)
     await army.getByRole('button', { name: 'Close', exact: true }).click()
     await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
@@ -129,11 +129,8 @@ for (const width of [1440, 390, 900]) {
     await expect
       .poll(async () => Number(await (await estimate(simulator, 'Melee')).locator('.readout').nth(1).textContent()))
       .toBeLessThan(woundedKills)
-    expect(await simulator.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
-    await simulator.evaluate((node) => {
-      const content = node.querySelector('.overflow-y-auto')
-      if (content) content.scrollTop = 0
-    })
+    expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    await simulator.locator('[data-simulator-scroll]').evaluate((element) => (element.scrollTop = 0))
     await simulator.screenshot({ path: `test-results/battle-simulator-${width}.png` })
     await simulator.getByRole('button', { name: 'Close', exact: true }).click()
     await panel.getByRole('button', { name: `Open ${roster}` }).click()
@@ -276,7 +273,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await simulator.screenshot({ path: 'test-results/battle-simulator-auras.png' })
   for (const width of [390, 900]) {
     await page.setViewportSize({ width, height: 1000 })
-    expect(await simulator.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
     await attacker.scrollIntoViewIfNeeded()
     await simulator.screenshot({ path: `test-results/battle-simulator-auras-${width}.png` })
   }

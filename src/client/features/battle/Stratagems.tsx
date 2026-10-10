@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { EllipsisVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
@@ -151,21 +151,23 @@ function StratagemCard({
         >
           {stratagem.name}
         </DialogTrigger>
-        <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+        <BattleDialogContent size="md">
           <DialogHeader>
             <DialogTitle>{stratagem.name}</DialogTitle>
             <DialogDescription className="eyebrow">{timing}</DialogDescription>
           </DialogHeader>
-          <p className="flex items-baseline justify-between gap-3">
-            <span className="chip">{stratagem.cp} CP</span>
-            <span className="readout text-xs text-dim">used {stratagem.uses}x this battle</span>
-          </p>
-          {written?.description ? (
-            <RuleText text={written.description} rules={written.keywordRules} />
-          ) : (
-            <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
-          )}
-          {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
+          <DialogBody>
+            <p className="flex items-baseline justify-between gap-3">
+              <span className="chip">{stratagem.cp} CP</span>
+              <span className="readout text-xs text-dim">used {stratagem.uses}x this battle</span>
+            </p>
+            {written?.description ? (
+              <RuleText text={written.description} rules={written.keywordRules} />
+            ) : (
+              <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
+            )}
+            {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
+          </DialogBody>
         </BattleDialogContent>
       </BattlePromptDialog>
       {actionable ? (
@@ -212,15 +214,15 @@ function StratagemCard({
         minimizedLabel="New Orders"
         resumeLabel="Return to New Orders"
       >
-        <BattleDialogContent className="border-parchment/60 sm:max-w-md">
-          <DialogHeader className="pr-7">
+        <BattleDialogContent className="border-parchment/60">
+          <DialogHeader>
             <div className="flex items-center justify-between gap-3">
               <DialogTitle className="text-parchment">New Orders</DialogTitle>
               <span className="chip shrink-0">{newOrdersCost ?? stratagem.cp} CP</span>
             </div>
             <DialogDescription>Pick an active secondary mission to discard. Its replacement will be drawn at random.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <DialogBody className="gap-2">
             <p className="eyebrow">Choose a mission to replace</p>
             {replaceable.map((secondary) => (
               <Button
@@ -245,7 +247,7 @@ function StratagemCard({
                 </span>
               </Button>
             ))}
-          </div>
+          </DialogBody>
         </BattleDialogContent>
       </BattlePromptDialog>
     </div>

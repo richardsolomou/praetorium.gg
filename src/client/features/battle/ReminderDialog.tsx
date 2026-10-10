@@ -1,6 +1,6 @@
 import { BellRing } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterReminder } from '../../../core/reminders'
 import type { ReminderDismissalScope } from './reminderDismissals'
@@ -22,7 +22,7 @@ export function ReminderDialog({
 }) {
   return (
     <BattlePromptDialog open minimizedLabel="Battle reminders">
-      <BattleDialogContent className="sm:max-w-lg" showCloseButton={false}>
+      <BattleDialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BellRing className="size-4 text-parchment" /> Battle {reminders.length === 1 ? 'reminder' : 'reminders'}
@@ -30,7 +30,7 @@ export function ReminderDialog({
           <DialogDescription>{moment}</DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[50dvh] space-y-2 overflow-y-auto">
+        <DialogBody className="gap-2">
           {reminders.map((reminder) => (
             <article key={reminder.key} className="border border-edge bg-card p-3">
               <div className="flex items-start justify-between gap-3">
@@ -65,7 +65,7 @@ export function ReminderDialog({
               ) : null}
             </article>
           ))}
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <Button onClick={onDone}>{confirmLabel}</Button>
