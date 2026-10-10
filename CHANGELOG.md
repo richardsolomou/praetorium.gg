@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.112.1
+
+### Patch Changes
+
+- c840942: Publish guide illustrations before deployment so they remain available throughout rollouts.
+
 ## 0.112.0
 
 ### Minor Changes
