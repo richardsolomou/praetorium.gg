@@ -6,6 +6,7 @@ import {
   createBattle,
   createRoster,
   PRACTICE_OPPONENT,
+  retryUntilVisible,
   signUp,
   takeTheTurn,
   uniqueName,
@@ -15,11 +16,14 @@ import {
 const prompt = (page: Page) => page.getByRole('note', { name: 'Getting started' })
 
 async function launch(page: Page, task: string) {
-  await page
-    .getByRole('button', { name: /Account menu for/ })
-    .filter({ visible: true })
-    .click()
-  await page.getByRole('menuitem', { name: /Getting started/ }).click()
+  const gettingStarted = page.getByRole('menuitem', { name: /Getting started/ })
+  await retryUntilVisible(gettingStarted, () =>
+    page
+      .getByRole('button', { name: /Account menu for/ })
+      .filter({ visible: true })
+      .click(),
+  )
+  await gettingStarted.click()
   await page
     .getByRole('dialog', { name: 'Learn Praetorium' })
     .getByRole('button', { name: new RegExp(`^${task}`) })
@@ -95,7 +99,21 @@ for (const width of [1440, 390]) {
     await expect(prompt(page)).toContainText('Review rules and points changes')
     await expect(page).toHaveURL(/\/data-updates$/)
     await page.screenshot({ path: `test-results/onboarding-army-tools-${width}.png` })
-    await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
+    let releaseReads!: () => void
+    const paused = new Promise<void>((resolve) => {
+      releaseReads = resolve
+    })
+    await page.route('**/_serverFn/**', async (route) => {
+      if (route.request().method() === 'GET') await paused
+      await route.continue()
+    })
+    try {
+      await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
+      await expect(prompt(page).getByRole('button', { name: 'Finish tour' })).toBeDisabled()
+    } finally {
+      releaseReads()
+    }
+    await page.unrouteAll({ behavior: 'wait' })
     await expect(prompt(page)).toBeHidden()
     await page.reload()
     await page
@@ -187,6 +205,7 @@ test('the first-army guide explains Warlords, leader attachments, and reminders'
   await next(page, 'Your list')
   await expect(prompt(page)).toContainText('Points and legality')
   await page.locator('[data-unit="Captain"]').click()
+  await expect(page.locator('[data-onboarding="loadout-wargear"]').first()).toBeVisible()
   await next(page, 'Shape the unit')
   for (const [title, target] of [
     ['How many models', 'unit-models'],

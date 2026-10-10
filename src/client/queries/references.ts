@@ -92,7 +92,7 @@ export const datasheetSlugQuery = (catalogueId: string, slug: string) =>
 export const detachmentRulesQuery = (catalogueId: string, detachmentNames: readonly string[]) =>
   queryOptions({
     queryKey: ['detachment-rules', catalogueId, detachmentNames],
-    queryFn: () => detachmentRules({ data: { catalogueId, detachmentNames: [...detachmentNames] } }),
+    queryFn: ({ signal }) => detachmentRules({ data: { catalogueId, detachmentNames: [...detachmentNames] }, signal }),
     enabled: Boolean(catalogueId && detachmentNames.length),
     staleTime: Infinity,
   })

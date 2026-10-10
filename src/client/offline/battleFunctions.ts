@@ -38,7 +38,7 @@ import {
   attemptLocalSync,
   type LocalRoster,
 } from './localRuntime'
-import { localConstruction } from './construction'
+import { constructionData, localConstruction } from './construction'
 import { cachedRead, cachedPage } from './reads'
 
 export function workspaceScreen(
@@ -95,20 +95,28 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
   const workspace = await localDocument<BattleWorkspace | null>(resource)
   if (workspace === null && (await hasLocalChanges(resource))) return { kind: 'unavailable' }
   if (workspace && owner && (!navigator.onLine || (await hasLocalChanges(resource)))) return workspaceScreen(workspace, owner.id)
-  const result = await cachedRead(['battle', args.data.token], async () => {
-    const screen = await server.openBattle(args)
-    if (screen?.kind === 'battle' && localEngine()) {
-      const fresh = await battleWorkspace(args)
-      await rememberBattle(fresh.workspace, owner?.id)
-      if (await hasLocalChanges(resource)) {
-        const current = await localDocument<BattleWorkspace>(resource)
-        if (current && localOwner()?.id === owner?.id) return workspaceScreen(current, owner!.id)
+  try {
+    const result = await cachedRead(['battle', args.data.token], async () => {
+      const screen = await server.openBattle(args)
+      if (screen?.kind === 'battle' && localEngine()) {
+        const fresh = await battleWorkspace(args)
+        await rememberBattle(fresh.workspace, owner?.id)
+        if (await hasLocalChanges(resource)) {
+          const current = await localDocument<BattleWorkspace>(resource)
+          if (current && localOwner()?.id === owner?.id) return workspaceScreen(current, owner!.id)
+        }
+        return fresh.screen
       }
-      return fresh.screen
-    }
-    return screen
-  })
-  return result
+      return screen
+    })
+    return result
+  } catch (error) {
+    args.signal?.throwIfAborted()
+    const current = await localDocument<BattleWorkspace | null>(resource)
+    args.signal?.throwIfAborted()
+    if (current && owner && localOwner()?.id === owner.id) return workspaceScreen(current, owner.id)
+    throw error
+  }
 }
 
 export async function submit(
@@ -323,11 +331,12 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
 const projectedBattles = new Map<string, string>()
 export function projectBattles(state: LocalState) {
   const client = localClient()
-  if (!client || localOwner()?.id !== state.owner || !localConstruction()) return
+  if (!client || localOwner()?.id !== state.owner || !constructionData()) return
   for (const key of projectedBattles.keys())
     if (!key.startsWith(`${state.owner}:`) || !state.documents[key.slice(state.owner.length + 1)]) projectedBattles.delete(key)
   for (const [resource, document] of Object.entries(state.documents)) {
     if (!resource.startsWith('battle:')) continue
+    if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
     if (!document.data) {
       client.setQueryData(['battle', resource.slice(7)], { kind: 'unavailable' })
       continue

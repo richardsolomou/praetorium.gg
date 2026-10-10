@@ -235,8 +235,15 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   }
 
   const finish = () => {
-    if (focus && isTourTask(focus.task)) updateProgress({ operation: 'complete', task: focus.task })
-    rememberFocus(undefined)
+    if (!focus || !isTourTask(focus.task)) return rememberFocus(undefined)
+    mutation.mutate(
+      { operation: 'complete', task: focus.task },
+      {
+        onSuccess: () => {
+          if (currentFocus.current === focus) rememberFocus(undefined)
+        },
+      },
+    )
   }
 
   if (!data) return null
@@ -249,6 +256,8 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
         stranded={prompted === 'lost'}
         onDismiss={dismiss}
         onFinish={focusedStep.final ? finish : undefined}
+        saving={mutation.isPending}
+        problem={mutation.isError ? 'Could not save your progress. Try again.' : undefined}
         onAdvance={
           next && focusedStep.nextLabel
             ? { label: focusedStep.nextLabel, run: () => void showStep({ task: focusedStep.task, step: next }) }
@@ -324,6 +333,8 @@ function GuidePrompt({
   onDismiss,
   onFinish,
   onOpenPage,
+  saving,
+  problem,
 }: {
   step: (typeof ONBOARDING_UI)[OnboardingStepId]
   stranded: boolean
@@ -331,6 +342,8 @@ function GuidePrompt({
   onDismiss: () => void
   onFinish?: () => void
   onOpenPage: () => void
+  saving: boolean
+  problem?: string
 }) {
   return (
     <section role="note" aria-live="polite" aria-label="Getting started">
@@ -358,10 +371,15 @@ function GuidePrompt({
           {onAdvance.label} <ChevronRight />
         </Button>
       ) : onFinish ? (
-        <Button type="button" size="sm" className="mt-3 w-full" onClick={onFinish}>
+        <Button type="button" size="sm" className="mt-3 w-full" onClick={onFinish} disabled={saving}>
           <Check /> Finish tour
         </Button>
       ) : null}
+      {problem && (
+        <p role="alert" className="mt-2 text-xs text-danger">
+          {problem}
+        </p>
+      )}
     </section>
   )
 }
