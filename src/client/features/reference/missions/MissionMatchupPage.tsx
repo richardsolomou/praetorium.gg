@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { MapPinned } from 'lucide-react'
-import { Dialog, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogTrigger } from '../../../components/Dialog'
 import { MissionActions } from '../../../components/MissionActions'
 import { MissionCardReference } from '../../../components/MissionCardReference'
 import { TerrainBoard } from './TerrainBoard'

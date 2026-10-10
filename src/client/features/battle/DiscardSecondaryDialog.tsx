@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import type { Command } from '../../../core/battle'
 import type { Side } from '../../sides'
 import { sideName } from '../../sides'
@@ -46,8 +46,8 @@ export function DiscardSecondaryDialog({
   return (
     <>
       <BattlePromptDialog open minimizedLabel={`Discard missions · ${sideName(side)}`}>
-        <BattleDialogContent minimizeDisabled={pending} className="border-discarded/60 sm:max-w-lg">
-          <DialogHeader className="text-center">
+        <BattleDialogContent minimizeDisabled={pending} className="border-discarded/60">
+          <DialogHeader className="px-(--dialog-actions) text-center">
             <p className="eyebrow text-discarded">End of turn</p>
             <DialogTitle>Discard tactical secondaries?</DialogTitle>
             <DialogDescription>
@@ -55,31 +55,33 @@ export function DiscardSecondaryDialog({
               still gains at most 1 CP.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-end">
-            <span className={`chip ${side.canGainCp ? 'border-parchment text-parchment' : 'border-edge-strong text-faint'}`}>
-              {side.canGainCp ? 'Will gain 1 CP' : 'CP already gained this round'}
-            </span>
-          </div>
-          <div className="space-y-1.5">
-            {cards.map((card) => {
-              const chosen = selected.includes(card.key)
-              return (
-                <button
-                  key={card.key}
-                  type="button"
-                  aria-pressed={chosen}
-                  disabled={pending}
-                  onClick={() => toggle(card.key)}
-                  className={`flex w-full items-center justify-between gap-2 border px-3 py-2 text-left text-sm font-semibold ${
-                    chosen ? 'border-parchment bg-parchment/10 text-parchment' : 'border-edge bg-card text-bone hover:border-dim'
-                  }`}
-                >
-                  {card.name}
-                  {chosen ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
-                </button>
-              )
-            })}
-          </div>
+          <DialogBody>
+            <div className="flex items-center justify-end">
+              <span className={`chip ${side.canGainCp ? 'border-parchment text-parchment' : 'border-edge-strong text-faint'}`}>
+                {side.canGainCp ? 'Will gain 1 CP' : 'CP already gained this round'}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {cards.map((card) => {
+                const chosen = selected.includes(card.key)
+                return (
+                  <button
+                    key={card.key}
+                    type="button"
+                    aria-pressed={chosen}
+                    disabled={pending}
+                    onClick={() => toggle(card.key)}
+                    className={`flex w-full items-center justify-between gap-2 border px-3 py-2 text-left text-sm font-semibold ${
+                      chosen ? 'border-parchment bg-parchment/10 text-parchment' : 'border-edge bg-card text-bone hover:border-dim'
+                    }`}
+                  >
+                    {card.name}
+                    {chosen ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          </DialogBody>
           <DialogFooter>
             <UndoLatestButton disabled={pending || undoable === null} onClick={undo.request} />
             <Button

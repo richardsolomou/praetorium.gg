@@ -13,7 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PAINTED_ARMY_POINTS, type Command } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
@@ -22,6 +21,7 @@ import { savedRosterSummariesQuery } from '../../../queries'
 import type { Army, Side } from '../../../sides'
 import { ArmyIdentity } from '../ArmyIdentity'
 import { RosterChoices } from '../../rosters/RosterChoices'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
 import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 
@@ -267,7 +267,7 @@ function RosterChooser({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle className="text-2xl">
             {forArmy?.automated ? `Choose ${forArmy.playerName}’s roster` : 'Choose your roster'}
@@ -280,43 +280,45 @@ function RosterChooser({
               : `Rosters built for ${requiredLimit} points, most recently updated first.`}
           </DialogDescription>
         </DialogHeader>
-        <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-          <span>Rosters</span>
-          <span className="readout">{rosters.length}</span>
-        </p>
-        <div className="space-y-2">
-          {loading ? (
-            <div className="space-y-2" aria-label="Loading rosters">
-              {Array.from({ length: 3 }, (_, index) => (
-                <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-1/3" />
-                    <Skeleton className="h-5 w-28" />
+        <DialogBody>
+          <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+            <span>Rosters</span>
+            <span className="readout">{rosters.length}</span>
+          </p>
+          <div className="space-y-2">
+            {loading ? (
+              <div className="space-y-2" aria-label="Loading rosters">
+                {Array.from({ length: 3 }, (_, index) => (
+                  <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-5 w-28" />
+                    </div>
+                    <Skeleton className="h-4 w-20" />
                   </div>
-                  <Skeleton className="h-4 w-20" />
-                </div>
-              ))}
-            </div>
-          ) : rosters.length ? (
-            <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={onChoose} />
-          ) : (
-            <div className="space-y-3 border border-edge bg-sunken p-4">
-              <p className="text-sm text-dim">
-                {savedCount
-                  ? `None of your ${savedCount} saved rosters is built for ${requiredLimit} points.`
-                  : 'You do not have a saved roster yet.'}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
-              >
-                Open your roster library
-              </Button>
-            </div>
-          )}
-        </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                ))}
+              </div>
+            ) : rosters.length ? (
+              <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={onChoose} />
+            ) : (
+              <div className="space-y-3 border border-edge bg-sunken p-4">
+                <p className="text-sm text-dim">
+                  {savedCount
+                    ? `None of your ${savedCount} saved rosters is built for ${requiredLimit} points.`
+                    : 'You do not have a saved roster yet.'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
+                >
+                  Open your roster library
+                </Button>
+              </div>
+            )}
+          </div>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        </DialogBody>
       </DialogContent>
     </Dialog>
   )

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 
 export function RosterExportDialog({ text, onClose }: { text: string | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
@@ -27,12 +27,14 @@ export function RosterExportDialog({ text, onClose }: { text: string | null; onC
         }
       }}
     >
-      <DialogContent className="max-h-[85dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Games Workshop text</DialogTitle>
           <DialogDescription>Copy this roster into a message, document, or another tool.</DialogDescription>
         </DialogHeader>
-        <pre className="min-h-0 overflow-auto whitespace-pre-wrap border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
+        <DialogBody>
+          <pre className="whitespace-pre-wrap border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
+        </DialogBody>
         <DialogFooter>
           <Button onClick={() => void copy()}>
             {copied ? <Check /> : <Copy />}

@@ -259,9 +259,12 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
       .locator('svg text')
       .filter({ hasText: /^8″$/ }),
   ).toHaveCount(2)
-  await alice.getByRole('dialog').evaluate((dialog) => {
-    dialog.scrollTop = 0
-  })
+  await alice
+    .getByRole('dialog')
+    .locator('[data-slot="dialog-body"]')
+    .evaluate((body) => {
+      body.scrollTop = 0
+    })
   await alice.screenshot({ path: 'test-results/setup-colosseum-measurements.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
   expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)

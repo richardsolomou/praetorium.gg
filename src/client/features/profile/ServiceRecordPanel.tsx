@@ -3,8 +3,13 @@ import { Link } from '@tanstack/react-router'
 import { ListFilter } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { CARD_SAMPLE, type CardRecord, type RecordFacets, type ServiceRecord, type Split } from '../../../core/serviceRecord'
+import { routeSlug } from '../../../core/slug'
+import type { PlayerProfileFilter } from '../../queries'
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -12,11 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { CARD_SAMPLE, type CardRecord, type RecordFacets, type ServiceRecord, type Split } from '../../../core/serviceRecord'
-import { routeSlug } from '../../../core/slug'
-import type { PlayerProfileFilter } from '../../queries'
+} from '../../components/Dialog'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
@@ -156,7 +157,7 @@ function RecordFilters({
           <DialogTitle>Filter record</DialogTitle>
           <DialogDescription>Narrow the record to the battles you want it counted from.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3">
+        <DialogBody className="gap-3">
           {offered.map((dimension) => (
             <div key={dimension.key}>
               <Label className="eyebrow block">{dimension.label}</Label>
@@ -190,7 +191,7 @@ function RecordFilters({
               />
             </div>
           ))}
-        </div>
+        </DialogBody>
         <DialogFooter>
           <Button variant="ghost" disabled={!narrowed} onClick={() => onFilter({})} className="sm:mr-auto sm:ml-0">
             Clear

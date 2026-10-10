@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { browserAgentToolCatalog, callBrowserAgentTool, prepareBrowserAgentTool } from '../../../server/functions/agentTools'
 import { meQuery } from '../../queries'
 import { isFetchNetworkFailure } from '../../networkErrors'
@@ -92,7 +92,7 @@ export function WebMcp() {
         if (!open && !saving) approval.dismiss()
       }}
     >
-      <DialogContent showCloseButton={!saving} className="ph-no-capture sm:max-w-lg" aria-busy={saving}>
+      <DialogContent showCloseButton={!saving} className="ph-no-capture" aria-busy={saving}>
         <DialogHeader>
           <DialogTitle>{proposal.tool.title}</DialogTitle>
           <DialogDescription>
@@ -103,31 +103,33 @@ export function WebMcp() {
                 : 'Your assistant proposes this change. Check the details before approving it.'}
           </DialogDescription>
         </DialogHeader>
-        <p className="text-bone">{proposal.summary}</p>
-        <details>
-          <summary className="cursor-pointer text-dim">All proposed changes</summary>
-          <dl className="grid min-w-0 gap-3">
-            {Object.entries(proposal.input).map(([key, value]) => (
-              <div key={key} className="min-w-0">
-                <dt className="eyebrow">{key.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ')}</dt>
-                <dd className="mt-1 break-words whitespace-pre-wrap text-bone">
-                  {value !== null && typeof value === 'object' ? (
-                    <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(value, null, 2)}</pre>
-                  ) : typeof value === 'string' ? (
-                    value
-                  ) : (
-                    (JSON.stringify(value) ?? 'None')
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </details>
-        {proposal.error ? (
-          <p role="alert" className="text-danger">
-            {proposal.error} Check the saved roster or battle before asking your assistant to try again.
-          </p>
-        ) : null}
+        <DialogBody>
+          <p className="text-bone">{proposal.summary}</p>
+          <details>
+            <summary className="cursor-pointer text-dim">All proposed changes</summary>
+            <dl className="grid min-w-0 gap-3">
+              {Object.entries(proposal.input).map(([key, value]) => (
+                <div key={key} className="min-w-0">
+                  <dt className="eyebrow">{key.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ')}</dt>
+                  <dd className="mt-1 break-words whitespace-pre-wrap text-bone">
+                    {value !== null && typeof value === 'object' ? (
+                      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(value, null, 2)}</pre>
+                    ) : typeof value === 'string' ? (
+                      value
+                    ) : (
+                      (JSON.stringify(value) ?? 'None')
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+          {proposal.error ? (
+            <p role="alert" className="text-danger">
+              {proposal.error} Check the saved roster or battle before asking your assistant to try again.
+            </p>
+          ) : null}
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" disabled={saving} onClick={() => approval.dismiss()}>
             {failed ? 'Close' : 'Decline'}

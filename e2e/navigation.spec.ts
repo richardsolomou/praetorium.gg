@@ -817,10 +817,11 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(dialog.getByText('3/3 DP used')).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Take and Hold', exact: true })).toBeVisible()
   await page.setViewportSize({ width: 1600, height: 640 })
-  await expect.poll(() => dialog.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  const body = dialog.locator('[data-slot="dialog-body"]')
+  await expect.poll(() => body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   // One scroll can land short of the end while the dialog is still laying out at the new height.
   await expect(async () => {
-    await dialog.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
+    await body.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
     await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeInViewport({ timeout: 1_000 })
   }).toPass()
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()

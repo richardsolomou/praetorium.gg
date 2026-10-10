@@ -2,7 +2,7 @@ import { exportNativeWork } from '../nativeBridge'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/Dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,7 +162,7 @@ export function SyncStatus() {
         </output>
       ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Saved changes</DialogTitle>
             <DialogDescription>
@@ -170,69 +170,71 @@ export function SyncStatus() {
               the server accepts them. Keep this app installed until your changes sync.
             </DialogDescription>
           </DialogHeader>
-          {problem ? <p className="text-sm text-dim">{problem}</p> : null}
-          {!operations.length ? <p className="text-sm text-dim">All changes have synced.</p> : null}
-          {groups.map((resource) => {
-            const group = operations.filter((operation) => operation.resource === resource)
-            const failed = group.find((operation) => operation.status !== 'pending')
-            const document = state?.documents[resource]?.data as { name?: string; battle?: { token: string } } | null
-            const title =
-              document?.name ||
-              (resource.startsWith('battle:')
-                ? 'Battle'
-                : resource.startsWith('league:')
-                  ? 'League'
-                  : resource.startsWith('query:')
-                    ? 'Preferences'
-                    : 'Saved action')
-            return (
-              <div key={resource} className="space-y-2 border border-edge p-3">
-                <p className="text-sm font-semibold">
-                  {title} · {failed ? 'Needs review' : 'Pending'}
-                </p>
-                <p className="text-sm text-dim">
-                  {failed?.message || `${group.length} saved action${group.length === 1 ? '' : 's'} waiting for a connection.`}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {failed && resource.startsWith('roster:') && document ? (
-                    <Button size="sm" variant="outline" disabled={busy} onClick={() => void keepCopy(resource)}>
-                      Keep as a new roster
-                    </Button>
-                  ) : null}
-                  {failed ? (
-                    <Button size="sm" variant="outline" onClick={() => setDiscard(resource)}>
-                      Use server version
-                    </Button>
-                  ) : null}
+          <DialogBody>
+            {problem ? <p className="text-sm text-dim">{problem}</p> : null}
+            {!operations.length ? <p className="text-sm text-dim">All changes have synced.</p> : null}
+            {groups.map((resource) => {
+              const group = operations.filter((operation) => operation.resource === resource)
+              const failed = group.find((operation) => operation.status !== 'pending')
+              const document = state?.documents[resource]?.data as { name?: string; battle?: { token: string } } | null
+              const title =
+                document?.name ||
+                (resource.startsWith('battle:')
+                  ? 'Battle'
+                  : resource.startsWith('league:')
+                    ? 'League'
+                    : resource.startsWith('query:')
+                      ? 'Preferences'
+                      : 'Saved action')
+              return (
+                <div key={resource} className="space-y-2 border border-edge p-3">
+                  <p className="text-sm font-semibold">
+                    {title} · {failed ? 'Needs review' : 'Pending'}
+                  </p>
+                  <p className="text-sm text-dim">
+                    {failed?.message || `${group.length} saved action${group.length === 1 ? '' : 's'} waiting for a connection.`}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {failed && resource.startsWith('roster:') && document ? (
+                      <Button size="sm" variant="outline" disabled={busy} onClick={() => void keepCopy(resource)}>
+                        Keep as a new roster
+                      </Button>
+                    ) : null}
+                    {failed ? (
+                      <Button size="sm" variant="outline" onClick={() => setDiscard(resource)}>
+                        Use server version
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
+              )
+            })}
+            {operations.length ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void exportWork().catch((error) => setProblem(error instanceof Error ? error.message : 'Export failed.'))}
+                >
+                  Export saved changes
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    void syncLocalWork().catch((error) => setProblem(error instanceof Error ? error.message : 'Waiting to reconnect.'))
+                  }
+                >
+                  Sync now
+                </Button>
+                <Button variant="ghost" onClick={() => setDiscard('*')}>
+                  Discard all saved changes
+                </Button>
               </div>
-            )
-          })}
-          {operations.length ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => void exportWork().catch((error) => setProblem(error instanceof Error ? error.message : 'Export failed.'))}
-              >
-                Export saved changes
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  void syncLocalWork().catch((error) => setProblem(error instanceof Error ? error.message : 'Waiting to reconnect.'))
-                }
-              >
-                Sync now
-              </Button>
-              <Button variant="ghost" onClick={() => setDiscard('*')}>
-                Discard all saved changes
-              </Button>
-            </div>
-          ) : null}
-          <p className="text-xs text-dim">
-            New screens and other players’ updates need a connection. Your saved rosters, references, simulations and downloaded battles
-            remain available offline.
-          </p>
+            ) : null}
+            <p className="text-xs text-dim">
+              New screens and other players’ updates need a connection. Your saved rosters, references, simulations and downloaded battles
+              remain available offline.
+            </p>
+          </DialogBody>
         </DialogContent>
       </Dialog>
       <AlertDialog

@@ -32,11 +32,13 @@ for (const width of [390, 1440]) {
       await expect(loadout.getByRole('combobox')).toHaveCount(0)
       await expect(loadout.locator('[data-slot="scroll-area"]')).toHaveCount(0)
       const overflowing = await army.evaluate((element) =>
-        [element, ...element.querySelectorAll('[data-unit], [data-army-loadout]')].some((node) => node.scrollWidth > node.clientWidth),
+        [element, ...element.querySelectorAll('[data-slot="dialog-body"], [data-unit], [data-army-loadout]')].some(
+          (node) => node.scrollWidth > node.clientWidth,
+        ),
       )
       expect(overflowing).toBe(false)
       await page.screenshot({ path: `test-results/army-loadout-${token}-${width}.png` })
-      await army.evaluate((element) => {
+      await army.locator('[data-slot="dialog-body"]').evaluate((element) => {
         const details = element.querySelector('[data-army-loadout]')!.getBoundingClientRect()
         element.scrollTop += details.top - element.getBoundingClientRect().top + details.height / 2
       })

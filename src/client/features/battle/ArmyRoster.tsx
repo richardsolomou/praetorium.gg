@@ -1,7 +1,7 @@
 import { Minus, Plus, Scroll, Swords } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { type Command, transportLabel, type UnitState } from '../../../core/battle'
 import { armyModels, armyShelves } from './armyUnits'
@@ -110,12 +110,8 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
         minimizedLabel={`${army.playerName} · ${roster.name}`}
         resumeLabel="Return to army"
       >
-        <BattleDialogContent
-          data-army-roster
-          data-mobile-fullscreen
-          className={`max-h-[85dvh] content-start overflow-y-auto sm:max-w-xl ${tint(side.index).border}`}
-        >
-          <DialogHeader className="text-center">
+        <BattleDialogContent data-army-roster size="md" className={tint(side.index).border}>
+          <DialogHeader className="px-(--dialog-actions) text-center">
             <p className="eyebrow">{army.playerName}</p>
             <DialogTitle>{roster.name}</DialogTitle>
             <DialogDescription render={<div />}>
@@ -124,30 +120,32 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
             </DialogDescription>
           </DialogHeader>
 
-          {army.units.length ? (
-            <div>
-              {armyShelves(army.units).map((shelf) => (
-                <Section key={shelf.id} title={shelf.plural} count={shelf.units.length}>
-                  {shelf.units.map(card)}
-                </Section>
-              ))}
-              {/*
-               * Off the shelves and under them: a unit that is gone is not part of the
-               * army being read any more, and it is kept only so a mistaken loss can be
-               * taken back.
-               */}
-              {lost.length ? (
-                <Section title="Lost" count={lost.length} defaultOpen={false}>
-                  {lost.map(card)}
-                </Section>
-              ) : null}
-            </div>
-          ) : (
-            /* A list attached before the battle knew how to read one is still the army. */
-            <pre className="overflow-auto border border-edge bg-sunken p-3 font-rules text-sm whitespace-pre-wrap select-text">
-              {roster.text}
-            </pre>
-          )}
+          <DialogBody>
+            {army.units.length ? (
+              <div>
+                {armyShelves(army.units).map((shelf) => (
+                  <Section key={shelf.id} title={shelf.plural} count={shelf.units.length}>
+                    {shelf.units.map(card)}
+                  </Section>
+                ))}
+                {/*
+                 * Off the shelves and under them: a unit that is gone is not part of the
+                 * army being read any more, and it is kept only so a mistaken loss can be
+                 * taken back.
+                 */}
+                {lost.length ? (
+                  <Section title="Lost" count={lost.length} defaultOpen={false}>
+                    {lost.map(card)}
+                  </Section>
+                ) : null}
+              </div>
+            ) : (
+              /* A list attached before the battle knew how to read one is still the army. */
+              <pre className="overflow-auto border border-edge bg-sunken p-3 font-rules text-sm whitespace-pre-wrap select-text">
+                {roster.text}
+              </pre>
+            )}
+          </DialogBody>
         </BattleDialogContent>
       </BattlePromptDialog>
     </>

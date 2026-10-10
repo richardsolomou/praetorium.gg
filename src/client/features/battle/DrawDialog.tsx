@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import type { Command } from '../../../core/battle'
 import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
@@ -154,11 +154,7 @@ export function DrawDialog({
   return (
     <>
       <BattlePromptDialog open minimizedLabel={`Secondary missions · ${sideName(side)}`}>
-        <BattleDialogContent
-          showCloseButton={false}
-          minimizeDisabled={pending || (!paused && needsDraw)}
-          className="max-h-[85dvh] overflow-y-auto border-discarded/60 sm:max-w-lg"
-        >
+        <BattleDialogContent showCloseButton={false} minimizeDisabled={pending || (!paused && needsDraw)} className="border-discarded/60">
           <DialogHeader>
             <DialogTitle className="text-discarded">
               {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
@@ -172,7 +168,7 @@ export function DrawDialog({
               {side.remainingSecondaries.length} cards left. Some missions must be put back when their condition applies.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <DialogBody className="gap-2">
             {selecting && needsDraw ? (
               <>
                 <p className="eyebrow">
@@ -266,7 +262,7 @@ export function DrawDialog({
               </>
             ) : null}
             {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
-          </div>
+          </DialogBody>
           <DialogFooter>
             <UndoLatestButton disabled={pending || !canUndo} onClick={undo.request} />
             {selecting && needsDraw ? (

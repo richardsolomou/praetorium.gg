@@ -1,6 +1,6 @@
 import { type ComponentProps, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
@@ -152,18 +152,18 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
           >
             Remaining deck · {side.remainingSecondaries.length}
           </DialogTrigger>
-          <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+          <BattleDialogContent>
             <DialogHeader>
               <DialogTitle>Remaining secondary missions</DialogTitle>
               <DialogDescription>Cards still available to draw.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-1.5">
+            <DialogBody className="gap-1.5">
               {side.remainingSecondaries.map((card) => (
                 <div key={card.key} className={CARD}>
                   <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" mode={side.secondaryMode} />
                 </div>
               ))}
-            </div>
+            </DialogBody>
           </BattleDialogContent>
         </BattlePromptDialog>
       ) : null}
@@ -204,12 +204,12 @@ function SecretMissionDialog({
   return (
     <BattlePromptDialog open={open} onOpenChange={setOpen} minimizedLabel="Select secret mission">
       <DialogTrigger render={<Button variant="outline" size="xs" disabled={pending} />}>Select secret mission</DialogTrigger>
-      <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+      <BattleDialogContent>
         <DialogHeader>
           <DialogTitle className="text-discarded">Select a secret mission</DialogTitle>
           <DialogDescription>Held face down until you reveal it. Your opponent sees only that you hold one.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-1 sm:grid-cols-2">
+        <DialogBody className="gap-1 sm:grid-cols-2">
           {cards.map((card) => (
             <Button
               key={card.key}
@@ -225,7 +225,7 @@ function SecretMissionDialog({
               {card.name}
             </Button>
           ))}
-        </div>
+        </DialogBody>
       </BattleDialogContent>
     </BattlePromptDialog>
   )
@@ -333,13 +333,15 @@ export function MissionDetailsDialog({ details, onOpenChange }: { details: Missi
 
 function MissionDetailsContent({ details }: { details: MissionDetails }) {
   return (
-    <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+    <BattleDialogContent size="md">
       <DialogHeader>
         <DialogTitle>{details.name}</DialogTitle>
         <DialogDescription>What this mission asks you to do and when it scores.</DialogDescription>
       </DialogHeader>
-      <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
-      <MissionActions actions={details.card.actions} />
+      <DialogBody>
+        <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
+        <MissionActions actions={details.card.actions} />
+      </DialogBody>
     </BattleDialogContent>
   )
 }

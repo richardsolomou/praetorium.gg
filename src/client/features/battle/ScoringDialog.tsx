@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import {
@@ -187,8 +187,8 @@ export function ScoringDialog({
       <BattlePromptDialog open minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
         {/* Edged and titled in the side's own tint: points cannot be taken back without an
           undo, so which side is being paid is readable before the sentence naming them. */}
-        <BattleDialogContent minimizeDisabled={pending} className={`max-h-[85dvh] overflow-y-auto sm:max-w-2xl ${colours.border}`}>
-          <DialogHeader className="text-center">
+        <BattleDialogContent minimizeDisabled={pending} size="md" className={colours.border}>
+          <DialogHeader className="px-(--dialog-actions) text-center">
             <p className="eyebrow text-discarded">Now</p>
             <DialogTitle className={colours.text}>
               Scoring {moment} points · {sideName(side)}
@@ -205,7 +205,7 @@ export function ScoringDialog({
             ) : null}
           </DialogHeader>
 
-          <div className="space-y-3">
+          <DialogBody className="gap-3">
             {due.map((card) => {
               const taken = answerFor(card)
               const { claimed, scoring } = settledFor(card)
@@ -260,7 +260,7 @@ export function ScoringDialog({
                 </section>
               )
             })}
-          </div>
+          </DialogBody>
 
           <DialogFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
             {/* The result of the calculation above it, so a reader who cannot watch the

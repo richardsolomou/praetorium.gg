@@ -3,8 +3,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { leagueMinimumPlaces, leaguePlacesSeat, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { createLeague, createLeagueEvent, updateLeague } from '../../functions'
 import { leagueQuery, leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -46,7 +46,7 @@ function CurrentSettings({ mode, token, onClose }: { mode: LeagueSettingsMode; t
   const { data: league, isFetchedAfterMount } = useQuery({ ...leagueQuery(token), refetchOnMount: 'always' })
   if (league && isFetchedAfterMount) return <SettingsForm mode={mode} league={league} onClose={onClose} />
   return (
-    <DialogContent aria-busy className="sm:max-w-xl">
+    <DialogContent aria-busy size="md">
       <DialogHeader>
         <DialogTitle className="text-2xl">{mode.kind === 'next' ? 'Set up the next event' : 'Edit league'}</DialogTitle>
         <DialogDescription>Loading the league’s current settings…</DialogDescription>
@@ -144,39 +144,41 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
           : 'Save changes'
 
   return (
-    <DialogContent showCloseButton={!save.isPending} aria-busy={save.isPending} className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+    <DialogContent showCloseButton={!save.isPending} aria-busy={save.isPending} size="md">
       <DialogHeader>
         <DialogTitle className="text-2xl">{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <form
-        className="space-y-4"
+        className="contents"
         onSubmit={(event) => {
           event.preventDefault()
           save.mutate()
         }}
       >
-        <LeagueFormFields
-          idPrefix={`${mode.kind}-league`}
-          eventLabel={eventLabel}
-          value={value}
-          seated={seated}
-          limitFormat={limitFormat}
-          ruleLock={ruleLock}
-          ownerPlays={mode.kind === 'edit' ? undefined : ownerPlays}
-          disabled={save.isPending}
-          onChange={setValue}
-          onOwnerPlaysChange={setOwnerPlays}
-        />
-        {clearsAssignments ? (
-          <p className="text-xs text-parchment">Changing the format clears every size and team you’ve handed out.</p>
-        ) : null}
-        {save.isPending ? <output className="sr-only">{submit}</output> : null}
-        {save.error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(save.error)}
-          </p>
-        ) : null}
+        <DialogBody>
+          <LeagueFormFields
+            idPrefix={`${mode.kind}-league`}
+            eventLabel={eventLabel}
+            value={value}
+            seated={seated}
+            limitFormat={limitFormat}
+            ruleLock={ruleLock}
+            ownerPlays={mode.kind === 'edit' ? undefined : ownerPlays}
+            disabled={save.isPending}
+            onChange={setValue}
+            onOwnerPlaysChange={setOwnerPlays}
+          />
+          {clearsAssignments ? (
+            <p className="text-xs text-parchment">Changing the format clears every size and team you’ve handed out.</p>
+          ) : null}
+          {save.isPending ? <output className="sr-only">{submit}</output> : null}
+          {save.error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(save.error)}
+            </p>
+          ) : null}
+        </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
             Cancel

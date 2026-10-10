@@ -4,7 +4,7 @@ import { ChevronRight, Plus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DEFAULT_PLAYER_DEFAULTS } from '../../../core/playerDefaults'
 import { datasheetOfferedByQuery, factionIndexQuery, meQuery, playerDefaultsQuery, savedRosterSummariesQuery } from '../../queries'
@@ -129,14 +129,14 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
       <Dialog open={choosing} onOpenChange={(next) => !next && setStep('closed')}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="pr-8">Add {name} to a roster</DialogTitle>
+            <DialogTitle>Add {name} to a roster</DialogTitle>
             <DialogDescription>
               {canStart
                 ? `Choose a roster that can take it, or start a new ${faction.displayName} roster.`
                 : 'Choose a roster that can take it.'}
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-72 space-y-1 overflow-y-auto" aria-busy={loading}>
+          <DialogBody className="gap-1" aria-busy={loading}>
             {failed ? (
               <p role="alert" className="text-xs text-destructive">
                 Your rosters could not be loaded.{' '}
@@ -184,7 +184,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
                 ) : null}
               </>
             )}
-          </div>
+          </DialogBody>
           {canStart ? (
             <DialogFooter>
               {!me && guestDraft ? <p className="mr-auto self-center text-xs text-faint">A new roster replaces your unsaved one.</p> : null}

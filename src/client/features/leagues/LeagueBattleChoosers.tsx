@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { alliedLeagueRosterLimit, type LeagueEntryStatus } from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
@@ -51,31 +51,33 @@ export function OneOnOneBattleChooser({
     }))
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-2xl">{startBattleLabel('1v1')}</DialogTitle>
           <DialogDescription>Pick who you are playing. Both sealed lists are added for you.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="league-opponent">Opponent</Label>
-          <SearchableSelect
-            id="league-opponent"
-            className="h-11"
-            groups={[{ label: '', items: options }]}
-            value={opponentId ?? ''}
-            onValueChange={(id) => {
-              onIntentChange()
-              setOpponentId(id)
-            }}
-            placeholder="Choose an opponent"
-            searchPlaceholder="Search entrants…"
-          />
-        </div>
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(error)}
-          </p>
-        ) : null}
+        <DialogBody>
+          <div className="space-y-1.5">
+            <Label htmlFor="league-opponent">Opponent</Label>
+            <SearchableSelect
+              id="league-opponent"
+              className="h-11"
+              groups={[{ label: '', items: options }]}
+              value={opponentId ?? ''}
+              onValueChange={(id) => {
+                onIntentChange()
+                setOpponentId(id)
+              }}
+              placeholder="Choose an opponent"
+              searchPlaceholder="Search entrants…"
+            />
+          </div>
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(error)}
+            </p>
+          ) : null}
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={onClose}>
             Cancel
@@ -146,31 +148,33 @@ export function LeagueBattleChooser({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent aria-busy={pending}>
         <DialogHeader>
           <DialogTitle className="text-2xl">{startBattleLabel('2v1')}</DialogTitle>
           <DialogDescription>
             {isSolo ? 'Pick the two allied entrants you are facing.' : 'Pick your teammate and the solo entrant you are facing.'}
           </DialogDescription>
         </DialogHeader>
-        <SeatRows
-          idPrefix="league-battle"
-          seats={seats}
-          seatedIn={seatedIn}
-          groupsFor={groupsFor}
-          onPick={(seat, id) => {
-            onIntentChange()
-            if (seat.side === 'yours') return setAllyId(id)
-            setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
-          }}
-        />
-        <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, candidates)} />
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(error)}
-          </p>
-        ) : null}
-        {pending ? <output className="sr-only">Starting battle…</output> : null}
+        <DialogBody>
+          <SeatRows
+            idPrefix="league-battle"
+            seats={seats}
+            seatedIn={seatedIn}
+            groupsFor={groupsFor}
+            onPick={(seat, id) => {
+              onIntentChange()
+              if (seat.side === 'yours') return setAllyId(id)
+              setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
+            }}
+          />
+          <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, candidates)} />
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(error)}
+            </p>
+          ) : null}
+          {pending ? <output className="sr-only">Starting battle…</output> : null}
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={onClose}>
             Cancel
@@ -232,32 +236,34 @@ export function DoublesBattleChooser({
     }))
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent aria-busy={pending} className="max-h-[85dvh] overflow-x-hidden overflow-y-auto sm:max-w-lg [&>*]:min-w-0">
+      <DialogContent aria-busy={pending}>
         <DialogHeader>
           <DialogTitle className="text-2xl">{startBattleLabel('2v2')}</DialogTitle>
           <DialogDescription>Pick the team you are playing. Your teammate and all four sealed lists are added for you.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="league-doubles-opponents">Opposing team</Label>
-          <SearchableSelect
-            id="league-doubles-opponents"
-            className="h-11"
-            groups={[{ label: '', items: options }]}
-            value={opponentId ?? ''}
-            onValueChange={(id) => {
-              onIntentChange()
-              setOpponentId(id)
-            }}
-            placeholder="Choose an opposing team"
-            searchPlaceholder="Search teams or entrants…"
-          />
-        </div>
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(error)}
-          </p>
-        ) : null}
-        {pending ? <output className="sr-only">Starting doubles battle…</output> : null}
+        <DialogBody>
+          <div className="space-y-1.5">
+            <Label htmlFor="league-doubles-opponents">Opposing team</Label>
+            <SearchableSelect
+              id="league-doubles-opponents"
+              className="h-11"
+              groups={[{ label: '', items: options }]}
+              value={opponentId ?? ''}
+              onValueChange={(id) => {
+                onIntentChange()
+                setOpponentId(id)
+              }}
+              placeholder="Choose an opposing team"
+              searchPlaceholder="Search teams or entrants…"
+            />
+          </div>
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {errorMessage(error)}
+            </p>
+          ) : null}
+          {pending ? <output className="sr-only">Starting doubles battle…</output> : null}
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={onClose}>
             Cancel

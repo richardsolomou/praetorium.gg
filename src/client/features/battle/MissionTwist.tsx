@@ -1,7 +1,7 @@
 import { Info } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { CARD_NAME } from './battleTints'
 import { RuleText } from '../../components/RuleText'
@@ -24,12 +24,12 @@ function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: Reac
   return (
     <BattlePromptDialog minimizedLabel={twist.name} resumeLabel="Return to twist">
       <DialogTrigger render={trigger}>{children}</DialogTrigger>
-      <BattleDialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+      <BattleDialogContent size="md">
         <DialogHeader>
           <DialogTitle>{twist.name}</DialogTitle>
           <DialogDescription>{twist.lore ?? 'What this twist changes for the whole battle.'}</DialogDescription>
         </DialogHeader>
-        {twist.rules ? <RuleText text={twist.rules} /> : null}
+        <DialogBody>{twist.rules ? <RuleText text={twist.rules} /> : null}</DialogBody>
       </BattleDialogContent>
     </BattlePromptDialog>
   )
