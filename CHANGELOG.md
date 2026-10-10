@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.1
+
+### Patch Changes
+
+- d4b2883: Prefer server calculations for connected roster prices and construction reads, retain offline calculation, and preserve finished battle replays and saved tour completion.
+
 ## 0.115.0
 
 ### Minor Changes
