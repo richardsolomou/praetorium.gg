@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.112.3
+
+### Patch Changes
+
+- 3d5e691: Show Insane Bravery in the Command phase, including in saved battles.
+
 ## 0.112.2
 
 ### Patch Changes
