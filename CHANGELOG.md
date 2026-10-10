@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.114.0
+
+### Minor Changes
+
+- 83970e5: Save rosters, battles, preferences, and queued actions offline and synchronize them when connectivity returns.
+
 ## 0.113.0
 
 ### Minor Changes
