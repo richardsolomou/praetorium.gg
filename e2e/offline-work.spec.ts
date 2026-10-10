@@ -14,6 +14,9 @@ test('simulation and loadout optimization work in a cold offline application', a
   await page.close()
   const reopened = await context.newPage()
   await reopened.goto('/simulator')
+  await expect
+    .poll(() => reopened.evaluate(() => window.PraetoriumOffline?.queries.some((entry) => entry.key[0] === 'combat-units')))
+    .toBe(true)
   await chooseCombatUnit(reopened, 'Attacker', 'Dark Angels', 'Deathwing Knights')
   await chooseCombatUnit(reopened, 'Defender', 'Death Guard', 'Mortarion')
   const attacker = reopened.getByRole('region', { name: 'Attacker', exact: true })

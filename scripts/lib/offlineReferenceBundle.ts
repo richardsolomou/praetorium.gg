@@ -63,6 +63,7 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     revision: versioned.revision,
     factions,
   })
+  put(['combat-units'], versions.combatUnits())
   const referenceFactions = [...factions]
   const queued = new Set(factions.map((faction) => faction.id))
   const queueReference = (catalogueId: string) => {

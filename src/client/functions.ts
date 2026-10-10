@@ -1,4 +1,3 @@
-import { combatUnitsFor } from '../shared/combatUnits'
 import { projectBattles } from './offline/battleFunctions'
 import { cachedRead, cachedPage } from './offline/reads'
 import { hasLocalChanges, localOwner } from './offline/localRuntime'
@@ -619,19 +618,10 @@ export async function rosterChanges(args: Parameters<typeof server.rosterChanges
 export const savedRosterChangedCount = () => cachedRead(['saved-roster-changed-count'], () => server.savedRosterChangedCount())
 
 export const combatUnits = () => {
-  const factions = (
-    referenceData()?.queries.find((entry) => entry.key[0] === 'faction-index')?.data as
-      | Awaited<ReturnType<typeof server.factionIndex>>
-      | undefined
-  )?.factions
-  if (!factions || !localConstruction()) return server.combatUnits()
-  const defaults = new Set(factions.filter((faction) => faction.isDefault).map((faction) => faction.id))
-  const contexts = new Set(factions.filter((faction) => faction.isDefault).map((faction) => localConstruction(faction.id)))
-  return Promise.resolve(
-    [...contexts]
-      .flatMap((selected) => (selected ? combatUnitsFor(selected.catalogue, selected.rules) : []))
-      .filter((shelf) => defaults.has(shelf.catalogueId)),
-  )
+  const saved = referenceData()?.queries.find((entry) => entry.key[0] === 'combat-units')?.data as
+    | Awaited<ReturnType<typeof server.combatUnits>>
+    | undefined
+  return saved ? Promise.resolve(saved) : server.combatUnits()
 }
 
 export const publicBattles = (args: Parameters<typeof server.publicBattles>[0]) =>

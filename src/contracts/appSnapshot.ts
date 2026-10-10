@@ -6,6 +6,7 @@ export const PUBLIC_APP_QUERIES = new Set(['public-battles', 'standings', 'catal
 export const PUBLIC_REFERENCE_QUERIES = new Set([
   'faction',
   'faction-index',
+  'combat-units',
   'faction-datasheets',
   'game-references',
   'terrain-references',
