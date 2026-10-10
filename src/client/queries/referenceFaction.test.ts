@@ -51,3 +51,15 @@ it('does not fall back to current rules for an unknown selected version', async 
   expect(await loadReferenceFaction(client, 'adeptus-custodes', 'missing')).toBeNull()
   client.clear()
 })
+
+it('makes a readable faction load available to components keyed by its catalogue ID', async () => {
+  const client = new QueryClient()
+  const index: NonNullable<Awaited<ReturnType<typeof factionIndex>>> = { revision: 'rev', factions: [current] }
+  client.setQueryData(factionIndexQuery().queryKey, index)
+  client.setQueryData(factionQuery(current.slug).queryKey, current)
+
+  await loadReferenceFaction(client, current.slug)
+
+  expect(client.getQueryData(factionQuery(current.id).queryKey)).toBe(current)
+  client.clear()
+})

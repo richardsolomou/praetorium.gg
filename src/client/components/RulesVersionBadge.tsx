@@ -1,14 +1,22 @@
 import { type CatalogueEdition, editionLabel } from '../../core/catalogueEdition'
 import { Layers2 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function RulesVersionBadge({ edition }: { edition: Pick<CatalogueEdition, 'id' | 'name' | 'status'> }) {
   const label = editionLabel(edition)
   const [open, setOpen] = useState(false)
+  const openedByPress = useRef(false)
   // oxlint-disable jsx-a11y/prefer-tag-over-role -- A native button would nest inside faction selector buttons.
   return (
-    <Tooltip open={open} onOpenChange={setOpen}>
+    <Tooltip
+      open={open}
+      onOpenChange={(nextOpen, details) => {
+        if (!nextOpen && openedByPress.current && details.reason !== 'outside-press' && details.reason !== 'escape-key') return
+        if (!nextOpen) openedByPress.current = false
+        setOpen(nextOpen)
+      }}
+    >
       <TooltipTrigger
         closeOnClick={false}
         render={
@@ -21,12 +29,14 @@ export function RulesVersionBadge({ edition }: { edition: Pick<CatalogueEdition,
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
+              openedByPress.current = true
               setOpen(true)
             }}
             onKeyDown={(event) => {
               if (event.key !== 'Enter' && event.key !== ' ') return
               event.preventDefault()
               event.stopPropagation()
+              openedByPress.current = true
               setOpen(true)
             }}
           />

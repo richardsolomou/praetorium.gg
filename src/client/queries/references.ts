@@ -33,10 +33,11 @@ export const factionIndexQuery = () =>
   queryOptions({ queryKey: ['faction-index'], queryFn: () => referenceRead(['faction-index'], () => factionIndex()), staleTime: Infinity })
 
 export async function loadReferenceFaction(client: QueryClient, catalogueId: string, rules?: string) {
-  if (!rules) return client.query({ ...factionQuery(catalogueId), staleTime: 'static' })
   const index = await client.query({ ...factionIndexQuery(), staleTime: 'static' })
-  const selected = referenceFactionId(index?.factions ?? [], catalogueId, rules)
-  return selected ? client.query({ ...factionQuery(selected), staleTime: 'static' }) : null
+  const selected = rules ? referenceFactionId(index?.factions ?? [], catalogueId, rules) : catalogueId
+  const loaded = selected ? await client.query({ ...factionQuery(selected), staleTime: 'static' }) : null
+  if (loaded && loaded.id !== selected) client.setQueryData(factionQuery(loaded.id).queryKey, loaded)
+  return loaded
 }
 export const favouriteFactionsQuery = () =>
   queryOptions({
