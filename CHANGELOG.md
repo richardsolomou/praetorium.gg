@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.115.3
+
+### Patch Changes
+
+- dac6baa: Show dialogs full screen on phones and give them consistent widths on larger screens.
+- dac6baa: Keep dialog titles and the Close and Minimize buttons in place while the dialog scrolls.
+
 ## 0.115.2
 
 ### Patch Changes
