@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.112.2
+
+### Patch Changes
+
+- 8980206: Correct mirrored terrain walls and roofs, use layout-specific objectives, and place terrain letters beside their matching parts.
+
 ## 0.112.1
 
 ### Patch Changes
