@@ -21,14 +21,18 @@ import {
 } from '../functions'
 import { savedRosterChangedCountQuery } from './changes'
 import { SSR_STALE_TIME } from './shared'
+import { rosterPriceKey } from './rosterPriceKey'
 
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 
 export const unitsQuery = (catalogueId: string, battleSize?: number, waivedRules: readonly FormatRuleId[] = []) =>
   queryOptions({
     queryKey: ['units', catalogueId, battleSize ?? null, waivedRules],
-    queryFn: () =>
-      units({ data: { catalogueId, query: '', ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] } }),
+    queryFn: ({ signal }) =>
+      units({
+        data: { catalogueId, query: '', ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] },
+        signal,
+      }),
     enabled: Boolean(catalogueId),
     staleTime: Infinity,
   })
@@ -36,7 +40,7 @@ export const unitsQuery = (catalogueId: string, battleSize?: number, waivedRules
 export const datasheetOfferedByQuery = (entryId: string, catalogueIds: readonly string[]) =>
   queryOptions({
     queryKey: ['datasheet-offered-by', entryId, catalogueIds],
-    queryFn: () => datasheetOfferedBy({ data: { entryId, catalogueIds: [...catalogueIds] } }),
+    queryFn: ({ signal }) => datasheetOfferedBy({ data: { entryId, catalogueIds: [...catalogueIds] }, signal }),
     enabled: Boolean(entryId && catalogueIds.length),
     staleTime: Infinity,
   })
@@ -60,8 +64,8 @@ export const datasheetQuery = (
 ) =>
   queryOptions({
     queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, everyWeapon],
-    queryFn: () =>
-      datasheet({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, everyWeapon } }),
+    queryFn: ({ signal }) =>
+      datasheet({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, everyWeapon }, signal }),
     enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,
   })
@@ -79,15 +83,17 @@ export const loadoutDatasheetsQuery = (
     queryKey: persistedRoster
       ? ['saved-roster-loadout-datasheets', persistedRoster.id, persistedRoster.battle ?? null, pickIndex]
       : ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const startedAt = performance.now()
       const result =
         persistedRoster && pickIndex !== null
           ? await savedRosterLoadoutDatasheets({
               data: { id: persistedRoster.id, ...(persistedRoster.battle ? { battle: persistedRoster.battle } : {}), pickIndex },
+              signal,
             })
           : await loadoutDatasheets({
               data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex },
+              signal,
             })
       onLoaded?.(performance.now() - startedAt)
       return result
@@ -106,37 +112,25 @@ export const priceQuery = (
   borrowedDetachmentId: string | null = null,
   optionalRules: readonly OptionalRuleId[] = [],
   includeUnitLimits = false,
-) =>
-  queryOptions({
-    queryKey: [
-      'price',
-      catalogueId,
-      detachmentIds,
-      disposition,
-      limit,
-      waivedRules,
-      borrowedDetachmentId,
-      optionalRules,
-      ...(includeUnitLimits ? ['unit-limits'] : []),
-      picked,
-    ],
-    queryFn: () =>
-      priceRoster({
-        data: {
-          includeUnitLimits,
-          catalogueId,
-          detachmentIds: [...detachmentIds],
-          disposition,
-          borrowedDetachmentId,
-          limit,
-          units: [...picked],
-          waivedRules: [...waivedRules],
-          optionalRules: [...optionalRules],
-        },
-      }),
+) => {
+  const data = {
+    includeUnitLimits,
+    catalogueId,
+    detachmentIds: [...detachmentIds],
+    disposition,
+    borrowedDetachmentId,
+    limit,
+    units: [...picked],
+    waivedRules: [...waivedRules],
+    optionalRules: [...optionalRules],
+  }
+  return queryOptions({
+    queryKey: rosterPriceKey(data),
+    queryFn: ({ signal }) => priceRoster({ data, signal }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
   })
+}
 
 export const savedRosterPriceQuery = (
   id: string,
@@ -152,18 +146,23 @@ export const savedRosterPriceQuery = (
 ) =>
   queryOptions({
     ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules, borrowedDetachmentId, optionalRules),
-    queryFn: () => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) } }),
+    queryFn: ({ signal }) => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) }, signal }),
   })
 
 export const savedRosterSummariesQuery = () =>
   queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
 export const savedRosterPageQuery = (ids: string[]) =>
-  queryOptions({ queryKey: ['saved-roster-page', ids], queryFn: () => savedRosterPage({ data: { ids } }), staleTime: SSR_STALE_TIME })
-export const homeRostersQuery = () => queryOptions({ queryKey: ['home-rosters'], queryFn: () => homeRosters(), staleTime: SSR_STALE_TIME })
+  queryOptions({
+    queryKey: ['saved-roster-page', ids],
+    queryFn: ({ signal }) => savedRosterPage({ data: { ids }, signal }),
+    staleTime: SSR_STALE_TIME,
+  })
+export const homeRostersQuery = () =>
+  queryOptions({ queryKey: ['home-rosters'], queryFn: ({ signal }) => homeRosters({ signal }), staleTime: SSR_STALE_TIME })
 export const rosterBootstrapQuery = (id: string, battle?: string) =>
   queryOptions({
     queryKey: ['roster-bootstrap', id, battle ?? null],
-    queryFn: () => rosterBootstrap({ data: { id, ...(battle ? { battle } : {}) } }),
+    queryFn: ({ signal }) => rosterBootstrap({ data: { id, ...(battle ? { battle } : {}) }, signal }),
     staleTime: SSR_STALE_TIME,
   })
 

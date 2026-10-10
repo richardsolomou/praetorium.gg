@@ -1,6 +1,6 @@
 import { PUBLIC_APP_QUERIES } from '../src/contracts/appSnapshot'
 import { expect, test, type Page } from '@playwright/test'
-import { createBattle, createRoster, PRACTICE_OPPONENT, retryUntilVisible, signUp, uniqueName } from './account'
+import { createBattle, createRoster, PRACTICE_OPPONENT, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 
 async function savedState(page: Page) {
   return page.evaluate(
@@ -95,8 +95,15 @@ test('Home, rosters and battles launch from saved state and update without repla
   await reopened.locator('[data-web-app-chrome]').getByRole('link', { name: 'Praetorium', exact: true }).click()
   await reopened.getByRole('main').getByText('Renamed saved army', { exact: true }).click()
   await expect(reopened.getByLabel('List name')).toHaveValue('Renamed saved army')
-  await reopened.getByLabel('List name').fill('Renamed twice saved army')
-  await reopened.getByLabel('List name').press('Tab')
+  await waitForRosterSave(
+    reopened,
+    async () => {
+      await reopened.getByLabel('List name').fill('Renamed twice saved army')
+      await reopened.getByLabel('List name').press('Tab')
+    },
+    'Renamed twice saved army',
+  )
+  await expect(reopened.getByText(/^\d+ changes? waiting to sync$/)).toHaveCount(0)
   await other.reload()
   await expect(other.locator('[data-roster="Renamed twice saved army"]')).toBeVisible()
   await reopened.setViewportSize({ width: 1440, height: 900 })
@@ -179,4 +186,42 @@ test('email sign-in settles across two open Home tabs without alternating accoun
   })
   expect(transitions).toBe(false)
   await other.screenshot({ path: testInfo.outputPath('signed-in-home-stable.png') })
+})
+
+test('connected roster prices use the server and survive a cold offline reopen', async ({ page, context }) => {
+  test.setTimeout(240_000)
+  await signUp(page, uniqueName('Server prices'))
+  const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Cached points' })
+  await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction)), { timeout: 180_000 }).toBe(true)
+  const calculated = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' &&
+      Boolean(request.postData()?.includes('"includeUnitLimits"') && request.postData()?.includes('"units"')),
+  )
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await calculated
+  const points = page.locator('[data-stat="points"]')
+  await expect(points).toHaveText(/^[1-9]\d*\/2000$/)
+  const total = await points.innerText()
+  await page.goto('/rosters')
+  await expect(page.locator(`[data-roster="${name}"]`).getByText(total, { exact: true }).first()).toBeVisible()
+  await expect
+    .poll(async () => {
+      const snapshot = JSON.parse((await savedState(page)) || 'null')
+      return snapshot?.queries.some(
+        (query: { key: string[]; data: { points: number }[] }) =>
+          query.key[0] === 'saved-roster-page' && query.data.some((row) => `${row.points}/2000` === total),
+      )
+    })
+    .toBe(true)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: test.info().outputPath('server-priced-rosters-phone.png') })
+  await context.setOffline(true)
+  await page.close()
+  const reopened = await context.newPage()
+  await reopened.setViewportSize({ width: 390, height: 844 })
+  await reopened.goto('/rosters')
+  await expect(reopened.locator(`[data-roster="${name}"]`).getByText(total, { exact: true }).first()).toBeVisible()
+  await reopened.screenshot({ path: test.info().outputPath('cached-roster-prices-offline-phone.png') })
 })
