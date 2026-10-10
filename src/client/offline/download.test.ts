@@ -29,6 +29,29 @@ it('downloads a new complete corpus in one anonymous compressed request', async 
   expect(await referenceBundle(version, signal, { ...saved, revision: 'old' })).toEqual(saved)
   expect(fetch.mock.calls).toEqual([[version.bundle, expect.objectContaining({ credentials: 'omit' })]])
 })
+
+it('restores shared version data before accepting and saving a download', async () => {
+  const base = { version: 1, revision: 'base', files: [], datacards: null, mfm: null, rules: { core: ['Rule'] } }
+  const selected = {
+    ...base,
+    edition: {
+      id: 'preview',
+      name: 'Preview',
+      status: 'preview',
+      default: false,
+      catalogueIds: ['army'],
+      releases: [{ at: 1, status: 'preview' }],
+    },
+    rules: { $praetoriumBase: [] },
+  }
+  const wire = { ...saved, version: 2, construction: { ...base, editions: [selected] } }
+  vi.stubGlobal('fetch', async () => response(wire))
+  expect(await referenceBundle(version, signal)).toEqual({
+    ...wire,
+    version: 1,
+    construction: { ...base, editions: [{ ...selected, rules: base.rules }] },
+  })
+})
 it.each([
   { ...saved, revision: 'wrong' },
   { ...saved, queries: [{ key: ['me'], data: { id: 'private' } }] },

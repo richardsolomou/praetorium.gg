@@ -4,7 +4,8 @@ import { gzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
 import { readdirSync, readFileSync } from 'node:fs'
 import type { CatalogueFile } from '../../src/core/catalogue'
-import { packRuntimeData } from '../../src/contracts/runtimeData'
+import { packRuntimeData, type RuntimeData } from '../../src/contracts/runtimeData'
+import { shareRuntimeData } from '../../src/contracts/sharedRuntimeData'
 import { loadCatalogue, isReferenceDatasheet } from '../../src/server/catalogueIndex'
 import { loadRules } from '../../src/server/rules'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
@@ -14,19 +15,56 @@ import { detachmentReference } from '../../src/shared/detachmentReference'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../../src/server/referenceCatalogue'
 import { gameReferencesFor } from '../../src/shared/gameReferences'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
-import { editionCatalogueId } from '../../src/core/catalogueEdition'
+import { editionCatalogueId, type CatalogueEdition } from '../../src/core/catalogueEdition'
 import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { routeSlug } from '../../src/core/slug'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
 import { MAX_OFFLINE_BYTES, MAX_OFFLINE_QUERIES, type OfflineReferenceBundle } from '../../src/contracts/offlineReference'
 
+export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
+  if (!edition) return files
+  const byId = new Map(files.map((file) => [(file.catalogue ?? file.gameSystem)!.id, file]))
+  const required = new Set(edition.catalogueIds)
+  for (const id of required) {
+    const file = byId.get(id)
+    if (!file) throw new Error(`Offline construction is missing catalogue ${id}`)
+    if (file.catalogue?.gameSystemId) required.add(file.catalogue.gameSystemId)
+    for (const link of file.catalogue?.catalogueLinks ?? []) required.add(link.targetId)
+  }
+  return files.filter((file) => required.has((file.catalogue ?? file.gameSystem)!.id))
+}
+
 export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'queries' | 'search' | 'construction'>) {
   if (content.queries.length > MAX_OFFLINE_QUERIES) throw new Error('Offline reference has too many entries')
-  const revision = createHash('sha256').update(JSON.stringify(content)).digest('hex')
-  const json = Buffer.from(JSON.stringify({ version: 1, revision, ...content }))
-  if (json.length > MAX_OFFLINE_BYTES) throw new Error('Offline reference is too large')
-  const compressed = gzipSync(json)
-  if (compressed.length > 10_000_000) throw new Error('Compressed reference exceeds the web asset limit')
+  if (Buffer.byteLength(JSON.stringify({ version: 1, revision: '0'.repeat(64), ...content })) > MAX_OFFLINE_BYTES)
+    throw new Error('Offline reference is too large')
+  const base = content.construction
+  const wire = base?.editions?.length
+    ? {
+        ...content,
+        construction: {
+          ...base,
+          editions: base.editions.map((source) => ({
+            ...source,
+            files: source.files.map((file) => {
+              const id = (file.catalogue ?? file.gameSystem)!.id
+              const index = base.files.findIndex((candidate) => (candidate.catalogue ?? candidate.gameSystem)?.id === id)
+              return index < 0
+                ? file
+                : shareRuntimeData(file as unknown as RuntimeData, base.files[index] as unknown as RuntimeData, [String(index)])
+            }),
+            datacards: shareRuntimeData(source.datacards, base.datacards),
+            mfm: shareRuntimeData(source.mfm, base.mfm),
+            rules: shareRuntimeData(source.rules, base.rules),
+          })),
+        },
+        version: 2,
+      }
+    : { version: 1, ...content }
+  const revision = createHash('sha256').update(JSON.stringify(wire)).digest('hex')
+  const json = Buffer.from(JSON.stringify({ ...wire, revision }))
+  const compressed = gzipSync(json, { level: wire.version === 2 ? 9 : 6 })
+  if (compressed.length > 10_000_000) throw new Error(`Compressed reference exceeds the web asset limit (${compressed.length} bytes)`)
   return { revision, compressed }
 }
 
@@ -130,10 +168,13 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     version: 1 as const,
     revision: selectedCatalogue.index.revision,
     ...(selectedCatalogue.edition ? { edition: selectedCatalogue.edition } : {}),
-    files: readdirSync(path.join(target, 'definitions'))
-      .filter((name) => name.endsWith('.json'))
-      .sort()
-      .map((name): CatalogueFile => JSON.parse(readFileSync(path.join(target, 'definitions', name), 'utf8'))),
+    files: constructionFilesForEdition(
+      readdirSync(path.join(target, 'definitions'))
+        .filter((name) => name.endsWith('.json'))
+        .sort()
+        .map((name): CatalogueFile => JSON.parse(readFileSync(path.join(target, 'definitions', name), 'utf8'))),
+      selectedCatalogue.edition,
+    ),
     datacards: packRuntimeData(selectedCatalogue.datacards),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData(selectedRules),
