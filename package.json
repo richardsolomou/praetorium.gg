@@ -22,7 +22,7 @@
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "changeset": "changeset",
-    "version-packages": "changeset version && tsx scripts/syncMobileVersion.ts && tsx scripts/clearAcceptedCoverageLosses.ts",
+    "version-packages": "changeset version && tsx scripts/syncMobileVersion.ts && oxfmt --write mobile/app.json && tsx scripts/clearAcceptedCoverageLosses.ts",
     "release": "changeset git-tag",
     "test:e2e": "playwright test",
     "test:e2e:native-auth:ios": "tsx e2e/nativeAuthIos.ts",
