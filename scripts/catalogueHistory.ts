@@ -28,6 +28,7 @@ import { fetchWithRetry } from '../src/server/fetch'
 import { catalogueChanges } from '../src/core/catalogueChanges'
 import { compiledChangeSource } from './lib/catalogueHistoryCompile'
 import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
+import { readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
 
 const root = path.join(import.meta.dirname, '..')
 const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
@@ -75,6 +76,9 @@ try {
     }
   })()
   const nextRevisions = revisionsIn(directory)
+  const composition = readCatalogueComposition(directory)
+  if (composition?.editions.length && !pointer) throw new Error('edition history requires a readable published snapshot')
+  if (pointer) validateEditionContinuity(readCatalogueComposition(previousDirectory), composition)
   const next = {
     point: { id: '', revisions: nextRevisions, recordedAt: Date.now() } satisfies HistoryPoint,
     source: attempt('the new catalogue could not be compiled', () =>
@@ -95,6 +99,8 @@ try {
         }),
       }
     : null
+  if (composition?.editions.length && (!next.source || !previous?.source))
+    throw new Error('both edition catalogues must compile before publishing their history')
   if (repairLast) {
     const history = previous?.history
     const latest = history?.at(-1)

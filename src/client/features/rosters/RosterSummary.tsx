@@ -10,8 +10,9 @@ import { CornerDownRight } from 'lucide-react'
 import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
+import { type CatalogueEdition, editionLabel } from '../../../core/catalogueEdition'
 
-export type RosterSummaryFaction = FactionPresentation & { detachments: { id: string; name: string }[] }
+export type RosterSummaryFaction = FactionPresentation & { edition?: CatalogueEdition | null; detachments: { id: string; name: string }[] }
 export type RosterProblem = 'over-limit' | 'not-legal'
 
 export const PROBLEM_LABEL: Record<RosterProblem, string> = { 'over-limit': 'Over limit', 'not-legal': 'Not legal' }
@@ -86,6 +87,11 @@ export function RosterSummary({
       />
       <span data-slot="roster-chips" className="col-span-2 flex flex-wrap gap-1 *:whitespace-nowrap sm:col-span-1">
         {faction ? <FactionLabel faction={faction} chip /> : factionLoading ? <Skeleton className="h-5 w-24" /> : null}
+        {faction?.edition ? (
+          <span className={`chip ${faction.edition.status === 'preview' ? 'text-warning' : 'text-dim'}`}>
+            {editionLabel(faction.edition)}
+          </span>
+        ) : null}
         {detachments.map((name) => (
           <span key={name} className="chip">
             {name}

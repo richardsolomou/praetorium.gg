@@ -38,6 +38,7 @@ import { dispositionsFor, dispositionTone } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
+import { type CatalogueEdition, editionFamilyId, editionLabel } from '../../../core/catalogueEdition'
 
 type Detachment = {
   id: string
@@ -54,6 +55,8 @@ export type RosterSetupFaction = {
   displayName: string
   icon: string | null
   detachments: Detachment[]
+  edition?: CatalogueEdition | null
+  isDefault?: boolean
 }
 
 export type RosterSetupFactionOption = Omit<RosterSetupFaction, 'detachments'>
@@ -222,9 +225,17 @@ export function RosterSetupDialog({
       detachmentNames: selected.map((detachment) => detachment.name),
       limit: draft.limit,
     })
-  const factionChanged = value.catalogueId !== draft.catalogueId
+  const factionChanged = editionFamilyId(value.catalogueId) !== editionFamilyId(draft.catalogueId)
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
-  const groups = factionSelectGroups(factionOptions, favourites)
+  const groups = factionSelectGroups(
+    factionOptions.filter((entry) => entry.isDefault !== false),
+    favourites,
+  )
+  const editions = factionOptions.filter(
+    (entry) =>
+      editionFamilyId(entry.id) === editionFamilyId(draft.catalogueId) &&
+      (entry.edition?.status !== 'retired' || entry.id === draft.catalogueId),
+  )
 
   const toggleDetachment = (id: string) => {
     advanceOnboarding('roster', 'roster-detachment', 'roster-name')
@@ -285,7 +296,10 @@ export function RosterSetupDialog({
           <SearchableSelect
             id="setup-faction"
             groups={groups}
-            value={draft.catalogueId}
+            value={
+              factionOptions.find((entry) => entry.isDefault !== false && editionFamilyId(entry.id) === editionFamilyId(draft.catalogueId))
+                ?.id ?? draft.catalogueId
+            }
             onValueChange={(catalogueId) => {
               advanceOnboarding('roster', 'roster-faction', 'roster-size')
               setDetachmentQuery('')
@@ -325,6 +339,42 @@ export function RosterSetupDialog({
           />
         </div>
       </div>
+
+      {editions.length > 1 ? (
+        <div>
+          <Label className="eyebrow block" htmlFor="setup-edition">
+            Codex
+          </Label>
+          <SearchableSelect
+            id="setup-edition"
+            ariaLabel="Codex"
+            placeholder="Choose a codex"
+            value={draft.catalogueId}
+            groups={[
+              {
+                label: '',
+                items: editions.map((entry) => ({
+                  value: entry.id,
+                  label: entry.edition ? editionLabel(entry.edition) : entry.isDefault === false ? 'Previous rules' : 'Current rules',
+                })),
+              },
+            ]}
+            onValueChange={(catalogueId) => {
+              setDetachmentQuery('')
+              changeDraft({ ...draft, catalogueId })
+            }}
+            className="mt-1 h-11"
+          />
+          {faction?.edition?.status === 'preview' ? (
+            <p className="mt-2 text-sm text-warning">Preview rules have not been officially released.</p>
+          ) : null}
+          {hasUnits && value.catalogueId !== draft.catalogueId && !factionChanged ? (
+            <p className="mt-2 text-sm text-dim">
+              Your units and choices will be checked against this codex. Unavailable choices remain in the list until you replace them.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <fieldset data-onboarding="setup-detachments">
         <div className="flex items-end justify-between gap-3">

@@ -4,7 +4,7 @@ const linkClass = 'text-info hover:text-parchment'
 
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="8 October 2026">
+    <LegalPage title="Data sources" updated="10 October 2026">
       <LegalSection title="Community data">
         <p>Praetorium uses rules and reference data from these community projects:</p>
         <LegalLinks>
@@ -52,6 +52,10 @@ export function Sources() {
           </li>
         </LegalLinks>
         <p>Each source retains its rights in its work. Praetorium does not claim ownership of the source data.</p>
+        <p>
+          Praetorium can publish sourced catalogue additions before community datasets include them. Unreleased codexes are labelled Preview
+          and selected per roster. Released rules remain the default.
+        </p>
       </LegalSection>
 
       <LegalSection title="Trademarks">

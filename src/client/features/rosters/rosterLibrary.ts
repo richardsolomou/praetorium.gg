@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import type { RosterVisibility } from '../../../core/savedRoster'
+import { editionFamilyId, picksForCatalogueEdition } from '../../../core/catalogueEdition'
 import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../../server/functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -79,8 +80,10 @@ export function useRosterActions(origin: string) {
         data: {
           id: roster.id,
           ...setup,
-          // A new faction is a new list: nothing picked from the old book still applies.
-          picks: setup.catalogueId === roster.catalogueId ? roster.picks : [],
+          picks:
+            editionFamilyId(setup.catalogueId) === editionFamilyId(roster.catalogueId)
+              ? picksForCatalogueEdition(roster.picks, setup.catalogueId)
+              : [],
           prep: roster.prep,
           visibility: setup.visibility,
           source: roster.source,

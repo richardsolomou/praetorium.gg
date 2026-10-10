@@ -29,6 +29,7 @@ import {
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
 import type { ExportRosterInput, ImportRosterInput } from './schemas'
+import { editionLabel } from '../core/catalogueEdition'
 
 function parsedImport(file: string) {
   const battleBase = fromBattleBaseText(file)
@@ -40,6 +41,10 @@ function parsedImport(file: string) {
 
 export function importRosterFaction(file: string) {
   return parsedImport(file)?.parsed.faction ?? null
+}
+
+export function importRosterCatalogueId(file: string) {
+  return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file)?.[1] ?? null
 }
 
 export function matchesImportFaction(stated: string, name: string) {
@@ -366,24 +371,27 @@ export function exportRosterFile(
   const keyedPicks = data.units.map((pick, key) => ({ ...pick, key }))
   const unitsByPick = data.units.map((_, index) => priced.units.find((unit) => unit.key === index))
   return {
-    text: toGwText(
-      {
-        name: data.name,
-        faction: factionDisplayName(faction),
-        detachments: priced.detachments,
-        dispositions: dispositionNames,
-        size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
-        limit: data.limit,
-        points: priced.points,
-        units: priced.units.map((unit) => ({
-          ...unit,
-          group: exportGroup(unit.group),
-          warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
-          joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
-        })),
-      },
-      version,
-    ),
+    text:
+      toGwText(
+        {
+          name: data.name,
+          faction: factionDisplayName(faction),
+          detachments: priced.detachments,
+          dispositions: dispositionNames,
+          size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
+          limit: data.limit,
+          points: priced.points,
+          units: priced.units.map((unit) => ({
+            ...unit,
+            group: exportGroup(unit.group),
+            warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+            joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
+          })),
+        },
+        version,
+      ) +
+      (loaded.edition ? `\nCodex: ${editionLabel(loaded.edition)}` : '') +
+      `\nRuleset: ${data.catalogueId}\n`,
   }
 }
 

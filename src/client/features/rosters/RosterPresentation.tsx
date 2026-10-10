@@ -8,8 +8,10 @@ import type { OnboardingTarget } from '../onboarding/onboarding'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
+import { type CatalogueEdition, editionLabel } from '../../../core/catalogueEdition'
 
 type PresentedFaction = FactionPresentation & {
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
   detachments: readonly {
     id: string
     slug: string
@@ -142,6 +144,18 @@ export function RosterHeader({
             data-slot="roster-meta"
             className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
+            {faction?.edition ? (
+              <span
+                title={editionLabel(faction.edition)}
+                className={`chip shrink-0 ${faction.edition.status === 'preview' ? 'text-warning' : 'text-dim'}`}
+              >
+                {faction.edition.status === 'preview'
+                  ? 'Preview'
+                  : faction.edition.status === 'retired'
+                    ? 'Previous'
+                    : faction.edition.name}
+              </span>
+            ) : null}
             {faction ? (
               <Link
                 to="/factions/$catalogueId"

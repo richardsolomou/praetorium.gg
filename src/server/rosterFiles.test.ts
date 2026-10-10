@@ -3,7 +3,7 @@ import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
 import { descriptionKey } from './datacards'
-import { exportRosterFile, importRosterFile } from './rosterFiles'
+import { exportRosterFile, importRosterFile, importRosterCatalogueId } from './rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -212,6 +212,36 @@ const loaded: LoadedCatalogue = {
 }
 
 describe('roster export', () => {
+  it('retains released base rules on import even after another codex becomes the default', () => {
+    const exported = exportRosterFile(
+      { catalogueId: 'necrons', detachmentIds: [], disposition: null, limit: 2000, name: 'Released army', units: [] },
+      loaded,
+      { points: 0, disposition: null, detachments: [], units: [] },
+      [],
+    )
+    expect(importRosterCatalogueId(exported.text)).toBe('necrons')
+  })
+  it('keeps the selected codex identity in exported text for import after promotion', () => {
+    const exported = exportRosterFile(
+      { catalogueId: 'codex~necrons', detachmentIds: [], disposition: null, limit: 2000, name: 'Preview army', units: [] },
+      {
+        ...loaded,
+        edition: {
+          id: 'codex',
+          name: 'Necrons codex',
+          status: 'preview',
+          default: false,
+          catalogueIds: ['necrons'],
+          releases: [{ at: 1, status: 'preview' }],
+        },
+      },
+      { points: 0, disposition: null, detachments: [], units: [] },
+      [],
+    )
+    expect(importRosterCatalogueId(exported.text)).toBe('codex~necrons')
+    expect(exported.text).toContain('Codex: Necrons codex · Preview')
+  })
+
   it('includes upgrades and both sides of an attachment', () => {
     const exported = exportRosterFile(
       {

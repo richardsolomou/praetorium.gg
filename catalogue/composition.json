@@ -1,0 +1,30 @@
+{
+  "format": "praetorium.catalogue-composition.v1",
+  "overlays": [
+    {
+      "source": "definitions",
+      "repository": "BSData/wh40k-11e",
+      "branch": "Space-Marine-Codex",
+      "license": null,
+      "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
+      "revision": "87f63a40d19a3cb684731b08b04e92384b9770ed",
+      "files": [
+        "Imperium - Black Templars.json",
+        "Imperium - Blood Angels.json",
+        "Imperium - Dark Angels.json",
+        "Imperium - Deathwatch.json",
+        "Imperium - Imperial Fists.json",
+        "Imperium - Iron Hands.json",
+        "Imperium - Raven Guard.json",
+        "Imperium - Salamanders.json",
+        "Imperium - Space Marines.json",
+        "Imperium - Space Wolves.json",
+        "Imperium - Ultramarines.json",
+        "Imperium - White Scars.json",
+        "Library - Astartes Heresy Legends.json",
+        "Warhammer 40,000.json"
+      ]
+    }
+  ],
+  "editions": []
+}

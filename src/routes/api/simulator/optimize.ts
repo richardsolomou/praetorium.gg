@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/simulator/optimize')({
         if (request.signal.aborted) abort()
         else request.signal.addEventListener('abort', abort, { once: true })
         const cleanup = () => request.signal.removeEventListener('abort', abort)
-        const batches = combatLoadoutCandidates(loaded, parsed.data, controller.signal, await app().rulesFor())
+        const batches = combatLoadoutCandidates(loaded, parsed.data, controller.signal, await app().rulesFor(parsed.data.catalogueId))
         const encoder = new TextEncoder()
         const stream = new ReadableStream<Uint8Array>({
           async pull(output) {

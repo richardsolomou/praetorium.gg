@@ -1,6 +1,28 @@
 import { expect, it } from 'vitest'
 import { rosterSnapshot } from './rosterSnapshot'
 
+it('freezes the preview label when the same codex is later released', () => {
+  const edition = { id: 'codex', name: 'Test codex', status: 'preview' as 'preview' | 'released' }
+  const snapshot = rosterSnapshot(
+    { id: 'list', name: 'Army', catalogueId: 'codex~book', detachmentIds: [], disposition: null, limit: 2000, waivedRules: [], picks: [] },
+    {
+      edition,
+      points: 0,
+      revision: 'revision',
+      label: 'Army',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [],
+    },
+    [],
+  )
+  edition.status = 'released'
+  expect(snapshot.built?.edition?.status).toBe('preview')
+  expect(snapshot.text).toContain('Codex: Test codex · Preview')
+})
+
 it('freezes unit wounds, reserve exemptions, and transport capability into a roster snapshot', () => {
   const roster = rosterSnapshot(
     {
