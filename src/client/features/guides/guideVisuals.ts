@@ -1,4 +1,7 @@
 import type { ProductGuide } from '../../../contracts/productGuides'
+import gameKit from './game-kit.svg?no-inline'
+import armyRoles from './army-roles.svg?no-inline'
+import scoringChoice from './scoring-choice.svg?no-inline'
 
 const overviews: Record<ProductGuide['slug'], { title: string; points: readonly string[] }> = {
   'prepare-your-first-game': {
@@ -33,17 +36,17 @@ const overviews: Record<ProductGuide['slug'], { title: string; points: readonly 
 
 const illustrations = {
   'prepare-your-first-game': {
-    image: '/guides/game-kit.svg',
+    image: gameKit,
     alt: 'Illustrated tabletop kit: a squad of miniatures, list and rules, dice and measuring tools.',
     caption: 'Pack the tools, then agree the game together.',
   },
   'build-a-balanced-army': {
-    image: '/guides/army-roles.svg',
+    image: armyRoles,
     alt: 'An illustrative battlefield shows squads holding home, contesting the middle and reaching a flank, with a vehicle providing a threat.',
     caption: 'Illustrative positions, not a terrain layout or a deployment rule.',
   },
   'plan-your-scoring': {
-    image: '/guides/scoring-choice.svg',
+    image: scoringChoice,
     alt: 'A utility squad moves towards a scoring opportunity while the main damage unit remains protected for later.',
     caption: 'A decision example; the current card decides eligibility and scoring.',
   },
