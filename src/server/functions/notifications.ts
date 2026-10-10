@@ -4,7 +4,7 @@ import { app } from '../app'
 import { requireUserId } from '../playerSession'
 import { registerPushDeviceRequest, unregisterPushDeviceRequest } from '../pushDevices'
 import { mutationRpc, rpc } from '../rpc'
-import { pushDeviceSchema, pushPreferenceSchema, pushTokenOnlySchema } from '../schemas'
+import { pushDeviceSchema, pushPreferenceSchema, pushTokenOnlySchema } from '../../contracts/schemas'
 
 /** Whether this instance sends notifications. */
 export const notificationSettings = createServerFn({ method: 'GET' }).handler(() =>

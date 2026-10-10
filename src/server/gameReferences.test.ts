@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gameReferencesFor } from './gameReferences'
+import { gameReferencesFor } from '../shared/gameReferences'
 import type { LoadedRules } from './rules'
 
 describe('game references built from a stale rules object', () => {

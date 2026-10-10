@@ -102,7 +102,7 @@ vi.mock('./app', () => ({
     battleReadRulesFor: async () => rules,
   }),
 }))
-vi.mock('./gameReferences', () => ({ gameReferencesFor: () => ({ dispositions: [{ id: 'take-and-hold' }] }) }))
+vi.mock('../shared/gameReferences', () => ({ gameReferencesFor: () => ({ dispositions: [{ id: 'take-and-hold' }] }) }))
 
 import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDiscovery'
 

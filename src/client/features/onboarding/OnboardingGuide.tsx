@@ -16,7 +16,7 @@ import {
   type OnboardingProgressOperation,
   type OnboardingTaskId,
 } from '../../../core/onboarding'
-import { updateOnboardingProgress } from '../../../server/functions'
+import { updateOnboardingProgress } from '../../functions'
 import { meQuery, onboardingQuery } from '../../queries'
 import { useCompactChrome } from './useCompactChrome'
 import {

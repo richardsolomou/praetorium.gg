@@ -1,12 +1,12 @@
-import { rosterCombatant } from '../src/server/rosterCombatRules'
+import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { performance } from 'node:perf_hooks'
 import { attachedUnit } from '../src/core/attach'
 import { buildUnit, type RosterPick } from '../src/core/roster'
-import { abilityNamesIn, datasheetIn, datasheetViewsIn } from '../src/server/catalogue'
+import { abilityNamesIn, datasheetIn, datasheetViewsIn } from '../src/shared/catalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
-import { describeDatasheetAbilities } from '../src/server/datasheetDescriptions'
-import { calculateRosterPrice, rosterDetachments } from '../src/server/pricing'
-import { deploymentRules } from '../src/server/pricing'
+import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
+import { calculateRosterPrice, rosterDetachments } from '../src/shared/pricing'
+import { deploymentRules } from '../src/shared/pricing'
 import { loadRules } from '../src/server/rules'
 
 process.env.CATALOGUE_DIR ??= new URL('../catalogue-data', import.meta.url).pathname

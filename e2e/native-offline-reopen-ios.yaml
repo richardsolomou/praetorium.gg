@@ -1,0 +1,27 @@
+appId: gg.praetorium
+---
+- extendedWaitUntil:
+    visible: Praetorium home
+    timeout: 30000
+- tapOn: Praetorium home
+- tapOn: Rosters
+- assertVisible: 'EDITED NATIVE ARMY OFFLINE.*'
+- takeScreenshot: native-edit-after-cold-reopen
+- tapOn: Battles
+- tapOn: '(?is).*Practice Opponent.*'
+- tapOn: Armies
+- assertVisible: '(?i)Edited native army offline.*'
+- takeScreenshot: native-battle-after-cold-reopen
+- tapOn: More
+- tapOn:
+    text: RULES Game reference
+- scrollUntilVisible:
+    element:
+      text: '03\. Moving.*'
+    direction: DOWN
+    centerElement: true
+- tapOn: '03\. Moving.*'
+- extendedWaitUntil:
+    notVisible: Find a rule
+    timeout: 30000
+- assertVisible: 03. Moving

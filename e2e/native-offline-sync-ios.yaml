@@ -1,0 +1,12 @@
+appId: gg.praetorium
+---
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: 03. Moving
+    timeout: 30000
+- extendedWaitUntil:
+    notVisible: '.*change.*waiting to sync'
+    timeout: 60000
+- takeScreenshot: native-offline-changes-synced

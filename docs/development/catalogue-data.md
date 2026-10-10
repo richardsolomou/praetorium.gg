@@ -53,9 +53,9 @@ Compilation writes `.output/canonical-catalogue.json`, outside the activated cac
 | Question                                | Owner                                                                      |
 | --------------------------------------- | -------------------------------------------------------------------------- |
 | Book membership and imports             | `src/server/catalogueIndex.ts`                                             |
-| Applied datasheet projection            | `src/server/catalogue.ts`                                                  |
-| Picker prices/limits and search         | `src/server/cataloguePicker.ts`, `datasheetSearch.ts`                      |
-| Text resolution and joins               | `src/server/catalogueDescriptions.ts`, `datasheetJoin.ts`, `datacards.ts`  |
+| Applied datasheet projection            | `src/shared/catalogue.ts`                                                  |
+| Picker prices/limits and search         | `src/shared/cataloguePicker.ts`, `datasheetSearch.ts`                      |
+| Text resolution and joins               | `src/shared/catalogueDescriptions.ts`, `datasheetJoin.ts`, `datacards.ts`  |
 | Entry/link meaning                      | `src/core/definitions.ts`                                                  |
 | Selection-tree edits                    | `src/core/selection.ts`                                                    |
 | Defaults and choice swaps               | `src/core/expand.ts`                                                       |

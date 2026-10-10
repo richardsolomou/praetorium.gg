@@ -23,7 +23,7 @@ import {
   moderateLeagueEntry,
   revealLeague,
   unsealLeagueRoster,
-} from '../../../server/functions'
+} from '../../functions'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { friendshipsQuery } from '../../queries'

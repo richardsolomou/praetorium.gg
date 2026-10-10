@@ -1,4 +1,4 @@
-import { registerPushDevice, unregisterPushDevice } from '../server/functions'
+import { registerPushDevice, unregisterPushDevice } from './functions'
 import { requestNativePush } from './nativeBridge'
 
 /**

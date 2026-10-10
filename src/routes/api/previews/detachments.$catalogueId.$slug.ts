@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { detachmentPreview } from '../../../client/linkPreview'
 import { app } from '../../../server/app'
-import { detachmentReference } from '../../../server/detachmentReference'
+import { detachmentReference } from '../../../shared/detachmentReference'
 import { previewResponse } from '../../../server/previewImage'
-import { detachmentDetailSchema } from '../../../server/schemas'
+import { detachmentDetailSchema } from '../../../contracts/schemas'
 
 /** A detachment changes only when a release installs another snapshot. */
 const REFERENCE_SECONDS = 3600

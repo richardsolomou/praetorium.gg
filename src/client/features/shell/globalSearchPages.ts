@@ -1,4 +1,4 @@
-import type { GlobalSearchResult } from '../../../server/functions'
+import type { GlobalSearchResult } from '../../functions'
 import { PRODUCT_GUIDES } from '../../../contracts/productGuides'
 
 const pages: GlobalSearchResult[] = [

@@ -9,12 +9,48 @@ appId: gg.praetorium
 - tapOn: Rosters
 - assertVisible: 'NATIVE SAVED ARMY.*'
 - takeScreenshot: native-rosters-offline
+- tapOn: 'NATIVE SAVED ARMY.*'
+- tapOn: List name
+- eraseText
+- inputText: Edited native army offline
+- tapOn: Done
+- extendedWaitUntil:
+    visible: '.*change.*waiting to sync'
+    timeout: 30000
+- takeScreenshot: native-roster-edited-offline
+- tapOn: Details
+- tapOn: Export saved changes
+- extendedWaitUntil:
+    visible: Save to Files
+    timeout: 10000
+- takeScreenshot: native-offline-export-share
+- tapOn: dismiss popup
+- tapOn: Close
 - tapOn: Battles
 - assertVisible: MY BATTLES
 - assertVisible: '(?is).*Practice Opponent.*'
 - takeScreenshot: native-battles-offline
+- tapOn: '(?is).*Practice Opponent.*'
+- tapOn: Armies
+- scrollUntilVisible:
+    element:
+      text: 'Choose roster.*'
+    direction: DOWN
+    centerElement: true
+- tapOn: 'Choose roster.*'
+- tapOn: 'Edited native army offline.*'
+- assertVisible: 'Edited native army offline.*'
+- takeScreenshot: native-battle-edited-offline
 - tapOn: Factions
 - tapOn: Find a faction
+- runFlow:
+    when:
+      notVisible: Done
+    commands:
+      - tapOn: Find a faction
+- extendedWaitUntil:
+    visible: Done
+    timeout: 10000
 - inputText: Necrons
 - tapOn: Done
 - tapOn: 'NECRONS.*detachments'
@@ -38,5 +74,8 @@ appId: gg.praetorium
     direction: DOWN
     centerElement: true
 - tapOn: '03\. Moving.*'
+- extendedWaitUntil:
+    notVisible: Find a rule
+    timeout: 30000
 - assertVisible: 03. Moving
 - takeScreenshot: native-rules-offline

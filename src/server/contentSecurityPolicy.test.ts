@@ -4,6 +4,16 @@ import { contentSecurityPolicy } from './contentSecurityPolicy'
 const base = "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self'"
 const imageOrigin = 'https://images.example'
 
+it('allows bundled combat workers without allowing dynamic scripts', () => {
+  expect(contentSecurityPolicy(base, imageOrigin, false)).toContain("worker-src 'self' blob:")
+})
+
+it('preserves existing worker origins', () => {
+  expect(contentSecurityPolicy(`${base}; worker-src https://workers.example`, imageOrigin, true)).toContain(
+    'worker-src https://workers.example blob:',
+  )
+})
+
 it('allows SpacetimeDB binary codecs in the hosted browser', () => {
   expect(contentSecurityPolicy(base, imageOrigin, true)).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval'")
 })

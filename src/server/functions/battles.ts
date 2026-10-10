@@ -14,7 +14,7 @@ import {
   submitSchema,
   tokenSchema,
   userSchema,
-} from '../schemas'
+} from '../../contracts/schemas'
 
 async function orNull<T>(work: () => Promise<T>) {
   try {

@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { playerPreview } from '../../../client/linkPreview'
 import { app } from '../../../server/app'
 import { previewResponse } from '../../../server/previewImage'
-import { userSchema } from '../../../server/schemas'
+import { userSchema } from '../../../contracts/schemas'
 
 /** A record moves only when one of the player's battles finishes. */
 const PLAYER_SECONDS = 300

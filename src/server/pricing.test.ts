@@ -17,7 +17,7 @@ import {
   resolveDisposition,
   strategicReserveExemptionSelectors,
   uniqueNames,
-} from './pricing'
+} from '../shared/pricing'
 import { descriptionKey } from './datacards'
 import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'

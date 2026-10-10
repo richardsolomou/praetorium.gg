@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, card, points, withCards } from './catalogue.fixtures'
-import { datacardJoinOutcome, datacardJoinReport, datacardOf } from './datasheetJoin'
+import { datacardJoinOutcome, datacardJoinReport, datacardOf } from '../shared/datasheetJoin'
 
 const book = () =>
   bookOf({

@@ -245,7 +245,34 @@ const publicRevisions = table(
   },
 )
 
+const rosterSync = table(
+  { name: 'roster_sync' },
+  {
+    id: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    operationId: t.string(),
+    fingerprint: t.string(),
+    version: t.u64(),
+    deleted: t.bool(),
+  },
+)
+
+const syncReceipts = table(
+  { name: 'sync_receipts' },
+  {
+    id: t.string().primaryKey(),
+    owner: t.string().index('btree'),
+    fingerprint: t.string(),
+    createdAt: t.u64(),
+    result: t.string(),
+    outcome: t.string(),
+    message: t.string(),
+  },
+)
+
 export const productTables = {
+  syncReceipts,
+  rosterSync,
   userOnboarding,
   userOnboardingTasks,
   battles,

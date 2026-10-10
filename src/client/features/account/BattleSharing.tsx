@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../../../core/battleAudience'
-import { setBattleAudience } from '../../../server/functions'
+import { setBattleAudience } from '../../functions'
 import { battleAudienceQuery, friendBattlesQuery, publicBattlesQuery, standingsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { Choice, type ChoiceOption } from '../../components/Choice'

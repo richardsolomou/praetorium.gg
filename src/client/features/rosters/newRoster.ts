@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
-import { saveRoster } from '../../../server/functions'
+import { saveRoster } from '../../functions'
 import { invalidateSavedRosters, meQuery } from '../../queries'
 import { newGuestDraft, writeGuestDraft } from './guestDraft'
 import type { RosterSetup } from './RosterSetupDialog'

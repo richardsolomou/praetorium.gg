@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { catalogueChanges, changesTouching } from '../core/catalogueChanges'
 import { bookOf, points } from './catalogue.fixtures'
-import { calculateRosterAssessment, calculateRosterPrice, savedRosterPriceInput } from './pricing'
+import { calculateRosterAssessment, calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import type { LoadedRules } from './rules'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from './rosterStatus'
 

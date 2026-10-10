@@ -16,6 +16,7 @@ routes ──> client ──> contracts ──> core
 | `src/core`              | Deterministic domain decisions; no IO or framework imports except zod                                 |
 | `src/contracts`         | Serializable cross-runtime types; depends on core, not application layers                             |
 | `src/db`                | SQLite account schema                                                                                 |
+| `src/shared`            | IO-free catalogue, pricing, construction, and simulation reused by browser and server                 |
 | `src/server`            | Application services, authentication, catalogue loading, server functions, and SpacetimeDB repository |
 | `src/adapters`          | External transports                                                                                   |
 | `src/client/features`   | Feature components, local models, and adjacent tests                                                  |
@@ -29,11 +30,17 @@ routes ──> client ──> contracts ──> core
 
 Keep page implementation in client features. Routes compose it. Shared browser models live at the client root; React Query options live in `src/client/queries/<feature>.ts`, exported through `src/client/queries.ts`. The roster builder owns the loadout editor reused by simulation.
 
-Client code may call `src/server/functions`, but must not import server implementation modules. Cross-boundary types belong in contracts. `src/core/datasheet.ts` owns domain datasheet shapes, re-exported by `src/contracts/catalogue.ts`.
+Application components and queries call `src/client/functions.ts`, which selects local construction, durable edits, cached reads, or existing server functions. Keep transport calls inside that facade and `src/client/offline`; client code must not import server implementation modules. Cross-boundary types belong in contracts. `src/core/datasheet.ts` owns domain datasheet shapes, re-exported by `src/contracts/catalogue.ts`.
 
 Keep existing `createServerFn` source paths: the pinned compiler includes filenames in production function IDs, so moving them can break older open clients.
 
 `PraetoriumService` and repository facades delegate complete application areas while preserving one entry point. Split modules by responsibility, not length; keep each domain decision under one owner. `src/core/battle.ts` deliberately owns the full battle fold and validation.
+
+## Offline work
+
+`src/client/offline/syncEngine.ts` owns durable enqueue, ordering, dependencies, sender leases, and acknowledgements. IndexedDB transactions and native generation files implement the same account-scoped storage contract. Save before projecting a change into query data. Never replace a later local edit with an earlier acknowledgement or write across an account generation.
+
+`src/server/functions/offline.ts` authenticates queued actions and preserves the ordinary mutation origin checks. SpacetimeDB commits product mutations and retry receipts atomically. Roster versions and battle sequences detect concurrent changes; conflicts remain on the device for review. Fold downloaded battle commands through the existing domain authority, sanitizing private history before download. Public construction bundles serialize the same catalogue and rules used by the server.
 
 ## Tests
 

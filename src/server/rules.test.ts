@@ -6,7 +6,7 @@ import { hasDetachmentSemantics, loadRules, missionFor } from './rules'
 import { missionCardsFromDatacards } from './datacardMissions'
 import { stratagemLimit } from './datacards'
 import { bookOf } from './catalogue.fixtures'
-import { factionsFor } from './factionReferences'
+import { factionsFor } from '../shared/factionReferences'
 
 let directory: string
 const write = (file: string, value: unknown) => {

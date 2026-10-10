@@ -28,7 +28,7 @@ import {
 } from './importMismatch'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
-import type { ExportRosterInput, ImportRosterInput } from './schemas'
+import type { ExportRosterInput, ImportRosterInput } from '../contracts/schemas'
 
 function parsedImport(file: string) {
   const battleBase = fromBattleBaseText(file)

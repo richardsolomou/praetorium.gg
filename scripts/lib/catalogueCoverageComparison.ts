@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../../src/core/slug'
 import { constructionCardKey, datacardsFactionKeys } from '../../src/server/datacards'
-import { joinKey } from '../../src/server/rulesSource'
+import { joinKey } from '../../src/shared/rulesSource'
 
 type Described = { name: string; described: boolean }
 type DetachmentAbilities = { name: string; abilities: Described[] }

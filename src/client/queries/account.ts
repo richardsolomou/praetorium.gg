@@ -17,7 +17,7 @@ import {
   playerDefaults,
   signInOptions,
   userProfile,
-} from '../../server/functions'
+} from '../functions'
 import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
 

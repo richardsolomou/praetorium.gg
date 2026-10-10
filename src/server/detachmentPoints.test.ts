@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest'
 import { bookOf, shelfOf } from './catalogue.fixtures'
-import { detachmentPoints } from './detachmentPoints'
-import { factionsFor } from './factionReferences'
-import { calculateRosterPrice } from './pricing'
+import { detachmentPoints } from '../shared/detachmentPoints'
+import { factionsFor } from '../shared/factionReferences'
+import { calculateRosterPrice } from '../shared/pricing'
 
 const dp = 'cost-detachment-points'
 const loaded = bookOf({

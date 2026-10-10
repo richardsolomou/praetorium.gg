@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { setFavouriteDetachment } from '../server/functions'
+import { setFavouriteDetachment } from './functions'
 import { useOptimisticFavourites } from './favourites'
 import { favouriteDetachmentsQuery } from './queries'
 

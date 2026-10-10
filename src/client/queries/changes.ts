@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { referenceData } from '../offline/runtime'
-import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedCount } from '../../server/functions'
+import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedCount } from '../functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'

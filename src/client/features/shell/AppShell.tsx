@@ -1,3 +1,4 @@
+import { SyncStatus } from '../../offline/SyncStatus'
 import { offlineData } from '../../offline/runtime'
 import { OfflineReference } from '../../offline/OfflineReference'
 import { WebMcp } from '../agents/WebMcp'
@@ -232,6 +233,7 @@ export function AppShell() {
                 >
                   <OfflineReference />
                   <AppPersistence />
+                  <SyncStatus />
                   <WebMcp />
                   <Outlet />
                 </div>

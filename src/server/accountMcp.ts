@@ -10,7 +10,7 @@ import {
   saveRosterSchema,
   submitSchema,
   tokenSchema,
-} from './schemas'
+} from '../contracts/schemas'
 
 export const ACCOUNT_MCP_SCOPES: Record<string, 'mcp:read' | 'mcp:write'> = {
   list_my_rosters: 'mcp:read',

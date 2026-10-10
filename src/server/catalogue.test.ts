@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn, datasheetViewsIn, unitBattleDetailsIn, woundsOf } from './catalogue'
+import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn, datasheetViewsIn, unitBattleDetailsIn, woundsOf } from '../shared/catalogue'
 import { ability, bookOf, card, categories, shelfOf, withCards } from './catalogue.fixtures'
 
 describe('a datasheet', () => {

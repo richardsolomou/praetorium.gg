@@ -31,9 +31,9 @@ import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
-import { factionIndexFor, factionsFor } from './factionReferences'
+import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { compiledGlobalSearchIndex } from './globalSearch'
-import { battleDetachmentData, type BattleDetachmentData } from './battleDetachmentData'
+import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
 
 type App = {

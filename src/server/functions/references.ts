@@ -1,26 +1,24 @@
+import { rosterLoadoutDatasheets, rosterDatasheet } from '../../shared/rosterReads'
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
-import type { RosterPick } from '../../core/roster'
-import { datasheetIn, datasheetViewsIn, unitWoundsIn } from '../catalogue'
+import { unitWoundsIn } from '../../shared/catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
-import { describeDatasheetAbilities } from '../datasheetDescriptions'
-import { datacardJoinOutcome } from '../datasheetJoin'
-import { detachmentReference } from '../detachmentReference'
-import { unitsIn } from '../cataloguePicker'
-import { booksOffering, pickerUnitsFor } from '../pickerUnits'
-import { detachmentsOffering } from '../factionReferences'
+import { detachmentReference } from '../../shared/detachmentReference'
+import { unitsIn } from '../../shared/cataloguePicker'
+import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
+import { detachmentsOffering } from '../../shared/factionReferences'
 
-import { gameReferencesFor } from '../gameReferences'
+import { gameReferencesFor } from '../../shared/gameReferences'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
 import { rosterLabel } from '../../core/rosterLabel'
-import { rosterDatasheetContext } from '../rosterDatasheetContext'
-import { rosterCombatant } from '../rosterCombatRules'
-import { combatLoadoutSpace } from '../combatLoadouts'
+import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
+import { rosterCombatant } from '../../shared/rosterCombatRules'
+import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
-import { selectedBattleDetachmentData } from '../battleDetachmentData'
+import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
@@ -37,7 +35,7 @@ import {
   terrainReferencesSchema,
   unitsSchema,
   unitWoundsSchema,
-} from '../schemas'
+} from '../../contracts/schemas'
 
 /** How the community data is doing, so a fresh instance can say so rather than look broken. */
 export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
@@ -240,47 +238,6 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
       return result
     }),
   )
-
-function rosterLoadoutDatasheets(
-  loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
-  data: {
-    catalogueId: string
-    entryId: string
-    detachmentIds: string[]
-    picks: RosterPick[]
-    pickIndex: number | null
-  },
-  rules: Awaited<ReturnType<ReturnType<typeof app>['rulesFor']>>,
-) {
-  const context = rosterDatasheetContext(loaded, data)
-  const views = context ? datasheetViewsIn(loaded, data.catalogueId, data.entryId, context) : null
-  return {
-    datacardJoin: datacardJoinOutcome(loaded, data.catalogueId, data.entryId),
-    controlledChoices: views?.controlledChoices ?? [],
-    carriers: views?.carriers ?? [],
-    selected: views
-      ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, rules)
-      : rosterDatasheet(loaded, data, undefined, false, rules),
-    available: views
-      ? describeDatasheetAbilities(loaded, data.catalogueId, views.available, rules)
-      : rosterDatasheet(loaded, data, undefined, true, rules),
-  }
-}
-
-function rosterDatasheet(
-  loaded: NonNullable<ReturnType<ReturnType<typeof app>['catalogue']>>,
-  data: { catalogueId: string; entryId: string; detachmentIds?: string[] },
-  context: ReturnType<typeof rosterDatasheetContext>,
-  everyWeapon: boolean,
-  rules: Awaited<ReturnType<ReturnType<typeof app>['rulesFor']>>,
-) {
-  return describeDatasheetAbilities(
-    loaded,
-    data.catalogueId,
-    datasheetIn(loaded, data.catalogueId, data.entryId, context ? { ...context, everyWeapon } : undefined),
-    rules,
-  )
-}
 
 /**
  * What one model of each of an army's datasheets can take, asked once as it is fielded.

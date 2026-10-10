@@ -813,13 +813,13 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
     const RealWorker = window.Worker
     let first = true
     window.Worker = class extends RealWorker {
-      constructor(...args: ConstructorParameters<typeof Worker>) {
-        super(...args)
-        if (first) {
+      override postMessage(message: unknown, options?: StructuredSerializeOptions) {
+        if (first && message && typeof message === 'object' && !('kind' in message)) {
           first = false
           this.terminate()
           throw new Error('Worker startup failure')
         }
+        super.postMessage(message, options)
       }
     }
   })

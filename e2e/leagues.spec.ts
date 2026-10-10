@@ -301,8 +301,11 @@ async function sealableRoster(page: Page, name: string, extraUnit?: string) {
 async function join(page: Page) {
   await eventLoaded(page)
   const button = page.getByRole('button', { name: /^(?:Join event|Join as a player)$/ })
-  await button.click()
-  await expect(button).toBeHidden()
+  await expect(async () => {
+    if (!(await button.isVisible())) return
+    await button.click({ timeout: 2_000 })
+    await expect(button).toBeHidden({ timeout: 3_000 })
+  }).toPass({ timeout: 20_000 })
 }
 
 async function expectNoHorizontalOverflow(page: Page, ...elements: Locator[]) {
@@ -1450,9 +1453,19 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(removeEntrant.getByRole('button', { name: 'Keep entrant' })).toBeDisabled()
   await expect(removeEntrant.getByRole('button', { name: 'Removing…' })).toBeDisabled()
   releaseRemoval()
-  await expect(removeEntrant.getByRole('alert')).toBeVisible()
+  await expect(removeEntrant).toBeHidden()
+  await expect(owner.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
+  await owner.getByRole('button', { name: 'Details', exact: true }).click()
+  const savedChanges = owner.getByRole('dialog', { name: 'Saved changes', exact: true })
+  await savedChanges.getByRole('button', { name: 'Discard all saved changes' }).click()
+  await owner
+    .getByRole('alertdialog', { name: 'Discard saved changes?' })
+    .getByRole('button', { name: 'Discard changes', exact: true })
+    .click()
+  await expect(savedChanges).toContainText('All changes have synced.')
   await owner.unrouteAll({ behavior: 'wait' })
-  await removeEntrant.getByRole('button', { name: 'Keep entrant' }).click()
+  await savedChanges.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(team(1).locator('[data-person]')).toHaveCount(2)
 
   await expect(owner.getByRole('heading', { name: 'Ready to reveal' })).toBeVisible()
   await owner.getByRole('button', { name: 'Reveal all rosters' }).click()

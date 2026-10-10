@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { CatalogueFile } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type FactionContent, type LoadedDatacards } from './datacards'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../shared/rulesSource'
 
 export function missingArmyRulesFromCatalogue(directory: string, datacards: LoadedDatacards) {
   const found = new Map<string, { name: string; description: string }[]>()

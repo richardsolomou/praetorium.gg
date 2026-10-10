@@ -12,7 +12,7 @@ import { battleQuery } from '../../queries'
 import { useCommand } from './useCommand'
 import { useSpacetimeLiveBattle } from '../../spacetimeLive'
 import { setNativeBattleActive } from '../../nativeBridge'
-import type { openBattle } from '../../../server/functions'
+import type { openBattle } from '../../functions'
 
 export function BattlePage({ token }: { token: string }) {
   const { data: screen } = useQuery(battleQuery(token))

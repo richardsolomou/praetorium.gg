@@ -242,7 +242,7 @@ export async function* combatLoadoutCandidates(
   }
   enqueue(picks, units)
   yield { candidates: [], built: 0, scheduled: 1, done: false }
-  await new Promise<void>((resolve) => setImmediate(resolve))
+  await new Promise<void>((resolve) => setTimeout(resolve, 0))
   while (head < queue.length) {
     if (signal.aborted) return
     if (performance.now() - started > 120_000) throw incomplete()
@@ -255,7 +255,7 @@ export async function* combatLoadoutCandidates(
     }
     if (++work >= 32) {
       yield takeBatch()
-      await new Promise<void>((resolve) => setImmediate(resolve))
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
       if (signal.aborted) return
     }
     for (let at = 0; at < indexes.length; at++) {
@@ -267,7 +267,7 @@ export async function* combatLoadoutCandidates(
         if (requested.has(key)) continue
         if (++work >= 32) {
           yield takeBatch()
-          await new Promise<void>((resolve) => setImmediate(resolve))
+          await new Promise<void>((resolve) => setTimeout(resolve, 0))
           if (signal.aborted) return
         }
         if (attempts >= 100_000 || performance.now() - started > 120_000) throw incomplete()

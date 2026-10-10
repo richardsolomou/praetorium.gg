@@ -1,0 +1,221 @@
+import { type Catalogue, type CatalogueFile, type CatalogueIndex, type Definition, importsOf, nameOf, targetOf } from '../core/catalogue'
+import { hiddenByRules } from '../core/evaluate'
+import { routeSlug } from '../core/slug'
+import { compareText, sameText } from '../core/text'
+import type { FactionContent, LoadedDatacards } from './datacards'
+import { catalogueFactionName, factionDisplayName } from './factionNames'
+import type { MfmIndex } from './mfm'
+type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
+export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
+type DetachmentOption = { id: string; name: string; disposition: string | null }
+export type LoadedCatalogue = {
+  index: CatalogueIndex
+  characteristicNames: Map<string, string>
+  factions: { id: string; name: string; references: CatalogueReference[] }[]
+  detachments: Map<string, DetachmentOptions>
+  factionContents: Map<string, FactionContent>
+  mfm?: MfmIndex | null
+  /** Game Datacards, read once here and handed to the rules loader. */
+  datacards: LoadedDatacards
+}
+const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
+const DETACHMENT_ENTRY = 'detachment'
+export function catalogueFromIndex(index: CatalogueIndex, files: readonly CatalogueFile[], datacards: LoadedDatacards): LoadedCatalogue {
+  const detachments = detachmentsOf(files, index)
+  return {
+    index,
+    characteristicNames: characteristicNamesOf(files),
+    factions: factionsIn(index, detachments),
+    detachments,
+    factionContents: datacards.factions,
+    datacards,
+  }
+}
+/** Characteristic type ids are defined inline throughout the source files. */
+export function characteristicNamesOf(files: readonly CatalogueFile[]) {
+  const names = new Map<string, string>()
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) return value.forEach(visit)
+    if (!value || typeof value !== 'object') return
+    const record = value as Record<string, unknown>
+    if (typeof record.typeId === 'string' && typeof record.name === 'string' && typeof record.$text === 'string') {
+      names.set(record.typeId, record.name)
+    }
+    Object.values(record).forEach(visit)
+  }
+  files.forEach(visit)
+  return names
+}
+export function factionsIn(index: CatalogueIndex, detachments: Map<string, DetachmentOptions>) {
+  return [...index.catalogues.values()]
+    .filter((catalogue) => unitCount(index, catalogue.id) > 0)
+    .map((catalogue) => ({
+      id: catalogue.id,
+      name: catalogue.name,
+      references: [
+        {
+          id: catalogue.id,
+          name: catalogue.name,
+          datasheets: unitCount(index, catalogue.id),
+          detachments: detachments.get(catalogue.id)?.options.length ?? 0,
+        },
+      ],
+    }))
+    .toSorted((left, right) => compareText(left.name, right.name))
+}
+export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueIndex): Map<string, DetachmentOptions> {
+  const books = new Map<string, Catalogue>()
+  for (const file of files) if (file.catalogue) books.set(file.catalogue.id, file.catalogue)
+
+  const found = new Map<string, DetachmentOptions>()
+  for (const book of books.values()) {
+    if (book.library) continue
+    for (const source of [book, ...importsOf(book, books, index.definitions)]) {
+      const wrapper = wrapperIn(source, index)
+      if (!wrapper) continue
+      const options = wrapper.options
+        .filter((option) => !option.hidden && !hiddenByRules(option, index, { primaryCatalogueId: book.id }))
+        .map((option) => ({
+          id: option.id,
+          name: nameOf(option, index.definitions),
+          disposition: dispositionOf(option, index),
+        }))
+        .toSorted((left, right) => compareText(left.name, right.name))
+      if (!options.length) continue
+      found.set(book.id, { wrapperId: wrapper.wrapperId, groupId: wrapper.groupId, options })
+      break
+    }
+  }
+  return found
+}
+function wrapperIn(book: Catalogue, index: CatalogueIndex) {
+  const roots: Definition[] = [...(book.selectionEntries ?? []), ...(book.sharedSelectionEntries ?? []), ...(book.entryLinks ?? [])]
+  for (const wrapper of roots) {
+    const target = targetOf(wrapper, index.definitions)
+    if (target.type !== 'upgrade') continue
+    if (!nameOf(wrapper, index.definitions).toLowerCase().startsWith(DETACHMENT_ENTRY)) continue
+    for (const group of groupsOf(target)) {
+      const inside = targetOf(group, index.definitions)
+      const options = [...(inside.selectionEntries ?? []), ...(inside.entryLinks ?? [])]
+      if (options.length) return { wrapperId: wrapper.id, groupId: group.id, options }
+    }
+  }
+  return null
+}
+const groupsOf = (entry: Definition): Definition[] => [
+  ...(entry.selectionEntryGroups ?? []),
+  ...(entry.entryLinks ?? []).filter((link) => link.type === 'selectionEntryGroup'),
+]
+const dispositionOf = (option: Definition, index: CatalogueIndex) =>
+  [...(option.categoryLinks ?? []), ...(targetOf(option, index.definitions).categoryLinks ?? [])]
+    .map((link) => routeSlug(link.name ?? ''))
+    .find((slug) => DISPOSITIONS.has(slug)) ?? null
+const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId)?.size ?? 0
+export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
+/**
+ * Whether a datasheet belongs on this faction's public discovery surfaces.
+ *
+ * An army can offer allied units from another faction. Reference pages, global
+ * search, and the simulator use the written Faction category or the defining
+ * book as their canonical home. The roster picker deliberately keeps all offers.
+ */
+export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return false
+  const entry = loaded.index.definitions.get(entryId)
+  if (!entry) return false
+  const target = targetOf(entry, loaded.index.definitions)
+  const factions = referenceFactionsOf(
+    loaded,
+    [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((category) => category.name),
+  )
+  if (factions.size > 1) return true
+  if (factions.size === 1) return factions.has(factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? ''))
+  const owner = loaded.index.catalogueOf.get(entryId)
+  return !owner || owner === catalogueId || !loaded.factions.some((faction) => faction.id === owner)
+}
+const FACTION_CATEGORY = /^Faction:\s*(.+)$/i
+const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
+/** A datasheet genuinely filed under two factions stays visible on both pages. */
+function referenceFactionsOf(loaded: LoadedCatalogue, categories: readonly (string | undefined)[]) {
+  const factionNames =
+    factionNamesCache.get(loaded) ?? new Set(loaded.factions.map((faction) => factionDisplayName(faction.name).toLowerCase()))
+  if (!factionNamesCache.has(loaded)) factionNamesCache.set(loaded, factionNames)
+  const candidates = new Set(
+    categories.flatMap((category) => {
+      const name = category?.match(FACTION_CATEGORY)?.[1]?.trim()
+      if (!name) return []
+      const canonical = catalogueFactionName(name)
+      return factionNames.has(canonical.toLowerCase()) ? [canonical] : []
+    }),
+  )
+  return candidates
+}
+export function isDatasheetId(index: CatalogueIndex, entryId: string, catalogueId?: string | null) {
+  const offered = catalogueId ? index.datasheets.get(catalogueId) : undefined
+  if (offered) return offered.has(entryId)
+  for (const each of index.datasheets.values()) if (each.has(entryId)) return true
+  return false
+}
+type DatasheetSlugs = { byEntry: Map<string, string>; entryBySlug: Map<string, string> }
+const datasheetSlugCache = new WeakMap<LoadedCatalogue, Map<string, DatasheetSlugs>>()
+/** Slugs for a whole book at once: collision detection is per book, not per entry. */
+function datasheetSlugsFor(loaded: LoadedCatalogue, catalogueId: string): DatasheetSlugs {
+  const perBook = datasheetSlugCache.get(loaded) ?? new Map<string, DatasheetSlugs>()
+  if (!datasheetSlugCache.has(loaded)) datasheetSlugCache.set(loaded, perBook)
+  const cached = perBook.get(catalogueId)
+  if (cached) return cached
+
+  const ids = [...datasheetsOf(loaded.index, catalogueId)]
+  const nameSlugCounts = new Map<string, number>()
+  for (const id of ids) {
+    const slug = routeSlug(nameOf(loaded.index.definitions.get(id) ?? { id }, loaded.index.definitions))
+    nameSlugCounts.set(slug, (nameSlugCounts.get(slug) ?? 0) + 1)
+  }
+  const byEntry = new Map<string, string>()
+  const entryBySlug = new Map<string, string>()
+  for (const id of ids) {
+    const base = routeSlug(loaded.index.definitions.get(id)?.name ?? id)
+    const slug = (nameSlugCounts.get(base) ?? 0) > 1 ? `${base}-${id.slice(0, 8)}` : base
+    byEntry.set(id, slug)
+    // A slug resolves to the first entry claiming it, by its own id or its slug.
+    if (!entryBySlug.has(id)) entryBySlug.set(id, id)
+    if (!entryBySlug.has(slug)) entryBySlug.set(slug, id)
+  }
+  const slugs = { byEntry, entryBySlug }
+  perBook.set(catalogueId, slugs)
+  return slugs
+}
+export function datasheetSlug(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  return datasheetSlugsFor(loaded, catalogueId).byEntry.get(entryId) ?? routeSlug(loaded.index.definitions.get(entryId)?.name ?? entryId)
+}
+/** The datasheet a reference-page slug names, accepting a raw entry id too. */
+export function datasheetIdBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {
+  return datasheetSlugsFor(loaded, catalogueId).entryBySlug.get(slug) ?? null
+}
+/** Prefer the datasheet's own reference page; imported entries fall back to an unambiguous named match. */
+export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, preferred?: { catalogueId: string; entryId: string }) {
+  const preferredFaction = preferred ? loaded.factions.find((candidate) => candidate.id === preferred.catalogueId) : undefined
+  if (preferred && preferredFaction && isReferenceDatasheet(loaded, preferred.catalogueId, preferred.entryId)) {
+    return {
+      catalogueId: routeSlug(factionDisplayName(preferredFaction.name)),
+      slug: datasheetSlug(loaded, preferred.catalogueId, preferred.entryId),
+    }
+  }
+  const cache = referenceDatasheetRouteCache.get(loaded)
+  if (cache?.has(name)) return cache.get(name) ?? null
+  const matches = loaded.factions.flatMap((faction) =>
+    [...datasheetsOf(loaded.index, faction.id)].flatMap((entryId) => {
+      const entry = loaded.index.definitions.get(entryId)
+      if (!entry || !sameText(nameOf(entry, loaded.index.definitions), name)) return []
+      return isReferenceDatasheet(loaded, faction.id, entryId)
+        ? [{ catalogueId: routeSlug(factionDisplayName(faction.name)), slug: datasheetSlug(loaded, faction.id, entryId) }]
+        : []
+    }),
+  )
+  const route = matches.length === 1 ? matches[0]! : null
+  const entries = cache ?? new Map<string, { catalogueId: string; slug: string } | null>()
+  entries.set(name, route)
+  if (!cache) referenceDatasheetRouteCache.set(loaded, entries)
+  return route
+}
+const referenceDatasheetRouteCache = new WeakMap<LoadedCatalogue, Map<string, { catalogueId: string; slug: string } | null>>()

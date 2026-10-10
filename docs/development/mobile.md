@@ -1,6 +1,6 @@
 # Mobile application
 
-The Expo shell hosts the shared web interface. React Native owns safe areas, system authentication, sharing, printing, haptics, notifications, and screen wake locks. The server owns accounts, rosters, and battles. [Interface](interface.md#application-navigation) owns application navigation; [Mobile release](mobile-release.md) owns distribution and store setup.
+The Expo shell hosts the shared web interface. React Native owns safe areas, system authentication, sharing, printing, haptics, notifications, and screen wake locks. The server authenticates accounts and accepts synchronized rosters, battles, and actions; the shared interface saves edits locally first. [Interface](interface.md#application-navigation) owns application navigation; [Mobile release](mobile-release.md) owns distribution and store setup.
 
 ## Run it
 
@@ -41,7 +41,11 @@ Remounting clears `sessionStorage`; an unsaved visitor roster lives in `localSto
 
 Launches load the hosted application first so a connected launch uses the current release. A failed document load opens the saved application at the requested path with background refresh. Hosted reference caching uses the same compressed public asset as the website; the native shell still receives one complete saved HTML application. Application-only updates reuse the saved reference corpus. Deep links stay in the same application. Saved and hosted WebViews both remount after renderer termination; saved recovery resumes the memory router’s latest path. Preserve the hosted authentication/receipt path, native capabilities, cookies, and ordinary mutation origin checks. The `offline-reference` and `app-snapshot` capabilities gate storage support; older shells keep their existing path.
 
-Run `just e2e-native-offline-ios` after changing saved launch or storage. It extends the authentication journey with a cold launch while the service is unreachable, saved Home/rosters/battles, unvisited references, real renderer termination and recovery while disconnected, and foreground refresh that preserves the open rule. Also verify airplane mode and reopening on a signed physical iPhone; Android needs an available emulator or device.
+[`mobile/src/localStateStorage.ts`](../../mobile/src/localStateStorage.ts) stores account-scoped work through the `local-state` capability. Verified generation files retain a previous complete write, and compare-and-swap revisions prevent stale writers replacing work. Signed-out or changed accounts cannot access another account’s queue. Older shells without this capability retain their connected mutation path; install the current shell for durable offline edits. iOS can export unsynced work through the system share sheet.
+
+Owned rosters are prepared in the background, along with preferences, current personal league events and visible sealed rosters, and the most recent 20 battles. Previously opened battles remain saved within storage limits. Public reference and construction data enable offline roster building, legality, pricing, loadouts, and simulation. First login, uncached remote content, other players’ updates, and external services require connectivity. Preparation must complete while connected; keep the app installed until work syncs.
+
+Run `just e2e-native-offline-ios` after changing saved launch or storage. It verifies authentication without depending on external push-token registration, then extends the journey with a cold launch while the service is unreachable, saved Home/rosters/battles, durable roster edits and battle commands with database-verified reconnect sync, unvisited references, real renderer termination and recovery while disconnected, and foreground refresh that preserves the open rule. Also verify airplane mode and reopening on a signed physical iPhone; Android needs an available emulator or device.
 
 Set `NATIVE_AUTH_KEEP_STACK=1` only when leaving a verified simulator preview running. Its origin and owning process are recorded in the ignored `mobile/.simulator-derived/native-auth-e2e/preview-owner.json`; stop that process to clean up its stack.
 

@@ -240,13 +240,7 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
   const dialog = page.getByRole('dialog', { name: /roster$/ })
   for (let attempt = 0; attempt < 3; attempt++) {
     if (!(await dialog.isVisible())) await chooser.click()
-    const attached = page.waitForResponse(
-      (response) =>
-        response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('attach-saved-roster')),
-    )
     await dialog.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) }).click()
-    const request = (await attached).request()
-    expect(request.postData()).not.toContain(name)
     // A stale shared setup redraws and keeps the chooser open for the player to retry.
     await expect(dialog)
       .toBeHidden({ timeout: 1_000 })

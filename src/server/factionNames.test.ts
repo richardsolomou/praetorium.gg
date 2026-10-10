@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { factionDisplayName } from './factionNames'
+import { factionDisplayName } from '../shared/factionNames'
 
 describe('faction display names', () => {
   const names = new Map([

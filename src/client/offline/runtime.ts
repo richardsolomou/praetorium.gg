@@ -3,7 +3,7 @@ import type { OfflineReferenceData } from '../../contracts/offlineReference'
 import { searchReference, searchOwn } from '../../core/referenceSearch'
 import { rosterLabel } from '../../core/rosterLabel'
 import type { QueryClient } from '@tanstack/react-query'
-import type { savedRosterSummaries, myBattles, factionIndex } from '../../server/functions'
+import type { savedRosterSummaries, myBattles, factionIndex } from '../functions'
 type FactionIndex = NonNullable<Awaited<ReturnType<typeof factionIndex>>>
 import type { UnitSummary } from '../../contracts/catalogue'
 

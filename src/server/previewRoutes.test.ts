@@ -30,7 +30,7 @@ vi.mock('./app', () => ({
     canonicalCatalogueFor: async () => canonical,
   }),
 }))
-vi.mock('./detachmentReference', () => ({
+vi.mock('../shared/detachmentReference', () => ({
   detachmentReference: (_catalogue: unknown, _rules: unknown, _catalogueId: string, slug: string) =>
     slug === 'awakened-dynasty' ? { name: 'Awakened Dynasty' } : null,
 }))

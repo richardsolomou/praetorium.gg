@@ -1,6 +1,7 @@
 import { parseSavedReference, type SavedReference } from './offlineReference'
 import { APP_URL, classifyNavigation } from './navigation'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
+import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
 import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
 
@@ -10,6 +11,8 @@ const MAX_OPEN_WINDOW_URL_LENGTH = 2_048
 const MAX_PRINT_HTML_LENGTH = 2_000_000
 
 export type NativeActionRequest =
+  | { kind: 'export-work'; id: string; state: LocalState }
+  | { kind: 'local-state'; owner: string; id: string; state?: LocalState | null; epoch?: string; expectedRevision?: number }
   | { kind: 'watch-battle'; snapshot: WatchBattle | null }
   | { kind: 'app-snapshot'; id: string; snapshot: AppSnapshot | null }
   | { kind: 'offline-save'; id: string; reference: SavedReference }
@@ -35,6 +38,43 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
   try {
     const value = JSON.parse(message) as Record<string, unknown>
     if (value.version !== 3) return null
+    if (
+      value.type === 'native-export-work' &&
+      typeof value.id === 'string' &&
+      /^[\w-]{1,64}$/.test(value.id) &&
+      message.length <= MAX_LOCAL_STATE_BYTES + 2048
+    ) {
+      const state = parseLocalState(value.state)
+      return state ? { kind: 'export-work', id: value.id, state } : null
+    }
+    if (
+      value.type === 'native-local-state' &&
+      typeof value.owner === 'string' &&
+      value.owner.length > 0 &&
+      value.owner.length <= 128 &&
+      typeof value.id === 'string' &&
+      /^[\w-]{1,64}$/.test(value.id) &&
+      message.length <= MAX_LOCAL_STATE_BYTES + 2048
+    ) {
+      if (!('state' in value)) return { kind: 'local-state', owner: value.owner, id: value.id }
+      const state = value.state === null ? null : parseLocalState(value.state)
+      if (
+        (state?.owner === value.owner || value.state === null) &&
+        typeof value.epoch === 'string' &&
+        /^[\w-]{1,64}$/.test(value.epoch) &&
+        Number.isSafeInteger(value.expectedRevision) &&
+        Number(value.expectedRevision) >= 0
+      )
+        return {
+          kind: 'local-state',
+          owner: value.owner,
+          id: value.id,
+          state,
+          epoch: value.epoch,
+          expectedRevision: Number(value.expectedRevision),
+        }
+      return null
+    }
     if (value.type === 'native-watch-battle' && new TextEncoder().encode(message).length <= MAX_WATCH_MESSAGE_BYTES) {
       const snapshot = value.snapshot === null ? null : parseWatchBattle(value.snapshot)
       return value.snapshot === null || snapshot ? { kind: 'watch-battle', snapshot } : null
@@ -87,7 +127,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'app-snapshot', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'open-window', 'print', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');

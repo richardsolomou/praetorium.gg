@@ -20,6 +20,10 @@ export class SpacetimeRepository {
     private readonly product: SpacetimeOperator,
   ) {}
 
+  syncReceipt(...args: Parameters<SpacetimeOperator['syncReceipt']>) {
+    return this.product.syncReceipt(...args)
+  }
+
   userById(id: string) {
     return this.accounts.userById(id)
   }
@@ -546,6 +550,10 @@ export class SpacetimeRepository {
       z.boolean(),
     )
     return created ? prepared.result : undefined
+  }
+
+  syncRoster(...args: Parameters<SpacetimeOperator['syncRoster']>) {
+    return this.product.syncRoster(...args)
   }
 
   saveRoster(...args: Parameters<SpacetimeOperator['saveRoster']>) {

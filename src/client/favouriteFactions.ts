@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { setFavouriteFaction } from '../server/functions'
+import { setFavouriteFaction } from './functions'
 import { useOptimisticFavourites } from './favourites'
 import { favouriteFactionsQuery } from './queries'
 

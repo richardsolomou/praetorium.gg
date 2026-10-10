@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetInBySlug } from './catalogue'
-import { groupOfEntry, unitsIn } from './cataloguePicker'
+import { datasheetInBySlug } from '../shared/catalogue'
+import { groupOfEntry, unitsIn } from '../shared/cataloguePicker'
 import { ability, bookOf, categories, offered, points, shelfOf, withCards } from './catalogue.fixtures'
 
 describe('the shelf a datasheet is filed under', () => {

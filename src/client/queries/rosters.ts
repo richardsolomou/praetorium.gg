@@ -18,7 +18,7 @@ import {
   savedRosterPage,
   sharedRoster,
   units,
-} from '../../server/functions'
+} from '../functions'
 import { savedRosterChangedCountQuery } from './changes'
 import { SSR_STALE_TIME } from './shared'
 

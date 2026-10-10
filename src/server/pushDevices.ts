@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import { app } from './app'
 import { requireUser, requireUserId } from './playerSession'
 import { mutationRpc } from './rpc'
-import type { pushDeviceSchema } from './schemas'
+import type { pushDeviceSchema } from '../contracts/schemas'
 
 /**
  * Bind this device to the signed-in account.

@@ -3,8 +3,8 @@ import { baselineShortfall } from './lib/baselines'
 import { nameOf } from '../src/core/catalogue'
 import { isNonMatchedPlayName } from '../src/core/name'
 import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
-import { isMatchedPlayDatasheet } from '../src/server/cataloguePicker'
-import { datacardJoinReport } from '../src/server/datasheetJoin'
+import { isMatchedPlayDatasheet } from '../src/shared/cataloguePicker'
+import { datacardJoinReport } from '../src/shared/datasheetJoin'
 import { hasDetachmentSemantics, loadRules } from '../src/server/rules'
 
 /** Every datasheet name the catalogue and Game Datacards do not agree on. Add `--details` to list them. */

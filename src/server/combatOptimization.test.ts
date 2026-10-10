@@ -3,8 +3,8 @@ import type { SelectionEntry } from '../core/catalogue'
 import { DEFAULT_COMBAT_OPTIONS } from '../core/combat'
 import { applyOptimizedLoadout, optimizeLoadout } from '../core/combatLoadouts'
 import { bookOf } from './catalogue.fixtures'
-import { combatLoadoutCandidates } from './combatLoadouts'
-import { rosterCombatant } from './rosterCombatRules'
+import { combatLoadoutCandidates } from '../shared/combatLoadouts'
+import { rosterCombatant } from '../shared/rosterCombatRules'
 
 function unit(id: string, name: string, kind?: 'Leader' | 'Support'): SelectionEntry {
   return {

@@ -9,6 +9,7 @@ import { localTestEnvironment, reserveLocalPort } from '../scripts/lib/localStac
 import { withAuthSql } from './storage'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { parseAppSnapshot } from '../src/contracts/appSnapshot'
+import { parseSavedReference } from '../mobile/src/offlineReference'
 
 const root = path.join(import.meta.dirname, '..')
 const stackEnvironment = await localTestEnvironment('native-auth-ios', { PLAYWRIGHT_PORT: process.env.NATIVE_AUTH_BACKEND_PORT })
@@ -320,8 +321,16 @@ async function waitForSavedApp(udid: string) {
         .sort()
         .at(-1)
       const snapshot = latest ? parseAppSnapshot(JSON.parse(readFileSync(path.join(snapshotDirectory, latest), 'utf8'))) : null
+      const reference = readdirSync(referenceDirectory).some((name) => {
+        if (!/^\d+-[\w-]+\.json$/.test(name)) return false
+        try {
+          return Boolean(parseSavedReference(JSON.parse(readFileSync(path.join(referenceDirectory, name), 'utf8'))))
+        } catch {
+          return false
+        }
+      })
       if (
-        existsSync(referenceDirectory) &&
+        reference &&
         snapshot?.owner === fixtureUserId &&
         JSON.stringify(snapshot).includes('Native saved army') &&
         snapshot.queries.some((query) => query.key[0] === 'saved-roster-page')
@@ -466,7 +475,16 @@ async function main() {
   const javaHome = process.env.JAVA_HOME ?? (existsSync('/opt/homebrew/opt/openjdk@21') ? '/opt/homebrew/opt/openjdk@21' : undefined)
   await run(
     'maestro',
-    ['test', '--udid', udid, '--test-output-dir', path.join(root, 'test-results', journey), path.join(root, 'e2e', `${journey}.yaml`)],
+    [
+      'test',
+      '-e',
+      `NATIVE_OFFLINE_VERIFY=${process.env.NATIVE_OFFLINE_VERIFY ?? '0'}`,
+      '--udid',
+      udid,
+      '--test-output-dir',
+      path.join(root, 'test-results', journey),
+      path.join(root, 'e2e', `${journey}.yaml`),
+    ],
     {
       env: {
         ...process.env,
@@ -482,7 +500,7 @@ async function main() {
   if (guestDraftJourney) {
     await assertGuestRosterSaved()
     console.log("The visitor's unsaved roster survived system-provider sign-in and was saved to the account.")
-  } else {
+  } else if (process.env.NATIVE_OFFLINE_VERIFY !== '1') {
     await assertPushRegistered()
     console.log('Simulator notification permission and device registration succeeded.')
   }
@@ -525,6 +543,20 @@ async function main() {
       { env: maestroEnvironment },
     )
     console.log('Saved reference reopened after a cold launch with the service unreachable.')
+    await run('xcrun', ['simctl', 'terminate', udid, 'gg.praetorium'])
+    await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
+    await run(
+      'maestro',
+      [
+        'test',
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', 'native-offline-ios'),
+        path.join(root, 'e2e', 'native-offline-reopen-ios.yaml'),
+      ],
+      { env: maestroEnvironment },
+    )
     await terminateSavedRenderer(udid)
     await run(
       'maestro',
@@ -541,6 +573,29 @@ async function main() {
     console.log('Saved WebView recovered its current rule after renderer termination while disconnected.')
     proxy = offlineProxy
     await new Promise<void>((resolve) => proxy!.listen(publicPort, '127.0.0.1', resolve))
+    await run(
+      'maestro',
+      [
+        'test',
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', 'native-offline-ios'),
+        path.join(root, 'e2e', 'native-offline-sync-ios.yaml'),
+      ],
+      { env: maestroEnvironment },
+    )
+    const operator = fixtureOperator()
+    const savedRoster = await operator.roster('native-saved-army')
+    const savedBattle = await operator.battleByToken('native-cache-game')
+    if (
+      savedRoster?.name !== 'Edited native army offline' ||
+      !savedBattle?.log.some(
+        (entry) => entry.operationId && entry.command.kind === 'attach-roster' && entry.command.roster.id === 'native-saved-army',
+      )
+    )
+      throw new Error('The native offline roster edit and battle command did not sync to the product database')
+    console.log('Offline native roster edits and battle commands survived renderer recovery and synced on reconnect.')
     await seedSavedApp(true)
     await run(
       'maestro',

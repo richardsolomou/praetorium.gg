@@ -1,10 +1,10 @@
 import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
 import type { ReferenceDocument, ReferenceKind } from '../contracts/reference'
 import { routeSlug } from '../core/slug'
-import { unitsIn } from './cataloguePicker'
+import { unitsIn } from '../shared/cataloguePicker'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { factionDisplayName } from './factionNames'
-import { gameReferencesFor } from './gameReferences'
+import { factionDisplayName } from '../shared/factionNames'
+import { gameReferencesFor } from '../shared/gameReferences'
 import type { ReferenceCorpus } from './referenceCorpus'
 import type { LoadedRules } from './rules'
 

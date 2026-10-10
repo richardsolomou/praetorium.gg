@@ -18,7 +18,7 @@ import {
   terrainReferencesSchema,
   unitsSchema,
   updateLeagueSchema,
-} from './schemas'
+} from '../contracts/schemas'
 
 describe('replay batch input', () => {
   it('accepts a full batch', () => {

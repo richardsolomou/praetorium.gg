@@ -1,3 +1,4 @@
+import CombatWorker from './combatWorker'
 import { useEffect, useState } from 'react'
 import type { LoadoutScoring, LoadoutSpace, OptionEstimate, ProfileOdds } from '../../../core/combatLoadouts'
 import type { CombatRequest } from '../../../core/combatMatchup'
@@ -29,7 +30,7 @@ export function useLoadoutOdds({
     if (!request) return
     let worker: Worker
     try {
-      worker = new Worker(new URL('./combat.worker.ts', import.meta.url), { type: 'module' })
+      worker = new CombatWorker()
     } catch {
       return
     }

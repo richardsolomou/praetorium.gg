@@ -15,3 +15,5 @@ export type WhenDrawn = {
   heldCards: string[]
   condition: string | null
 }
+
+export type MissionTwist = { id: string; name: string; lore: string | null; rules: string | null }

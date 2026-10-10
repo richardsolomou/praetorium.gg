@@ -5,7 +5,7 @@ import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RosterReminder } from '../../core/reminders'
 import type { RepositoryPort } from '../spacetimeRepository'
-import { picksSchema } from '../schemas'
+import { picksSchema } from '../../contracts/schemas'
 import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
 
@@ -98,7 +98,9 @@ export class RosterService {
       now,
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
-    return { id, created: saved === 'inserted', updatedAt: now }
+    const stored = await this.repository.roster(id)
+    if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
+    return { id, created: saved === 'inserted', updatedAt: stored.updatedAt }
   }
 
   /** A user's own saved lists, newest first. Their picks come back parsed. */

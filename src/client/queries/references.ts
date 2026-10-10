@@ -19,7 +19,7 @@ import {
   ruleIndex,
   ruleSection,
   terrainReferences,
-} from '../../server/functions'
+} from '../functions'
 import { SSR_STALE_TIME } from './shared'
 
 export const factionQuery = (catalogueId: string) =>

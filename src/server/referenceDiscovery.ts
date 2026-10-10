@@ -4,7 +4,7 @@ import { activeReferenceCorpus } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'
 import { factionsLastUpdated, referencesLastUpdated } from './catalogueChangeLog'
-import { gameReferencesFor } from './gameReferences'
+import { gameReferencesFor } from '../shared/gameReferences'
 import { ifNoneMatch } from './ifNoneMatch'
 import { PRODUCT_GUIDES } from '../contracts/productGuides'
 

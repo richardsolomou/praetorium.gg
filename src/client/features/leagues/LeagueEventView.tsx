@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { GAME_SIZES } from '../../../core/battle'
 import { leagueRegistrationFull, leagueTableShape, readsAlliedLeagueRoster, type LeagueEntryView } from '../../../core/league'
-import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../../server/functions'
+import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { battlesQuery, gameReferencesQuery, leagueBattlesFrom, leagueBattlesQuery } from '../../queries'
@@ -164,7 +164,7 @@ export function LeagueEventView({
         {isOwner && !league.revealedAt ? <OrganizerRevealPanel league={league} token={token} /> : null}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="min-w-0 space-y-6">
           {isOwner ? (
             <OrganizerEntrants league={league} token={token} row={row} />

@@ -3,7 +3,7 @@ import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
-import type { DetachmentRulesDetail } from './rulesFactions'
+import type { DetachmentRulesDetail } from '../contracts/factions'
 
 export type DetachmentCatalogueDetail = {
   rules: { name: string; description: string | null }[]

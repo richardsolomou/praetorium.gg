@@ -1,3 +1,17 @@
+import { newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import { matchingLeagueBattles } from '../shared/leagueBattleOptions'
+import { battleSummary, type BattleFaction } from '../shared/battleSummary'
+import { offlineIdentifier, offlineContext } from './offlineContext'
+import {
+  withAuthoritativeAwards,
+  hydrateAuthoritativeAwards,
+  resolvedMissionForSide,
+  setupReferenceError,
+  repairPrepReferenceError,
+  scoringCapError,
+} from '../shared/battleRules'
+import { restoreOpaqueBattleKeys, visibleBattleLog } from '../core/offlineBattle'
+import type { BattleWorkspace } from '../contracts/battleWorkspace'
 import { randomId, randomToken } from 'ras-stack/auth'
 import type { AdminBattle } from '../admin'
 import {
@@ -5,21 +19,10 @@ import {
   type BattleState,
   type Command,
   commandArmy,
-  FIXED_SECONDARIES,
-  GAME_SIZES,
-  isKotcLimit,
-  type PlayerId,
   reduceBattle,
-  refuse,
-  type Refusal,
-  type Secondary,
-  scoringTarget,
-  sideCaptain,
   sideDisposition,
-  sidePaintedPoints,
   type SubmitResult,
 } from '../core/battle'
-import { KOTC_MATCHUP_ID } from '../contracts/terrain'
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { type BattleView, battleView } from '../core/battleView'
@@ -27,7 +30,6 @@ import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleClock, type BattleClock } from '../core/battleClock'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
 import { compactReplayFrames } from '../core/replayFrames'
-import type { MissionAward } from '../core/scoring'
 import type { OnboardingProgressOperation } from '../core/onboarding'
 import {
   filterBattles,
@@ -40,24 +42,14 @@ import {
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
 import { type Standing, type StandingFaction, standings } from '../core/standings'
-import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
-import { gameReferencesFor } from './gameReferences'
-import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission, missionFor } from './rules'
+import { gameReferencesFor } from '../shared/gameReferences'
+import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { RosterService } from './services/rosterService'
 import { SocialService, sortedFriends } from './services/socialService'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
-
-/** A catalogue faction as the battle lists name it, with the detachments its reference pages answer for. */
-type BattleFaction = {
-  id: string
-  slug: string
-  displayName: string
-  icon: string | null
-  detachments?: readonly { name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
-}
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -138,14 +130,6 @@ const PROFILE_BATTLE_PAGE = 25
  * from before its own command, or naming the wrong command to undo.
  */
 type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
-type NewBattlePlayers = { opponentId?: string; opponentIds?: string[]; allyId?: string }
-type CreateBattleInput = NewBattlePlayers & { limit?: number | null; missionPackId: string | null; casual?: boolean }
-
-function newBattleSeats(input?: string | NewBattlePlayers) {
-  const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
-  const allyIds = typeof input === 'object' && input.allyId ? [input.allyId] : []
-  return { allyIds, opponentIds, invited: [...allyIds, ...opponentIds] }
-}
 
 export class PraetoriumService {
   private readonly leagueService: LeagueService
@@ -618,7 +602,7 @@ export class PraetoriumService {
     factions: readonly BattleFaction[] = [],
   ) {
     const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
-    return histories.map((history) => this.battleSummary(history, foldHistory(history), viewerId, rules, factionsById))
+    return histories.map((history) => battleSummary(history, foldHistory(history), viewerId, rules, factionsById))
   }
 
   /**
@@ -635,67 +619,10 @@ export class PraetoriumService {
     return histories.map((history) => {
       const state = foldHistory(history)
       return {
-        ...this.battleSummary(history, state, viewerId, rules, factionsById),
+        ...battleSummary(history, state, viewerId, rules, factionsById),
         plays: referencedPlays(state, seatPlays(state, viewerId), rules, factionsById),
       }
     })
-  }
-
-  private battleSummary(
-    { battle, players, log }: BattleHistory,
-    state: BattleState,
-    viewerId: string | null,
-    rules: BattleMissionRules | null | undefined,
-    factionsById: ReadonlyMap<string, BattleFaction>,
-  ) {
-    const viewerSide = state.players.find((player) => player.id === viewerId)?.side ?? 0
-    const opposingSide = state.players.find((player) => player.side !== viewerSide)?.side
-    const ownDisposition = sideDisposition(state, viewerSide)
-    const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
-    return {
-      token: battle.token,
-      createdAt: battle.createdAt,
-      status: state.status,
-      round: state.round,
-      phase: state.phase,
-      players: players.map((player) => player.name),
-      playerDetails: players.map(({ id, name, image, automated }) => ({ id, name, image, automated })),
-      playerIds: players.map((player) => player.id),
-      sides: state.players.map((player) => player.side),
-      armies: state.players.map((player) => player.roster?.name ?? null),
-      // The catalogue army each seat brought, so a battle can also be counted as a
-      // result for the faction that fielded it. A pasted list has none.
-      factions: state.players.map((player) => {
-        const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
-        return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null
-      }),
-      detachments: state.players.map(
-        (player) =>
-          player.roster?.built?.detachments?.map((detachment) => detachment.name) ??
-          (player.roster?.built?.detachment ? [player.roster.built.detachment] : []),
-      ),
-      // Who took the first turn, and the two halves each seat's score is made of,
-      // so a player's record can separate going first from going second and say
-      // where their points came from. `scores` only carries the total.
-      firstPlayerId: state.firstPlayerId,
-      primaries: state.players.map((player) => player.primary),
-      secondaries: state.players.map((player) => player.secondary),
-      // The painted bonus is paid when the battle begins, and it is the side's one
-      // bonus, the same as everywhere else. Onto the seat that already carries the
-      // side's score, because that is the seat every reader of this list picks out to
-      // ask what a side is on.
-      scores: state.players.map(
-        (player) =>
-          player.primary +
-          player.secondary +
-          (state.status !== 'setup' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
-      ),
-      mission: rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
-      deploymentId: state.deploymentId,
-      settings: state.settings,
-      result: state.result,
-      lastActivity: log.at(-1)?.at ?? battle.createdAt,
-    }
   }
 
   /**
@@ -747,8 +674,8 @@ export class PraetoriumService {
       }
     }
     const practice = invited.some((id) => allowed.get(id)?.automated)
-    const token = randomToken()
-    const id = randomId()
+    const token = offlineIdentifier('battleToken', randomToken)
+    const id = offlineIdentifier('battleId', randomId)
     await this.repository.createBattle({
       id,
       token,
@@ -765,62 +692,18 @@ export class PraetoriumService {
         playerCount: (invited.length + 1) as 2 | 3 | 4,
         clockLimitMinutes: null,
       },
-      now: this.clock(),
+      now: offlineContext.getStore()?.createdAt ?? this.clock(),
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
     return { token, practice }
   }
 
   async leagueBattleOptions(userId: string, input?: string | NewBattlePlayers) {
-    const { allyIds, opponentIds, invited } = newBattleSeats(input)
+    const { opponentIds, invited } = newBattleSeats(input)
     const participantIds = [userId, ...invited]
     if (!opponentIds.length || new Set(participantIds).size !== participantIds.length) return []
     const candidates = await this.repository.leagueBattleCandidates(userId, participantIds)
-    const sideIds = [[userId, ...allyIds], opponentIds]
-    return candidates
-      .filter((candidate) => {
-        const entries = new Map(candidate.entries.map((entry) => [entry.userId, entry]))
-        const format = leagueTableShape(candidate.format)
-        if (format === '1v1') {
-          if (participantIds.length !== 2 || allyIds.length !== 0) return false
-          if (candidate.format !== null) return true
-          const limit = entries.get(userId)?.sealedLimit
-          return (
-            limit !== null &&
-            limit !== undefined &&
-            GAME_SIZES.some((size) => size.limit === limit) &&
-            participantIds.every((id) => entries.get(id)?.sealedLimit === limit)
-          )
-        }
-        if (candidate.format === '2v1' && candidate.rosterLimit !== null && participantIds.length === 3) {
-          const alliedLimit = alliedLeagueRosterLimit(candidate.rosterLimit)
-          const roles = sideIds.map((side) =>
-            side
-              .map((id) => entries.get(id)?.requiredLimit)
-              .every((limit) => limit === (side.length === 1 ? candidate.rosterLimit : alliedLimit)),
-          )
-          return sideIds.some((side) => side.length === 1) && sideIds.some((side) => side.length === 2) && roles.every(Boolean)
-        }
-        if (candidate.format === '2v2' && participantIds.length === 4 && sideIds.every((side) => side.length === 2)) {
-          const ownTeam = entries.get(userId)?.teamId
-          const opposingTeam = entries.get(opponentIds[0]!)?.teamId
-          return Boolean(
-            ownTeam &&
-            opposingTeam &&
-            ownTeam !== opposingTeam &&
-            sideIds[0]!.every((id) => entries.get(id)?.teamId === ownTeam) &&
-            sideIds[1]!.every((id) => entries.get(id)?.teamId === opposingTeam),
-          )
-        }
-        return false
-      })
-      .map(({ token, name, eventToken, eventNumber, format }) => ({
-        token,
-        name,
-        eventToken,
-        eventNumber,
-        format: leagueTableShape(format),
-      }))
+    return matchingLeagueBattles(candidates, userId, input)
   }
 
   /** Who sat at each of a player's latest battles and how far it got. The battles themselves still open through `maySpectate`. */
@@ -941,14 +824,55 @@ export class PraetoriumService {
     return this.viewerReport(history, userId, rules)
   }
 
-  async submit(token: string, userId: string, expectedSeq: number, command: Command, rules?: LoadedRules | null): Promise<SubmitAnswer> {
+  async battleWorkspace(
+    token: string,
+    userId: string,
+    rules?: BattleReadRules | null,
+  ): Promise<{ workspace: BattleWorkspace; screen: SeatedScreen }> {
+    const history = await this.mustFind(token)
+    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    if (history.log.length > 10_000) throw new Response('this battle exceeds the offline history limit', { status: 409 })
+    return {
+      workspace: {
+        ...history,
+        log: visibleBattleLog(history.players, history.log, userId),
+        serverSeq: history.log.at(-1)?.seq ?? 0,
+        serverNow: this.clock(),
+      },
+      screen: this.battleScreen(history, userId, rules),
+    }
+  }
+
+  syncReceipt(...args: Parameters<RepositoryPort['syncReceipt']>) {
+    return this.repository.syncReceipt(...args)
+  }
+
+  syncRoster(...args: Parameters<RepositoryPort['syncRoster']>) {
+    return this.repository.syncRoster(...args)
+  }
+
+  async hasBattleOperation(token: string, userId: string, operationId: string) {
+    const history = await this.mustFind(token)
+    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    return history.log.some((entry) => entry.operationId === operationId && entry.by === userId)
+  }
+
+  async submit(
+    token: string,
+    userId: string,
+    expectedSeq: number,
+    command: Command,
+    rules?: LoadedRules | null,
+    sync?: { operationId: string; fingerprint: string; recordedAt: number },
+  ): Promise<SubmitAnswer> {
     const seats = await this.mustSeat(token, userId)
+    if (sync) command = restoreOpaqueBattleKeys(seats.players, (await this.mustFind(token)).log, command)
     if (command.kind === 'lock-league-rosters') throw new Response('league roster locks are created by the server', { status: 403 })
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.
     const { result, log } = await this.repository.submit(
-      { battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock() },
+      { battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock(), ...sync },
       (state) => {
         if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
         if (command.kind === 'set-prep' && state.status === 'playing') {
@@ -964,6 +888,7 @@ export class PraetoriumService {
         if (rules && submitted.kind === 'attach-roster' && submitted.prep) {
           return { ...submitted, prep: withAuthoritativeAwards(submitted.prep, rules) }
         }
+        if (sync) return submitted
         if (submitted.kind === 'use-new-orders') {
           const player = commandArmy(state, userId, submitted)
           const remaining = (player?.secondaryDeck ?? []).filter(
@@ -1113,211 +1038,6 @@ function referencedPlays(
         : play.primary,
     }
   })
-}
-
-function withAuthoritativeAwards<T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>>(
-  prep: T,
-  rules: LoadedRules,
-): T {
-  const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
-  const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
-  return {
-    ...prep,
-    primary: prep.primary ? authoritativeCard(prep.primary, primaryByKey) : null,
-    secondaries: prep.secondaries.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
-    secondaryDeck: prep.secondaryDeck?.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
-  }
-}
-
-type AvailableCard = { key: string; name: string; awards: MissionAward[] }
-
-function authoritativeCard(submitted: Secondary, available: Map<string, AvailableCard>): Secondary {
-  const authoritative = available.get(submitted.key)
-  return authoritative
-    ? { key: authoritative.key, name: authoritative.name, awards: authoritative.awards }
-    : { key: submitted.key, name: submitted.name }
-}
-
-function hydrateAuthoritativeAwards(state: BattleState, rules: BattleReadRules) {
-  const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
-  const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
-  const hydrate = (card: Secondary, available: Map<string, AvailableCard>) =>
-    card.awards === undefined ? authoritativeCard(card, available) : card
-  for (const player of state.players) {
-    if (player.primaryCard) {
-      const mission = state.status === 'setup' ? null : resolvedMissionForSide(state, rules, player.side)
-      const primary = mission ? primaryByKey.get(mission.id) : null
-      player.primaryCard = mission
-        ? {
-            key: mission.id,
-            name: mission.name,
-            awards: player.primaryCard.awards ?? primary?.awards,
-          }
-        : hydrate(player.primaryCard, primaryByKey)
-    }
-    player.secondaries = player.secondaries.map((secondary) => hydrate(secondary, secondaryByKey))
-    player.secondaryDeck = player.secondaryDeck?.map((secondary) => hydrate(secondary, secondaryByKey)) ?? null
-  }
-}
-
-function resolvedMissionForSide(state: BattleState, rules: BattleReadRules, side: number) {
-  const ownDisposition = sideDisposition(state, side)
-  const opposingSide = state.players.find((player) => player.side !== side)?.side
-  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
-  return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
-}
-
-function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: LoadedRules): Refusal | null {
-  // A matchup is between the two sides, so it is read off each side's captain. Taking
-  // the first two seats instead held while side 0 was always one player, and put a 2v1
-  // whose pair opened the battle into a matchup between its own allies.
-  const [one, two] = [...new Set(state.players.map((player) => player.side))]
-    .toSorted((left, right) => left - right)
-    .map((side) => sideDisposition(state, side))
-  const missions = [
-    missionFor(rules, one ?? null, two ?? null, state.settings.missionPackId),
-    missionFor(rules, two ?? null, one ?? null, state.settings.missionPackId),
-  ]
-  if (one && two && state.settings.missionPackId && missions.some((mission) => !mission)) {
-    return refuse('matchup-not-in-pack', 'the selected mission pack does not contain this matchup')
-  }
-  const sides = [...new Set(state.players.map((player) => player.side))].toSorted((left, right) => left - right)
-  const primaries = rules.primaries ?? []
-  const expectedSecondaries = new Set((rules.secondaries ?? []).map((card) => card.key))
-  const fixedSecondaries = new Set(
-    (rules.secondaries ?? []).filter((card) => card.awards.some((award) => award.mode === 'fixed')).map((card) => card.key),
-  )
-  const prepared = missions.every((mission, index) => {
-    if (!mission) return true
-    if (!primaries.some((card) => card.key === mission.id) || expectedSecondaries.size === 0) return true
-    const player = sideCaptain(state, sides[index]!)
-    if (player.primaryCard?.key !== mission.id) return false
-    if (player.secondaryMode === 'fixed') {
-      return (
-        player.secondaries.length === FIXED_SECONDARIES &&
-        new Set(player.secondaries.map((card) => card.key)).size === FIXED_SECONDARIES &&
-        player.secondaries.every((card) => fixedSecondaries.has(card.key)) &&
-        completeDeck(player.secondaryDeck, expectedSecondaries)
-      )
-    }
-    return completeDeck(player.secondaryDeck, expectedSecondaries)
-  })
-  if (!prepared) return refuse('mission-cards-unprepared', 'every side must prepare its mission cards')
-  const deploymentId = state.deploymentId
-  if (!deploymentId) return refuse('missing-deployment', 'choose a deployment')
-  if (!rules.deployments.some((deployment) => deployment.id === deploymentId))
-    return refuse('unknown-deployment', 'that deployment is not available')
-  const kotc = isKotcLimit(state.settings.limit)
-  if (!kotc && missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.includes(deploymentId)))
-    return refuse('deployment-mismatch', 'that deployment does not match the mission')
-  if (!state.settings.terrainLayoutId) return kotc ? refuse('missing-terrain', 'choose the Colosseum battlefield') : null
-  const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
-  if (!terrain) return refuse('unknown-terrain', 'that terrain layout is not available')
-  const matchups = kotc ? new Set([KOTC_MATCHUP_ID]) : one && two ? new Set([`${one}-vs-${two}`, `${two}-vs-${one}`]) : new Set<string>()
-  if (matchups.size && !matchups.has(terrain.matchupId)) return refuse('terrain-mismatch', 'that terrain layout does not match the armies')
-  if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId)
-    return refuse('terrain-mismatch', 'that terrain layout does not match the deployment')
-  if (!terrain.geometry) return refuse('terrain-geometry-missing', 'exact terrain data is not available yet')
-  return null
-}
-
-function completeDeck(cards: { key: string }[] | null | undefined, expected: Set<string>): boolean {
-  return cards?.length === expected.size && cards.every((card) => expected.has(card.key))
-}
-
-function repairPrepReferenceError(
-  state: ReturnType<typeof reduceBattle>,
-  by: PlayerId,
-  command: Extract<Command, { kind: 'set-prep' }>,
-  rules: LoadedRules,
-): Refusal | null {
-  const player = commandArmy(state, by, command)
-  if (!player) return null
-  const ownDisposition = sideDisposition(state, player.side)
-  const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
-  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
-  const mission = missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
-  const expectedSecondaries = new Set((rules.secondaries ?? []).map((card) => card.key))
-  const primaryExists = (rules.primaries ?? []).some((card) => card.key === mission?.id)
-  if (
-    !mission ||
-    !primaryExists ||
-    command.primary?.key !== mission.id ||
-    !expectedSecondaries.size ||
-    !completeDeck(command.secondaryDeck, expectedSecondaries)
-  ) {
-    return refuse('mission-cards-mismatch', 'those mission cards do not match this battle')
-  }
-  return null
-}
-
-/**
- * The matched-play ceilings, refused rather than only shown as guidance.
- *
- * Only a score that raises the total is checked: a correction reducing one, or one
- * made without a resolvable mission, is never guessed at and always allowed through.
- */
-function scoringCapError(
-  state: ReturnType<typeof reduceBattle>,
-  by: PlayerId,
-  command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' } | { kind: 'score-settlement' }>,
-  rules: LoadedRules,
-): Refusal | null {
-  const target = scoringTarget(state, by, command)
-  if (!target) return null
-  const deltas =
-    command.kind === 'score-settlement'
-      ? {
-          primary: command.scores.filter((score) => score.category === 'primary').reduce((sum, score) => sum + score.delta, 0),
-          secondary: command.scores.filter((score) => score.category === 'secondary').reduce((sum, score) => sum + score.delta, 0),
-        }
-      : {
-          primary: command.kind === 'score' && command.category === 'primary' ? command.delta : 0,
-          secondary:
-            command.kind === 'score' && command.category === 'secondary'
-              ? command.delta
-              : command.kind === 'score-secondary'
-                ? command.delta
-                : 0,
-        }
-  const opposingSide = state.players.find((player) => player.side !== target.side)?.side
-  const opponentDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
-  const mission = missionFor(rules, target.disposition, opponentDisposition, state.settings.missionPackId)
-  if (!mission) return null
-  // The round the points land in, which for a settlement of a turn already ended is
-  // the round that turn was in rather than the one now being played.
-  const round = command.kind === 'score-settlement' ? (command.round ?? state.round) : state.round
-  const named = round === state.round ? 'this round’s' : `battle round ${round}’s`
-  // A fixed card carries a ceiling of its own for the whole battle, which the per-round
-  // and per-battle secondary caps do not cover: a card paying per model destroyed would
-  // otherwise bank as much as the battle's whole allowance on its own.
-  const cardCap = mission.fixedSecondaryCap
-  if (target.secondaryMode === 'fixed' && cardCap) {
-    const byCard =
-      command.kind === 'score-settlement'
-        ? command.scores.flatMap((score) => (score.category === 'secondary' && score.delta > 0 ? [[score.key, score.delta] as const] : []))
-        : command.kind === 'score-secondary' && command.delta > 0
-          ? [[command.key, command.delta] as const]
-          : []
-    for (const [key, delta] of byCard) {
-      if ((target.scored[key] ?? 0) + delta > cardCap)
-        return refuse('score-cap-card', `that would score past the ${cardCap} VP cap for one fixed secondary mission`)
-    }
-  }
-  for (const category of ['primary', 'secondary'] as const) {
-    const delta = deltas[category]
-    if (delta <= 0) continue
-    const roundCap = category === 'primary' ? mission.roundCap : mission.secondaryRoundCap
-    const gameCap = category === 'primary' ? mission.gameCap : mission.secondaryGameCap
-    const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[round - 1] ?? 0
-    const gameSoFar = category === 'primary' ? target.primary : target.secondary
-    const label = category === 'primary' ? 'primary mission' : 'secondary missions'
-    if (roundCap !== null && roundSoFar + delta > roundCap)
-      return refuse('score-cap-round', `that would score past ${named} ${roundCap} VP cap for ${label}`)
-    if (gameCap !== null && gameSoFar + delta > gameCap)
-      return refuse('score-cap-battle', `that would score past the battle’s ${gameCap} VP cap for ${label}`)
-  }
-  return null
 }
 
 /** The legacy column held one id; new rows hold the ordered 11e purchase list. */

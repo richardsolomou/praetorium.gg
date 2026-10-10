@@ -12,7 +12,7 @@ import {
   adminUsersSchema,
   setAdminRoleSchema,
   userSchema,
-} from '../schemas'
+} from '../../contracts/schemas'
 import { unlinkSignInMethod } from '../signInMethods'
 
 /** Every administrator action is counted under one event, named by what was done. */

@@ -859,7 +859,7 @@ export type SubmitResult =
   | { outcome: 'stale'; seq: number }
   | { outcome: 'refused'; code: RefusalCode; reason: string }
 
-export type LoggedCommand = { seq: number; by: PlayerId; at: number; command: Command }
+export type LoggedCommand = { operationId?: string; seq: number; by: PlayerId; at: number; command: Command }
 
 export type PlayerState = {
   id: PlayerId
@@ -2321,6 +2321,11 @@ export function scoringTarget(
 export function sameSide(state: BattleState, left: PlayerId | null, right: PlayerId): boolean {
   const leftSide = state.players.find((player) => player.id === left)?.side
   return leftSide !== undefined && leftSide === state.players.find((player) => player.id === right)?.side
+}
+
+export function playsSide(state: BattleState, viewerId: PlayerId | null, side: number): boolean {
+  const players = state.players.filter((player) => player.side === side)
+  return players.some((player) => player.id === viewerId) || (players.length > 0 && players.every((player) => player.automated))
 }
 
 function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState, key: string): boolean {

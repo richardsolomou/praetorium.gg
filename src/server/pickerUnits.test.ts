@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { points, shelfOf } from './catalogue.fixtures'
-import { booksOffering } from './pickerUnits'
+import { booksOffering } from '../shared/pickerUnits'
 
 describe('the books that offer a datasheet', () => {
   const shelf = shelfOf(

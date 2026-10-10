@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { LoadedRules } from './rules'
 import { bookOf, withCards } from './catalogue.fixtures'
-import { detachmentReference } from './detachmentReference'
+import { detachmentReference } from '../shared/detachmentReference'
 
 it('appends catalogue-only keyword definitions to detachment rule cards', () => {
   const loaded = bookOf({

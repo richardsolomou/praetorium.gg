@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { datasheetPreview } from '../../../client/linkPreview'
 import { app } from '../../../server/app'
 import { previewResponse } from '../../../server/previewImage'
-import { datasheetSlugSchema } from '../../../server/schemas'
+import { datasheetSlugSchema } from '../../../contracts/schemas'
 
 /** Points move only when a release installs another snapshot. */
 const REFERENCE_SECONDS = 3600

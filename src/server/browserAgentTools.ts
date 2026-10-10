@@ -2,7 +2,7 @@ import { ACCOUNT_MCP_SCOPES } from './accountMcp'
 import { createAgentTools } from './createAgentTools'
 import { registerReferenceContextTools } from './referenceAgentContext'
 import { app } from './app'
-import { createBattleSchema, rosterVisibilitySchema, saveRosterSchema, submitSchema } from './schemas'
+import { createBattleSchema, rosterVisibilitySchema, saveRosterSchema, submitSchema } from '../contracts/schemas'
 import { currentUser } from './playerSession'
 
 function browserTools(userId: string | null) {

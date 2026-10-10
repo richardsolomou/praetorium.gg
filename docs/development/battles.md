@@ -77,3 +77,9 @@ Players choose practice opponents in the ordinary New battle dialog and control 
 ## Verification
 
 Run adjacent domain tests and relevant `e2e/battle*.spec.ts`, `e2e/team-battle.spec.ts`, and guest flows. Cover competing sequences, no automatic stale retry, atomic settlement/undo, cross-device prompts, historical secrets, audience changes, frozen rosters, casualties, and the clock across a full rewind/pause/reopen cycle. Follow [Interface verification](interface.md#verification) for rendered surfaces.
+
+## Offline battles
+
+The client saves seated battle workspaces and commands in the account’s durable local state. Commands use the same core validation and log fold as hosted play; scores, phases and rounds are derived from that history. Public construction data supplies mission validation and pricing. Practice opponents can play from one device; shared battles require the other players’ updates to synchronize before they become visible. Private mission identities and decks are filtered when a workspace is downloaded.
+
+A queued command keeps its operation ID, expected sequence, recorded time and resolved random draw through retries. Reconnect accepts each command once or retains a conflict for review when another device advanced the history. Do not automatically rebase a played command or choose new random cards while replaying it. Export the saved history before discarding a conflict. Run `e2e/offline-work.spec.ts` for offline creation, setup, draws, phase advancement, cold reopen and database-verified reconnect sync.

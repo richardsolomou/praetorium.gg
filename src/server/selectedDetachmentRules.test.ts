@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { Stratagem } from '../core/battle'
 import type { DetachmentRulesDetail } from './rulesFactions'
-import { selectedDetachmentRules } from './selectedDetachmentRules'
+import { selectedDetachmentRules } from '../shared/selectedDetachmentRules'
 
 it('keeps live and written battle stratagems across a compact-name difference', () => {
   const live = { key: 'live' } as Stratagem

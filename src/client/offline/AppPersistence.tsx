@@ -23,6 +23,12 @@ import {
   standingsQuery,
   favouriteFactionsQuery,
   favouriteDetachmentsQuery,
+  collectionQuery,
+  playerDefaultsQuery,
+  battleAudienceQuery,
+  opponentsQuery,
+  leagueQuery,
+  leagueRosterQuery,
 } from '../queries'
 import { refreshBattleFeed } from './refreshBattleFeed'
 import { sortRosters } from '../features/rosters/rosterSort'
@@ -89,17 +95,42 @@ export function AppPersistence() {
                 }),
                 refreshBattleFeed(client, friendBattlesQuery()),
                 client.query({ ...homeRostersQuery(), staleTime: Infinity }),
-                client.query({ ...leaguesQuery(), staleTime: Infinity }),
+                client.query({ ...leaguesQuery(), staleTime: Infinity }).then(async (leagues) => {
+                  for (const league of leagues.filter((summary) => summary.personal)) {
+                    if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
+                    const saved = await client.query({ ...leagueQuery(league.token), staleTime: Infinity })
+                    if (!saved) continue
+                    const entries = saved.entries.filter((entry) => entry.submitted && (saved.revealedAt || entry.userId === me.id))
+                    for (let index = 0; index < entries.length; index += 3) {
+                      if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
+                      await Promise.allSettled(
+                        entries
+                          .slice(index, index + 3)
+                          .map((entry) =>
+                            client.query({ ...leagueRosterQuery(league.token, saved.eventToken, entry.userId), staleTime: Infinity }),
+                          ),
+                      )
+                    }
+                  }
+                }),
+                client.query({ ...collectionQuery(), staleTime: Infinity }),
+                client.query({ ...playerDefaultsQuery(), staleTime: Infinity }),
+                client.query({ ...battleAudienceQuery(), staleTime: Infinity }),
+                client.query({ ...opponentsQuery(), staleTime: Infinity }),
                 client.query({ ...friendshipsQuery(), staleTime: Infinity }),
                 client.query({ ...onboardingQuery(), staleTime: Infinity }),
                 client.query({ ...favouriteFactionsQuery(), staleTime: Infinity }),
                 client.query({ ...favouriteDetachmentsQuery(), staleTime: Infinity }),
                 client.query({ ...savedRosterSummariesQuery(), staleTime: Infinity }).then(async (summaries) => {
                   if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) return
-                  const ids = sortRosters(summaries, 'updated-desc')
-                    .slice(0, ROSTER_LIBRARY_BATCH_SIZE)
-                    .map((roster) => roster.id)
-                  await client.query({ ...savedRosterPageQuery(ids), staleTime: Infinity })
+                  const ids = sortRosters(summaries, 'updated-desc').map((roster) => roster.id)
+                  for (let index = 0; index < ids.length; index += ROSTER_LIBRARY_BATCH_SIZE) {
+                    if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
+                    await client.query({
+                      ...savedRosterPageQuery(ids.slice(index, index + ROSTER_LIBRARY_BATCH_SIZE)),
+                      staleTime: Infinity,
+                    })
+                  }
                   for (let index = 0; index < ids.length; index += 3) {
                     if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
                     await Promise.allSettled(

@@ -15,7 +15,7 @@ import {
   searchPlayers,
   sharedBattles,
   standings,
-} from '../../server/functions'
+} from '../functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import type { BattlesCursor } from '../../contracts/battles'
 import { SSR_STALE_TIME } from './shared'
@@ -31,8 +31,17 @@ export const battlesQuery = () =>
     staleTime: SSR_STALE_TIME,
   })
 
-export const battlesFrom = (data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) =>
-  (data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles']
+export function battlesFrom(data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) {
+  const seen = new Set<string>()
+  return ((data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles']).filter(
+    (battle) => {
+      if (typeof battle.token !== 'string') return true
+      if (seen.has(battle.token)) return false
+      seen.add(battle.token)
+      return true
+    },
+  )
+}
 
 export function requireBattlePage<T>(page: T | null | undefined): T {
   if (page == null) throw new Error('The battle feed returned no page.')
