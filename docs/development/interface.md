@@ -56,6 +56,8 @@ League entrants and organizers share one event page. Its next-action card and pr
 
 ## Other surfaces
 
+Import new guide illustrations from client source with `?no-inline` so Vite emits hashed assets that deployment publishes before changing replicas.
+
 Home prioritizes the player's active game and actionable items, with public activity for visitors. Empty states explain how to start. `Home` owns fetching and `HomeView` renders props; reserve shelf geometry in SSR and bound roster assessment to displayed rows.
 
 Search keeps a stable panel and prior results while queries settle. Friends search requires a name rather than listing every account. Public guide screenshots use a content hash in their filename; refresh the hash when replacing an image so cached URLs cannot serve stale controls. The onboarding guide opens only by player choice, stays nonmodal, follows real actions, and skips controls absent from the current data. Domain-backed progress is derived; only reading tours, skips, and welcome state are stored.

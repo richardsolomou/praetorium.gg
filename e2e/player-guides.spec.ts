@@ -26,6 +26,7 @@ for (const width of [1440, 390]) {
       await expect(page.getByRole('heading', { name: 'Common questions', exact: true })).toBeVisible()
       const overview = page.getByRole('region', { name: 'Guide overview' })
       await expect(overview.getByRole('img')).toBeVisible()
+      await expect(overview.getByRole('img')).toHaveAttribute('src', /^\/assets\/[\w-]+-[\w-]{8,}\.svg$/)
       await expect.poll(() => overview.getByRole('img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
       await page.evaluate(() => window.scrollTo(0, 0))
