@@ -55,10 +55,7 @@ export const faction = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const result = await app().factionsFor()
-      if (!result) return null
-      const { factions: all } = result
-      return all.find((candidate) => candidate.slug === data.catalogueId || candidate.id === data.catalogueId) ?? null
+      return app().factionFor(data.catalogueId)
     }),
   )
 
@@ -113,7 +110,14 @@ export const units = createServerFn({ method: 'GET' })
       const instance = app()
       const loaded = await instance.catalogueFor(data.catalogueId)
       if (!loaded) return []
-      return pickerUnitsFor(loaded, await instance.rulesFor(), data.catalogueId, data.query, data.battleSize, data.waivedRules)
+      return pickerUnitsFor(
+        loaded,
+        await instance.rulesFor(data.catalogueId),
+        data.catalogueId,
+        data.query,
+        data.battleSize,
+        data.waivedRules,
+      )
     }),
   )
 
@@ -124,8 +128,13 @@ export const datasheetOfferedBy = createServerFn({ method: 'GET' })
     rpc(async () => {
       cacheUntilSnapshotChanges()
       const instance = app()
-      const loaded = await instance.catalogueFor(data.catalogueIds[0]!)
-      return loaded ? booksOffering(loaded, await instance.rulesFor(), data.entryId, data.catalogueIds) : []
+      const offers = await Promise.all(
+        data.catalogueIds.map(async (id) => {
+          const loaded = await instance.catalogueFor(id)
+          return loaded ? booksOffering(loaded, await instance.rulesFor(id), data.entryId, [id]) : []
+        }),
+      )
+      return offers.flat()
     }),
   )
 
@@ -156,7 +165,7 @@ export const datasheet = createServerFn({ method: 'GET' })
       const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return null
       const context = rosterDatasheetContext(loaded, data)
-      return rosterDatasheet(loaded, data, context, data.everyWeapon, await app().rulesFor())
+      return rosterDatasheet(loaded, data, context, data.everyWeapon, await app().rulesFor(data.catalogueId))
     }),
   )
 
@@ -176,7 +185,7 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
       const startedAt = performance.now()
       const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return null
-      const result = rosterLoadoutDatasheets(loaded, data, await app().rulesFor())
+      const result = rosterLoadoutDatasheets(loaded, data, await app().rulesFor(data.catalogueId))
       const userId = await currentUserId()
       if (userId)
         await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
@@ -194,7 +203,7 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
-      return loaded ? rosterCombatant(loaded, await app().rulesFor(), data) : null
+      return loaded ? rosterCombatant(loaded, await app().rulesFor(data.catalogueId), data) : null
     }),
   )
 
@@ -228,7 +237,7 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
           picks: roster.picks,
           pickIndex: data.pickIndex,
         },
-        await app().rulesFor(),
+        await app().rulesFor(roster.catalogueId),
       )
       if (userId)
         await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
@@ -309,8 +318,8 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
     rpc(async () => {
       cacheUntilSnapshotChanges()
       const catalogue = await app().catalogueFor(data.catalogueId)
-      const rules = await app().rulesFor()
-      const canonical = await app().canonicalCatalogueFor()
+      const rules = await app().rulesFor(data.catalogueId)
+      const canonical = await app().canonicalCatalogueFor(data.catalogueId)
       return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data)
     }),
   )
@@ -340,7 +349,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const rules = await app().rulesFor()
+      const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
       return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
     }),

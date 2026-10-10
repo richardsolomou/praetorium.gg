@@ -32,9 +32,11 @@ import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
 import { factionIndexFor, factionsFor } from './factionReferences'
-import { compiledGlobalSearchIndex } from './globalSearch'
 import { battleDetachmentData, type BattleDetachmentData } from './battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
+import type { compiledGlobalSearchIndex } from './globalSearch'
+import { catalogueEditionLoaders } from './catalogueEditions'
+import { catalogueEditionId } from '../core/catalogueEdition'
 
 type App = {
   hotReloadToken?: object
@@ -45,15 +47,15 @@ type App = {
   catalogueFor: (catalogueId: string) => Promise<LoadedCatalogue | null>
   /** The validated, source-independent reference data compiled into the snapshot. */
   canonicalCatalogue: () => CanonicalCatalogue | null
-  canonicalCatalogueFor: () => Promise<CanonicalCatalogue | null>
+  canonicalCatalogueFor: (catalogueId?: string) => Promise<CanonicalCatalogue | null>
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
-  rulesFor: () => Promise<LoadedRules | null>
+  rulesFor: (catalogueId?: string) => Promise<LoadedRules | null>
   battleMissionRulesFor: () => Promise<BattleMissionRules | null>
   battleReadRulesFor: () => Promise<BattleReadRules | null>
   terrainReadRulesFor: (matchupIds: readonly string[]) => Promise<TerrainReadRules | null>
   battleDetachmentDataFor: (catalogueId: string) => Promise<BattleDetachmentData | null>
-  rosterLabelRulesFor: () => Promise<Pick<LoadedRules, 'factionNames'> | null>
+  rosterLabelRulesFor: (catalogueId?: string) => Promise<Pick<LoadedRules, 'factionNames'> | null>
   /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
   catalogueHistory: () => CatalogueHistoryEntry[] | null
   catalogueHistoryFor: () => Promise<CatalogueHistoryEntry[] | null>
@@ -62,6 +64,7 @@ type App = {
   combatUnitsFor: () => Promise<ReturnType<typeof combatUnitsFor>>
   factionIndexFor: () => Promise<ReturnType<typeof factionIndexFor> | null>
   factionsFor: () => Promise<ReturnType<typeof factionsFor> | null>
+  factionFor: (catalogueId: string) => Promise<ReturnType<typeof factionsFor>['factions'][number] | null>
   factionIconFor: (id: string) => Promise<string | null>
   searchIndexFor: () => Promise<ReturnType<typeof compiledGlobalSearchIndex> | null>
   /** How the community data is doing, so the interface can say rather than guess. */
@@ -155,34 +158,32 @@ export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'c
   })
 }
 
-function canonicalCatalogue(instance: Pick<App, 'catalogue' | 'rules'>, directory: string) {
-  return referenceCatalogue(directory, instance.catalogue, instance.rules)
-}
-
 const hotReloadToken = {}
 
-function catalogueLoaders(getInstance: () => App, directory: string) {
+function catalogueLoaders(directory: string) {
+  const catalogue = memoize(() => loadCatalogue(directory))
+  const rules = memoize(() => loadRules(directory, undefined, undefined, undefined, catalogue()?.datacards))
+  const editions = catalogueEditionLoaders(directory, catalogue, rules)
   return {
-    catalogue: memoize(() => loadCatalogue(directory)),
-    canonical: memoize(() => canonicalCatalogue(getInstance(), directory)),
-    rules: memoize(() => {
-      const catalogue = getInstance().catalogue()
-      return loadRules(undefined, undefined, undefined, undefined, catalogue?.datacards)
-    }),
+    catalogue,
+    editions,
+    canonical: memoize(() => editions.canonicalCatalogue(referenceCatalogue(directory, catalogue, rules))),
+    rules,
     history: memoize(() => loadCatalogueHistory(directory)),
-    combatUnits: memoize(() => {
-      const instance = getInstance()
-      const catalogue = instance.catalogue()
-      return catalogue ? combatUnitsFor(catalogue, instance.rules()) : []
-    }),
+    combatUnits: memoize(() => editions.combatUnits()),
+    searchIndex: memoize(() => editions.searchIndex()),
   }
 }
 
-function catalogueReads(getInstance: () => App) {
+function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalogueLoaders>) {
+  const versions = () => loaded.editions
   return {
-    catalogueFor: async () => getInstance().catalogue(),
-    canonicalCatalogueFor: async () => getInstance().canonicalCatalogue(),
-    rulesFor: async () => getInstance().rules(),
+    catalogueFor: async (catalogueId: string) => versions().catalogueFor(catalogueId),
+    canonicalCatalogueFor: async (catalogueId?: string) =>
+      catalogueId && catalogueEditionId(versions().resolve(catalogueId))
+        ? versions().canonicalFor(catalogueId)
+        : getInstance().canonicalCatalogue(),
+    rulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
     battleMissionRulesFor: async () => getInstance().rules(),
     battleReadRulesFor: async () => getInstance().rules(),
     terrainReadRulesFor: async (matchupIds: readonly string[]) => {
@@ -195,35 +196,40 @@ function catalogueReads(getInstance: () => App) {
         : null
     },
     battleDetachmentDataFor: async (catalogueId: string) => {
-      const instance = getInstance()
-      const catalogue = instance.catalogue()
-      const rules = instance.rules()
+      const catalogue = versions().catalogueFor(catalogueId)
+      const rules = versions().rulesFor(catalogueId)
       return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
     },
-    rosterLabelRulesFor: async () => getInstance().rules(),
+    rosterLabelRulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
     catalogueHistoryFor: async () => getInstance().catalogueHistory(),
     combatUnitsFor: async () => getInstance().combatUnits(),
     factionIndexFor: async () => {
-      const instance = getInstance()
-      const catalogue = instance.catalogue()
-      return catalogue ? factionIndexFor(catalogue, instance.rules()) : null
+      const data = versions().factions()
+      return data
+        ? {
+            revision: data.revision,
+            factions: data.factions.map(
+              ({ armyRules: _armyRules, referenceDetachmentIds: _referenceDetachmentIds, detachments, ...faction }) => ({
+                ...faction,
+                detachments: detachments.map(({ id, name, referenceRoute }) => ({ id, name, referenceRoute })),
+              }),
+            ),
+          }
+        : null
     },
     factionsFor: async () => {
-      const instance = getInstance()
-      const catalogue = instance.catalogue()
-      return catalogue ? factionsFor(catalogue, instance.rules()) : null
+      return versions().factions()
     },
+    factionFor: async (catalogueId: string) => versions().factionFor(catalogueId),
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
     searchIndexFor: async () => {
-      const instance = getInstance()
-      const catalogue = instance.catalogue()
-      return catalogue ? compiledGlobalSearchIndex(catalogue, instance.rules()) : null
+      return loaded.searchIndex()
     },
   }
 }
 
 function useCatalogueLoaders(instance: App, directory: string) {
-  const next = catalogueLoaders(() => instance, directory)
+  const next = catalogueLoaders(directory)
   instance.catalogue = next.catalogue
   instance.canonicalCatalogue = next.canonical
   instance.rules = next.rules
@@ -231,7 +237,7 @@ function useCatalogueLoaders(instance: App, directory: string) {
   instance.combatUnits = next.combatUnits
   Object.assign(
     instance,
-    catalogueReads(() => instance),
+    catalogueReads(() => instance, next),
   )
 }
 
@@ -262,7 +268,7 @@ export function app(): App {
     )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     let ready = Promise.resolve()
-    const loaded = catalogueLoaders(() => instance, catalogueDataDirectory)
+    const loaded = catalogueLoaders(catalogueDataDirectory)
     const authOptions = {
       environment: process.env,
       email,
@@ -300,7 +306,7 @@ export function app(): App {
       rules: loaded.rules,
       catalogueHistory: loaded.history,
       combatUnits: loaded.combatUnits,
-      ...catalogueReads(() => instance),
+      ...catalogueReads(() => instance, loaded),
       push: Boolean(push),
       sync: () => sync.state,
       telemetry,

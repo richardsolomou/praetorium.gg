@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { catalogueEditionId } from './catalogueEdition'
 import { routeSlug } from './slug'
 import { compareText } from './text'
 
@@ -461,7 +462,7 @@ function netChange(group: readonly Fact[]): ListChange {
  * later return included, and so does one that ends merely added, since a list holding it
  * held it all along. The banner on a list and the library's count both read this.
  *
- * A datasheet is matched by its entry id in any faction, since a list can field allies; a
+ * A datasheet is matched by its entry id in any faction of the same edition, since a list can field allies; a
  * detachment, and the enhancements it offers, only in the list's own book. An enhancement's
  * name is compared the way pricing joins it to the rules source.
  */
@@ -492,6 +493,7 @@ export function changesTouching(
   const enhancements = held(list.enhancements)
   const upgrades = held(list.upgrades)
   const touches = (catalogueId: string, change: CatalogueChange) => {
+    if (catalogueEditionId(catalogueId) !== catalogueEditionId(list.catalogueId)) return false
     if ('detachmentId' in change) {
       return (
         catalogueId === list.catalogueId &&

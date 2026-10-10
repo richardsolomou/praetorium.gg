@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../../favouriteDetachments'
-import { factionQuery } from '../../../queries'
+import { factionIndexQuery, factionQuery } from '../../../queries'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { FavouriteFactionToggle } from './FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
@@ -10,14 +10,36 @@ import { dispositionTone } from '../../../components/rosterSetup'
 import { RuleText } from '../../../components/RuleText'
 import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
+import { SearchableSelect } from '../../../components/SearchableSelect'
+import { editionFamilyId, editionLabel } from '../../../../core/catalogueEdition'
+import { useDateFormatting } from '../../../dates'
 
 export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const path = useRouterState({ select: (state) => state.location.pathname })
   const { data: faction } = useQuery(factionQuery(catalogueId))
   const direct = path === `/factions/${catalogueId}`
+  const { data: index } = useQuery({ ...factionIndexQuery(), enabled: direct })
+  const navigate = useNavigate()
+  const { date } = useDateFormatting()
   const { favourites } = useFavouriteDetachments(direct)
-  if (!direct) return <Outlet />
+  if (!direct)
+    return (
+      <>
+        {faction?.edition ? (
+          <p className="border-b border-edge bg-panel px-4 py-2 text-sm text-dim">
+            {editionLabel(faction.edition)}
+            {faction.edition.status === 'preview' ? ' · Not officially released' : ''}
+          </p>
+        ) : null}
+        <Outlet />
+      </>
+    )
   if (!faction) return null
+  const editions =
+    index?.factions.filter(
+      (entry) =>
+        editionFamilyId(entry.id) === editionFamilyId(faction.id) && (entry.edition?.status !== 'retired' || entry.id === faction.id),
+    ) ?? []
   const reference = faction.references[0]
   const detachments = favouriteDetachmentsFirst(
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
@@ -38,6 +60,48 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
+        {editions.length > 1 ? (
+          <section className="mt-4 space-y-2">
+            <SearchableSelect
+              id="reference-edition"
+              ariaLabel="Codex"
+              placeholder="Choose a codex"
+              value={faction.id}
+              groups={[
+                {
+                  label: '',
+                  items: editions.map((entry) => ({
+                    value: entry.id,
+                    label: entry.edition ? editionLabel(entry.edition) : !entry.isDefault ? 'Previous rules' : 'Current rules',
+                  })),
+                },
+              ]}
+              onValueChange={(id) => {
+                void navigate({ to: '/factions/$catalogueId', params: { catalogueId: id } })
+              }}
+            />
+            {faction.edition?.status === 'preview' ? (
+              <p className="text-sm text-warning">Preview rules have not been officially released.</p>
+            ) : null}
+          </section>
+        ) : null}
+        {faction.edition ? (
+          <details className="mt-4 border border-edge bg-panel px-3 py-2">
+            <summary className="rubric cursor-pointer">Codex history</summary>
+            <ol className="mt-2 space-y-1 text-sm text-dim">
+              {faction.edition.releases.map((release) => (
+                <li key={release.at}>
+                  {date(release.at)} ·{' '}
+                  {release.status === 'preview'
+                    ? 'Preview published'
+                    : release.status === 'released'
+                      ? 'Officially released'
+                      : 'Previous rules'}
+                </li>
+              ))}
+            </ol>
+          </details>
+        ) : null}
         <section className="mt-4">
           <Link
             data-onboarding="faction-datasheets"

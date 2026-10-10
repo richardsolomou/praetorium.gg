@@ -25,7 +25,7 @@ export const catalogueChangeLog = createServerFn({ method: 'GET' })
       const instance = app()
       const before = data.before ? decodeHistoryCursor(data.before) : null
       const history = (await instance.catalogueHistoryFor()) ?? []
-      const canonical = history.length ? await instance.canonicalCatalogueFor() : null
+      const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
       const scoped = data.faction ? (canonical ? factionHistory(history, canonical, data.faction) : []) : history
       const page = historyPage(scoped, CHANGE_LOG_PAGE, before ?? undefined)
       return {
@@ -42,7 +42,7 @@ export const referenceChanges = createServerFn({ method: 'GET' })
     rpc(async (): Promise<{ recordedAt: number; change: CatalogueChange }[]> => {
       const instance = app()
       const history = (await instance.catalogueHistoryFor()) ?? []
-      const canonical = history.length ? await instance.canonicalCatalogueFor() : null
+      const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
       return canonical ? referenceHistory(history, canonical, referencePath(data)).slice(0, REFERENCE_CHANGES) : []
     }),
   )

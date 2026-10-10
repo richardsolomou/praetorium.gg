@@ -15,6 +15,7 @@ import {
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import { fetchWithRetry } from './fetch'
 import { publicAssetsBaseUrl } from './objectStorage'
+import { readCatalogueComposition } from './catalogueComposition'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
@@ -152,7 +153,9 @@ function includedSources(directory: string, disabled: ReadonlySet<SnapshotSource
 }
 
 /** Raw source paths that neither the product nor its catalogue checks read. */
-export function distributableCatalogueFile(name: string) {
+export function distributableCatalogueFile(name: string): boolean {
+  const editionFile = /^editions\/[a-z0-9-]+\/(.+)$/.exec(name)?.[1]
+  if (editionFile) return editionFile === 'revision.json' || distributableCatalogueFile(editionFile)
   if (name === 'revision.json' || name === 'provenance.json' || name === '.snapshot.json' || name === '.snapshot-manifest.json')
     return false
   if (name.startsWith('definitions/')) return /^definitions\/[^/]+\.json$/.test(name)
@@ -189,16 +192,22 @@ function provenance(revisions: Record<string, string>, sources: readonly (typeof
 function packedSnapshot(directory: string, disabled = new Set([...disabledCatalogueSources(), ...catalogueRevocations.sources])) {
   const { included, revisions } = includedSources(directory, disabled)
   const bytes = new Map<string, Uint8Array>()
+  let size = 0
   for (const name of filesUnder(directory).filter(distributableCatalogueFile)) {
     const source = name.split('/')[0] ?? ''
     if ((SNAPSHOT_SOURCE_NAMES as readonly string[]).includes(source) && disabled.has(source as SnapshotSourceName)) continue
     if (name.startsWith('canonical/') && CANONICAL_CATALOGUE_SOURCE_NAMES.some((dependency) => disabled.has(dependency))) {
       continue
     }
-    bytes.set(name, fs.readFileSync(path.join(directory, name)))
+    if (name.startsWith('editions/') && SNAPSHOT_SOURCE_NAMES.some((dependency) => disabled.has(dependency)))
+      throw new Error('cannot publish editions with disabled snapshot sources')
+    const file = path.join(directory, name)
+    size += fs.statSync(file).size
+    if (size > MAX_EXTRACTED_BYTES) throw new Error('catalogue snapshot expands beyond its size limit')
+    bytes.set(name, fs.readFileSync(file))
   }
   bytes.set('revision.json', encoded(revisions))
-  bytes.set('provenance.json', encoded(provenance(revisions, included)))
+  bytes.set('provenance.json', encoded({ ...provenance(revisions, included), composition: readCatalogueComposition(directory) }))
   const files = Object.fromEntries([...bytes].map(([name, contents]) => [name, sha256(contents)]))
   const manifest: SnapshotManifest = { format: FORMAT, revisions, sources: included, files }
   return { manifest: encoded(manifest), bytes }
@@ -210,6 +219,7 @@ export function packCatalogueSnapshot(directory: string, archiveFile: string, po
   const entries: Zippable = { 'manifest.json': packed.manifest }
   for (const [name, bytes] of packed.bytes) entries[`catalogue/${name}`] = bytes
   const archive = zipSync(entries, { level: 9, mtime: new Date('2000-01-01T00:00:00Z') })
+  if (archive.length > MAX_ARCHIVE_BYTES) throw new Error('catalogue snapshot archive is too large')
   const pointer: SnapshotPointer = { format: POINTER_FORMAT, id, archiveSha256: sha256(archive) }
   fs.writeFileSync(archiveFile, archive)
   fs.writeFileSync(pointerFile, encoded(pointer))

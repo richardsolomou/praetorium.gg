@@ -8,8 +8,10 @@ import type { OnboardingTarget } from '../onboarding/onboarding'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
+import { type CatalogueEdition, editionLabel } from '../../../core/catalogueEdition'
 
 type PresentedFaction = FactionPresentation & {
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
   detachments: readonly {
     id: string
     slug: string
@@ -35,6 +37,7 @@ type RosterHeaderProps = {
   /** What an unnamed list is called. Shown as the title itself where nobody can type. */
   placeholder?: string
   faction?: PresentedFaction | null
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
   factionLoading?: boolean
   points?: number | null
   limit?: number
@@ -95,6 +98,7 @@ export function RosterHeader({
   maxLength,
   placeholder,
   faction,
+  edition = faction?.edition,
   factionLoading = false,
   points,
   limit,
@@ -142,6 +146,11 @@ export function RosterHeader({
             data-slot="roster-meta"
             className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
+            {edition ? (
+              <span title={editionLabel(edition)} className={`chip shrink-0 ${edition.status === 'preview' ? 'text-warning' : 'text-dim'}`}>
+                {edition.status === 'preview' ? 'Preview' : edition.status === 'retired' ? 'Previous' : edition.name}
+              </span>
+            ) : null}
             {faction ? (
               <Link
                 to="/factions/$catalogueId"

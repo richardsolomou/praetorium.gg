@@ -20,6 +20,14 @@ const row = {
 } as Parameters<typeof rosterFromRow>[0]
 
 describe('rosterFromRow', () => {
+  it('retains the saved codex and allied selections when reloading a list', () => {
+    expect(
+      rosterFromRow({ ...row, catalogueId: 'codex~catalogue', picks: '[{"entryId":"guard","catalogueId":"codex~allies","models":5}]' }),
+    ).toMatchObject({
+      catalogueId: 'codex~catalogue',
+      picks: [{ entryId: 'guard', catalogueId: 'codex~allies', models: 5 }],
+    })
+  })
   it('does not parse private preparation data for a public roster read', () => {
     expect(rosterFromRow(row)).toMatchObject({ id: 'roster', prep: null })
   })

@@ -18,12 +18,15 @@ import { type FactionContent, type LoadedDatacards, loadDatacards } from './data
 import { catalogueSections } from './catalogueSections'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { loadMfm, type MfmIndex } from './mfm'
+import type { CatalogueEdition } from '../core/catalogueEdition'
+import { editionCatalogueFiles } from '../core/catalogueEdition'
 
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
 type DetachmentOption = { id: string; name: string; disposition: string | null }
 
 export type LoadedCatalogue = {
+  edition?: CatalogueEdition
   index: CatalogueIndex
   characteristicNames: Map<string, string>
   factions: { id: string; name: string; references: CatalogueReference[] }[]
@@ -41,7 +44,7 @@ export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/dat
   return process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue')
 }
 
-export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue | null {
+export function loadCatalogue(directory = catalogueDirectory(), edition?: CatalogueEdition): LoadedCatalogue | null {
   const definitions = path.join(directory, 'definitions')
   const revisionFile = path.join(directory, 'revision.json')
   if (!fs.existsSync(definitions) || !fs.existsSync(revisionFile)) return null
@@ -55,10 +58,11 @@ export function loadCatalogue(directory = catalogueDirectory()): LoadedCatalogue
     .map((name): CatalogueFile => JSON.parse(fs.readFileSync(path.join(definitions, name), 'utf8')))
   if (!files.length) return null
 
-  const index = buildIndex(files, catalogueRevision(revision))
+  const selectedFiles = edition ? editionCatalogueFiles(files, edition) : files
+  const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }))
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
-  return { ...catalogueFromIndex(index, files, datacards), mfm: loadMfm(directory) }
+  return { ...catalogueFromIndex(index, selectedFiles, datacards), mfm: loadMfm(directory), ...(edition ? { edition } : {}) }
 }
 
 export function catalogueRevision(revisions: Record<string, string>) {
@@ -262,7 +266,7 @@ export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, p
   const preferredFaction = preferred ? loaded.factions.find((candidate) => candidate.id === preferred.catalogueId) : undefined
   if (preferred && preferredFaction && isReferenceDatasheet(loaded, preferred.catalogueId, preferred.entryId)) {
     return {
-      catalogueId: routeSlug(factionDisplayName(preferredFaction.name)),
+      catalogueId: loaded.edition ? preferredFaction.id : routeSlug(factionDisplayName(preferredFaction.name)),
       slug: datasheetSlug(loaded, preferred.catalogueId, preferred.entryId),
     }
   }
@@ -273,7 +277,12 @@ export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, p
       const entry = loaded.index.definitions.get(entryId)
       if (!entry || !sameText(nameOf(entry, loaded.index.definitions), name)) return []
       return isReferenceDatasheet(loaded, faction.id, entryId)
-        ? [{ catalogueId: routeSlug(factionDisplayName(faction.name)), slug: datasheetSlug(loaded, faction.id, entryId) }]
+        ? [
+            {
+              catalogueId: loaded.edition ? faction.id : routeSlug(factionDisplayName(faction.name)),
+              slug: datasheetSlug(loaded, faction.id, entryId),
+            },
+          ]
         : []
     }),
   )

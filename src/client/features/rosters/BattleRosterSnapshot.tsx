@@ -37,6 +37,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
           source: 'editable',
         }}
         faction={faction}
+        snapshotEdition={built.edition ?? null}
         editable={false}
         resolvePersistedRoster={false}
         frozen={reading.frozen}
@@ -50,6 +51,7 @@ export function BattleRosterSnapshot({ roster }: { roster: Roster }) {
         <RosterHeader
           name={roster.name}
           faction={faction}
+          edition={built?.edition ?? null}
           factionLoading={Boolean(built) && factionResult.isLoading}
           points={built ? total(built) : undefined}
           limit={built?.limit}

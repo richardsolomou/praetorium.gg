@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import rawSources from '../../catalogue/sources.json' with { type: 'json' }
 
-const repositorySourceSchema = z.object({
+export const repositorySourceSchema = z.object({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
   branch: z.string().min(1),
   revision: z.string().regex(/^[0-9a-f]{40}$/, 'expected a full Git commit SHA'),

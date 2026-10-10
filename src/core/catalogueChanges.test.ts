@@ -406,6 +406,28 @@ describe('the changes that reach a saved list', () => {
   )
   const kinds = (changes: ReturnType<typeof changesTouching>) => changes.map((entry) => entry.change.kind)
 
+  it.each([
+    ['marines', 'preview~marines'],
+    ['preview~marines', 'marines'],
+    ['preview~marines', 'other~marines'],
+  ])('ignores unit changes from %s to another ruleset %s', (catalogueId, changedId) => {
+    const update = recorded(
+      200,
+      source([sheet({ catalogueId: changedId })]),
+      source([sheet({ catalogueId: changedId, costs: [row('5', '90'), row('10', '150')] })]),
+    )
+    expect(changesTouching(list({ catalogueId }), 100, [update])).toEqual([])
+  })
+
+  it('retains allied unit history within the selected codex', () => {
+    const update = recorded(
+      200,
+      source([sheet({ catalogueId: 'preview~allies' })]),
+      source([sheet({ catalogueId: 'preview~allies', costs: [row('5', '90'), row('10', '150')] })]),
+    )
+    expect(kinds(changesTouching(list({ catalogueId: 'preview~marines' }), 100, [update]))).toEqual(['datasheet-points'])
+  })
+
   it('names the datasheet, detachment and enhancement changes the list holds', () => {
     expect(kinds(changesTouching(list(), 100, [repriced]))).toEqual(['datasheet-points', 'detachment-points', 'enhancement-points'])
   })

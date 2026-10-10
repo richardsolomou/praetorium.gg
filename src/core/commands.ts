@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { catalogueEditionSummarySchema } from './catalogueEdition'
 import {
   BATTLE_ROUNDS,
   type Command,
@@ -107,6 +108,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       built: z
         .object({
           catalogueId: id,
+          edition: catalogueEditionSummarySchema.optional(),
           revision: id,
           limit: z.number().int().min(0).max(10_000),
           strategicReserveLimit: z.number().int().min(0).max(5_000).optional(),

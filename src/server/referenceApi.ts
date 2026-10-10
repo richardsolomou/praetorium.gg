@@ -4,9 +4,17 @@ import { app } from './app'
 import { referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
 import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
 import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
-import { referenceFactions, referenceIndex, referenceRecord, referenceUnits } from './referenceService'
+import {
+  referenceFaction,
+  referenceFactions,
+  referenceIndex,
+  referenceRecord,
+  referenceRecordCatalogueId,
+  referenceUnits,
+} from './referenceService'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { ifNoneMatch } from './ifNoneMatch'
+import { catalogueEditionId } from '../core/catalogueEdition'
 
 type ReferenceRecord = {
   kind: ReferenceKind
@@ -16,9 +24,16 @@ type ReferenceRecord = {
   data: unknown
 }
 
-export async function activeReferenceCorpus() {
+export async function activeReferenceCorpus(catalogueId?: string) {
   const instance = app()
-  return instance.sync().status === 'ready' ? referenceCorpusFor(instance) : null
+  if (instance.sync().status !== 'ready') return null
+  if (!catalogueId || !catalogueEditionId(catalogueId)) return referenceCorpusFor(instance)
+  const [catalogue, rules, canonical] = await Promise.all([
+    instance.catalogueFor(catalogueId),
+    instance.rulesFor(catalogueId),
+    instance.canonicalCatalogueFor(catalogueId),
+  ])
+  return referenceCorpusFor({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical })
 }
 
 export async function referenceSearchResponse(request: Request) {
@@ -93,9 +108,13 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
   }
   const detachment = url.searchParams.get('detachment')?.trim() || undefined
   if (detachment && detachment.length > 160) return problem('detachment must contain at most 160 characters', 400)
-  const corpus = await activeReferenceCorpus()
+  const corpus = await activeReferenceCorpus(catalogueId)
   const instance = app()
-  const [loaded, rules] = await Promise.all([instance.catalogueFor(catalogueId), instance.rulesFor()])
+  const selected = corpus && referenceFaction(corpus, catalogueId)
+  const [loaded, rules] = await Promise.all([
+    instance.catalogueFor(selected?.id ?? catalogueId),
+    instance.rulesFor(selected?.id ?? catalogueId),
+  ])
   if (!corpus || !loaded) return referenceUnavailable()
   const data = referenceUnits(corpus, loaded, rules, catalogueId, battleSize, detachment)
   if (!data) return problem('faction or detachment not found', 404)
@@ -116,9 +135,10 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
 export async function referenceRecordResponse(request: Request, id: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus()
+  const catalogueId = referenceRecordCatalogueId(id)
+  const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
-  const record = referenceRecord(corpus, await app().rulesFor(), id)
+  const record = referenceRecord(corpus, await app().rulesFor(catalogueId), id)
   if (!record) return problem('reference record not found', 404)
   return referenceResponse(request, corpus.revision, `record:${id}`, record, referenceDocumentMarkdown(record.document))
 }
@@ -126,7 +146,7 @@ export async function referenceRecordResponse(request: Request, id: string) {
 export async function referenceDatasheetResponse(request: Request, catalogueId: string, slug: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus()
+  const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
   const data = corpus.catalogue.datasheets.find(
     (sheet) => sheet.slug === slug && (sheet.catalogueId === catalogueId || sheet.referenceRoute?.catalogueId === catalogueId),
@@ -146,7 +166,7 @@ export async function referenceDatasheetResponse(request: Request, catalogueId: 
 export async function referenceDetachmentResponse(request: Request, catalogueId: string, slug: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus()
+  const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
   const data = corpus.catalogue.detachments.find(
     (detachment) => detachment.slug === slug && (detachment.catalogueId === catalogueId || detachment.factionSlug === catalogueId),
@@ -190,7 +210,7 @@ export async function referenceRuleSectionResponse(request: Request, documentId:
 export async function referenceDocumentResponse(request: Request, id: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus()
+  const corpus = await activeReferenceCorpus(referenceRecordCatalogueId(id))
   if (!corpus) return referenceUnavailable()
   const document = corpus.byId.get(id)
   if (!document) return problem('reference document not found', 404)

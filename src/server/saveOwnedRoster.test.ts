@@ -46,6 +46,17 @@ const saved = () => saveRoster.mock.calls[0]?.[1]
 
 beforeEach(() => vi.mocked(app).mockReset())
 
+it('copies the selected codex and its equipment without adopting the current default', async () => {
+  const preview = {
+    ...base,
+    catalogueId: 'codex~marines',
+    picks: [{ entryId: 'captain', catalogueId: 'codex~allies', choices: { weapon: 'spear' } }],
+  }
+  library([preview])
+  await copyOwnedRoster('player', 'base', false)
+  expect(saved()).toMatchObject({ catalogueId: preview.catalogueId, picks: preview.picks })
+})
+
 it('duplicates every choice of a roster at the default visibility, outside its group', async () => {
   library([base])
   await copyOwnedRoster('player', 'base', false)

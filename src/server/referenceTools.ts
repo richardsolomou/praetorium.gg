@@ -4,7 +4,14 @@ import { app } from './app'
 import { activeReferenceCorpus } from './referenceApi'
 import { referenceDocumentMarkdown } from './referenceCorpus'
 import { REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
-import { referenceFactions, referenceIndex, referenceRecord, referenceUnits } from './referenceService'
+import {
+  referenceFaction,
+  referenceFactions,
+  referenceIndex,
+  referenceRecord,
+  referenceRecordCatalogueId,
+  referenceUnits,
+} from './referenceService'
 import type { AgentTools } from './agentTools'
 
 export function registerReferenceTools(server: AgentTools) {
@@ -48,7 +55,8 @@ export function registerReferenceTools(server: AgentTools) {
       annotations: READ_ONLY_TOOL,
     },
     async ({ id }) => {
-      const corpus = await activeReferenceCorpus()
+      const catalogueId = referenceRecordCatalogueId(id)
+      const corpus = await activeReferenceCorpus(catalogueId)
       if (!corpus) return unavailable()
       const document = corpus.byId.get(id)
       if (!document) return { content: [{ type: 'text', text: 'Reference document not found.' }], isError: true }
@@ -66,9 +74,10 @@ export function registerReferenceTools(server: AgentTools) {
       annotations: READ_ONLY_TOOL,
     },
     async ({ id }) => {
-      const corpus = await activeReferenceCorpus()
+      const catalogueId = referenceRecordCatalogueId(id)
+      const corpus = await activeReferenceCorpus(catalogueId)
       if (!corpus) return unavailable()
-      const result = referenceRecord(corpus, await app().rulesFor(), id)
+      const result = referenceRecord(corpus, await app().rulesFor(catalogueId), id)
       if (!result) return { content: [{ type: 'text', text: 'Structured reference record not found.' }], isError: true }
       return structured(result)
     },
@@ -134,8 +143,12 @@ export function registerReferenceTools(server: AgentTools) {
     },
     async ({ faction, battleSize, detachment }) => {
       const instance = app()
-      const corpus = await activeReferenceCorpus()
-      const [loaded, rules] = await Promise.all([instance.catalogueFor(faction), instance.rulesFor()])
+      const corpus = await activeReferenceCorpus(faction)
+      const selected = corpus && referenceFaction(corpus, faction)
+      const [loaded, rules] = await Promise.all([
+        instance.catalogueFor(selected?.id ?? faction),
+        instance.rulesFor(selected?.id ?? faction),
+      ])
       if (!corpus || !loaded) return unavailable()
       const result = referenceUnits(corpus, loaded, rules, faction, battleSize, detachment)
       if (!result) return { content: [{ type: 'text', text: 'Faction or detachment not found.' }], isError: true }

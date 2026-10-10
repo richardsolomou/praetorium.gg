@@ -14,9 +14,8 @@ export const Route = createFileRoute('/api/previews/datasheets/$catalogueId/$slu
         previewResponse(async () => {
           if (!datasheetSlugSchema.safeParse(params).success) return null
           const instance = app()
-          // Found the way the page finds it: the faction by its slug, then its own sheet by slug.
-          const faction = (await instance.factionsFor())?.factions.find((one) => one.slug === params.catalogueId)
-          const canonical = await instance.canonicalCatalogueFor()
+          const faction = await instance.factionFor(params.catalogueId)
+          const canonical = await instance.canonicalCatalogueFor(faction?.id)
           const sheet = faction && canonical?.datasheets.find((one) => one.catalogueId === faction.id && one.slug === params.slug)
           return sheet ? { card: datasheetPreview(sheet, faction.displayName).card, maxAge: REFERENCE_SECONDS } : null
         }),
