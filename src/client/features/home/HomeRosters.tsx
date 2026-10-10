@@ -36,7 +36,9 @@ export function HomeRosters({ rosters, count }: { rosters: readonly HomeRoster[]
                 params={{ id: roster.id }}
                 className="flex min-w-0 items-center gap-2 -mx-3 px-3 py-3 hover:bg-raised"
               >
-                {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+                {faction ? (
+                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+                ) : null}
                 <span className="min-w-0 flex-1 truncate text-sm font-bold uppercase">{rosterTitle(roster, faction, label)}</span>
                 {problem ? (
                   <span className="shrink-0 text-xs font-semibold text-destructive">{PROBLEM_LABEL[problem]}</span>

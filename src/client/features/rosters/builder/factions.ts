@@ -1,3 +1,4 @@
+import type { FactionPresentation } from '../../../components/FactionMark'
 /**
  * How a book is named on screen.
  *
@@ -29,15 +30,26 @@ function shelve<T extends { name: string }>(factions: readonly T[]): FactionShel
   return shelves
 }
 
-export function factionSelectGroups<T extends { id: string; name: string; slug?: string; displayName?: string; icon?: string | null }>(
-  factions: readonly T[],
-  favourites: ReadonlySet<string>,
-) {
+export function factionSelectGroups<
+  T extends {
+    id: string
+    name: string
+    slug?: string
+    displayName?: string
+    icon?: string | null
+    edition?: FactionPresentation['edition']
+  },
+>(factions: readonly T[], favourites: ReadonlySet<string>) {
   const option = (entry: T) => ({
     label: shortName(entry.name),
     value: entry.id,
     faction: entry.slug
-      ? { slug: entry.slug, displayName: entry.displayName ?? shortName(entry.name), icon: entry.icon ?? null }
+      ? {
+          slug: entry.slug,
+          displayName: entry.displayName ?? shortName(entry.name),
+          icon: entry.icon ?? null,
+          ...(entry.edition !== undefined ? { edition: entry.edition } : {}),
+        }
       : undefined,
   })
   const favourite = favouritesFirst(

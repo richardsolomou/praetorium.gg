@@ -20,7 +20,7 @@ import { datacardOf } from '../shared/datasheetJoin'
 import { describeDatasheetAbilitiesWithContributions } from '../shared/datasheetDescriptions'
 import { detachmentReference } from '../shared/detachmentReference'
 import { factionsFor } from '../shared/factionReferences'
-import { factionDisplayName } from '../shared/factionNames'
+import { factionContentOf, factionDisplayName } from '../shared/factionNames'
 import { loadRules, type LoadedRules } from './rules'
 import { mfmAttribution, mfmCostRows } from './mfm'
 import { mfmUnitFor } from '../shared/unitPoints'
@@ -377,7 +377,12 @@ export function compileCanonicalCatalogue(
         abilityContributions.datacards,
       )
       const attribution =
-        [usesDatacards || abilityContributions.rules ? DATACARDS_ATTRIBUTION : null, mfmUnit ? mfmAttribution(loaded.mfm) : null]
+        [
+          usesDatacards || abilityContributions.rules
+            ? (factionContentOf(loaded, faction.name)?.attribution ?? DATACARDS_ATTRIBUTION)
+            : null,
+          mfmUnit ? mfmAttribution(loaded.mfm) : null,
+        ]
           .filter(Boolean)
           .join('. ') || null
       const abilitySources = uniqueSources([

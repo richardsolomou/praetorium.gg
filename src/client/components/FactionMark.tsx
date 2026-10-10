@@ -1,3 +1,8 @@
+import type { CSSProperties } from 'react'
+import { editionFamilyId, type CatalogueEdition } from '../../core/catalogueEdition'
+import { routeSlug } from '../../core/slug'
+import { RulesVersionBadge } from './RulesVersionBadge'
+
 const FACTION_COLOURS: Record<string, string> = {
   'adepta-sororitas': '#a6192e',
   'adeptus-custodes': '#bf9b30',
@@ -37,14 +42,31 @@ const FACTION_COLOURS: Record<string, string> = {
   'world-eaters': '#c42126',
 }
 
-export function factionColour(id: string) {
-  return FACTION_COLOURS[id] ?? '#8b918a'
+export function factionColour(id: string, name?: string) {
+  return FACTION_COLOURS[editionFamilyId(id)] ?? (name ? FACTION_COLOURS[routeSlug(name)] : undefined) ?? '#8b918a'
 }
 
-export type FactionPresentation = { slug: string; displayName: string; icon: string | null }
+export type FactionPresentation = {
+  slug: string
+  displayName: string
+  icon: string | null
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
+}
 
-export function FactionMark({ id, icon, size = 'md' }: { id: string; icon: string | null; size?: 'sm' | 'md' | 'lg' }) {
-  const colour = factionColour(id)
+export function FactionMark({
+  id,
+  name,
+  edition,
+  icon,
+  size = 'md',
+}: {
+  id: string
+  name?: string
+  edition?: FactionPresentation['edition']
+  icon: string | null
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  const colour = factionColour(id, name)
   const mask = icon ? `url(${JSON.stringify(icon)})` : undefined
   const style = {
     backgroundColor: colour,
@@ -59,7 +81,7 @@ export function FactionMark({ id, icon, size = 'md' }: { id: string; icon: strin
     clipPath: icon ? undefined : 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
   } as CSSProperties
 
-  return (
+  const mark = (
     <span
       aria-hidden
       data-faction-mark={id}
@@ -67,17 +89,32 @@ export function FactionMark({ id, icon, size = 'md' }: { id: string; icon: strin
       className={`${size === 'lg' ? 'size-14' : size === 'sm' ? 'size-5' : 'size-9'} inline-block shrink-0`}
     />
   )
+  return edition ? (
+    <span className="relative inline-flex shrink-0">
+      {mark}
+      <RulesVersionBadge edition={edition} />
+    </span>
+  ) : (
+    mark
+  )
 }
 
-export function FactionLabel({ faction, chip = false }: { faction: FactionPresentation; chip?: boolean }) {
+export function FactionLabel({
+  faction,
+  chip = false,
+  edition = faction.edition,
+}: {
+  faction: FactionPresentation
+  chip?: boolean
+  edition?: FactionPresentation['edition']
+}) {
   return (
     <span
       className={`inline-flex min-w-0 items-center gap-1.5 ${chip ? 'chip' : ''}`}
-      style={chip ? { borderColor: factionColour(faction.slug) } : undefined}
+      style={chip ? { borderColor: factionColour(faction.slug, faction.displayName) } : undefined}
     >
-      <FactionMark id={faction.slug} icon={faction.icon} size="sm" />
+      <FactionMark id={faction.slug} name={faction.displayName} edition={edition} icon={faction.icon} size="sm" />
       <span className="truncate">{faction.displayName}</span>
     </span>
   )
 }
-import type { CSSProperties } from 'react'

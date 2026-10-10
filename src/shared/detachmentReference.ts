@@ -8,6 +8,7 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
 import { mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints } from './mfm'
 import { joinKey } from './rulesSource'
+import { factionContentOf } from './factionNames'
 
 const withoutUpgrade = (name: string) => name.replace(/\s*\(upgrade\)\s*$/i, '')
 const isUpgrade = (name: string) => /\(upgrade\)\s*$/i.test(name)
@@ -21,7 +22,10 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const rulesId = rulesFaction(rules, routeSlug(faction.name))
   const detail = detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)
   const mfm = mfmDetachmentFor(loaded, catalogueId, option.name)
-  const sourceAttribution = ['Catalogue data from BSData/wh40k-11e', mfm ? mfmAttribution(loaded.mfm) : null].filter(Boolean).join('. ')
+  const attribution = factionContentOf(loaded, faction.name)?.attribution
+  const sourceAttribution = [attribution ? null : 'Catalogue data from BSData/wh40k-11e', mfm ? mfmAttribution(loaded.mfm) : null]
+    .filter(Boolean)
+    .join('. ')
   const reference = detachmentNamed(rules.detachmentReferences.get(rulesId), option.name)
   const cardEnhancements = detail?.enhancements ?? []
   const cardUpgrades = detail?.upgrades ?? []
@@ -70,7 +74,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
       ...upgrades.map((upgrade) => upgrade.description),
       ...(detail?.stratagems.map((stratagem) => stratagem.description) ?? []),
     ]),
-    attribution: detail ? `${DATACARDS_ATTRIBUTION}. ${sourceAttribution}` : sourceAttribution,
+    attribution: detail ? [attribution ?? DATACARDS_ATTRIBUTION, sourceAttribution].filter(Boolean).join('. ') : sourceAttribution,
   }
 }
 

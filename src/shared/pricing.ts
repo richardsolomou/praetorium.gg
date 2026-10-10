@@ -13,7 +13,7 @@ import {
 } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
-import { buildUnit, type BuiltUnit } from '../core/roster'
+import { buildUnit, type BuiltUnit, resolveUnitChoice } from '../core/roster'
 import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
@@ -248,7 +248,7 @@ function adjustUnitPoints(
   return adjustment
 }
 
-function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked']) {
+function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
   return data.units.flatMap((saved, key) => {
     const unit = byKey.get(key)
@@ -261,8 +261,12 @@ function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof roster
         },
       ]
     const choices = new Map(unit.choices.map((choice) => [choice.key, choice]))
-    const hasOption = (choiceKey: string, optionId: string) =>
-      choiceOptionsForPricing(choices.get(choiceKey) ?? {}).some((option) => option.id === optionId)
+    const hasOption = (choiceKey: string, optionId: string) => {
+      const resolved = unit.size.options?.length ? resolveUnitChoice(unit.selection, choiceKey, optionId, loaded.index) : null
+      return choiceOptionsForPricing(choices.get(resolved?.key ?? choiceKey) ?? {}).some(
+        (option) => option.id === (resolved?.optionId ?? optionId),
+      )
+    }
     const staleChoice = Object.entries(saved.choices ?? {}).some(([choiceKey, optionId]) => !hasOption(choiceKey, optionId))
     const staleSpread = Object.entries(saved.spreads ?? {}).some(([choiceKey, options]) =>
       Object.keys(options).some((optionId) => !hasOption(choiceKey, optionId)),
@@ -310,7 +314,7 @@ export function calculateRosterTotals(
   if (!loaded) return null
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection)
-  if (savedSelectionErrors(data, picked).length) return null
+  if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
   const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId })
   const pointsBySelection = new Map<Selection, number>()
@@ -596,7 +600,7 @@ function calculateRoster(
   // Profile-backed detachments use the DP budget above rather than a wrapper's
   // single-selection constraint.
   const reported = [
-    ...savedSelectionErrors(data, picked),
+    ...savedSelectionErrors(data, picked, loaded),
     ...whole.errors.filter(
       (error) =>
         !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')) &&

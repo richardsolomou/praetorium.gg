@@ -1254,12 +1254,15 @@ test.describe('data update anchors', () => {
     await page.goto('/data-updates')
     const heading = page.locator('main [data-faction] h3 a').first()
     const faction = await heading.textContent()
-    const slug = (await heading.getAttribute('href'))!.split('/').at(-1)!
-    await page.goto(`/factions/${slug}`)
+    await page.goto((await heading.getAttribute('href'))!)
 
-    await page.locator('main').getByRole('link', { name: 'Data updates' }).click()
+    const updates = page.locator('main').getByRole('link', { name: 'Data updates' })
+    const href = (await updates.getAttribute('href'))!
+    await updates.click()
 
-    await expect(page).toHaveURL(`/data-updates/${slug}`)
+    await expect(page).toHaveURL(href)
+    const firstUpdate = page.locator('main details').first()
+    if (!(await firstUpdate.evaluate((element) => (element as HTMLDetailsElement).open))) await firstUpdate.locator('summary').click()
     await expect(page.locator('main [data-faction]').first()).toBeVisible()
     expect(
       new Set(await page.locator('main [data-faction]').evaluateAll((blocks) => blocks.map((block) => block.getAttribute('data-faction')))),

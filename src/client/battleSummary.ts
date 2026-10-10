@@ -1,3 +1,4 @@
+import type { StandingFaction } from '../core/standings'
 import { routeSlug } from '../core/slug'
 
 export function deploymentFor<T extends { id: string; name: string }>(id: string | null, deployments: readonly T[] = []): T | null {
@@ -15,7 +16,7 @@ export type BattleSummary = {
   players: readonly string[]
   playerDetails?: readonly { id: string; name: string; image: string | null; automated: boolean }[]
   armies: readonly (string | null)[]
-  factions?: readonly ({ slug: string; displayName: string; icon: string | null } | null)[]
+  factions?: readonly (StandingFaction | null)[]
   detachments: readonly string[][]
   scores: readonly number[]
   sides: readonly number[]
@@ -29,7 +30,7 @@ export type SummarySide = {
   seats: {
     player: { id: string; name: string; image: string | null; automated: boolean }
     army: string | null
-    faction: { slug: string; displayName: string; icon: string | null } | null
+    faction: StandingFaction | null
     detachments: string[]
   }[]
   /** The side's score, which the seat holding its resources carries. */

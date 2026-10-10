@@ -56,6 +56,12 @@ function catalogue() {
 }
 
 describe('canonical catalogue', () => {
+  it('retains authored attribution on reference datasheets', () => {
+    const loaded = catalogue()
+    loaded.factionContents.get('test-catalogue')!.attribution = 'Community codex preview'
+
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.attribution).toBe('Community codex preview')
+  })
   it('prints MFM copy tiers and attributes their points to the pinned source', () => {
     const loaded = catalogue()
     loaded.mfm = new Map([

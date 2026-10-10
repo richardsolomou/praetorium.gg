@@ -6,6 +6,80 @@ import { Loadout } from './Loadout'
 import { ModelCard } from './ModelCard'
 import { WargearRow } from './LoadoutControls'
 import { WeaponSummary } from '../../../components/DatasheetProfiles'
+import type { Datasheet } from '../../../../contracts/catalogue'
+import { loadoutDatasheetsQuery } from '../../../queries'
+import type { LoadoutUnit } from './loadoutModel'
+import type { loadoutDatasheets } from '../../../../server/functions'
+
+it.each([true, false])('offers one composition control when fixed sizes are %s', (fixedSizes) => {
+  const queryClient = new QueryClient()
+  const picks = [{ entryId: 'unit' }]
+  const sheet: Datasheet = {
+    id: 'unit',
+    slug: 'unit',
+    referenceRoute: null,
+    name: 'Squad',
+    points: 180,
+    keywords: [],
+    profiles: [],
+    abilities: [],
+    composition: [],
+    loadout: null,
+    wargearOptions: [],
+    baseSize: null,
+    transport: null,
+    costs: [],
+    attachments: [],
+    leaders: [],
+    supporters: [],
+    keywordRules: [],
+  }
+  const data: NonNullable<Awaited<ReturnType<typeof loadoutDatasheets>>> = {
+    selected: { ...sheet, detachments: [], attribution: null },
+    available: { ...sheet, detachments: [], attribution: null },
+    controlledChoices: [],
+    carriers: [],
+    datacardJoin: 'none',
+  }
+  queryClient.setQueryData(loadoutDatasheetsQuery('catalogue', 'unit', [], picks, 0).queryKey, data)
+  const choice = (key: string, names: string[]) => ({
+    key,
+    name: key,
+    chosen: names[0]!,
+    optional: false,
+    carried: false,
+    room: 1,
+    uniform: false,
+    owner: null,
+    options: names.map((name, index) => ({ id: name, name, count: index === 0 ? 1 : 0, points: 0, min: 0, max: 1 })),
+  })
+  const unit: LoadoutUnit = {
+    entryId: 'unit',
+    name: 'Squad',
+    points: 180,
+    size: { min: 2, max: 3, models: 2, resizable: true, ...(fixedSizes ? { options: [2, 3] } : {}) },
+    toggles: [],
+    models: [],
+    choices: [choice('Unit Composition', ['2 models', '3 models']), choice('Vexilla', ['Vexilla'])],
+  }
+  const markup = renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(Loadout, {
+        catalogueId: 'catalogue',
+        unit,
+        detachmentIds: [],
+        picks,
+        pickIndex: 0,
+        onChoose: () => undefined,
+        onSpread: () => undefined,
+      }),
+    ),
+  )
+  expect(markup).toContain('Select Vexilla')
+  expect(markup.includes('Select 3 models')).toBe(!fixedSizes)
+})
 
 it('groups firing profiles under one weapon within a paired loadout', () => {
   const markup = renderToStaticMarkup(

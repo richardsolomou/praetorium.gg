@@ -50,7 +50,7 @@ it('refuses a saved preview league roster before enqueueing a seal', async () =>
   runtime.queue.mockClear()
   vi.stubGlobal('navigator', { onLine: false })
   await expect(submitLeagueRoster({ data: { token: 'league', rosterId: 'roster' } })).rejects.toThrow(
-    'preview codex rules cannot be submitted to a league',
+    'preview rules cannot be submitted to a league',
   )
   expect(runtime.queue).not.toHaveBeenCalled()
 })

@@ -11,7 +11,7 @@ it('refuses a preview league roster before trying to price it', async () => {
     catalogueFor: async () => ({ edition: { status: 'preview' } }),
   } as never)
   const message = await rosterForUse('player', 'roster', { releasedOnly: true }).catch((response: Response) => response.text())
-  expect(message).toBe('preview codex rules cannot be submitted to a league')
+  expect(message).toBe('preview rules cannot be submitted to a league')
 })
 
 const priced = {

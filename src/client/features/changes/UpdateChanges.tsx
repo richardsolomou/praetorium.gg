@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import type { LinkedChange, LinkedChangeSet } from '../../../contracts/catalogueChanges'
 import { type ChangeSection, changeDetail, changeSection } from '../../catalogueChanges'
 
@@ -17,9 +17,9 @@ export function UpdateChanges({ update }: { update: LinkedChangeSet }) {
         <div key={faction.catalogueId} id={faction.anchor} data-faction={faction.faction} className="scroll-mt-16">
           <h3 className="eyebrow text-parchment">
             {faction.slug ? (
-              <Link to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="hover:text-bone">
+              <FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="hover:text-bone">
                 {faction.faction}
-              </Link>
+              </FactionReferenceLink>
             ) : (
               faction.faction
             )}
@@ -67,20 +67,20 @@ function ChangeName({ change }: { change: LinkedChange }) {
   const { link } = change
   if (!link) return <span className="text-bone">{change.name}</span>
   return link.kind === 'datasheet' ? (
-    <Link
+    <FactionReferenceLink
       to="/factions/$catalogueId/datasheets/$entryId"
       params={{ catalogueId: link.faction, entryId: link.slug }}
       className="text-bone hover:text-info"
     >
       {change.name}
-    </Link>
+    </FactionReferenceLink>
   ) : (
-    <Link
+    <FactionReferenceLink
       to="/factions/$catalogueId/detachments/$detachmentId"
       params={{ catalogueId: link.faction, detachmentId: link.slug }}
       className="text-bone hover:text-info"
     >
       {change.name}
-    </Link>
+    </FactionReferenceLink>
   )
 }

@@ -67,6 +67,7 @@ export type ConstructionStratagem = {
 }
 export type FactionContent = {
   name: string
+  attribution?: string
   parentName?: string | null
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
@@ -105,6 +106,7 @@ export type FactionRestrictions = {
   excludedKeywords: ReadonlySet<string>
 }
 export type DatacardsFaction = {
+  attribution?: unknown
   id?: unknown
   name?: unknown
   parent_name?: unknown
@@ -300,6 +302,9 @@ export function factionContent(
   }
   return {
     name,
+    ...(typeof parsed.attribution === 'string' && parsed.attribution.trim()
+      ? { attribution: parsed.attribution.trim().slice(0, 500) }
+      : {}),
     ...(typeof parsed.parent_name === 'string' ? { parentName: parsed.parent_name } : {}),
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,

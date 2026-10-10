@@ -55,7 +55,9 @@ function Side({ side, className }: { side?: SummarySide; className: string }) {
   const faction = side?.seats.find((seat) => seat.faction)?.faction
   return (
     <span className={`flex min-w-0 items-center gap-2 ${className}`}>
-      {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+      {faction ? (
+        <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+      ) : null}
       <span className="truncate text-sm font-bold uppercase">{side?.seats.map((seat) => seat.player.name).join(' & ') || 'Unknown'}</span>
     </span>
   )

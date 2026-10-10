@@ -38,6 +38,7 @@ type Props = {
   title?: string
   groups: SearchableGroup[]
   value: string
+  selectedFaction?: FactionPresentation
   onValueChange: (value: string) => void
   placeholder: string
   searchPlaceholder?: string
@@ -57,6 +58,7 @@ export function SearchableSelect({
   title,
   groups,
   value,
+  selectedFaction,
   onValueChange,
   placeholder,
   searchPlaceholder = 'Search…',
@@ -109,7 +111,9 @@ export function SearchableSelect({
       >
         {trigger ?? (
           <span className="min-w-0 flex-1 overflow-hidden text-left">
-            <ComboboxValue placeholder={placeholder}>{selected ? <OptionLabel option={selected} /> : null}</ComboboxValue>
+            <ComboboxValue placeholder={placeholder}>
+              {selected ? selectedFaction ? <FactionLabel faction={selectedFaction} /> : <OptionLabel option={selected} /> : null}
+            </ComboboxValue>
           </span>
         )}
         {loading ? <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden /> : null}

@@ -45,7 +45,9 @@ export function HomePlayed({ played, viewerId }: { played: readonly Battle[]; vi
                 className="flex min-w-0 items-center gap-2 -mx-3 px-3 py-3 hover:bg-raised"
               >
                 <span className={`eyebrow w-11 shrink-0 ${outcome?.tint ?? 'text-faint'}`}>{outcome?.name ?? 'Ended'}</span>
-                {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+                {faction ? (
+                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+                ) : null}
                 <span className="min-w-0 flex-1 truncate text-sm">
                   <span className="text-faint">vs </span>
                   <span className="font-bold uppercase">{opponent.map((seat) => seat.player.name).join(' & ') || 'Unknown'}</span>

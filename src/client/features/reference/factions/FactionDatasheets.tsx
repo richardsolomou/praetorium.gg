@@ -1,9 +1,11 @@
+import { useReferenceFaction } from './useReferenceFaction'
+import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
+import { Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useState } from 'react'
 import type { UnitSummary } from '../../../../contracts/catalogue'
-import { factionDatasheetsQuery, factionQuery } from '../../../queries'
+import { factionDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { CollectionToggle } from './CollectionToggle'
@@ -14,34 +16,34 @@ import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 
 export function FactionDatasheets() {
-  const { catalogueId } = useParams({ strict: false })
+  const { catalogueId, rulesVersion } = useParams({ strict: false })
   const path = useRouterState({ select: (state) => state.location.pathname })
-  const { data: faction } = useQuery(factionQuery(catalogueId ?? ''))
+  const faction = useReferenceFaction()
   const [query, setQuery] = useState('')
   const settledQuery = useSettled(query.trim())
   const { data: units = [] } = useQuery({
     ...factionDatasheetsQuery(faction?.id ?? '', settledQuery),
     placeholderData: keepPreviousData,
   })
-  if (path !== `/factions/${catalogueId}/datasheets`) return <Outlet />
+  if (path !== `/factions/${catalogueId}${rulesVersion ? `/rules/${rulesVersion}` : ''}/datasheets`) return <Outlet />
   if (!faction) return null
 
   return (
     <main className="w-full">
       <PageHeader
-        tint={factionColour(faction.slug)}
+        tint={factionColour(faction.slug, faction.displayName)}
         eyebrow={`${faction.displayName} · Reference`}
         title="Datasheets"
-        media={<FactionMark id={faction.slug} icon={faction.icon} />}
+        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
       />
       <PageContent>
-        <Link
+        <FactionReferenceLink
           to="/factions/$catalogueId"
           params={{ catalogueId: faction.slug }}
           className="eyebrow flex items-center gap-1 text-info hover:text-bone"
         >
           <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
-        </Link>
+        </FactionReferenceLink>
         <SearchField
           onboarding="datasheet-search"
           className="mt-4"
@@ -92,14 +94,14 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({ catalogueId, uni
       data-datasheet={unit.name}
       className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:layout_style] hover:border-info"
     >
-      <Link
+      <FactionReferenceLink
         to="/factions/$catalogueId/datasheets/$entryId"
         params={{ catalogueId, entryId: unit.slug }}
         className="flex min-w-0 flex-1 items-center justify-between px-3 py-2"
       >
         <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
         {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
-      </Link>
+      </FactionReferenceLink>
       <CollectionToggle entryId={unit.id} name={unit.name} />
       <ChevronRight className="mr-2 size-4 shrink-0 text-dim" aria-hidden />
     </div>

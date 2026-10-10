@@ -143,6 +143,15 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(offline.locator('[data-datasheet]')).toHaveCount(1)
   await offline.getByRole('link', { name: /^Necron Warriors [0-9]+ pts$/ }).click()
   await expect(offline.getByRole('heading', { name: 'Necron Warriors', exact: true })).toBeVisible()
+  const catalogueId = await offline.evaluate(() => {
+    const index = window.PraetoriumOffline!.queries.find((entry) => entry.key[0] === 'faction-index')!.data as {
+      factions: { id: string; displayName: string }[]
+    }
+    return index.factions.find((faction) => faction.displayName === 'Necrons')!.id
+  })
+  await offline.goto(`/factions/necrons/rules/${catalogueId}/datasheets/immortals`)
+  await expect(offline.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
+  await expect(offline).toHaveURL(`/factions/necrons/rules/${catalogueId}/datasheets/immortals`)
   await offline.goto('/missions')
   await expect(offline.getByRole('heading', { name: 'Chapter Approved 2026-2027', exact: true })).toBeVisible()
   await offline.getByRole('link', { name: 'Battlefield Dominance', exact: true }).click()

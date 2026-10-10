@@ -1,3 +1,4 @@
+import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { Link } from '@tanstack/react-router'
 import { ListFilter } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -246,14 +247,14 @@ function CareerTables({ record }: { record: ServiceRecord }) {
         rowKey={(row) => row.key}
         renderName={(row) =>
           row.reference ? (
-            <Link
+            <FactionReferenceLink
               to="/factions/$catalogueId/detachments/$detachmentId"
               params={row.reference}
               hash={`stratagem-${routeSlug(row.name)}`}
               className={NAME_LINK}
             >
               {row.name}
-            </Link>
+            </FactionReferenceLink>
           ) : (
             <span className="font-bold break-words uppercase">{row.name}</span>
           )
@@ -309,14 +310,20 @@ function CareerTables({ record }: { record: ServiceRecord }) {
         rows={record.opposingFactions}
         rowKey={(row) => row.faction.slug}
         renderName={(row) => (
-          <Link
+          <FactionReferenceLink
             to="/factions/$catalogueId"
             params={{ catalogueId: row.faction.slug }}
             className="flex min-w-0 items-center gap-2 hover:text-info"
           >
-            <FactionMark id={row.faction.slug} icon={row.faction.icon} size="sm" />
+            <FactionMark
+              id={row.faction.slug}
+              name={row.faction.displayName}
+              edition={row.faction.edition}
+              icon={row.faction.icon}
+              size="sm"
+            />
             <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
-          </Link>
+          </FactionReferenceLink>
         )}
         columns={[
           { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },

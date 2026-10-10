@@ -9,6 +9,7 @@ import { isMatchedPlayDatasheet } from '../shared/cataloguePicker'
 import { factionsFor } from '../shared/factionReferences'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { ruleIndexOf } from './rulesCore'
+import { factionReferenceHref } from '../core/factionReferenceRoute'
 import type { LoadedRules } from './rules'
 
 /** The order results are shown in, and the most of each that is worth showing. */
@@ -44,7 +45,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
         group: 'Factions',
         label: faction.displayName,
         detail: 'Faction reference',
-        href: `/factions/${faction.slug}`,
+        href: factionReferenceHref(faction),
       },
     })
     for (const detachment of faction.detachments) {
@@ -56,7 +57,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
           group: 'Detachments',
           label: detachment.name,
           detail: faction.displayName,
-          href: `/factions/${faction.slug}/detachments/${detachment.slug}`,
+          href: factionReferenceHref(faction, `/detachments/${detachment.slug}`),
         },
       })
     }
@@ -76,7 +77,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
           group: 'Datasheets',
           label: name,
           detail: faction.displayName,
-          href: `/factions/${faction.slug}/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`,
+          href: factionReferenceHref(faction, `/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`),
         },
       })
     }

@@ -69,13 +69,29 @@ export function readCatalogueComposition(directory: string): CatalogueCompositio
 }
 
 export function validateEditionContinuity(previous: CatalogueComposition | null, next: CatalogueComposition | null) {
-  for (const { edition } of previous?.editions ?? []) {
-    const current = next?.editions.find((entry) => entry.edition.id === edition.id)?.edition
-    if (!current) throw new Error(`retain edition ${edition.id} for saved lists and history; retire it instead of deleting it`)
+  for (const prior of previous?.editions ?? []) {
+    const { edition } = prior
+    const selected = next?.editions.find((entry) => entry.edition.id === edition.id)
+    if (!selected || !next || !previous)
+      throw new Error(`retain edition ${edition.id} for saved lists and history; retire it instead of deleting it`)
+    const current = selected.edition
     if (edition.releases.some((release, index) => JSON.stringify(release) !== JSON.stringify(current.releases[index]))) {
       throw new Error(`edition ${edition.id} cannot rewrite published release history`)
     }
     if (edition.catalogueIds.some((id) => !current.catalogueIds.includes(id)))
       throw new Error(`edition ${edition.id} cannot remove published faction identities`)
+    if (edition.status !== 'preview' && JSON.stringify(editionSources(previous, prior)) !== JSON.stringify(editionSources(next, selected)))
+      throw new Error(`rules version ${edition.id} has published rules; add a new version for source changes`)
   }
+}
+
+function editionSources(composition: CatalogueComposition, selected: CatalogueComposition['editions'][number]) {
+  const pin = (source: CatalogueOverlay | CatalogueComposition['editions'][number]['sources']['definitions']) =>
+    source ? { repository: source.repository, revision: source.revision, path: source.path } : null
+  return sourceNames.map((name) => ({
+    source: pin(selected.sources[name] ?? composition.baseSources?.[name]),
+    overlays: [...(selected.sources[name] ? [] : composition.overlays), ...selected.overlays]
+      .filter((overlay) => overlay.source === name)
+      .map((overlay) => ({ ...pin(overlay), files: overlay.files })),
+  }))
 }

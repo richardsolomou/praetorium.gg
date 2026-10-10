@@ -1,10 +1,11 @@
 {
   "definitions": {
-    "repository": "BSData/wh40k-11e",
+    "repository": "richardsolomou/wh40k-11e",
     "branch": "main",
     "license": null,
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
-    "revision": "3988a8bdd210f9d31ea5b6782d0016688ccb6815"
+    "revision": "3988a8bdd210f9d31ea5b6782d0016688ccb6815",
+    "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
   },
   "points": {
     "repository": "BSData/wh40k-11e-mfm",

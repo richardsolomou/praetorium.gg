@@ -43,7 +43,9 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
               <span className="chip readout shrink-0">
                 {place}/{of}
               </span>
-              {faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : null}
+              {faction ? (
+                <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+              ) : null}
               <span className="truncate font-bold uppercase">{faction?.displayName ?? 'Everyone'}</span>
             </span>
             <span className="readout shrink-0 text-xs text-dim">

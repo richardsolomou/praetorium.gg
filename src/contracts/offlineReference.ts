@@ -3,6 +3,7 @@ import type { GlobalSearchIndex } from './referenceSearch'
 import type { RuntimeData } from './runtimeData'
 import type { CatalogueFile } from '../core/catalogue'
 import { catalogueEditionSchema, type CatalogueEdition } from '../core/catalogueEdition'
+import { restoreRuntimeData } from './sharedRuntimeData'
 
 export type OfflineConstructionSource = {
   edition?: CatalogueEdition
@@ -34,6 +35,32 @@ export const MAX_OFFLINE_QUERIES = 20_000
 export type OfflineReferenceBundle = Pick<OfflineReferenceData, 'version' | 'revision' | 'queries' | 'search' | 'construction'>
 export type OfflineReferenceVersion = { revision: string; bundle: string }
 export type OfflineAppVersion = { revision: string; css: string; script: string }
+
+export function decodeReferenceBundle(value: unknown): unknown {
+  if ((value as { version?: unknown } | null)?.version !== 2) return value
+  const expanded = { ...(value as OfflineReferenceBundle), version: 1 as const }
+  if (!isReferenceBundle(expanded) || !expanded.construction) throw new Error('Invalid shared reference bundle')
+  const base = expanded.construction
+  const budget = { remaining: MAX_OFFLINE_BYTES - new TextEncoder().encode(JSON.stringify(value)).byteLength }
+  if (budget.remaining < 0) throw new Error('Shared reference bundle exceeds its size limit')
+  return {
+    ...expanded,
+    construction: {
+      ...base,
+      editions: base.editions?.map((source) => ({
+        ...source,
+        files: restoreRuntimeData(
+          source.files as unknown as RuntimeData,
+          base.files as unknown as RuntimeData,
+          budget,
+        ) as unknown as CatalogueFile[],
+        datacards: restoreRuntimeData(source.datacards, base.datacards, budget),
+        mfm: restoreRuntimeData(source.mfm, base.mfm, budget),
+        rules: restoreRuntimeData(source.rules, base.rules, budget),
+      })),
+    },
+  }
+}
 
 export function isReferenceBundle(value: unknown): value is OfflineReferenceBundle {
   const data = value as OfflineReferenceBundle | null

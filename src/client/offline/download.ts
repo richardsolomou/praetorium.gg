@@ -1,5 +1,6 @@
 import {
   MAX_OFFLINE_BYTES,
+  decodeReferenceBundle,
   isReferenceBundle,
   type OfflineReferenceData,
   type OfflineReferenceBundle,
@@ -72,7 +73,7 @@ export async function referenceBundle(
       bytes.set(part, offset)
       offset += part.byteLength
     }
-    const value: unknown = JSON.parse(new TextDecoder().decode(bytes))
+    const value = decodeReferenceBundle(JSON.parse(new TextDecoder().decode(bytes)))
     if (!isReferenceBundle(value) || value.revision !== version.revision) throw new Error('The reference bundle is invalid')
     return value
   } finally {

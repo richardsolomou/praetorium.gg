@@ -1,8 +1,14 @@
+import type { CatalogueEdition } from './catalogueEdition'
 /** Standings rate players from finished battles; each faction table rates the seats that fielded it. */
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
 /** The catalogue army a seat brought, as the battle list already names it. */
-export type StandingFaction = { slug: string; displayName: string; icon: string | null }
+export type StandingFaction = {
+  slug: string
+  displayName: string
+  icon: string | null
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
+}
 
 /** One finished battle, as the battle list already summarizes it. */
 export type StandingBattle = {

@@ -1,3 +1,4 @@
+import type { StandingFaction } from '../core/standings'
 import { targetOf } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
@@ -201,6 +202,7 @@ type DispositionFaction = {
   slug: string
   displayName: string
   icon: string | null
+  edition?: StandingFaction['edition']
   referenceDetachmentIds: readonly string[]
   detachments: readonly {
     id: string
@@ -222,7 +224,9 @@ export function detachmentsOffering(factions: readonly DispositionFaction[], dis
           ? [{ slug: detachment.slug, name: detachment.name, points: detachment.reference.points }]
           : [],
       )
-      return detachments.length ? [{ slug: faction.slug, displayName: faction.displayName, icon: faction.icon, detachments }] : []
+      return detachments.length
+        ? [{ slug: faction.slug, displayName: faction.displayName, icon: faction.icon, edition: faction.edition, detachments }]
+        : []
     })
     .toSorted((a, b) => a.displayName.localeCompare(b.displayName))
 }

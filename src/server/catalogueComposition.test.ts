@@ -64,3 +64,39 @@ it('refuses to rewrite a previously published release event', () => {
 it('retains old editions for saved lists', () => {
   expect(() => validateEditionContinuity(composition(), null)).toThrow('retire it instead of deleting it')
 })
+
+it.each(['released', 'retired'] as const)('keeps %s source pins unchanged when a new MFM is published', (status) => {
+  const previous = composition()
+  previous.editions[0]!.edition.status = status
+  previous.editions[0]!.edition.releases = [{ at: 1, status }]
+  previous.editions[0]!.sources.points = catalogueSources.points
+  const next = structuredClone(previous)
+  next.editions[0]!.sources.points = { ...catalogueSources.points, revision: 'a'.repeat(40) }
+  expect(() => validateEditionContinuity(previous, next)).toThrow('add a new version for source changes')
+})
+
+it('keeps inherited released rules unchanged when the root sources change', () => {
+  const previous = composition()
+  previous.baseSources = catalogueSources
+  previous.editions[0]!.edition.status = 'released'
+  previous.editions[0]!.edition.releases = [{ at: 1, status: 'released' }]
+  const next = structuredClone(previous)
+  next.baseSources!.points.revision = 'a'.repeat(40)
+  expect(() => validateEditionContinuity(previous, next)).toThrow('add a new version for source changes')
+})
+
+it('can publish a new points version while retiring the unchanged original', () => {
+  const previous = composition()
+  previous.editions[0]!.edition.status = 'released'
+  previous.editions[0]!.edition.releases = [{ at: 1, status: 'released' }]
+  previous.editions[0]!.sources.points = catalogueSources.points
+  const next = structuredClone(previous)
+  next.editions[0]!.edition.status = 'retired'
+  next.editions[0]!.edition.releases.push({ at: 2, status: 'retired' })
+  next.editions.push({
+    ...structuredClone(previous.editions[0]!),
+    edition: { ...previous.editions[0]!.edition, id: 'mfm-1-6', default: true },
+    sources: { points: { ...catalogueSources.points, revision: 'a'.repeat(40) } },
+  })
+  expect(() => validateEditionContinuity(previous, next)).not.toThrow()
+})

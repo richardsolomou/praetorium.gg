@@ -51,10 +51,12 @@ export function DetachmentReference({
   return (
     <div id="summary">
       <PageHeader
-        tint={faction ? factionColour(faction.slug) : undefined}
+        tint={faction ? factionColour(faction.slug, faction.displayName) : undefined}
         eyebrow={faction ? `${faction.displayName} · Detachment` : 'Detachment'}
         title={detachment.name}
-        media={faction ? <FactionMark id={faction.slug} icon={faction.icon} /> : undefined}
+        media={
+          faction ? <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} /> : undefined
+        }
         actions={
           detachment.dispositions.length || detachment.points !== null || detachmentId || action ? (
             <div className="flex flex-wrap items-center gap-1">

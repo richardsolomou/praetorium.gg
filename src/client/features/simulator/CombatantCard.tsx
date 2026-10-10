@@ -61,7 +61,9 @@ export function CombatantCard({
   const totalModels = members.reduce((total, member) => total + member.models, 0)
   const factionIcon = (catalogueId: string | undefined) => {
     const faction = factions.data?.factions.find((entry) => entry.id === catalogueId || entry.slug === catalogueId)
-    return faction ? <FactionMark id={faction.slug} icon={faction.icon} size="sm" /> : undefined
+    return faction ? (
+      <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+    ) : undefined
   }
   const selectedFaction = factions.data?.factions.find((entry) => entry.id === combatant.faction)
   const failed = factions.isError || catalogueUnits.isError || combatant.price.isError || combatant.sheets.isError
@@ -124,7 +126,15 @@ export function CombatantCard({
                   value: unitValue(faction.catalogueId, entry.id),
                   label: entry.name,
                   detail: entry.points === null ? undefined : `${entry.points} pts`,
-                  icon: presentation ? <FactionMark id={presentation.slug} icon={presentation.icon} size="sm" /> : undefined,
+                  icon: presentation ? (
+                    <FactionMark
+                      id={presentation.slug}
+                      name={presentation.displayName}
+                      edition={presentation.edition}
+                      icon={presentation.icon}
+                      size="sm"
+                    />
+                  ) : undefined,
                 })),
               },
             ]

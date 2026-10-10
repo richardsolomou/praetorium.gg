@@ -1,3 +1,4 @@
+import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { dispositionTone } from '../../../components/rosterSetup'
@@ -61,25 +62,25 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {factions.map((faction) => (
                 <article key={faction.slug} className="border border-edge bg-panel">
-                  <Link
+                  <FactionReferenceLink
                     to="/factions/$catalogueId"
                     params={{ catalogueId: faction.slug }}
                     className="flex items-center gap-2 border-b border-edge px-3 py-2 font-bold uppercase hover:bg-raised hover:text-info"
                   >
-                    <FactionMark id={faction.slug} icon={faction.icon} size="sm" />
+                    <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
                     <span className="min-w-0 truncate">{faction.displayName}</span>
-                  </Link>
+                  </FactionReferenceLink>
                   <ul>
                     {faction.detachments.map((detachment) => (
                       <li key={detachment.slug}>
-                        <Link
+                        <FactionReferenceLink
                           to="/factions/$catalogueId/detachments/$detachmentId"
                           params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
                           className="flex items-center justify-between gap-3 px-3 py-1.5 text-sm hover:bg-raised hover:text-info"
                         >
                           <span className="min-w-0 truncate">{detachment.name}</span>
                           {detachment.points === null ? null : <span className="chip shrink-0">{detachment.points} DP</span>}
-                        </Link>
+                        </FactionReferenceLink>
                       </li>
                     ))}
                   </ul>

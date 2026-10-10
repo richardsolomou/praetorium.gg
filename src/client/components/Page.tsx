@@ -37,7 +37,7 @@ export function PageHeader({
       <div className="plot-grid" />
       <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-4">
             {media}
             <div className="min-w-0">
               <p className="eyebrow text-parchment">{eyebrow}</p>
