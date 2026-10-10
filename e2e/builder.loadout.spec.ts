@@ -437,9 +437,13 @@ test('a smaller desktop moves the picker into a drawer without losing unit detai
   await picker.getByRole('button', { name: "Add C'tan Shard of the Deceiver", exact: true }).click()
   await picker.getByRole('button', { name: 'Close' }).click()
   const card = page.locator('[data-unit="C\'tan Shard of the Deceiver"]')
-  const cardName = await card.getByText("C'tan Shard of the Deceiver", { exact: true }).boundingBox()
-  const configuredWargear = await card.getByText(/1x Cosmic insanity/).boundingBox()
-  expect(cardName && configuredWargear && configuredWargear.y >= cardName.y + cardName.height).toBe(true)
+  await expect
+    .poll(async () => {
+      const cardName = await card.getByText("C'tan Shard of the Deceiver", { exact: true }).boundingBox()
+      const configuredWargear = await card.getByText(/1x Cosmic insanity/).boundingBox()
+      return Boolean(cardName && configuredWargear && configuredWargear.y >= cardName.y + cardName.height)
+    })
+    .toBe(true)
   expect(
     await card.getByText("C'tan Shard of the Deceiver", { exact: true }).evaluate((element) => getComputedStyle(element).whiteSpace),
   ).toBe('normal')

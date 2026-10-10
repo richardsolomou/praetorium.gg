@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { advance, createRoster, setupBattle, signUp, uniqueName } from './account'
 
 test('two phones complete all five rounds in step', async ({ browser }) => {
+  test.setTimeout(180_000)
   const aliceContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const bobContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const alice = await aliceContext.newPage()

@@ -214,6 +214,12 @@ for (const width of [390, 1600]) {
       }).observe(pane, { childList: true, subtree: true, characterData: true })
     })
     await page.route('**/_serverFn/**', async (route) => {
+      const request = route.request()
+      const body = request.postData()
+      if (request.method() !== 'POST' || !body?.includes('"visibility"') || !body.includes('"picks"')) {
+        await route.continue()
+        return
+      }
       const response = await route.fetch()
       await new Promise((resolve) => setTimeout(resolve, 500))
       await route.fulfill({ response })
@@ -233,6 +239,7 @@ for (const width of [390, 1600]) {
     const frames = await page.evaluate(() => (window as unknown as { weaponSummaryFrames: string[][] }).weaponSummaryFrames)
     expect(frames.length).toBeGreaterThan(0)
     expect(frames.every((headings) => headings.join(',') === initialHeadings.join(','))).toBe(true)
+    await page.unrouteAll({ behavior: 'wait' })
   })
 }
 
