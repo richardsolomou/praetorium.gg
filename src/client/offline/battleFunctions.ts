@@ -35,6 +35,7 @@ import {
   hasLocalChanges,
   rememberBattle,
   queueLocal,
+  attemptLocalSync,
   type LocalRoster,
 } from './localRuntime'
 import { localConstruction } from './construction'
@@ -118,6 +119,7 @@ export async function submit(
   const owner = localOwner()
   if (!engine || !owner || !localConstruction()) return server.submit(args)
   const resource = `battle:${args.data.token}`
+  if (options?.background && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
   if (options?.background && navigator.onLine && !(await hasLocalChanges(resource))) {
     const answer = await server.submit(args)
     if (answer.screen?.kind !== 'battle') return answer
