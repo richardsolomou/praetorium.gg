@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   workspace: vi.fn(),
   submit: vi.fn(),
   changes: vi.fn(),
+  remember: vi.fn(),
 }))
 vi.mock('../../server/functions', () => ({ submit: mocks.submit }))
 vi.mock('../../server/functions/offline', () => ({ battleWorkspace: mocks.workspace }))
@@ -23,7 +24,7 @@ vi.mock('./localRuntime', () => ({
   queueLocal: mocks.queue,
   localClient: vi.fn(),
   hasLocalChanges: mocks.changes,
-  rememberBattle: vi.fn(),
+  rememberBattle: mocks.remember,
   rememberDocument: vi.fn(),
   syncLocalWork: vi.fn(),
 }))
@@ -144,6 +145,44 @@ it('saves an offline automatic settlement durably', async () => {
   vi.stubGlobal('navigator', { onLine: false })
   await submit(input, { background: true })
   expect(mocks.queue.mock.calls[0]?.[1]).toMatchObject({ expectedSeq: input.data.expectedSeq, command: input.data.command })
+})
+
+it('downloads and saves authoritative automatic settlement before showing its screen', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  const fresh = { ...workspace, log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command]), serverSeq: 10 }
+  const screen = { kind: 'battle', view: { seq: 10 } }
+  const result = { outcome: 'appended', seq: 10 }
+  mocks.submit.mockResolvedValue({ result, screen })
+  mocks.workspace.mockResolvedValue({ workspace: fresh, screen })
+  const answer = await submit(input, { background: true })
+  expect({ answer, saved: mocks.remember.mock.calls }).toEqual({ answer: { result, screen }, saved: [[fresh, 'alice']] })
+})
+
+it('does not show an automatic server advance when its offline history cannot download', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
+  mocks.workspace.mockRejectedValue(new Error('Disconnected before download'))
+  await expect(submit(input, { background: true })).rejects.toThrow('Disconnected before download')
+  expect(mocks.queue).not.toHaveBeenCalled()
+})
+
+it('preserves a local command saved while an automatic settlement response downloads', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  const history = log(...started(), ...turns(6, ALICE), [ALICE, input.data.command])
+  const fresh = { ...workspace, log: history, serverSeq: 10 }
+  const current = {
+    ...fresh,
+    log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command], [ALICE, { kind: 'advance' }]),
+  }
+  mocks.changes.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+  mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
+  mocks.workspace.mockResolvedValue({ workspace: fresh, screen: { kind: 'battle', view: { seq: 10 } } })
+  mocks.document.mockResolvedValue(current)
+  const answer = await submit(input, { background: true })
+  expect(answer.screen?.kind === 'battle' && answer.screen.view.seq).toBe(11)
 })
 
 it('keeps automatic settlement behind existing local battle work while connected', async () => {

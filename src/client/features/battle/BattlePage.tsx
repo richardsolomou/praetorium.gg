@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 import { BattleUnavailable } from './BattleUnavailable'
+import { PageState } from '../../components/PageState'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
@@ -15,8 +16,14 @@ import { setNativeBattleActive } from '../../nativeBridge'
 import type { openBattle } from '../../functions'
 
 export function BattlePage({ token }: { token: string }) {
-  const { data: screen } = useQuery(battleQuery(token))
+  const { data: screen, isPending } = useQuery(battleQuery(token))
 
+  if (isPending)
+    return (
+      <main className="flex w-full">
+        <PageState className="flex-1 border-x-0 border-t-0" loading title="Loading battle" explanation="Opening the battle history." />
+      </main>
+    )
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'unavailable') return <BattleUnavailable token={token} />
   if (screen.kind === 'spectator')

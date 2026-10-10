@@ -68,6 +68,7 @@ export function useCommand(token: string, seq: number) {
       while (queued.current.length) {
         const item = queued.current.shift()
         if (!item) break
+        seen.current = Math.max(seen.current, item.basedOn)
         try {
           const { result, screen } = await submit(
             { data: { token, expectedSeq: seen.current, command: item.command } },

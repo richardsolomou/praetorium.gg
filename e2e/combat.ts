@@ -1,6 +1,37 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { chooseUnit } from './account'
 
+declare global {
+  interface Window {
+    PraetoriumCombatGate?: { pending: (() => void)[]; release: () => void }
+  }
+}
+
+export async function holdCombatCalculations(page: Page) {
+  await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- Reflect.apply binds the saved method to its worker.
+    const original = Worker.prototype.postMessage
+    const pending: (() => void)[] = []
+    Worker.prototype.postMessage = function (message: unknown, ...args: unknown[]) {
+      const send = () => Reflect.apply(original, this, [message, ...args])
+      if (message && typeof message === 'object' && !('kind' in message) && ('ranged' in message || 'melee' in message)) pending.push(send)
+      else send()
+    }
+    window.PraetoriumCombatGate = {
+      pending,
+      release: () => {
+        Worker.prototype.postMessage = original
+        for (const send of pending) send()
+        delete window.PraetoriumCombatGate
+      },
+    }
+  })
+  return {
+    waitForStart: () => expect.poll(() => page.evaluate(() => window.PraetoriumCombatGate?.pending.length ?? 0)).toBeGreaterThan(0),
+    release: () => page.evaluate(() => window.PraetoriumCombatGate?.release()),
+  }
+}
+
 export async function openCombatControls(scope: Page | Locator) {
   await closeCombatBreakdown(scope)
   for (const selector of ['[data-manual-modifiers]', '[data-combat-buffs]']) {

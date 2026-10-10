@@ -112,6 +112,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await anonymous.screenshot({ path: test.info().outputPath('revoked-roster.png') })
 })
 
 test('editable detail waits for public access to save before sharing', async ({ browser }) => {

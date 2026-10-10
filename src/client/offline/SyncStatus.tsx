@@ -119,7 +119,7 @@ export function SyncStatus() {
         return discardLocalResource(current, resource)
       })
       await restoreLocalWork()
-      client.removeQueries({
+      await client.resetQueries({
         predicate: (query) => ['roster-access', 'roster-bootstrap', 'shared-roster', 'battle'].includes(String(query.queryKey[0])),
       })
       await client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'local-work' })

@@ -118,7 +118,17 @@ export async function submit(
   const owner = localOwner()
   if (!engine || !owner || !localConstruction()) return server.submit(args)
   const resource = `battle:${args.data.token}`
-  if (options?.background && navigator.onLine && !(await hasLocalChanges(resource))) return server.submit(args)
+  if (options?.background && navigator.onLine && !(await hasLocalChanges(resource))) {
+    const answer = await server.submit(args)
+    if (answer.screen?.kind !== 'battle') return answer
+    const fresh = await battleWorkspace({ data: { token: args.data.token } })
+    await rememberBattle(fresh.workspace, owner.id)
+    const current = await localDocument<BattleWorkspace>(resource)
+    return {
+      result: answer.result,
+      screen: current && (await hasLocalChanges(resource)) ? workspaceScreen(current, owner.id) : fresh.screen,
+    }
+  }
   let workspace = await localDocument<BattleWorkspace>(resource)
   if (navigator.onLine && (!workspace || (workspace.log.at(-1)?.seq ?? 0) < args.data.expectedSeq) && !(await hasLocalChanges(resource))) {
     const fresh = await battleWorkspace({ data: { token: args.data.token } })

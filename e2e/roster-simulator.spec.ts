@@ -1,4 +1,4 @@
-import { chooseCombatUnit, closeCombatBreakdown, openCombatBreakdown, openCombatControls } from './combat'
+import { chooseCombatUnit, closeCombatBreakdown, openCombatBreakdown, openCombatControls, holdCombatCalculations } from './combat'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 
@@ -249,26 +249,15 @@ for (const width of [1440, 390, 900]) {
     await noOverflow(page)
     await simulator.screenshot({ path: `test-results/roster-simulator-${width}.png` })
 
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    let intercepted = false
-    await page.route('**/*', async (route) => {
-      if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) {
-        intercepted = true
-        await gate
-      }
-      await route.continue()
-    })
+    const previousDamage = await (await estimate(simulator, 'Shooting')).locator('.readout').first().textContent()
+    const calculation = await holdCombatCalculations(page)
     await simulator.getByRole('button', { name: 'More attacker models' }).click()
-    await expect.poll(() => intercepted).toBe(true)
+    await calculation.waitForStart()
     await expect(shooting).toHaveAttribute('aria-busy', 'true')
-    await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
+    await expect((await estimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(previousDamage!)
     await expect(simulator.getByLabel('Attacker models', { exact: true })).toHaveText('7')
-    release()
+    await calculation.release()
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await page.unrouteAll({ behavior: 'wait' })
     await expect(shooting).toContainText('6× ➤ Bolt Rifle - Focused Fire')
 
     await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
