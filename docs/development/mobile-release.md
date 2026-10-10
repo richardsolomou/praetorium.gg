@@ -62,7 +62,7 @@ pnpm dlx eas-cli@23.2.0 submit --platform android --profile production
 pnpm dlx eas-cli@23.2.0 update --platform android --channel stable --environment production
 ```
 
-Add a Changeset for the mobile package when changing the public application version. `pnpm version-packages` runs [`scripts/syncMobileVersion.ts`](../../scripts/syncMobileVersion.ts) after Changesets to copy the package version into `mobile/app.json`. Before merging release-tooling changes, exercise this command with a pending mobile Changeset in a disposable checkout and confirm that both versions agree. The shell reads the installed binary's version; EAS owns automatic build-number increments. [Mobile](mobile.md#check-it) owns the mandatory release-mode journey before pushing shell, dependency, or configuration changes.
+Add a Changeset for the mobile package when changing the public application version. `pnpm version-packages` runs [`scripts/syncMobileVersion.ts`](../../scripts/syncMobileVersion.ts) after Changesets to copy the package version into `mobile/app.json` and format it. Before merging release-tooling changes, exercise this command with a pending mobile Changeset in a disposable checkout, confirm that both versions agree, and run `just check` against that generated release tree. The shell reads the installed binary's version; EAS owns automatic build-number increments. [Mobile](mobile.md#check-it) owns the mandatory release-mode journey before pushing shell, dependency, or configuration changes.
 
 ## Production identity checks
 
