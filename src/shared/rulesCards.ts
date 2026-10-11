@@ -1,5 +1,6 @@
 import type { Stratagem } from '../core/battle'
 import type { WhenDrawn } from '../contracts/missions'
+import type { MissionSelectionKind } from '../core/missionSelections'
 import type { MissionAction } from '../contracts/missions'
 export type Award = {
   vp: number
@@ -37,6 +38,7 @@ export type MissionCard = {
   awards: Award[]
   actions: MissionAction[]
   whenDrawn: WhenDrawn | null
+  selection?: MissionSelectionKind
 }
 export type LoadedCards = {
   core: Stratagem[]

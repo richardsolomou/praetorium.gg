@@ -8,6 +8,8 @@ import type { Side } from '../../sides'
 import { MissionActions } from '../../components/MissionActions'
 import { MissionCardReference } from '../../components/MissionCardReference'
 import { CARD, CARD_NAME } from './battleTints'
+import { MissionSelectionRecords } from './MissionSelectionRecord'
+import { MissionSelectionDialog } from './MissionSelectionDialog'
 
 import type { MissionAction } from '../../../contracts/missions'
 import type { MissionAward as Award } from '../../missionText'
@@ -39,6 +41,7 @@ export function PrimaryMission({ view, side, referenceFor, guides }: Props) {
       <p className="eyebrow">Primary mission</p>
       <div className={`${CARD} space-y-2`}>
         <MissionName name={side.primaryCard.name} card={referenceFor(side.primaryCard.key)} type="Primary mission" />
+        <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={side.primaryCard.key} />
         <RoundScores
           view={view}
           scores={side.rounds.map((round) => round.primary)}
@@ -53,6 +56,10 @@ export function PrimaryMission({ view, side, referenceFor, guides }: Props) {
 
 export function SecondaryMissions({ view, side, actionable, pending, send, referenceFor, guides }: Props) {
   const [showResolved, setShowResolved] = useState<boolean | null>(null)
+  const [manualChoice, setManualChoice] = useState<string | null>(null)
+  const manual = view.missionChoices?.find(
+    (choice) => choice.playerId === side.captain.id && choice.cardKey === manualChoice && choice.kind === 'beacon' && choice.canChoose,
+  )
   const showingResolved = showResolved ?? view.status === 'finished'
   // A tactical deck deals its own cards, so naming one would be choosing what you were dealt.
   const choosingSecret =
@@ -64,6 +71,18 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
   return (
     <section className="space-y-1.5">
       <p className="eyebrow">Secondary missions</p>
+      {manual ? (
+        <MissionSelectionDialog
+          key={`${manual.cardKey}:${manual.occurrence}`}
+          view={view}
+          choice={manual}
+          deployment={null}
+          pending={pending}
+          send={send}
+          reference={referenceFor(manual.cardKey)}
+          onClose={() => setManualChoice(null)}
+        />
+      ) : null}
       <div className="border border-transparent px-2.5">
         <RoundScores
           view={view}
@@ -79,6 +98,15 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
         const tacticalActive = secondary.status === 'active' && side.secondaryMode === 'tactical'
         return (
           <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
+            <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={secondary.key} />
+            {view.missionChoices?.some(
+              (choice) =>
+                choice.playerId === side.captain.id && choice.cardKey === secondary.key && choice.kind === 'beacon' && choice.canChoose,
+            ) ? (
+              <Button size="xs" variant="outline" disabled={pending} onClick={() => setManualChoice(secondary.key)}>
+                Record Beacon
+              </Button>
+            ) : null}
             <div className="flex items-baseline justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                 <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />

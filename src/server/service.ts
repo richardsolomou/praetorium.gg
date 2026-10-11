@@ -915,9 +915,17 @@ export class PraetoriumService {
       },
       (state, submitted) => {
         if (rules) hydrateAuthoritativeAwards(state, rules)
-        if (rules && submitted.kind === 'set-prep') return withAuthoritativeAwards(submitted, rules)
+        if (rules && submitted.kind === 'set-prep')
+          return withAuthoritativeAwards(submitted, rules, state.status === 'playing' ? commandArmy(state, userId, submitted) : undefined)
         if (rules && submitted.kind === 'attach-roster' && submitted.prep) {
-          return { ...submitted, prep: withAuthoritativeAwards(submitted.prep, rules) }
+          return {
+            ...submitted,
+            prep: withAuthoritativeAwards(
+              submitted.prep,
+              rules,
+              state.status === 'playing' ? commandArmy(state, userId, submitted) : undefined,
+            ),
+          }
         }
         if (sync) return submitted
         if (submitted.kind === 'use-new-orders') {

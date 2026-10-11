@@ -19,6 +19,7 @@ import {
   type PlayerId,
   type PlayerState,
   replay,
+  mayNameCard,
   sameSide,
   transportLabel,
 } from './battle'
@@ -284,6 +285,15 @@ function describe(
       if (command.delta > 0)
         return targetId === by ? `${who} heals ${count} ${wounds} on ${name}` : `${who} heals ${count} ${wounds} on ${whose} ${name}`
       return targetId === by ? `${who} takes ${count} ${wounds} on ${name}` : `${who} puts ${count} ${wounds} on ${whose} ${name}`
+    }
+    case 'select-mission': {
+      const card =
+        player?.primaryCard?.key === command.cardKey
+          ? player.primaryCard
+          : player?.secondaries.find((candidate) => candidate.key === command.cardKey)
+      const name =
+        player && mayNameCard(after, viewerId ?? null, player, command.cardKey) ? (card?.name ?? 'a mission') : 'a secret mission'
+      return `${who} records choices for ${name}`
     }
     case 'pause-clock':
       return `${who} pauses the timer`

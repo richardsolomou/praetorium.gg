@@ -19,6 +19,7 @@ import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore
 import { type Side, sideName } from '../../sides'
 import { RuleText } from '../../components/RuleText'
 import { MissionName, type ReferenceCard } from './MissionCards'
+import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
@@ -280,6 +281,7 @@ export function ScoringDialog({
                             : `${scoredThisRound(roundSoFar, card.category)} VP so far`}
                       </span>
                     </div>
+                    <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={card.key} />
                   </div>
                   <div className="divide-y divide-edge">
                     {card.awards.map((award, at) => (

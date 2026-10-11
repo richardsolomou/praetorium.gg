@@ -11,6 +11,7 @@ import {
   PRACTICE_OPPONENT,
   setupBattle,
   setupStep,
+  selectOrdinaryMissions,
   signUp,
   startBattle,
   takeTheTurn,
@@ -680,14 +681,7 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   }
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await prompt.getByRole('button', { name: 'Select missions' }).click()
-  await prompt
-    .getByRole('button', { name: /^Select / })
-    .first()
-    .click()
-  await prompt
-    .getByRole('button', { name: /^Select / })
-    .first()
-    .click()
+  await selectOrdinaryMissions(prompt)
   await bob.screenshot({ path: 'test-results/secondary-picker-phone.png' })
   await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)

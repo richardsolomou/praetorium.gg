@@ -20,6 +20,7 @@ import {
 } from './battle'
 import { UNIT_GROUPS } from './unitGroups'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from './reminders'
+import { MISSION_SELECTION_KINDS } from './missionSelections'
 
 const id = z.string().min(1).max(64)
 export const detachmentIdSchema = z.string().min(1).max(128)
@@ -53,7 +54,22 @@ const secondary = z.object({
   key: id,
   name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
   awards: z.array(award).max(20).optional(),
+  selection: z.enum(MISSION_SELECTION_KINDS).optional(),
 })
+const missionUnit = z.object({ playerId: id, unitKey: id, rosterSeq: z.number().int().positive() })
+const missionObjective = z.object({ key: z.string().trim().min(1).max(128), name: z.string().trim().min(1).max(80) })
+const missionSelection = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('punishment'),
+    units: z.array(missionUnit).max(3),
+    fallback: z.boolean(),
+    qualified: z.boolean(),
+    unavailable: z.literal(true).optional(),
+  }),
+  z.object({ kind: z.literal('guards'), guards: z.array(z.object({ objective: missionObjective, unit: missionUnit })).max(20) }),
+  z.object({ kind: z.literal('tempting-target'), objective: missionObjective, notHome: z.boolean(), noMansLand: z.boolean() }),
+  z.object({ kind: z.literal('beacon'), unit: missionUnit.nullable(), note: z.string().max(200) }),
+])
 const stratagem = z.object({
   key: id,
   name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
@@ -77,6 +93,13 @@ const battlePrep = z.object({
  * have refused.
  */
 export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('select-mission'),
+    cardKey: id,
+    occurrence: z.number().int().positive(),
+    playerId: id.optional(),
+    selection: missionSelection,
+  }),
   z.object({
     kind: z.literal('configure-battle'),
     limit: z.number().int().min(0).max(10_000).nullable(),

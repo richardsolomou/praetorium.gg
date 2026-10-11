@@ -1,10 +1,75 @@
 import { randomUUID } from 'node:crypto'
 import { expect, it } from 'vitest'
 import { SpacetimeOperator } from './spacetimeOperator'
+import { attachedRoster, builtRoster } from '../core/battle.fixtures'
+import { reduceBattle, type Command } from '../core/battle'
+import { savedMissionUnitStatus } from '../core/missionSelections'
 
 const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
 const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
+
+it.skipIf(!url || !database || !token)('serializes mission nominations and restores their original identity after undo', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const battleId = randomUUID()
+  const creatorId = randomUUID()
+  const opponentId = randomUUID()
+  await operator.createBattle({ id: battleId, token: randomUUID(), userId: creatorId, opponentIds: [opponentId], now: Date.now() })
+  const send = (by: string, expectedSeq: number, command: Command) =>
+    operator.submit({ battleId, userId: by, expectedSeq, command, now: Date.now() })
+  try {
+    for (const [by, command] of [
+      [creatorId, builtRoster('Friendly', ['Squad'])],
+      [opponentId, attachedRoster()],
+      [
+        creatorId,
+        {
+          kind: 'set-prep',
+          primary: { key: 'punishment', name: 'Punishment', selection: 'punishment' },
+          secondaries: [],
+          stratagems: [],
+          secondaryMode: 'fixed',
+        },
+      ],
+      [creatorId, { kind: 'begin-battle', firstPlayerId: creatorId }],
+    ] as [string, Command][])
+      expect((await send(by, (await operator.battleForOperator(battleId)).log.length, command)).result).toMatchObject({
+        outcome: 'appended',
+      })
+    for (const kind of ['request-advance', 'advance'] as const) {
+      expect((await send(creatorId, 4, { kind })).result).toEqual({
+        outcome: 'refused',
+        code: 'mission-selection-timing',
+        reason:
+          'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
+      })
+      expect((await operator.battleForOperator(battleId)).log).toHaveLength(4)
+    }
+    const nomination: Command = {
+      kind: 'select-mission',
+      cardKey: 'punishment',
+      occurrence: 4,
+      selection: { kind: 'punishment', units: [{ playerId: opponentId, rosterSeq: 2, unitKey: 'u0' }], fallback: false, qualified: true },
+    }
+    expect(
+      (await Promise.all([send(creatorId, 4, nomination), send(creatorId, 4, nomination)])).map((answer) => answer.result.outcome).sort(),
+    ).toEqual(['appended', 'stale'])
+    expect((await send(creatorId, 5, nomination)).result).toMatchObject({ outcome: 'refused', code: 'mission-selection-recorded' })
+    expect((await send(creatorId, 5, { kind: 'undo', target: 5 })).result.outcome).toBe('appended')
+    expect((await send(creatorId, 6, nomination)).result.outcome).toBe('appended')
+    expect((await send(opponentId, 7, { kind: 'set-unit', unitKey: 'u0', destroyed: true })).result.outcome).toBe('appended')
+    const history = await operator.battleForOperator(battleId)
+    const state = reduceBattle([creatorId, opponentId], history.log)
+    expect({
+      selections: state.players[0]!.missionSelections.length,
+      seq: state.players[0]!.missionSelections[0]!.seq,
+      group: state.players[0]!.missionSelections[0]!.units[0]!.memberKeys,
+      status: savedMissionUnitStatus(state, state.players[0]!.missionSelections[0]!.units[0]!),
+    }).toEqual({ selections: 1, seq: 7, group: ['u0', 'u1'], status: 'battlefield' })
+  } finally {
+    await operator.deleteUserData(creatorId)
+  }
+})
 
 it.skipIf(!url || !database || !token)('serializes concurrent battle commands and keeps refusal paths read only', async () => {
   const operator = new SpacetimeOperator(url!, database!, token!)

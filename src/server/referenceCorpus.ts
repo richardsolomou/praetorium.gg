@@ -260,6 +260,9 @@ function missionCardLines(
 ): (string | null | undefined)[] {
   return [
     card?.text,
+    card?.selection
+      ? `Battle tracking: ${card.selection === 'beacon' ? 'manual Beacon nomination' : `${card.selection} nominations with recorded table confirmations`}.`
+      : null,
     ...(card?.awards ?? []).flatMap((award) => [
       `Scoring: ${award.criteria ?? 'Criteria unavailable.'}`,
       `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}${award.cumulative ? ', cumulative' : ''}`,
