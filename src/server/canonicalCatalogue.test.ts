@@ -75,7 +75,7 @@ describe('canonical catalogue', () => {
               name: 'Squad',
               pricing: [
                 { range: '[1,2]', label: 'Your 1st To 2nd Units Cost', costs: [{ models: 1, points: 90 }] },
-                { range: '[3,)', label: 'Your 3rd + Unit Costs', costs: [{ models: 1, points: 105 }] },
+                { range: '[3,)', costs: [{ models: 1, points: 105 }] },
               ],
             },
           ],
@@ -400,12 +400,22 @@ describe('canonical catalogue', () => {
   })
 
   it.each([
-    { scenario: 'uses a current local projection', localRevision: 'definitions-revision', compilerVersion: 3, expected: 101 },
-    { scenario: 'ignores a local projection from another snapshot', localRevision: 'older-revision', compilerVersion: 3, expected: 100 },
+    {
+      scenario: 'uses a current local projection',
+      localRevision: 'definitions-revision',
+      compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
+      expected: 101,
+    },
+    {
+      scenario: 'ignores a local projection from another snapshot',
+      localRevision: 'older-revision',
+      compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
+      expected: 100,
+    },
     {
       scenario: 'ignores a local projection from an older compiler',
       localRevision: 'definitions-revision',
-      compilerVersion: 2,
+      compilerVersion: 3,
       expected: 100,
     },
   ])('$scenario', ({ localRevision, compilerVersion, expected }) => {
@@ -469,7 +479,7 @@ describe('canonical catalogue', () => {
         () => null,
       )
       expect({ compilerVersion: result?.compilerVersion, points: result?.datasheets[0]?.points }).toEqual({
-        compilerVersion: 3,
+        compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
         points: 100,
       })
     } finally {

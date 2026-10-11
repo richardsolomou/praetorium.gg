@@ -2,7 +2,35 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import { loadMfm, mfmAttribution, type MfmIndex } from './mfm'
+import { loadMfm, mfmAttribution, mfmCostRows, type MfmIndex } from './mfm'
+
+it.each([
+  ['[1,1]', 'Your 1st Unit Costs'],
+  ['[2,2]', 'Your 2nd Unit Costs'],
+  ['[3,3]', 'Your 3rd Unit Costs'],
+  ['[4,4]', 'Your 4th Unit Costs'],
+  ['[1,2]', 'Your 1st To 2nd Units Cost'],
+  ['[1,3]', 'Your 1st To 3rd Units Cost'],
+  ['[4,)', 'Your 4th + Unit Costs'],
+  ['[11,13]', 'Your 11th To 13th Units Cost'],
+  ['[21,23]', 'Your 21st To 23rd Units Cost'],
+])('explains the unlabeled copy tier %s', (range, copies) => {
+  expect(mfmCostRows({ name: 'Rhino', pricing: [{ range, costs: [{ models: 1, points: 70 }] }] })).toEqual([
+    { models: '1', cost: '70', keyword: null, faction: null, detachment: null, copies },
+  ])
+})
+
+it('keeps unrestricted prices free of copy conditions', () => {
+  expect(mfmCostRows({ name: 'Rhino', pricing: [{ range: '[1,)', costs: [{ models: 1, points: 70 }] }] })).toEqual([
+    { models: '1', cost: '70', keyword: null, faction: null, detachment: null },
+  ])
+})
+
+it('retains a source label for a copy tier', () => {
+  expect(
+    mfmCostRows({ name: 'Rhino', pricing: [{ range: '[1,2]', label: 'First two units', costs: [{ models: 1, points: 70 }] }] })[0]?.copies,
+  ).toBe('First two units')
+})
 
 it('loads authored attribution from a points file', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-points-'))
