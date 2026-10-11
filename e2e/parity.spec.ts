@@ -6,6 +6,7 @@ import {
   createRoster,
   PRACTICE_OPPONENT,
   recordFirstTurn,
+  retryUntilVisible,
   setupStep,
   signUp,
   takeTheTurn,
@@ -106,6 +107,10 @@ test('a private roster can be shared and made private again', async ({ browser }
   const anonymous = await (await browser.newContext()).newPage()
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByRole('textbox', { name: 'List name' })).toHaveValue('Shareable roster')
+  const previewPath = `/api/previews${new URL(sharedUrl).pathname}`
+  const preview = await anonymous.request.get(previewPath)
+  expect(preview.status()).toBe(200)
+  expect(preview.headers()['cache-control']).toBe('no-store')
 
   await page.goto('/rosters')
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
@@ -113,7 +118,31 @@ test('a private roster can be shared and made private again', async ({ browser }
   await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  expect((await anonymous.request.get(previewPath)).status()).toBe(404)
   await anonymous.screenshot({ path: test.info().outputPath('revoked-roster.png') })
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
+    const deletion = page.getByRole('alertdialog', { name: 'Delete Shareable roster?' })
+    await expect(deletion).toContainText('Frozen copies in battles and league events are kept.')
+    await deletion.screenshot({ path: `test-results/publication-delete-${width}.png` })
+    await deletion.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await page.goto('/battles')
+    const creation = page.getByRole('dialog', { name: 'Start a battle' })
+    await retryUntilVisible(creation, () => page.getByRole('button', { name: 'New battle', exact: true }).click())
+    await expect(creation.getByRole('link', { name: 'Privacy settings' })).toHaveAttribute('href', '/profile#battle-sharing')
+    await expect(creation.getByText('Loading players…', { exact: true })).toHaveCount(0)
+    await creation.screenshot({ path: `test-results/publication-create-${width}.png` })
+    await creation.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await page.goto('/profile')
+    await page.locator('#battle-sharing').screenshot({ path: `test-results/publication-settings-${width}.png` })
+    await page.goto('/privacy')
+    await page.getByRole('heading', { name: 'Who can see your content' }).scrollIntoViewIfNeeded()
+    await page.screenshot({ path: `test-results/publication-policy-${width}.png` })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await page.goto('/rosters')
+  }
 })
 
 test('editable detail waits for public access to save before sharing', async ({ browser }) => {
