@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.119.1
+
+### Patch Changes
+
+- 4001ecd: Settle supported final mission awards after both final turns, preserve their battle cap without applying the round cap, and enforce New Orders once per battle.
+
 ## 0.119.0
 
 ### Minor Changes
