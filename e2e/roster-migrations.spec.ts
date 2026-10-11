@@ -44,7 +44,7 @@ for (const width of [390, 1440]) {
     await page.screenshot({ path: `test-results/retained-roster-${width}.png`, fullPage: true })
     await notice.getByRole('button', { name: 'Convert rules version' }).click()
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-    await expect(page.getByRole('option').first()).toHaveText('Space Marines codex · 3 Oct 2026 Current')
+    await expect(page.getByRole('option').first()).toHaveText('Current Space Marines codex · 3 Oct 2026')
     await page.getByRole('option', { name: 'Space Marines codex · 3 Oct 2026 · Current', exact: true }).click()
     await expect(dialog.getByRole('button', { name: 'Convert roster', exact: true })).toBeEnabled()
     await waitForRosterSave(page, () => dialog.getByRole('button', { name: 'Convert roster', exact: true }).click(), 'current-rosters~')
