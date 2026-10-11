@@ -153,7 +153,7 @@ Missing army-rule prose can use an unambiguous matching BSData rule from the fac
 
 ### Collection
 
-A player's collection is datasheets with a count of physical models, independent of rosters. It never changes pricing or legality. Every datasheet in a collection holds at least one model: adding starts at one, counting cannot go below one, and removal deletes the entry and its count after confirmation. Entries saved before counts existed read as one. Counts are bounded by `MAX_COLLECTION_MODELS` in `src/core/collection.ts` and stored on the membership row.
+A player's collection is datasheets with a count of physical models, independent of rosters. It never changes pricing or legality. Every datasheet in a collection holds at least one model: adding starts at one, counting cannot go below one, and removal deletes the entry and its count after confirmation. Datasheet hearts saved before favourites existed are collection rows without a count; `moveHeartsToFavourites` in the product module moves a player's rows to favourites before any of their collection or favourite reads and writes, so the collection only holds counted models. Counts are bounded by `MAX_COLLECTION_MODELS` in `src/core/collection.ts` and stored on the membership row.
 
 Favourites are separate. The heart on datasheet rows and in the picker stores a `favourite_datasheets` entry; favourites list first in the picker and the reference datasheet list and say nothing about ownership. The picker's Favourites and Owned filters are unavailable, with a tooltip saying why, until the player has a favourite or a collection entry.
 
