@@ -1,5 +1,4 @@
 import { leagueWarlords } from '../../core/league'
-import { updateCollectionStock, type CollectionLot } from '../../core/collection'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { leagueEditionError } from '../../core/catalogueEdition'
@@ -31,9 +30,11 @@ async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>)
 }
 
 export const collection = () => accountRead(['collection'], () => server.collection())
-export const collectionStock = () => accountRead(['collection-stock'], () => server.collectionStock())
+export const collectionCounts = () => accountRead(['collection-counts'], () => server.collectionCounts())
+export const fieldedDatasheets = () => cachedRead(['fielded-datasheets'], () => server.fieldedDatasheets())
 export const favouriteFactions = () => accountRead(['favourite-factions'], () => server.favouriteFactions())
 export const favouriteDetachments = () => accountRead(['favourite-detachments'], () => server.favouriteDetachments())
+export const favouriteDatasheets = () => accountRead(['favourite-datasheets'], () => server.favouriteDatasheets())
 export const playerDefaults = () => accountRead(['player-defaults'], () => server.playerDefaults())
 export const battleAudience = () => accountRead(['battle-audience'], () => server.battleAudience())
 export const onboardingProgress = () => accountRead(['onboarding'], () => server.onboardingProgress())
@@ -114,19 +115,6 @@ function deferredForAccount() {
   ) => deferred(kind, input, resource, data, identifiers, dependencies, owner, update)
 }
 
-export async function updateCollectionLot(
-  args: Parameters<typeof server.updateCollectionLot>[0],
-): ReturnType<typeof server.updateCollectionLot> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.updateCollectionLot(args)
-  const stock = await collectionStock()
-  const update = offlineActionSchemas.updateCollectionLot.parse(args.data)
-  await defer('updateCollectionLot', update, queryResource(['collection-stock']), undefined, {}, undefined, (current) =>
-    updateCollectionStock((current as CollectionLot[] | undefined) ?? stock, update),
-  )
-  return null
-}
-
 export async function setOwned(args: Parameters<typeof server.setOwned>[0]): ReturnType<typeof server.setOwned> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.setOwned(args)
@@ -136,6 +124,17 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
     return args.data.owned ? [...new Set([...entries, args.data.entryId])] : entries.filter((id) => id !== args.data.entryId)
   })
   return undefined
+}
+export async function setCollectionModels(
+  args: Parameters<typeof server.setCollectionModels>[0],
+): ReturnType<typeof server.setCollectionModels> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.setCollectionModels(args)
+  const counts = await collectionCounts()
+  await defer('setCollectionModels', args.data, queryResource(['collection-counts']), undefined, {}, undefined, (current) => ({
+    ...(current ?? counts),
+    [args.data.entryId]: args.data.models,
+  }))
 }
 export async function setFavouriteFaction(
   args: Parameters<typeof server.setFavouriteFaction>[0],
@@ -159,6 +158,18 @@ export async function setFavouriteDetachment(
     const entries = (current as typeof favourites | undefined) ?? favourites
     const other = entries.filter((entry) => entry.catalogueId !== args.data.catalogueId || entry.detachmentId !== args.data.detachmentId)
     return args.data.favourite ? [...other, { catalogueId: args.data.catalogueId, detachmentId: args.data.detachmentId }] : other
+  })
+  return null
+}
+export async function setFavouriteDatasheet(
+  args: Parameters<typeof server.setFavouriteDatasheet>[0],
+): ReturnType<typeof server.setFavouriteDatasheet> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.setFavouriteDatasheet(args)
+  const favourites = await favouriteDatasheets()
+  await defer('setFavouriteDatasheet', args.data, queryResource(['favourite-datasheets']), undefined, {}, undefined, (current) => {
+    const entries = (current as typeof favourites | undefined) ?? favourites
+    return args.data.favourite ? [...new Set([...entries, args.data.entryId])] : entries.filter((id) => id !== args.data.entryId)
   })
   return null
 }

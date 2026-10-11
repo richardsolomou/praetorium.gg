@@ -40,7 +40,7 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
 
   // Priced by the server, whatever the current data says the unit costs.
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
-  await expect(page.getByRole('button', { name: /to your collection$/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /to (your collection|favourite datasheets)$/ })).toHaveCount(0)
   expect(saves).toEqual([])
 })
 

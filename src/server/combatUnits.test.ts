@@ -16,8 +16,8 @@ it('builds the simulator unit index for every faction', () => {
   )
 
   expect(combatUnitsFor(loaded, null)).toEqual([
-    { catalogueId: 'cat', name: 'Necrons', units: [{ id: 'warriors', name: 'Necron Warriors', points: 100 }] },
-    { catalogueId: 'cat-1', name: 'Orks', units: [{ id: 'boyz', name: 'Boyz', points: 80 }] },
+    { catalogueId: 'cat', name: 'Necrons', units: [{ id: 'warriors', slug: 'necron-warriors', name: 'Necron Warriors', points: 100 }] },
+    { catalogueId: 'cat-1', name: 'Orks', units: [{ id: 'boyz', slug: 'boyz', name: 'Boyz', points: 80 }] },
   ])
 })
 

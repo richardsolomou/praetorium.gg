@@ -1,6 +1,5 @@
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import type { SupportStoreCommand } from '../core/supportReport'
-import { collectionStockSchema, type CollectionLotUpdate } from '../core/collection'
 import { z } from 'zod'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
@@ -36,7 +35,8 @@ const rosterRow = z.strictObject({
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true }).extend({
   unitCount: z.number().int().nonnegative(),
 })
-const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int() })
+const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int().nullable() })
+const favouriteDatasheetRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.strictObject({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.strictObject({
   userId: z.string(),
@@ -528,14 +528,6 @@ export class SpacetimeOperator {
     await this.call('delete_roster', [id, userId])
   }
 
-  async collectionStock(userId: string) {
-    return collectionStockSchema.parse(await this.read('collection_stock_by_user', [userId]))
-  }
-
-  async updateCollectionLot(userId: string, update: CollectionLotUpdate) {
-    return z.boolean().parse(await this.read('update_collection_lot', [userId, JSON.stringify(update)]))
-  }
-
   async collectionByUser(userId: string) {
     return z.array(collectionRow).parse(await this.read('collection_by_user', [userId]))
   }
@@ -546,6 +538,10 @@ export class SpacetimeOperator {
 
   async removeFromCollection(userId: string, entryId: string) {
     await this.call('remove_from_collection', [userId, entryId])
+  }
+
+  async setCollectionModels(input: { userId: string; entryId: string; models: number; now: number }) {
+    await this.call('set_collection_models', [input.userId, input.entryId, input.models, input.now])
   }
 
   async favouriteFactionsByUser(userId: string) {
@@ -570,6 +566,18 @@ export class SpacetimeOperator {
 
   async removeFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string) {
     await this.call('remove_favourite_detachment', [userId, catalogueId, detachmentId])
+  }
+
+  async favouriteDatasheetsByUser(userId: string) {
+    return z.array(favouriteDatasheetRow).parse(await this.read('favourite_datasheets_by_user', [userId]))
+  }
+
+  async addFavouriteDatasheet(input: { userId: string; entryId: string; now: number }) {
+    await this.call('add_favourite_datasheet', [input.userId, input.entryId, input.now])
+  }
+
+  async removeFavouriteDatasheet(userId: string, entryId: string) {
+    await this.call('remove_favourite_datasheet', [userId, entryId])
   }
 
   async pushEnabled(userId: string) {

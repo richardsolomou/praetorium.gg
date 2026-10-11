@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
+import { MAX_COLLECTION_MODELS } from '../core/collection'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import { PUSH_PLATFORMS, pushTokenSchema } from '../core/notifications'
 import {
@@ -350,7 +351,9 @@ export const rosterIdsSchema = z.object({
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
+export const collectionModelsSchema = z.object({ entryId: id, models: z.number().int().min(1).max(MAX_COLLECTION_MODELS) })
 export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
+export const favouriteDatasheetSchema = z.object({ entryId: id, favourite: z.boolean() })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({
   matchupIds: z.array(slug).min(1).max(2),

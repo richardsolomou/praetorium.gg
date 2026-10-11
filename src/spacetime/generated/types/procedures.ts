@@ -14,9 +14,9 @@ import * as BattleFeedProcedure from '../battle_feed_procedure'
 import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
-import * as CollectionStockByUserProcedure from '../collection_stock_by_user_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
 import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator_procedure'
+import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user_procedure'
 import * as FriendInviteByInviterProcedure from '../friend_invite_by_inviter_procedure'
@@ -58,7 +58,6 @@ import * as SupportReportCommandProcedure from '../support_report_command_proced
 import * as SyncProductProcedure from '../sync_product_procedure'
 import * as SyncReceiptProcedure from '../sync_receipt_procedure'
 import * as SyncRosterProcedure from '../sync_roster_procedure'
-import * as UpdateCollectionLotProcedure from '../update_collection_lot_procedure'
 import * as UpdateOnboardingProcedure from '../update_onboarding_procedure'
 
 export type AcceptFriendArgs = __Infer<typeof AcceptFriendProcedure.params>
@@ -77,12 +76,12 @@ export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
 export type CollectionByUserArgs = __Infer<typeof CollectionByUserProcedure.params>
 export type CollectionByUserResult = __Infer<typeof CollectionByUserProcedure.returnType>
-export type CollectionStockByUserArgs = __Infer<typeof CollectionStockByUserProcedure.params>
-export type CollectionStockByUserResult = __Infer<typeof CollectionStockByUserProcedure.returnType>
 export type CreateBattleArgs = __Infer<typeof CreateBattleProcedure.params>
 export type CreateBattleResult = __Infer<typeof CreateBattleProcedure.returnType>
 export type DeleteBattleForOperatorArgs = __Infer<typeof DeleteBattleForOperatorProcedure.params>
 export type DeleteBattleForOperatorResult = __Infer<typeof DeleteBattleForOperatorProcedure.returnType>
+export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
+export type FavouriteDatasheetsByUserResult = __Infer<typeof FavouriteDatasheetsByUserProcedure.returnType>
 export type FavouriteDetachmentsByUserArgs = __Infer<typeof FavouriteDetachmentsByUserProcedure.params>
 export type FavouriteDetachmentsByUserResult = __Infer<typeof FavouriteDetachmentsByUserProcedure.returnType>
 export type FavouriteFactionsByUserArgs = __Infer<typeof FavouriteFactionsByUserProcedure.params>
@@ -165,7 +164,5 @@ export type SyncReceiptArgs = __Infer<typeof SyncReceiptProcedure.params>
 export type SyncReceiptResult = __Infer<typeof SyncReceiptProcedure.returnType>
 export type SyncRosterArgs = __Infer<typeof SyncRosterProcedure.params>
 export type SyncRosterResult = __Infer<typeof SyncRosterProcedure.returnType>
-export type UpdateCollectionLotArgs = __Infer<typeof UpdateCollectionLotProcedure.params>
-export type UpdateCollectionLotResult = __Infer<typeof UpdateCollectionLotProcedure.returnType>
 export type UpdateOnboardingArgs = __Infer<typeof UpdateOnboardingProcedure.params>
 export type UpdateOnboardingResult = __Infer<typeof UpdateOnboardingProcedure.returnType>

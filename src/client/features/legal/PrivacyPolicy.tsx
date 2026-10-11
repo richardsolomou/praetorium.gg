@@ -24,7 +24,8 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
-          and actions recorded during a game, friendships, datasheets you mark as owned, favourites, and practice opponents you seat.
+          and actions recorded during a game, friendships, datasheets in your collection and their model counts, favourites, and practice
+          opponents you seat.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>

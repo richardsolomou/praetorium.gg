@@ -1,4 +1,4 @@
-import { BellRing, Copy, EllipsisVertical, Heart, X } from 'lucide-react'
+import { BellRing, Boxes, Copy, EllipsisVertical, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -282,7 +282,7 @@ function UnitActions({
       </Item>
       {onOwned ? (
         <Checkbox className={ITEM} checked={owned} onCheckedChange={onOwned}>
-          <Heart className={`size-3.5 ${owned ? 'fill-rust text-rust' : ''}`} />
+          <Boxes className="size-3.5" />
           {owned ? 'Remove from collection' : 'Add to collection'}
         </Checkbox>
       ) : null}

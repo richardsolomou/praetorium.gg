@@ -276,14 +276,6 @@ export class PraetoriumService {
     return this.rosterService.deleteRoster(...args)
   }
 
-  collectionStock(...args: Parameters<RosterService['collectionStock']>) {
-    return this.rosterService.collectionStock(...args)
-  }
-
-  updateCollectionLot(...args: Parameters<RosterService['updateCollectionLot']>) {
-    return this.rosterService.updateCollectionLot(...args)
-  }
-
   collection(...args: Parameters<RosterService['collection']>) {
     return this.rosterService.collection(...args)
   }
@@ -292,12 +284,28 @@ export class PraetoriumService {
     return this.rosterService.setOwned(...args)
   }
 
+  collectionCounts(...args: Parameters<RosterService['collectionCounts']>) {
+    return this.rosterService.collectionCounts(...args)
+  }
+
+  setCollectionModels(...args: Parameters<RosterService['setCollectionModels']>) {
+    return this.rosterService.setCollectionModels(...args)
+  }
+
   favouriteFactions(...args: Parameters<RosterService['favouriteFactions']>) {
     return this.rosterService.favouriteFactions(...args)
   }
 
   setFavouriteFaction(...args: Parameters<RosterService['setFavouriteFaction']>) {
     return this.rosterService.setFavouriteFaction(...args)
+  }
+
+  favouriteDatasheets(...args: Parameters<RosterService['favouriteDatasheets']>) {
+    return this.rosterService.favouriteDatasheets(...args)
+  }
+
+  setFavouriteDatasheet(...args: Parameters<RosterService['setFavouriteDatasheet']>) {
+    return this.rosterService.setFavouriteDatasheet(...args)
   }
 
   favouriteDetachments(...args: Parameters<RosterService['favouriteDetachments']>) {
@@ -532,6 +540,21 @@ export class PraetoriumService {
       battles: shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
       played: shown.length,
     }
+  }
+
+  /** Datasheets in the player's own armies across their recent battles, with how many battles each appeared in. */
+  async fieldedDatasheets(userId: string) {
+    const seated = await this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, userId)
+    const uses = new Map<string, number>()
+    for (const history of seated) {
+      const built = foldHistory(history).players.find((player) => player.id === userId)?.roster?.built
+      const entries = new Set([
+        ...(built?.picks ?? []).map((pick) => pick.entryId),
+        ...(built?.units ?? []).flatMap((unit) => (unit.entryId ? [unit.entryId] : [])),
+      ])
+      for (const entryId of entries) uses.set(entryId, (uses.get(entryId) ?? 0) + 1)
+    }
+    return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
   }
 
   /** How widely this player's battles may be seen, and their own answer to it. */

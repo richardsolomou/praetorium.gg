@@ -5,7 +5,8 @@ const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
 async function addFromDatasheet(page: Page) {
   await page.goto(DATASHEET)
   await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Add to roster' }).click()
+  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  await page.getByRole('button', { name: 'Roster…' }).click()
 }
 
 /** A reader of one datasheet reaches the builder with that unit, under the roster's own limits. */

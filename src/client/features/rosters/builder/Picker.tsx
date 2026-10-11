@@ -1,10 +1,11 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { EllipsisVertical, Heart, ListFilter, Plus } from 'lucide-react'
-import { Fragment, memo, useCallback, useMemo } from 'react'
+import { Boxes, EllipsisVertical, Heart, ListFilter, Plus, type LucideIcon } from 'lucide-react'
+import { Fragment, memo, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -19,7 +20,7 @@ import { enforces, formatRules } from '../../../../core/battle'
 import type { UnitSummary } from '../../../../contracts/catalogue'
 import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
-import { useCollectionMutation } from '../../../useCollection'
+import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
 import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
 import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
@@ -46,13 +47,21 @@ type Props = {
   onFilterToggle: (filter: PickerFilter) => void
 }
 
-export type PickerFilter = 'fit' | 'limit' | 'owned'
+export type PickerFilter = 'fit' | 'limit' | 'owned' | 'favourite'
 
-const FILTERS: { id: PickerFilter; label: string; hint: string }[] = [
+/** Account filters are icons, matching the row hearts and the Collection page, so the row fits a phone. */
+const FILTERS: { id: PickerFilter; label: string; hint: string; icon?: LucideIcon }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
-  { id: 'owned', label: 'Owned', hint: 'Show only datasheets you own models for' },
+  { id: 'favourite', label: 'Favourites', hint: 'Show only your favourite datasheets', icon: Heart },
+  { id: 'owned', label: 'Owned', hint: 'Show only datasheets in your collection', icon: Boxes },
 ]
+
+/** Why an account filter cannot narrow anything yet. */
+const EMPTY_FILTER: Partial<Record<PickerFilter, string>> = {
+  owned: 'Nothing is in your collection yet. Add the datasheets you own on the Collection page.',
+  favourite: 'You have no favourite datasheets yet. Press the heart beside a datasheet to make it one.',
+}
 
 /**
  * The book, to pick from.
@@ -84,15 +93,13 @@ export const Picker = memo(function Picker({
     enabled: enabled && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
-  // A collection belongs to an account, so a visitor's picker has none to mark or filter by.
+  // Collections and favourites belong to an account, so a visitor's picker has none to mark or filter by.
   const { data: me } = useQuery(meQuery())
   const signedIn = Boolean(me)
   const collectionResult = useQuery({ ...collectionQuery(), enabled: enabled && signedIn })
   const found = useMemo(() => searchDatasheetEntries(unitsResult.data ?? [], query, (unit) => unit.search), [unitsResult.data, query])
   const owned = collectionResult.data
-  const own = useCollectionMutation()
-  const { mutate: mutateCollection } = own
-  const setOwned = useCallback((entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }), [mutateCollection])
+  const { favourites, loading: favouritesLoading, toggleFavourite, pending: favouriting } = useFavouriteDatasheets(enabled && signedIn)
 
   const collection = useMemo(() => new Set(owned ?? []), [owned])
   const shown = useMemo(
@@ -100,10 +107,11 @@ export const Picker = memo(function Picker({
       (found ?? []).filter((unit) => {
         if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
         if (active.has('limit') && limits.has(unit.id) && !canAddCopy(unit.id, inRoster[unit.id] ?? 0, limits)) return false
-        if (active.has('owned') && !collection.has(unit.id)) return false
+        if (active.has('owned') && collection.size && !collection.has(unit.id)) return false
+        if (active.has('favourite') && favourites.size && !favourites.has(unit.id)) return false
         return true
       }),
-    [found, active, room, inRoster, collection, limits],
+    [found, active, room, inRoster, collection, favourites, limits],
   )
   const rules = formatRules(battleSize)
   const waived = rules.filter((rule) => !enforces(waivedRules, rule.id))
@@ -128,22 +136,18 @@ export const Picker = memo(function Picker({
         />
         <div className="flex flex-wrap items-center gap-1.5">
           <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
-          {FILTERS.filter((filter) => signedIn || filter.id !== 'owned').map((filter) => (
-            <Toggle
+          {FILTERS.filter((filter) => signedIn || !filter.icon).map((filter) => (
+            <FilterChip
               key={filter.id}
-              variant="outline"
-              size="sm"
-              title={filter.hint}
+              {...filter}
               pressed={active.has(filter.id)}
-              onPressedChange={() => onFilterToggle(filter.id)}
-              className={`rounded-sm border px-1.5 py-px text-2xs font-semibold tracking-label uppercase transition-colors ${
-                active.has(filter.id)
-                  ? 'border-parchment bg-parchment/15 text-parchment'
-                  : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
-              }`}
-            >
-              {filter.label}
-            </Toggle>
+              onToggle={() => onFilterToggle(filter.id)}
+              unavailable={
+                (filter.id === 'owned' && !collection.size) || (filter.id === 'favourite' && !favourites.size)
+                  ? EMPTY_FILTER[filter.id]
+                  : undefined
+              }
+            />
           ))}
           {/*
            * The restrictions the battle size imposes, switched off over the book they
@@ -192,7 +196,7 @@ export const Picker = memo(function Picker({
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
-        {unitsResult.isPending || (signedIn && collectionResult.isPending) ? (
+        {unitsResult.isPending || (signedIn && (collectionResult.isPending || favouritesLoading)) ? (
           <PickerSkeleton />
         ) : unitsResult.isError ? (
           <p className="py-3 text-xs text-destructive">The book could not be loaded.</p>
@@ -200,7 +204,7 @@ export const Picker = memo(function Picker({
           sections.map(({ id, plural, alliedFaction }) => {
             const rows = shown
               .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
-              .toSorted((left, right) => Number(collection.has(right.id)) - Number(collection.has(left.id)))
+              .toSorted((left, right) => Number(favourites.has(right.id)) - Number(favourites.has(left.id)))
             return rows.length ? (
               <Fragment key={id}>
                 {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
@@ -216,11 +220,11 @@ export const Picker = memo(function Picker({
                         held={held}
                         full={full}
                         controlsDisabled={controlsDisabled}
-                        inCollection={collection.has(unit.id)}
-                        collectionPending={own.isPending && own.variables?.entryId === unit.id}
+                        favourite={favourites.has(unit.id)}
+                        favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
                         query={query}
                         onPreview={onPreview}
-                        onOwned={signedIn ? setOwned : undefined}
+                        onFavourite={signedIn ? toggleFavourite : undefined}
                         onAdd={onAdd}
                       />
                     )
@@ -263,12 +267,12 @@ type PickerRowProps = {
   held: number
   full: boolean
   controlsDisabled: boolean
-  inCollection: boolean
-  collectionPending: boolean
+  favourite: boolean
+  favouritePending: boolean
   query: string
   limitMessage: string | null
   onPreview: (entryId: string, name: string) => void
-  onOwned?: (entryId: string, owned: boolean) => void
+  onFavourite?: (entryId: string) => void
   onAdd: (entryId: string) => void
 }
 
@@ -277,12 +281,12 @@ const PickerRow = memo(function PickerRow({
   held,
   full,
   controlsDisabled,
-  inCollection,
-  collectionPending,
+  favourite,
+  favouritePending,
   query,
   limitMessage,
   onPreview,
-  onOwned,
+  onFavourite,
   onAdd,
 }: PickerRowProps) {
   return (
@@ -310,17 +314,17 @@ const PickerRow = memo(function PickerRow({
         </span>
       </button>
       <span className="ml-auto flex shrink-0 items-center gap-1.5">
-        {onOwned ? (
+        {onFavourite ? (
           <Toggle
             variant="default"
             size="sm"
-            aria-label={`${inCollection ? 'Remove' : 'Add'} ${unit.name} ${inCollection ? 'from' : 'to'} your collection`}
-            pressed={inCollection}
-            disabled={collectionPending}
-            onPressedChange={(pressed) => onOwned(unit.id, pressed)}
+            aria-label={`${favourite ? 'Remove' : 'Add'} ${unit.name} ${favourite ? 'from' : 'to'} favourite datasheets`}
+            pressed={favourite}
+            disabled={favouritePending}
+            onPressedChange={() => onFavourite(unit.id)}
             className="size-6 shrink-0 p-0"
           >
-            <Heart className={`size-3.5 ${inCollection ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
+            <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
         ) : null}
         {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
@@ -339,3 +343,57 @@ const PickerRow = memo(function PickerRow({
     </div>
   )
 })
+
+/** Unavailable filters stay focusable and open their tooltip on a tap, so a phone can still say why. */
+function FilterChip({
+  label,
+  hint,
+  icon: Icon,
+  pressed,
+  onToggle,
+  unavailable,
+}: {
+  label: string
+  hint: string
+  icon?: LucideIcon
+  pressed: boolean
+  onToggle: () => void
+  unavailable?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const chip = 'rounded-sm border px-1.5 py-px text-2xs font-semibold tracking-label uppercase transition-colors'
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger
+        closeOnClick={!unavailable}
+        render={
+          unavailable ? (
+            <button
+              type="button"
+              aria-disabled="true"
+              aria-label={label}
+              onClick={() => setOpen(true)}
+              className={`${chip} inline-flex h-7 min-w-7 cursor-not-allowed items-center justify-center border-edge text-faint`}
+            />
+          ) : (
+            <Toggle
+              variant="outline"
+              size="sm"
+              aria-label={Icon ? label : undefined}
+              pressed={pressed}
+              onPressedChange={onToggle}
+              className={`${chip} ${
+                pressed ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
+              }`}
+            />
+          )
+        }
+      >
+        {Icon ? <Icon className={`size-3.5 ${pressed && Icon === Heart ? 'fill-current' : ''}`} /> : label}
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" side="bottom" className="max-w-60 text-xs">
+        {unavailable ?? hint}
+      </TooltipContent>
+    </Tooltip>
+  )
+}

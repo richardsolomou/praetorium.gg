@@ -8,7 +8,6 @@ import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
 import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
-import type { CollectionLotUpdate } from '../../core/collection'
 
 type SavedPrep = {
   stratagems: Stratagem[]
@@ -175,16 +174,7 @@ export class RosterService {
     await this.repository.deleteRoster(id, userId)
   }
 
-  collectionStock(userId: string) {
-    return this.repository.collectionStock(userId)
-  }
-
-  async updateCollectionLot(userId: string, update: CollectionLotUpdate) {
-    if (!(await this.repository.updateCollectionLot(userId, update)))
-      throw new Response('This stock was changed on another device. Your edit is retained for review.', { status: 409 })
-    return null
-  }
-
+  /** The datasheets a user owns, as a set the picker can ask about directly. */
   async collection(userId: string) {
     const rows = await this.repository.collectionByUser(userId)
     return rows.map((row) => row.entryId)
@@ -195,6 +185,16 @@ export class RosterService {
     else await this.repository.removeFromCollection(userId, entryId)
   }
 
+  /** Model counts keyed by datasheet; entries saved before counts existed hold one model. */
+  async collectionCounts(userId: string): Promise<Record<string, number>> {
+    const rows = await this.repository.collectionByUser(userId)
+    return Object.fromEntries(rows.map((row) => [row.entryId, row.models ?? 1]))
+  }
+
+  async setCollectionModels(userId: string, entryId: string, models: number) {
+    await this.repository.setCollectionModels({ userId, entryId, models, now: this.clock() })
+  }
+
   async favouriteFactions(userId: string) {
     const rows = await this.repository.favouriteFactionsByUser(userId)
     return rows.map((row) => row.catalogueId)
@@ -203,6 +203,16 @@ export class RosterService {
   async setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
     if (favourite) await this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
     else await this.repository.removeFavouriteFaction(userId, catalogueId)
+  }
+
+  async favouriteDatasheets(userId: string) {
+    const rows = await this.repository.favouriteDatasheetsByUser(userId)
+    return rows.map((row) => row.entryId)
+  }
+
+  async setFavouriteDatasheet(userId: string, entryId: string, favourite: boolean) {
+    if (favourite) await this.repository.addFavouriteDatasheet({ userId, entryId, now: this.clock() })
+    else await this.repository.removeFavouriteDatasheet(userId, entryId)
   }
 
   async favouriteDetachments(userId: string) {

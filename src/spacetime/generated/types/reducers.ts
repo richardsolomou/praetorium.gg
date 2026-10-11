@@ -6,6 +6,7 @@
 import { type Infer as __Infer } from 'spacetimedb'
 
 // Import all reducer arg schemas
+import AddFavouriteDatasheetReducer from '../add_favourite_datasheet_reducer'
 import AddFavouriteDetachmentReducer from '../add_favourite_detachment_reducer'
 import AddFavouriteFactionReducer from '../add_favourite_faction_reducer'
 import AddToCollectionReducer from '../add_to_collection_reducer'
@@ -15,16 +16,19 @@ import DeleteRosterReducer from '../delete_roster_reducer'
 import DeleteUserDataReducer from '../delete_user_data_reducer'
 import RegisterPracticeOpponentReducer from '../register_practice_opponent_reducer'
 import RegisterPushTokenReducer from '../register_push_token_reducer'
+import RemoveFavouriteDatasheetReducer from '../remove_favourite_datasheet_reducer'
 import RemoveFavouriteDetachmentReducer from '../remove_favourite_detachment_reducer'
 import RemoveFavouriteFactionReducer from '../remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from '../remove_from_collection_reducer'
 import ReplaceFriendInviteReducer from '../replace_friend_invite_reducer'
 import RevokeOwnAccessReducer from '../revoke_own_access_reducer'
 import RevokeSessionReducer from '../revoke_session_reducer'
+import SetCollectionModelsReducer from '../set_collection_models_reducer'
 import UnregisterPushTokenReducer from '../unregister_push_token_reducer'
 import UnwatchBattleReducer from '../unwatch_battle_reducer'
 import WatchBattleReducer from '../watch_battle_reducer'
 
+export type AddFavouriteDatasheetParams = __Infer<typeof AddFavouriteDatasheetReducer>
 export type AddFavouriteDetachmentParams = __Infer<typeof AddFavouriteDetachmentReducer>
 export type AddFavouriteFactionParams = __Infer<typeof AddFavouriteFactionReducer>
 export type AddToCollectionParams = __Infer<typeof AddToCollectionReducer>
@@ -34,12 +38,14 @@ export type DeleteRosterParams = __Infer<typeof DeleteRosterReducer>
 export type DeleteUserDataParams = __Infer<typeof DeleteUserDataReducer>
 export type RegisterPracticeOpponentParams = __Infer<typeof RegisterPracticeOpponentReducer>
 export type RegisterPushTokenParams = __Infer<typeof RegisterPushTokenReducer>
+export type RemoveFavouriteDatasheetParams = __Infer<typeof RemoveFavouriteDatasheetReducer>
 export type RemoveFavouriteDetachmentParams = __Infer<typeof RemoveFavouriteDetachmentReducer>
 export type RemoveFavouriteFactionParams = __Infer<typeof RemoveFavouriteFactionReducer>
 export type RemoveFromCollectionParams = __Infer<typeof RemoveFromCollectionReducer>
 export type ReplaceFriendInviteParams = __Infer<typeof ReplaceFriendInviteReducer>
 export type RevokeOwnAccessParams = __Infer<typeof RevokeOwnAccessReducer>
 export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>
+export type SetCollectionModelsParams = __Infer<typeof SetCollectionModelsReducer>
 export type UnregisterPushTokenParams = __Infer<typeof UnregisterPushTokenReducer>
 export type UnwatchBattleParams = __Infer<typeof UnwatchBattleReducer>
 export type WatchBattleParams = __Infer<typeof WatchBattleReducer>

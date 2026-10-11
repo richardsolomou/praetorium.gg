@@ -1,79 +1,81 @@
-import { expect, test, type Page } from '@playwright/test'
-import { createRoster, signUp, uniqueName } from './account'
-import { add, expectNoHorizontalOverflow } from './builder.harness'
+import { expect, test, type Locator, type Page } from '@playwright/test'
+import { attachRoster, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { expectNoHorizontalOverflow } from './builder.harness'
 import { productOperator } from './storage'
 import type { LocalState } from '../src/contracts/localState'
-import { offlineContext } from '../src/server/offlineContext'
 
-async function openCollection(page: Page) {
-  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Physical collection', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Physical collection', exact: true })
-  await expect(dialog.getByRole('region', { name: 'Roster stock requirements' })).toBeVisible()
-  return dialog
+async function addDatasheet(page: Page, name: string, faction: string) {
+  await page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click()
+  await page.getByPlaceholder('Search datasheets…').fill(`${name} ${faction}`)
+  await page.getByRole('option', { name: new RegExp(`^${name}, ${faction}`) }).click()
+  await expect(page.locator(`[data-unit="${name}"]`)).toBeVisible()
 }
 
-test('counts saved zero, one and multiple models against two simultaneous roster units', async ({ page }) => {
-  await signUp(page, uniqueName('Physical stock'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-  await add(page, 'Overlord')
-  await add(page, 'Overlord')
-  await page.getByRole('button', { name: 'Add Overlord to your collection', exact: true }).click()
-  const dialog = await openCollection(page)
-  await expect(dialog.getByText(/Previously marked ownership has no recorded quantity/)).toBeVisible()
-  await expect(dialog.getByText('Needed 2 · Recorded 0 · Unaccounted 2', { exact: true })).toBeVisible()
-  await dialog
-    .getByRole('button', { name: /^Record stock for / })
-    .first()
-    .click()
-  const editor = dialog.getByRole('form').first()
-  await editor.getByLabel('Stock name', { exact: true }).fill('Shared Overlords')
-  for (const models of [0, 1, 2]) {
-    await dialog.getByLabel('Physical model count', { exact: true }).fill(String(models))
-    await dialog.getByRole('button', { name: 'Save stock', exact: true }).click()
-    await expect(dialog.getByRole('button', { name: 'Save stock', exact: true })).toBeEnabled()
-    await expect(dialog.getByText(`Needed 2 · Recorded ${models} · Unaccounted ${2 - models}`, { exact: true })).toBeVisible()
-  }
+const owned = (scope: Page | Locator, name: string) => scope.getByRole('combobox', { name: `${name} models owned`, exact: true })
+
+test('starts a datasheet at one model and saves multiple', async ({ page }) => {
+  await signUp(page, uniqueName('Collection counts'))
+  await page.goto('/collection')
+  await expect(page.getByRole('heading', { name: 'Your shelf is empty', exact: true })).toBeVisible()
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  await expect(owned(page, 'Necron Warriors')).toHaveText('1')
+  await expect(page.getByRole('button', { name: 'Fewer Necron Warriors models', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'More Necron Warriors models', exact: true }).click()
+  await expect(owned(page, 'Necron Warriors')).toHaveText('2')
+  await owned(page, 'Necron Warriors').click()
+  await page.getByRole('option', { name: '20', exact: true }).click()
+  await expect(owned(page, 'Necron Warriors')).toHaveText('20')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
-  await expect(dialog.getByRole('button', { name: 'Save stock', exact: true })).toBeEnabled()
-  await page.screenshot({ path: test.info().outputPath('collection-desktop.png'), animations: 'disabled' })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(dialog)
-  await expect
-    .poll(() =>
-      dialog.evaluate((element) => {
-        const bounds = element.getBoundingClientRect()
-        return bounds.left >= -1 && bounds.right <= innerWidth + 1
-      }),
-    )
-    .toBe(true)
-  await page.screenshot({ path: test.info().outputPath('collection-phone.png'), animations: 'disabled' })
   await page.reload()
-  const reloaded = await openCollection(page)
-  await expect(reloaded.getByLabel('Physical model count', { exact: true })).toHaveValue('2')
-  await expect(reloaded.getByText('Needed 2 · Recorded 2 · Unaccounted 0', { exact: true })).toBeVisible()
+  await expect(owned(page, 'Necron Warriors')).toHaveText('20')
 })
 
-test('keeps physical inventory scoped and rejects concurrent server writes', async () => {
-  const operator = await productOperator()
-  const userId = crypto.randomUUID()
-  const stock = {
-    id: crypto.randomUUID(),
-    name: 'Physical models',
-    models: 1,
-    builds: Array.from({ length: 16 }, (_, index) => String(index).padEnd(2048, 'a')),
-  }
-  const savedAction = { id: crypto.randomUUID(), owner: userId, fingerprint: 'a'.repeat(64), createdAt: Date.now(), identifiers: {} }
-  const insert = () =>
-    offlineContext.run({ ...savedAction, wrote: false }, () =>
-      operator.updateCollectionLot(userId, { lot: stock, expected: null, remove: false }),
-    )
-  await expect(insert()).resolves.toBe(true)
-  await expect(insert()).resolves.toBe(true)
-  await expect(operator.collectionStock('another-user')).resolves.toEqual([])
-  await expect(operator.updateCollectionLot(userId, { lot: { ...stock, models: 2 }, expected: stock, remove: false })).resolves.toBe(true)
-  await expect(operator.updateCollectionLot(userId, { lot: { ...stock, models: 3 }, expected: stock, remove: false })).resolves.toBe(false)
-  await expect(operator.collectionStock(userId)).resolves.toEqual([{ ...stock, models: 2 }])
+test('totals models across datasheets and drops a removed datasheet', async ({ page }) => {
+  await signUp(page, uniqueName('Collection total'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Overlord', 'Necrons')
+  await addDatasheet(page, 'Intercessor Squad', 'Space Marines')
+  await owned(page, 'Overlord').click()
+  await page.getByRole('option', { name: '2', exact: true }).click()
+  await expect(owned(page, 'Intercessor Squad')).toHaveText('1')
+  await expect(page.locator('[data-tally="models"]')).toHaveText('3models')
+  const removal = page.getByRole('alertdialog')
+  await page.getByRole('button', { name: 'Remove Intercessor Squad from your collection', exact: true }).click()
+  await expect(removal).toContainText('Your count of 1 model will be lost.')
+  await removal.getByRole('button', { name: 'Keep', exact: true }).click()
+  await expect(owned(page, 'Intercessor Squad')).toHaveText('1')
+  await page.getByRole('button', { name: 'Remove Intercessor Squad from your collection', exact: true }).click()
+  await removal.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(page.locator('[data-unit="Intercessor Squad"]')).toHaveCount(0)
+  await expect(page.locator('[data-tally="models"]')).toHaveText('2models')
+})
+
+test('adds, counts and removes a datasheet from its reference page, and favourites it', async ({ page }) => {
+  await signUp(page, uniqueName('Datasheet collection'))
+  await page.goto('/factions/necrons/datasheets/overlord')
+  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  const menu = page.getByRole('dialog', { name: 'Add Overlord to' })
+  await menu.getByRole('button', { name: 'Add to collection', exact: true }).click()
+  await expect(owned(menu, 'Overlord')).toHaveText('1')
+  await menu.getByRole('button', { name: 'More Overlord models', exact: true }).click()
+  await expect(owned(menu, 'Overlord')).toHaveText('2')
+  await menu.getByRole('button', { name: 'Favourites', exact: true }).click()
+  await expect(menu.getByRole('button', { name: 'Favourites', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Escape')
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(page.locator('main'))
+  await page.goto('/collection')
+  await expect(owned(page, 'Overlord')).toHaveText('2')
+  await expectNoHorizontalOverflow(page.locator('main'))
+  await page.goBack()
+  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  await menu.getByRole('button', { name: 'Remove Overlord from your collection', exact: true }).click()
+  const removal = page.getByRole('alertdialog')
+  await expect(removal).toContainText('Your count of 2 models will be lost.')
+  await removal.getByRole('button', { name: 'Remove', exact: true }).click()
+  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  await expect(menu.getByRole('button', { name: 'Add to collection', exact: true })).toBeVisible()
 })
 
 async function savedWork(page: Page) {
@@ -98,20 +100,27 @@ async function savedWork(page: Page) {
   )
 }
 
-test('physical stock edits survive a cold offline reopen and reconnect', async ({ page, context }) => {
+test('suggests datasheets fielded in a battle until they are added', async ({ page }) => {
+  await signUp(page, uniqueName('Fielded collection'))
+  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Guard' })
+  await page.getByLabel('Add a unit').fill('Plague Marines')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await page.goto('/collection')
+  const suggestion = page.locator('[data-suggestion="Plague Marines"]')
+  await expect(suggestion).toContainText('1 battle')
+  await suggestion.getByRole('button', { name: 'Add Plague Marines to your collection', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Death Guard' }).locator('[data-unit="Plague Marines"]')).toBeVisible()
+  await expect(suggestion).toHaveCount(0)
+})
+
+test('collection counts survive a cold offline reopen and reconnect', async ({ page, context }) => {
   test.setTimeout(240_000)
-  await signUp(page, uniqueName('Offline physical stock'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-  await add(page, 'Overlord')
-  const url = page.url()
-  const dialog = await openCollection(page)
-  await dialog
-    .getByRole('button', { name: /^Record stock for / })
-    .first()
-    .click()
-  await dialog.getByLabel('Physical model count', { exact: true }).fill('1')
-  await dialog.getByRole('button', { name: 'Save stock', exact: true }).click()
-  await expect(dialog.getByText('Needed 1 · Recorded 1 · Unaccounted 0', { exact: true })).toBeVisible()
+  await signUp(page, uniqueName('Offline collection'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Overlord', 'Necrons')
+  await expect(owned(page, 'Overlord')).toHaveText('1')
   await expect
     .poll(
       () =>
@@ -125,33 +134,20 @@ test('physical stock edits survive a cold offline reopen and reconnect', async (
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()
-  await expect.poll(async () => (await operator.collectionStock(owner))[0]?.models).toBe(1)
+  const serverCount = async () => (await operator.collectionByUser(owner))[0]?.models
+  await expect.poll(serverCount).toBe(1)
   await context.setOffline(true)
-  await dialog.getByLabel('Physical model count', { exact: true }).fill('2')
-  await dialog.getByRole('button', { name: 'Save stock', exact: true }).click()
+  await page.getByRole('button', { name: 'More Overlord models', exact: true }).click()
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
-  await expect(dialog.getByLabel('Physical model count', { exact: true })).toHaveValue('2')
   await page.close()
   const reopened = await context.newPage()
-  await reopened.goto(url)
-  const cold = await openCollection(reopened)
-  await expect(cold.getByLabel('Physical model count', { exact: true })).toHaveValue('2')
-  expect((await operator.collectionStock(owner))[0]?.models).toBe(1)
-  await reopened.setViewportSize({ width: 390, height: 844 })
-  await expect
-    .poll(() =>
-      cold.evaluate((element) => {
-        const bounds = element.getBoundingClientRect()
-        return bounds.left >= -1 && bounds.right <= innerWidth + 1
-      }),
-    )
-    .toBe(true)
-  await reopened.screenshot({ path: test.info().outputPath('collection-offline-phone.png'), animations: 'disabled' })
+  await reopened.goto('/collection')
+  await expect(owned(reopened, 'Overlord')).toHaveText('2')
+  expect(await serverCount()).toBe(1)
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await operator.collectionStock(owner))[0]?.models, { timeout: 30_000 }).toBe(2)
+  await expect.poll(serverCount, { timeout: 30_000 }).toBe(2)
   await expect.poll(async () => (await savedWork(reopened))?.operations.length).toBe(0)
   await reopened.reload()
-  const reloaded = await openCollection(reopened)
-  await expect(reloaded.getByLabel('Physical model count', { exact: true })).toHaveValue('2')
+  await expect(owned(reopened, 'Overlord')).toHaveText('2')
 })

@@ -57,6 +57,7 @@ export const Collection = __t.object('Collection', {
   userId: __t.string(),
   entryId: __t.string(),
   at: __t.u64(),
+  models: __t.option(__t.u32()),
 })
 export type Collection = __Infer<typeof Collection>
 
@@ -76,6 +77,14 @@ export const Commands = __t.object('Commands', {
   body: __t.string(),
 })
 export type Commands = __Infer<typeof Commands>
+
+export const FavouriteDatasheets = __t.object('FavouriteDatasheets', {
+  key: __t.string(),
+  userId: __t.string(),
+  entryId: __t.string(),
+  at: __t.u64(),
+})
+export type FavouriteDatasheets = __Infer<typeof FavouriteDatasheets>
 
 export const FavouriteDetachments = __t.object('FavouriteDetachments', {
   key: __t.string(),

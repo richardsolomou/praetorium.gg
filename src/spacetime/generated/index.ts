@@ -34,6 +34,7 @@ import {
 } from 'spacetimedb'
 
 // Import all reducer arg schemas
+import AddFavouriteDatasheetReducer from './add_favourite_datasheet_reducer'
 import AddFavouriteDetachmentReducer from './add_favourite_detachment_reducer'
 import AddFavouriteFactionReducer from './add_favourite_faction_reducer'
 import AddToCollectionReducer from './add_to_collection_reducer'
@@ -43,12 +44,14 @@ import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
 import RegisterPracticeOpponentReducer from './register_practice_opponent_reducer'
 import RegisterPushTokenReducer from './register_push_token_reducer'
+import RemoveFavouriteDatasheetReducer from './remove_favourite_datasheet_reducer'
 import RemoveFavouriteDetachmentReducer from './remove_favourite_detachment_reducer'
 import RemoveFavouriteFactionReducer from './remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from './remove_from_collection_reducer'
 import ReplaceFriendInviteReducer from './replace_friend_invite_reducer'
 import RevokeOwnAccessReducer from './revoke_own_access_reducer'
 import RevokeSessionReducer from './revoke_session_reducer'
+import SetCollectionModelsReducer from './set_collection_models_reducer'
 import UnregisterPushTokenReducer from './unregister_push_token_reducer'
 import UnwatchBattleReducer from './unwatch_battle_reducer'
 import WatchBattleReducer from './watch_battle_reducer'
@@ -62,9 +65,9 @@ import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as CollectionByUserProcedure from './collection_by_user_procedure'
-import * as CollectionStockByUserProcedure from './collection_stock_by_user_procedure'
 import * as CreateBattleProcedure from './create_battle_procedure'
 import * as DeleteBattleForOperatorProcedure from './delete_battle_for_operator_procedure'
+import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_procedure'
 import * as FriendInviteByInviterProcedure from './friend_invite_by_inviter_procedure'
@@ -106,7 +109,6 @@ import * as SupportReportCommandProcedure from './support_report_command_procedu
 import * as SyncProductProcedure from './sync_product_procedure'
 import * as SyncReceiptProcedure from './sync_receipt_procedure'
 import * as SyncRosterProcedure from './sync_roster_procedure'
-import * as UpdateCollectionLotProcedure from './update_collection_lot_procedure'
 import * as UpdateOnboardingProcedure from './update_onboarding_procedure'
 
 // Import all table schema definitions
@@ -173,6 +175,7 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema('add_favourite_datasheet', AddFavouriteDatasheetReducer),
   __reducerSchema('add_favourite_detachment', AddFavouriteDetachmentReducer),
   __reducerSchema('add_favourite_faction', AddFavouriteFactionReducer),
   __reducerSchema('add_to_collection', AddToCollectionReducer),
@@ -182,12 +185,14 @@ const reducersSchema = __reducers(
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
   __reducerSchema('register_practice_opponent', RegisterPracticeOpponentReducer),
   __reducerSchema('register_push_token', RegisterPushTokenReducer),
+  __reducerSchema('remove_favourite_datasheet', RemoveFavouriteDatasheetReducer),
   __reducerSchema('remove_favourite_detachment', RemoveFavouriteDetachmentReducer),
   __reducerSchema('remove_favourite_faction', RemoveFavouriteFactionReducer),
   __reducerSchema('remove_from_collection', RemoveFromCollectionReducer),
   __reducerSchema('replace_friend_invite', ReplaceFriendInviteReducer),
   __reducerSchema('revoke_own_access', RevokeOwnAccessReducer),
   __reducerSchema('revoke_session', RevokeSessionReducer),
+  __reducerSchema('set_collection_models', SetCollectionModelsReducer),
   __reducerSchema('unregister_push_token', UnregisterPushTokenReducer),
   __reducerSchema('unwatch_battle', UnwatchBattleReducer),
   __reducerSchema('watch_battle', WatchBattleReducer),
@@ -203,9 +208,13 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
   __procedureSchema('collection_by_user', CollectionByUserProcedure.params, CollectionByUserProcedure.returnType),
-  __procedureSchema('collection_stock_by_user', CollectionStockByUserProcedure.params, CollectionStockByUserProcedure.returnType),
   __procedureSchema('create_battle', CreateBattleProcedure.params, CreateBattleProcedure.returnType),
   __procedureSchema('delete_battle_for_operator', DeleteBattleForOperatorProcedure.params, DeleteBattleForOperatorProcedure.returnType),
+  __procedureSchema(
+    'favourite_datasheets_by_user',
+    FavouriteDatasheetsByUserProcedure.params,
+    FavouriteDatasheetsByUserProcedure.returnType,
+  ),
   __procedureSchema(
     'favourite_detachments_by_user',
     FavouriteDetachmentsByUserProcedure.params,
@@ -255,7 +264,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('sync_product', SyncProductProcedure.params, SyncProductProcedure.returnType),
   __procedureSchema('sync_receipt', SyncReceiptProcedure.params, SyncReceiptProcedure.returnType),
   __procedureSchema('sync_roster', SyncRosterProcedure.params, SyncRosterProcedure.returnType),
-  __procedureSchema('update_collection_lot', UpdateCollectionLotProcedure.params, UpdateCollectionLotProcedure.returnType),
   __procedureSchema('update_onboarding', UpdateOnboardingProcedure.params, UpdateOnboardingProcedure.returnType),
 )
 
