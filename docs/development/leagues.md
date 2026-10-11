@@ -42,7 +42,7 @@ Reveal is irreversible, closes registration/assignment/submission, and makes acc
 
 Accepted entrants in a revealed event choose a valid opposing composition. The server derives fixed teammates and verifies every sealed roster size; no friendship is required within this boundary.
 
-Creation copies snapshots and appends `lock-league-rosters` in one transaction. The lock preserves event identity and prevents roster replacement/removal, reset, size changes, and adding a side. Saved-list or catalogue updates cannot rewrite it. Event battle history is read-only and respects battle field visibility.
+Creation copies snapshots and appends `lock-league-rosters` in one transaction. The lock preserves event identity and prevents roster replacement/removal, reset, size changes, and adding a side. Saved-list or catalogue updates cannot rewrite it. Event battle history is read-only and respects both the narrowest-seat battle audience and battle field visibility. An event's reveal or link never widens access to a private battle.
 
 Ordinary creation detects exact matchups from revealed events and directs the player to that event. Proceeding as an unlinked casual battle requires explicit confirmation.
 

@@ -85,6 +85,7 @@ import { type CatalogueEdition } from '../../../core/catalogueEdition'
 import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
+import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
 import type { CombatRoster } from '../simulator/useCombatant'
 
 type Props = {
@@ -123,6 +124,7 @@ type Props = {
   /** How this variant's saved row differs from its base's. */
   differences?: NamedRosterDifferences | null
   editable?: boolean
+  print?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
   /** Resolve read-only details by saved id; false when the supplied picks are themselves the snapshot. */
@@ -172,6 +174,7 @@ export function ListBuilder({
   variants = NO_VARIANTS,
   differences = null,
   editable = true,
+  print = false,
   battle,
   resolvePersistedRoster = true,
   guest,
@@ -199,6 +202,8 @@ export function ListBuilder({
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [collectionOpen, setCollectionOpen] = useState(false)
+  const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
+  const automaticPrint = useRef(false)
   const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
@@ -231,6 +236,7 @@ export function ListBuilder({
   // View mode simplifies the owner's roster cards and loadouts without taking away
   // their unit picker. Other readers still get the roster without builder controls.
   const building = editable && !readOnly
+  const frozenReference = Boolean(frozen) || (!editable && !resolvePersistedRoster)
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
 
@@ -482,6 +488,56 @@ export function ListBuilder({
   const storedAutomaticName = initial.automaticName ? initial.name : ''
   const label = pricePending ? storedAutomaticName || priced?.label || '' : priced?.label || storedAutomaticName
   const shownName = listName || label
+  const preparePrint = useCallback(() => {
+    if (!priced || pricePending || priceLoading) return
+    setPrintInput({
+      name: shownName,
+      url: savedId ? `${window.location.origin}${workspacePath}` : null,
+      draft: Boolean(guest) || (editable && currentDraftKey !== lastApplied.current),
+      catalogueId,
+      detachmentIds,
+      limit,
+      picks: positioned,
+      price: priced,
+      waivedRules,
+      optionalRules,
+      borrowedDetachmentId,
+    })
+  }, [
+    borrowedDetachmentId,
+    catalogueId,
+    currentDraftKey,
+    detachmentIds,
+    editable,
+    guest,
+    limit,
+    optionalRules,
+    positioned,
+    priceLoading,
+    pricePending,
+    priced,
+    shownName,
+    savedId,
+    waivedRules,
+    workspacePath,
+  ])
+  useEffect(() => {
+    if (!print || automaticPrint.current || (!frozen && (!priced || pricePending || priceLoading))) return
+    if (!frozenReference) {
+      automaticPrint.current = true
+      preparePrint()
+      return
+    }
+    let cancelled = false
+    void document.fonts.ready.then(() => {
+      if (cancelled) return
+      automaticPrint.current = true
+      window.print()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [frozen, frozenReference, preparePrint, priceLoading, pricePending, priced, print])
   const shareRoster = async () => {
     setShareProblem(null)
     try {
@@ -845,6 +901,8 @@ export function ListBuilder({
     />
   )
 
+  if (printInput) return <RosterPrintPack input={printInput} onClose={() => setPrintInput(null)} />
+
   return (
     <RosterShell saving={saving} saveError={save.isError}>
       <RosterHeader
@@ -915,7 +973,7 @@ export function ListBuilder({
                   <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                     <Download /> Export text
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => window.print()}>
+                  <DropdownMenuItem disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
                     <Printer /> Print
                   </DropdownMenuItem>
                   {me && !guest ? (
@@ -982,7 +1040,10 @@ export function ListBuilder({
                 <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                   <Download /> Export text
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => window.print()}>
+                <DropdownMenuItem
+                  disabled={!frozenReference && (!priced || pricePending || priceLoading)}
+                  onClick={frozenReference ? () => window.print() : preparePrint}
+                >
                   <Printer /> Print
                 </DropdownMenuItem>
               </DropdownMenuContent>

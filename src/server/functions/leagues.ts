@@ -47,6 +47,7 @@ export const listLeagueBattles = createServerFn({ method: 'GET' })
         { limit: 25, before: data.before ?? undefined },
         await app().battleMissionRulesFor(),
         (await app().factionIndexFor())?.factions ?? [],
+        await currentUserId(),
       )
     }),
   )

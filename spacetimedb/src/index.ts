@@ -6,7 +6,7 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
 import { reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
-import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE } from '../../src/core/battleAudience'
+import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, battleAudience, maySpectate, type BattleAudience } from '../../src/core/battleAudience'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
@@ -533,11 +533,10 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       return productJson({ battles: [], nextCursor: null })
     }
     const friendIds = new Set<string>()
-    if (input.scope === 'friends') {
-      for (const row of tx.db.friendships.requesterId.filter(input.userId!))
-        if (row.acceptedAt !== undefined) friendIds.add(row.addresseeId)
-      for (const row of tx.db.friendships.addresseeId.filter(input.userId!))
-        if (row.acceptedAt !== undefined) friendIds.add(row.requesterId)
+    const friendViewer = input.scope === 'friends' ? input.userId : input.scope === 'league' ? input.viewerId : null
+    if (friendViewer) {
+      for (const row of tx.db.friendships.requesterId.filter(friendViewer)) if (row.acceptedAt !== undefined) friendIds.add(row.addresseeId)
+      for (const row of tx.db.friendships.addresseeId.filter(friendViewer)) if (row.acceptedAt !== undefined) friendIds.add(row.requesterId)
     }
 
     const rows: { id: string; token: string; createdAt: number; at: number }[] = []
@@ -565,6 +564,18 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       const withheldFriends = seats.some((seat) => tx.db.battleSharing.userId.find(seat.userId)?.audience === 'private')
       if (input.scope === 'user' && (!seatIds.has(input.userId!) || (input.withUserId && !seatIds.has(input.withUserId)))) continue
       if (input.scope === 'league' && tx.db.leagueEventBattles.battleId.find(battle.id)?.eventId !== event!.id) continue
+      if (
+        input.scope === 'league' &&
+        (!input.viewerId || !seatIds.has(input.viewerId)) &&
+        !maySpectate(
+          battleAudience(seats.map((seat) => tx.db.battleSharing.userId.find(seat.userId)?.audience as BattleAudience | undefined)),
+          {
+            signedIn: Boolean(input.viewerId),
+            friend: seats.some((seat) => friendIds.has(seat.userId)),
+          },
+        )
+      )
+        continue
       if (input.scope === 'public' && (withheldPublic || hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
       if (
         input.scope === 'friends' &&

@@ -7,6 +7,7 @@ import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
 import { loadoutDatasheetsQuery } from '../../../queries'
+import type { loadoutDatasheets } from '../../../functions'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
@@ -41,6 +42,7 @@ type Props = {
   reminders?: ReminderControls
   /** Something to say beside an option, such as what it would do in a combat simulation. */
   optionNote?: OptionNote
+  providedSheets?: Awaited<ReturnType<typeof loadoutDatasheets>>
 }
 
 /**
@@ -68,6 +70,7 @@ export function Loadout({
   persistedRoster,
   reminders,
   optionNote,
+  providedSheets,
 }: Props) {
   const posthog = usePostHog()
   const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
@@ -92,15 +95,16 @@ export function Loadout({
     recordTiming,
   )
   const {
-    data: sheets,
+    data: fetchedSheets,
     dataUpdatedAt,
     isError,
     isPending,
   } = useQuery({
     ...request,
-    enabled: request.enabled && (pickIndex === null || settledPicks[pickIndex]?.entryId === unit?.entryId),
+    enabled: providedSheets === undefined && request.enabled && (pickIndex === null || settledPicks[pickIndex]?.entryId === unit?.entryId),
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
   })
+  const sheets = providedSheets ?? fetchedSheets
   useEffect(() => {
     const measured = timing.current
     if (!sheets || !measured || dataUpdatedAt <= capturedAt.current) return

@@ -5,9 +5,6 @@ import { previewResponse } from '../../../server/previewImage'
 import { cachedRosterPrice } from '../../../server/rosterPrices'
 import { rosterIdSchema } from '../../../contracts/schemas'
 
-/** An owner can rename a list or take it private, so its picture is not held for long. */
-const ROSTER_SECONDS = 300
-
 export const Route = createFileRoute('/api/previews/rosters/$id')({
   server: {
     handlers: {
@@ -20,7 +17,7 @@ export const Route = createFileRoute('/api/previews/rosters/$id')({
           if (!access) return null
           const { roster } = access
           const faction = (await instance.factionIndexFor())?.factions.find((one) => one.id === roster.catalogueId) ?? null
-          return { card: rosterPreview(roster, faction, await cachedRosterPrice(roster)).card, maxAge: ROSTER_SECONDS }
+          return { card: rosterPreview(roster, faction, await cachedRosterPrice(roster)).card, maxAge: 0 }
         }),
     },
   },

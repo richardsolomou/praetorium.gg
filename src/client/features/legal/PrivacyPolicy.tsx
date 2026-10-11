@@ -2,15 +2,15 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="5 October 2026">
+    <LegalPage title="Privacy policy" updated="11 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
           service at praetorium.gg.
         </p>
         <p>
-          An account is required to keep rosters or play battles, so everything below is about signed-in use. A roster you try without an
-          account stays in that browser tab, with a cookie that only says one is there, until you sign up to save it or close the tab.
+          An account is required to save rosters to the service or play battles. A roster you try without an account stays in browser
+          storage on that device, shared by its tabs and surviving reloads. You can save it to your account or discard it.
         </p>
       </LegalSection>
 
@@ -64,19 +64,30 @@ export function PrivacyPolicy() {
 
       <LegalSection title="Who can see your content">
         <LegalLinks>
-          <li>Players seated in a battle see that battle's record, including every attached roster.</li>
+          <li>Players seated in a battle see that battle's record, including its frozen copies of the armies played.</li>
           <li>
-            A roster is private when you make it: only you can open it. Make one unlisted and anyone holding its link can read it; make one
-            public and it is also listed on your profile.
+            Saved rosters start private unless you choose another default or access level. An unlisted roster can be read by anyone holding
+            its link; a public roster is also listed on your profile. Private access requires ownership or a seat in the named battle where
+            the roster was attached.
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
-            You choose whether anyone, friends, or only the seated players can watch your battles. The most private choice made by anyone at
-            the table applies to the whole battle.
+            Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can
+            watch. The most private choice at the table applies to past and live battles, including league battles. Spectators cannot change
+            a battle or see a face-down Secret Mission.
           </li>
-          <li>Public battles may appear on the home page, whether they are live or finished.</li>
+          <li>Public battles may appear on the home page. Your profile's battle record includes only games its reader can watch.</li>
+          <li>The leaderboard counts finished public games from the last 90 days. Games with a practice opponent do not count.</li>
+          <li>
+            Sealing a league roster makes a separate frozen copy. Before reveal, only its owner and any assigned allies can read it;
+            organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that event.
+          </li>
         </LegalLinks>
-        <p>There is no player directory, chat, social feed, or matchmaking.</p>
+        <p>
+          Returning a saved roster to private revokes its shared link. It does not revoke copies already frozen in a battle or revealed
+          league event. We do not maintain a separate anonymous statistical archive of private games. Copies someone has already downloaded
+          or captured cannot be recalled.
+        </p>
       </LegalSection>
 
       <LegalSection title="Third parties">
@@ -99,10 +110,14 @@ export function PrivacyPolicy() {
 
       <LegalSection title="Retention and deletion">
         <p>
-          Your content is kept while your account exists. Deleting a saved roster or battle removes it. You can permanently delete your
-          account from your profile. This removes your profile, rosters, friendships, league participation and every battle you played,
-          including shared battles. Session records expire on their own; usage data is kept by our analytics provider under its retention
-          settings. The{' '}
+          Deleting a saved roster removes the saved list, but keeps the frozen copies already used in battles or sealed in league events.
+          Only a battle's creator can delete it; deletion removes its record and its contribution to public rankings. Deleting a league
+          removes its events and sealed rosters, while battles already played keep their own copies.
+        </p>
+        <p>
+          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, league participation,
+          leagues you organize and every battle you played, including shared battles. Session records expire on their own; usage data is
+          kept by our analytics provider under its retention settings. The{' '}
           <a href="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </a>{' '}

@@ -56,9 +56,9 @@ The clock derives elapsed time from every logged timestamp, including undone act
 
 ## Audience and records
 
-`battleAudience` folds the narrowest seat preference: anyone, friends, or nobody. No preference row means public. Feeds, links, profiles, and previews use the same decision; league-linked battles have the event's public viewing boundary. A seated viewer receives controls, an allowed reader gets a spectator view, and others receive unavailable/sign-in state.
+`battleAudience` folds the narrowest seat preference: anyone, friends, or nobody. No preference row means public. Friends means an accepted friend of any seated player. Feeds, links, replay, profiles, and previews use the same decision, including league-linked battles. League reveal grants access to sealed event rosters, not an exemption from battle audience. Filter the event feed before pagination in the product database and recheck in the service. A seated viewer receives controls, an allowed reader gets a spectator view, and others receive unavailable/sign-in state.
 
-`battleView` is the only field-visibility decision. Face-down Secret Mission identities and any deck that would identify them stay hidden; ordinary tactical cards/decks are public. Preview images always read as signed out. Profiles and service records use only watchable games; private results cannot leak through rank, counts, or metadata.
+`battleView` is the only field-visibility decision. Face-down Secret Mission identities and any deck that would identify them stay hidden; ordinary tactical cards/decks are public. Preview images always read as signed out. Player-content previews use `no-store` because publication can be revoked; public reference images may be cached. Profiles and service records use only watchable games; private results cannot leak through rank, counts, or metadata.
 
 Standings derive finished non-practice results and OpenSkill ratings from bounded logs in finish order. Allies share their side's result; concessions override score and draws remain ties. Faction records rate player/faction pairs against overall opposition. Sorting uses the displayed rounded rating. Revision changes invalidate caches across replicas after finish, reopen, deletion, or visibility changes; report the actual window covered when a count limit truncates it.
 

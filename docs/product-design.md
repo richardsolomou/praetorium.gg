@@ -12,13 +12,32 @@ It does not include pairings, brackets, locations, chat, matchmaking, rules this
 
 A battle is watchable by default. Anyone may open a public battle's link, and the home page lists public battles so a game can be found without one. Watching is read-only: a spectator sees the score, both armies, the public mission and stratagem state, and the visibility-filtered report, never a face-down Secret Mission and never a control. A read never claims a seat. A spectator who has not played yet is invited to build an army or start a battle of their own, most prominently once the game has finished.
 
-The audience belongs to the player rather than the battle, because a player answers it once instead of at every game. A battle takes the narrowest answer of everyone seated in it, so one player choosing to keep their battles private keeps the whole table private. The setting applies to battles already being played, and a player who has never opened it is public.
+The audience belongs to the player rather than the battle, because a player answers it once instead of at every game. A battle takes the narrowest answer of everyone seated in it, so one player choosing to keep their battles private keeps the whole table private. Friends means a confirmed friend of any seated player. The setting applies to past and live battles, including league battles, and a player who has never opened it is public.
 
 A player's profile is public, but its battle record and leaderboard place include only games the reader may watch. A player who keeps their battles private shows a name without a record. Readers can filter the record by army, detachment, opponent, mission pack, and battle size.
 
 The owner sees monthly win rates by detachment, primary mission, and battle size on their profile. These are the player's results from the same visible finished battles as their service record; a draw counts as half a win.
 
 The leaderboard counts finished public battles over the last 90 days. A row is a player, ranked by a rating that weighs who they beat, with allies rated as one side. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, games of every table shape count together, and a battle with a practice opponent in it counts for nobody.
+
+## Publication and retained copies
+
+Publication is named sharing. There is no separate anonymous archive of private game statistics. The [privacy policy](../src/client/features/legal/PrivacyPolicy.tsx) and the controls that publish or delete content must describe these boundaries before the action takes effect.
+
+| Content                                         | Who can read it                                                             | What revocation or deletion changes                                                                                                      |
+| ----------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Guest draft                                     | Browser storage on that device, shared by its tabs                          | Reloads keep it; explicit discard removes it; account saving claims it                                                                   |
+| Saved roster                                    | Owner; unlisted link holders; public profile readers                        | Returning to private revokes shared reads; deletion removes the saved list                                                               |
+| Named battle roster access                      | Seated players in the named battle                                          | The saved-roster access exception is read-only and strips personal reminders; the battle UI reads the frozen army                        |
+| Frozen battle army                              | Seated players and spectators permitted by the battle audience              | Saved edits, privacy changes, and deletion do not rewrite it; battle deletion removes the log and copies                                 |
+| Sealed league roster                            | Owner and assigned allies before reveal; event readers after reveal         | Saved edits or deletion do not rewrite it; replacement, unsealing, league deletion, or account deletion removes the relevant sealed copy |
+| Battle screen, replay, event feed, and metadata | Seated players or readers permitted by the narrowest-seat audience          | Audience changes apply to historical and live reads; deletion removes the record                                                         |
+| Profile                                         | Public name and image; battle records limited to games the reader may watch | Audience changes narrow its record; account deletion removes the profile                                                                 |
+| Leaderboard                                     | Finished public, non-practice battles from the bounded 90-day window        | Audience changes, reopening, and deletion invalidate derived rankings                                                                    |
+
+Deleting a league removes its events and sealed rosters while battles keep their independent command-log copies. Account deletion removes the player's saved rosters, friendships, event entries, organized leagues, and every battle they played, including shared games. Copies a reader has downloaded or captured cannot be recalled. Revocable player-content preview images use `no-store`; public rules reference images may remain cached.
+
+The authorities are [`RosterService.rosterAccess`](../src/server/services/rosterService.ts), [`PraetoriumService`](../src/server/service.ts), [`league.ts`](../src/core/league.ts), and the transactional deletion procedures in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts). [Battles](development/battles.md), [Leagues](development/leagues.md), and [Catalogue data](development/catalogue-data.md) own the implementation and verification requirements.
 
 ## Interface
 

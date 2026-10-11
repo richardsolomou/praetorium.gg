@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.116.0
+
+### Minor Changes
+
+- fa2ed15: Offer readable and compact roster text downloads and review model counts, missing entries and original points before importing.
+
 ## 0.115.10
 
 ### Patch Changes

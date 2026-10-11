@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { retryUntilVisible } from './account'
 
 const factions = [
   { name: 'Blood Angels', slug: 'blood-angels', versions: 2 },
@@ -16,7 +17,9 @@ for (const width of [390, 1440]) {
       const link = row.getByRole('link', { name: faction.name, exact: true })
       await expect(link).toHaveAttribute('href', `/factions/${faction.slug}/rules/space-marines-codex-2026-10-03`)
       if (faction.versions > 1) {
-        await row.getByRole('button', { name: `Rules versions for ${faction.name}` }).click()
+        await retryUntilVisible(page.getByRole('menu'), () =>
+          row.getByRole('button', { name: `Rules versions for ${faction.name}` }).click(),
+        )
         const items = page.getByRole('menuitem')
         await expect(items).toHaveCount(faction.versions)
         await expect(items.first().locator('[data-rules-status="current"]')).toHaveText('Current')
@@ -42,7 +45,7 @@ for (const width of [390, 1440]) {
       await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
       if (faction.versions > 1) {
         await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current Space Marines codex · 3 Oct 2026')
-        await page.getByRole('combobox', { name: 'Rules version' }).click()
+        await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).click())
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveText('Current')
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
       }
