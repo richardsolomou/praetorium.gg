@@ -54,6 +54,7 @@ import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
 import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedure'
 import * as ShareBattleProcedure from '../share_battle_procedure'
 import * as SubmitBattleProcedure from '../submit_battle_procedure'
+import * as SupportReportCommandProcedure from '../support_report_command_procedure'
 import * as SyncProductProcedure from '../sync_product_procedure'
 import * as SyncReceiptProcedure from '../sync_receipt_procedure'
 import * as SyncRosterProcedure from '../sync_roster_procedure'
@@ -156,6 +157,8 @@ export type ShareBattleArgs = __Infer<typeof ShareBattleProcedure.params>
 export type ShareBattleResult = __Infer<typeof ShareBattleProcedure.returnType>
 export type SubmitBattleArgs = __Infer<typeof SubmitBattleProcedure.params>
 export type SubmitBattleResult = __Infer<typeof SubmitBattleProcedure.returnType>
+export type SupportReportCommandArgs = __Infer<typeof SupportReportCommandProcedure.params>
+export type SupportReportCommandResult = __Infer<typeof SupportReportCommandProcedure.returnType>
 export type SyncProductArgs = __Infer<typeof SyncProductProcedure.params>
 export type SyncProductResult = __Infer<typeof SyncProductProcedure.returnType>
 export type SyncReceiptArgs = __Infer<typeof SyncReceiptProcedure.params>

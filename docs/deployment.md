@@ -24,6 +24,8 @@ Open pages check an uncached `/api/release` endpoint once a minute while visible
 
 Product publication requires a migration plan/token. Automatic schema migrations may disconnect clients; manual migrations stop delivery without clearing data. Catalogue assets are pinned and verified inside the image; publishing a source snapshot alone does not update the running service.
 
+Optional public in-app support uses a dedicated production repository credential. [Support reports](development/support-reports.md#credential-and-rollout) owns its scope, rotation and actual submit/reply verification. Missing configuration disables submission and leaves the existing public tracker available.
+
 After production deployment, `scripts/submitIndexNow.ts` waits for every replica's revision and submits measured sitemap additions/changes. `INDEXNOW_KEY` is production-only; missing keys disable submission, and submission failure does not fail the release.
 
 ## Backups

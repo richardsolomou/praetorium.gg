@@ -1,4 +1,5 @@
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
+import type { SupportStoreCommand } from '../core/supportReport'
 import { collectionStockSchema, type CollectionLotUpdate } from '../core/collection'
 import { z } from 'zod'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
@@ -218,6 +219,10 @@ export class SpacetimeOperator {
   async health() {
     const response = await this.call('operator_health', [])
     return z.literal(true).parse(await response.json())
+  }
+
+  async supportReportCommand(userId: string, command: SupportStoreCommand) {
+    return this.read('support_report_command', [userId, JSON.stringify(command)])
   }
 
   async deleteUserData(userId: string) {

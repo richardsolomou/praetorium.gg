@@ -28,6 +28,12 @@ export function PrivacyPolicy() {
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
+          Public support reports contain only the title, description, report type and reference, page category, app version, optional rules
+          version and text attachment you review and agree to publish. We keep a private account-to-report reference so you can follow its
+          public GitHub status and replies. Deleting your account removes that private reference, but does not remove a published issue or
+          copies of it. Use privacy@praetorium.gg for private account, privacy and deletion requests.
+        </p>
+        <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
           cookie remembers the order you sort your rosters in on that device.
         </p>
@@ -48,8 +54,8 @@ export function PrivacyPolicy() {
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
           session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or
-          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security
-          and administration screens are not recorded. Only signed-in visitors get an identified profile.
+          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account,
+          security, administration and support-report surfaces are not recorded. Only signed-in visitors get an identified profile.
         </p>
       </LegalSection>
 
