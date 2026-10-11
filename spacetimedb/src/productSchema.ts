@@ -213,6 +213,8 @@ const supportReports = table(
   },
 )
 
+const collectionSharing = table({ name: 'collection_sharing' }, { userId: t.string().primaryKey(), published: t.bool() })
+
 const collection = table(
   { name: 'collection' },
   {
@@ -326,6 +328,7 @@ export const productTables = {
   leagueEventEntries,
   leagueEventBattles,
   collection,
+  collectionSharing,
   collectionStock,
   favouriteFactions,
   practiceOpponents,

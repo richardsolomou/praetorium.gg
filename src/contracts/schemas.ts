@@ -388,3 +388,5 @@ export type PriceInput = z.infer<typeof priceSchema>
 /** Exports whatever the builder is showing, so it works before a list is attached. */
 export const exportRosterSchema = priceSchema.extend({ name: z.string().trim().min(1).max(120) })
 export type ExportRosterInput = z.infer<typeof exportRosterSchema>
+
+export const collectionPublishedSchema = z.object({ published: z.boolean() })

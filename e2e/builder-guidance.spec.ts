@@ -25,7 +25,8 @@ for (const width of [1600, 390]) {
     await expect(imotekh).toContainText('Compatible leader for Immortals')
     await expect(picker.locator('[data-picker-unit="Plasmancer"]')).toHaveCount(0)
     await waitForRosterSave(page, () => imotekh.getByRole('button', { name: 'Add Imotekh the Stormlord', exact: true }).click())
-    await expect(imotekh).toContainText('Limit reached: 1 of 1 permitted copies in the roster.')
+    await expect(imotekh).toContainText('1/1 in roster')
+    await expect(imotekh).not.toContainText('Limit reached:')
     await expect(imotekh.getByRole('button', { name: 'Add Imotekh the Stormlord', exact: true })).toBeDisabled()
     if (width < 500) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
     await waitForRosterSave(page, () => attach(page, 'Imotekh the Stormlord', 'Immortals'))
@@ -51,14 +52,12 @@ for (const width of [1600, 390]) {
     await shot(picker, `test-results/builder-guidance-bodyguards-${width}.png`)
     await relationships.click()
     await page.getByRole('option', { name: 'All units', exact: true }).click()
-    await picker.locator('summary').filter({ hasText: 'Mission matchups' }).click()
-    const matchup = picker.getByRole('link').filter({ hasText: /^vs / }).first()
-    const href = await matchup.getAttribute('href')
-    expect(href).toMatch(/^\/missions\/[^/]+\/matchups\/take-and-hold\//)
-    await shot(picker, `test-results/builder-guidance-missions-${width}.png`)
+    await expect(picker.getByText(/Mission matchups/)).toHaveCount(0)
+    if (width < 500) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
+    const mission = page.getByRole('link', { name: 'Take and Hold', exact: true })
     const rosterURL = page.url()
-    await matchup.click()
-    await expect(page.getByRole('heading', { name: 'Primary missions', exact: true })).toBeVisible()
+    await mission.click()
+    await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
     await page.goto(rosterURL)
     await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toHaveCount(1)
     await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toContainText('Immortals')
@@ -78,14 +77,19 @@ test('a relationship with no matches remains distinct from structured search', a
   await expect(page.locator('[data-picker-unit="Imotekh the Stormlord"]')).toBeVisible()
 })
 
-test('budget guidance explains the base cost while preserving an over-budget saved choice', async ({ page }) => {
+test('picker card height stays stable as the roster crosses the points budget', async ({ page }) => {
   await signUp(page, 'Richard')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, size: /Incursion/ })
   await waitForRosterSave(page, () => add(page, "C'tan Shard of the Nightbringer"))
-  await waitForRosterSave(page, () => add(page, "C'tan Shard of the Void Dragon"))
   await page.getByLabel('Add a unit').fill('Monolith')
   const monolith = page.locator('[data-picker-unit="Monolith"]')
-  await expect(monolith).toContainText('125 pts over the remaining budget at base cost.')
+  await expect(monolith).toBeVisible()
+  const before = (await monolith.boundingBox())!.height
+  await waitForRosterSave(page, () => add(page, "C'tan Shard of the Void Dragon"))
+  await page.getByLabel('Add a unit').fill('Monolith')
+  await expect(monolith).toBeVisible()
+  expect((await monolith.boundingBox())!.height).toBe(before)
+  await expect(monolith).not.toContainText('over the remaining budget')
   await expect(monolith.getByRole('button', { name: 'Add Monolith', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Points fit', exact: true }).click()
   await expect(monolith).toHaveCount(0)
@@ -96,4 +100,74 @@ test('budget guidance explains the base cost while preserving an over-budget sav
   await expect(page.locator('[data-unit="Monolith"]')).toHaveCount(1)
   await expect(page.locator('[data-stat="points"]')).toHaveText('1125/1000')
   await expect(page.getByText('Over the points limit', { exact: true }).first()).toBeAttached()
+})
+
+test('accepts an Add click while the preceding edit is being priced', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByLabel('Add a unit').clear()
+  const immortals = page.getByRole('button', { name: 'Add Immortals', exact: true })
+  const overlord = page.getByRole('button', { name: 'Add Overlord', exact: true })
+  await expect(immortals).toBeEnabled()
+  await expect(overlord).toBeEnabled()
+  let release!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let began!: () => void
+  const started = new Promise<void>((resolve) => {
+    began = resolve
+  })
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      began()
+      await held
+    }
+    await route.continue()
+  })
+  try {
+    await immortals.click()
+    await started
+    await expect(overlord).toBeEnabled()
+    await overlord.click()
+  } finally {
+    release()
+  }
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
+  await expect(page.locator('[data-unit="Overlord"]')).toHaveCount(1)
+  await expect(page.locator('[data-stat="points"]')).toHaveText('155/2000')
+})
+
+test('a picker favourite stays selected throughout a delayed save', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByLabel('Add a unit').fill('Immortals')
+  const row = page.locator('[data-picker-unit="Immortals"]')
+  const heart = row.getByRole('button', { name: /Immortals (to|from) favourite datasheets/ })
+  await expect(heart).toHaveAttribute('aria-pressed', 'false')
+  await heart.evaluate((button) => {
+    const frames: string[] = []
+    Object.assign(window, { favouriteFrames: frames })
+    new MutationObserver(() => {
+      frames.push(button.getAttribute('aria-pressed')!)
+    }).observe(button, { attributes: true, attributeFilter: ['aria-pressed'] })
+  })
+  let release!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') await held
+    await route.continue()
+  })
+  try {
+    await heart.click()
+    await expect(heart).toHaveAttribute('aria-pressed', 'true')
+    await expect(heart).toBeEnabled()
+  } finally {
+    release()
+  }
+  await expect.poll(async () => page.evaluate(() => window.PraetoriumLocalState?.state?.operations.length)).toBe(0)
+  expect(await page.evaluate(() => (window as unknown as { favouriteFrames: string[] }).favouriteFrames)).toEqual(['true'])
+  await page.reload()
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await expect(heart).toHaveAttribute('aria-pressed', 'true')
 })

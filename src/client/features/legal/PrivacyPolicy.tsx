@@ -79,6 +79,10 @@ export function PrivacyPolicy() {
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
+            Your collection is private unless you turn on Show collection on profile. That publishes its datasheets and model counts;
+            turning it off hides them again.
+          </li>
+          <li>
             Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can
             watch. The most private choice at the table applies to past and live battles, including league battles. Spectators cannot change
             a battle or see a face-down Secret Mission.

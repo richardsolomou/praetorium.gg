@@ -21,7 +21,7 @@ import {
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
-import { MAX_COLLECTION_MODELS } from '../../src/core/collection'
+import { MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -157,7 +157,7 @@ function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
   }
 }
 
-type PublicScope = 'battles' | 'rosters' | 'leagues' | 'invites' | 'standings' | 'opponents'
+type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'invites' | 'standings' | 'opponents'
 
 function touchPublic(ctx: Context, scope: PublicScope) {
   const current = ctx.db.publicRevisions.scope.find(scope)
@@ -292,6 +292,8 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.battleSharing.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
   ctx.db.playerDefaults.userId.delete(userId)
+  if (ctx.db.collectionSharing.userId.find(userId)?.published) touchPublic(ctx, 'collection')
+  ctx.db.collectionSharing.userId.delete(userId)
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
@@ -1188,6 +1190,41 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
   }),
 )
 
+export const collectionProfile = spacetime.procedure(
+  { userId: t.string(), viewerId: t.option(t.string()) },
+  t.string(),
+  (ctx, { userId, viewerId }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      const published = tx.db.collectionSharing.userId.find(userId)?.published ?? false
+      if (!published && viewerId !== userId) return productJson(null)
+      moveHeartsToFavourites(tx, userId)
+      const entries = []
+      for (const row of tx.db.collection.userId.filter(userId)) {
+        if (entries.length >= MAX_COLLECTION_DATASHEETS) throw new SenderError('Collection exceeds the supported limit')
+        entries.push({ entryId: row.entryId, models: row.models })
+      }
+      return productJson({ published, entries })
+    }),
+)
+
+export const setCollectionPublished = spacetime.procedure({ userId: t.string(), published: t.bool() }, t.bool(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!input.userId || input.userId.length > 128) throw new SenderError('Invalid user ID')
+    if (tx.db.collectionSharing.userId.find(input.userId)) tx.db.collectionSharing.userId.update(input)
+    else tx.db.collectionSharing.insert(input)
+    touchProduct(tx, input.userId, 'collection')
+    touchPublic(tx, 'collection')
+    return input.published
+  }),
+)
+
+function touchCollection(ctx: Context, userId: string) {
+  touchProduct(ctx, userId, 'collection')
+  if (ctx.db.collectionSharing.userId.find(userId)?.published) touchPublic(ctx, 'collection')
+}
+
 export const addToCollection = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
   addToCollectionIn(ctx, [input.userId, input.entryId, input.at])
 })
@@ -1983,7 +2020,7 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
   const key = JSON.stringify([input.userId, input.entryId])
   if (!ctx.db.collection.key.find(key)) {
     ctx.db.collection.insert({ key, ...input, models: 1 })
-    touchProduct(ctx, input.userId, 'collection')
+    touchCollection(ctx, input.userId)
   }
 }
 
@@ -1993,7 +2030,7 @@ function removeFromCollectionIn(ctx: Context, args: unknown[]) {
 
   requireOperator(ctx)
   moveHeartsToFavourites(ctx, input.userId)
-  if (ctx.db.collection.key.delete(JSON.stringify([input.userId, input.entryId]))) touchProduct(ctx, input.userId, 'collection')
+  if (ctx.db.collection.key.delete(JSON.stringify([input.userId, input.entryId]))) touchCollection(ctx, input.userId)
 }
 
 function setCollectionModelsIn(ctx: Context, args: unknown[]) {
@@ -2012,7 +2049,7 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
   const current = ctx.db.collection.key.find(key)
   if (current) ctx.db.collection.key.update({ ...current, models })
   else ctx.db.collection.insert({ key, userId, entryId, at, models })
-  touchProduct(ctx, userId, 'collection')
+  touchCollection(ctx, userId)
 }
 
 function addFavouriteFactionIn(ctx: Context, args: unknown[]) {

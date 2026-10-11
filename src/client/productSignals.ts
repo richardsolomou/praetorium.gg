@@ -15,7 +15,7 @@ const queryFamilies = {
     'player-rosters',
     'player-profile',
   ],
-  collection: ['collection', 'collection-counts'],
+  collection: ['collection', 'collection-counts', 'collection-profile'],
   favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets'],
   friends: ['friendships', 'friend-battles', 'shared-battles', 'opponents', 'player-profile', 'player-search'],
   invites: ['friend-invite'],
@@ -35,6 +35,7 @@ const queryFamilies = {
 } as const
 
 const publicQueryFamilies = {
+  collection: ['collection-profile'],
   battles: ['public-battles', 'friend-battles', 'shared-battles', 'battle', 'report', 'player-profile', 'league-battles'],
   standings: ['standings', 'player-rankings'],
   rosters: ['player-rosters', 'shared-roster', 'roster-access'],

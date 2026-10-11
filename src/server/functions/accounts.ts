@@ -1,3 +1,4 @@
+import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import { app } from '../app'
@@ -16,6 +17,7 @@ import {
   playerSearchSchema,
   ownedSchema,
   collectionModelsSchema,
+  collectionPublishedSchema,
   favouriteDatasheetSchema,
   userSchema,
   setOwnPasswordSchema,
@@ -368,3 +370,17 @@ export const setFavouriteDetachment = createServerFn({ method: 'POST' })
 export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => ({ providers: configuredAuthProviders(), passwordReset: Boolean(app().email) })),
 )
+
+export const collectionProfile = createServerFn({ method: 'GET' })
+  .validator(userSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const profileCollection = await app().service.collectionProfile(data.userId, await currentUserId())
+      if (!profileCollection) return null
+      return { ...profileCollection, groups: groupCollection(profileCollection.entries, await app().combatUnitsFor()) }
+    }),
+  )
+
+export const setCollectionPublished = createServerFn({ method: 'POST' })
+  .validator(collectionPublishedSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.setCollectionPublished(await requireUserId(), data.published)))

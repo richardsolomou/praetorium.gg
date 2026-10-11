@@ -592,6 +592,14 @@ export class SpacetimeRepository {
     return this.product.setRosterVisibility(...args)
   }
 
+  collectionProfile(...args: Parameters<SpacetimeOperator['collectionProfile']>) {
+    return this.product.collectionProfile(...args)
+  }
+
+  setCollectionPublished(...args: Parameters<SpacetimeOperator['setCollectionPublished']>) {
+    return this.product.setCollectionPublished(...args)
+  }
+
   collectionByUser(...args: Parameters<SpacetimeOperator['collectionByUser']>) {
     return this.product.collectionByUser(...args)
   }
