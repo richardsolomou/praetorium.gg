@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.6
+
+### Patch Changes
+
+- 9d245fd: Keep faction pages visible during saved-data updates and reduce background work while rosters load.
+
 ## 0.115.5
 
 ### Patch Changes
