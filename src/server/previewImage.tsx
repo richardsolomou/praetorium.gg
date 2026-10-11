@@ -101,7 +101,7 @@ async function slot() {
  *
  * `load` answers null for anything a reader without an account may not see, which is
  * the same 404 as a link to nothing: a preview never says more than the page would.
- * Neither answer depends on who is asking, which is what lets a shared cache hold them.
+ * Revocable player content uses a zero max age so every request rechecks publication.
  */
 export async function previewResponse(load: () => Promise<{ card: PreviewCard; maxAge: number } | null>) {
   if (!(await slot())) return new Response('Busy', { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '5' } })
@@ -111,7 +111,7 @@ export async function previewResponse(load: () => Promise<{ card: PreviewCard; m
     const png = await renderPreview(found.card)
     return new Response(png, {
       headers: {
-        'Cache-Control': `public, max-age=${found.maxAge}`,
+        'Cache-Control': found.maxAge === 0 ? 'no-store' : `public, max-age=${found.maxAge}`,
         'Content-Type': 'image/png',
         'Content-Length': String(png.byteLength),
       },

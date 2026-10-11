@@ -4,9 +4,6 @@ import { app } from '../../../server/app'
 import { previewResponse } from '../../../server/previewImage'
 import { userSchema } from '../../../contracts/schemas'
 
-/** A record moves only when one of the player's battles finishes. */
-const PLAYER_SECONDS = 300
-
 export const Route = createFileRoute('/api/previews/users/$userId')({
   server: {
     handlers: {
@@ -24,7 +21,7 @@ export const Route = createFileRoute('/api/previews/users/$userId')({
             instance.service.playerProfile(params.userId, null, {}, rules, factions),
             instance.service.playerRankings(params.userId, factions),
           ])
-          return { card: playerPreview(profile.name, record, rankings).card, maxAge: PLAYER_SECONDS }
+          return { card: playerPreview(profile.name, record, rankings).card, maxAge: 0 }
         }),
     },
   },

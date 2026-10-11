@@ -250,7 +250,9 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>This removes the saved roster. Battles that already use it are not changed.</AlertDialogDescription>
+            <AlertDialogDescription>
+              This removes the saved roster. Frozen copies in battles and league events are kept.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

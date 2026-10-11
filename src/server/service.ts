@@ -590,9 +590,13 @@ export class PraetoriumService {
     page: { limit: number; before?: BattlesCursor },
     rules?: BattleMissionRules | null,
     factions?: readonly BattleFaction[],
+    viewerId: string | null = null,
   ) {
-    const { battles: histories, nextCursor } = await this.repository.battlesByLeagueEvent(leagueToken, eventToken, page)
-    return { battles: this.battleSummaries(histories, null, rules, factions), nextCursor }
+    const { battles: histories, nextCursor } = await this.repository.battlesByLeagueEvent(leagueToken, eventToken, {
+      ...page,
+      viewerId,
+    })
+    return { battles: this.battleSummaries(await this.watchable(histories, viewerId), viewerId, rules, factions), nextCursor }
   }
 
   private battleSummaries(
@@ -739,7 +743,7 @@ export class PraetoriumService {
     const screen = this.battleScreen(history, viewerId, rules)
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
     // the seats were filled when the battle was created.
-    if (!screen.view.leagueToken && !(await this.mayWatch(history, userId))) return { kind: 'unavailable' }
+    if (!(await this.mayWatch(history, userId))) return { kind: 'unavailable' }
     const report = this.viewerReport(history, SPECTATOR_ID, rules)
     return {
       kind: 'spectator',

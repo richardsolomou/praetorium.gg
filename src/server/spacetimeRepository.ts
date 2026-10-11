@@ -690,8 +690,12 @@ export class SpacetimeRepository {
     return this.feed({ scope: 'user', userId, withUserId: page?.withUserId, before: page?.before, limit: page?.limit ?? 500 })
   }
 
-  async battlesByLeagueEvent(leagueToken: string, eventToken: string, page: { limit: number; before?: BattlesCursor }) {
-    return this.feed({ scope: 'league', leagueToken, eventToken, before: page.before, limit: page.limit })
+  async battlesByLeagueEvent(
+    leagueToken: string,
+    eventToken: string,
+    page: { limit: number; before?: BattlesCursor; viewerId?: string | null },
+  ) {
+    return this.feed({ scope: 'league', leagueToken, eventToken, before: page.before, limit: page.limit, viewerId: page.viewerId })
   }
 
   async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {

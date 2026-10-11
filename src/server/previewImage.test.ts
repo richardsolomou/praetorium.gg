@@ -43,6 +43,11 @@ describe('preview images', () => {
     ])
   })
 
+  it('does not cache a preview whose publication can be revoked', async () => {
+    const response = await previewResponse(async () => ({ card: battle('Alice'), maxAge: 0 }))
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
   it('answer a card nobody may see as not found, and never cache that', async () => {
     const response = await previewResponse(async () => null)
     expect([response.status, response.headers.get('cache-control')]).toEqual([404, 'no-store'])

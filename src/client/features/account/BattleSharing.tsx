@@ -5,33 +5,17 @@ import { battleAudienceQuery, friendBattlesQuery, publicBattlesQuery, standingsQ
 import { errorMessage } from '../../queryClient'
 import { Choice, type ChoiceOption } from '../../components/Choice'
 
-/**
- * What each answer means, in terms of who can actually reach the battle.
- *
- * Worded as consequences rather than levels, because the choice is only useful if
- * a player can tell what changes: what a stranger sees, and what the leaderboard
- * counts.
- */
 const AUDIENCES: ChoiceOption<BattleAudience>[] = [
   {
     value: 'public',
     name: 'Anyone',
     detail:
-      'Your battles appear on the home page and public battle list, and count towards the leaderboard. Anyone can watch, and nobody can take a seat or change anything.',
+      'Anyone can watch unless another player chooses a narrower audience. Public games without practice opponents appear in the battle list. Finished ones count towards the leaderboard.',
   },
-  { value: 'friends', name: 'Friends', detail: 'Only your confirmed friends see your battles listed or can watch one.' },
+  { value: 'friends', name: 'Friends', detail: 'Confirmed friends of any seated player can watch, unless someone chooses Players only.' },
   { value: 'private', name: 'Players only', detail: 'Only the players seated in a battle can find or watch it.' },
 ]
 
-/**
- * Who may watch this player's battles.
- *
- * Saved on the press rather than behind the profile form's Save, because it is a
- * setting rather than an edit: there is nothing to review before it takes effect,
- * and the answer applies to games already being played. It narrows every battle
- * this player sits in — `battleAudience` in the domain takes the strictest answer
- * at the table, so this cannot expose a game somebody else has withheld.
- */
 export function BattleSharing() {
   const { data: audience } = useQuery(battleAudienceQuery())
   const queryClient = useQueryClient()
@@ -39,21 +23,23 @@ export function BattleSharing() {
     mutationFn: (next: BattleAudience) => setBattleAudience({ data: { audience: next } }),
     onSuccess: (next) => {
       queryClient.setQueryData(battleAudienceQuery().queryKey, next)
-      // The feeds and the standings are answers to "who may see what", so they are
-      // now wrong on this device as well as everyone else's.
       void queryClient.invalidateQueries({ queryKey: publicBattlesQuery().queryKey })
       void queryClient.invalidateQueries({ queryKey: friendBattlesQuery().queryKey })
       void queryClient.invalidateQueries({ queryKey: standingsQuery().queryKey })
     },
   })
   return (
-    <section data-onboarding="battle-sharing" className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
+    <section
+      id="battle-sharing"
+      data-onboarding="battle-sharing"
+      className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2"
+    >
       <div>
         <p className="rubric border-b border-edge pb-2">Privacy</p>
         <h2 className="mt-4 text-base">Who can watch your battles</h2>
         <p className="mt-1 text-sm text-dim">
-          The most private choice at the table applies to everyone. If one player chooses Players only, that battle stays private.
-          Spectators cannot make changes or see a face-down Secret Mission.
+          Changes apply immediately to past and live battles, including league battles. The most private choice at the table applies to
+          everyone. Spectators cannot make changes or see a face-down Secret Mission.
         </p>
       </div>
       <Choice

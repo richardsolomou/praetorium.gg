@@ -4,10 +4,6 @@ import { app } from '../../../server/app'
 import { previewResponse } from '../../../server/previewImage'
 import { tokenSchema } from '../../../contracts/schemas'
 
-/** A live score moves, so its picture is held briefly; a finished one only changes if the battle is reopened. */
-const LIVE_SECONDS = 60
-const FINISHED_SECONDS = 600
-
 export const Route = createFileRoute('/api/previews/battles/$token')({
   server: {
     handlers: {
@@ -24,7 +20,7 @@ export const Route = createFileRoute('/api/previews/battles/$token')({
           const factions = new Map(((await instance.factionIndexFor())?.factions ?? []).map((faction) => [faction.id, faction.displayName]))
           return {
             card: battlePreview(screen.view, (catalogueId) => factions.get(catalogueId) ?? null).card,
-            maxAge: screen.view.status === 'finished' ? FINISHED_SECONDS : LIVE_SECONDS,
+            maxAge: 0,
           }
         }),
     },
