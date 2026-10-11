@@ -30,7 +30,7 @@ import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
-import { canAddCopy } from './usePicks'
+import { canAddCopy, unitLimitMessage } from './usePicks'
 
 type Props = {
   enabled: boolean
@@ -261,7 +261,7 @@ export const Picker = memo(function Picker({
                       <PickerRow
                         key={unit.id}
                         unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
-
+                        unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
                         relationship={'relationship' in unit ? String(unit.relationship) : null}
                         attachmentReason={'attachmentReason' in unit ? (unit.attachmentReason as string | null) : null}
                         held={held}
@@ -323,6 +323,7 @@ type PickerRowProps = {
   query: string
   relationship: string | null
   attachmentReason: string | null
+  unavailableReason: string | null
   onPreview: (entryId: string, name: string) => void
   onFavourite?: (entryId: string) => void
   onAdd: (entryId: string) => void
@@ -337,6 +338,7 @@ const PickerRow = memo(function PickerRow({
   query,
   relationship,
   attachmentReason,
+  unavailableReason,
   onPreview,
   onFavourite,
   onAdd,
@@ -362,6 +364,9 @@ const PickerRow = memo(function PickerRow({
               {attachmentReason}
               {full ? '' : ' Can be added separately.'}
             </span>
+          ) : null}
+          {unavailableReason ? (
+            <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{unavailableReason}</span>
           ) : null}
           {held ? (
             <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>

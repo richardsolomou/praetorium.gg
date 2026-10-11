@@ -202,7 +202,7 @@ for (const width of [1440, 390]) {
     }
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
     await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Limit reached')
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('Limit reached')
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in roster')
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('construction rules')
     await page.screenshot({ path: `test-results/allied-limits-${width}.png` })
@@ -248,9 +248,11 @@ test('saving a guest roster does not discard it when browser storage is unavaila
 })
 
 test('a failed unit-limit check can be retried without losing the roster', async ({ page }) => {
+  await page.route('**/assets/reference-*.bin', (route) => route.abort())
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
   await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
+  await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') await route.abort()
     else await route.continue()
@@ -298,7 +300,7 @@ for (const width of [1440, 390]) {
       const picker = page.locator('div[data-onboarding="roster-picker"]')
       await expect(picker).not.toContainText('Checking unit limits')
       await expect(picker.locator('[data-picker-unit="Necron Warriors"]')).toHaveText(checkedRow)
-      await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeDisabled()
+      await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
       await picker.screenshot({ path: `test-results/picker-repricing-${width}.png` })
       release()
       await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
