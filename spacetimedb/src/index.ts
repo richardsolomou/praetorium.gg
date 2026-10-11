@@ -25,6 +25,7 @@ import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
 import { productSyncRefusal } from './syncOutcome'
+import { collectionLotUpdateSchema, matchesCollectionUpdate, updateCollectionStock } from '../../src/core/collection'
 
 const settings = table(
   { name: 'settings' },
@@ -322,6 +323,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     if (leagueId) touchLeague(ctx, leagueId, eventId)
   }
   for (const row of Array.from(ctx.db.collection.userId.filter(userId))) ctx.db.collection.key.delete(row.key)
+  for (const row of Array.from(ctx.db.collectionStock.userId.filter(userId))) ctx.db.collectionStock.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
   if (ctx.db.practiceOpponents.userId.delete(userId)) {
@@ -1168,6 +1170,19 @@ export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string
   }
 })
 
+export const collectionStockByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(Array.from(tx.db.collectionStock.userId.filter(userId)).map((row) => JSON.parse(row.lot)))
+  }),
+)
+
+export const updateCollectionLot = spacetime.procedure(
+  { userId: t.string(), payload: t.string() },
+  t.string(),
+  (ctx, { userId, payload }) => ctx.withTx((tx) => updateCollectionLotIn(tx, [userId, payload])),
+)
+
 export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
@@ -1845,6 +1860,27 @@ function updateOnboardingIn(tx: Context, args: unknown[]) {
   }
   touchProduct(tx, input.userId, 'onboarding')
   return productJson(onboardingData(tx, input.userId))
+}
+
+function updateCollectionLotIn(ctx: Context, args: unknown[]) {
+  requireOperator(ctx)
+  const [userId, payload] = z.tuple([z.string().min(1).max(128), z.string().max(1_000_000)]).parse(args)
+  const update = collectionLotUpdateSchema.parse(JSON.parse(payload))
+  const key = JSON.stringify([userId, update.lot.id])
+  const current = ctx.db.collectionStock.key.find(key)
+  if (!matchesCollectionUpdate(current ? JSON.parse(current.lot) : undefined, update)) return productJson(false)
+  updateCollectionStock(
+    Array.from(ctx.db.collectionStock.userId.filter(userId)).map((row) => JSON.parse(row.lot)),
+    update,
+  )
+  if (update.remove) ctx.db.collectionStock.key.delete(key)
+  else {
+    const row = { key, userId, lot: JSON.stringify(update.lot) }
+    if (current) ctx.db.collectionStock.key.update(row)
+    else ctx.db.collectionStock.insert(row)
+  }
+  touchProduct(ctx, userId, 'collection')
+  return productJson(true)
 }
 
 function addToCollectionIn(ctx: Context, args: unknown[]) {
@@ -2557,6 +2593,7 @@ const syncProductActions = {
   update_onboarding: updateOnboardingIn,
   add_to_collection: addToCollectionIn,
   remove_from_collection: removeFromCollectionIn,
+  update_collection_lot: updateCollectionLotIn,
   add_favourite_faction: addFavouriteFactionIn,
   remove_favourite_faction: removeFavouriteFactionIn,
   add_favourite_detachment: addFavouriteDetachmentIn,

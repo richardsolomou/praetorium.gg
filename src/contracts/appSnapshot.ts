@@ -42,6 +42,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'league-roster',
   'league-battles',
   'collection',
+  'collection-stock',
   'favourite-factions',
   'favourite-detachments',
   'onboarding',

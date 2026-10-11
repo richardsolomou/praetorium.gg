@@ -1,4 +1,6 @@
 import { attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
+import { combatCarriers } from '../core/combatLoadout'
+import { collectionDemands } from '../core/collection'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
@@ -762,6 +764,13 @@ function calculateRoster(
         key: unit.key,
         entryId: unit.entryId,
         name: unit.name,
+        collection: collectionDemands(
+          unit.entryId,
+          unit.name,
+          combatCarriers(unit.selection, loaded.index, options),
+          unit.size.models,
+          wargearOf(unit.selection, loaded.index),
+        ),
         points: selectionPoints.get(unit.selection) ?? 0,
         size: {
           min: unit.size.min,

@@ -1,4 +1,5 @@
 import { leagueWarlords } from '../../core/league'
+import { updateCollectionStock, type CollectionLot } from '../../core/collection'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { leagueEditionError } from '../../core/catalogueEdition'
@@ -30,6 +31,7 @@ async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>)
 }
 
 export const collection = () => accountRead(['collection'], () => server.collection())
+export const collectionStock = () => accountRead(['collection-stock'], () => server.collectionStock())
 export const favouriteFactions = () => accountRead(['favourite-factions'], () => server.favouriteFactions())
 export const favouriteDetachments = () => accountRead(['favourite-detachments'], () => server.favouriteDetachments())
 export const playerDefaults = () => accountRead(['player-defaults'], () => server.playerDefaults())
@@ -110,6 +112,19 @@ function deferredForAccount() {
     dependencies?: string[],
     update?: LocalDocumentUpdate,
   ) => deferred(kind, input, resource, data, identifiers, dependencies, owner, update)
+}
+
+export async function updateCollectionLot(
+  args: Parameters<typeof server.updateCollectionLot>[0],
+): ReturnType<typeof server.updateCollectionLot> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.updateCollectionLot(args)
+  const stock = await collectionStock()
+  const update = offlineActionSchemas.updateCollectionLot.parse(args.data)
+  await defer('updateCollectionLot', update, queryResource(['collection-stock']), undefined, {}, undefined, (current) =>
+    updateCollectionStock((current as CollectionLot[] | undefined) ?? stock, update),
+  )
+  return null
 }
 
 export async function setOwned(args: Parameters<typeof server.setOwned>[0]): ReturnType<typeof server.setOwned> {

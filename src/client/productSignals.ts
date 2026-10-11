@@ -15,7 +15,7 @@ const queryFamilies = {
     'player-rosters',
     'player-profile',
   ],
-  collection: ['collection'],
+  collection: ['collection', 'collection-stock'],
   favourites: ['favourite-factions', 'favourite-detachments'],
   friends: ['friendships', 'friend-battles', 'shared-battles', 'opponents', 'player-profile', 'player-search'],
   invites: ['friend-invite'],

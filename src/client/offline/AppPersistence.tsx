@@ -21,6 +21,7 @@ import {
   favouriteFactionsQuery,
   favouriteDetachmentsQuery,
   collectionQuery,
+  collectionStockQuery,
   playerDefaultsQuery,
   battleAudienceQuery,
   opponentsQuery,
@@ -111,6 +112,7 @@ export function AppPersistence() {
                   }
                 }),
                 client.query({ ...collectionQuery(), staleTime: Infinity }),
+                client.query({ ...collectionStockQuery(), staleTime: Infinity }),
                 client.query({ ...playerDefaultsQuery(), staleTime: Infinity }),
                 client.query({ ...battleAudienceQuery(), staleTime: Infinity }),
                 client.query({ ...opponentsQuery(), staleTime: Infinity }),
