@@ -297,7 +297,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           }
         />
       ) : null}
-      <RosterExportDialog text={actions.exportText} onClose={actions.clearExport} />
+      <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />
     </main>
   )
 }

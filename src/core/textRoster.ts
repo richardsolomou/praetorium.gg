@@ -4,6 +4,8 @@ export type TextRoster = {
   detachment: string | null
   disposition: string | null
   limit: number | null
+  reportedPoints?: number
+  unread?: string[]
   units: TextRosterUnit[]
 }
 
@@ -13,5 +15,8 @@ export type TextRosterUnit = {
   leading: string | null
   leader?: string | null
   models?: number | null
+  entry?: number
+  attachedToEntry?: number
+  unread?: string[]
   warlord: boolean
 }

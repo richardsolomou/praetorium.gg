@@ -16,6 +16,7 @@ const faction: CatalogueFile = {
         id: 'tomb-blades',
         name: 'Tomb Blades',
         type: 'unit',
+        costs: [{ typeId: 'pts', name: 'pts', value: 70 }],
         selectionEntries: [
           {
             id: 'model',
@@ -260,6 +261,7 @@ describe('roster export', () => {
         units: [
           {
             key: 0,
+            size: { models: 1 },
             name: 'Lokhust Lord',
             points: 100,
             group: 'character',
@@ -270,6 +272,7 @@ describe('roster export', () => {
           },
           {
             key: 1,
+            size: { models: 5 },
             name: 'Immortals',
             points: 200,
             group: 'other',
@@ -723,7 +726,7 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unplaced).toEqual([
-      { unit: 'Lokhust Lord', choices: [{ name: 'Leading Immortals', reason: 'every Immortals in this list is already led' }] },
+      { unit: 'Lokhust Lord (entry 2)', choices: [{ name: 'Leading Immortals', reason: 'every Immortals in this list is already led' }] },
     ])
   })
 
@@ -768,6 +771,79 @@ Exported with BattleBase, Data Version: v20260826`,
 })
 
 describe('Praetorium roster import', () => {
+  const setup = 'Repeated (999 Points)\n\nNecrons\nNo detachment\nStrike Force (2,000 Points)\n\nOTHER DATASHEETS\n\n'
+  const footer = '\nExported with Praetorium.gg vtest\nRuleset: necrons\n'
+
+  it('reports each repeated partially matched entry separately', () => {
+    const text = setup + 'Tomb Blades (70 Points)\n • 3x Photon lance\n\nTomb Blades (70 Points)\n • 3x Photon lance\n' + footer
+    expect(importRosterFile({ file: text }, loaded).unplaced.map((row) => row.unit)).toEqual([
+      'Tomb Blades (entry 1)',
+      'Tomb Blades (entry 2)',
+    ])
+  })
+
+  it('separates stated points from the authoritative price of the matched entries', () => {
+    const text = setup + 'Tomb Blades (70 Points)\n • 3x Particle beamer\n' + footer
+    expect(importRosterFile({ file: text }, loaded)).toMatchObject({ reportedPoints: 999, currentPoints: 70, sourceUnitCount: 1 })
+  })
+
+  it('does not fall back to a same-named unit when a stated attachment identity is missing', () => {
+    const text =
+      setup +
+      'Lokhust Lord (70 Points)\n • Leading: Immortals\n • Attached to entry: 99\n\nImmortals (100 Points)\n • Roster entry: 2\n' +
+      footer
+    expect(importRosterFile({ file: text }, loaded).unplaced).toEqual([
+      {
+        unit: 'Lokhust Lord',
+        choices: [{ name: 'Attached to entry 99', reason: 'the attachment does not identify exactly one other matched entry' }],
+      },
+    ])
+  })
+
+  it('preserves explicit model counts when there is no equipment to infer them from', () => {
+    const text = setup + 'Tomb Blades (70 Points)\n • Models: 6\n' + footer
+    expect(importRosterFile({ file: text }, loaded).units[0]?.models).toBe(6)
+  })
+
+  it('does not replace a missing explicit target through a different same-named leader', () => {
+    const text =
+      setup +
+      'Lokhust Lord (70 Points)\n\nLokhust Lord (70 Points)\n • Leading: Immortals\n • Attached to entry: 99\n\nImmortals (100 Points)\n • Leader: Lokhust Lord\n • Roster entry: 3\n' +
+      footer
+    expect(importRosterFile({ file: text }, loaded).units[1]?.attachedTo).toBeUndefined()
+  })
+
+  it.each([0, 1, 3])('accounts for all %i source entries including unmatched units', (count) => {
+    const text = setup + Array.from({ length: count }, (_, at) => `Unknown ${at} (70 Points)\n`).join('\n') + footer
+    const imported = importRosterFile({ file: text }, loaded)
+    expect({ total: imported.sourceUnitCount, matched: imported.units.length, missing: imported.unknown.length }).toEqual({
+      total: count,
+      matched: 0,
+      missing: count,
+    })
+  })
+
+  it('refuses oversized entry sets before building or saving them', () => {
+    const text = setup + 'Tomb Blades (70 Points)\n'.repeat(101) + footer
+    expect(() => importRosterFile({ file: text }, loaded)).toThrow('at most 100 entries')
+  })
+
+  it('refuses oversized text before attempting format recognition', () => {
+    expect(() => importRosterFile({ file: 'x'.repeat(200_001) }, loaded)).toThrow('200000')
+  })
+
+  it('does not guess a supported battle size for an explicitly unsupported size', () => {
+    const text = (setup + footer).replace('2,000 Points', '2,500 Points')
+    expect(importRosterFile({ file: text }, loaded)).toMatchObject({ limit: null, unknown: [{ name: '2500 point battle size' }] })
+  })
+
+  it('reports an explicit zero model count instead of silently using the minimum squad size', () => {
+    const text = setup + 'Tomb Blades (70 Points)\n • Models: 0\n' + footer
+    expect(importRosterFile({ file: text }, loaded).unplaced).toEqual([
+      { unit: 'Tomb Blades', choices: [{ name: '0 models', reason: 'this datasheet fields 3 to 6 models' }] },
+    ])
+  })
+
   it('round-trips exported attachments', () => {
     const exported = exportRosterFile(
       {
@@ -786,6 +862,7 @@ describe('Praetorium roster import', () => {
         units: [
           {
             key: 0,
+            size: { models: 1 },
             name: 'Lokhust Lord',
             points: 100,
             group: 'character',
@@ -796,6 +873,7 @@ describe('Praetorium roster import', () => {
           },
           {
             key: 1,
+            size: { models: 5 },
             name: 'Immortals',
             points: 200,
             group: 'other',

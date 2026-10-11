@@ -600,7 +600,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(guest.getByLabel('List name')).toHaveAttribute('readonly', '')
   await guest.getByRole('button', { name: 'Roster actions' }).click()
   await expect(guest.getByRole('menuitem', { name: 'Sign in to duplicate' })).toHaveAttribute('href', /\/sign-in\?next=/)
-  await expect(guest.getByRole('menuitem', { name: 'Export GW text' })).toBeVisible()
+  await expect(guest.getByRole('menuitem', { name: 'Export text' })).toBeVisible()
   await expect(guest.getByRole('menuitem', { name: 'Print' })).toBeVisible()
   await guest.screenshot({ path: 'test-results/shared-roster-actions.png', fullPage: true })
   await guest.keyboard.press('Escape')

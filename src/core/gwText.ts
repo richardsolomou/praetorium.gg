@@ -8,6 +8,9 @@ export type GwTextRoster = {
   points: number
   units: {
     name: string
+    models?: number
+    entry?: number
+    attachedToEntry?: number
     points: number
     group: 'character' | 'battleline' | 'transport' | 'other'
     warlord: boolean
@@ -51,6 +54,9 @@ export function toGwText(roster: GwTextRoster, version: string): string {
       for (const item of unit.wargear) lines.push(`    • ${item.count}x ${item.name}`)
       for (const enhancement of unit.enhancements) lines.push(`    • Enhancement: ${enhancement}`)
       for (const upgrade of unit.upgrades) lines.push(`    • Enhancement: ${upgrade}`)
+      if (unit.models !== undefined) lines.push(`    • Models: ${unit.models}`)
+      if (unit.entry !== undefined) lines.push(`    • Roster entry: ${unit.entry}`)
+      if (unit.attachedToEntry !== undefined) lines.push(`    • Attached to entry: ${unit.attachedToEntry}`)
     }
   }
 
