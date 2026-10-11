@@ -4,12 +4,76 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { Loadout } from './Loadout'
 import { ModelCard } from './ModelCard'
-import { WargearRow } from './LoadoutControls'
+import { EitherChoice, WargearRow } from './LoadoutControls'
 import { WeaponSummary } from '../../../components/DatasheetProfiles'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { loadoutDatasheetsQuery } from '../../../queries'
 import type { LoadoutUnit } from './loadoutModel'
 import type { loadoutDatasheets } from '../../../../server/functions'
+
+it.each(['dual', 'gun'])('shows every bundle profile before choosing when %s is selected', (chosen) => {
+  const markup = renderToStaticMarkup(
+    createElement(EitherChoice, {
+      choice: {
+        key: 'weapons',
+        name: 'Heavy weapons',
+        chosen,
+        optional: false,
+        carried: false,
+        room: 1,
+        uniform: false,
+        owner: null,
+        options: [
+          {
+            id: 'dual',
+            name: 'Dual fists + 2 Projectors',
+            pieces: ['Dual fists', 'Projectors'],
+            pieceCounts: [
+              { name: 'Dual fists', count: 1 },
+              { name: 'Projectors', count: 2 },
+            ],
+            count: chosen === 'dual' ? 1 : 0,
+            points: 0,
+            min: 0,
+            max: 1,
+          },
+          {
+            id: 'gun',
+            name: 'Cannon + Fist + Projectors',
+            pieces: ['Cannon', 'Fist', 'Projectors'],
+            pieceCounts: [
+              { name: 'Cannon', count: 1 },
+              { name: 'Fist', count: 1 },
+              { name: 'Projectors', count: 1 },
+            ],
+            count: chosen === 'gun' ? 1 : 0,
+            points: 0,
+            min: 0,
+            max: 1,
+          },
+        ],
+      },
+      unitName: 'Walker',
+      editable: true,
+      onChoose: () => undefined,
+      abilities: [],
+      rules: [],
+      weapons: ['Dual fists', 'Projectors', 'Cannon', 'Fist'].map((name) => ({
+        id: name,
+        name,
+        type: 'Ranged Weapons',
+        values: [
+          { name: 'Range', value: '24"' },
+          { name: 'A', value: name === 'Cannon' ? '12' : '3' },
+        ],
+      })),
+    }),
+  )
+  expect(markup.match(/>Range</g)).toHaveLength(5)
+  expect(markup).toContain('aria-label="Select Dual fists + 2 Projectors"')
+  expect(markup).toContain('aria-label="Select Cannon + Fist + Projectors"')
+  expect(markup).toContain('2× Projectors')
+})
 
 it.each([true, false])('offers one composition control when fixed sizes are %s', (fixedSizes) => {
   const queryClient = new QueryClient()

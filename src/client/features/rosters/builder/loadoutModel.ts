@@ -58,10 +58,9 @@ export type WeaponProfileData = Datasheet['profiles'][number]
 
 export function equippedWeaponProfiles(
   profiles: readonly WeaponProfileData[],
-  models: readonly LoadoutModel[],
   choices: readonly { options: readonly Pick<LoadoutOption, 'name' | 'count' | 'pieceCounts'>[] }[],
 ) {
-  return profiles.filter((profile) => !models.length || (profile.count ?? 1) > controlledProfileCount(choices, profile.name))
+  return profiles.filter((profile) => (profile.count ?? 1) > controlledProfileCount(choices, profile.name))
 }
 
 export function unmodeledGrantedWeapons(
@@ -205,6 +204,9 @@ export function weaponMatches(optionName: string, profileName: string) {
   return named(optionName, profileName)
 }
 
+export const weaponPieceMatches = (pieceName: string, profileName: string) =>
+  sameWargear(pieceName, profileName) || wargearKey(pieceName) === wargearKey(profileName, true)
+
 export function controlledProfileCount(
   choices: readonly { options: readonly Pick<LoadoutOption, 'name' | 'count' | 'pieceCounts'>[] }[],
   profileName: string,
@@ -214,9 +216,9 @@ export function controlledProfileCount(
     .reduce((total, option) => {
       if (!option.count) return total
       const pieces = option.pieceCounts
-        ?.filter((piece) => weaponMatches(piece.name, profileName))
+        ?.filter((piece) => weaponPieceMatches(piece.name, profileName))
         .reduce((count, piece) => count + piece.count, 0)
-      return total + Math.max(pieces ?? 0, weaponMatches(option.name, profileName) ? option.count : 0)
+      return total + (pieces ?? (weaponMatches(option.name, profileName) ? option.count : 0))
     }, 0)
 }
 
@@ -239,8 +241,11 @@ export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
 }
 
 export function weaponProfilesFor(option: { name: string; pieces?: readonly string[] }, profiles: readonly WeaponProfileData[]) {
-  const names = [option.name, ...(option.pieces ?? [])]
-  return uniqueWeaponProfiles(profiles.filter((profile) => names.some((name) => weaponMatches(name, profile.name))))
+  return uniqueWeaponProfiles(
+    option.pieces?.length
+      ? option.pieces.flatMap((name) => profiles.filter((profile) => weaponPieceMatches(name, profile.name)))
+      : profiles.filter((profile) => weaponMatches(option.name, profile.name)),
+  )
 }
 
 /**

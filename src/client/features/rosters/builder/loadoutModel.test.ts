@@ -45,7 +45,7 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
 
-it('shows a selected weapon swap for a squad without model rows', () => {
+it('shows only fixed weapons outside the choices for a squad without model rows', () => {
   const profiles = [
     { ...weapon('Superfrag Rocket Launcher', 'Ranged Weapons'), count: 4 },
     { ...weapon('Vengor Launcher', 'Ranged Weapons'), count: 1 },
@@ -54,10 +54,7 @@ it('shows a selected weapon swap for a squad without model rows', () => {
     choice([{ ...option('vengor', 1, 1), name: 'Vengor Launcher', pieceCounts: [{ name: 'Vengor Launcher', count: 1 }] }], 1),
   ]
 
-  expect(equippedWeaponProfiles(profiles, [], choices).map((profile) => profile.name)).toEqual([
-    'Superfrag Rocket Launcher',
-    'Vengor Launcher',
-  ])
+  expect(equippedWeaponProfiles(profiles, choices).map((profile) => profile.name)).toEqual(['Superfrag Rocket Launcher'])
 })
 
 it('shows an equipped enhancement weapon outside the model loadout without repeating its other weapons', () => {
@@ -248,6 +245,36 @@ describe('matching a wargear name to what describes it', () => {
         profiles,
       ).map((profile) => profile.name),
     ).toEqual(['Bolt pistol', 'Master-crafted bolter', 'Close combat weapon'])
+  })
+
+  it('keeps the single fist profile out of a bundle containing dual fists', () => {
+    expect(
+      weaponProfilesFor({ name: 'Dual Caestus Fists + 2 Projectors', pieces: ['Dual Caestus Fists', 'Projectors'] }, [
+        weapon('Dual Caestus Fists', 'Melee Weapons'),
+        weapon('Caestus Fist', 'Melee Weapons'),
+        weapon('Projectors', 'Ranged Weapons'),
+      ]).map((profile) => profile.name),
+    ).toEqual(['Dual Caestus Fists', 'Projectors'])
+  })
+
+  it('keeps marked and unmarked firing modes on structured equipment', () => {
+    expect(
+      weaponProfilesFor({ name: 'Launcher and Blade', pieces: ['Launcher', 'Blade'] }, [
+        weapon('➤ Launcher - Frag', 'Ranged Weapons'),
+        weapon('Launcher - Krak', 'Ranged Weapons'),
+        weapon('Blade', 'Melee Weapons'),
+      ]).map((profile) => profile.name),
+    ).toEqual(['➤ Launcher - Frag', 'Launcher - Krak', 'Blade'])
+  })
+
+  it('keeps bundle profiles in equipment order when the available profiles change order', () => {
+    expect(
+      weaponProfilesFor({ name: 'Cannon and Fist and Projector', pieces: ['Cannon', 'Fist', 'Projector'] }, [
+        weapon('Projector', 'Ranged Weapons'),
+        weapon('Fist', 'Melee Weapons'),
+        weapon('Cannon', 'Ranged Weapons'),
+      ]).map((profile) => profile.name),
+    ).toEqual(['Cannon', 'Fist', 'Projector'])
   })
 
   it('matches a rule the same way a profile is matched', () => {
