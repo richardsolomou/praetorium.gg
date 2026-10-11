@@ -152,6 +152,8 @@ test('editable detail waits for public access to save before sharing', async ({ 
   await signUp(page, uniqueName('Detail sharer'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Detail share' })
   const sharedUrl = page.url()
+  const anonymous = await (await browser.newContext()).newPage()
+  const previewPath = `/api/previews${new URL(sharedUrl).pathname}`
   await page.evaluate(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
     window.ReactNativeWebView = {
@@ -183,18 +185,21 @@ test('editable detail waits for public access to save before sharing', async ({ 
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
-  await review.getByRole('button', { name: 'Confirm changes' }).click()
-  await saveStarted
-  await expect(review.getByRole('button', { name: 'Confirm changes' })).toBeDisabled()
-  const sharedBeforeSave = await page.locator('html').getAttribute('data-native-message')
-  releaseSave()
-  expect(sharedBeforeSave).toBeNull()
+  try {
+    await review.getByRole('button', { name: 'Confirm changes' }).click()
+    await saveStarted
+    await expect(review.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled()
+    expect((await anonymous.request.get(previewPath, { timeout: 5000 })).status()).toBe(404)
+    await review.screenshot({ path: test.info().outputPath('reviewed-access-save-held.png') })
+    expect(await page.locator('html').getAttribute('data-native-message')).toBeNull()
+  } finally {
+    releaseSave()
+  }
   await expect(review).toBeHidden()
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Share link' }).click()
   await expect.poll(() => page.locator('html').getAttribute('data-native-message')).toContain('"type":"native-share"')
 
-  const anonymous = await (await browser.newContext()).newPage()
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByLabel('List name')).toHaveValue('Detail share')
 })
