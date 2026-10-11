@@ -21,11 +21,11 @@ import {
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
+import { MAX_COLLECTION_MODELS } from '../../src/core/collection'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
 import { productSyncRefusal } from './syncOutcome'
-import { collectionLotUpdateSchema, matchesCollectionUpdate, updateCollectionStock } from '../../src/core/collection'
 import { publicSupportPayload, SUPPORT_REPORT_LIMIT, supportStoreCommandSchema } from '../../src/core/supportReport'
 
 const settings = table(
@@ -328,6 +328,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.supportReports.userId.filter(userId))) ctx.db.supportReports.reference.delete(row.reference)
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
+  for (const row of Array.from(ctx.db.favouriteDatasheets.userId.filter(userId))) ctx.db.favouriteDatasheets.key.delete(row.key)
   if (ctx.db.practiceOpponents.userId.delete(userId)) {
     touchPublic(ctx, 'opponents')
     touchAdmin(ctx)
@@ -1172,24 +1173,16 @@ export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string
   }
 })
 
-export const collectionStockByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    return productJson(Array.from(tx.db.collectionStock.userId.filter(userId)).map((row) => JSON.parse(row.lot)))
-  }),
-)
-
-export const updateCollectionLot = spacetime.procedure(
-  { userId: t.string(), payload: t.string() },
-  t.string(),
-  (ctx, { userId, payload }) => ctx.withTx((tx) => updateCollectionLotIn(tx, [userId, payload])),
-)
-
 export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     return productJson(
-      Array.from(tx.db.collection.userId.filter(userId)).map(({ userId: ownerId, entryId, at }) => ({ userId: ownerId, entryId, at })),
+      Array.from(tx.db.collection.userId.filter(userId)).map(({ userId: ownerId, entryId, at, models }) => ({
+        userId: ownerId,
+        entryId,
+        at,
+        models: models ?? null,
+      })),
     )
   }),
 )
@@ -1201,6 +1194,13 @@ export const addToCollection = spacetime.reducer({ userId: t.string(), entryId: 
 export const removeFromCollection = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, input) => {
   removeFromCollectionIn(ctx, [input.userId, input.entryId])
 })
+
+export const setCollectionModels = spacetime.reducer(
+  { userId: t.string(), entryId: t.string(), models: t.u32(), at: t.u64() },
+  (ctx, input) => {
+    setCollectionModelsIn(ctx, [input.userId, input.entryId, input.models, input.at])
+  },
+)
 
 export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
@@ -1214,6 +1214,27 @@ export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() 
     )
   }),
 )
+
+export const favouriteDatasheetsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(
+      Array.from(tx.db.favouriteDatasheets.userId.filter(userId)).map(({ userId: ownerId, entryId, at }) => ({
+        userId: ownerId,
+        entryId,
+        at,
+      })),
+    )
+  }),
+)
+
+export const addFavouriteDatasheet = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
+  addFavouriteDatasheetIn(ctx, [input.userId, input.entryId, input.at])
+})
+
+export const removeFavouriteDatasheet = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, input) => {
+  removeFavouriteDatasheetIn(ctx, [input.userId, input.entryId])
+})
 
 export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string(), at: t.u64() }, (ctx, input) => {
   addFavouriteFactionIn(ctx, [input.userId, input.catalogueId, input.at])
@@ -1930,27 +1951,6 @@ function updateOnboardingIn(tx: Context, args: unknown[]) {
   return productJson(onboardingData(tx, input.userId))
 }
 
-function updateCollectionLotIn(ctx: Context, args: unknown[]) {
-  requireOperator(ctx)
-  const [userId, payload] = z.tuple([z.string().min(1).max(128), z.string().max(1_000_000)]).parse(args)
-  const update = collectionLotUpdateSchema.parse(JSON.parse(payload))
-  const key = JSON.stringify([userId, update.lot.id])
-  const current = ctx.db.collectionStock.key.find(key)
-  if (!matchesCollectionUpdate(current ? JSON.parse(current.lot) : undefined, update)) return productJson(false)
-  updateCollectionStock(
-    Array.from(ctx.db.collectionStock.userId.filter(userId)).map((row) => JSON.parse(row.lot)),
-    update,
-  )
-  if (update.remove) ctx.db.collectionStock.key.delete(key)
-  else {
-    const row = { key, userId, lot: JSON.stringify(update.lot) }
-    if (current) ctx.db.collectionStock.key.update(row)
-    else ctx.db.collectionStock.insert(row)
-  }
-  touchProduct(ctx, userId, 'collection')
-  return productJson(true)
-}
-
 function addToCollectionIn(ctx: Context, args: unknown[]) {
   const values = z
     .tuple([
@@ -1964,7 +1964,7 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
   requireOperator(ctx)
   const key = JSON.stringify([input.userId, input.entryId])
   if (!ctx.db.collection.key.find(key)) {
-    ctx.db.collection.insert({ key, ...input })
+    ctx.db.collection.insert({ key, ...input, models: 1 })
     touchProduct(ctx, input.userId, 'collection')
   }
 }
@@ -1975,6 +1975,24 @@ function removeFromCollectionIn(ctx: Context, args: unknown[]) {
 
   requireOperator(ctx)
   if (ctx.db.collection.key.delete(JSON.stringify([input.userId, input.entryId]))) touchProduct(ctx, input.userId, 'collection')
+}
+
+function setCollectionModelsIn(ctx: Context, args: unknown[]) {
+  const [userId, entryId, models, at] = z
+    .tuple([
+      z.string().max(2_000_000),
+      z.string().max(2_000_000),
+      z.number().int().min(1).max(MAX_COLLECTION_MODELS),
+      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
+    ])
+    .parse(args)
+
+  requireOperator(ctx)
+  const key = JSON.stringify([userId, entryId])
+  const current = ctx.db.collection.key.find(key)
+  if (current) ctx.db.collection.key.update({ ...current, models })
+  else ctx.db.collection.insert({ key, userId, entryId, at, models })
+  touchProduct(ctx, userId, 'collection')
 }
 
 function addFavouriteFactionIn(ctx: Context, args: unknown[]) {
@@ -2001,6 +2019,32 @@ function removeFavouriteFactionIn(ctx: Context, args: unknown[]) {
 
   requireOperator(ctx)
   if (ctx.db.favouriteFactions.key.delete(JSON.stringify([input.userId, input.catalogueId]))) touchProduct(ctx, input.userId, 'favourites')
+}
+
+function addFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
+  const values = z
+    .tuple([
+      z.string().max(2_000_000),
+      z.string().max(2_000_000),
+      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
+    ])
+    .parse(args)
+  const input = { userId: values[0], entryId: values[1], at: values[2] }
+
+  requireOperator(ctx)
+  const key = JSON.stringify([input.userId, input.entryId])
+  if (!ctx.db.favouriteDatasheets.key.find(key)) {
+    ctx.db.favouriteDatasheets.insert({ key, ...input })
+    touchProduct(ctx, input.userId, 'favourites')
+  }
+}
+
+function removeFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
+  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
+  const input = { userId: values[0], entryId: values[1] }
+
+  requireOperator(ctx)
+  if (ctx.db.favouriteDatasheets.key.delete(JSON.stringify([input.userId, input.entryId]))) touchProduct(ctx, input.userId, 'favourites')
 }
 
 function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
@@ -2661,11 +2705,13 @@ const syncProductActions = {
   update_onboarding: updateOnboardingIn,
   add_to_collection: addToCollectionIn,
   remove_from_collection: removeFromCollectionIn,
-  update_collection_lot: updateCollectionLotIn,
+  set_collection_models: setCollectionModelsIn,
   add_favourite_faction: addFavouriteFactionIn,
   remove_favourite_faction: removeFavouriteFactionIn,
   add_favourite_detachment: addFavouriteDetachmentIn,
   remove_favourite_detachment: removeFavouriteDetachmentIn,
+  add_favourite_datasheet: addFavouriteDatasheetIn,
+  remove_favourite_datasheet: removeFavouriteDatasheetIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
   league_command: leagueCommandIn,

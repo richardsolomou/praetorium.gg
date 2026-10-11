@@ -3,7 +3,7 @@ import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { supportPageForPath } from '../../../core/supportReport'
-import { CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
+import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { onboardingComplete, resolvedOnboardingTasks } from '../../../core/onboarding'
@@ -104,6 +104,9 @@ function AccountMenuItems() {
               ) : null}
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem render={<Link to="/collection" />}>
+            <Boxes /> Collection
+          </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/friends" />}>
             <Users /> Friends
           </DropdownMenuItem>

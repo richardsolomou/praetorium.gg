@@ -14,6 +14,7 @@ import {
   faction,
   factionIndex,
   favouriteDetachments,
+  favouriteDatasheets,
   favouriteFactions,
   gameReferences,
   globalSearch,
@@ -37,6 +38,12 @@ export const favouriteFactionsQuery = () =>
   queryOptions({
     queryKey: ['favourite-factions'],
     queryFn: () => favouriteFactions(),
+    staleTime: SSR_STALE_TIME,
+  })
+export const favouriteDatasheetsQuery = () =>
+  queryOptions({
+    queryKey: ['favourite-datasheets'],
+    queryFn: () => favouriteDatasheets(),
     staleTime: SSR_STALE_TIME,
   })
 export const favouriteDetachmentsQuery = () =>

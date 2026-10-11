@@ -169,14 +169,35 @@ it.skipIf(!url || !database || !token)('keeps collection and favourites idempote
     await store.addFavouriteFaction({ userId, catalogueId, now: now + 1 })
     await store.addFavouriteDetachment({ userId, catalogueId, detachmentId, now })
     await store.addFavouriteDetachment({ userId, catalogueId, detachmentId, now: now + 1 })
-    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now }])
+    await store.addFavouriteDatasheet({ userId, entryId, now })
+    await store.addFavouriteDatasheet({ userId, entryId, now: now + 1 })
+    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now, models: 1 }])
     expect(await store.favouriteFactionsByUser(userId)).toEqual([{ userId, catalogueId, at: now }])
     expect(await store.favouriteDetachmentsByUser(userId)).toEqual([{ userId, catalogueId, detachmentId, at: now }])
+    expect(await store.favouriteDatasheetsByUser(userId)).toEqual([{ userId, entryId, at: now }])
+    expect(await store.favouriteDatasheetsByUser('other')).toEqual([])
     expect(await store.collectionByUser('other')).toEqual([])
   } finally {
     await store.removeFromCollection(userId, entryId)
     await store.removeFavouriteFaction(userId, catalogueId)
     await store.removeFavouriteDetachment(userId, catalogueId, detachmentId)
+    await store.removeFavouriteDatasheet(userId, entryId)
   }
   expect(await store.collectionByUser(userId)).toEqual([])
+})
+
+it.skipIf(!url || !database || !token)('records a model count without duplicating the collection entry', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const entryId = randomUUID()
+  const now = Date.now()
+  try {
+    await store.setCollectionModels({ userId, entryId, models: 3, now })
+    await store.addToCollection({ userId, entryId, now: now + 1 })
+    await store.setCollectionModels({ userId, entryId, models: 12, now: now + 2 })
+    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now, models: 12 }])
+    expect(await store.collectionByUser('other')).toEqual([])
+  } finally {
+    await store.removeFromCollection(userId, entryId)
+  }
 })

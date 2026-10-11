@@ -26,6 +26,7 @@ export function createQueryClient() {
     if (!client.getQueryData(['me'])) {
       client.setQueryData(['favourite-factions'], [])
       client.setQueryData(['favourite-detachments'], [])
+      client.setQueryData(['favourite-datasheets'], [])
     }
   }
   if (saved) for (const entry of saved.queries) client.setQueryData(entry.key, entry.data)

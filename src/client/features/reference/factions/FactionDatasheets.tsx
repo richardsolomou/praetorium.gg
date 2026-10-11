@@ -5,10 +5,12 @@ import { Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useState } from 'react'
 import type { UnitSummary } from '../../../../contracts/catalogue'
-import { factionDatasheetsQuery } from '../../../queries'
+import { factionDatasheetsQuery, meQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
-import { CollectionToggle } from './CollectionToggle'
+import { FavouriteDatasheetToggle } from './FavouriteDatasheetToggle'
+import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
+import { favouritesFirst } from '../../../favouriteFactions'
 import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { GROUPS } from '../../../unitGroups'
@@ -26,6 +28,8 @@ export function FactionDatasheets() {
     ...factionDatasheetsQuery(faction?.id ?? '', settledQuery),
     placeholderData: keepPreviousData,
   })
+  const { data: me } = useQuery(meQuery())
+  const { favourites } = useFavouriteDatasheets(Boolean(me))
   if (path !== `/factions/${catalogueId}${rulesVersion ? `/rules/${rulesVersion}` : ''}/datasheets`) return <Outlet />
   if (!faction) return null
 
@@ -61,7 +65,10 @@ export function FactionDatasheets() {
         <div className="mt-2">
           {units.length ? (
             GROUPS.map((group) => {
-              const rows = units.filter((unit) => unit.group === group.id)
+              const rows = favouritesFirst(
+                units.filter((unit) => unit.group === group.id),
+                favourites,
+              )
               return rows.length ? (
                 <Section key={group.id} title={group.plural} count={rows.length}>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -114,7 +121,7 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
         </span>
         {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
       </FactionReferenceLink>
-      <CollectionToggle entryId={unit.id} name={unit.name} />
+      <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} />
       <ChevronRight className="mr-2 size-4 shrink-0 text-dim" aria-hidden />
     </div>
   )

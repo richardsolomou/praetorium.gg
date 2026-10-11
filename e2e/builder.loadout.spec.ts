@@ -111,26 +111,26 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
 test('the filters narrow the book to what is worth taking', async ({ browser, page }) => {
   await openBuilder(page)
 
-  // Owned: nothing is, until something is said to be.
-  await page.getByRole('button', { name: 'Owned' }).click()
-  await expect(page.getByText('Everything is filtered out.')).toBeVisible()
-  await page.getByRole('button', { name: 'Owned' }).click()
+  // Owned: nothing is, until something is said to be, and the filter says where to say it.
+  const ownedFilter = page.getByRole('button', { name: 'Owned', exact: true })
+  await expect(ownedFilter).toHaveAttribute('aria-disabled', 'true')
+  await ownedFilter.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Collection page')
+  await page.keyboard.press('Escape')
 
   await page.getByLabel('Add a unit').fill('Lychguard')
   const lychguard = page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()
   await expect(lychguard).toBeVisible()
-  const ownLychguard = page.getByRole('button', { name: /Lychguard to your collection/ })
-  await ownLychguard.click()
-  await expect(page.getByRole('button', { name: /Lychguard from your collection/ })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: /Lychguard to favourite datasheets/ }).click()
+  await expect(page.getByRole('button', { name: /Lychguard from favourite datasheets/ })).toHaveAttribute('aria-pressed', 'true')
   const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const serverPage = await serverContext.newPage()
   await serverPage.goto('/factions/necrons/datasheets')
-  await expect(serverPage.getByLabel('Loading collection status for Lychguard')).toBeVisible()
-  await serverPage.screenshot({ path: 'test-results/collection-loading-state.png', fullPage: true })
+  await expect(serverPage.getByLabel('Loading favourite status for Lychguard')).toBeVisible()
+  await serverPage.screenshot({ path: 'test-results/favourite-loading-state.png', fullPage: true })
   await serverContext.close()
-  await page.getByRole('button', { name: 'Owned' }).click()
-  await expect(lychguard).toBeVisible()
-  await page.getByRole('button', { name: 'Owned' }).click()
+  // A favourite is not a claim to own the models.
+  await expect(ownedFilter).toHaveAttribute('aria-disabled', 'true')
 
   // Unit limit: three Lychguard is as many as the data allows.
   // One at a time on purpose: each click re-prices the list, and the next click's
@@ -143,6 +143,13 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitem', { name: 'Duplicate unit' })).toBeDisabled()
   await page.keyboard.press('Escape')
+  await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
+  await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
+  await page.keyboard.press('Escape')
+  await expect(ownedFilter).not.toHaveAttribute('aria-disabled')
+  await ownedFilter.click()
+  await expect(lychguard).toBeVisible()
+  await ownedFilter.click()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeVisible()
   await page.keyboard.press('Escape')

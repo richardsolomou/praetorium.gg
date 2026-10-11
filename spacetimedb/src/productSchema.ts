@@ -189,6 +189,7 @@ const leagueEventBattles = table(
   },
 )
 
+/** Retired roster-tied stock. SpacetimeDB refuses to drop a table that still holds rows, so it stays until it is emptied. */
 const collectionStock = table(
   { name: 'collection_stock' },
   {
@@ -219,6 +220,7 @@ const collection = table(
     userId: t.string().index('btree'),
     entryId: t.string(),
     at: t.u64(),
+    models: t.option(t.u32()).default(undefined),
   },
 )
 
@@ -246,6 +248,16 @@ const favouriteDetachments = table(
     userId: t.string().index('btree'),
     catalogueId: t.string(),
     detachmentId: t.string(),
+    at: t.u64(),
+  },
+)
+
+const favouriteDatasheets = table(
+  { name: 'favourite_datasheets' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    entryId: t.string(),
     at: t.u64(),
   },
 )
@@ -318,6 +330,7 @@ export const productTables = {
   favouriteFactions,
   practiceOpponents,
   favouriteDetachments,
+  favouriteDatasheets,
   productRevisions,
   publicRevisions,
 }

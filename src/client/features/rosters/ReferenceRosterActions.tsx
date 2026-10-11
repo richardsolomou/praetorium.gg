@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Plus } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,7 +87,18 @@ export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFac
  * Space Marines datasheet offers a Blood Angels list too. The builder then adds the
  * unit under that roster's own limits, and says so when it cannot.
  */
-export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFaction; entryId: string; name: string }) {
+export function AddToRoster({
+  faction,
+  entryId,
+  name,
+  renderTrigger,
+}: {
+  faction: RosterSetupFaction
+  entryId: string
+  name: string
+  /** Draws whatever opens the flow; the dialogs stay here so the trigger may live in a menu that closes. */
+  renderTrigger: (open: () => void) => ReactNode
+}) {
   const [step, setStep] = useState<'closed' | 'choose' | 'create'>('closed')
   const [guestDraft, setGuestDraft] = useState<GuestDraft | null>(null)
   const { data: me } = useQuery(meQuery())
@@ -128,9 +139,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={open}>
-        <Plus /> Add to roster
-      </Button>
+      {renderTrigger(open)}
       <Dialog open={choosing} onOpenChange={(next) => !next && setStep('closed')}>
         <DialogContent>
           <DialogHeader>
