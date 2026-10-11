@@ -157,6 +157,15 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
   return {
     resolve,
     factionFor,
+    battleFactions: () => {
+      const advertised = allFactions()?.factions ?? []
+      const ids = new Set(advertised.map(({ id }) => id))
+      const historical = (base()?.factions ?? []).flatMap(({ id }) => {
+        const faction = ids.has(id) ? null : factionFor(id)
+        return faction ? [faction] : []
+      })
+      return [...advertised, ...historical]
+    },
     catalogueFor: (catalogueId: string) => {
       const id = resolve(catalogueId)
       return catalogueEditionId(id) ? (lookup(id)?.catalogue ?? null) : base()

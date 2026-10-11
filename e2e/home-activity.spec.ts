@@ -9,6 +9,21 @@ async function makePreviewBattleMostRecent() {
   await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE id = ${battles[0].id}`
 }
 
+for (const width of [390, 1440]) {
+  test(`shows the faction icon for an unqualified frozen army at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await signUp(page, uniqueName('Historical faction'))
+    await page.goto('/')
+    const battle = page.locator('[data-home-feed="Public games"] a[href="/battles/preview-league-battle-doubles"]')
+    const mark = battle.locator('[data-faction-mark="space-marines"]')
+    await expect(mark).toBeVisible()
+    await expect(mark).toHaveCSS('mask-image', /faction-icons\/space-marines/)
+    expect((await page.request.get('/api/faction-icons/space-marines')).ok()).toBe(true)
+    await battle.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath('historical-battle-faction.png') })
+  })
+}
+
 test('greets a signed-in player whose provider supplied no name', async ({ page }) => {
   const { email } = await signUp(page, uniqueName('Nameless'))
   await withAuthSql((database) => database.prepare('UPDATE user SET name = ? WHERE email = ?').run('', email))
