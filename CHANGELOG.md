@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.5
+
+### Patch Changes
+
+- 5bbe474: Allow production replicas to warm retained roster rules before startup health checks trigger rollback.
+
 ## 0.115.4
 
 ### Patch Changes
