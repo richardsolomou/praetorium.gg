@@ -8,6 +8,7 @@ import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
 import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
+import type { CollectionLotUpdate } from '../../core/collection'
 
 type SavedPrep = {
   stratagems: Stratagem[]
@@ -174,7 +175,16 @@ export class RosterService {
     await this.repository.deleteRoster(id, userId)
   }
 
-  /** The datasheets a user owns, as a set the picker can ask about directly. */
+  collectionStock(userId: string) {
+    return this.repository.collectionStock(userId)
+  }
+
+  async updateCollectionLot(userId: string, update: CollectionLotUpdate) {
+    if (!(await this.repository.updateCollectionLot(userId, update)))
+      throw new Response('This stock was changed on another device. Your edit is retained for review.', { status: 409 })
+    return null
+  }
+
   async collection(userId: string) {
     const rows = await this.repository.collectionByUser(userId)
     return rows.map((row) => row.entryId)

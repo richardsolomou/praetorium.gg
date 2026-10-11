@@ -189,6 +189,15 @@ const leagueEventBattles = table(
   },
 )
 
+const collectionStock = table(
+  { name: 'collection_stock' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    lot: t.string(),
+  },
+)
+
 const collection = table(
   { name: 'collection' },
   {
@@ -290,6 +299,7 @@ export const productTables = {
   leagueEventEntries,
   leagueEventBattles,
   collection,
+  collectionStock,
   favouriteFactions,
   practiceOpponents,
   favouriteDetachments,

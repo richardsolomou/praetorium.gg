@@ -149,7 +149,17 @@ Descriptions and ability definitions require exact, unambiguous joins. An empty 
 
 Missing army-rule prose can use an unambiguous matching BSData rule from the faction's books. When the faction has no army-rule cards or no Game Datacards file, only a sole visible top-level catalogue rule can supply the unnamed army rule. Library catalogues do not create factions; ambiguous candidates stay unavailable. `catalogueArmyRules.ts` owns this fallback, verified through `rules.test.ts`.
 
-`GAME_SIZES` is a stable saved-roster/command protocol, not replaced by mission-pack size records. Source construction constraints remain authoritative. Collection membership records ownership, not model quantity.
+`GAME_SIZES` is a stable saved-roster/command protocol, not replaced by mission-pack size records. Source construction constraints remain authoritative.
+
+### Physical collection
+
+Collection hearts and Owned filters preserve the existing membership marks. A mark has an unknown physical quantity, never an assumed model or complete unit. The roster's Physical collection action records separate stock lots, counted as individual physical models, including single characters and vehicle hulls. Zero is an explicitly recorded quantity; missing stock is unrecorded. Neither changes pricing or roster legality.
+
+`src/core/collection.ts` owns the stock contract, equipment requirements, optimistic edit comparison, and shared-stock accounting. Lots describe actual model counts and the equipped builds the player says those same models can represent. Alternative builds are declarations about the player's models, not inferred kit relationships or permission to substitute equipment. Allocate stock across the complete roster together, using residual paths to preserve dedicated stock and prevent double use. Model and selected equipment names determine physical compatibility; points-only changes do not consume different stock. Changed source identities and unsupported equipment allocation remain unaccounted and require review. Do not silently discard recorded stock when a rules version changes.
+
+Requirements reuse the selected construction and model/equipment ownership used by the simulator. Uncorrelated partial equipment, unit-wide equipment without model ownership, and equipment not represented by those carriers require manual review; they cannot claim automatic coverage. A positive shortage reports models unaccounted for by recorded stock, not proof that the player owns none. Count quantities and separate unit demands through the saved zero, one, and multiple-model journeys in `e2e/collection.spec.ts`.
+
+`collection_stock` is an additive private product table; existing membership rows remain intact. Each queued lot edit compares its exact previously observed value inside the same product transaction as its retry receipt. Distinct lots can be edited independently; concurrent writes to one lot are refused and retained by the existing offline review flow. Updates project only after durable enqueue, remain partitioned by account, and share the collection signal. Stock is bounded to 200 lots per account, 10,000 models per lot, 16 equipped alternatives per lot, and 1,000,000 characters per serialized stock document. Editing stale stock must not silently rebase onto an acknowledgement or a background download.
 
 ## Building units
 

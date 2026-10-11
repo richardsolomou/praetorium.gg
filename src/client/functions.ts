@@ -719,6 +719,8 @@ export {
 
 export {
   collection,
+  collectionStock,
+  updateCollectionLot,
   updateOnboardingProgress,
   favouriteFactions,
   favouriteDetachments,

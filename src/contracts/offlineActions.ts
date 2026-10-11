@@ -1,8 +1,10 @@
 import { z } from 'zod'
+import { collectionLotUpdateSchema } from '../core/collection'
 import * as schemas from './schemas'
 
 export const offlineActionSchemas = {
   setOwned: schemas.ownedSchema,
+  updateCollectionLot: collectionLotUpdateSchema,
   setFavouriteFaction: schemas.favouriteFactionSchema,
   setFavouriteDetachment: schemas.favouriteDetachmentSchema,
   setPlayerDefaults: schemas.playerDefaultsSchema,

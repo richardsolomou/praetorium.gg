@@ -10,6 +10,7 @@ function action<S extends z.ZodType>(schema: S, work: (owner: string, data: z.ou
 const service = () => app().service
 export const offlineActions: Record<OfflineActionKind, (owner: string, input: unknown) => Promise<unknown>> = {
   setOwned: action(schemas.setOwned, (owner, data) => service().setOwned(owner, data.entryId, data.owned)),
+  updateCollectionLot: action(schemas.updateCollectionLot, (owner, data) => service().updateCollectionLot(owner, data)),
   setFavouriteFaction: action(schemas.setFavouriteFaction, (owner, data) =>
     service().setFavouriteFaction(owner, data.catalogueId, data.favourite),
   ),

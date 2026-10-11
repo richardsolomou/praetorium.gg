@@ -276,6 +276,14 @@ export class PraetoriumService {
     return this.rosterService.deleteRoster(...args)
   }
 
+  collectionStock(...args: Parameters<RosterService['collectionStock']>) {
+    return this.rosterService.collectionStock(...args)
+  }
+
+  updateCollectionLot(...args: Parameters<RosterService['updateCollectionLot']>) {
+    return this.rosterService.updateCollectionLot(...args)
+  }
+
   collection(...args: Parameters<RosterService['collection']>) {
     return this.rosterService.collection(...args)
   }

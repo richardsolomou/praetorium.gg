@@ -60,6 +60,13 @@ export const Collection = __t.object('Collection', {
 })
 export type Collection = __Infer<typeof Collection>
 
+export const CollectionStock = __t.object('CollectionStock', {
+  key: __t.string(),
+  userId: __t.string(),
+  lot: __t.string(),
+})
+export type CollectionStock = __Infer<typeof CollectionStock>
+
 export const Commands = __t.object('Commands', {
   key: __t.string(),
   battleId: __t.string(),
@@ -247,6 +254,16 @@ export const RevokedSession = __t.object('RevokedSession', {
 })
 export type RevokedSession = __Infer<typeof RevokedSession>
 
+export const RosterSync = __t.object('RosterSync', {
+  id: __t.string(),
+  userId: __t.string(),
+  operationId: __t.string(),
+  fingerprint: __t.string(),
+  version: __t.u64(),
+  deleted: __t.bool(),
+})
+export type RosterSync = __Infer<typeof RosterSync>
+
 export const Rosters = __t.object('Rosters', {
   id: __t.string(),
   userId: __t.string(),
@@ -286,6 +303,17 @@ export const Settings = __t.object('Settings', {
   audience: __t.string(),
 })
 export type Settings = __Infer<typeof Settings>
+
+export const SyncReceipts = __t.object('SyncReceipts', {
+  id: __t.string(),
+  owner: __t.string(),
+  fingerprint: __t.string(),
+  createdAt: __t.u64(),
+  result: __t.string(),
+  outcome: __t.string(),
+  message: __t.string(),
+})
+export type SyncReceipts = __Infer<typeof SyncReceipts>
 
 export const UserOnboarding = __t.object('UserOnboarding', {
   userId: __t.string(),

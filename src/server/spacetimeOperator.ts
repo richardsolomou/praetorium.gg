@@ -1,4 +1,5 @@
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
+import { collectionStockSchema, type CollectionLotUpdate } from '../core/collection'
 import { z } from 'zod'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
@@ -520,6 +521,14 @@ export class SpacetimeOperator {
 
   async deleteRoster(id: string, userId: string) {
     await this.call('delete_roster', [id, userId])
+  }
+
+  async collectionStock(userId: string) {
+    return collectionStockSchema.parse(await this.read('collection_stock_by_user', [userId]))
+  }
+
+  async updateCollectionLot(userId: string, update: CollectionLotUpdate) {
+    return z.boolean().parse(await this.read('update_collection_lot', [userId, JSON.stringify(update)]))
   }
 
   async collectionByUser(userId: string) {

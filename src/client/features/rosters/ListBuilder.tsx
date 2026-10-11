@@ -69,6 +69,7 @@ import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
+import { CollectionDialog } from './CollectionDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
@@ -197,6 +198,7 @@ export function ListBuilder({
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<string | null>(null)
+  const [collectionOpen, setCollectionOpen] = useState(false)
   const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
@@ -917,6 +919,11 @@ export function ListBuilder({
                   <DropdownMenuItem onClick={() => window.print()}>
                     <Printer /> Print
                   </DropdownMenuItem>
+                  {me && !guest ? (
+                    <DropdownMenuItem disabled={pricePending || priceFailed || !units.length} onClick={() => setCollectionOpen(true)}>
+                      Physical collection
+                    </DropdownMenuItem>
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Tooltip>
@@ -1338,6 +1345,9 @@ export function ListBuilder({
         }
       />
       <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
+      {collectionOpen && me && !guest ? (
+        <CollectionDialog open onClose={() => setCollectionOpen(false)} demands={units.flatMap((unit) => unit.collection ?? [])} />
+      ) : null}
       {combatRoster ? <RosterCombatDialog roster={combatRoster} onClose={() => setCombatRoster(null)} /> : null}
       {reminderDraft ? (
         <ReminderEditorDialog

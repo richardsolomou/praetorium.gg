@@ -31,6 +31,7 @@ export const SYNC_PRODUCT_ACTIONS = new Set([
   'update_onboarding',
   'add_to_collection',
   'remove_from_collection',
+  'update_collection_lot',
   'add_favourite_faction',
   'remove_favourite_faction',
   'add_favourite_detachment',

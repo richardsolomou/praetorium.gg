@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { collectionLotUpdateSchema } from '../../core/collection'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import { app } from '../app'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
@@ -265,6 +266,17 @@ export const removeFriend = createServerFn({ method: 'POST' })
       return result
     }),
   )
+
+export const collectionStock = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.collectionStock(id) : []
+  }),
+)
+
+export const updateCollectionLot = createServerFn({ method: 'POST' })
+  .validator(collectionLotUpdateSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.updateCollectionLot(await requireUserId(), data)))
 
 export const collection = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
