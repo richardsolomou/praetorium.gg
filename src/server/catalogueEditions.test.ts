@@ -101,6 +101,35 @@ it('refuses exact support reads from unregistered codexes', () => {
   expect(versions(['child']).factionFor('missing~parent')).toBeNull()
 })
 
+it.each(['codex~child', 'chapter'])('compiles only the advertised factions for rules version %s', (id) => {
+  const loaded = versions(['child'], true)
+  mocks.compile.mockImplementation((catalogue) => ({
+    datasheets: catalogue.factions.map((faction: { id: string; name: string }) => ({
+      id: faction.id,
+      catalogueId: faction.id,
+      faction: faction.name,
+    })),
+    detachments: [],
+    issues: [],
+  }))
+  expect(loaded.canonicalFor(id)!.datasheets.map((sheet) => sheet.catalogueId)).toEqual(['codex~child'])
+})
+
+it('compiles an exact support faction on demand after preparing the advertised rules', () => {
+  const loaded = versions(['child'])
+  mocks.compile.mockImplementation((catalogue) => ({
+    datasheets: catalogue.factions.map((faction: { id: string; name: string }) => ({
+      id: faction.id,
+      catalogueId: faction.id,
+      faction: faction.name,
+    })),
+    detachments: [],
+    issues: [],
+  }))
+  loaded.canonicalFor('codex~child')
+  expect(loaded.canonicalFor('codex~parent')!.datasheets.map((sheet) => sheet.catalogueId)).toEqual(['codex~parent'])
+})
+
 it('loads a named base edition from the root directory', () => {
   versions(['child'], true)
   const file = path.join(directory, 'composition.json')
