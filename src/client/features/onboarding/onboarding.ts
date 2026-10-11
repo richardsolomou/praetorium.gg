@@ -697,7 +697,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Your list',
     description: 'Chosen units sit here by battlefield role. Each card shows its points, its models and any enhancement it carries.',
-    placement: 'left',
+    placement: 'right',
     next: 'roster-points',
     nextLabel: 'Next',
   },

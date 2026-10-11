@@ -223,11 +223,20 @@ describe('a unit a reference page asks the builder to add', () => {
     expect(requestedUnit('squad', 3, limits)).toEqual({
       kind: 'refused',
       reason: 'limit',
-      message: 'Limit reached',
+      message: 'Limit reached: 3 of 3 permitted copies in the roster.',
     })
   })
 
   it('is refused when the roster’s book does not offer it', () => {
     expect(requestedUnit('stranger', 0, limits)).toMatchObject({ kind: 'refused', reason: 'not_offered' })
+  })
+})
+
+it('explains a requested unit blocked by current construction prerequisites', () => {
+  const limits = new Map([['ally', 0]])
+  expect(requestedUnit('ally', 0, limits)).toEqual({
+    kind: 'refused',
+    reason: 'limit',
+    message: 'No copies available with the current detachments and prerequisite units.',
   })
 })

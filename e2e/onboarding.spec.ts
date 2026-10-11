@@ -175,53 +175,89 @@ for (const width of [1440, 390]) {
   })
 }
 
-test('the first-army guide explains Warlords, leader attachments, and reminders', async ({ page }) => {
-  await signUp(page, uniqueName('First Army Guide'))
-  await launch(page, 'Build your first army')
-  await page.getByRole('button', { name: 'Create editable roster' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await expect(prompt(page)).toContainText('Choose the army')
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Space Marines')
-  await page.getByRole('option', { name: 'Space Marines', exact: true }).click()
-  await expect(prompt(page)).toContainText('Set the battle size')
-  await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /Onslaught/ }).click()
-  await expect(prompt(page)).toContainText('Pick a detachment')
-  await dialog.getByRole('button', { name: /^Select Gladius Task Force$/ }).click()
-  const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
-  if ((await dispositions.count()) > 1) await dispositions.first().click()
-  await expect(prompt(page)).toContainText('Name it, or leave it')
-  await page.screenshot({ path: 'test-results/onboarding-roster-setup.png' })
-  await next(page, 'Name it, or leave it')
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
-  await next(page, 'The unit picker')
-  await page.getByLabel('Add a unit').fill('Captain')
-  await next(page, 'Find a unit fast')
-  await next(page, 'Read a row first')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).click())
-  await page.getByLabel('Add a unit').fill('Intercessor Squad')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Intercessor Squad', exact: true }).click())
-  await next(page, 'Your list')
-  await expect(prompt(page)).toContainText('Points and legality')
-  await page.locator('[data-unit="Captain"]').click()
-  await expect(page.locator('[data-onboarding="loadout-wargear"]').first()).toBeVisible()
-  await next(page, 'Shape the unit')
-  for (const [title, target] of [
-    ['How many models', 'unit-models'],
-    ['Wargear options', 'loadout-wargear'],
-    ['One weapon at a time', 'loadout-weapon'],
-    ['Enhancements', 'loadout-enhancement'],
-  ] as const) {
-    if (await page.locator(`[data-onboarding="${target}"]`).first().isVisible()) await next(page, title)
-  }
-  await next(page, 'Choose your Warlord')
-  await expect(page.getByRole('button', { name: 'Attach Captain to unit' })).toHaveAttribute('data-onboarding-active', 'true')
-  await next(page, 'Attach a leader')
-  await expect(page.locator('[data-onboarding="unit-reminder"][data-onboarding-active="true"]')).toBeVisible()
-  await page.screenshot({ path: 'test-results/onboarding-first-army.png' })
-  await next(page, 'Remember an ability')
-  await expect(prompt(page)).toContainText('What the unit costs')
-  await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
-  await expect(prompt(page)).toBeHidden()
-})
+for (const width of [1440, 1300]) {
+  test(`the first-army guide explains Warlords, leader attachments, and reminders at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await signUp(page, uniqueName('First Army Guide'))
+    await launch(page, 'Build your first army')
+    await page.getByRole('button', { name: 'Create editable roster' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Create roster' })
+    await expect(prompt(page)).toContainText('Choose the army')
+    await dialog.getByRole('combobox', { name: 'Faction' }).click()
+    await page.getByPlaceholder('Search factions…').fill('Space Marines')
+    await page.getByRole('option', { name: 'Space Marines', exact: true }).click()
+    await expect(prompt(page)).toContainText('Set the battle size')
+    await dialog.getByRole('combobox', { name: 'Battle size' }).click()
+    await page.getByRole('option', { name: /Onslaught/ }).click()
+    await expect(prompt(page)).toContainText('Pick a detachment')
+    await dialog.getByRole('button', { name: /^Select Gladius Task Force$/ }).click()
+    const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
+    if ((await dispositions.count()) > 1) await dispositions.first().click()
+    await expect(prompt(page)).toContainText('Name it, or leave it')
+    await page.screenshot({ path: `test-results/onboarding-roster-setup-${width}.png` })
+    await next(page, 'Name it, or leave it')
+    await dialog.getByRole('button', { name: 'Create roster' }).click()
+    await next(page, 'The unit picker')
+    await page.getByLabel('Add a unit').fill('Captain')
+    await next(page, 'Find a unit fast')
+    await next(page, 'Read a row first')
+    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).click())
+    await page.getByLabel('Add a unit').fill('Intercessor Squad')
+    await expect(prompt(page)).toContainText('Your list')
+    await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toBeVisible()
+    const addBodyguard = page.getByRole('button', { name: 'Add Intercessor Squad', exact: true })
+    await expect(addBodyguard).toBeEnabled()
+    const bodyguardReceivesPointer = () =>
+      addBodyguard.evaluate((button) => {
+        const { x, y, width: buttonWidth, height } = button.getBoundingClientRect()
+        return button.contains(document.elementFromPoint(x + buttonWidth / 2, y + height / 2))
+      })
+    await expect.poll(bodyguardReceivesPointer).toBe(true)
+    await page.screenshot({ path: `test-results/onboarding-first-army-add-bodyguard-${width}.png` })
+    await waitForRosterSave(page, () => addBodyguard.click())
+    if (width === 1300) {
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.getByRole('button', { name: 'Add units', exact: true }).click()
+      await page.getByLabel('Add a unit').fill('Intercessor Squad')
+      const drawer = page.getByRole('dialog', { name: 'Add units', exact: true })
+      await expect.poll(async () => (await drawer.boundingBox())?.x ?? -1).toBe(0)
+      const pickerRow = page.locator('[data-picker-unit="Intercessor Squad"]')
+      await expect.poll(async () => (await pickerRow.boundingBox())?.x ?? -1).toBeGreaterThanOrEqual(0)
+      await expect
+        .poll(async () => {
+          const box = await pickerRow.boundingBox()
+          return box ? box.x + box.width : Infinity
+        })
+        .toBeLessThanOrEqual(1280)
+      await expect(addBodyguard).toBeEnabled()
+      await expect.poll(bodyguardReceivesPointer).toBe(true)
+      await addBodyguard.click({ trial: true })
+      await page.screenshot({ path: 'test-results/onboarding-first-army-add-bodyguard-1280.png' })
+      await waitForRosterSave(page, () => addBodyguard.click())
+      await page.getByRole('button', { name: 'Close', exact: true }).click()
+      await page.setViewportSize({ width, height: 900 })
+    }
+    await next(page, 'Your list')
+    await expect(prompt(page)).toContainText('Points and legality')
+    await page.locator('[data-unit="Captain"]').click()
+    await expect(page.locator('[data-onboarding="loadout-wargear"]').first()).toBeVisible()
+    await next(page, 'Shape the unit')
+    for (const [title, target] of [
+      ['How many models', 'unit-models'],
+      ['Wargear options', 'loadout-wargear'],
+      ['One weapon at a time', 'loadout-weapon'],
+      ['Enhancements', 'loadout-enhancement'],
+    ] as const) {
+      if (await page.locator(`[data-onboarding="${target}"]`).first().isVisible()) await next(page, title)
+    }
+    await next(page, 'Choose your Warlord')
+    await expect(page.getByRole('button', { name: 'Attach Captain to unit' })).toHaveAttribute('data-onboarding-active', 'true')
+    await next(page, 'Attach a leader')
+    await expect(page.locator('[data-onboarding="unit-reminder"][data-onboarding-active="true"]')).toBeVisible()
+    await page.screenshot({ path: `test-results/onboarding-first-army-${width}.png` })
+    await next(page, 'Remember an ability')
+    await expect(prompt(page)).toContainText('What the unit costs')
+    await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
+    await expect(prompt(page)).toBeHidden()
+  })
+}
