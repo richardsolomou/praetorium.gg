@@ -12,6 +12,7 @@ import {
   type SpreadUpdate,
   spreadHandlers,
   weaponProfilesFor,
+  weaponPieceMatches,
   wargearMatches,
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
@@ -397,7 +398,7 @@ export function EitherChoice({
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
             annotation={optionNote?.(choice.key, option.id)}
           >
-            <OptionProfiles option={option} weapons={weapons} rules={rules} />
+            <OptionProfiles option={option} weapons={weapons} rules={rules} showCount={Boolean(option.pieceCounts?.length)} />
             <OptionAbilities option={option} abilities={abilities} rules={rules} />
             {option.description ? (
               <div className="border-t border-edge px-2.5 pb-2">
@@ -504,15 +505,23 @@ function OptionProfiles({
   option,
   weapons,
   rules,
+  showCount = false,
 }: {
-  option: Pick<LoadoutOption, 'name' | 'pieces'>
+  option: Pick<LoadoutOption, 'name' | 'pieces' | 'pieceCounts'>
   weapons: readonly WeaponProfileData[]
   rules: Datasheet['keywordRules']
+  showCount?: boolean
 }) {
   const matching = weaponProfilesFor(option, weapons)
+  const counted = showCount
+    ? matching.map((profile) => ({
+        ...profile,
+        count: option.pieceCounts?.find((piece) => weaponPieceMatches(piece.name, profile.name))?.count,
+      }))
+    : matching
   return matching.length ? (
     <div className="border-t border-edge">
-      <WeaponProfiles weapons={matching} rules={rules} showName={weaponProfileGroups(matching).length > 1} showCount={false} embedded />
+      <WeaponProfiles weapons={counted} rules={rules} showName={weaponProfileGroups(matching).length > 1} showCount={showCount} embedded />
     </div>
   ) : null
 }

@@ -37,6 +37,8 @@ The builder has one picker and one loadout instance, moved by `src/client/featur
 
 Loadouts group equipment by model and weapon choice. Keep required/default equipment readable after replacement, paired weapons under one counter, and alternate profiles under their weapon. Selection styling must not shift content. Display each option and equipped item once. `loadoutModel.ts`, `LoadoutControls.tsx`, `ModelCard.tsx`, and `Loadout.tsx` own this flow.
 
+Keep each weapon option's profiles visible before selection so players can compare alternatives, including equipment quantities in bundles. Keep profiles in the bundle's equipment order when selection changes. Do not repeat choice-controlled profiles in a separate equipped section. Match structured equipment names to their own profiles; a single weapon must not match a similarly named dual weapon. Keep fixed equipment outside those choices visible.
+
 Use the same roster cards for libraries, choosers, editable lists, read-only lists, and frozen battle/league snapshots. A pending price is a loading state, not an empty roster. Frozen snapshots retain their recorded cards and totals without today's legality or data-update warnings. Owners' View mode may retain the picker; other readers receive no mutation controls.
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).

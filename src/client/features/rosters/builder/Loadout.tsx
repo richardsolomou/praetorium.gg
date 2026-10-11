@@ -151,7 +151,6 @@ export function Loadout({
   const equipped = (type: string) =>
     equippedWeaponProfiles(
       sheet.profiles.filter((profile) => profile.type === type),
-      unit.models,
       sheets.controlledChoices,
     )
   const equippedRanged = equipped('Ranged Weapons')
