@@ -1,3 +1,4 @@
+import { confirmRosterSetup } from './account'
 import { expect, test } from '@playwright/test'
 import { add, expectInsideHorizontalBounds, expectNoHorizontalOverflow } from './builder.harness'
 
@@ -140,7 +141,7 @@ test('converts the saved roster in place and restores its retained preview choic
   await page.getByRole('menuitem', { name: 'Convert rules version', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Convert roster', exact: true })).toBeDisabled()
   const first = await destination('Custodes codex · 17 Oct 2026 · Preview', 'Aquilan Shield')
-  await first.getByRole('button', { name: 'Convert roster', exact: true }).click()
+  await confirmRosterSetup(first)
   await expect(first).not.toBeVisible()
   await expect.poll(async () => (await operator.roster(id))?.catalogueId).toContain('custodes-11e~')
   await waitForRosterSave(page, () => add(page, 'Allarus Custodians'))
@@ -163,7 +164,7 @@ test('converts the saved roster in place and restores its retained preview choic
   await page.getByRole('menuitem', { name: 'Convert rules version', exact: true }).click()
   dialog = await destination('MFM 1.5 · Current', 'Shield Host')
   await dialog.screenshot({ path: 'test-results/custodes-convert-dialog.png' })
-  await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
+  await confirmRosterSetup(dialog)
   await expect(page).toHaveURL(new RegExp(`/rosters/${id}$`))
   await expect.poll(async () => (await operator.roster(id))?.catalogueId).not.toContain('custodes-11e~')
   const converted = (await operator.roster(id))!
@@ -182,7 +183,7 @@ test('converts the saved roster in place and restores its retained preview choic
   await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Convert rules version', exact: true }).click()
   dialog = await destination('Custodes codex · 17 Oct 2026 · Preview', 'Aquilan Shield')
-  await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
+  await confirmRosterSetup(dialog)
   await expect(dialog).not.toBeVisible()
   await expect.poll(async () => (await operator.roster(id))?.catalogueId).toBe(original.catalogueId)
   await page.reload()

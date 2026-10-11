@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import {
   shot,
   expectNoHorizontalOverflow,
@@ -164,7 +164,7 @@ test('a three-point detachment lets the player choose either disposition', async
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await page.reload()
   await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold' })).toBeVisible()
 })

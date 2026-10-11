@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import {
+  confirmRosterSetup,
   advance,
   attachRoster,
   createBattle,
@@ -26,7 +27,7 @@ test('roster visibility controls search indexing and public URL variants', async
     await setup.getByRole('combobox', { name: 'Access' }).click()
     await page.getByRole('option', { name }).click()
     const saved = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes(`"${value}"`)))
-    await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+    await waitForRosterSave(page, () => confirmRosterSetup(setup))
     await saved
   }
 
@@ -180,15 +181,17 @@ test('editable detail waits for public access to save before sharing', async ({ 
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await setup.getByRole('button', { name: 'Review changes' }).click()
+  const review = page.getByRole('dialog', { name: 'Review roster changes' })
+  await review.getByRole('button', { name: 'Confirm changes' }).click()
   await saveStarted
-
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Share link' }).click()
-  await page.waitForTimeout(250)
+  await expect(review.getByRole('button', { name: 'Confirm changes' })).toBeDisabled()
   const sharedBeforeSave = await page.locator('html').getAttribute('data-native-message')
   releaseSave()
   expect(sharedBeforeSave).toBeNull()
+  await expect(review).toBeHidden()
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Share link' }).click()
   await expect.poll(() => page.locator('html').getAttribute('data-native-message')).toContain('"type":"native-share"')
 
   const anonymous = await (await browser.newContext()).newPage()

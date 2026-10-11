@@ -1,3 +1,8 @@
+import { useMutation } from '@tanstack/react-query'
+import { reviewRosterSetup, verifySetupReview, type RosterSetupReview as SetupReview } from './rosterSetupReview'
+import { SetupConsequences } from './SetupConsequences'
+import type { RosterDraft } from './rosterDraft'
+import { errorMessage } from '../../queryClient'
 import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -96,7 +101,8 @@ type Props = {
    * over the one it priced and the library falls back to the setup alone.
    */
   namePlaceholder?: string
-  onSave: (value: RosterSetup) => void
+  reviewSource?: RosterDraft | string
+  onSave: (value: RosterSetup, review?: SetupReview) => void | Promise<void>
   pending?: boolean
   saveError?: string
   /** A visitor's list, which stays private until an account saves it and so offers no access to choose. */
@@ -136,12 +142,31 @@ export function RosterSetupDialog({
   hasUnits,
   namePlaceholder,
   onSave,
+  reviewSource,
   pending = false,
   saveError,
   guest = false,
   inline = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
+  const [review, setReview] = useState<SetupReview | null>(null)
+  const reviewing = useMutation({ mutationFn: (setup: RosterSetup) => reviewRosterSetup(reviewSource!, setup), onSuccess: setReview })
+  const confirming = useMutation({
+    mutationFn: async () => {
+      if (!review) return
+      await verifySetupReview(review)
+      await onSave(
+        {
+          ...review.candidate,
+          waivedRules: review.candidate.waivedRules ?? [],
+          optionalRules: review.candidate.optionalRules ?? [],
+          borrowedDetachmentId: review.candidate.borrowedDetachmentId ?? null,
+          visibility: review.candidate.visibility ?? 'private',
+        },
+        review,
+      )
+    },
+  })
   const [detachmentQuery, setDetachmentQuery] = useState('')
   const [reference, setReference] = useState<{ catalogueId: string; detachmentId: string; slug: string; name: string } | null>(null)
   const [editingOptionalRules, setEditingOptionalRules] = useState(false)
@@ -233,7 +258,6 @@ export function RosterSetupDialog({
       limit: draft.limit,
     })
   const factionChanged = currentCatalogueFamilyId(value.catalogueId) !== currentCatalogueFamilyId(draft.catalogueId)
-  const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
   const groups = factionSelectGroups(
     factionOptions.filter((entry) => entry.isDefault !== false),
     favourites,
@@ -606,21 +630,13 @@ export function RosterSetupDialog({
           </SelectContent>
         </Select>
       </div>
-
-      {hasUnits && (factionChanged || detachmentsChanged) ? (
-        <p className="border border-discarded/60 bg-discarded/10 p-3 text-sm text-discarded">
-          {factionChanged
-            ? 'Changing faction removes this roster’s units.'
-            : 'Changing detachments may make existing enhancements unavailable.'}
-        </p>
-      ) : null}
     </div>
   )
   const actions = (
     <>
-      {saveError ? (
+      {saveError || reviewing.isError || confirming.isError ? (
         <p role="alert" className="mr-auto self-center text-sm text-destructive">
-          Could not save roster: {saveError}
+          Could not save roster: {saveError ?? errorMessage(reviewing.error ?? confirming.error)}
         </p>
       ) : missing ? (
         <output className="mr-auto self-center text-sm text-discarded">
@@ -628,30 +644,58 @@ export function RosterSetupDialog({
         </output>
       ) : null}
       {inline ? null : (
-        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <Button variant="ghost" disabled={confirming.isPending} onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
       )}
+      {review ? (
+        <Button
+          variant="outline"
+          disabled={confirming.isPending}
+          onClick={() => {
+            setReview(null)
+            confirming.reset()
+            reviewing.reset()
+          }}
+        >
+          Back
+        </Button>
+      ) : null}
       <Button
         data-onboarding="setup-create"
         className="sm:min-w-40"
         aria-describedby={missing ? missingId : undefined}
-        disabled={pending || Boolean(missing)}
-        onClick={() => onSave({ ...draft, name: draft.name.trim(), disposition: selectedDisposition })}
+        disabled={pending || reviewing.isPending || confirming.isPending || (!review && Boolean(missing))}
+        onClick={() => {
+          if (review) confirming.mutate()
+          else {
+            const setup = { ...draft, name: draft.name.trim(), disposition: selectedDisposition }
+            if (reviewSource) reviewing.mutate(setup)
+            else void onSave(setup)
+          }
+        }}
       >
-        {loadingFaction
-          ? 'Loading faction…'
-          : pending
-            ? mode === 'create'
-              ? 'Creating…'
-              : 'Saving…'
-            : mode === 'create'
-              ? inline
-                ? 'Start building'
-                : 'Create roster'
-              : mode === 'convert'
-                ? 'Convert roster'
-                : 'Save changes'}
+        {review
+          ? confirming.isPending
+            ? 'Saving…'
+            : 'Confirm changes'
+          : reviewing.isPending
+            ? 'Reviewing…'
+            : loadingFaction
+              ? 'Loading faction…'
+              : pending
+                ? mode === 'create'
+                  ? 'Creating…'
+                  : 'Saving…'
+                : mode === 'create'
+                  ? inline
+                    ? 'Start building'
+                    : 'Create roster'
+                  : mode === 'convert'
+                    ? 'Convert roster'
+                    : reviewSource
+                      ? 'Review changes'
+                      : 'Save changes'}
       </Button>
     </>
   )
@@ -684,13 +728,13 @@ export function RosterSetupDialog({
           <div className="flex flex-col-reverse gap-2 border-t border-edge pt-5 sm:flex-row sm:justify-end">{actions}</div>
         </section>
       ) : (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(next) => !confirming.isPending && onOpenChange(next)}>
           <DialogContent size="md">
             <DialogHeader>
-              <DialogTitle className="text-2xl">{title}</DialogTitle>
+              <DialogTitle className="text-2xl">{review ? 'Review roster changes' : title}</DialogTitle>
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
-            <DialogBody>{fields}</DialogBody>
+            <DialogBody>{review ? <SetupConsequences review={review} guest={guest} /> : fields}</DialogBody>
             <DialogFooter>{actions}</DialogFooter>
           </DialogContent>
         </Dialog>

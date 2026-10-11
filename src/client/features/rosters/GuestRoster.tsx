@@ -1,3 +1,4 @@
+import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
@@ -190,6 +191,13 @@ export function GuestRoster({
         requested={requested}
         guest={{
           onDraftChange: ({ id: _saved, ...draft }) => {
+            const kept = writeGuestDraft({ ...guest, draft })
+            setUnkept(!kept)
+            return kept
+          },
+          onReviewedChange: ({ id: _id, ...draft }, source) => {
+            const latest = readGuestDraft()
+            requireReviewedRoster(latest?.id === guest.id ? latest.draft : null, { ...source, id: undefined })
             const kept = writeGuestDraft({ ...guest, draft })
             setUnkept(!kept)
             return kept
