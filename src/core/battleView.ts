@@ -29,6 +29,21 @@ import {
   atBattleEnd,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
+import {
+  missionSelectionPrompt,
+  missionSelectionsDue,
+  missionUnitCandidates,
+  savedMissionUnitStatus,
+  MISSION_SELECTION_REQUIRED_MESSAGE,
+  type MissionSelectionPrompt,
+  type SavedMissionSelection,
+  type SavedMissionUnit,
+} from './missionSelections'
+
+export type MissionSelectionView = Omit<SavedMissionSelection, 'units'> & {
+  units: (SavedMissionUnit & { status: ReturnType<typeof savedMissionUnitStatus> })[]
+}
+export type MissionChoiceView = MissionSelectionPrompt & { playerId: string; canChoose: boolean; units: SavedMissionUnit[] }
 
 /**
  * The only place visibility is decided.
@@ -79,6 +94,7 @@ export type BattleView = {
   drawAcknowledged: boolean
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
+  missionChoices?: MissionChoiceView[]
   players: {
     id: PlayerId
     side: number
@@ -138,6 +154,7 @@ export type BattleView = {
       revealed: boolean
     }[]
     primaryCard: Secondary | null
+    missionSelections?: MissionSelectionView[]
     finalPrimary: number
     secondaryMode: SecondaryMode
     /** Whether this side has a secondary deck, without exposing the cards in it. */
@@ -215,6 +232,37 @@ export function battleView(
     drawAcknowledged: state.drawAcknowledged,
     settings: state.settings,
     result: state.result,
+    missionChoices: state.pendingSettlement
+      ? []
+      : state.players
+          .filter((player) => sideCaptain(state, player.side).id === player.id)
+          .flatMap((player) => {
+            const manual = player.secondaries.flatMap((card) => {
+              const prompt = card.selection === 'beacon' ? missionSelectionPrompt(state, player, card) : null
+              return prompt ? [prompt] : []
+            })
+            return [...missionSelectionsDue(state, player), ...manual]
+              .filter((prompt) => mayNameCard(state, viewerId, player, prompt.cardKey))
+              .map((prompt) => ({
+                ...prompt,
+                playerId: player.id,
+                canChoose:
+                  playsSide(state, viewerId, prompt.chooserSide) &&
+                  !(
+                    prompt.kind === 'beacon' &&
+                    player.missionSelections.some(
+                      (saved) => saved.cardKey === prompt.cardKey && saved.occurrence === prompt.occurrence && saved.beaconDestroyed,
+                    )
+                  ),
+                units: missionUnitCandidates(
+                  state,
+                  prompt.kind === 'punishment'
+                    ? (state.players.find((candidate) => candidate.side !== player.side)?.side ?? -1)
+                    : player.side,
+                  prompt.kind !== 'beacon',
+                ),
+              }))
+          }),
     players: state.players.map((player) => {
       const resources = sideCaptain(state, player.side)
       const units = battleUnitCounts(player.units)
@@ -267,6 +315,12 @@ export function battleView(
           refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
         })),
         primaryCard: resources.primaryCard,
+        missionSelections: resources.missionSelections
+          .filter((saved) => mayNameCard(state, viewerId, resources, saved.cardKey))
+          .map((saved) => ({
+            ...saved,
+            units: saved.units.map((unit) => ({ ...unit, status: savedMissionUnitStatus(state, unit) })),
+          })),
         finalPrimary: resources.finalPrimary,
         secondaryMode: resources.secondaryMode,
         secondaryDeckReady: Boolean(resources.secondaryDeck?.length),
@@ -363,6 +417,8 @@ function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
   if (owed === 'settlement') return 'The previous turn is still to be settled.'
   if (owed === 'cards') return 'The active side has secondary missions to draw.'
   if (owed === 'secret') return 'The active side has a secret mission to reveal or discard.'
+  if (missionSelectionsDue(state, player).some((choice) => mayNameCard(state, viewerId, player, choice.cardKey)))
+    return MISSION_SELECTION_REQUIRED_MESSAGE
   if (state.phase !== 'end') return null
   const unscored = player.secondaries.filter(
     (secondary) =>

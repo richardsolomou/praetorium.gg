@@ -5,6 +5,7 @@ import { english, type MissionPack } from './missionPacks'
 import { actionsIn } from './missionActions'
 import { criteriaKey } from './missionCriteria'
 import type { WhenDrawn } from '../contracts/missions'
+import { missionSelectionKind } from './missionSelections'
 
 type RecordValue = Record<string, unknown>
 const records = (value: unknown): RecordValue[] =>
@@ -62,7 +63,12 @@ function whenDrawn(text: string | null, ids: ReadonlyMap<string, string>): WhenD
     : null
 }
 
-function cardOf(raw: RecordValue, actions: ReturnType<typeof actionsIn>, ids: ReadonlyMap<string, string>): MissionCard | null {
+function cardOf(
+  raw: RecordValue,
+  actions: ReturnType<typeof actionsIn>,
+  ids: ReadonlyMap<string, string>,
+  packId: unknown,
+): MissionCard | null {
   const name = english(raw.name)
   if (!name || typeof raw.id !== 'string') return null
   const awards: Award[] = records(raw.objectives).flatMap((objective) => {
@@ -96,6 +102,7 @@ function cardOf(raw: RecordValue, actions: ReturnType<typeof actionsIn>, ids: Re
     awards,
     actions: actions.get(criteriaKey(name)) ?? [],
     whenDrawn: whenDrawn(english(raw.description), ids),
+    selection: missionSelectionKind(packId, raw.id, english(raw.description)),
   }
 }
 
@@ -112,7 +119,7 @@ export function missionCardsFromDatacards(packs: readonly MissionPack[]): { prim
   const collect = (field: 'primaryMissions' | 'secondaryMissions') =>
     packs
       .filter((pack) => pack.isCombatPatrol !== true)
-      .flatMap((pack) => records(pack[field]).flatMap((raw) => cardOf(raw, actions, ids) ?? []))
+      .flatMap((pack) => records(pack[field]).flatMap((raw) => cardOf(raw, actions, ids, pack.id) ?? []))
       .sort((a, b) => compareText(a.name, b.name))
   return { primaries: collect('primaryMissions'), secondaries: collect('secondaryMissions') }
 }

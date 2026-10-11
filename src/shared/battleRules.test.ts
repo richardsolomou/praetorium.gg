@@ -2,7 +2,8 @@ import { expect, it } from 'vitest'
 import { type Command, reduceBattle } from '../core/battle'
 import { ALICE, BOB, PLAYERS, builtRoster, log } from '../core/battle.fixtures'
 import type { MissionAward } from '../core/scoring'
-import { scoringCapError } from './battleRules'
+import { hydrateAuthoritativeAwards, scoringCapError, withAuthoritativeAwards } from './battleRules'
+import type { LoadedRules } from './rules'
 
 const award: MissionAward = {
   vp: 10,
@@ -97,4 +98,46 @@ it('does not subtract later final awards from an earlier round settlement', () =
     scoringCapError(value, ALICE, { kind: 'score-settlement', playerId: BOB, round: 1, scores: [{ category: 'primary', delta: 1 }] }, rules)
       ?.code,
   ).toBe('score-cap-round')
+})
+
+const selectionRules = {
+  ...rules,
+  missions: new Map(),
+  primaries: [{ key: 'mission', name: 'Verified mission', awards: [award], selection: 'punishment' }],
+  secondaries: [],
+} as unknown as LoadedRules
+const prepared = { primary: { key: 'mission', name: 'Caller name', selection: 'beacon' as const }, secondaries: [], secondaryDeck: [] }
+
+it('takes nomination capability from the authoritative card rather than the caller', () => {
+  expect(withAuthoritativeAwards(prepared, selectionRules).primary).toEqual({
+    key: 'mission',
+    name: 'Verified mission',
+    awards: [award],
+    selection: 'punishment',
+  })
+})
+
+it('strips invented nomination metadata from an unknown card', () => {
+  expect(withAuthoritativeAwards({ ...prepared, primary: { ...prepared.primary, key: 'invented' } }, selectionRules).primary).toEqual({
+    key: 'invented',
+    name: 'Caller name',
+  })
+})
+
+it('does not opt an old battle into new compulsory choices during in-play preparation repair', () => {
+  const battle = state()
+  expect(withAuthoritativeAwards(prepared, selectionRules, battle.players[1]).primary?.selection).toBeUndefined()
+})
+
+it('preserves already frozen nomination capability during in-play preparation repair', () => {
+  const battle = state()
+  battle.players[1]!.primaryCard!.selection = 'punishment'
+  expect(withAuthoritativeAwards(prepared, selectionRules, battle.players[1]).primary?.selection).toBe('punishment')
+})
+
+it('hydrates old awards without silently adding selection capability', () => {
+  const battle = state()
+  battle.players[1]!.primaryCard = { key: 'mission', name: 'Old mission' }
+  hydrateAuthoritativeAwards(battle, selectionRules)
+  expect(battle.players[1]!.primaryCard).toEqual({ key: 'mission', name: 'Verified mission', awards: [award], selection: undefined })
 })

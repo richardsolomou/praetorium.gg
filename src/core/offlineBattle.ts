@@ -45,6 +45,10 @@ export function visibleBattleLog(players: Players, log: readonly LoggedCommand[]
       delete command.roster.reminders
       delete command.roster.remindersEnabled
     }
+    if (command.kind === 'select-mission' && hidden.has(command.cardKey)) {
+      command.selection = { kind: 'beacon', unit: null, note: '' }
+      command.occurrence = 1
+    }
     return { ...entry, command: clean(command) as Command }
   })
 }

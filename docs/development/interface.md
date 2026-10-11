@@ -55,6 +55,8 @@ Saved and guest roster Print actions prepare `RosterPrintPack.tsx` from current 
 
 Setup is one page in rules order under `StepRail`, a jump index highlighting the viewed section in blue and marking the next decision in amber. Dim sections while their prerequisites are missing. Keep Fixed/Tactical secondary choices, reserves controls, deployment units, and pre-battle units visible without a Change or Show action. King of the Colosseum shows only Tactical. Only settled format and twist choices may fold to one line with Change. Folding and scroll position are local to the device. The fixed bar lists what is left, shows refusals, and holds Start battle. Render battle controls by side, not seat. Allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Missions and stratagems remain visible together, stacking when the panel is narrow.
 
+Keep recorded mission choices compact beneath the mission name. Show a guard beside its objective once, and retain round, expiry, casualty and manual-tracking information.
+
 Required prompts open one at a time. Minimize preserves local answers and exposes a persistent return control; battle-changing controls remain in place but disabled until parked dialogs are resumed or closed. Undo must preserve answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 
 Until a player has a friend, the New battle dialog offers one line under the seats to share their one-time friend invite or show its QR code, so they can invite an opponent without leaving battle creation. Readers without a seat get one in-flow invitation to build an army or start a battle, chosen from onboarding progress; it never covers the scoreboard or timeline, leads finished battles, stays out of the native application, and stays dismissed in that browser. Accounts that have played a battle do not see it.
@@ -107,6 +109,8 @@ Run `just e2e offline-work.spec.ts offline.spec.ts app-cache.spec.ts` after chan
 Selector options name the choice and its detail explicitly; interactive rules badges must not change the option's accessible name. Exercise both grouped and virtualized selectors when changing their contents.
 
 Inspect affected surfaces at desktop and phone widths before the relevant browser flow. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard/touch access, and loading geometry. Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
+
+Read multiple elements' geometry in one browser evaluation so a moving layout cannot change between measurements.
 
 For rosters, inspect both the unopened list and opened unit. For battles, check live and finished scorecards, army accordion scroll/collapse, spectator/replay access, and several replay frames. Use the shared E2E phase helper to avoid reminder races. Exercise scoring, draw, and discard through minimize, Undo, and return; test the domain guard separately from the local UI lock.
 

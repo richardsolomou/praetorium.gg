@@ -2,6 +2,7 @@ import {
   type BattleState,
   type Command,
   type PlayerId,
+  type PlayerState,
   type Secondary,
   type Refusal,
   reduceBattle,
@@ -16,27 +17,35 @@ import {
 } from '../core/battle'
 import { KOTC_MATCHUP_ID } from '../contracts/terrain'
 import type { MissionAward } from '../core/scoring'
+import type { MissionSelectionKind } from '../core/missionSelections'
 import { type LoadedRules, type BattleReadRules, missionFor } from './rules'
 
 export function withAuthoritativeAwards<
   T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>,
->(prep: T, rules: LoadedRules): T {
+>(prep: T, rules: LoadedRules, frozen?: PlayerState): T {
   const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
   const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
+  const existing = frozen
+    ? [...(frozen.primaryCard ? [frozen.primaryCard] : []), ...frozen.secondaries, ...(frozen.secondaryDeck ?? [])]
+    : null
+  const card = (submitted: Secondary, available: Map<string, AvailableCard>) => {
+    const authoritative = authoritativeCard(submitted, available)
+    return existing ? { ...authoritative, selection: existing.find((saved) => saved.key === submitted.key)?.selection } : authoritative
+  }
   return {
     ...prep,
-    primary: prep.primary ? authoritativeCard(prep.primary, primaryByKey) : null,
-    secondaries: prep.secondaries.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
-    secondaryDeck: prep.secondaryDeck?.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
+    primary: prep.primary ? card(prep.primary, primaryByKey) : null,
+    secondaries: prep.secondaries.map((secondary) => card(secondary, secondaryByKey)),
+    secondaryDeck: prep.secondaryDeck?.map((secondary) => card(secondary, secondaryByKey)),
   }
 }
 
-type AvailableCard = { key: string; name: string; awards: MissionAward[] }
+type AvailableCard = { key: string; name: string; awards: MissionAward[]; selection?: MissionSelectionKind }
 
 function authoritativeCard(submitted: Secondary, available: Map<string, AvailableCard>): Secondary {
   const authoritative = available.get(submitted.key)
   return authoritative
-    ? { key: authoritative.key, name: authoritative.name, awards: authoritative.awards }
+    ? { key: authoritative.key, name: authoritative.name, awards: authoritative.awards, selection: authoritative.selection }
     : { key: submitted.key, name: submitted.name }
 }
 
@@ -44,7 +53,7 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
   const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
   const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
   const hydrate = (card: Secondary, available: Map<string, AvailableCard>) =>
-    card.awards === undefined ? authoritativeCard(card, available) : card
+    card.awards === undefined ? { ...authoritativeCard(card, available), selection: card.selection } : card
   for (const player of state.players) {
     if (player.primaryCard) {
       const mission = state.status === 'setup' ? null : resolvedMissionForSide(state, rules, player.side)
@@ -54,6 +63,7 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
             key: mission.id,
             name: mission.name,
             awards: player.primaryCard.awards ?? primary?.awards,
+            selection: player.primaryCard.selection,
           }
         : hydrate(player.primaryCard, primaryByKey)
     }
