@@ -185,10 +185,9 @@ export class RosterService {
     else await this.repository.removeFromCollection(userId, entryId)
   }
 
-  /** Model counts keyed by datasheet; entries saved before counts existed hold one model. */
   async collectionCounts(userId: string): Promise<Record<string, number>> {
     const rows = await this.repository.collectionByUser(userId)
-    return Object.fromEntries(rows.map((row) => [row.entryId, row.models ?? 1]))
+    return Object.fromEntries(rows.map((row) => [row.entryId, row.models]))
   }
 
   async setCollectionModels(userId: string, entryId: string, models: number) {

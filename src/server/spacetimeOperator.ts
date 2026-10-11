@@ -35,7 +35,7 @@ const rosterRow = z.strictObject({
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true }).extend({
   unitCount: z.number().int().nonnegative(),
 })
-const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int().nullable() })
+const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
 const favouriteDatasheetRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.strictObject({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.strictObject({

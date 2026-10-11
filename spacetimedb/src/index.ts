@@ -1176,12 +1176,13 @@ export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string
 export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
+    moveHeartsToFavourites(tx, userId)
     return productJson(
       Array.from(tx.db.collection.userId.filter(userId)).map(({ userId: ownerId, entryId, at, models }) => ({
         userId: ownerId,
         entryId,
         at,
-        models: models ?? null,
+        models,
       })),
     )
   }),
@@ -1218,6 +1219,7 @@ export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() 
 export const favouriteDatasheetsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
+    moveHeartsToFavourites(tx, userId)
     return productJson(
       Array.from(tx.db.favouriteDatasheets.userId.filter(userId)).map(({ userId: ownerId, entryId, at }) => ({
         userId: ownerId,
@@ -1951,6 +1953,21 @@ function updateOnboardingIn(tx: Context, args: unknown[]) {
   return productJson(onboardingData(tx, input.userId))
 }
 
+/**
+ * Datasheet hearts were once stored as collection rows without a model count. Every
+ * path that reads or changes a player's collection or datasheet favourites first moves
+ * those rows to favourites, so a collection only ever holds counted models.
+ */
+function moveHeartsToFavourites(ctx: Context, userId: string) {
+  const hearts = Array.from(ctx.db.collection.userId.filter(userId)).filter((row) => row.models === undefined)
+  for (const row of hearts) {
+    const key = JSON.stringify([userId, row.entryId])
+    if (!ctx.db.favouriteDatasheets.key.find(key)) ctx.db.favouriteDatasheets.insert({ key, userId, entryId: row.entryId, at: row.at })
+    ctx.db.collection.key.delete(row.key)
+  }
+  if (hearts.length) touchProduct(ctx, userId, 'collection', 'favourites')
+}
+
 function addToCollectionIn(ctx: Context, args: unknown[]) {
   const values = z
     .tuple([
@@ -1962,6 +1979,7 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
   const input = { userId: values[0], entryId: values[1], at: values[2] }
 
   requireOperator(ctx)
+  moveHeartsToFavourites(ctx, input.userId)
   const key = JSON.stringify([input.userId, input.entryId])
   if (!ctx.db.collection.key.find(key)) {
     ctx.db.collection.insert({ key, ...input, models: 1 })
@@ -1974,6 +1992,7 @@ function removeFromCollectionIn(ctx: Context, args: unknown[]) {
   const input = { userId: values[0], entryId: values[1] }
 
   requireOperator(ctx)
+  moveHeartsToFavourites(ctx, input.userId)
   if (ctx.db.collection.key.delete(JSON.stringify([input.userId, input.entryId]))) touchProduct(ctx, input.userId, 'collection')
 }
 
@@ -1988,6 +2007,7 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
     .parse(args)
 
   requireOperator(ctx)
+  moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   const current = ctx.db.collection.key.find(key)
   if (current) ctx.db.collection.key.update({ ...current, models })
