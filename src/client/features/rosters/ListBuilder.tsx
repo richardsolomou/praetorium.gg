@@ -68,7 +68,7 @@ import { UnitCard } from './builder/UnitCard'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
-import { RosterExportDialog } from './RosterExportDialog'
+import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
@@ -199,7 +199,7 @@ export function ListBuilder({
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
-  const [exportText, setExportText] = useState<string | null>(null)
+  const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
   const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
@@ -379,13 +379,12 @@ export function ListBuilder({
     waivedRules,
   ])
 
-  /** Hands the list to another tool, in the format every one of them reads. */
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
         data: { catalogueId, detachmentIds, disposition, limit, name: shownName || 'Roster', units: positioned, waivedRules },
       }),
-    onSuccess: ({ text }) => setExportText(text),
+    onSuccess: (exported) => setExportText(exported),
   })
 
   const duplicateRoster = useMutation({
@@ -970,7 +969,7 @@ export function ListBuilder({
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                    <Download /> Export GW text
+                    <Download /> Export text
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
                     <Printer /> Print
@@ -1032,7 +1031,7 @@ export function ListBuilder({
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                  <Download /> Export GW text
+                  <Download /> Export text
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!frozenReference && (!priced || pricePending || priceLoading)}
@@ -1398,7 +1397,7 @@ export function ListBuilder({
           ) : null
         }
       />
-      <RosterExportDialog text={exportText} onClose={() => setExportText(null)} />
+      <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
       {combatRoster ? <RosterCombatDialog roster={combatRoster} onClose={() => setCombatRoster(null)} /> : null}
       {reminderDraft ? (
         <ReminderEditorDialog

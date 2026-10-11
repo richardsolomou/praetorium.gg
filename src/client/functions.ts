@@ -156,12 +156,13 @@ export const importRoster = (args: Parameters<typeof server.importRoster>[0]) =>
       )
     : null
   return constructionRead(
-    ({ catalogue }) => {
+    ({ catalogue, rules }) => {
       if (statedId && !faction) throw new Error('The exported codex version is not available.')
       return importRosterFile(
         args.data,
         faction ? catalogue : null,
         factions.map((candidate) => candidate.name),
+        rules,
       )
     },
     (signal) => server.importRoster({ ...args, signal }),

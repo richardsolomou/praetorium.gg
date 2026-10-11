@@ -123,10 +123,11 @@ Technomancer (70 Points)
 
 Exported with BattleBase, Data Version: v20260812`)
   await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await page.getByRole('dialog', { name: 'Import roster', exact: true }).getByRole('button', { name: 'Import roster', exact: true }).click()
   await expect.poll(() => events.at(-1)).toEqual({ name: 'roster_import_save_failed', properties: { reason: 'request' } })
   expect(events.filter((event) => event.name === 'roster_import_saved')).toEqual([])
   await page.unroute('**/_serverFn/**')
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await page.getByRole('dialog', { name: 'Import roster', exact: true }).getByRole('button', { name: 'Import roster', exact: true }).click()
   await expect
     .poll(() => events.filter((event) => event.name === 'roster_import_saved'))
     .toEqual([{ name: 'roster_import_saved', properties: { source: 'battlebase', pick_count: 1 } }])

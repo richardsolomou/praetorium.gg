@@ -317,6 +317,7 @@ export const importRoster = createServerFn({ method: 'POST' })
         data,
         loaded,
         factions.map((candidate) => candidate.name),
+        rules,
       )
       const userId = await currentUserId()
       if (userId) {

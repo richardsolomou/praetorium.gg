@@ -51,6 +51,12 @@ Each independently invoked offline Maestro flow foregrounds the application with
 
 Set `NATIVE_AUTH_KEEP_STACK=1` only when leaving a verified simulator preview running. Its origin and owning process are recorded in the ignored `mobile/.simulator-derived/native-auth-e2e/preview-owner.json`; stop that process to clean up its stack.
 
+## Printing
+
+The shell passes sanitized HTML to the existing Expo system print sheet. `mobile/src/printing.ts` supplies 12 mm margins through the pinned iOS print API because its renderer does not honor CSS page margins. Closing that sheet is normal cancellation; other print failures retain the error alert and telemetry. Browser printing uses the margins in `src/styles.css`.
+
+After changing printing, test the option and cancellation branches, then open the actual iOS print sheet against production-mode web pages. Save its PDF through the system share sheet and inspect every page, including paper margins, long weapon cards and the rules appendix. Close the sheet and return to the roster. An unavailable Android emulator or physical printer must remain an explicit verification limit.
+
 ## Notifications
 
 `expo-notifications` uses Expo delivery through APNs and FCM. The web bridge carries request IDs; permission is requested only after the player chooses to allow notifications. Home's dismissed offer stays dismissed for that installation. Signed-in document loads silently register an already-authorized token.

@@ -168,7 +168,7 @@ function RosterActionItems({
         </Item>
       ) : null}
       <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
-        <Download /> Export GW text
+        <Download /> Export text
       </Item>
       <Item onClick={onEdit}>
         <Pencil /> Edit setup

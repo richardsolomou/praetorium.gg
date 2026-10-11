@@ -64,6 +64,55 @@ async function waitForOfflineApp(page: Page) {
     .toBe(true)
 }
 
+test('online saves only show sync status when the queue remains pending', async ({ page }) => {
+  await signUp(page, uniqueName('Quiet sync'))
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const slow of [false, true]) {
+      const name = `${slow ? 'Slow' : 'Quick'} save ${width}`
+      let release!: () => void
+      const pending = new Promise<void>((resolve) => (release = resolve))
+      await page.route('**/_serverFn/**', async (route) => {
+        const body = route.request().postData() ?? ''
+        if (body.includes(name) && body.includes('operationId')) await pending
+        await route.continue()
+      })
+      await page.evaluate(() => {
+        const banner = () => [...document.querySelectorAll('output')].some((element) => /waiting to sync/.test(element.textContent ?? ''))
+        const observation = { seen: banner(), observer: new MutationObserver(() => (observation.seen ||= banner())) }
+        observation.observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+        Object.assign(window, { syncObservation: observation })
+      })
+      const before = await page.locator('[data-roster-builder]').boundingBox()
+      try {
+        await page.getByLabel('List name').fill(name)
+        await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
+        if (slow) {
+          await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
+          await page.screenshot({ path: test.info().outputPath(`pending-sync-${width}.png`) })
+        } else {
+          await page.waitForTimeout(150)
+          expect(await page.locator('[data-roster-builder]').boundingBox()).toEqual(before)
+        }
+      } finally {
+        release()
+      }
+      await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+      await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
+      const seen = await page.evaluate(() => {
+        const observation = (window as unknown as { syncObservation: { seen: boolean; observer: MutationObserver } }).syncObservation
+        observation.observer.disconnect()
+        return observation.seen
+      })
+      expect(seen).toBe(slow)
+      await page.screenshot({ path: test.info().outputPath(`synced-${slow ? 'slow' : 'quick'}-${width}.png`) })
+      await page.unroute('**/_serverFn/**')
+    }
+  }
+})
+
 test('offline roster edits survive a cold reopen and sync after reconnecting', async ({ page, context }) => {
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Plane army'))

@@ -31,6 +31,7 @@ export function SyncStatus() {
     staleTime: Infinity,
   })
   const [online, setOnline] = useState(true)
+  const [pendingOwner, setPendingOwner] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [discard, setDiscard] = useState<string | null>(null)
@@ -70,7 +71,10 @@ export function SyncStatus() {
         if (active) timer = setTimeout(() => void run(), operationsPending ? Math.min(60_000, 2_000 * 2 ** Math.min(failures, 5)) : 60_000)
       }
     }
-    const wake = () => void run()
+    const wake = () => {
+      setOnline(navigator.onLine)
+      void run()
+    }
     const storage = (event: StorageEvent) => {
       if (event.key === LOCAL_STATE_EVENT) wake()
     }
@@ -96,6 +100,14 @@ export function SyncStatus() {
   const operations = state?.owner === me?.id ? (state?.operations ?? []) : []
   const groups = [...new Set(operations.map((operation) => operation.resource))]
   const conflicts = operations.filter((operation) => operation.status !== 'pending')
+  const pendingOnline = online && operations.length > 0
+  const owner = me?.impersonatedBy ? undefined : me?.id
+  useEffect(() => {
+    setPendingOwner(null)
+    if (!pendingOnline || !owner) return
+    const timer = window.setTimeout(() => setPendingOwner(owner), 1_000)
+    return () => window.clearTimeout(timer)
+  }, [pendingOnline, owner])
   const exportWork = async () => {
     if (!state || state.owner !== localOwner()?.id) return
     if (await exportNativeWork(state)) return
@@ -146,7 +158,7 @@ export function SyncStatus() {
   if (!me || me.impersonatedBy) return null
   const label = conflicts.length
     ? 'Review saved changes'
-    : operations.length
+    : operations.length && (!online || pendingOwner === me.id)
       ? `${operations.length} change${operations.length === 1 ? '' : 's'} waiting to sync`
       : !online
         ? 'Offline · Saved data'
