@@ -6,6 +6,7 @@ import {
   type Refusal,
   reduceBattle,
   commandArmy,
+  commandRefusal,
   sideDisposition,
   sideCaptain,
   scoringTarget,
@@ -162,10 +163,14 @@ export function scoringCapError(
   state: ReturnType<typeof reduceBattle>,
   by: PlayerId,
   command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' } | { kind: 'score-settlement' }>,
-  rules: LoadedRules,
+  rules: Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>,
 ): Refusal | null {
   const target = scoringTarget(state, by, command)
   if (!target) return null
+  if (command.kind === 'score-settlement' && command.scores.some((score) => score.category === 'primary' && score.final)) {
+    const invalid = commandRefusal(state, by, command)
+    if (invalid) return invalid
+  }
   const deltas =
     command.kind === 'score-settlement'
       ? {
@@ -210,10 +215,16 @@ export function scoringCapError(
     if (delta <= 0) continue
     const roundCap = category === 'primary' ? mission.roundCap : mission.secondaryRoundCap
     const gameCap = category === 'primary' ? mission.gameCap : mission.secondaryGameCap
-    const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[round - 1] ?? 0
+    const roundSoFar =
+      ((category === 'primary' ? target.primaryByRound : target.secondaryByRound)[round - 1] ?? 0) -
+      (category === 'primary' && round === state.round ? target.finalPrimary : 0)
+    const finalDelta =
+      command.kind === 'score-settlement' && category === 'primary'
+        ? command.scores.reduce((sum, score) => sum + (score.category === 'primary' ? (score.final?.delta ?? 0) : 0), 0)
+        : 0
     const gameSoFar = category === 'primary' ? target.primary : target.secondary
     const label = category === 'primary' ? 'primary mission' : 'secondary missions'
-    if (roundCap !== null && roundSoFar + delta > roundCap)
+    if (roundCap !== null && roundSoFar + delta - finalDelta > roundCap)
       return refuse('score-cap-round', `that would score past ${named} ${roundCap} VP cap for ${label}`)
     if (gameCap !== null && gameSoFar + delta > gameCap)
       return refuse('score-cap-battle', `that would score past the battle’s ${gameCap} VP cap for ${label}`)

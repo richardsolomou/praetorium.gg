@@ -1,0 +1,215 @@
+import { expect, test } from '@playwright/test'
+import { advance, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
+import { productSql } from './storage'
+
+test('New Orders, discard CP and carried cards survive a complete two-player round', async ({ page, browser }) => {
+  test.setTimeout(180_000)
+  const opponent = await (await browser.newContext(desktopContext)).newPage()
+  const name = uniqueName('Round opponent')
+  await signUp(opponent, name)
+  const theirs = await createRoster(opponent, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Second army' })
+  await signUp(page, uniqueName('Round host'))
+  const ours = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First army' })
+  await setupBattle(page, opponent, { opponent: name, hostRoster: ours, guestRoster: theirs, openingSecondaries: ['Cleanse', 'Plunder'] })
+  const side = page.locator('[data-panel="player"][data-side="0"]')
+  await side.getByRole('button', { name: 'Use New Orders', exact: true }).click()
+  await page
+    .getByRole('dialog', { name: 'New Orders', exact: true })
+    .getByRole('button', { name: 'Discard Cleanse and draw a replacement', exact: true })
+    .click()
+  await expect(page.getByRole('dialog', { name: 'Your secondary missions', exact: true })).toBeVisible()
+  await takeTheTurn(page)
+  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  const recorded = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`
+  expect(recorded.map((command) => JSON.parse(command.body)).filter((command) => command.kind === 'use-new-orders')).toHaveLength(1)
+  await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toBeDisabled()
+  await page.reload()
+  await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toBeDisabled()
+  await expect(side.locator('[data-stat="cp"]')).toHaveText('0')
+  for (let phase = 0; phase < 5; phase += 1) await advance(page)
+  await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
+  const replacement = discard.locator('button[aria-pressed]').filter({ hasNotText: 'Plunder' }).first()
+  await replacement.click()
+  await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
+  await expect(side.locator('button[aria-label="Additional CP already gained this round"]')).toBeDisabled()
+  await takeTheTurn(opponent)
+  for (let phase = 0; phase < 6; phase += 1) await advance(opponent)
+  await expect(page.locator('[data-scoreboard]')).toContainText('Round 2 of 5')
+  await expect(page.getByRole('dialog', { name: 'Your secondary missions', exact: true })).toBeVisible()
+  await takeTheTurn(page)
+  await expect(side.locator('[data-secondary]')).toHaveCount(3)
+  await expect(side.locator('[data-secondary]').filter({ hasText: 'Plunder' })).toBeVisible()
+  await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toHaveAttribute(
+    'title',
+    'New Orders has been used this battle',
+  )
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.locator('html')).toHaveJSProperty('clientWidth', width)
+    if (width === 390) {
+      await side.locator('[data-secondary]').filter({ hasText: 'Plunder' }).scrollIntoViewIfNeeded()
+      await page.screenshot({ path: test.info().outputPath('round-two-390.png'), animations: 'disabled' })
+      await side.getByRole('button', { name: 'Use New Orders', exact: true }).scrollIntoViewIfNeeded()
+      await page.screenshot({ path: test.info().outputPath('round-two-phone-orders.png'), animations: 'disabled' })
+    } else await side.screenshot({ path: test.info().outputPath('round-two-1440.png'), animations: 'disabled' })
+  }
+  await opponent.reload()
+  await expect(opponent.locator('[data-scoreboard]')).toContainText('Round 2 of 5')
+  await expect(
+    opponent.locator('[data-panel="player"][data-side="0"]').getByRole('button', { name: 'Read Plunder', exact: true }),
+  ).toBeVisible()
+})
+
+test('both sides settle source final awards beyond round caps through cold offline resume', async ({
+  page: initialPage,
+  context,
+  browser,
+}) => {
+  test.setTimeout(180_000)
+  let page = initialPage
+  const opponent = await (await browser.newContext(desktopContext)).newPage()
+  const name = uniqueName('Final opponent')
+  await signUp(opponent, name)
+  const theirs = await createRoster(opponent, { faction: 'Death Guard', detachment: /Flyblown Host/, name: 'Second final army' })
+  await signUp(page, uniqueName('Final host'))
+  const ours = await createRoster(page, { faction: 'Death Guard', detachment: /Flyblown Host/, name: 'First final army' })
+  await setupBattle(page, opponent, { opponent: name, hostRoster: ours, guestRoster: theirs })
+  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
+  const start = commands.find((command) => JSON.parse(command.body).kind === 'begin-battle')!
+  const first = JSON.parse(start.body).firstPlayerId
+  const [second] = await productSql<{
+    user_id: string
+  }>`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id} AND user_id <> ${first}`
+  let seq = Math.max(...commands.map((command) => command.seq))
+  const append = async (by: string, body: object) => {
+    seq += 1
+    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
+  }
+  for (let phase = 0; phase < 48; phase += 1) {
+    const playerId = Math.floor(phase / 6) % 2 ? second.user_id : first
+    if (phase > 0 && phase % 6 === 0) await append(playerId, { kind: 'settle-opponent-turn' })
+    await append(playerId, { kind: 'advance' })
+  }
+  await append(first, { kind: 'settle-opponent-turn' })
+  await append(first, { kind: 'score', category: 'primary', delta: 15 })
+  for (let phase = 0; phase < 6; phase += 1) await append(first, { kind: 'advance' })
+  await append(second.user_id, { kind: 'settle-opponent-turn' })
+  await append(second.user_id, { kind: 'score', category: 'primary', delta: 15 })
+  for (let phase = 0; phase < 5; phase += 1) await append(second.user_id, { kind: 'advance' })
+  await page.reload()
+  await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  const finalTurn = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  await expect(finalTurn).toContainText('Final awards: 0 VP')
+  const primary = finalTurn.locator('[data-due="662be231-e658-4007-9e78-406749ebc71a"]')
+  await expect(primary.getByText('End of battle', { exact: true })).toHaveCount(2)
+  await primary.getByRole('button', { name: 'Gather Intel plus 4', exact: true }).click()
+  await primary
+    .getByRole('button', { name: /plus 5$/ })
+    .first()
+    .click()
+  await primary
+    .getByRole('button', { name: /plus 5$/ })
+    .nth(1)
+    .click()
+  await expect(finalTurn.locator('output')).toContainText('Scoring 10 VP')
+  await expect(finalTurn).toContainText('Primary mission 15/15 this round')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect
+      .poll(() =>
+        finalTurn.evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          return box.left >= 0 && box.right <= innerWidth && (innerWidth > 859 || (box.top === 0 && box.bottom <= innerHeight - 64))
+        }),
+      )
+      .toBe(true)
+    await page.screenshot({ path: test.info().outputPath(`final-awards-${width}.png`), animations: 'disabled' })
+    if (width === 390) {
+      await primary
+        .getByRole('button', { name: /plus 5$/ })
+        .nth(1)
+        .scrollIntoViewIfNeeded()
+      await page.screenshot({ path: test.info().outputPath('final-awards-phone-controls.png'), animations: 'disabled' })
+    }
+  }
+  await page.reload()
+  await expect(finalTurn.locator('output')).toContainText('Scoring 0 VP')
+  await primary.getByRole('button', { name: 'Gather Intel plus 4', exact: true }).click()
+  await primary
+    .getByRole('button', { name: /plus 5$/ })
+    .first()
+    .click()
+  await primary
+    .getByRole('button', { name: /plus 5$/ })
+    .nth(1)
+    .click()
+  await expect(finalTurn.locator('output')).toContainText('Scoring 10 VP')
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
+          return Boolean(saved && (await saved.text()).includes('"construction"'))
+        }),
+      { timeout: 120_000 },
+    )
+    .toBe(true)
+  const url = page.url()
+  await context.setOffline(true)
+  await finalTurn.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: /^Scoring end of battle points/ })).toBeVisible()
+  await page.close()
+  page = await context.newPage()
+  await page.goto(url)
+  const firstFinal = page.getByRole('dialog', { name: /^Scoring end of battle points/ })
+  await expect(firstFinal).toBeVisible()
+  await expect(page.locator('[data-scoreboard]')).not.toContainText('wins')
+  await firstFinal
+    .getByRole('button', { name: /plus 5$/ })
+    .first()
+    .click()
+  await firstFinal
+    .getByRole('button', { name: /plus 5$/ })
+    .nth(1)
+    .click()
+  await expect(firstFinal.locator('output')).toContainText('Scoring 10 VP')
+  await firstFinal.getByRole('button', { name: 'Finish battle', exact: true }).click()
+  await expect(page.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
+  const queued = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`
+  expect(
+    queued
+      .map((command) => JSON.parse(command.body))
+      .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final)),
+  ).toHaveLength(0)
+  await context.setOffline(false)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect
+    .poll(
+      async () =>
+        (await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`)
+          .map((command) => JSON.parse(command.body))
+          .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final))
+          .length,
+      { timeout: 30_000 },
+    )
+    .toBe(2)
+  await opponent.reload()
+  await expect(opponent.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
+  const saved = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
+  expect(
+    saved
+      .sort((left, right) => left.seq - right.seq)
+      .map((command) => JSON.parse(command.body))
+      .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final))
+      .map((command) => ({ playerId: command.playerId, round: command.round, scores: command.scores })),
+  ).toEqual([
+    { playerId: second.user_id, round: 5, scores: [{ category: 'primary', delta: 10, final: { claims: [0, 0, 0, 0, 1, 1], delta: 10 } }] },
+    { playerId: first, round: 5, scores: [{ category: 'primary', delta: 10, final: { claims: [0, 0, 0, 0, 1, 1], delta: 10 } }] },
+  ])
+})

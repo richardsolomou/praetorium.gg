@@ -82,6 +82,11 @@ export function ScoringDialog({
   const undo = useUndoLatest({ undoable, undoableDraw, send })
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
+  const finalClaimedFor = (card: DueCard) =>
+    card.awards.reduce(
+      (total, award, at) => total + (award.trigger.timing === 'end-of-battle' ? awardTotal(award, answerFor(card)[at] ?? 0) : 0),
+      0,
+    )
 
   // Every ceiling is the one this side's own mission states, never the viewer's, and
   // it belongs to the mission rather than to a card: two secondary cards due at once
@@ -91,7 +96,7 @@ export function ScoringDialog({
   const room = {
     primary: capRoom(
       { round: side.mission?.roundCap ?? null, game: side.mission?.gameCap ?? null },
-      { round: roundSoFar.primary, game: side.primary },
+      { round: roundSoFar.primary - side.finalPrimary, game: side.primary },
     ),
     secondary: capRoom(
       { round: side.mission?.secondaryRoundCap ?? null, game: side.mission?.secondaryGameCap ?? null },
@@ -109,12 +114,16 @@ export function ScoringDialog({
       ? Infinity
       : Math.max(0, cardCap - (side.secondaries.find((held) => held.key === card.key)?.points ?? 0))
   const settled = settleAgainstCaps(
-    due.map((card) => ({ card, claimed: claimedFor(card) })),
+    due.map((card) => ({ card, claimed: claimedFor(card), finalClaimed: card.category === 'primary' ? finalClaimedFor(card) : 0 })),
     { primary: room.primary?.room ?? Infinity, secondary: room.secondary?.room ?? Infinity },
     cardRoom,
+    side.mission?.gameCap === null || side.mission?.gameCap === undefined ? Infinity : Math.max(0, side.mission.gameCap - side.primary),
   )
   const settledFor = (card: DueCard) => settled.find((entry) => entry.card.key === card.key) ?? { claimed: 0, scoring: 0 }
   const total = settled.reduce((sum, entry) => sum + entry.scoring, 0)
+  const finalScoring = settled.reduce((sum, entry) => sum + (entry.finalScoring ?? 0), 0)
+  const finalClaimed = due.filter((card) => card.category === 'primary').reduce((sum, card) => sum + finalClaimedFor(card), 0)
+  const finalAwardsDue = due.some((card) => card.awards.some((award) => award.trigger.timing === 'end-of-battle'))
 
   // Only the categories this prompt can actually pay into, so a round cap is stated
   // where it applies and nowhere else.
@@ -127,8 +136,15 @@ export function ScoringDialog({
   const allowances = asking.flatMap((category) => {
     const limit = room[category]
     if (!limit) return []
-    const banked = limit.scope === 'round' ? scoredThisRound(roundSoFar, category) : category === 'primary' ? side.primary : side.secondary
-    const scoring = settled.filter((entry) => entry.card.category === category).reduce((sum, entry) => sum + entry.scoring, 0)
+    const banked =
+      limit.scope === 'round'
+        ? scoredThisRound(roundSoFar, category) - (category === 'primary' ? side.finalPrimary : 0)
+        : category === 'primary'
+          ? side.primary
+          : side.secondary
+    const scoring = settled
+      .filter((entry) => entry.card.category === category)
+      .reduce((sum, entry) => sum + entry.scoring - (limit.scope === 'round' ? (entry.finalScoring ?? 0) : 0), 0)
     return [
       {
         label: category === 'primary' ? 'Primary mission' : 'Secondary missions',
@@ -142,7 +158,13 @@ export function ScoringDialog({
   // Said once for the category that is full, rather than under every payout it refuses.
   const capNotes = asking.flatMap((category) => {
     const limit = room[category]
-    const over = settled.filter((entry) => entry.card.category === category).reduce((sum, entry) => sum + entry.claimed - entry.scoring, 0)
+    const over = settled
+      .filter((entry) => entry.card.category === category)
+      .reduce(
+        (sum, entry) =>
+          sum + entry.claimed - entry.scoring - (limit?.scope === 'round' ? finalClaimedFor(entry.card) - (entry.finalScoring ?? 0) : 0),
+        0,
+      )
     if (!limit || !over) return []
     const label = category === 'primary' ? 'primary mission' : 'secondary missions'
     const whose = limit.scope === 'round' ? 'This round’s' : 'The battle’s'
@@ -165,17 +187,34 @@ export function ScoringDialog({
 
   const confirm = () => {
     const finished: string[] = []
-    const scores = settled.reduce<Extract<Command, { kind: 'score-settlement' }>['scores']>((settlement, { card, scoring }) => {
-      if (!scoring) return settlement
-      const achieved = finishesOnScore(card.category, side.secondaryMode, scoring)
-      if (achieved) finished.push(card.key)
-      settlement.push(
-        card.category === 'primary'
-          ? { category: 'primary', delta: scoring }
-          : { category: 'secondary', key: card.key, delta: scoring, status: achieved ? 'achieved' : undefined },
-      )
-      return settlement
-    }, [])
+    const scores = settled.reduce<Extract<Command, { kind: 'score-settlement' }>['scores']>(
+      (settlement, { card, scoring, finalScoring: finalBanked }) => {
+        if (!scoring) return settlement
+        const achieved = finishesOnScore(card.category, side.secondaryMode, scoring)
+        if (achieved) finished.push(card.key)
+        settlement.push(
+          card.category === 'primary'
+            ? {
+                category: 'primary',
+                delta: scoring,
+                ...(finalBanked
+                  ? {
+                      final: {
+                        delta: finalBanked,
+                        claims: (side.primaryCard?.awards ?? []).map((award, sourceIndex) => {
+                          const index = card.awardIndexes.indexOf(sourceIndex)
+                          return award.trigger.timing === 'end-of-battle' && index >= 0 ? (answerFor(card)[index] ?? 0) : 0
+                        }),
+                      },
+                    }
+                  : {}),
+              }
+            : { category: 'secondary', key: card.key, delta: scoring, status: achieved ? 'achieved' : undefined },
+        )
+        return settlement
+      },
+      [],
+    )
     if (scores.length) send({ kind: 'score-settlement', scores, round, playerId: side.captain.id })
     onDone(finished, scores.length > 0)
   }
@@ -194,6 +233,16 @@ export function ScoringDialog({
               Scoring {moment} points · {sideName(side)}
             </DialogTitle>
             <DialogDescription>Recording points for {sideName(side)}. Press what the board actually paid on each card.</DialogDescription>
+            {finalAwardsDue ? (
+              <p className="text-sm text-dim">
+                Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.
+              </p>
+            ) : null}
+            {finalClaimed > finalScoring && room.primary?.scope === 'round' ? (
+              <p className="text-sm text-dim">
+                The battle cap leaves {finalScoring} VP for final awards; the other {finalClaimed - finalScoring} VP does not score.
+              </p>
+            ) : null}
             {allowances.length ? (
               <p className="readout flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-dim">
                 {allowances.map((allowance) => (
@@ -312,7 +361,7 @@ function AwardRow({
   tone: Tone
   onAnswer: (times: number) => void
 }) {
-  const limit = awardLimit(award)
+  const limit = award.trigger.timing === 'end-of-battle' ? Math.min(awardLimit(award) ?? 100, 100) : awardLimit(award)
   const label = conditionLabel(award) ?? payoutLabel(award, card.awards)
 
   return (
@@ -328,6 +377,7 @@ function AwardRow({
       <span className="min-w-0 flex-1 text-sm">
         {/* The pack's own sentence, so the keywords it marks up read as keywords here too. */}
         <RuleText text={label} className="mt-0 space-y-1 text-sm text-bone" />
+        {award.trigger.timing === 'end-of-battle' ? <span className="mt-0.5 block text-3xs text-faint">End of battle</span> : null}
         {counted(award) ? (
           <span className="mt-0.5 block text-3xs text-faint">
             {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
@@ -409,7 +459,13 @@ function Chip({
 export function dueForAdvance(view: BattleView, side: Side, awardsFor: (key: string, mode?: string) => MissionAward[]): DueCard[] {
   const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
   const fallbackKeys = firstSide !== undefined && side.index !== firstSide ? side.secondariesDrawnThisTurn : []
-  return cardsDue(view, side.isActive, playable(side, awardsFor), fallbackKeys)
+  return cardsDue(
+    { ...view, endOfBattle: view.endOfBattle && side.finalPrimary === 0 },
+    side.isActive,
+    playable(side, awardsFor),
+    fallbackKeys,
+    side.secondaryMode,
+  )
 }
 
 /**
@@ -425,8 +481,9 @@ export function dueFromTheirTurn(
   side: Side,
   awardsFor: (key: string, mode?: string) => MissionAward[],
   hand: readonly string[],
+  endOfBattle = false,
 ): DueCard[] {
-  return cardsDueFromTheirTurn(round, rounds, playable(side, awardsFor), hand)
+  return cardsDueFromTheirTurn(round, rounds, playable(side, awardsFor), hand, endOfBattle && side.finalPrimary === 0, side.secondaryMode)
 }
 
 /** A side's primary and whatever is still live in its hand, with the payouts each carries. */

@@ -26,6 +26,7 @@ import {
   type StratagemLimit,
   type UnitState,
   validate,
+  atBattleEnd,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
 
@@ -61,6 +62,7 @@ export type BattleView = {
   round: number
   phase: Phase
   rounds: number
+  endOfBattle: boolean
   /** What a command must carry to be accepted. Anything older is a stale client. */
   seq: number
   viewerId: PlayerId
@@ -136,6 +138,7 @@ export type BattleView = {
       revealed: boolean
     }[]
     primaryCard: Secondary | null
+    finalPrimary: number
     secondaryMode: SecondaryMode
     /** Whether this side has a secondary deck, without exposing the cards in it. */
     secondaryDeckReady: boolean
@@ -198,6 +201,7 @@ export function battleView(
     round: state.round,
     phase: state.phase,
     rounds: battleRoundLimit(state.settings.limit),
+    endOfBattle: atBattleEnd(state),
     seq: state.seq,
     viewerId,
     creatorId: players[0]?.id ?? viewerId,
@@ -263,6 +267,7 @@ export function battleView(
           refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
         })),
         primaryCard: resources.primaryCard,
+        finalPrimary: resources.finalPrimary,
         secondaryMode: resources.secondaryMode,
         secondaryDeckReady: Boolean(resources.secondaryDeck?.length),
         secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn.map((key) =>

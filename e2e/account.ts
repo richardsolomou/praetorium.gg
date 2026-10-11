@@ -236,7 +236,7 @@ export async function setupStep(page: Page, label: string) {
 export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
   await setupStep(page, 'Armies')
   const chooser = forPlayer
-    ? page.getByRole('button', { name: new RegExp(`roster for ${forPlayer}$`) })
+    ? page.getByRole('button', { name: new RegExp(`^(Choose|Change) roster for ${forPlayer}$`) })
     : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
   const dialog = page.getByRole('dialog', { name: /roster$/ })
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -282,7 +282,7 @@ export const advanceButton = (page: Page) => page.getByRole('button', { name: /^
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
 const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
-const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of their turn/ })
+const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of (their turn|battle)/ })
 
 export async function dismissBattleReminder(page: Page) {
   const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })
@@ -363,7 +363,7 @@ export async function takeTheTurn(page: Page) {
     const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
     if (seen === 'drawn') await clearDrawPrompt(prompt)
     else {
-      await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+      await prompt.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
       await expect(prompt).toBeHidden()
     }
   }
@@ -388,7 +388,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
       if (!(await prompt.isVisible().catch(() => false))) continue
       if (kind === 'draw') await clearDrawPrompt(prompt)
       else {
-        await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+        await prompt.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
         await expect(prompt).toBeHidden()
       }
     }
@@ -430,7 +430,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
           await expect(discard).toBeHidden()
           continue
         }
-        await owed.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+        await owed.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
         await expect(owed).toBeHidden()
       }
       await expect.poll(() => phase.textContent()).not.toBe(before)

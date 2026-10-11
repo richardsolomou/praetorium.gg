@@ -10,7 +10,7 @@
  */
 
 import { attachedUnits } from './attachedUnits'
-import { appliesInMode, cardsDue, cardsDueFromTheirTurn, type MissionAward } from './scoring'
+import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
@@ -716,7 +716,10 @@ export type Command =
   | ({ kind: 'score-secondary'; key: string; delta: number } & OnBehalfOf)
   | ({
       kind: 'score-settlement'
-      scores: ({ category: 'primary'; delta: number } | { category: 'secondary'; key: string; delta: number; status?: 'achieved' })[]
+      scores: (
+        | { category: 'primary'; delta: number; final?: { claims: number[]; delta: number } }
+        | { category: 'secondary'; key: string; delta: number; status?: 'achieved' }
+      )[]
       /**
        * The battle round these points belong to, when a turn that has already ended
        * owed them. Absent means the round being played, which is what the settlement
@@ -903,6 +906,7 @@ export type PlayerState = {
   scored: Record<string, number>
   /** Per-round ledgers are folded from score commands, never stored separately. */
   primaryByRound: number[]
+  finalPrimary: number
   secondaryByRound: number[]
   scoredByRound: Record<string, number[]>
   secondaryStatus: Record<string, SecondaryStatus>
@@ -1092,6 +1096,7 @@ export function emptyBattle(
       secondaryDeck: null,
       scored: {},
       primaryByRound: Array(BATTLE_ROUNDS).fill(0),
+      finalPrimary: 0,
       secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
       scoredByRound: {},
       secondaryStatus: {},
@@ -1492,6 +1497,27 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         if (!Number.isInteger(score.delta) || score.delta <= 0)
           return refuse('invalid-amount', 'victory points move in positive whole steps')
         if (score.category === 'primary') {
+          if (score.final) {
+            const claimed = finalAwardTotal(
+              player.primaryCard?.awards ?? [],
+              score.final.claims,
+              { phase: state.phase, round: state.round, rounds: battleRoundLimit(state.settings.limit), endOfBattle: atBattleEnd(state) },
+              sameSide(state, player.id, state.activePlayerId ?? ''),
+              player.secondaryMode,
+            )
+            const finalSide = state.completionPending ? state.pendingSettlement?.playerId : state.activePlayerId
+            if (
+              !atBattleEnd(state) ||
+              !sameSide(state, player.id, finalSide ?? '') ||
+              player.finalPrimary > 0 ||
+              claimed === null ||
+              !Number.isInteger(score.final.delta) ||
+              score.final.delta <= 0 ||
+              score.final.delta > score.delta ||
+              score.final.delta > claimed
+            )
+              return refuse('invalid-settlement', 'those are not available end-of-battle points')
+          }
           if (keys.has('primary')) return refuse('invalid-settlement', 'record primary scoring once per settlement')
           keys.add('primary')
           continue
@@ -1809,6 +1835,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       for (const score of command.scores) {
         if (score.category === 'primary') {
           player.primary += score.delta
+          player.finalPrimary += score.final?.delta ?? 0
           player.primaryByRound[round - 1] = (player.primaryByRound[round - 1] ?? 0) + score.delta
           continue
         }
@@ -2069,6 +2096,7 @@ function resetPlayer(player: PlayerState) {
   player.secondaryMode = 'tactical'
   player.scored = {}
   player.primaryByRound = Array(BATTLE_ROUNDS).fill(0)
+  player.finalPrimary = 0
   player.secondaryByRound = Array(BATTLE_ROUNDS).fill(0)
   player.scoredByRound = {}
   player.secondaryStatus = {}
@@ -2301,6 +2329,7 @@ export function scoringTarget(
   secondary: number
   primaryByRound: number[]
   secondaryByRound: number[]
+  finalPrimary: number
   /** How this side draws its cards, which is what says whether a fixed card's own ceiling applies. */
   secondaryMode: SecondaryMode
   /** What each named card has scored so far, keyed the way the card is named. */
@@ -2315,6 +2344,7 @@ export function scoringTarget(
     primary: target.primary,
     secondary: target.secondary,
     primaryByRound: target.primaryByRound,
+    finalPrimary: target.finalPrimary,
     secondaryByRound: target.secondaryByRound,
     secondaryMode: target.secondaryMode,
     scored: target.scored,
@@ -2379,10 +2409,30 @@ export function scoringDue(state: BattleState, player: PlayerState) {
       },
     ]
   })
-  return cardsDue({ phase: state.phase, round: state.round, rounds: battleRoundLimit(state.settings.limit) }, true, [
-    ...primary,
-    ...secondaries,
-  ])
+  return cardsDue(
+    {
+      phase: state.phase,
+      round: state.round,
+      rounds: battleRoundLimit(state.settings.limit),
+      endOfBattle: atBattleEnd(state) && player.finalPrimary === 0,
+    },
+    true,
+    [...primary, ...secondaries],
+    [],
+    player.secondaryMode,
+  )
+}
+
+export function atBattleEnd(state: BattleState): boolean {
+  return (
+    state.status === 'playing' &&
+    state.phase === 'end' &&
+    state.round === battleRoundLimit(state.settings.limit) &&
+    (state.completionPending ||
+      (state.pendingSettlement === null &&
+        state.activePlayerId !== null &&
+        !sameSide(state, state.activePlayerId, state.firstPlayerId ?? '')))
+  )
 }
 
 export function secretSettlementActionPlayerId(state: BattleState): PlayerId | null {

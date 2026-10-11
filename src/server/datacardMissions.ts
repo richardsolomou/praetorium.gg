@@ -16,6 +16,8 @@ const roundOf = (period: string) =>
   ]
 
 function triggers(when: string | null, periods: unknown): AwardTrigger[] {
+  if (Array.isArray(periods) && periods.length === 1 && periods[0] === 'endOfBattle')
+    return [{ timing: 'end-of-battle', phase: null, playerTurn: null, roundMin: null, roundMax: null }]
   if (!when) return []
   const normalized = when.toLowerCase().replaceAll('’', "'").replace(/\.$/, '')
   const rounds = Array.isArray(periods)
