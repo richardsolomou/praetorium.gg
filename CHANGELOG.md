@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.118.0
+
+### Minor Changes
+
+- c591b8d: Record physical model quantities and compare shared equipped stock with roster requirements.
+
+### Patch Changes
+
+- c95d74c: Restore faction icons for battles saved with previous roster rules.
+
 ## 0.117.0
 
 ### Minor Changes
