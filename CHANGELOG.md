@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.8
+
+### Patch Changes
+
+- da40372: Explain unit-copy pricing tiers on datasheets when the points source omits labels.
+
 ## 0.115.7
 
 ### Patch Changes
