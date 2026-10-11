@@ -276,6 +276,14 @@ export class PraetoriumService {
     return this.rosterService.deleteRoster(...args)
   }
 
+  collectionProfile(userId: string, viewerId: string | null) {
+    return this.repository.collectionProfile(userId, viewerId)
+  }
+
+  setCollectionPublished(userId: string, published: boolean) {
+    return this.repository.setCollectionPublished(userId, published)
+  }
+
   collection(...args: Parameters<RosterService['collection']>) {
     return this.rosterService.collection(...args)
   }

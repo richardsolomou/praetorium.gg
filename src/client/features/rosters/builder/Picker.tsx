@@ -29,9 +29,8 @@ import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
 import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
-import { MissionGuidance } from './MissionGuidance'
 import { Section } from './Section'
-import { canAddCopy, unitLimitMessage } from './usePicks'
+import { canAddCopy } from './usePicks'
 
 type Props = {
   enabled: boolean
@@ -42,9 +41,7 @@ type Props = {
   rosterUnits: readonly (AttachableUnit | undefined)[]
   inRoster: Record<string, number>
   limits: ReadonlyMap<string, number | null>
-  controlsDisabled: boolean
   room: number | null
-  disposition: string | null
   battleSize: number
   /** Which of the battle size's restrictions the roster has switched off. */
   waivedRules: readonly FormatRuleId[]
@@ -88,9 +85,7 @@ export const Picker = memo(function Picker({
   rosterUnits,
   inRoster,
   limits,
-  controlsDisabled,
   room,
-  disposition,
   battleSize,
   waivedRules,
   onWaiveToggle,
@@ -246,7 +241,6 @@ export const Picker = memo(function Picker({
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
-        <MissionGuidance disposition={disposition} />
         {unitsResult.isPending || (signedIn && (collectionResult.isPending || favouritesLoading)) ? (
           <PickerSkeleton />
         ) : unitsResult.isError ? (
@@ -267,17 +261,11 @@ export const Picker = memo(function Picker({
                       <PickerRow
                         key={unit.id}
                         unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
-                        limitMessage={unitLimitMessage(unit.id, held, limits)}
-                        budgetMessage={
-                          room !== null && unit.points !== null && unit.points > room
-                            ? `${unit.points - room} pts over the remaining budget at base cost.`
-                            : null
-                        }
+
                         relationship={'relationship' in unit ? String(unit.relationship) : null}
                         attachmentReason={'attachmentReason' in unit ? (unit.attachmentReason as string | null) : null}
                         held={held}
                         full={full}
-                        controlsDisabled={controlsDisabled}
                         favourite={favourites.has(unit.id)}
                         favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
                         query={query}
@@ -330,12 +318,9 @@ type PickerRowProps = {
   unit: UnitSummary
   held: number
   full: boolean
-  controlsDisabled: boolean
   favourite: boolean
   favouritePending: boolean
   query: string
-  limitMessage: string | null
-  budgetMessage: string | null
   relationship: string | null
   attachmentReason: string | null
   onPreview: (entryId: string, name: string) => void
@@ -347,12 +332,9 @@ const PickerRow = memo(function PickerRow({
   unit,
   held,
   full,
-  controlsDisabled,
   favourite,
   favouritePending,
   query,
-  limitMessage,
-  budgetMessage,
   relationship,
   attachmentReason,
   onPreview,
@@ -381,8 +363,6 @@ const PickerRow = memo(function PickerRow({
               {full ? '' : ' Can be added separately.'}
             </span>
           ) : null}
-          {budgetMessage ? <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{budgetMessage}</span> : null}
-          {limitMessage ? <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{limitMessage}</span> : null}
           {held ? (
             <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
               {held}
@@ -411,7 +391,7 @@ const PickerRow = memo(function PickerRow({
           size="sm"
           className="shrink-0 px-2"
           aria-label={`Add ${unit.name}`}
-          disabled={full || controlsDisabled}
+          disabled={full}
           onClick={() => onAdd(unit.id)}
         >
           <Plus className="size-3" />

@@ -586,11 +586,34 @@ export function ListBuilder({
     },
     [setSelected],
   )
-  const add = useCallback((entryId: string) => {
-    editor.current.add(entryId)
-    reporting.current = { event: 'roster_unit_added' }
-  }, [])
   const [requestRefusal, setRequestRefusal] = useState<string | null>(null)
+  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[] }[]>([])
+  const add = (entryId: string) => {
+    setRequestRefusal(null)
+    setQueuedAdds((current) => {
+      const queued = current.filter((entry) => entry.entryId === entryId).length
+      if (picks.length + current.length >= 100 || !canAddCopy(entryId, (held[entryId] ?? 0) + queued, unitLimits)) return current
+      return [...current, { entryId, context: priceRequest.queryKey }]
+    })
+  }
+  useEffect(() => {
+    const next = queuedAdds[0]
+    if (!next) return
+    if (!editable) {
+      setQueuedAdds([])
+      return
+    }
+    if (pricePending || priceLoading || priceFailed) return
+    setQueuedAdds((current) => current.slice(1))
+    if (!samePriceContext(next.context, priceRequest.queryKey)) return
+    const outcome = requestedUnit(next.entryId, held[next.entryId] ?? 0, unitLimits)
+    if (outcome.kind === 'refused') {
+      setRequestRefusal(outcome.message)
+      return
+    }
+    editor.current.add(next.entryId)
+    reporting.current = { event: 'roster_unit_added' }
+  }, [editable, held, priceFailed, priceLoading, pricePending, priceRequest.queryKey, queuedAdds, unitLimits])
   const requestHandled = useRef(false)
   const requestedHeld = requested ? (held[requested.entryId] ?? 0) : 0
   const limitsKnown = Boolean(priced) && !pricePending && !priceFailed
@@ -854,14 +877,12 @@ export function ListBuilder({
             key={`${catalogueId}:${detachmentIds.join(',')}:${limit}`}
             picks={picks}
             rosterUnits={units}
-            disposition={priceFailed ? null : (priced?.disposition ?? null)}
             enabled={pickerEnabled}
             catalogueId={catalogueId}
             onAdd={add}
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
-            controlsDisabled={pricePending}
             room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
             battleSize={limit}
             waivedRules={waivedRules}
@@ -1264,7 +1285,7 @@ export function ListBuilder({
                   <Button
                     size="sm"
                     className="px-2"
-                    disabled={pricePending || !canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                    disabled={!canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
                     onClick={() => add(preview.entryId)}
                   >
                     <Plus className="size-3" />
