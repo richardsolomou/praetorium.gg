@@ -11,6 +11,8 @@ import { MAX_OFFLINE_BYTES } from '../../contracts/offlineReference'
 import { restoreRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
 import { restoreReferenceText } from '../../contracts/sharedReferenceText'
+import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
+import type { TerrainLayout, TerrainTemplate } from '../../contracts/terrain'
 
 const cache = new WeakMap<OfflineConstructionSource, ReturnType<typeof buildConstruction>>()
 const sharedSources = new WeakMap<OfflineConstructionBase | OfflineConstructionSource, OfflineConstructionSource>()
@@ -65,6 +67,18 @@ export function localConstruction(catalogueId?: string) {
   const existing = cache.get(saved)
   if (existing) return existing
   const built = buildConstruction(saved)
+  const terrain =
+    referenceData()
+      ?.queries?.filter(({ key }) => key[0] === 'terrain-references' && key[1] === TERRAIN_GEOMETRY_VERSION)
+      .map(({ data }) => data as { layouts: TerrainLayout[]; templates: TerrainTemplate[] }) ?? []
+  if (terrain.length) {
+    built.rules.terrainLayouts = [
+      ...new Map(terrain.flatMap(({ layouts }) => layouts.map((layout) => [layout.id, layout] as const))).values(),
+    ]
+    built.rules.terrainTemplates = [
+      ...new Map(terrain.flatMap(({ templates }) => templates.map((template) => [template.id, template] as const))).values(),
+    ]
+  }
   cache.set(saved, built)
   return built
 }

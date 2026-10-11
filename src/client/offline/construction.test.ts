@@ -8,6 +8,8 @@ import { buildConstruction, localConstruction, constructionRead } from './constr
 import { datacardOf } from '../../shared/datasheetJoin'
 import { shareRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
+import type { TerrainLayout, TerrainTemplate } from '../../contracts/terrain'
+import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
 
 const mocks = vi.hoisted(() => ({ reference: vi.fn() }))
 vi.mock('./runtime', () => ({ referenceData: mocks.reference }))
@@ -15,7 +17,14 @@ afterEach(() => vi.unstubAllGlobals())
 
 function source(cost: number, versioned = false): OfflineConstructionSource {
   const loaded = bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'model', costs: points(cost) }] })
-  const rules = { factionKeys: new Map(), detachmentReferences: new Map(), detachmentDetails: new Map(), factionRestrictions: new Map() }
+  const rules = {
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map(),
+    factionRestrictions: new Map(),
+    terrainLayouts: [],
+    terrainTemplates: [],
+  }
   return {
     version: 1,
     revision: versioned ? 'codex-revision' : 'base-revision',
@@ -88,6 +97,49 @@ it('reuses a selected source and replaces it after a reference refresh', () => {
   expect(localConstruction('codex~cat')).toBe(first)
   mocks.reference.mockReturnValue({ construction: { ...source(80), editions: [source(90, true)] } })
   expect(localConstruction('codex~cat')).not.toBe(first)
+})
+
+it('restores battle terrain from shared reference queries without duplicating layouts', () => {
+  const layout: TerrainLayout = {
+    id: 'layout-a',
+    name: 'Layout A',
+    description: null,
+    matchupId: 'purge-vs-purge',
+    variant: 1,
+    deploymentId: 'search-and-destroy',
+    pieces: [],
+    geometry: { board: { width: 60, height: 44 }, areas: [] },
+  }
+  const template: TerrainTemplate = { id: 'ruin', name: 'Ruin', kind: 'ruin', points: [{ x: 0, y: 0 }], features: [] }
+  const terrain = { layouts: [layout], templates: [template] }
+  mocks.reference.mockReturnValue({
+    construction: source(80),
+    queries: [
+      { key: ['terrain-references', TERRAIN_GEOMETRY_VERSION, 'purge-vs-purge'], data: terrain },
+      { key: ['terrain-references', TERRAIN_GEOMETRY_VERSION, 'purge-vs-other'], data: terrain },
+    ],
+  })
+  const { terrainLayouts, terrainTemplates } = localConstruction()!.rules
+  expect({ terrainLayouts, terrainTemplates }).toEqual({ terrainLayouts: [layout], terrainTemplates: [template] })
+})
+
+it('does not restore terrain from unrelated queries or an incompatible geometry version', () => {
+  mocks.reference.mockReturnValue({
+    construction: source(80),
+    queries: [
+      { key: ['terrain-references', TERRAIN_GEOMETRY_VERSION - 1], data: { layouts: [{ id: 'old-layout' }], templates: [] } },
+      { key: ['unrelated', TERRAIN_GEOMETRY_VERSION], data: { layouts: [{ id: 'unrelated-layout' }], templates: [] } },
+    ],
+  })
+  expect(localConstruction()!.rules.terrainLayouts).toEqual([])
+})
+
+it('keeps construction terrain from older downloads without shared terrain queries', () => {
+  const saved = source(80)
+  const layouts = [{ id: 'legacy-layout', geometry: { board: { width: 60, height: 44 }, areas: [] } }]
+  saved.rules = { ...(saved.rules as object), terrainLayouts: packRuntimeData(layouts) }
+  mocks.reference.mockReturnValue({ construction: saved, queries: [] })
+  expect(localConstruction()!.rules.terrainLayouts).toEqual(layouts)
 })
 
 it('reconstructs a named base edition offline with stable caching and current prices', () => {

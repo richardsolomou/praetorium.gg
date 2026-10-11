@@ -133,7 +133,12 @@ export function SearchableSelect({
                 {group.label ? <ComboboxLabel className="eyebrow text-faint">{group.label}</ComboboxLabel> : null}
                 <ComboboxCollection>
                   {(option: SearchableOption) => (
-                    <ComboboxItem key={option.value} value={option} className="data-highlighted:bg-edge">
+                    <ComboboxItem
+                      key={option.value}
+                      value={option}
+                      aria-label={[option.label, option.detail].filter(Boolean).join(', ')}
+                      className="data-highlighted:bg-edge"
+                    >
                       <OptionContent option={option} />
                     </ComboboxItem>
                   )}
