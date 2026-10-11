@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { attachRoster, createBattle, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { attachRoster, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 import { productOperator } from './storage'
 import type { LocalState } from '../src/contracts/localState'
@@ -53,8 +53,9 @@ test('totals models across datasheets and drops a removed datasheet', async ({ p
 test('adds, counts and removes a datasheet from its reference page, and favourites it', async ({ page }) => {
   await signUp(page, uniqueName('Datasheet collection'))
   await page.goto('/factions/necrons/datasheets/overlord')
-  await page.getByRole('button', { name: 'Add to', exact: true }).click()
   const menu = page.getByRole('dialog', { name: 'Add Overlord to' })
+  const openMenu = () => retryUntilVisible(menu, () => page.getByRole('button', { name: 'Add to', exact: true }).click())
+  await openMenu()
   await menu.getByRole('button', { name: 'Add to collection', exact: true }).click()
   await expect(owned(menu, 'Overlord')).toHaveText('1')
   await menu.getByRole('button', { name: 'More Overlord models', exact: true }).click()
@@ -62,19 +63,22 @@ test('adds, counts and removes a datasheet from its reference page, and favourit
   await menu.getByRole('button', { name: 'Favourites', exact: true }).click()
   await expect(menu.getByRole('button', { name: 'Favourites', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.keyboard.press('Escape')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  // The count joins the saved-work queue only after reading the current counts, so wait for the server instead.
+  const owner = (await savedWork(page))!.owner
+  const operator = await productOperator()
+  await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.models).toBe(2)
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.goto('/collection')
   await expect(owned(page, 'Overlord')).toHaveText('2')
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.goBack()
-  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  await openMenu()
   await menu.getByRole('button', { name: 'Remove Overlord from your collection', exact: true }).click()
   const removal = page.getByRole('alertdialog')
   await expect(removal).toContainText('Your count of 2 models will be lost.')
   await removal.getByRole('button', { name: 'Remove', exact: true }).click()
-  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  await openMenu()
   await expect(menu.getByRole('button', { name: 'Add to collection', exact: true })).toBeVisible()
 })
 
