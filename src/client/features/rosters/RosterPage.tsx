@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
 import { fieldedRoster } from './fieldedRoster'
 import { BattleRosterSnapshot } from './BattleRosterSnapshot'
 import { RosterEditor } from './RosterEditor'
@@ -35,14 +34,10 @@ export function RosterPage({
   const { data: access } = useQuery({ ...rosterAccessQuery(id, battle), enabled: !snapshot })
   const roster = access?.roster
 
-  useEffect(() => {
-    if (print) window.print()
-  }, [print])
-
-  if (leagueSnapshot) return sealed ? <BattleRosterSnapshot roster={sealed} /> : null
+  if (leagueSnapshot) return sealed ? <BattleRosterSnapshot roster={sealed} print={print} /> : null
   if (snapshot && battle && screen && screen.kind !== 'unavailable') {
     const fielded = fieldedRoster(screen.view, id)
-    return fielded ? <BattleRosterSnapshot roster={fielded} /> : null
+    return fielded ? <BattleRosterSnapshot roster={fielded} print={print} /> : null
   }
   if (access === null)
     return (
@@ -61,6 +56,7 @@ export function RosterPage({
       roster={roster}
       faction={access.faction}
       editable={editable}
+      print={print}
       battle={battle}
       variants={access.variants}
       differences={access.differences}

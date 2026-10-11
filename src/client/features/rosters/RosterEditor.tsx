@@ -23,6 +23,7 @@ type Props = {
   faction: ListBuilderProps['initialFaction']
   snapshotEdition?: ListBuilderProps['snapshotEdition']
   editable: boolean
+  print?: boolean
   battle?: string
   resolvePersistedRoster?: boolean
   /** The units and total a battle froze, for a list that is read rather than priced. */
@@ -39,6 +40,7 @@ export function RosterEditor({
   faction,
   snapshotEdition,
   editable,
+  print,
   battle,
   resolvePersistedRoster = true,
   frozen,
@@ -55,6 +57,7 @@ export function RosterEditor({
         initialFaction={faction}
         snapshotEdition={snapshotEdition}
         editable={editable}
+        print={print}
         battle={battle}
         resolvePersistedRoster={resolvePersistedRoster}
         frozen={frozen}

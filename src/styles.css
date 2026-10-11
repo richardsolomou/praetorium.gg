@@ -331,7 +331,119 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   }
 }
 
+[data-battle-reference-pack] {
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 12mm;
+  background: white;
+  color: black;
+  font-size: 11pt;
+  line-height: 1.35;
+
+  * {
+    color: black !important;
+    border-color: #999 !important;
+    box-shadow: none !important;
+  }
+
+  :is([class*='bg-'], article) {
+    background: white !important;
+  }
+
+  :is(h1, h2, h3, h4) {
+    margin: 0 0 2mm;
+    break-after: avoid;
+  }
+
+  h1 {
+    font-size: 22pt;
+  }
+  h2 {
+    font-size: 16pt;
+  }
+  h3 {
+    font-size: 13pt;
+  }
+  h4 {
+    font-size: 11pt;
+  }
+
+  :is(p, li) {
+    margin-bottom: 1.5mm;
+  }
+  > :is(header, section) {
+    margin-bottom: 6mm;
+  }
+  a {
+    overflow-wrap: anywhere;
+  }
+  ol {
+    list-style: none;
+  }
+  .pack-unit > div {
+    margin-bottom: 6mm;
+  }
+  .pack-rule {
+    margin-bottom: 3mm;
+  }
+
+  [data-print-loadout] {
+    :is(h2, h3) {
+      font-size: 11pt;
+    }
+    .readout {
+      font-size: 11pt;
+    }
+    .eyebrow {
+      letter-spacing: 0;
+    }
+    [data-slot='unit-profile'] {
+      break-inside: avoid;
+    }
+  }
+}
+
 @media print {
+  @page roster-reference {
+    size: auto;
+    margin: 12mm;
+
+    @bottom-right {
+      content: counter(page) ' / ' counter(pages);
+      font-size: 8pt;
+      color: black;
+    }
+  }
+
+  [data-roster-print-screen],
+  main:has([data-battle-reference-pack]) {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  [data-battle-reference-pack] {
+    page: roster-reference;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  [data-battle-reference-pack] :is(.pack-unit, .pack-section) {
+    break-before: page;
+  }
+
+  [data-battle-reference-pack] :is(.pack-rule, [data-slot='unit-profile'], [data-slot='profile-grid']),
+  [data-print-loadout] :is(.bg-card, [data-onboarding='loadout-weapon']) {
+    break-inside: avoid;
+  }
+
+  [data-battle-reference-pack] :is(p, li) {
+    orphans: 3;
+    widows: 3;
+  }
+
   [data-print-hide],
   body > div > header,
   footer {
