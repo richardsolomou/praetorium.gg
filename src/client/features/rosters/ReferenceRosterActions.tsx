@@ -13,6 +13,7 @@ import { type RosterReference, useNewRoster } from './newRoster'
 import { RosterSetupDialog, type RosterSetupFaction } from './RosterSetupDialog'
 import { rosterTitle } from './RosterSummary'
 import { sortRosters } from './rosterSort'
+import { rulesVersionLabel } from '../../../core/catalogueEdition'
 
 const NO_DETACHMENTS: string[] = []
 
@@ -108,6 +109,10 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
   const failed = saved.isError || offered.isError
   const canStart = faction.detachments.length > 0
   const factionName = (catalogueId: string) => factionIndex?.factions.find((entry) => entry.id === catalogueId)
+  const rulesVersion = (catalogueId: string) => {
+    const book = factionName(catalogueId)
+    return book ? rulesVersionLabel(book) : 'Loading rules version…'
+  }
 
   const open = () => {
     posthog.capture('roster_add_started', { reference: 'datasheet' })
@@ -161,7 +166,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
                     to="/rosters"
                     entryId={entryId}
                     title={guestDraft.draft.name || 'Your unsaved roster'}
-                    detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${guestDraft.draft.limit} pts · not saved yet`}
+                    detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${rulesVersion(guestDraft.draft.catalogueId)} · ${guestDraft.draft.limit} pts · not saved yet`}
                   />
                 ) : null}
                 {rosters.map((roster) => {
@@ -173,7 +178,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
                       id={roster.id}
                       entryId={entryId}
                       title={rosterTitle(roster, book)}
-                      detail={`${book?.displayName ?? ''} · ${roster.limit} pts`}
+                      detail={`${book?.displayName ?? ''} · ${rulesVersion(roster.catalogueId)} · ${roster.limit} pts`}
                     />
                   )
                 })}
@@ -218,7 +223,7 @@ function RosterChoice({
     <>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{title}</span>
-        <span className="block truncate text-xs text-dim">{detail}</span>
+        <span className="block text-xs text-dim">{detail}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-faint" aria-hidden />
     </>

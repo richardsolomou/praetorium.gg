@@ -19,6 +19,7 @@ import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 import { useLoadoutOptimizer } from './useLoadoutOptimizer'
 import { attachedUnit } from '../../../core/attach'
+import { rulesVersionLabel } from '../../../core/catalogueEdition'
 
 const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
 
@@ -78,6 +79,28 @@ export function CombatantCard({
       : count + direction
   const more = nextSize(models, 1)
   const fewer = nextSize(models, -1)
+  const selectedOutsideIndex =
+    !combatant.roster &&
+    ready &&
+    pick &&
+    unit &&
+    !(catalogueUnits.data ?? []).some(
+      (faction) => faction.catalogueId === combatant.faction && faction.units.some((entry) => entry.id === pick.entryId),
+    )
+      ? [
+          {
+            label: selectedFaction ? `${selectedFaction.displayName} · ${rulesVersionLabel(selectedFaction)}` : 'Selected unit',
+            items: [
+              {
+                value: unitValue(combatant.faction, pick.entryId),
+                label: unit.name,
+                detail: `${unit.points} pts`,
+                icon: factionIcon(combatant.faction),
+              },
+            ],
+          },
+        ]
+      : []
   const unitPicker = combatant.roster ? (
     <SearchableSelect
       ariaLabel={`${side} unit`}
@@ -116,30 +139,33 @@ export function CombatantCard({
         const [catalogueId, id] = JSON.parse(value) as [string, string]
         combatant.selectUnit(catalogueId, id)
       }}
-      groups={(catalogueUnits.data ?? []).flatMap((faction) => {
-        const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
-        return faction.units.length
-          ? [
-              {
-                label: faction.name,
-                items: faction.units.map((entry) => ({
-                  value: unitValue(faction.catalogueId, entry.id),
-                  label: entry.name,
-                  detail: entry.points === null ? undefined : `${entry.points} pts`,
-                  icon: presentation ? (
-                    <FactionMark
-                      id={presentation.slug}
-                      name={presentation.displayName}
-                      edition={presentation.edition}
-                      icon={presentation.icon}
-                      size="sm"
-                    />
-                  ) : undefined,
-                })),
-              },
-            ]
-          : []
-      })}
+      groups={[
+        ...selectedOutsideIndex,
+        ...(catalogueUnits.data ?? []).flatMap((faction) => {
+          const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
+          return faction.units.length
+            ? [
+                {
+                  label: faction.name,
+                  items: faction.units.map((entry) => ({
+                    value: unitValue(faction.catalogueId, entry.id),
+                    label: entry.name,
+                    detail: entry.points === null ? undefined : `${entry.points} pts`,
+                    icon: presentation ? (
+                      <FactionMark
+                        id={presentation.slug}
+                        name={presentation.displayName}
+                        edition={presentation.edition}
+                        icon={presentation.icon}
+                        size="sm"
+                      />
+                    ) : undefined,
+                  })),
+                },
+              ]
+            : []
+        }),
+      ]}
     />
   )
   const warmLoadout = (index: number) => {

@@ -60,7 +60,7 @@ Optimization holds model counts and non-weapon choices fixed and searches legal 
 
 Downloaded catalogue candidate discovery runs in an embedded worker, separate from scoring workers. Request one batch at a time and terminate discovery on cancellation, timeout, stream failure or completion. Keep the worker embedded in the saved application so cold offline starts require no network request for it.
 
-Prepare the simulator's default-edition unit index in the reference bundle with `catalogueEditionLoaders.combatUnits()`. Opening the offline picker must read that saved index rather than projecting every army on the main thread.
+Prepare the simulator's default-edition unit index in the reference bundle with `catalogueEditionLoaders.combatUnits()`. Opening the offline picker must read that saved index rather than projecting every army on the main thread. A restored reference selection outside that default index retains one option from its loaded unit and exact rules identity, including preview or archived faction marks.
 
 ## Coverage audit
 

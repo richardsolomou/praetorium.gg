@@ -10,6 +10,7 @@ import { useSettled } from '../../../useSettled'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { CollectionToggle } from './CollectionToggle'
 import { SearchField } from '../../../components/SearchField'
+import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from '../../rosters/builder/Section'
 import { PageState } from '../../../components/PageState'
@@ -65,7 +66,7 @@ export function FactionDatasheets() {
                 <Section key={group.id} title={group.plural} count={rows.length}>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {rows.map((unit) => (
-                      <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} />
+                      <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} query={settledQuery} />
                     ))}
                   </div>
                 </Section>
@@ -87,7 +88,15 @@ export function FactionDatasheets() {
   )
 }
 
-const FactionDatasheetRow = memo(function FactionDatasheetRow({ catalogueId, unit }: { catalogueId: string; unit: UnitSummary }) {
+const FactionDatasheetRow = memo(function FactionDatasheetRow({
+  catalogueId,
+  unit,
+  query,
+}: {
+  catalogueId: string
+  unit: UnitSummary
+  query: string
+}) {
   return (
     <div
       data-onboarding="datasheet-row"
@@ -99,7 +108,10 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({ catalogueId, uni
         params={{ catalogueId, entryId: unit.slug }}
         className="flex min-w-0 flex-1 items-center justify-between px-3 py-2"
       >
-        <span className="truncate text-sm font-bold uppercase">{unit.name}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-bold uppercase">{unit.name}</span>
+          <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
+        </span>
         {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
       </FactionReferenceLink>
       <CollectionToggle entryId={unit.id} name={unit.name} />
