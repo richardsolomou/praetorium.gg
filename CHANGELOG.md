@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.119.0
+
+### Minor Changes
+
+- b2d8844: Preview roster points, removed selections and legality before confirming army setup changes.
+
 ## 0.118.0
 
 ### Minor Changes
