@@ -5,8 +5,9 @@ import { productOperator } from './storage'
 import type { LocalState } from '../src/contracts/localState'
 
 async function addDatasheet(page: Page, name: string, faction: string) {
-  await page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click()
-  await page.getByPlaceholder('Search datasheets…').fill(`${name} ${faction}`)
+  const search = page.getByPlaceholder('Search datasheets…')
+  await retryUntilVisible(search, () => page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click())
+  await search.fill(`${name} ${faction}`)
   await page.getByRole('option', { name: new RegExp(`^${name}, ${faction}`) }).click()
   await expect(page.locator(`[data-unit="${name}"]`)).toBeVisible()
 }
@@ -212,6 +213,7 @@ test('profile collections stay private until shared and disappear when sharing i
   await sharing.click()
   await expect(sharing).not.toBeChecked()
   await expect.poll(() => operator.collectionProfile(owner, null)).toBeNull()
+  await expect(guest.locator('[data-player-collection]')).toHaveCount(0)
   await guest.reload()
   await expect(guest.getByRole('tab', { name: 'Collection', exact: true })).toHaveCount(0)
   await expect(guest.locator('[data-collection-unit]')).toHaveCount(0)
