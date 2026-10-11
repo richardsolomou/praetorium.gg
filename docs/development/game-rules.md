@@ -8,7 +8,7 @@ Game Datacards supplies printed rules, missions, and stratagems; BSData owns exe
 
 Faction-scoped cards supply stratagem cost, phase, turn, and usage restrictions. Recognized printed timing may fill a missing structured phase. The core once-per-phase restriction applies unless a supported whole-stratagem restriction overrides it. Unsupported card mechanics remain unavailable. Empty timing supplies no extra restriction.
 
-Source stratagem corrections belong in `catalogue/patches/datacards/`. Corrections needed by existing snapshots and battles also pass through `src/core/stratagemCorrections.ts` when reading source cards and folding saved preparation. Cover the corrected phase, opponent-turn refusal, usage limit, and unchanged saved log; do not widen a correction beyond its source card ID and erroneous phase.
+Source stratagem corrections belong in `catalogue/patches/datacards/`. Corrections needed by existing snapshots and battles also pass through `src/core/stratagemCorrections.ts` when reading source cards and folding saved preparation. Cover timing, opponent-turn refusal, usage limit, and unchanged saved log; match only the verified source card ID and erroneous fields.
 
 `set-prep` records the side's complete cards/stratagem pool and server-verified payouts/timing atomically. Allies pool detachments, while core stratagems appear once. Primary ownership derives from ordered force dispositions and the selected mission pack; a selected pack cannot fall through to another. Tactical decks are authoritative, and text-only rosters cannot invent faction/detachment cards.
 
@@ -19,9 +19,10 @@ Source stratagem corrections belong in `catalogue/patches/datacards/`. Correctio
 - Both sides receive the command-phase CP grant. Additional CP gains have a separate per-round allowance that spending never reopens. Tactical discard and any resulting CP are one undoable command, including the choice to discard none.
 - Tactical cards finish when scored and are discarded only by choice. Unresolved cards may remain while the next turn deals its full draw; do not top up to a fixed hand size. Fixed cards remain active after scoring.
 - Draws resolve under the battle lock. Ignore client placeholder cards. Manual draws use only the remaining deck and preserve supported `WHEN DRAWN` returns/replacements; board conditions stay for the player to judge.
-- New Orders combines spend, discard, and random replacement in one command and returns the replacement to draw review.
+- New Orders combines spend, discard, and random replacement in one command and returns the replacement to draw review. It is available once per battle, including when saved preparation came from a snapshot with the missing usage restriction.
 - Shared advance guards enforce known scoring moments, prior-turn settlement, draw, and hand review. Settle the ended opponent turn before the incoming draw, using that turn's hand and round, including supported final-round fallbacks.
 - `score-settlement` carries its scoring round. Older commands retain their original interpretation; never rewrite stored logs to repair historical attribution.
+- Source `endOfBattle` objectives score after the second final turn, with the first side's awards settled before completion. They bypass only the round ceiling; the battle ceiling still applies. The primary settlement records bounded claims against the frozen award indexes and its final portion atomically. Both core validation and `scoringCapError` validate eligibility before applying the exemption; undo restores the entire award. Explicitly frozen historical awards stay unchanged, including preparation made before final objectives were supported. Use the existing manual score correction controls for those older battles rather than silently changing their cards.
 - Mission caps refuse positive corrections beyond a stated ceiling while allowing reductions. `scoringCapError` owns that fetched-data check; do not add IO to core. Prompts show the amount that actually banks while preserving the amount claimed on the card.
 - Battle-ready bonuses are recorded before play and added only at finish. Missing structured twists remain absent.
 

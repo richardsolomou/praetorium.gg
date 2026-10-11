@@ -6,6 +6,7 @@
  * their own phrasing.
  */
 import { appliesInMode, type MissionAward } from '../core/scoring'
+export { awardTotal } from '../core/scoring'
 
 export type { MissionAward } from '../core/scoring'
 
@@ -61,12 +62,6 @@ export function counted(award: Pick<MissionAward, 'per' | 'group'>) {
 export function awardLimit(award: Pick<MissionAward, 'vp' | 'max'>): number | null {
   if (award.max === null || award.vp <= 0) return null
   return Math.max(1, Math.ceil(award.max / award.vp))
-}
-
-/** What taking a payout that many times actually pays, never past the card's ceiling. */
-export function awardTotal(award: Pick<MissionAward, 'vp' | 'max' | 'per'>, times: number): number {
-  const raw = award.per ? award.vp * times : award.vp * Math.min(times, 1)
-  return award.max === null ? raw : Math.min(raw, award.max)
 }
 
 export function timingLabel(trigger: MissionAward['trigger']) {

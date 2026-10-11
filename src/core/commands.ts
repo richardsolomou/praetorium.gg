@@ -204,7 +204,11 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     scores: z
       .array(
         z.discriminatedUnion('category', [
-          z.object({ category: z.literal('primary'), delta: z.number().int().positive() }),
+          z.object({
+            category: z.literal('primary'),
+            delta: z.number().int().positive(),
+            final: z.object({ claims: z.array(z.number().int().min(0).max(100)).max(20), delta: z.number().int().positive() }).optional(),
+          }),
           z.object({
             category: z.literal('secondary'),
             key: id,

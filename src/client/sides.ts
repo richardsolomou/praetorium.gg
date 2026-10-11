@@ -85,6 +85,7 @@ export type Side = {
   cpSpent: number
   canGainCp: boolean
   primary: number
+  finalPrimary: number
   secondary: number
   /** The battle-ready bonus the side has earned, which is one bonus however many armies it fields. */
   paintedPoints: number
@@ -138,6 +139,7 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         cpSpent: captain.cpSpent,
         canGainCp: captain.canGainCp,
         primary: captain.primary,
+        finalPrimary: captain.finalPrimary ?? 0,
         secondary: captain.secondary,
         // Taken as absent rather than trusted to be there: this app runs more than one
         // replica, so a view can arrive from an instance older than the screen reading

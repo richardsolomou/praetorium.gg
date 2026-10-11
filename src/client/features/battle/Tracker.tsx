@@ -471,7 +471,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const settlementRulesPending = settlementNeedsReferences && (settlementRuleResults.some((result) => result.isPending) || deckUnknown)
   const owedCards =
     settlementRound !== null && settlementSide
-      ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide))
+      ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide), view.endOfBattle)
       : []
   const activeScoringDraft = active ? scoringDraft(active, view.round, activeScoringMoment, due) : null
   const owedScoringDraft = settlementSide
@@ -783,8 +783,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onAnswersChange={owedScoringDraft.onAnswersChange}
             side={settlementSide}
             due={owedCards}
-            moment="end of their turn"
-            confirmLabel="Take the turn"
+            moment={view.endOfBattle ? 'end of battle' : 'end of their turn'}
+            confirmLabel={view.endOfBattle ? 'Finish battle' : 'Take the turn'}
             pending={pending}
             send={send}
             referenceFor={referenceFor}

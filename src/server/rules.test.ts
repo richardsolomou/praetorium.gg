@@ -95,6 +95,14 @@ it('loads Game Datacards rules without a 40kdc directory', () => {
   })
 })
 
+it('loads an end-of-battle period without a timing sentence', () => {
+  const source = JSON.parse(fs.readFileSync(pack(), 'utf8'))
+  source.primaryMissions[0].objectives[0].whenText = null
+  source.primaryMissions[0].objectives[0].scorablePeriods = ['endOfBattle']
+  write(pack(), source)
+  expect(rules().primaries?.[0]?.awards[0]?.trigger.timing).toBe('end-of-battle')
+})
+
 it('loads pinned faction icons and maps the Astartes icon to Space Marines', () => {
   const icons = path.join(directory, 'icons')
   fs.mkdirSync(icons)
