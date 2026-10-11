@@ -181,7 +181,7 @@ test('both sides settle source final awards beyond round caps through cold offli
       () =>
         page.evaluate(async () => {
           const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-          return Boolean(saved && (await saved.text()).includes('"construction"'))
+          return Boolean(saved && (await saved.text()).includes('"construction"') && window.PraetoriumReferenceCache?.construction)
         }),
       { timeout: 120_000 },
     )
