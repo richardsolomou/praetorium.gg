@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.121.0
+
+### Minor Changes
+
+- 5033f6d: Find compatible leaders and bodyguards, explain roster limits, and open mission matchups from the builder.
+
 ## 0.120.0
 
 ### Minor Changes
