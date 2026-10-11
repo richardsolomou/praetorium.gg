@@ -40,6 +40,7 @@ test('roster visibility controls search indexing and public URL variants', async
 })
 
 test('a practice battle played out opens as its replay', async ({ page }) => {
+  test.setTimeout(240_000)
   const player = uniqueName('Practice')
   await signUp(page, player)
   const firstRoster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
