@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.9
+
+### Patch Changes
+
+- b5b6d3c: Show provisional Custodes codex Leader and Support attachments, base sizes, and Anathema Psykana army-selection rules in the reference and roster builder.
+
 ## 0.115.8
 
 ### Patch Changes
