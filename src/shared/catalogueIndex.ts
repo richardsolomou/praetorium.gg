@@ -11,6 +11,7 @@ export type DetachmentOptions = { wrapperId: string; groupId: string; options: D
 type DetachmentOption = { id: string; name: string; disposition: string | null }
 export type LoadedCatalogue = {
   edition?: CatalogueEdition
+  datacardExcludedCatalogueIds?: ReadonlySet<string>
   index: CatalogueIndex
   characteristicNames: Map<string, string>
   factions: { id: string; name: string; references: CatalogueReference[] }[]

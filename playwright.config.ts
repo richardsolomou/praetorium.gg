@@ -47,7 +47,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${readyPort}/ready`,
     reuseExistingServer: false,
     gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
-    // The first run builds and seeds the local web and product databases.
-    timeout: 240_000,
+    // The first run builds current and archived rules before seeding the local databases.
+    timeout: 360_000,
   },
 })

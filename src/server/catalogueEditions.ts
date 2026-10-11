@@ -21,7 +21,7 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     if (cached) return cached
     const configuration = composition?.editions.find(({ edition }) => edition.id === editionId)
     if (!configuration) return null
-    const target = path.join(directory, 'editions', editionId)
+    const target = configuration.base ? directory : path.join(directory, 'editions', editionId)
     const catalogue = loadCatalogue(target, configuration.edition)
     if (!catalogue) throw new Error(`edition ${editionId} has no catalogue data`)
     const rules = loadRules(target, path.join(directory, 'battlemaster'), path.join(directory, 'icons'), undefined, catalogue.datacards)
@@ -97,7 +97,9 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
       const compiled = compileCanonicalCatalogueFromSnapshot(
         selected.catalogue,
         selected.rules,
-        path.join(directory, 'editions', edition.id),
+        composition?.editions.find((entry) => entry.edition.id === edition.id)?.base
+          ? directory
+          : path.join(directory, 'editions', edition.id),
       )
       const label = (faction: string) => `${faction} · ${editionLabel(edition)}`
       selected.canonical = {

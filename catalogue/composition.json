@@ -74,6 +74,90 @@
           "files": ["11th/gdc/adeptuscustodes.json"]
         }
       ]
+    },
+    {
+      "edition": {
+        "id": "legacy-profiles",
+        "name": "Previous Marine rules",
+        "status": "retired",
+        "default": false,
+        "catalogueIds": ["470a-6daa-9014-12df", "4eef-e313-1eea-94a6", "a603-5039-f08d-e841"],
+        "releases": [
+          {
+            "at": 1791676800000,
+            "status": "retired"
+          }
+        ]
+      },
+      "snapshot": {
+        "format": "praetorium.catalogue-pointer.v1",
+        "id": "233a859e385c01e9a9771780b835529c5cabe37845f359fee06c092f589aa881",
+        "archiveSha256": "f5e47c0de9ad46471fc3df72a7134faa0ab4bb20d50bae569e28cf0fb12fa738"
+      },
+      "sources": {},
+      "overlays": []
+    },
+    {
+      "edition": {
+        "id": "legacy-rosters",
+        "name": "Previous roster rules",
+        "status": "retired",
+        "default": false,
+        "catalogueIds": ["2261-79a5-19d9-1668", "470a-6daa-9014-12df", "4ef9-15ce-e3e6-36de"],
+        "releases": [
+          {
+            "at": 1791676800000,
+            "status": "retired"
+          }
+        ]
+      },
+      "snapshot": {
+        "format": "praetorium.catalogue-pointer.v1",
+        "id": "3e2a091c92b1687f6b3031e1abf7a87dae12733a9dc8e58468c8d9a52b75d321",
+        "archiveSha256": "7f2fbc78ba10ceb3c1f5e3d78d169ef4d688f6109bc0956040ca8bfc0fbb3c58"
+      },
+      "sources": {},
+      "overlays": []
+    },
+    {
+      "edition": {
+        "id": "legacy-marine-old",
+        "name": "Previous Marine loadouts",
+        "status": "retired",
+        "default": false,
+        "catalogueIds": ["470a-6daa-9014-12df"],
+        "releases": [
+          {
+            "at": 1791676800000,
+            "status": "retired"
+          }
+        ]
+      },
+      "snapshot": {
+        "format": "praetorium.catalogue-pointer.v1",
+        "id": "e7d3e7813209410111042f5081399452e19e17917ce1f8c8f1f6bbfc741254cc",
+        "archiveSha256": "fa39117d51470372cffaf6e57f0366cdc8443ce35a54a0cd0dfabd339bfe5ac2"
+      },
+      "sources": {},
+      "overlays": []
+    },
+    {
+      "edition": {
+        "id": "current-rosters",
+        "name": "Current rules",
+        "status": "released",
+        "default": true,
+        "catalogueIds": ["2261-79a5-19d9-1668", "470a-6daa-9014-12df", "4ef9-15ce-e3e6-36de", "e0af-67df-9d63-8fb7"],
+        "releases": [
+          {
+            "at": 1791676800000,
+            "status": "released"
+          }
+        ]
+      },
+      "base": true,
+      "sources": {},
+      "overlays": []
     }
   ]
 }

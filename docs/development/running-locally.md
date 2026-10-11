@@ -36,3 +36,20 @@ Default data/build output lives in `data-dev/hosted/` and survives restart. Star
 ## Repository backup
 
 `just repository-backup /absolute/destination` creates/verifies a bundle of every local Git ref. Keep it outside the repo and separate from GitHub. It excludes uncommitted files.
+
+## Production roster copies
+
+`just rosters-fetch` exports saved selections into `data-dev/production-rosters.json`; `just rosters-import` copies them into this worktree's running preview account. Sign in with `preview@praetorium.gg` and password `preview-preview-preview`. Import retains the original IDs inside loadouts, model counts, attachments, rules selections, and available variant links. It uses separate roster IDs, private visibility, and generated names. Repeated imports preserve local edits and resume after partial failure. Variants whose base was deleted are reported and copied as standalone rosters. Original timestamps remain in the snapshot; imported creation times use their last saved time.
+
+For the current Dokploy host, add these non-secret settings to the ignored `.env.local`:
+
+```dotenv
+PRODUCTION_SSH_HOST=hetzner
+PRODUCTION_WEB_SERVICE=praetoriumgg-web-ecmusg
+```
+
+The SSH path requires the configured SSH identity and permission to read Docker service configuration and its SQLite volume. It checks the production application origin, reads account IDs only on the host, and uses the running app's operator API. Each account's rosters are read in one transaction; the whole export is not a database-wide snapshot. Account credentials, user IDs, names, notes, battle history, and production secrets are not downloaded. Reads fail on supported population/size limits instead of truncating the roster set.
+
+Alternatively, the SQL path reads the roster table in one transaction using `PRODUCTION_SPACETIME_URL`, `PRODUCTION_SPACETIME_DATABASE`, and `PRODUCTION_SPACETIME_OWNER_TOKEN`. This requires authorization to read the roster table; a database owner token alone does not grant that access on production, where the SSH path is supported. Cloudflare Access requires both `PRODUCTION_SPACETIME_ACCESS_CLIENT_ID` and `PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET`. Keep credentials in `.env.local`, never in commands or tracked files. Both paths are read-only in production. Snapshots and reports are written with private file permissions; keep them in ignored `data-dev/`.
+
+Full paired-volume backups in private object storage remain the disaster-recovery path described in [Deployment](../deployment.md#backups). Roster copies are a migration test corpus, not a replacement backup. [Catalogue data](catalogue-data.md#roster-migration-rehearsal) owns migration authoring and verification.

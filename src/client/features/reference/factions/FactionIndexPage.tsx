@@ -6,7 +6,8 @@ import { useState } from 'react'
 import { Toggle } from '@/components/ui/toggle'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { editionFamilyId, editionLabel } from '../../../../core/catalogueEdition'
+import { editionLabel } from '../../../../core/catalogueEdition'
+import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { factionIndexQuery, meQuery } from '../../../queries'
 import { useFavouriteFactions } from '../../../favouriteFactions'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
@@ -125,7 +126,7 @@ function FactionShelf({
       {entries.length ? (
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
           {entries.map((entry) => {
-            const editions = versions.filter((version) => editionFamilyId(version.id) === editionFamilyId(entry.id))
+            const editions = versions.filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id))
             return (
               <div
                 key={entry.id}

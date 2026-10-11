@@ -100,3 +100,47 @@ it('can publish a new points version while retiring the unchanged original', () 
   })
   expect(() => validateEditionContinuity(previous, next)).not.toThrow()
 })
+
+const snapshot = { format: 'praetorium.catalogue-pointer.v1', id: 'a'.repeat(64), archiveSha256: 'b'.repeat(64) }
+
+it('accepts an immutable historical snapshot as a retained edition', () => {
+  expect(
+    catalogueCompositionSchema.safeParse({
+      ...composition(),
+      editions: [
+        { edition: { ...edition, status: 'retired', releases: [{ at: 1, status: 'retired' }] }, snapshot, sources: {}, overlays: [] },
+      ],
+    }).success,
+  ).toBe(true)
+})
+
+it.each([
+  { sources: { definitions: catalogueSources.definitions }, overlays: [] },
+  { sources: {}, overlays: [overlay] },
+])('refuses edits to an immutable snapshot edition', (overrides) => {
+  expect(
+    catalogueCompositionSchema.safeParse({
+      ...composition(),
+      editions: [{ edition, snapshot, ...overrides }],
+    }).success,
+  ).toBe(false)
+})
+
+it('refuses to replace a previously published historical snapshot', () => {
+  const previous = composition()
+  previous.editions[0]!.snapshot = snapshot as NonNullable<(typeof previous.editions)[number]['snapshot']>
+  const next = structuredClone(previous)
+  next.editions[0]!.snapshot!.id = 'c'.repeat(64)
+  expect(() => validateEditionContinuity(previous, next)).toThrow('cannot replace its immutable snapshot')
+})
+
+it('keeps a historical snapshot independent of current source pins', () => {
+  const previous = composition()
+  previous.baseSources = catalogueSources
+  previous.editions[0]!.snapshot = snapshot as NonNullable<(typeof previous.editions)[number]['snapshot']>
+  previous.editions[0]!.edition.status = 'retired'
+  previous.editions[0]!.edition.releases = [{ at: 1, status: 'retired' }]
+  const next = structuredClone(previous)
+  next.baseSources!.points.revision = 'a'.repeat(40)
+  expect(() => validateEditionContinuity(previous, next)).not.toThrow()
+})

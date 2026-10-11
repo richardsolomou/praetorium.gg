@@ -65,9 +65,9 @@ it('reports the persisted version when the database advances it beyond the clock
   expect(updatedAt).toBe(1_235)
 })
 
-it('lists a library summary saved against the retired Marine codex under its current faction', async () => {
+it('retains the original Marine codex for a library summary saved against it', async () => {
   const { picks: _picks, prep: _prep, tags: _tags, userId: _userId, ...fields } = row
   const rosterSummariesByUser = vi.fn().mockResolvedValue([{ ...fields, catalogueId: 'a603-5039-f08d-e841', unitCount: 1 }])
   const service = new RosterService({ rosterSummariesByUser } as unknown as RepositoryPort, () => 0)
-  expect(await service.savedRosterSummaries('user-1')).toMatchObject([{ catalogueId: '4029-9237-e8db-af55' }])
+  expect(await service.savedRosterSummaries('user-1')).toMatchObject([{ catalogueId: 'legacy-profiles~a603-5039-f08d-e841' }])
 })

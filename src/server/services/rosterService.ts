@@ -26,24 +26,30 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       'unitCount' in row
         ? row.unitCount
         : attachedUnitCount(picksSchema.parse(JSON.parse(row.picks)).map((unit, key) => ({ key, attachedTo: unit.attachedTo })))
-    return currentRosterIds({
+    const identities = currentRosterIds({
+      catalogueId: row.catalogueId,
+      detachmentIds: detachmentIds(row.detachmentId),
+      borrowedDetachmentId: row.borrowedDetachmentId,
+      ...('picks' in row ? { picks: picksSchema.parse(JSON.parse(row.picks)) } : {}),
+    })
+    return {
       id: row.id,
       name: row.name,
       automaticName: row.automaticName ?? !row.name,
-      catalogueId: row.catalogueId,
-      detachmentIds: detachmentIds(row.detachmentId),
+      catalogueId: identities.catalogueId,
+      detachmentIds: identities.detachmentIds,
       disposition: row.disposition,
       limit: row.limit,
       waivedRules: waivedRulesFrom(row.waivedRules),
       optionalRules: optionalRulesFrom(row.optionalRules),
-      borrowedDetachmentId: row.borrowedDetachmentId,
+      borrowedDetachmentId: identities.borrowedDetachmentId,
       baseRosterId: row.baseRosterId,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       unitCount,
-    })
+    }
   })
 }
 

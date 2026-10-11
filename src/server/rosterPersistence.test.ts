@@ -44,7 +44,7 @@ describe('rosterFromRow', () => {
     expect(rosterFromRow({ ...row, name: '', automaticName: null }).automaticName).toBe(true)
   })
 
-  it('reads a list saved against the retired Marine codex under current ids', () => {
+  it('reads a retired Marine profile roster against its original rules', () => {
     expect(
       rosterFromRow({
         ...row,
@@ -53,9 +53,17 @@ describe('rosterFromRow', () => {
         picks: '[{"entryId":"profile-unit-a603-5039-f08d-e841-5302-e1f9-0338-76f9"}]',
       }),
     ).toMatchObject({
-      catalogueId: '4029-9237-e8db-af55',
-      detachmentIds: ['d2dc-693e-b491-b16d'],
-      picks: [{ entryId: '984d-c25b-86dd-9970' }],
+      catalogueId: 'legacy-profiles~a603-5039-f08d-e841',
+      detachmentIds: ['profile-detachment-option-a603-5039-f08d-e841-f367-3240-47c1-7e1a'],
+      picks: [{ entryId: 'profile-unit-a603-5039-f08d-e841-5302-e1f9-0338-76f9' }],
     })
   })
+})
+
+it('does not migrate saved loadouts before resolving their retained catalogue edition', () => {
+  const pick = {
+    entryId: '8b71-580f-ad19-83d7',
+    choices: { '692c-f7be-75d4-ba2d/f1f6-718e-222f-9ed5': 'b440-75d0-9e95-486a' },
+  }
+  expect(rosterFromRow({ ...row, catalogueId: 'previous~f89b-84e0-6e3b-f1e2', picks: JSON.stringify([pick]) }).picks).toEqual([pick])
 })

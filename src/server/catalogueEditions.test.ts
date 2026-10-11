@@ -101,6 +101,22 @@ it('refuses exact support reads from unregistered codexes', () => {
   expect(versions(['child']).factionFor('missing~parent')).toBeNull()
 })
 
+it('loads a named base edition from the root directory', () => {
+  versions(['child'], true)
+  const file = path.join(directory, 'composition.json')
+  const composition = JSON.parse(fs.readFileSync(file, 'utf8'))
+  composition.editions[0].base = true
+  fs.writeFileSync(file, JSON.stringify(composition))
+  mocks.loadCatalogue.mockClear()
+  const selected = catalogueEditionLoaders(
+    directory,
+    () => books(),
+    () => null,
+  )
+  selected.catalogueFor('codex~child')
+  expect(mocks.loadCatalogue).toHaveBeenCalledWith(directory, composition.editions[0].edition)
+})
+
 it('keeps saved catalogue IDs on their rules when another version becomes the default', () => {
   const loaded = versions(['parent'], true)
   expect({ saved: loaded.factionFor('parent')?.id, current: loaded.factionFor('marines')?.id }).toEqual({

@@ -2,19 +2,20 @@
 
 Community data supplies roster construction and reference records. Deterministic evaluation lives in `src/core`; source loading and contextual projection live in `src/server`. [Running locally](running-locally.md#catalogue) owns activation commands; [Game rules](game-rules.md) owns play/scoring semantics.
 
-Offline construction bundles include each rules version's playable catalogues and their complete transitive imports, including the game system. The version 2 download format shares identical runtime data with its base source; the downloader restores complete version 1 sources before saving or building them. Bound both compressed and expanded data, and retain version 1 download support. Do not duplicate unrelated armies in each version or raise the bundle size limit to accommodate them. Verify a production build with the release snapshot and exercise versioned roster editing after a cold offline reload.
+Offline construction bundles include each rules version's playable catalogues and their complete transitive imports, including the game system. The version 3 download format shares identical runtime data with its base source and repeated prose through a text table. Saved construction data retains those references and reconstructs only the selected rules version on demand. Bound both compressed and expanded data, and retain version 1 and 2 download support. Do not duplicate unrelated armies in each version or raise the bundle size limit to accommodate them. Verify a production build with the release snapshot and exercise versioned roster editing after a cold offline reload.
 
 ## Sources and loading
 
-| Authority                                         | Location                     |
-| ------------------------------------------------- | ---------------------------- |
-| Upstream revisions, licences, and attribution     | `catalogue/sources.json`     |
-| Pinned file composition and rules versions        | `catalogue/composition.json` |
-| Release snapshot pin                              | `catalogue/lock.json`        |
-| Withdrawn snapshots/sources                       | `catalogue/revocations.json` |
-| Saved IDs from retired sources                    | `catalogue/retired-ids.json` |
-| Authored corrections with provenance              | `catalogue/patches/`         |
-| Immutable manifest, hashes, and canonical records | Verified snapshot            |
+| Authority                                         | Location                           |
+| ------------------------------------------------- | ---------------------------------- |
+| Upstream revisions, licences, and attribution     | `catalogue/sources.json`           |
+| Pinned file composition and rules versions        | `catalogue/composition.json`       |
+| Release snapshot pin                              | `catalogue/lock.json`              |
+| Withdrawn snapshots/sources                       | `catalogue/revocations.json`       |
+| Saved IDs from retired sources                    | `catalogue/retired-ids.json`       |
+| Reviewed saved-loadout migrations                 | `catalogue/roster-migrations.json` |
+| Authored corrections with provenance              | `catalogue/patches/`               |
+| Immutable manifest, hashes, and canonical records | Verified snapshot                  |
 
 Never commit fetched upstream files, copied rules prose, generated catalogues, or snapshots. Keep corrections minimal and source-pinned. Game Datacards extraction includes only the configured edition/game. Inspect the exact source before changing rules; unsupported or conflicting semantics remain reported, not guessed.
 
@@ -63,6 +64,37 @@ To promote a preview, keep its ID and files, append a `released` event, set `sta
 ### Retired sources
 
 A retired source stays a known snapshot source name in `catalogueSources.ts`, so published snapshots that carry it still verify as history; it is never materialized again. When its records move to another source, `catalogue/retired-ids.json` maps each saved book, detachment, and datasheet ID to the current record with the same name in the matching faction, and each saved option and toggle to the one option or toggle of the same name on the mapped datasheet under the same detachment. Map only verified one-to-one matches and leave the rest unmapped, so pricing reports them as choices to reselect. `src/core/retiredCatalogueIds.ts` applies the map at each boundary where ids arrive: the server input schemas in `schemas.ts` (prices, saves, datasheets, simulations, battle faction and stratagem reads), saved rows (`rosterPersistence.ts`, library summaries), and stored guest drafts.
+
+## Roster migration rehearsal
+
+Before changing catalogue sources or saved-selection construction, fetch production rosters using [Production roster copies](running-locally.md#production-roster-copies). Run an audit with the existing code and catalogue, then retain that report before making changes:
+
+```sh
+just rosters-fetch
+just rosters-audit
+cp data-dev/production-rosters.audit.json data-dev/production-rosters.baseline.json
+just rosters-import
+```
+
+An initial audit exits nonzero if it finds unresolved selections, unavailable detachments/catalogues, or clamped model counts. It still writes the complete report. Review and retain that baseline so existing problems do not conceal newly introduced ones. Keep the same production snapshot throughout a rehearsal; fetching again requires a new baseline.
+
+After the change, compare against the recorded baseline:
+
+```sh
+just rosters-audit data-dev/production-rosters.json catalogue-data data-dev/production-rosters.baseline.json
+```
+
+The comparison exits nonzero for new identity losses, new unavailable detachments/catalogues, newly clamped saved model counts, newly exceeded point limits, or new unit/detachment legality errors. It also reports every points change. Reports include exact pick positions, choice keys and option IDs, imported local IDs, source revisions, points, and pricing errors. Review points and legality changes as well; an identity check does not prove the roster remains legal. Baselines record previous results, so a changed compiler or migration cannot rewrite the earlier assessment. Explicit catalogue directories allow testing a staged snapshot without activating it.
+
+Author verified replacements in `catalogue/roster-migrations.json`, in chronological order, with the old and new verified snapshot IDs and a concise reason. It uses the same catalogue, detachment, datasheet, choice, spread, and toggle mapping format as retired IDs. `currentPick` applies retired-source mappings first and these migrations afterward at the existing saved-row, server-input, offline, and guest-draft boundaries. These mappings apply only to the current unqualified catalogue; retained edition loadouts keep their own source IDs. A normal save persists the translated selections. Never infer replacements by fuzzy name matching at runtime, substitute a different enhancement, or drop a removed selection to make an audit green. Preserve option counts, model slots, attachments, and unknown choices; require a player decision when there is no equivalent.
+
+Verify each authored mapping against both snapshots' exact source records. Add a regression test that fails on the old paths, builds the migrated selections against the pinned catalogue, and checks repeated migration. Import the untouched snapshot, inspect affected rosters and loadouts in the running preview, save a migrated copy, and reload it. Report every unresolved item before deploying a catalogue update; test results alone do not settle removed or changed game rules.
+
+Rules-version selectors group factions through verified retired catalogue aliases, including factions whose book ID changed. Deliberate conversion to current rules translates verified unit and allied-book identities while retaining equipment counts, attachments, and unknown choices. Builder and library conversion use the same operation; archived reference routes resolve the selected version's original book ID.
+
+Retained editions can pin an immutable `snapshot` instead of inheriting current data. They cannot overlay or replace its sources. `catalogue/retained-roster-rules.json` selects the original edition from exact removed detachment or saved-selection signatures before equivalent path migrations. Each selection group must match at least one saved choice; zero-count options do not match. Normal saves persist that edition. A visible roster notice explains that it uses previous rules and opens the existing deliberate conversion flow; it does not claim current-rule illegality without evaluating the destination. A `base: true` edition names the pinned root rules without duplicating their source files or offline construction data. Conversion to that qualified current version persists the player's decision and does not automatically select previous rules again. Published base editions retain the root source pins under the same continuity checks as other released editions.
+
+`scripts/retainRosterCatalogue.ts` reproduces historical profile construction with the exact compiler commit and source/icon snapshots in `catalogue/retained-profile-build.json`. Run it with verified source and icon directories and a new output directory. Its archive retains the original datacard exclusion policy in `reference-policy.json`; server and offline construction apply that policy to defining books, including borrowed units. Publish and verify the immutable archives before pinning them in a release. Preserve saved loadouts even where the original dataset itself reports a legality error; never suppress the error to pass a rehearsal.
 
 ## Canonical catalogue and audits
 

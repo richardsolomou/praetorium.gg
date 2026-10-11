@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { currentCatalogueId, currentDetachmentId, currentEntryId, currentRosterIds } from './retiredCatalogueIds'
+import {
+  currentCatalogueId,
+  currentCatalogueFamilyId,
+  currentDetachmentId,
+  currentEntryId,
+  currentRosterIds,
+  picksForRulesVersion,
+} from './retiredCatalogueIds'
 
 const ultramarines = { retired: 'a603-5039-f08d-e841', current: '4029-9237-e8db-af55' }
 const spaceMarines = { retired: 'e0af-67df-9d63-8fb8', current: 'e0af-67df-9d63-8fb7' }
@@ -15,6 +22,30 @@ const warlord = { retired: 'profile-warlord-e0af-67df-9d63-8fb8-024a-3fea-7765-4
 const unmatchedOption = 'retired-group'
 
 describe('retired catalogue ids', () => {
+  it('groups an archived faction with its verified replacement for rules conversion', () => {
+    expect(currentCatalogueFamilyId(`legacy-profiles~${ultramarines.retired}`)).toBe(ultramarines.current)
+  })
+
+  it('converts generated Marine entries and allied books to their verified current identities', () => {
+    expect(
+      picksForRulesVersion(
+        [
+          { entryId: calgar.retired },
+          { entryId: intercessors.retired, catalogueId: `legacy-profiles~${spaceMarines.retired}`, models: 10, attachedTo: 0 },
+        ],
+        ultramarines.current,
+      ),
+    ).toEqual([
+      { entryId: calgar.current },
+      { entryId: intercessors.current, catalogueId: spaceMarines.current, models: 10, attachedTo: 0 },
+    ])
+  })
+
+  it('preserves original identities when selecting a retained version', () => {
+    expect(picksForRulesVersion([{ entryId: calgar.retired }], `legacy-profiles~${ultramarines.retired}`)).toEqual([
+      { entryId: calgar.retired },
+    ])
+  })
   it('maps a retired Marine codex book to its current book', () => {
     expect(currentCatalogueId(ultramarines.retired)).toBe(ultramarines.current)
   })
@@ -35,7 +66,7 @@ describe('retired catalogue ids', () => {
     expect(currentCatalogueId(ultramarines.current)).toBe(ultramarines.current)
   })
 
-  it('moves a saved roster to current ids', () => {
+  it('retains a saved profile roster on its original Marine rules', () => {
     expect(
       currentRosterIds({
         catalogueId: ultramarines.retired,
@@ -47,10 +78,13 @@ describe('retired catalogue ids', () => {
         ],
       }),
     ).toEqual({
-      catalogueId: ultramarines.current,
-      detachmentIds: [gladius.current],
-      borrowedDetachmentId: stormlance.current,
-      picks: [{ entryId: calgar.current }, { entryId: intercessors.current, catalogueId: spaceMarines.current, models: 10, attachedTo: 0 }],
+      catalogueId: `legacy-profiles~${ultramarines.retired}`,
+      detachmentIds: [gladius.retired],
+      borrowedDetachmentId: stormlance.retired,
+      picks: [
+        { entryId: calgar.retired },
+        { entryId: intercessors.retired, catalogueId: `legacy-profiles~${spaceMarines.retired}`, models: 10, attachedTo: 0 },
+      ],
     })
   })
 
@@ -91,5 +125,14 @@ describe('retired catalogue ids', () => {
   it('leaves a roster without retired ids unchanged', () => {
     const roster = { catalogueId: 'necrons', detachmentIds: ['awakened'], borrowedDetachmentId: null, picks: [{ entryId: 'warriors' }] }
     expect(currentRosterIds(roster)).toEqual(roster)
+  })
+
+  it('keeps an explicit conversion to current rules even with a removed saved choice', () => {
+    const roster = {
+      catalogueId: 'current-rosters~470a-6daa-9014-12df',
+      detachmentIds: ['9d23-833a-17cb-2d7d'],
+      picks: [{ entryId: '3c0a-10a9-8f84-26a3', models: 5, spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }],
+    }
+    expect(currentRosterIds(currentRosterIds(roster))).toEqual(roster)
   })
 })

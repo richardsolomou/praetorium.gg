@@ -35,6 +35,14 @@ export const catalogueCompositionSchema = z
       .array(
         z.object({
           edition: catalogueEditionSchema,
+          base: z.literal(true).optional(),
+          snapshot: z
+            .object({
+              format: z.literal('praetorium.catalogue-pointer.v1'),
+              id: z.string().regex(/^[a-f0-9]{64}$/),
+              archiveSha256: z.string().regex(/^[a-f0-9]{64}$/),
+            })
+            .optional(),
           sources: z.object({
             definitions: repositorySourceSchema.optional(),
             points: repositorySourceSchema.optional(),
@@ -46,6 +54,12 @@ export const catalogueCompositionSchema = z
       .max(16),
   })
   .superRefine((composition, context) => {
+    for (const configuration of composition.editions) {
+      if (configuration.base && (configuration.snapshot || Object.keys(configuration.sources).length || configuration.overlays.length))
+        context.addIssue({ code: 'custom', message: 'base editions cannot replace or overlay their sources' })
+      if (configuration.snapshot && (Object.keys(configuration.sources).length || configuration.overlays.length))
+        context.addIssue({ code: 'custom', message: 'snapshot editions cannot replace sources or overlay files' })
+    }
     const ids = composition.editions.map(({ edition }) => edition.id)
     if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'duplicate edition IDs' })
     const defaults = composition.editions.filter(({ edition }) => edition.default).flatMap(({ edition }) => edition.catalogueIds)
@@ -70,10 +84,12 @@ export function readCatalogueComposition(directory: string): CatalogueCompositio
 
 export function validateEditionContinuity(previous: CatalogueComposition | null, next: CatalogueComposition | null) {
   for (const prior of previous?.editions ?? []) {
-    const { edition } = prior
+    const { edition, snapshot } = prior
     const selected = next?.editions.find((entry) => entry.edition.id === edition.id)
     if (!selected || !next || !previous)
       throw new Error(`retain edition ${edition.id} for saved lists and history; retire it instead of deleting it`)
+    if (snapshot && JSON.stringify(snapshot) !== JSON.stringify(selected.snapshot))
+      throw new Error(`edition ${edition.id} cannot replace its immutable snapshot`)
     const current = selected.edition
     if (edition.releases.some((release, index) => JSON.stringify(release) !== JSON.stringify(current.releases[index]))) {
       throw new Error(`edition ${edition.id} cannot rewrite published release history`)
@@ -86,6 +102,7 @@ export function validateEditionContinuity(previous: CatalogueComposition | null,
 }
 
 function editionSources(composition: CatalogueComposition, selected: CatalogueComposition['editions'][number]) {
+  if (selected.snapshot) return selected.snapshot
   const pin = (source: CatalogueOverlay | CatalogueComposition['editions'][number]['sources']['definitions']) =>
     source ? { repository: source.repository, revision: source.revision, path: source.path } : null
   return sourceNames.map((name) => ({

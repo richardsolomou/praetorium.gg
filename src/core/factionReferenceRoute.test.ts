@@ -32,3 +32,16 @@ it('keeps an explicit original version separate from a promoted default', () => 
 it('does not select another faction for an unknown path', () => {
   expect(referenceFactionId([base, preview], 'necrons', 'custodes-11e')).toBeNull()
 })
+
+it('resolves an archived faction whose current catalogue has a different identity', () => {
+  expect(
+    referenceFactionId(
+      [
+        { id: 'current', displayName: 'Ultramarines', isDefault: true },
+        { id: 'legacy-profiles~previous', displayName: 'Ultramarines', edition: { id: 'legacy-profiles' } },
+      ],
+      'ultramarines',
+      'legacy-profiles',
+    ),
+  ).toBe('legacy-profiles~previous')
+})

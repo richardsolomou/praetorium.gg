@@ -11,6 +11,7 @@ import {
 } from '../../src/server/catalogueComposition'
 import type { CatalogueSourceConfig, SnapshotSourceName } from '../../src/server/catalogueSources'
 import { fetchInto } from '../../src/server/sync'
+import { catalogueBaseUrl, fetchSnapshot } from '../../src/server/catalogueSnapshot'
 import { applyPatches } from './cataloguePatches'
 
 const revisionOf = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
@@ -61,8 +62,21 @@ export async function composeCatalogue(
         if (corrections) rootRevisions[name] = revisionOf({ base: rootRevisions[name], corrections })
       }
     }
-    for (const { edition, sources: replacements, overlays } of composition.editions) {
+    for (const { edition, base, snapshot, sources: replacements, overlays } of composition.editions) {
+      if (base) {
+        validateCatalogueImports(path.join(directory, 'definitions'), edition.catalogueIds)
+        editionRevisionsById[edition.id] = { ...rootRevisions }
+        continue
+      }
       const target = path.join(directory, 'editions', edition.id)
+      if (snapshot) {
+        if (['definitions', 'points', 'datacards'].some((name) => disabled.has(name as SnapshotSourceName)))
+          throw new Error(`edition ${edition.id} requires definitions, points, and datacards`)
+        await fetchSnapshot(target, catalogueBaseUrl(), snapshot, report)
+        validateCatalogueImports(path.join(target, 'definitions'), edition.catalogueIds)
+        editionRevisionsById[edition.id] = revisions(target)
+        continue
+      }
       fs.mkdirSync(target, { recursive: true })
       execFileSync('git', ['init', '--quiet', target], { stdio: 'pipe' })
       const editionRevisions = { ...rootRevisions }

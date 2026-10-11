@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { unzipSync, zipSync } from 'fflate'
+import { catalogueSources } from '../src/server/catalogueSources'
 import {
   activateCachedSnapshot,
   catalogueBaseUrl,
@@ -64,6 +65,27 @@ it('packs and verifies a complete catalogue', () => {
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], { env: environment })
   expect(unzipSync(fs.readFileSync(archive))['catalogue/canonical/catalogue.json']).toBeDefined()
   expect(() => execFileSync('pnpm', ['catalogue:snapshot', 'verify'], { env: environment })).not.toThrow()
+})
+
+it('attributes retained source data to its authored original repository', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
+  roots.push(root)
+  const directory = completeCatalogue(root)
+  fs.writeFileSync(
+    path.join(directory, 'composition.json'),
+    JSON.stringify({
+      format: 'praetorium.catalogue-composition.v1',
+      overlays: [],
+      editions: [],
+      baseSources: { ...catalogueSources, definitions: { ...catalogueSources.definitions, repository: 'original/rules' } },
+    }),
+  )
+  const archive = path.join(root, 'snapshot.zip')
+  packCatalogueSnapshot(directory, archive, path.join(root, 'pointer.json'))
+  const provenance = JSON.parse(new TextDecoder().decode(unzipSync(fs.readFileSync(archive))['catalogue/provenance.json']))
+  expect(provenance.sources.find((source: { name: string }) => source.name === 'definitions').origin).toBe(
+    'https://github.com/original/rules',
+  )
 })
 
 it('installs a published snapshot using its explicit pointer', () => {

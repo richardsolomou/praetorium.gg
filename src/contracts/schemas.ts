@@ -20,7 +20,7 @@ import {
 } from '../core/battle'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import { commandSchema, detachmentIdSchema, rosterPickSchema } from '../core/commands'
-import { currentCatalogueId, currentDetachmentId, currentEntryId, currentPick } from '../core/retiredCatalogueIds'
+import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { isPlayerDefaults } from '../core/playerDefaults'
@@ -41,7 +41,6 @@ const id = z.string().min(1).max(64)
 const token = id
 // Ids a client sends may predate a retired source: a guest draft, an open tab, an agent's cache.
 const catalogueId = id.transform(currentCatalogueId)
-const detachmentId = detachmentIdSchema.transform(currentDetachmentId)
 const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
 const battlesCursor = z.object({ at: z.number().int().min(0), id })
@@ -261,29 +260,36 @@ export const globalSearchSchema = z.object({ query: z.string().trim().min(2).max
  * A list is sent as the entries the player picked and how many models they want
  * in each; the server expands every one to a legal selection.
  */
-const pickSchema = rosterPickSchema.transform(currentPick)
-
-export const datasheetSchema = z.object({
-  catalogueId,
-  entryId: id.transform(currentEntryId),
-  detachmentIds: z.array(detachmentId).max(3).default([]),
-  picks: z.array(pickSchema).max(100).default([]),
-  pickIndex: z.number().int().min(0).max(99).nullable().default(null),
-  /** Keep weapons the unit is not carrying, so options read as this list would make them. */
-  everyWeapon: z.boolean().default(false),
-})
+export const datasheetSchema = z
+  .object({
+    catalogueId: id,
+    entryId: id,
+    detachmentIds: z.array(detachmentIdSchema).max(3).default([]),
+    picks: z.array(rosterPickSchema).max(100).default([]),
+    pickIndex: z.number().int().min(0).max(99).nullable().default(null),
+    /** Keep weapons the unit is not carrying, so options read as this list would make them. */
+    everyWeapon: z.boolean().default(false),
+  })
+  .overwrite((data) => {
+    const roster = currentRosterIds(data)
+    return { ...roster, entryId: currentEntryId(data.entryId, roster.catalogueId) }
+  })
 /** A roster pick whose weapon options the simulator compares. */
-export const combatLoadoutSchema = z.object({
-  catalogueId,
-  detachmentIds: z.array(detachmentId).max(3).default([]),
-  picks: z.array(pickSchema).min(1).max(100),
-  pickIndex: z.number().int().min(0).max(99),
-})
+export const combatLoadoutSchema = z
+  .object({
+    catalogueId: id,
+    detachmentIds: z.array(detachmentIdSchema).max(3).default([]),
+    picks: z.array(rosterPickSchema).min(1).max(100),
+    pickIndex: z.number().int().min(0).max(99),
+  })
+  .overwrite(currentRosterIds)
 export const savedRosterDatasheetSchema = rosterInBattleSchema.extend({ pickIndex: z.number().int().min(0).max(99) })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
 /** The datasheets of one army, asked about together because a list is attached in one go. */
-export const unitWoundsSchema = z.object({ catalogueId, entryIds: z.array(id.transform(currentEntryId)).max(200) })
+export const unitWoundsSchema = z
+  .object({ catalogueId, entryIds: z.array(id).max(200) })
+  .overwrite((data) => ({ ...data, entryIds: data.entryIds.map((entryId) => currentEntryId(entryId, data.catalogueId)) }))
 
 const prepSchema = z.object({
   stratagems: z
@@ -303,22 +309,24 @@ const prepSchema = z.object({
   remindersEnabled: z.boolean().default(true),
 })
 
-export const saveRosterSchema = z.object({
-  id: id.optional(),
-  /** Empty when the player wants a name generated from the saved roster. */
-  name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
-  catalogueId,
-  detachmentIds: z.array(detachmentId).max(MAX_DETACHMENTS),
-  disposition: id.nullable(),
-  borrowedDetachmentId: detachmentId.nullable().default(null),
-  limit: rosterLimit,
-  picks: z.array(pickSchema).max(100),
-  waivedRules,
-  optionalRules,
-  prep: prepSchema.nullable(),
-  visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
-  source: z.enum(ROSTER_SOURCES).default('editable'),
-})
+export const saveRosterSchema = z
+  .object({
+    id: id.optional(),
+    /** Empty when the player wants a name generated from the saved roster. */
+    name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
+    catalogueId: id,
+    detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
+    disposition: id.nullable(),
+    borrowedDetachmentId: detachmentIdSchema.nullable().default(null),
+    limit: rosterLimit,
+    picks: z.array(rosterPickSchema).max(100),
+    waivedRules,
+    optionalRules,
+    prep: prepSchema.nullable(),
+    visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
+    source: z.enum(ROSTER_SOURCES).default('editable'),
+  })
+  .overwrite(currentRosterIds)
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(200_000) })
@@ -355,20 +363,22 @@ export const dispositionSchema = z.object({ dispositionId: slug })
 export const factionSchema = z.object({ catalogueId: slug.transform(currentCatalogueId) })
 
 /** Saved rows are read back through these, so a hand-edited one fails loudly. */
-export const picksSchema = z.array(pickSchema).max(100)
+export const picksSchema = z.array(rosterPickSchema).max(100)
 export const savedPrepSchema = prepSchema
 
-export const priceSchema = z.object({
-  includeUnitLimits: z.boolean().optional(),
-  catalogueId,
-  detachmentIds: z.array(detachmentId).max(MAX_DETACHMENTS),
-  disposition: id.nullable(),
-  borrowedDetachmentId: detachmentId.nullable().optional(),
-  limit: rosterLimit,
-  units: z.array(pickSchema).max(100),
-  waivedRules,
-  optionalRules,
-})
+export const priceSchema = z
+  .object({
+    includeUnitLimits: z.boolean().optional(),
+    catalogueId: id,
+    detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
+    disposition: id.nullable(),
+    borrowedDetachmentId: detachmentIdSchema.nullable().optional(),
+    limit: rosterLimit,
+    units: z.array(rosterPickSchema).max(100),
+    waivedRules,
+    optionalRules,
+  })
+  .overwrite(currentRosterIds)
 
 export type PriceInput = z.infer<typeof priceSchema>
 
