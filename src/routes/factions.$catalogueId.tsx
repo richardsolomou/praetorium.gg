@@ -10,7 +10,7 @@ export const Route = createFileRoute('/factions/$catalogueId')({
     rules: z
       .string()
       .min(1)
-      .max(40)
+      .max(80)
       .regex(/^[a-z0-9-]+$/)
       .optional(),
   }),

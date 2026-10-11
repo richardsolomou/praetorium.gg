@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import type { CanonicalCatalogue, CanonicalDatasheet } from '../contracts/catalogue'
 import { bookOf, points } from './catalogue.fixtures'
 import type { ReferenceCorpus } from './referenceCorpus'
-import { referenceRecord, referenceUnits } from './referenceService'
+import { referenceRecord, referenceUnits, referenceFaction } from './referenceService'
 import type { LoadedRules } from './rules'
 
 it('returns roster-planning facts for a whole detachment in one read', () => {
@@ -196,4 +196,19 @@ it('connects a primary mission to its terrain and deployment records', () => {
       ],
     },
   })
+})
+
+it('resolves an ordinary faction name to current rules even when an archive is listed first', () => {
+  const catalogue = {
+    datasheets: [
+      {
+        catalogueId: 'archive~book',
+        faction: 'Marines · MFM 1.4 · Archived',
+        referenceRoute: { catalogueId: 'archive~book', slug: 'unit' },
+      },
+      { catalogueId: 'current~book', faction: 'Marines · MFM 1.5', referenceRoute: { catalogueId: 'current~book', slug: 'unit' } },
+    ],
+    detachments: [],
+  } as unknown as CanonicalCatalogue
+  expect(referenceFaction({ catalogue } as ReferenceCorpus, 'marines')?.id).toBe('current~book')
 })

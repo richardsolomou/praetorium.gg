@@ -50,7 +50,7 @@ export type FactionPresentation = {
   slug: string
   displayName: string
   icon: string | null
-  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
+  edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status' | 'description'> | null
 }
 
 export function FactionMark({

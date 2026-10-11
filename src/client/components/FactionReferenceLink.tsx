@@ -17,12 +17,15 @@ export function FactionReferenceLink({ to, params, ...props }: Props) {
   const { data } = useQuery(factionIndexQuery())
   const faction =
     data?.factions.find((entry) => entry.id === params.catalogueId || entry.slug === params.catalogueId) ??
-    data?.factions.find((entry) => entry.id === editionFamilyId(params.catalogueId))
+    data?.factions.find((entry) => entry.isDefault && editionFamilyId(entry.id) === editionFamilyId(params.catalogueId)) ??
+    data?.factions.find((entry) => editionFamilyId(entry.id) === editionFamilyId(params.catalogueId))
   const editionId = catalogueEditionId(params.catalogueId)
   const route = faction
     ? factionReferenceRoute({
         ...faction,
-        edition: editionId ? { id: editionId } : faction.edition,
+        edition: editionId
+          ? (data?.factions.find((entry) => entry.edition?.id === editionId)?.edition ?? { id: editionId })
+          : faction.edition,
       })
     : null
   const catalogueId = route?.catalogueId ?? params.catalogueId

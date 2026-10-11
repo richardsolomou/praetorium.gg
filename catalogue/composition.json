@@ -31,7 +31,8 @@
     {
       "edition": {
         "id": "custodes-11e",
-        "name": "Custodes codex",
+        "name": "Custodes codex · 17 Oct 2026",
+        "slug": "custodes-codex-2026-10-17",
         "status": "preview",
         "default": false,
         "catalogueIds": ["1f19-6509-d906-ca10"],
@@ -78,7 +79,8 @@
     {
       "edition": {
         "id": "legacy-profiles",
-        "name": "Previous Marine rules",
+        "name": "MFM 1.5 · 2 Oct 2026",
+        "slug": "mfm-1-5-2026-10-02",
         "status": "retired",
         "default": false,
         "catalogueIds": ["470a-6daa-9014-12df", "4eef-e313-1eea-94a6", "a603-5039-f08d-e841"],
@@ -87,7 +89,8 @@
             "at": 1791676800000,
             "status": "retired"
           }
-        ]
+        ],
+        "description": "Rules snapshot from 2 Oct 2026. MFM 1.5 was released on 30 Sep 2026."
       },
       "snapshot": {
         "format": "praetorium.catalogue-pointer.v1",
@@ -100,7 +103,8 @@
     {
       "edition": {
         "id": "legacy-rosters",
-        "name": "Previous roster rules",
+        "name": "MFM 1.4 · 30 Sep 2026",
+        "slug": "mfm-1-4-2026-09-30",
         "status": "retired",
         "default": false,
         "catalogueIds": ["2261-79a5-19d9-1668", "470a-6daa-9014-12df", "4ef9-15ce-e3e6-36de"],
@@ -109,7 +113,8 @@
             "at": 1791676800000,
             "status": "retired"
           }
-        ]
+        ],
+        "description": "Rules snapshot from 30 Sep 2026. MFM 1.4 was released on 2 Sep 2026."
       },
       "snapshot": {
         "format": "praetorium.catalogue-pointer.v1",
@@ -122,7 +127,8 @@
     {
       "edition": {
         "id": "legacy-marine-old",
-        "name": "Previous Marine loadouts",
+        "name": "MFM 1.4 · 2 Sep 2026",
+        "slug": "mfm-1-4-2026-09-02",
         "status": "retired",
         "default": false,
         "catalogueIds": ["470a-6daa-9014-12df"],
@@ -144,7 +150,8 @@
     {
       "edition": {
         "id": "current-rosters",
-        "name": "Current rules",
+        "name": "Space Marines codex · 3 Oct 2026",
+        "slug": "space-marines-codex-2026-10-03",
         "status": "released",
         "default": true,
         "catalogueIds": ["2261-79a5-19d9-1668", "470a-6daa-9014-12df", "4ef9-15ce-e3e6-36de", "e0af-67df-9d63-8fb7"],

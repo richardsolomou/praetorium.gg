@@ -149,7 +149,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(page.locator('a[href="/missions/chapter-approved-2026-2027/matchups/take-and-hold/disruption"]')).toContainText(
     'Determined Acquisition',
   )
-  await expect(page.locator('a[href="/factions/necrons/detachments/awakened-dynasty"]')).toHaveCount(1)
+  await expect(page.locator('a[href="/factions/necrons/rules/mfm-1-5/detachments/awakened-dynasty"]')).toHaveCount(1)
   await expect(page).toHaveTitle(/Take and Hold force disposition — Praetorium/)
   await expectCanonical(page, '/force-dispositions/take-and-hold')
   await page.setViewportSize({ width: 390, height: 844 })
@@ -199,7 +199,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
     .getByRole('option', { name: /Overlord/ })
     .first()
     .click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+  await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-5/datasheets/overlord')
 
   await more.click()
   await expect(page).toHaveURL('/more')
@@ -265,7 +265,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.goto('/factions')
   await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
   await page.goto('/factions/necrons')
-  await expect(page.locator('a[href="/factions/necrons/detachments/awakened-dynasty"]')).toHaveCount(1)
+  await expect(page.locator('a[href="/factions/necrons/rules/mfm-1-5/detachments/awakened-dynasty"]')).toHaveCount(1)
   await page.goto('/missions')
   await expect(page).toHaveURL(/\/missions\/.+/)
   await expect(page.getByRole('heading', { name: 'Chapter Approved 2026-2027' })).toBeVisible()
@@ -337,7 +337,7 @@ test('public reference data renders without client JavaScript', async ({ browser
     'content',
     /^Overlord datasheet for Necrons\. 1 model for \d+ pts\..*Profiles, weapons, abilities and wargear/,
   )
-  await expectCanonical(page, '/factions/necrons/datasheets/overlord')
+  await expectCanonical(page, '/factions/necrons/rules/mfm-1-5/datasheets/overlord')
   await expect(page.locator('link[rel="alternate"][type="text/markdown"]')).toHaveAttribute(
     'href',
     /\/api\/reference\/v1\/datasheets\/[^/]+\/overlord\?format=markdown$/,
@@ -348,7 +348,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.getByRole('heading', { name: 'Technosorcerous Augmentations' })).toBeVisible()
   await expect(page).toHaveTitle(/Cryptek Conclave detachment — Necrons — Praetorium/)
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Cryptek Conclave rules, enhancements/)
-  await expectCanonical(page, '/factions/necrons/detachments/cryptek-conclave')
+  await expectCanonical(page, '/factions/necrons/rules/mfm-1-5/detachments/cryptek-conclave')
 
   await page.goto('/rules/core-rules/movement-phase')
   await expect(page.getByRole('heading', { name: 'Movement Phase', exact: true })).toBeVisible()
@@ -971,7 +971,7 @@ test('a player can enter through the roster library and browse the product', asy
   await reference.click()
   await page.getByRole('menuitem', { name: 'Factions' }).click()
   await necrons.getByRole('link').click()
-  await expect(page).toHaveURL('/factions/necrons')
+  await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-5')
   await expect(page.getByRole('link', { name: /Datasheets/ })).toBeVisible()
   const reanimationProtocols = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols' }) })
   await expect(reanimationProtocols).toContainText('Command phase')
@@ -995,7 +995,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('tooltip')).toHaveCount(0)
   await page.getByRole('link', { name: 'Necrons' }).click()
   await page.getByRole('link', { name: /Cryptek Conclave/ }).click()
-  await expect(page).toHaveURL('/factions/necrons/detachments/cryptek-conclave')
+  await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-5/detachments/cryptek-conclave')
   await expect(page.locator('main [data-faction-mark="necrons"]')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Technosorcerous Augmentations' })).toBeVisible()
@@ -1037,7 +1037,7 @@ test('a player can enter through the roster library and browse the product', asy
     .getByRole('link', { name: /Overlord/ })
     .first()
     .click()
-  await expect(page).toHaveURL('/factions/necrons/datasheets/overlord')
+  await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-5/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
   await expect(page.getByText('90 pts').first()).toBeVisible()
   await expect(page.getByRole('heading', { name: /Ranged weapons/ })).toBeVisible()
@@ -1194,7 +1194,7 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await expect(page).toHaveURL(/\/missions\//)
 
   await sections.getByRole('link', { name: 'Factions' }).click()
-  await expect(page).toHaveURL('/factions/dark-angels/rules/current-rosters/datasheets/deathwing-terminator-squad')
+  await expect(page).toHaveURL('/factions/dark-angels/rules/space-marines-codex-2026-10-03/datasheets/deathwing-terminator-squad')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
 
   // The section you are already in has one obvious destination left: its top.

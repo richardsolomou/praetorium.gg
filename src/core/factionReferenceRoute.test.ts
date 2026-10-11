@@ -45,3 +45,41 @@ it('resolves an archived faction whose current catalogue has a different identit
     ),
   ).toBe('legacy-profiles~previous')
 })
+
+it('resolves old exact links and support books when a named base hides its duplicate', () => {
+  const named = { ...base, id: 'current~book', edition: { id: 'current' } }
+  expect([referenceFactionId([named], 'adeptus-custodes', 'book'), referenceFactionId([named], 'adeptus-custodes', 'archived')]).toEqual([
+    'book',
+    'archived~book',
+  ])
+})
+
+it('uses the published rules slug without changing saved catalogue identities', () => {
+  const named = { ...preview, edition: { id: 'custodes-11e', slug: 'custodes-codex-2026-10-17' } }
+  expect(factionReferenceHref(named)).toBe('/factions/adeptus-custodes/rules/custodes-codex-2026-10-17')
+})
+
+it('resolves dated rules slugs to their original saved catalogue identities', () => {
+  const named = { ...preview, edition: { id: 'custodes-11e', slug: 'custodes-codex-2026-10-17' } }
+  expect(referenceFactionId([base, named], 'adeptus-custodes', 'custodes-codex-2026-10-17')).toBe(preview.id)
+})
+
+it('retains old edition links after a readable rules slug is published', () => {
+  const named = { ...preview, edition: { id: 'custodes-11e', slug: 'custodes-codex-2026-10-17' } }
+  expect(referenceFactionId([base, named], 'adeptus-custodes', 'custodes-11e')).toBe(preview.id)
+})
+
+it('resolves dated edition slugs for imported support books', () => {
+  const named = { ...preview, edition: { id: 'custodes-11e', slug: 'custodes-codex-2026-10-17' } }
+  expect(referenceFactionId([{ ...base, displayName: 'Space Marines' }, named], 'space-marines', 'custodes-codex-2026-10-17')).toBe(
+    'custodes-11e~book',
+  )
+})
+
+it('gives root MFM rules a readable version path', () => {
+  expect(factionReferenceHref({ ...base, rulesSlug: 'mfm-1-5' })).toBe('/factions/adeptus-custodes/rules/mfm-1-5')
+})
+
+it('resolves root MFM paths without treating their slug as an edition ID', () => {
+  expect(referenceFactionId([{ ...base, rulesSlug: 'mfm-1-5' }], 'adeptus-custodes', 'mfm-1-5')).toBe(base.id)
+})

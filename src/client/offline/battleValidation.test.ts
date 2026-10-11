@@ -107,14 +107,16 @@ it('refuses a force-wide unit limit violation offline before saving a battle com
   expect(mocks.queue).not.toHaveBeenCalled()
 })
 
-it('refreshes a saved workspace that is older than the battle screen before returning a stale response', async () => {
+it('refreshes a saved playing workspace that is older than the battle screen before returning a stale response', async () => {
   prepare(80)
   vi.stubGlobal('navigator', { onLine: true })
-  const history = log(...started())
+  const savedHistory = log(...started())
+  const saved = { ...workspace, log: savedHistory, serverSeq: savedHistory.length }
+  const history = log(...started(), ...turns(2, ALICE))
   const fresh = { ...workspace, log: history, serverSeq: history.length }
   mocks.workspace.mockResolvedValue({ workspace: fresh })
-  mocks.document.mockResolvedValueOnce(workspace).mockResolvedValueOnce(fresh)
-  const answer = await submit({ data: { token: 'battle', expectedSeq: 1, command: { kind: 'attach-saved-roster', rosterId: 'roster' } } })
+  mocks.document.mockResolvedValueOnce(saved).mockResolvedValueOnce(saved).mockResolvedValueOnce(fresh)
+  const answer = await submit({ data: { token: 'battle', expectedSeq: savedHistory.length + 1, command: { kind: 'advance' } } })
   expect(answer.result).toEqual({ outcome: 'stale', seq: history.length })
 })
 
@@ -241,5 +243,57 @@ it('does not replay a connected automatic write after an uncertain network respo
   vi.stubGlobal('navigator', { onLine: true })
   mocks.submit.mockRejectedValue(new Error('Response lost'))
   await expect(submit(input, { background: true })).rejects.toThrow('Response lost')
+  expect(mocks.queue).not.toHaveBeenCalled()
+})
+
+it('returns a competing connected defender choice without retaining a durable conflict', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: true })
+  const input = { data: { token: 'battle', expectedSeq: 0, command: { kind: 'set-attacker' as const, attackerId: 'bob' } } }
+  const authoritative = { result: { outcome: 'stale', seq: 1 }, screen: null }
+  mocks.submit.mockResolvedValue(authoritative)
+  const answer = await submit(input)
+  expect({ answer, writes: mocks.submit.mock.calls, queued: mocks.queue.mock.calls }).toEqual({
+    answer: authoritative,
+    writes: [[input]],
+    queued: [],
+  })
+})
+
+it('keeps a connected setup choice behind pending offline history', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.changes.mockResolvedValue(true)
+  await submit({ data: { token: 'battle', expectedSeq: 0, command: { kind: 'set-attacker', attackerId: 'bob' } } })
+  expect({ sent: mocks.submit.mock.calls.length, command: mocks.queue.mock.calls[0]?.[1].command }).toEqual({
+    sent: 0,
+    command: { kind: 'set-attacker', attackerId: 'bob' },
+  })
+})
+
+it('downloads the winning setup history before displaying a competing defender choice', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: true })
+  const command = { kind: 'set-attacker' as const, attackerId: 'bob' }
+  const fresh = { ...workspace, log: log([ALICE, command]), serverSeq: 1 }
+  const screen = { kind: 'battle', view: { seq: 1 } }
+  const result = { outcome: 'stale', seq: 1 }
+  mocks.submit.mockResolvedValue({ result, screen })
+  mocks.workspace.mockResolvedValue({ workspace: fresh, screen })
+  const answer = await submit({ data: { token: 'battle', expectedSeq: 0, command } })
+  expect({ answer, saved: mocks.remember.mock.calls, queued: mocks.queue.mock.calls }).toEqual({
+    answer: { result, screen },
+    saved: [[fresh, 'alice']],
+    queued: [],
+  })
+})
+
+it('does not replay a connected setup choice after an uncertain response', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.submit.mockRejectedValue(new Error('Response lost'))
+  await expect(submit({ data: { token: 'battle', expectedSeq: 0, command: { kind: 'set-attacker', attackerId: 'bob' } } })).rejects.toThrow(
+    'Response lost',
+  )
   expect(mocks.queue).not.toHaveBeenCalled()
 })

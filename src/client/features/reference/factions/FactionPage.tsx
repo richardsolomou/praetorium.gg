@@ -1,3 +1,4 @@
+import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
@@ -12,7 +13,7 @@ import { RuleText } from '../../../components/RuleText'
 import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { SearchableSelect } from '../../../components/SearchableSelect'
-import { editionLabel } from '../../../../core/catalogueEdition'
+import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { useDateFormatting } from '../../../dates'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
@@ -28,6 +29,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
   if (!direct) return <Outlet />
   if (!faction) return null
   const editions = index?.factions.filter((entry) => currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(faction.id)) ?? []
+  editions.sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
   const reference = faction.references[0]
   const detachments = favouriteDetachmentsFirst(
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
@@ -45,18 +47,20 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         actions={
           <>
             {editions.length > 1 ? (
-              <div className="min-w-48 max-w-full">
+              <div className="min-w-80 max-w-full">
                 <SearchableSelect
                   id="reference-edition"
                   ariaLabel="Rules version"
                   placeholder="Choose a rules version"
+                  popupClassName="min-w-80 max-w-[calc(100vw-2rem)]"
                   value={faction.id}
                   groups={[
                     {
                       label: '',
                       items: editions.map((entry) => ({
                         value: entry.id,
-                        label: entry.edition ? editionLabel(entry.edition) : !entry.isDefault ? 'Previous rules' : 'Current rules',
+                        label: rulesVersionLabel(entry),
+                        content: <RulesVersionLabel faction={entry} />,
                       })),
                     },
                   ]}
@@ -82,11 +86,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
               {faction.edition.releases.map((release) => (
                 <li key={release.at}>
                   {date(release.at)} ·{' '}
-                  {release.status === 'preview'
-                    ? 'Preview published'
-                    : release.status === 'released'
-                      ? 'Officially released'
-                      : 'Previous rules'}
+                  {release.status === 'preview' ? 'Preview published' : release.status === 'released' ? 'Officially released' : 'Archived'}
                 </li>
               ))}
             </ol>

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signUp, waitForRosterSave } from './account'
+import { retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 
 for (const width of [390, 1440]) {
@@ -31,11 +31,11 @@ for (const width of [390, 1440]) {
     })
     await page.goto(`/rosters/${id}`)
     const notice = page.locator('[data-roster-rules-notice]')
-    await expect(notice).toContainText('This roster uses Previous roster rules.')
+    await expect(notice).toContainText('This roster uses MFM 1.4 · 30 Sep 2026.')
     await expect(page.locator('[data-unit="Scout Squad"]')).toContainText('Combat Knife')
     await notice.getByRole('button', { name: 'Convert rules version' }).click()
     const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
-    await expect(dialog.getByRole('combobox', { name: 'Rules version' })).toContainText('Previous roster rules')
+    await expect(dialog.getByRole('combobox', { name: 'Rules version' })).toContainText('MFM 1.4 · 30 Sep 2026')
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await page.reload()
     await expect(notice).toBeVisible()
@@ -44,7 +44,8 @@ for (const width of [390, 1440]) {
     await page.screenshot({ path: `test-results/retained-roster-${width}.png`, fullPage: true })
     await notice.getByRole('button', { name: 'Convert rules version' }).click()
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-    await page.getByRole('option', { name: 'Current rules', exact: true }).click()
+    await expect(page.getByRole('option').first()).toHaveText('Current Space Marines codex · 3 Oct 2026')
+    await page.getByRole('option', { name: 'Space Marines codex · 3 Oct 2026 · Current', exact: true }).click()
     await expect(dialog.getByRole('button', { name: 'Convert roster', exact: true })).toBeEnabled()
     await waitForRosterSave(page, () => dialog.getByRole('button', { name: 'Convert roster', exact: true }).click(), 'current-rosters~')
     await page.reload()
@@ -80,10 +81,10 @@ test('converts a retired Marine faction identity without discarding its generate
   })
   await page.goto(`/rosters/${id}`)
   const notice = page.locator('[data-roster-rules-notice]')
-  await notice.getByRole('button', { name: 'Convert rules version' }).click()
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
+  await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
   await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'Current rules', exact: true }).click()
+  await page.getByRole('option', { name: 'MFM 1.5 · Current', exact: true }).click()
   await dialog.getByRole('button', { name: 'Remove unavailable', exact: true }).click()
   await dialog.getByRole('button', { name: 'Select Gladius Task Force', exact: true }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')

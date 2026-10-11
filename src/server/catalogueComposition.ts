@@ -62,6 +62,8 @@ export const catalogueCompositionSchema = z
     }
     const ids = composition.editions.map(({ edition }) => edition.id)
     if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'duplicate edition IDs' })
+    const routes = composition.editions.flatMap(({ edition }) => [...new Set([edition.id, edition.slug ?? edition.id])])
+    if (new Set(routes).size !== routes.length) context.addIssue({ code: 'custom', message: 'conflicting edition rules slugs' })
     const defaults = composition.editions.filter(({ edition }) => edition.default).flatMap(({ edition }) => edition.catalogueIds)
     if (new Set(defaults).size !== defaults.length)
       context.addIssue({ code: 'custom', message: 'a faction can have only one default edition' })
@@ -91,6 +93,7 @@ export function validateEditionContinuity(previous: CatalogueComposition | null,
     if (snapshot && JSON.stringify(snapshot) !== JSON.stringify(selected.snapshot))
       throw new Error(`edition ${edition.id} cannot replace its immutable snapshot`)
     const current = selected.edition
+    if (edition.slug && edition.slug !== current.slug) throw new Error(`edition ${edition.id} cannot change its published rules slug`)
     if (edition.releases.some((release, index) => JSON.stringify(release) !== JSON.stringify(current.releases[index]))) {
       throw new Error(`edition ${edition.id} cannot rewrite published release history`)
     }

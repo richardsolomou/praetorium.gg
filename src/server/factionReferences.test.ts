@@ -237,3 +237,30 @@ describe('detachments offering a force disposition', () => {
     expect(detachmentsOffering(factions, 'disruption').map((entry) => entry.slug)).toEqual(['necrons', 'tyranids'])
   })
 })
+
+it('names root rules from the faction points release', () => {
+  const loaded = bookOf({ name: 'Adeptus Custodes', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+  loaded.mfm = new Map([['adeptus-custodes', { slug: 'adeptus-custodes', version: '1.5', units: [] }]])
+  expect(factionsFor(loaded, null).factions[0]?.rulesName).toBe('MFM 1.5')
+})
+
+it('does not present authored points as an official MFM release', () => {
+  const loaded = bookOf({ name: 'Adeptus Custodes', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+  loaded.mfm = new Map([['adeptus-custodes', { slug: 'adeptus-custodes', version: '1.5', attribution: 'Community preview', units: [] }]])
+  expect(factionsFor(loaded, null).factions[0]?.rulesName).toBeUndefined()
+})
+
+it('uses the single source MFM release for faction aliases without a matching points slug', () => {
+  const loaded = bookOf({ name: 'Agents of the Imperium', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+  loaded.mfm = new Map([['imperial-agents', { slug: 'imperial-agents', version: '1.5', units: [] }]])
+  expect(factionsFor(loaded, null).factions[0]?.rulesName).toBe('MFM 1.5')
+})
+
+it('does not guess a release for an unmatched faction when points sources have different versions', () => {
+  const loaded = bookOf({ name: 'Agents of the Imperium', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+  loaded.mfm = new Map([
+    ['imperial-agents', { slug: 'imperial-agents', version: '1.5', units: [] }],
+    ['space-marines', { slug: 'space-marines', version: '1.4', units: [] }],
+  ])
+  expect(factionsFor(loaded, null).factions[0]?.rulesName).toBeUndefined()
+})

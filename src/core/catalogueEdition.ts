@@ -4,7 +4,14 @@ import type { RosterPick } from './roster'
 
 export const catalogueEditionSummarySchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,19}$/),
+  slug: z
+    .string()
+    .min(1)
+    .max(80)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .optional(),
   name: z.string().trim().min(1).max(80),
+  description: z.string().trim().min(1).max(240).optional(),
   status: z.enum(['preview', 'released', 'retired']),
 })
 
@@ -46,7 +53,30 @@ export function catalogueEditionId(catalogueId: string) {
 }
 
 export const editionLabel = (edition: Pick<CatalogueEdition, 'name' | 'status'>) =>
-  `${edition.name}${edition.status === 'preview' ? ' · Preview' : edition.status === 'retired' ? ' · Previous' : ''}`
+  `${edition.name}${edition.status === 'preview' ? ' · Preview' : edition.status === 'retired' ? ' · Archived' : ''}`
+
+export function rulesVersionDetails(faction: {
+  edition?: Pick<CatalogueEdition, 'name' | 'status' | 'description'> | null
+  rulesName?: string
+  isDefault?: boolean
+}) {
+  return {
+    name: faction.edition?.name ?? faction.rulesName ?? 'Release not recorded',
+    status:
+      faction.edition?.status === 'preview'
+        ? 'Preview'
+        : faction.edition?.status === 'retired' || (!faction.edition && faction.isDefault === false)
+          ? 'Archived'
+          : faction.isDefault || !faction.edition
+            ? 'Current'
+            : null,
+  }
+}
+
+export function rulesVersionLabel(faction: Parameters<typeof rulesVersionDetails>[0]) {
+  const { name, status } = rulesVersionDetails(faction)
+  return `${name}${status ? ` · ${status}` : ''}`
+}
 
 export const editionFamilyId = (catalogueId: string) => catalogueId.split('~').at(-1)!
 

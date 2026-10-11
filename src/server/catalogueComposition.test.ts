@@ -61,6 +61,24 @@ it('refuses to rewrite a previously published release event', () => {
   expect(() => validateEditionContinuity(previous, next)).toThrow('cannot rewrite published release history')
 })
 
+it.each(['custodes-codex', 'dated-codex'])('rejects a rules slug that conflicts with another edition URL %s', (slug) => {
+  const original = { ...composition().editions[0]!, edition: { ...composition().editions[0]!.edition, slug: 'dated-codex' } }
+  expect(
+    catalogueCompositionSchema.safeParse({
+      ...composition(),
+      editions: [original, { ...original, edition: { ...original.edition, id: 'another-codex', slug } }],
+    }).success,
+  ).toBe(false)
+})
+
+it('refuses to change a published rules slug', () => {
+  const previous = composition()
+  previous.editions[0]!.edition.slug = 'custodes-codex-2026-10-17'
+  const next = structuredClone(previous)
+  next.editions[0]!.edition.slug = 'another-slug'
+  expect(() => validateEditionContinuity(previous, next)).toThrow('cannot change its published rules slug')
+})
+
 it('retains old editions for saved lists', () => {
   expect(() => validateEditionContinuity(composition(), null)).toThrow('retire it instead of deleting it')
 })

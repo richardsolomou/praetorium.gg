@@ -28,9 +28,12 @@ export const factionSchema = z.object({
 })
 export type MfmUnit = z.infer<typeof unitSchema>
 export type MfmIndex = ReadonlyMap<string, z.infer<typeof factionSchema>>
+export const mfmVersions = (index: MfmIndex | null | undefined) =>
+  new Set([...(index?.values() ?? [])].filter((faction) => !faction.attribution).map((faction) => faction.version))
+
 export function mfmAttribution(index: MfmIndex | null | undefined): string | null {
   const factions = [...(index?.values() ?? [])]
-  const versions = new Set(factions.filter((faction) => !faction.attribution).map((faction) => faction.version))
+  const versions = mfmVersions(index)
   const attributions = new Set<string>()
   if (versions.size) {
     attributions.add(`Points from BSData Munitorum Field Manual${versions.size === 1 ? ` ${versions.values().next().value}` : ''}`)
