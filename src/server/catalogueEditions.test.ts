@@ -6,6 +6,10 @@ import type { CanonicalCatalogue, CanonicalDatasheet } from '../contracts/catalo
 import { shelfOf, withCards } from './catalogue.fixtures'
 import { catalogueEditionLoaders } from './catalogueEditions'
 import type { CatalogueEdition } from '../core/catalogueEdition'
+import type { LoadedRules } from './rules'
+import { ALICE, BOB, builtRoster, log } from '../core/battle.fixtures'
+import { reduceBattle } from '../core/battle'
+import { battleSummary } from '../shared/battleSummary'
 
 const mocks = vi.hoisted(() => ({ loadCatalogue: vi.fn(), compile: vi.fn() }))
 vi.mock('./catalogueIndex', async (original) => ({
@@ -182,7 +186,7 @@ it('preserves base relationship destinations across all factions after codex pro
   ])
 })
 
-function namedBase() {
+function namedBase(rules: LoadedRules | null = null) {
   versions(['parent'], true)
   const file = path.join(directory, 'composition.json')
   const composition = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -191,7 +195,7 @@ function namedBase() {
   return catalogueEditionLoaders(
     directory,
     () => books(),
-    () => null,
+    () => rules,
   )
 }
 
@@ -204,6 +208,48 @@ it('offers a named base once and opens it by default without losing exact saved 
     savedLabel: loaded.factionFor('parent')?.edition?.name,
   }).toEqual({ offered: ['child', 'codex~parent'], default: 'codex~parent', saved: 'parent', savedLabel: 'Codex' })
 })
+
+it('includes unqualified frozen army IDs in the battle index without duplicating selectable rules', () => {
+  const loaded = namedBase()
+  expect({
+    battles: loaded.battleFactions().map(({ id }) => id),
+    selectable: loaded.factions()!.factions.map(({ id }) => id),
+  }).toEqual({ battles: ['child', 'codex~parent', 'parent'], selectable: ['child', 'codex~parent'] })
+})
+
+it.each([undefined, { id: 'old', name: 'Previous rules', status: 'retired' as const }])(
+  'restores a frozen army faction icon while preserving its recorded rules: %j',
+  (edition) => {
+    const loaded = namedBase({
+      factionIcons: new Map([['marines', '/marines.svg']]),
+      detachmentReferences: new Map(),
+      detachmentDetails: new Map(),
+    } as Partial<LoadedRules> as LoadedRules)
+    const command = builtRoster('Marines', ['Leader'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('Missing built roster fixture')
+    command.roster.built.catalogueId = 'parent'
+    command.roster.built.edition = edition
+    const history = {
+      battle: { token: 'old-battle', createdAt: 0 },
+      players: [
+        { id: ALICE, name: 'Alice', automated: false },
+        { id: BOB, name: 'Bob', automated: false },
+      ],
+      log: log([ALICE, command]),
+    }
+    const summary = battleSummary(
+      history,
+      reduceBattle([ALICE, BOB], history.log),
+      null,
+      null,
+      new Map(loaded.battleFactions().map((faction) => [faction.id, faction])),
+    )
+    expect(summary.factions).toEqual([
+      { slug: 'marines', displayName: 'Marines', icon: '/api/faction-icons/marines', edition: edition ?? null },
+      null,
+    ])
+  },
+)
 
 it('does not duplicate named base datasheets in the combined reference', () => {
   const loaded = namedBase()

@@ -37,6 +37,7 @@ import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsor
 import type { compiledGlobalSearchIndex } from './globalSearch'
 import { catalogueEditionLoaders } from './catalogueEditions'
 import { catalogueEditionId } from '../core/catalogueEdition'
+import type { BattleFaction } from '../shared/battleSummary'
 
 type App = {
   hotReloadToken?: object
@@ -53,6 +54,7 @@ type App = {
   rulesFor: (catalogueId?: string) => Promise<LoadedRules | null>
   battleMissionRulesFor: () => Promise<BattleMissionRules | null>
   battleReadRulesFor: () => Promise<BattleReadRules | null>
+  battleFactionsFor: () => Promise<BattleFaction[]>
   terrainReadRulesFor: (matchupIds: readonly string[]) => Promise<TerrainReadRules | null>
   battleDetachmentDataFor: (catalogueId: string) => Promise<BattleDetachmentData | null>
   rosterLabelRulesFor: (catalogueId?: string) => Promise<Pick<LoadedRules, 'factionNames'> | null>
@@ -189,6 +191,7 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
     rulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
     battleMissionRulesFor: async () => getInstance().rules(),
     battleReadRulesFor: async () => getInstance().rules(),
+    battleFactionsFor: async () => versions().battleFactions(),
     terrainReadRulesFor: async (matchupIds: readonly string[]) => {
       const rules = getInstance().rules()
       return rules

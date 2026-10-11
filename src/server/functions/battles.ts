@@ -40,7 +40,7 @@ const BATTLES_PAGE = 25
 const FEED_PAGE = 10
 
 async function battleFactions() {
-  return (await app().factionIndexFor())?.factions ?? []
+  return app().battleFactionsFor()
 }
 
 export const myBattles = createServerFn({ method: 'GET' })
