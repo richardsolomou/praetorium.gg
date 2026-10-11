@@ -72,6 +72,18 @@ it('uses the current service while connected', async () => {
   vi.stubGlobal('window', {})
   expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toBe('Live rule')
 })
+it('uses current hosted faction data even when the native shell injected an older download', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
+  vi.stubGlobal('navigator', { onLine: true })
+  expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Current rule'))).toBe('Current rule')
+})
+it('uses the native shell’s saved reference when the hosted read fails', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
+  vi.stubGlobal('navigator', { onLine: true })
+  expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.reject(new Error('Unreachable')))).toEqual({
+    title: 'Moving',
+  })
+})
 it('filters downloaded datasheets through the existing search field', () => {
   expect(offlineDatasheets('necrons', 'Warriors')).toEqual([{ id: 'warriors', name: 'Necron Warriors' }])
 })

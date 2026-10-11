@@ -13,8 +13,10 @@ import {
 } from '../client/queries'
 import { pageHead, rosterExposure, rosterPreview } from '../client/linkPreview'
 import { normalisePicks } from '../client/features/rosters/rosterPicks'
+import { RosterLoading } from '../client/features/rosters/RosterLoading'
 
 export const Route = createFileRoute('/rosters/$id/')({
+  pendingComponent: RosterLoading,
   // A battle token is what lets an entitled battle reader open a list that is otherwise private.
   // `add` is a datasheet a reference page asked to add, dropped once the builder has answered.
   validateSearch: (

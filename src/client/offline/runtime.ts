@@ -23,10 +23,17 @@ export function referenceData() {
   return typeof window === 'undefined' ? undefined : (window.PraetoriumOffline ?? window.PraetoriumReferenceCache)
 }
 
-export function referenceRead<T>(key: readonly unknown[], online: () => Promise<T>): Promise<T> {
+export function referenceRead<T>(key: readonly unknown[], online: () => Promise<T>, current?: T): Promise<T> {
+  if (typeof window !== 'undefined' && !navigator.onLine && current !== undefined) return Promise.resolve(current)
   const saved = referenceData()
   if (!saved) return online()
   const found = saved.queries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(key))
+  if (navigator.onLine && !offlineData())
+    return online().catch((error) => {
+      if (current !== undefined) return current
+      if (found) return found.data as T
+      throw error
+    })
   if (!found && navigator.onLine) return online()
   if (!found) return Promise.reject(new Error('This reference is unavailable in the saved download. Connect and refresh the reference.'))
   return Promise.resolve(found.data as T)

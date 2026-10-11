@@ -14,16 +14,20 @@ export function savedReferenceData(html: string): OfflineReferenceData | null {
   }
 }
 
-export function applyReferenceData(client: QueryClient, data: OfflineReferenceData) {
+export function applyReferenceData(client: QueryClient, data: OfflineReferenceData, restore = false) {
   const previous = referenceData()
   if (window.PraetoriumOffline) window.PraetoriumOffline = data
   window.PraetoriumReferenceCache = data
+  if (previous?.revision === data.revision && !restore) return
   notifyManager.batch(() => {
     const keys = new Set(data.queries.map((entry) => JSON.stringify(entry.key)))
-    for (const entry of previous?.queries ?? []) {
+    for (const entry of restore ? [] : (previous?.queries ?? [])) {
       if (!keys.has(JSON.stringify(entry.key))) client.setQueryData(entry.key, null)
     }
-    for (const entry of data.queries) client.setQueryData(entry.key, entry.data)
+    for (const entry of data.queries) {
+      if (!restore || client.getQueryData(entry.key) === undefined) client.setQueryData(entry.key, entry.data)
+    }
+    if (restore) return
     void client.invalidateQueries({
       predicate: (query) =>
         query.queryKey[0] === 'global-search' || (query.queryKey[0] === 'faction-datasheets' && query.queryKey[2] !== ''),

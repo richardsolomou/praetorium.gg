@@ -39,7 +39,7 @@ export function OfflineReference() {
           const response = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
           const data = response ? savedReferenceData(await response.text()) : null
           abort.signal.throwIfAborted()
-          if (data) applyReferenceData(client, data)
+          if (data) applyReferenceData(client, data, true)
         }
         const signal = anySignal([abort.signal, AbortSignal.timeout(15_000)])
         const [manifest, version] = await Promise.all([offlineReferenceVersion(signal), offlineAppVersion(signal)])
