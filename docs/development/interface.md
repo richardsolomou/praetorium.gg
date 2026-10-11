@@ -79,7 +79,7 @@ Administration uses shared account controls, server-side filtering/pagination, a
 
 [Combat simulation](combat-simulation.md#interface-and-context) owns the shared matchup UI, pinned outcome, loadout odds, and pending states.
 
-Friend invite QR codes encode the existing one-time link and use the same expiry/revocation boundary. Keep the readable link available if image generation fails. Battle cards and Home activity show scores once, without an additional result sentence. Dates spell out the month.
+Roster exchange QR codes encode the exchange import link only while it stays within `ROSTER_EXCHANGE_QR_MAX_LENGTH`; longer rosters keep the copyable code and say why there is no QR code. Friend invite QR codes encode the existing one-time link and use the same expiry/revocation boundary. Keep the readable link available if image generation fails. Battle cards and Home activity show scores once, without an additional result sentence. Dates spell out the month.
 
 ## Link previews
 

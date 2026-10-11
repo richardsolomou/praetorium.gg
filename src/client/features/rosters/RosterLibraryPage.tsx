@@ -18,6 +18,7 @@ import { CreateRoster } from './CreateRoster'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { RosterExportDialog } from './RosterExportDialog'
+import { RosterExchangeDialog } from './RosterExchangeDialog'
 import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -143,6 +144,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           }}
         />
         {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
+        {actions.exchange.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            Could not make an exchange code: {errorMessage(actions.exchange.error)}
+          </p>
+        ) : null}
 
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
@@ -296,6 +302,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         />
       ) : null}
       <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />
+      <RosterExchangeDialog exchange={actions.exchangeCode} onClose={actions.clearExchange} />
     </main>
   )
 }

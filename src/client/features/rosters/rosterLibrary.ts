@@ -3,6 +3,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import type { RosterTextExport } from './RosterExportDialog'
+import type { RosterExchangeCode } from './RosterExchangeDialog'
+import { encodeRosterExchange } from '../../../core/rosterExchange'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
@@ -28,6 +30,7 @@ export function useRosterActions(origin: string) {
   const [shareFeedback, setShareFeedback] = useState<{ id: string; result: 'copied' | 'shared' } | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
+  const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const load = async (roster: SavedRoster) => {
     const complete = await sharedRoster({ data: { id: roster.id } })
     if (!complete) throw new Error('That roster could not be loaded.')
@@ -73,6 +76,15 @@ export function useRosterActions(origin: string) {
     onSuccess: (exported) => setExportText(exported),
   })
 
+  const exchange = useMutation({
+    mutationFn: async ({ roster: summary, title, points }: { roster: SavedRoster; title: string; points: number | null }) => {
+      const roster = await load(summary)
+      const name = roster.name || title
+      return { name, code: await encodeRosterExchange({ ...roster, name, points }) }
+    },
+    onSuccess: (code) => setExchangeCode(code),
+  })
+
   const update = useMutation({
     mutationFn: async (review: RosterSetupReview) =>
       saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave),
@@ -114,6 +126,7 @@ export function useRosterActions(origin: string) {
     remove,
     access,
     take,
+    exchange,
     update,
     share,
     print: (id: string) => window.open(`/rosters/${id}?print=true`, '_blank'),
@@ -121,6 +134,8 @@ export function useRosterActions(origin: string) {
     shareProblem,
     exportText,
     clearExport: () => setExportText(null),
+    exchangeCode,
+    clearExchange: () => setExchangeCode(null),
   }
 }
 
