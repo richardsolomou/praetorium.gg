@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.4
+
+### Patch Changes
+
+- f8a58bb: Preserve saved roster loadouts, points, and removed choices on their original rules, with a visible notice and optional conversion to current rules. Add production roster copies and migration audits for local rehearsals.
+
 ## 0.115.3
 
 ### Patch Changes
