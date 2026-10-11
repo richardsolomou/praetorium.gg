@@ -322,3 +322,47 @@ describe('a roster sent with retired Marine codex ids', () => {
     })
   })
 })
+
+describe('catalogue loadout migrations at request boundaries', () => {
+  const pick = {
+    entryId: '8b71-580f-ad19-83d7',
+    choices: { '692c-f7be-75d4-ba2d/f1f6-718e-222f-9ed5': 'b440-75d0-9e95-486a' },
+  }
+  const roster = { catalogueId: 'f89b-84e0-6e3b-f1e2', detachmentIds: [], disposition: null, limit: 2_000 }
+
+  it('migrates current loadouts before pricing and saving', () => {
+    const expected = {
+      ...pick,
+      choices: { '266c-3f4c-4aed-9472/8d7b-3dfe-7b91-2490/692c-f7be-75d4-ba2d/f1f6-718e-222f-9ed5': 'b440-75d0-9e95-486a' },
+    }
+    expect([
+      priceSchema.parse({ ...roster, units: [pick] }).units,
+      saveRosterSchema.parse({ ...roster, name: '', picks: [pick], prep: null }).picks,
+      datasheetSchema.parse({ ...roster, entryId: pick.entryId, picks: [pick] }).picks,
+    ]).toEqual([[expected], [expected], [expected]])
+  })
+
+  it('preserves retained edition loadouts before pricing, saving, and opening a datasheet', () => {
+    const retained = { ...roster, catalogueId: `previous~${roster.catalogueId}` }
+    expect([
+      priceSchema.parse({ ...retained, units: [pick] }).units,
+      saveRosterSchema.parse({ ...retained, name: '', picks: [pick], prep: null }).picks,
+      datasheetSchema.parse({ ...retained, entryId: pick.entryId, picks: [pick] }).picks,
+    ]).toEqual([[pick], [pick], [pick]])
+  })
+})
+
+it('retains original rules consistently when a roster is priced, saved, or opened', () => {
+  const roster = {
+    catalogueId: 'a603-5039-f08d-e841',
+    detachmentIds: ['profile-detachment-option-a603-5039-f08d-e841-f367-3240-47c1-7e1a'],
+    disposition: null,
+    limit: 2000,
+  }
+  const pick = { entryId: 'profile-unit-a603-5039-f08d-e841-5302-e1f9-0338-76f9' }
+  expect([
+    priceSchema.parse({ ...roster, units: [pick] }).catalogueId,
+    saveRosterSchema.parse({ ...roster, name: '', picks: [pick], prep: null }).catalogueId,
+    datasheetSchema.parse({ ...roster, entryId: pick.entryId, picks: [pick] }).catalogueId,
+  ]).toEqual(Array(3).fill('legacy-profiles~a603-5039-f08d-e841'))
+})

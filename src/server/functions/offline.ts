@@ -33,7 +33,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
       operationId: z.uuid(),
       expectedVersion: z.number().int().nonnegative().nullable(),
       deleted: z.boolean().default(false),
-      roster: saveRosterSchema.extend({ id: z.string().min(1).max(64), baseRosterId: z.string().min(1).max(64).nullable().optional() }),
+      roster: saveRosterSchema.safeExtend({ id: z.string().min(1).max(64), baseRosterId: z.string().min(1).max(64).nullable().optional() }),
     }),
   )
   .handler(({ data }) =>
@@ -128,7 +128,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
       recordedAt: z.number().int().nonnegative(),
       catalogueRevision: z.string().min(1).max(128),
       command: commandSchema,
-      capturedRoster: saveRosterSchema.extend({ id: z.string().min(1).max(128) }).optional(),
+      capturedRoster: saveRosterSchema.safeExtend({ id: z.string().min(1).max(128) }).optional(),
     }),
   )
   .handler(({ data }) =>

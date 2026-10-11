@@ -107,7 +107,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     {
       title: 'Create or edit my roster',
       description: 'Saves a complete roster. Pass its id to edit an owned roster; omit id to create one. Requires mcp:write.',
-      inputSchema: saveRosterSchema.shape,
+      inputSchema: saveRosterSchema,
       annotations: WRITE,
     },
     (data) =>

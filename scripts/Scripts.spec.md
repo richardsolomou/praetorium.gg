@@ -91,6 +91,9 @@ Maintenance, catalogue publishing, verification and deployment entry points an o
 - seed preview: a preview deployment or contributor seeds demonstration accounts, rosters and battles
   handler: scripts/seedPreview.ts
   trust: operator
+- production rosters: a contributor exports production selections, copies them into an owned local preview, and checks catalogue migrations against a recorded baseline
+  handler: scripts/productionRosters.ts
+  trust: operator
 - shortlist combat rules: an operator asks a model to shortlist which inventoried rules affect combat, with a bounded request budget and a local cache
   handler: scripts/shortlistCombatRules.ts
   trust: operator

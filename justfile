@@ -20,6 +20,18 @@ dev-stop:
 dev-restart:
     pnpm dev:restart
 
+# Export production roster selections without account data or notes
+rosters-fetch snapshot="data-dev/production-rosters.json":
+    node --env-file-if-exists=.env.local --import tsx scripts/productionRosters.ts fetch "{{ snapshot }}"
+
+# Copy the snapshot into this worktree's preview account without overwriting local edits
+rosters-import snapshot="data-dev/production-rosters.json":
+    pnpm exec tsx scripts/productionRosters.ts import "{{ snapshot }}"
+
+# Check saved selections against a catalogue, optionally comparing a baseline
+rosters-audit *args:
+    pnpm exec tsx scripts/productionRosters.ts audit {{ args }}
+
 # The native application against the local development service
 mobile *args:
     EXPO_PUBLIC_APP_URL="${EXPO_PUBLIC_APP_URL:-http://localhost:3000}" pnpm mobile -- {{ args }}

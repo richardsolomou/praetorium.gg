@@ -121,6 +121,79 @@ it('composes pinned branch files while preserving the shared game system', async
   expect(loadCatalogue(directory)?.index.pointsTypeId).toBe('cost-pts')
 })
 
+it('names the root rules without copying an edition and includes them in history', async () => {
+  const manifest = composition()
+  manifest.editions[0]!.base = true
+  manifest.editions[0]!.overlays = []
+  const directory = await materialize(manifest)
+  const versions = catalogueEditionLoaders(
+    directory,
+    () => loadCatalogue(directory),
+    () => null,
+  )
+  expect({
+    points: versions.catalogueFor('custodes-codex~cat')!.index.definitions.get('guard')!.costs![0]!.value,
+    copied: fs.existsSync(path.join(directory, 'editions')),
+    history: compiledChangeSource(directory, CANONICAL_CATALOGUE_SOURCE_NAMES)!.datasheets.some(
+      (sheet) => sheet.catalogueId === 'custodes-codex~cat',
+    ),
+  }).toEqual({ points: 110, copied: false, history: true })
+})
+
+async function retainedSnapshot() {
+  const manifest = composition()
+  manifest.editions = []
+  const directory = await materialize(manifest)
+  const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  for (const name of ['battlemaster', 'icons'] as const) {
+    revisions[name] = catalogueSources[name].revision
+    const file = path.join(directory, name, name === 'battlemaster' ? 'layouts/test.json' : 'test.svg')
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, name === 'battlemaster' ? '{}' : '<svg/>')
+  }
+  fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify(revisions))
+  const archiveFile = path.join(root, 'historical.zip')
+  const pointer = packCatalogueSnapshot(directory, archiveFile, path.join(root, 'historical.pointer.json'))
+  const original = fetch
+  vi.stubGlobal('fetch', (url: string | URL) =>
+    String(url).includes(`/snapshots/${pointer.id}.zip`) ? Promise.resolve(new Response(fs.readFileSync(archiveFile))) : original(url),
+  )
+  const next = composition()
+  next.editions[0]!.snapshot = pointer
+  next.editions[0]!.overlays = []
+  return next
+}
+
+it('keeps historical detachment identities and points instead of inheriting current overlays', async () => {
+  const manifest = await retainedSnapshot()
+  manifest.overlays[0]!.repository = 'praetorium/custom'
+  const directory = await materialize(manifest)
+  const versions = catalogueEditionLoaders(
+    directory,
+    () => loadCatalogue(directory),
+    () => null,
+  )
+  const historical = versions.catalogueFor('custodes-codex~cat')!
+  expect({
+    current: loadCatalogue(directory)!.index.definitions.get('guard')!.costs![0]!.value,
+    previous: historical.index.definitions.get('guard')!.costs![0]!.value,
+    detachments: historical.detachments.get('custodes-codex~cat')!.options.map((option) => option.id),
+  }).toEqual({ current: 120, previous: 110, detachments: ['released-detachment'] })
+})
+
+it('refuses a retained edition with a mismatched archive checksum without replacing existing data', async () => {
+  const manifest = await retainedSnapshot()
+  manifest.editions[0]!.snapshot!.archiveSha256 = '0'.repeat(64)
+  await expect(materialize(manifest)).rejects.toThrow('archive checksum does not match')
+  expect(loadCatalogue(path.join(root, 'data'))!.index.definitions.get('guard')!.costs![0]!.value).toBe(110)
+})
+
+it('refuses a historical snapshot that does not contain its declared playable faction', async () => {
+  const manifest = await retainedSnapshot()
+  manifest.editions[0]!.edition.catalogueIds = ['missing']
+  await expect(materialize(manifest)).rejects.toThrow('missing')
+})
+
 it('keeps codex-only detachments and prices inside the preview index', async () => {
   const directory = await materialize()
   const base = loadCatalogue(directory)!

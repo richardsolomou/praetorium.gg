@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import type { CatalogueFile } from '../../src/core/catalogue'
 import { packRuntimeData, type RuntimeData } from '../../src/contracts/runtimeData'
 import { shareRuntimeData } from '../../src/contracts/sharedRuntimeData'
+import { shareReferenceText } from '../../src/contracts/sharedReferenceText'
 import { loadCatalogue, isReferenceDatasheet } from '../../src/server/catalogueIndex'
 import { loadRules } from '../../src/server/rules'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
@@ -36,8 +37,6 @@ export function constructionFilesForEdition(files: CatalogueFile[], edition?: Ca
 
 export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'queries' | 'search' | 'construction'>) {
   if (content.queries.length > MAX_OFFLINE_QUERIES) throw new Error('Offline reference has too many entries')
-  if (Buffer.byteLength(JSON.stringify({ version: 1, revision: '0'.repeat(64), ...content })) > MAX_OFFLINE_BYTES)
-    throw new Error('Offline reference is too large')
   const base = content.construction
   const wire = base?.editions?.length
     ? {
@@ -45,25 +44,32 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
         construction: {
           ...base,
           editions: base.editions.map((source) => ({
-            ...source,
-            files: source.files.map((file) => {
-              const id = (file.catalogue ?? file.gameSystem)!.id
-              const index = base.files.findIndex((candidate) => (candidate.catalogue ?? candidate.gameSystem)?.id === id)
-              return index < 0
-                ? file
-                : shareRuntimeData(file as unknown as RuntimeData, base.files[index] as unknown as RuntimeData, [String(index)])
-            }),
-            datacards: shareRuntimeData(source.datacards, base.datacards),
-            mfm: shareRuntimeData(source.mfm, base.mfm),
-            rules: shareRuntimeData(source.rules, base.rules),
+            ...('base' in source
+              ? source
+              : {
+                  ...source,
+                  files: source.files.map((file) => {
+                    const id = (file.catalogue ?? file.gameSystem)!.id
+                    const index = base.files.findIndex((candidate) => (candidate.catalogue ?? candidate.gameSystem)?.id === id)
+                    return index < 0
+                      ? file
+                      : shareRuntimeData(file as unknown as RuntimeData, base.files[index] as unknown as RuntimeData, [String(index)])
+                  }),
+                  datacards: shareRuntimeData(source.datacards, base.datacards),
+                  mfm: shareRuntimeData(source.mfm, base.mfm),
+                  rules: shareRuntimeData(source.rules, base.rules),
+                }),
           })),
         },
-        version: 2,
+        version: 3,
       }
     : { version: 1, ...content }
-  const revision = createHash('sha256').update(JSON.stringify(wire)).digest('hex')
-  const json = Buffer.from(JSON.stringify({ ...wire, revision }))
-  const compressed = gzipSync(json, { level: wire.version === 2 ? 9 : 6 })
+  const shared = wire.version === 3 ? shareReferenceText(wire) : null
+  const encoded = shared?.texts.length ? { ...(shared.value as typeof wire), texts: shared.texts } : wire
+  const revision = createHash('sha256').update(JSON.stringify(encoded)).digest('hex')
+  const json = Buffer.from(JSON.stringify({ ...encoded, revision }))
+  if (json.length > MAX_OFFLINE_BYTES) throw new Error('Offline reference is too large')
+  const compressed = gzipSync(json, { level: wire.version === 3 ? 9 : 6 })
   if (compressed.length > 10_000_000) throw new Error(`Compressed reference exceeds the web asset limit (${compressed.length} bytes)`)
   return { revision, compressed }
 }
@@ -168,6 +174,11 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     version: 1 as const,
     revision: selectedCatalogue.index.revision,
     ...(selectedCatalogue.edition ? { edition: selectedCatalogue.edition } : {}),
+    ...(selectedCatalogue.datacardExcludedCatalogueIds
+      ? {
+          datacardExcludedCatalogueIds: [...selectedCatalogue.datacardExcludedCatalogueIds].map((id) => id.split('~').at(-1)!),
+        }
+      : {}),
     files: constructionFilesForEdition(
       readdirSync(path.join(target, 'definitions'))
         .filter((name) => name.endsWith('.json'))
@@ -177,15 +188,16 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     ),
     datacards: packRuntimeData(selectedCatalogue.datacards),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
-    rules: packRuntimeData(selectedRules),
+    rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
   })
   const construction = {
     ...constructionFor(directory, catalogue, rules),
-    editions: (readCatalogueComposition(directory)?.editions ?? []).map(({ edition }) => {
+    editions: (readCatalogueComposition(directory)?.editions ?? []).map(({ edition, base }) => {
       const id = editionCatalogueId(edition.id, edition.catalogueIds[0]!)
       const selectedCatalogue = versions.catalogueFor(id)
       const selectedRules = versions.rulesFor(id)
       if (!selectedCatalogue || !selectedRules) throw new Error(`Offline construction data is unavailable for ${id}`)
+      if (base) return { base: true as const, version: 1 as const, edition, revision: selectedCatalogue.index.revision }
       return constructionFor(path.join(directory, 'editions', edition.id), selectedCatalogue, selectedRules)
     }),
   }

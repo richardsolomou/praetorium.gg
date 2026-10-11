@@ -43,8 +43,8 @@ export function compiledChangeSource(directory: string, sources: readonly Snapsh
   const primary = compiledEditionChangeSource(directory, sources)
   if (!primary) return null
   const editions = readCatalogueComposition(directory)?.editions ?? []
-  for (const { edition } of editions) {
-    const source = compiledEditionChangeSource(path.join(directory, 'editions', edition.id), sources, edition)
+  for (const { edition, base } of editions) {
+    const source = compiledEditionChangeSource(base ? directory : path.join(directory, 'editions', edition.id), sources, edition)
     if (!source) throw new Error(`edition ${edition.id} cannot be compiled for history`)
     primary.datasheets = [...primary.datasheets, ...source.datasheets]
     primary.detachments = [...primary.detachments, ...source.detachments]

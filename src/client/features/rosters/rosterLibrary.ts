@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import type { RosterVisibility } from '../../../core/savedRoster'
-import { editionFamilyId, picksForCatalogueEdition } from '../../../core/catalogueEdition'
+import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
 import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -81,8 +81,8 @@ export function useRosterActions(origin: string) {
           id: roster.id,
           ...setup,
           picks:
-            editionFamilyId(setup.catalogueId) === editionFamilyId(roster.catalogueId)
-              ? picksForCatalogueEdition(roster.picks, setup.catalogueId)
+            currentCatalogueFamilyId(setup.catalogueId) === currentCatalogueFamilyId(roster.catalogueId)
+              ? picksForRulesVersion(roster.picks, setup.catalogueId)
               : [],
           prep: roster.prep,
           visibility: setup.visibility,

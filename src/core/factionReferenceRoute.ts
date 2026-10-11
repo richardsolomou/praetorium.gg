@@ -11,6 +11,8 @@ export function factionReferenceRoute(faction: ReferenceFaction) {
 }
 
 export function referenceFactionId(factions: readonly ReferenceFaction[], slug: string, rules: string) {
+  const selected = factions.find((faction) => catalogueEditionId(faction.id) === rules && routeSlug(faction.displayName) === slug)
+  if (selected) return selected.id
   const family = factions.find((faction) => routeSlug(faction.displayName) === slug && !catalogueEditionId(faction.id))
   if (!family) return null
   if (rules === family.id) return family.id

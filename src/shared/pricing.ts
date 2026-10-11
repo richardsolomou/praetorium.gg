@@ -14,6 +14,7 @@ import {
 import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit, type BuiltUnit, resolveUnitChoice } from '../core/roster'
+import { unavailableRosterSelections } from '../core/rosterSelections'
 import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
@@ -250,6 +251,7 @@ function adjustUnitPoints(
 
 function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
+  const unavailable = new Set(selectionProblems(data, picked, loaded).map((problem) => problem.pickIndex))
   return data.units.flatMap((saved, key) => {
     const unit = byKey.get(key)
     if (!unit)
@@ -260,23 +262,24 @@ function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof roster
           message: 'this saved datasheet is no longer available; choose a current unit',
         },
       ]
-    const choices = new Map(unit.choices.map((choice) => [choice.key, choice]))
-    const hasOption = (choiceKey: string, optionId: string) => {
-      const resolved = unit.size.options?.length ? resolveUnitChoice(unit.selection, choiceKey, optionId, loaded.index) : null
-      return choiceOptionsForPricing(choices.get(resolved?.key ?? choiceKey) ?? {}).some(
-        (option) => option.id === (resolved?.optionId ?? optionId),
-      )
-    }
-    const staleChoice = Object.entries(saved.choices ?? {}).some(([choiceKey, optionId]) => !hasOption(choiceKey, optionId))
-    const staleSpread = Object.entries(saved.spreads ?? {}).some(([choiceKey, options]) =>
-      Object.keys(options).some((optionId) => !hasOption(choiceKey, optionId)),
-    )
-    const toggles = new Set(unit.toggles.map((toggle) => toggle.key))
-    const staleToggle = Object.keys(saved.toggles ?? {}).some((toggleKey) => !toggles.has(toggleKey))
-    return staleChoice || staleSpread || staleToggle
+    return unavailable.has(key)
       ? [{ entryId: saved.entryId, entryName: unit.name, message: 'a saved choice is no longer available; reselect this unit’s options' }]
       : []
   })
+}
+
+function selectionProblems(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
+  const byKey = new Map(picked.map((unit) => [unit.key, unit]))
+  return unavailableRosterSelections(data.units, picked, (key, choiceKey, optionId) => {
+    const unit = byKey.get(key)
+    return unit?.size.options?.length ? resolveUnitChoice(unit.selection, choiceKey, optionId, loaded.index) : null
+  })
+}
+
+export function unavailablePriceSelections(data: PriceInput, loaded: LoadedCatalogue | null) {
+  if (!loaded) return unavailableRosterSelections(data.units, [])
+  const { selections } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
+  return selectionProblems(data, rosterForces(loaded, data, selections).picked, loaded)
 }
 
 const factionNameOf = (loaded: LoadedCatalogue, catalogueId: string, rules: Pick<LoadedRules, 'factionNames'> | null | undefined) =>

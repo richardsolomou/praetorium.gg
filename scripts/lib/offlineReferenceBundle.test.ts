@@ -71,8 +71,74 @@ it('downloads shared version data as complete independent construction sources',
   }
   const content = { queries: [], search, construction: { ...base, editions: [selected] } }
   const encoded = encodeReferenceBundle(content)
-  const wire: unknown = JSON.parse(gunzipSync(encoded.compressed).toString())
+  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
   expect(JSON.stringify(wire)).toContain('$praetoriumBase')
   expect(isReferenceBundle(wire)).toBe(false)
-  expect(decodeReferenceBundle(wire)).toEqual({ version: 1, revision: encoded.revision, ...content })
+  expect(decodeReferenceBundle({ ...wire, version: 2 })).toEqual({ version: 1, revision: encoded.revision, ...content })
+  expect(decodeReferenceBundle(wire)).toEqual({ ...wire, version: 1, construction: { ...wire.construction, shared: true } })
 })
+
+it('roundtrips a named base edition without duplicating construction data', () => {
+  const alias = { base: true as const, version: 1 as const, revision: 'current', edition }
+  const construction = { version: 1 as const, revision: 'base', files, datacards: {}, mfm: null, rules: {}, editions: [alias] }
+  const content = { queries: [], search, construction }
+  const encoded = encodeReferenceBundle(content)
+  expect(decodeReferenceBundle(JSON.parse(gunzipSync(encoded.compressed).toString()))).toEqual({
+    version: 1,
+    revision: encoded.revision,
+    ...content,
+    construction: { ...construction, shared: true },
+  })
+})
+
+it('restores repeated prose in reference queries before saving the offline application', () => {
+  const description = 'Each model in this unit is equipped with a boltgun and close combat weapon. '.repeat(10)
+  const construction = {
+    version: 1 as const,
+    revision: 'base',
+    files,
+    datacards: {},
+    mfm: null,
+    rules: {},
+    editions: [{ base: true as const, version: 1 as const, revision: 'current', edition }],
+  }
+  const queries = [
+    { key: ['rule-section', 'core', 'moving'], data: description },
+    { key: ['rule-section', 'core', 'shooting'], data: description },
+  ]
+  const encoded = encodeReferenceBundle({ queries, search, construction })
+  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
+  expect({ texts: wire.texts, decoded: decodeReferenceBundle(wire) }).toEqual({
+    texts: [description],
+    decoded: {
+      version: 1,
+      revision: encoded.revision,
+      queries,
+      search,
+      construction: { ...construction, shared: true, texts: [description] },
+    },
+  })
+})
+
+it.each([null, 1, 'invalid', { base: false }, { base: true, version: 1, revision: 'current', edition: {} }])(
+  'refuses a malformed edition %j without throwing',
+  (invalid) => {
+    expect(
+      isReferenceBundle({
+        version: 1,
+        revision: 'base',
+        queries: [],
+        search,
+        construction: {
+          version: 1,
+          revision: 'base',
+          files,
+          datacards: {},
+          mfm: null,
+          rules: {},
+          editions: [invalid],
+        },
+      }),
+    ).toBe(false)
+  },
+)

@@ -4,9 +4,12 @@ import type { RuntimeData } from './runtimeData'
 import type { CatalogueFile } from '../core/catalogue'
 import { catalogueEditionSchema, type CatalogueEdition } from '../core/catalogueEdition'
 import { restoreRuntimeData } from './sharedRuntimeData'
+import { catalogueReferencePolicySchema } from '../core/catalogueReferencePolicy'
+import { isReferenceTexts, restoreReferenceText } from './sharedReferenceText'
 
 export type OfflineConstructionSource = {
   edition?: CatalogueEdition
+  datacardExcludedCatalogueIds?: string[]
   version: 1
   revision: string
   files: CatalogueFile[]
@@ -15,7 +18,12 @@ export type OfflineConstructionSource = {
   rules: RuntimeData
 }
 
-export type OfflineConstructionData = OfflineConstructionSource & { editions?: OfflineConstructionSource[] }
+export type OfflineConstructionBase = { base: true; version: 1; revision: string; edition: CatalogueEdition }
+export type OfflineConstructionData = OfflineConstructionSource & {
+  shared?: true
+  texts?: string[]
+  editions?: (OfflineConstructionSource | OfflineConstructionBase)[]
+}
 
 export type OfflineReferenceData = {
   version: 1
@@ -37,9 +45,15 @@ export type OfflineReferenceVersion = { revision: string; bundle: string }
 export type OfflineAppVersion = { revision: string; css: string; script: string }
 
 export function decodeReferenceBundle(value: unknown): unknown {
-  if ((value as { version?: unknown } | null)?.version !== 2) return value
+  const version = (value as { version?: unknown } | null)?.version
+  if (version !== 2 && version !== 3) return value
+  if (version === 3 && value && typeof value === 'object' && 'texts' in value) {
+    const { texts, construction, ...content } = value as { texts: unknown; construction?: OfflineConstructionData }
+    value = { ...(restoreReferenceText(content, texts) as object), construction: construction ? { ...construction, texts } : undefined }
+  }
   const expanded = { ...(value as OfflineReferenceBundle), version: 1 as const }
   if (!isReferenceBundle(expanded) || !expanded.construction) throw new Error('Invalid shared reference bundle')
+  if (version === 3) return { ...expanded, construction: { ...expanded.construction, shared: true } }
   const base = expanded.construction
   const budget = { remaining: MAX_OFFLINE_BYTES - new TextEncoder().encode(JSON.stringify(value)).byteLength }
   if (budget.remaining < 0) throw new Error('Shared reference bundle exceeds its size limit')
@@ -47,17 +61,21 @@ export function decodeReferenceBundle(value: unknown): unknown {
     ...expanded,
     construction: {
       ...base,
-      editions: base.editions?.map((source) => ({
-        ...source,
-        files: restoreRuntimeData(
-          source.files as unknown as RuntimeData,
-          base.files as unknown as RuntimeData,
-          budget,
-        ) as unknown as CatalogueFile[],
-        datacards: restoreRuntimeData(source.datacards, base.datacards, budget),
-        mfm: restoreRuntimeData(source.mfm, base.mfm, budget),
-        rules: restoreRuntimeData(source.rules, base.rules, budget),
-      })),
+      editions: base.editions?.map((source) =>
+        'base' in source
+          ? source
+          : {
+              ...source,
+              files: restoreRuntimeData(
+                source.files as unknown as RuntimeData,
+                base.files as unknown as RuntimeData,
+                budget,
+              ) as unknown as CatalogueFile[],
+              datacards: restoreRuntimeData(source.datacards, base.datacards, budget),
+              mfm: restoreRuntimeData(source.mfm, base.mfm, budget),
+              rules: restoreRuntimeData(source.rules, base.rules, budget),
+            },
+      ),
     },
   }
 }
@@ -69,12 +87,23 @@ export function isReferenceBundle(value: unknown): value is OfflineReferenceBund
     typeof data.revision === 'string' &&
     (data.construction === undefined ||
       (isConstructionSource(data.construction) &&
+        (data.construction.shared === undefined || (data.construction as { shared?: unknown }).shared === true) &&
+        (data.construction.texts === undefined || isReferenceTexts(data.construction.texts)) &&
         (data.construction.editions === undefined ||
           (Array.isArray(data.construction.editions) &&
             data.construction.editions.length <= 16 &&
             new Set(data.construction.editions.map((source) => source?.edition?.id)).size === data.construction.editions.length &&
             data.construction.editions.every(
-              (edition) => isConstructionSource(edition) && catalogueEditionSchema.safeParse(edition.edition).success,
+              (edition) =>
+                edition !== null &&
+                typeof edition === 'object' &&
+                ('base' in edition
+                  ? (edition as { base: unknown }).base === true &&
+                    edition.version === 1 &&
+                    typeof edition.revision === 'string' &&
+                    edition.revision.length > 0
+                  : isConstructionSource(edition)) &&
+                catalogueEditionSchema.safeParse(edition.edition).success,
             ))))) &&
     Array.isArray(data.queries) &&
     data.queries.length <= MAX_OFFLINE_QUERIES &&
@@ -96,6 +125,7 @@ function isConstructionSource(data: OfflineConstructionSource) {
     data.files.every((file) => typeof file === 'object' && file !== null) &&
     data.datacards !== undefined &&
     data.mfm !== undefined &&
-    data.rules !== undefined
+    data.rules !== undefined &&
+    (data.datacardExcludedCatalogueIds === undefined || catalogueReferencePolicySchema.safeParse(data).success)
   )
 }

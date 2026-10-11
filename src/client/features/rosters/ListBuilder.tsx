@@ -74,12 +74,14 @@ import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
+import { RosterRulesNotice } from './RosterRulesNotice'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { type CatalogueEdition, editionFamilyId, picksForCatalogueEdition } from '../../../core/catalogueEdition'
+import { type CatalogueEdition } from '../../../core/catalogueEdition'
+import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import type { CombatRoster } from '../simulator/useCombatant'
@@ -633,10 +635,10 @@ export function ListBuilder({
     })
   }
   const applySetup = (setup: RosterSetup) => {
-    const changedFaction = editionFamilyId(setup.catalogueId) !== editionFamilyId(catalogueId)
+    const changedFaction = currentCatalogueFamilyId(setup.catalogueId) !== currentCatalogueFamilyId(catalogueId)
     if (setup.catalogueId === catalogueId)
       setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
-    else if (!changedFaction) setPicks((current) => picksForCatalogueEdition(current, setup.catalogueId))
+    else if (!changedFaction) setPicks((current) => picksForRulesVersion(current, setup.catalogueId))
     setName(setup.name)
     setCatalogueId(setup.catalogueId)
     setDetachmentIds(setup.detachmentIds)
@@ -1004,6 +1006,19 @@ export function ListBuilder({
           </p>
         ) : null}
         {savedId && !frozen ? <RosterDataChanges rosterId={savedId} /> : null}
+        {!frozen ? (
+          <RosterRulesNotice
+            edition={faction?.edition}
+            onConvert={
+              editable
+                ? () => {
+                    openSetup()
+                    setSetupMode('convert')
+                  }
+                : undefined
+            }
+          />
+        ) : null}
         {editable && priced?.detachmentError ? (
           <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />

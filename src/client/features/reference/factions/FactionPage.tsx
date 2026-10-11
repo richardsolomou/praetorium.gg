@@ -12,7 +12,8 @@ import { RuleText } from '../../../components/RuleText'
 import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { SearchableSelect } from '../../../components/SearchableSelect'
-import { editionFamilyId, editionLabel } from '../../../../core/catalogueEdition'
+import { editionLabel } from '../../../../core/catalogueEdition'
+import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { useDateFormatting } from '../../../dates'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 
@@ -26,7 +27,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
   const { favourites } = useFavouriteDetachments(direct)
   if (!direct) return <Outlet />
   if (!faction) return null
-  const editions = index?.factions.filter((entry) => editionFamilyId(entry.id) === editionFamilyId(faction.id)) ?? []
+  const editions = index?.factions.filter((entry) => currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(faction.id)) ?? []
   const reference = faction.references[0]
   const detachments = favouriteDetachmentsFirst(
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),

@@ -12,6 +12,19 @@ const book = () =>
   })
 
 describe('the join from a datasheet to its card', () => {
+  it('keeps archived profile definitions as their original reference authority', () => {
+    const loaded = book()
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
+    loaded.datacardExcludedCatalogueIds = new Set(['cat'])
+    expect(datacardOf(loaded, 'cat', 'rhino')).toBeNull()
+  })
+
+  it('retains normal joins for catalogues outside an archived exclusion', () => {
+    const loaded = book()
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
+    loaded.datacardExcludedCatalogueIds = new Set(['other'])
+    expect(datacardOf(loaded, 'cat', 'rhino')?.method).toBe('name')
+  })
   it('reports a missing datacard as the join outcome', () => {
     expect(datacardJoinOutcome(book(), 'cat', 'rhino')).toBe('missing')
   })

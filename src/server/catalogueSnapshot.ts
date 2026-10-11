@@ -168,14 +168,18 @@ export function distributableCatalogueFile(name: string): boolean {
   return true
 }
 
-function provenance(revisions: Record<string, string>, sources: readonly (typeof SNAPSHOT_SOURCE_NAMES)[number][]) {
+function provenance(
+  revisions: Record<string, string>,
+  sources: readonly (typeof SNAPSHOT_SOURCE_NAMES)[number][],
+  configuration = catalogueSources,
+) {
   return {
     format: PROVENANCE_FORMAT,
     policySha256: sha256(encoded(rawRevocations)),
     modifications:
       'Praetorium selects the source paths its product and verification checks consume, packages the materialized sources including any pinned corrections, and compiles a canonical catalogue with field provenance.',
     sources: sources.map((name) => {
-      const source = catalogueSources[name]
+      const source = configuration[name]
       return {
         name,
         revision: revisions[name],
@@ -207,7 +211,8 @@ function packedSnapshot(directory: string, disabled = new Set([...disabledCatalo
     bytes.set(name, fs.readFileSync(file))
   }
   bytes.set('revision.json', encoded(revisions))
-  bytes.set('provenance.json', encoded({ ...provenance(revisions, included), composition: readCatalogueComposition(directory) }))
+  const composition = readCatalogueComposition(directory)
+  bytes.set('provenance.json', encoded({ ...provenance(revisions, included, composition?.baseSources), composition }))
   const files = Object.fromEntries([...bytes].map(([name, contents]) => [name, sha256(contents)]))
   const manifest: SnapshotManifest = { format: FORMAT, revisions, sources: included, files }
   return { manifest: encoded(manifest), bytes }

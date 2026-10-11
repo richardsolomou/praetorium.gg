@@ -13,7 +13,7 @@ import { combatUnitsFor } from './combatUnits'
 
 export function catalogueEditionLoaders(directory: string, base: () => LoadedCatalogue | null, baseRules: () => LoadedRules | null) {
   const composition = readCatalogueComposition(directory)
-  type EditionContext = { catalogue: LoadedCatalogue; rules: LoadedRules | null; canonical?: CanonicalCatalogue }
+  type EditionContext = { catalogue: LoadedCatalogue; rules: LoadedRules | null; canonical: Map<string, CanonicalCatalogue> }
   const cache = new Map<string, EditionContext>()
   let factions: ReturnType<typeof factionsFor> | null | undefined
   const context = (editionId: string) => {
@@ -21,11 +21,11 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     if (cached) return cached
     const configuration = composition?.editions.find(({ edition }) => edition.id === editionId)
     if (!configuration) return null
-    const target = path.join(directory, 'editions', editionId)
+    const target = configuration.base ? directory : path.join(directory, 'editions', editionId)
     const catalogue = loadCatalogue(target, configuration.edition)
     if (!catalogue) throw new Error(`edition ${editionId} has no catalogue data`)
     const rules = loadRules(target, path.join(directory, 'battlemaster'), path.join(directory, 'icons'), undefined, catalogue.datacards)
-    const result: EditionContext = { catalogue, rules }
+    const result: EditionContext = { catalogue, rules, canonical: new Map() }
     cache.set(editionId, result)
     return result
   }
@@ -90,23 +90,33 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     return support ? { ...support, isDefault: false } : null
   }
   const canonical = (id: string) => {
-    const selected = lookup(resolve(id))
+    const catalogueId = resolve(id)
+    const selected = lookup(catalogueId)
     if (!selected) return null
-    if (!selected.canonical) {
-      const edition = selected.catalogue.edition!
+    const edition = selected.catalogue.edition!
+    const advertised = new Set(edition.catalogueIds.map((bookId) => editionCatalogueId(edition.id, bookId)))
+    const scope = advertised.has(catalogueId) ? '' : catalogueId
+    let result = selected.canonical.get(scope)
+    if (!result) {
       const compiled = compileCanonicalCatalogueFromSnapshot(
-        selected.catalogue,
+        {
+          ...selected.catalogue,
+          factions: selected.catalogue.factions.filter((faction) => (scope ? faction.id === scope : advertised.has(faction.id))),
+        },
         selected.rules,
-        path.join(directory, 'editions', edition.id),
+        composition?.editions.find((entry) => entry.edition.id === edition.id)?.base
+          ? directory
+          : path.join(directory, 'editions', edition.id),
       )
       const label = (faction: string) => `${faction} · ${editionLabel(edition)}`
-      selected.canonical = {
+      result = {
         ...compiled,
         datasheets: compiled.datasheets.map((sheet) => ({ ...sheet, faction: label(sheet.faction) })),
         detachments: compiled.detachments.map((detachment) => ({ ...detachment, faction: label(detachment.faction) })),
       }
+      selected.canonical.set(scope, result)
     }
-    return selected.canonical
+    return result
   }
   const defaults = () =>
     new Set(

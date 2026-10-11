@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { editionCatalogueFiles, type CatalogueEdition } from '../core/catalogueEdition'
+import { catalogueReferencePolicySchema, datacardExclusions } from '../core/catalogueReferencePolicy'
 import { loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { loadMfm } from './mfm'
@@ -29,7 +30,14 @@ export function loadCatalogue(directory = catalogueDirectory(), edition?: Catalo
   const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }))
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
-  return { ...catalogueFromIndex(index, selectedFiles, datacards), mfm: loadMfm(directory), ...(edition ? { edition } : {}) }
+  const policyFile = path.join(directory, 'reference-policy.json')
+  const policy = fs.existsSync(policyFile) ? catalogueReferencePolicySchema.parse(JSON.parse(fs.readFileSync(policyFile, 'utf8'))) : null
+  return {
+    ...catalogueFromIndex(index, selectedFiles, datacards),
+    ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
+    mfm: loadMfm(directory),
+    ...(edition ? { edition } : {}),
+  }
 }
 export function catalogueRevision(revisions: Record<string, string>) {
   return createHash('sha256')

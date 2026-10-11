@@ -38,7 +38,8 @@ import { dispositionsFor, dispositionTone } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
-import { type CatalogueEdition, editionFamilyId, editionLabel } from '../../../core/catalogueEdition'
+import { type CatalogueEdition, editionLabel } from '../../../core/catalogueEdition'
+import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 
 type Detachment = {
   id: string
@@ -229,7 +230,7 @@ export function RosterSetupDialog({
       detachmentNames: selected.map((detachment) => detachment.name),
       limit: draft.limit,
     })
-  const factionChanged = editionFamilyId(value.catalogueId) !== editionFamilyId(draft.catalogueId)
+  const factionChanged = currentCatalogueFamilyId(value.catalogueId) !== currentCatalogueFamilyId(draft.catalogueId)
   const detachmentsChanged = value.detachmentIds.toSorted().join() !== draft.detachmentIds.toSorted().join()
   const groups = factionSelectGroups(
     factionOptions.filter((entry) => entry.isDefault !== false),
@@ -237,7 +238,7 @@ export function RosterSetupDialog({
   )
   const editions = factionOptions.filter(
     (entry) =>
-      editionFamilyId(entry.id) === editionFamilyId(draft.catalogueId) &&
+      currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(draft.catalogueId) &&
       (mode !== 'create' || entry.edition?.status !== 'retired' || entry.id === draft.catalogueId),
   )
 
@@ -307,8 +308,9 @@ export function RosterSetupDialog({
             groups={groups}
             selectedFaction={faction ?? undefined}
             value={
-              factionOptions.find((entry) => entry.isDefault !== false && editionFamilyId(entry.id) === editionFamilyId(draft.catalogueId))
-                ?.id ?? draft.catalogueId
+              factionOptions.find(
+                (entry) => entry.isDefault !== false && currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(draft.catalogueId),
+              )?.id ?? draft.catalogueId
             }
             onValueChange={(catalogueId) => {
               advanceOnboarding('roster', 'roster-faction', 'roster-size')
