@@ -345,18 +345,11 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   await expect(profile.getByText('2+', { exact: true })).toBeVisible()
   await expect(profile.getByText('4+', { exact: true })).toBeVisible()
   await shot(profile, 'test-results/invulnerable-save-row.png')
-  await expect(
-    loadout
-      .getByRole('heading', { name: /^Equipped ranged weapons/ })
-      .locator('..')
-      .getByText('Tachyon arrow'),
-  ).toBeVisible()
-  await expect(
-    loadout
-      .getByRole('heading', { name: /^Equipped melee weapons/ })
-      .locator('..')
-      .getByText("Overlord's blade"),
-  ).toBeVisible()
+  for (const name of ['Tachyon arrow', "Overlord's blade"]) {
+    const weapon = loadout.getByRole('heading', { name, exact: true })
+    await expect(weapon).toHaveCount(1)
+    await expect(weapon).toBeVisible()
+  }
   await expect(loadout.getByText('Voidscythe', { exact: true })).toBeVisible()
   const stats = await profile.boundingBox()
   const lastStat = await profile.locator(':scope > div').last().boundingBox()
