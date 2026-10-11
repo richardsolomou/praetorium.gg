@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.117.0
+
+### Minor Changes
+
+- 81f8352: Print saved and guest rosters with their selected loadouts, attachments, army rules, and stratagems.
+
+  Keep margins around native print pages and treat closing the iOS print sheet as cancellation.
+
+### Patch Changes
+
+- 97828e0: Remove duplicate equipped weapon profiles and show the correct profiles and equipment counts for weapon bundle choices.
+- f2f18ec: Keep private league battles out of spectator views and explain who can read saved and frozen armies.
+
 ## 0.116.0
 
 ### Minor Changes
