@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { catalogueEditionId, editionCatalogueId, editionLabel } from '../core/catalogueEdition'
+import { catalogueEditionId, editionCatalogueId, editionLabel, rulesVersionLabel } from '../core/catalogueEdition'
 import { loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
 import { readCatalogueComposition } from './catalogueComposition'
 import { loadRules, type LoadedRules } from './rules'
@@ -14,7 +14,13 @@ import { combatUnitsFor } from './combatUnits'
 export function catalogueEditionLoaders(directory: string, base: () => LoadedCatalogue | null, baseRules: () => LoadedRules | null) {
   const composition = readCatalogueComposition(directory)
   type EditionContext = { catalogue: LoadedCatalogue; rules: LoadedRules | null; canonical: Map<string, CanonicalCatalogue> }
+  const baseEditions = new Map(
+    composition?.editions
+      .filter(({ base: aliasesBase, edition }) => aliasesBase && edition.default)
+      .flatMap(({ edition }) => edition.catalogueIds.map((id) => [id, edition] as const)),
+  )
   const cache = new Map<string, EditionContext>()
+  const baseCanonical = new Map<string, CanonicalCatalogue>()
   let factions: ReturnType<typeof factionsFor> | null | undefined
   const context = (editionId: string) => {
     const cached = cache.get(editionId)
@@ -45,7 +51,9 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     const defaults = new Set(composition?.editions.filter(({ edition }) => edition.default).flatMap(({ edition }) => edition.catalogueIds))
     const original = factionsFor(loaded, baseRules())
     const previousRoutes = new Map(
-      original.factions.filter((faction) => defaults.has(faction.id)).map((faction) => [faction.slug, faction.id]),
+      original.factions
+        .filter((faction) => defaults.has(faction.id) && !baseEditions.has(faction.id))
+        .map((faction) => [faction.slug, faction.id]),
     )
     const editions = editionContexts().flatMap(({ edition, catalogue, rules }) =>
       factionsFor(catalogue, rules).factions.filter((faction) =>
@@ -57,20 +65,22 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
         .update(JSON.stringify([original.revision, composition]))
         .digest('hex'),
       factions: [
-        ...original.factions.map((faction) => ({
-          ...faction,
-          slug: defaults.has(faction.id) ? faction.id : faction.slug,
-          isDefault: !defaults.has(faction.id),
-          detachments: faction.detachments.map((detachment) => ({
-            ...detachment,
-            referenceRoute: detachment.referenceRoute
-              ? {
-                  ...detachment.referenceRoute,
-                  catalogueId: previousRoutes.get(detachment.referenceRoute.catalogueId) ?? detachment.referenceRoute.catalogueId,
-                }
-              : null,
+        ...original.factions
+          .filter((faction) => !baseEditions.has(faction.id))
+          .map((faction) => ({
+            ...faction,
+            slug: defaults.has(faction.id) ? faction.id : faction.slug,
+            isDefault: !defaults.has(faction.id),
+            detachments: faction.detachments.map((detachment) => ({
+              ...detachment,
+              referenceRoute: detachment.referenceRoute
+                ? {
+                    ...detachment.referenceRoute,
+                    catalogueId: previousRoutes.get(detachment.referenceRoute.catalogueId) ?? detachment.referenceRoute.catalogueId,
+                  }
+                : null,
+            })),
           })),
-        })),
         ...editions,
       ],
     }
@@ -84,6 +94,12 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     const id = resolve(catalogueId)
     const advertised = allFactions()?.factions.find((faction) => faction.id === id)
     if (advertised) return advertised
+    const baseEdition = baseEditions.get(id)
+    if (baseEdition) {
+      const loaded = base()
+      const original = loaded ? factionsFor(loaded, baseRules()).factions.find((faction) => faction.id === id) : null
+      return original ? { ...original, edition: baseEdition, isDefault: false } : null
+    }
     const selected = lookup(id)
     if (!selected) return null
     const support = factionsFor(selected.catalogue, selected.rules).factions.find((faction) => faction.id === id)
@@ -91,6 +107,20 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
   }
   const canonical = (id: string) => {
     const catalogueId = resolve(id)
+    if (baseEditions.has(catalogueId)) {
+      const loaded = base()
+      if (!loaded) return null
+      let result = baseCanonical.get(catalogueId)
+      if (!result) {
+        result = compileCanonicalCatalogueFromSnapshot(
+          { ...loaded, factions: loaded.factions.filter((faction) => faction.id === catalogueId) },
+          baseRules(),
+          directory,
+        )
+        baseCanonical.set(catalogueId, result)
+      }
+      return result
+    }
     const selected = lookup(catalogueId)
     if (!selected) return null
     const edition = selected.catalogue.edition!
@@ -138,11 +168,20 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     canonicalFor: canonical,
     canonicalCatalogue: (primary: CanonicalCatalogue | null) => {
       if (!primary || !composition?.editions.length) return primary
-      const replaced = new Set(composition.editions.filter(({ edition }) => edition.default).flatMap(({ edition }) => edition.catalogueIds))
+      const replaced = new Set(
+        composition.editions
+          .filter(({ edition, base: aliasesBase }) => edition.default && !aliasesBase)
+          .flatMap(({ edition }) => edition.catalogueIds),
+      )
       const previousRoutes = new Map(
         allFactions()!
           .factions.filter((faction) => replaced.has(faction.id))
           .map((faction) => [routeSlug(faction.displayName), faction.id]),
+      )
+      const originalLabels = new Map(
+        allFactions()!
+          .factions.filter((faction) => replaced.has(faction.id))
+          .map((faction) => [faction.id, rulesVersionLabel(faction)]),
       )
       const previousRoute = <T extends { catalogueId: string }>(route: T | null): T | null =>
         route ? { ...route, catalogueId: previousRoutes.get(route.catalogueId) ?? route.catalogueId } : null
@@ -150,20 +189,28 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
         relationships.map((relationship) => ({ ...relationship, route: previousRoute(relationship.route) }))
       const result = {
         ...primary,
-        datasheets: primary.datasheets.map((sheet) => ({
-          ...sheet,
-          faction: replaced.has(sheet.catalogueId) ? `${sheet.faction} · Previous rules` : sheet.faction,
-          referenceRoute: previousRoute(sheet.referenceRoute),
-          attachments: previousRelationships(sheet.attachments),
-          leaders: previousRelationships(sheet.leaders),
-          supporters: previousRelationships(sheet.supporters),
-        })),
-        detachments: primary.detachments.map((detachment) =>
-          replaced.has(detachment.catalogueId)
-            ? { ...detachment, faction: `${detachment.faction} · Previous rules`, factionSlug: detachment.catalogueId }
-            : detachment,
-        ),
-        issues: [...primary.issues],
+        datasheets: primary.datasheets
+          .filter((sheet) => !baseEditions.has(sheet.catalogueId))
+          .map((sheet) => ({
+            ...sheet,
+            faction: replaced.has(sheet.catalogueId) ? `${sheet.faction} · ${originalLabels.get(sheet.catalogueId)}` : sheet.faction,
+            referenceRoute: previousRoute(sheet.referenceRoute),
+            attachments: previousRelationships(sheet.attachments),
+            leaders: previousRelationships(sheet.leaders),
+            supporters: previousRelationships(sheet.supporters),
+          })),
+        detachments: primary.detachments
+          .filter((detachment) => !baseEditions.has(detachment.catalogueId))
+          .map((detachment) =>
+            replaced.has(detachment.catalogueId)
+              ? {
+                  ...detachment,
+                  faction: `${detachment.faction} · ${originalLabels.get(detachment.catalogueId)}`,
+                  factionSlug: detachment.catalogueId,
+                }
+              : detachment,
+          ),
+        issues: primary.issues.filter((issue) => !baseEditions.has(issue.catalogueId)),
       }
       for (const { edition } of editionContexts()) {
         const compiled = canonical(editionCatalogueId(edition.id, edition.catalogueIds[0]!))!

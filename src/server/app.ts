@@ -179,10 +179,13 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
   const versions = () => loaded.editions
   return {
     catalogueFor: async (catalogueId: string) => versions().catalogueFor(catalogueId),
-    canonicalCatalogueFor: async (catalogueId?: string) =>
-      catalogueId && catalogueEditionId(versions().resolve(catalogueId))
-        ? versions().canonicalFor(catalogueId)
-        : getInstance().canonicalCatalogue(),
+    canonicalCatalogueFor: async (catalogueId?: string) => {
+      if (catalogueId) {
+        const selected = versions().canonicalFor(catalogueId)
+        if (selected || catalogueEditionId(versions().resolve(catalogueId))) return selected
+      }
+      return getInstance().canonicalCatalogue()
+    },
     rulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
     battleMissionRulesFor: async () => getInstance().rules(),
     battleReadRulesFor: async () => getInstance().rules(),

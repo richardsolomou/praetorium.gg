@@ -97,7 +97,7 @@ export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
       const name = candidate.name.split(' · ')[0]!
       return (
         !candidate.name.includes(' · Preview') &&
-        !candidate.name.includes(' · Previous') &&
+        !candidate.name.includes(' · Archived') &&
         [name.toLocaleLowerCase(), routeSlug(name)].includes(wanted)
       )
     })

@@ -1,3 +1,4 @@
+import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
@@ -38,7 +39,7 @@ import { dispositionsFor, dispositionTone } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
-import { type CatalogueEdition, editionLabel } from '../../../core/catalogueEdition'
+import { type CatalogueEdition, rulesVersionLabel } from '../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 
 type Detachment = {
@@ -57,6 +58,7 @@ export type RosterSetupFaction = {
   icon: string | null
   detachments: Detachment[]
   edition?: CatalogueEdition | null
+  rulesName?: string
   isDefault?: boolean
 }
 
@@ -236,11 +238,13 @@ export function RosterSetupDialog({
     factionOptions.filter((entry) => entry.isDefault !== false),
     favourites,
   )
-  const editions = factionOptions.filter(
-    (entry) =>
-      currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(draft.catalogueId) &&
-      (mode !== 'create' || entry.edition?.status !== 'retired' || entry.id === draft.catalogueId),
-  )
+  const editions = factionOptions
+    .filter(
+      (entry) =>
+        currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(draft.catalogueId) &&
+        (mode !== 'create' || entry.edition?.status !== 'retired' || entry.id === draft.catalogueId),
+    )
+    .toSorted((left, right) => Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)))
 
   const toggleDetachment = (id: string) => {
     advanceOnboarding('roster', 'roster-detachment', 'roster-name')
@@ -336,13 +340,15 @@ export function RosterSetupDialog({
               id="setup-edition"
               ariaLabel="Rules version"
               placeholder="Choose a rules version"
+              popupClassName="min-w-80 max-w-[calc(100vw-2rem)]"
               value={draft.catalogueId}
               groups={[
                 {
                   label: '',
                   items: editions.map((entry) => ({
                     value: entry.id,
-                    label: entry.edition ? editionLabel(entry.edition) : entry.isDefault === false ? 'Previous rules' : 'Current rules',
+                    label: rulesVersionLabel(entry),
+                    content: <RulesVersionLabel faction={entry} />,
                   })),
                 },
               ]}

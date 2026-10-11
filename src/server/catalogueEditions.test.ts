@@ -181,3 +181,47 @@ it('preserves base relationship destinations across all factions after codex pro
     { route: { catalogueId: 'chapter', slug: 'unit' }, destinations: ['parent', 'parent', 'parent'] },
   ])
 })
+
+function namedBase() {
+  versions(['parent'], true)
+  const file = path.join(directory, 'composition.json')
+  const composition = JSON.parse(fs.readFileSync(file, 'utf8'))
+  composition.editions[0].base = true
+  fs.writeFileSync(file, JSON.stringify(composition))
+  return catalogueEditionLoaders(
+    directory,
+    () => books(),
+    () => null,
+  )
+}
+
+it('offers a named base once and opens it by default without losing exact saved IDs', () => {
+  const loaded = namedBase()
+  expect({
+    offered: loaded.factions()!.factions.map(({ id }) => id),
+    default: loaded.resolve('marines'),
+    saved: loaded.factionFor('parent')?.id,
+    savedLabel: loaded.factionFor('parent')?.edition?.name,
+  }).toEqual({ offered: ['child', 'codex~parent'], default: 'codex~parent', saved: 'parent', savedLabel: 'Codex' })
+})
+
+it('does not duplicate named base datasheets in the combined reference', () => {
+  const loaded = namedBase()
+  const primary = {
+    datasheets: [{ catalogueId: 'parent', faction: 'Marines', attachments: [], leaders: [], supporters: [] }],
+    detachments: [],
+    issues: [],
+  } as unknown as CanonicalCatalogue
+  mocks.compile.mockReturnValue({ ...primary, datasheets: [{ ...primary.datasheets[0], catalogueId: 'codex~parent' }] })
+  expect(loaded.canonicalCatalogue(primary)!.datasheets.map(({ catalogueId }) => catalogueId)).toEqual(['codex~parent'])
+})
+
+it('retains exact root canonical reads after removing its selectable duplicate', () => {
+  const loaded = namedBase()
+  mocks.compile.mockImplementation((catalogue) => ({
+    datasheets: catalogue.factions.map((faction: { id: string }) => ({ catalogueId: faction.id })),
+    detachments: [],
+    issues: [],
+  }))
+  expect(loaded.canonicalFor('parent')?.datasheets.map(({ catalogueId }) => catalogueId)).toEqual(['parent'])
+})

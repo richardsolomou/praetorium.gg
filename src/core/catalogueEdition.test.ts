@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest'
-import { catalogueEditionSchema, editionCatalogueFiles, picksForCatalogueEdition, leagueEditionError } from './catalogueEdition'
+import {
+  catalogueEditionSchema,
+  editionCatalogueFiles,
+  picksForCatalogueEdition,
+  leagueEditionError,
+  editionLabel,
+  rulesVersionLabel,
+} from './catalogueEdition'
 import type { CatalogueFile } from './catalogue'
 
 const preview = {
@@ -92,4 +99,20 @@ it.each(['released', 'retired'] as const)('allows %s codexes in leagues', (statu
 })
 it('rejects preview codexes in leagues', () => {
   expect(leagueEditionError({ status: 'preview' })).toBe('preview rules cannot be submitted to a league')
+})
+
+it.each([
+  ['released', 'MFM 1.5'],
+  ['retired', 'MFM 1.5 · Archived'],
+  ['preview', 'MFM 1.5 · Preview'],
+] as const)('labels %s rules with their release name and status', (status, expected) => {
+  expect(editionLabel({ name: 'MFM 1.5', status })).toBe(expected)
+})
+
+it('identifies the default beside its release name', () => {
+  expect(rulesVersionLabel({ edition: { name: 'MFM 1.5', status: 'released' }, isDefault: true })).toBe('MFM 1.5 · Current')
+})
+
+it('names original root rules by their source release after promotion', () => {
+  expect(rulesVersionLabel({ rulesName: 'MFM 1.4', isDefault: false })).toBe('MFM 1.4 · Archived')
 })

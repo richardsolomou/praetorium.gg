@@ -1,3 +1,4 @@
+import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -6,7 +7,7 @@ import { useState } from 'react'
 import { Toggle } from '@/components/ui/toggle'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { editionLabel } from '../../../../core/catalogueEdition'
+import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { factionIndexQuery, meQuery } from '../../../queries'
 import { useFavouriteFactions } from '../../../favouriteFactions'
@@ -95,6 +96,7 @@ export function FactionIndexPage() {
 
 type Faction = {
   edition?: FactionPresentation['edition']
+  rulesName?: string
   isDefault?: boolean
   id: string
   slug: string
@@ -126,7 +128,9 @@ function FactionShelf({
       {entries.length ? (
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
           {entries.map((entry) => {
-            const editions = versions.filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id))
+            const editions = versions
+              .filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id))
+              .toSorted((left, right) => Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)))
             return (
               <div
                 key={entry.id}
@@ -157,17 +161,14 @@ function FactionShelf({
                             >
                               {editions.length} rules versions
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="min-w-56">
+                            <DropdownMenuContent className="min-w-80 max-w-[calc(100vw-2rem)]">
                               {editions.map((version) => (
                                 <DropdownMenuItem
                                   key={version.id}
+                                  aria-label={rulesVersionLabel(version)}
                                   render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: version.id }} />}
                                 >
-                                  {version.edition
-                                    ? editionLabel(version.edition)
-                                    : version.isDefault === false
-                                      ? 'Previous rules'
-                                      : 'Current rules'}
+                                  <RulesVersionLabel faction={version} />
                                 </DropdownMenuItem>
                               ))}
                             </DropdownMenuContent>

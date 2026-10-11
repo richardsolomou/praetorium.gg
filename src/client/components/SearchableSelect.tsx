@@ -26,7 +26,15 @@ import type { OnboardingTarget } from '../onboardingTargets'
  * caller wants in front of the label, such as the picture on a player's account.
  * `detail` sits at the end of the row in the list, such as a unit's points.
  */
-export type SearchableOption = { label: string; value: string; faction?: FactionPresentation; icon?: ReactNode; detail?: string }
+export type SearchableOption = {
+  label: string
+  value: string
+  faction?: FactionPresentation
+  icon?: ReactNode
+  /** Visual label; search and accessible names still use `label`. */
+  content?: ReactNode
+  detail?: string
+}
 export type SearchableGroup = { label: string; items: SearchableOption[] }
 type GroupedOption = SearchableOption & { group: string }
 type Row = { kind: 'group'; label: string } | { kind: 'option'; option: GroupedOption; index: number }
@@ -267,6 +275,7 @@ function OptionContent({ option }: { option: SearchableOption }) {
 }
 
 function OptionLabel({ option }: { option: SearchableOption }) {
+  if (option.content) return option.content
   if (option.faction) return <FactionLabel faction={option.faction} />
   if (!option.icon) return option.label
   return (

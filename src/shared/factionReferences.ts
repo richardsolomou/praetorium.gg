@@ -7,7 +7,7 @@ import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { detachmentPoints } from './detachmentPoints'
-import { mfmDetachmentFor } from './mfm'
+import { mfmDetachmentFor, mfmVersions } from './mfm'
 import { catalogueEditionId } from '../core/catalogueEdition'
 
 export function isReferenceDetachment(
@@ -69,6 +69,12 @@ function referenceDetachmentRoute(
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
   const slugId = routeSlug(displayName)
+  const points =
+    loaded.mfm?.get(routeSlug(factionDisplayName(faction.name))) ??
+    loaded.mfm?.get(slugId) ??
+    (faction.name.includes('Adeptus Astartes') ? loaded.mfm?.get('space-marines') : null)
+  const versions = mfmVersions(loaded.mfm)
+  const version = points?.attribution ? null : (points?.version ?? (versions.size === 1 ? versions.values().next().value : null))
   const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
@@ -77,6 +83,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
       id: faction.id,
       slug: loaded.edition ? faction.id : slugId,
       edition: loaded.edition ?? null,
+      ...(version ? { rulesName: `MFM ${version}`, rulesSlug: `mfm-${routeSlug(version)}` } : {}),
       baseCatalogueId: catalogueEditionId(faction.id) ? faction.id.split('~')[1]! : faction.id,
       isDefault: loaded.edition ? loaded.edition.default : true,
       name: faction.name,
