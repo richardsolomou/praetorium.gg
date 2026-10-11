@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics'
 import * as KeepAwake from 'expo-keep-awake'
 import * as Notifications from 'expo-notifications'
 import * as Print from 'expo-print'
+import { printDocument } from './src/printing'
 import * as WebBrowser from 'expo-web-browser'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -391,7 +392,7 @@ function AppShell() {
           break
         }
         case 'print':
-          await Print.printAsync({ html: action.html })
+          await printDocument(action.html, Print.printAsync)
           break
         case 'push': {
           const answer = await pushAnswer(action.prompt).catch((error: unknown) => {
