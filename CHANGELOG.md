@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.121.1
+
+### Patch Changes
+
+- 95ff466: Explain weapon, ability, and keyword matches in faction datasheet searches. Identify rules versions in reference roster choices and retain preview or archived unit labels in the simulator.
+
 ## 0.121.0
 
 ### Minor Changes
