@@ -127,8 +127,11 @@ export async function submit(
   const owner = localOwner()
   if (!engine || !owner || !localConstruction()) return server.submit(args)
   const resource = `battle:${args.data.token}`
-  if (options?.background && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
-  if (options?.background && navigator.onLine && !(await hasLocalChanges(resource))) {
+  let workspace = await localDocument<BattleWorkspace>(resource)
+  const sharedSetup = workspace && localBattleState(workspace.players, workspace.log).status === 'setup'
+  const authoritative = options?.background || sharedSetup
+  if (authoritative && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
+  if (authoritative && navigator.onLine && !(await hasLocalChanges(resource))) {
     const answer = await server.submit(args)
     if (answer.screen?.kind !== 'battle') return answer
     const fresh = await battleWorkspace({ data: { token: args.data.token } })
@@ -142,7 +145,7 @@ export async function submit(
           : fresh.screen,
     }
   }
-  let workspace = await localDocument<BattleWorkspace>(resource)
+  workspace = await localDocument<BattleWorkspace>(resource)
   if (navigator.onLine && (!workspace || (workspace.log.at(-1)?.seq ?? 0) < args.data.expectedSeq) && !(await hasLocalChanges(resource))) {
     const fresh = await battleWorkspace({ data: { token: args.data.token } })
     await rememberBattle(fresh.workspace, owner.id)
