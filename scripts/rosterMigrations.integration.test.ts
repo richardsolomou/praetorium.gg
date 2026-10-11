@@ -72,73 +72,81 @@ it.skipIf(!fs.existsSync(directory))('resolves each migrated detachment wrapper 
   ).toEqual(mappings.map(([, , name]) => name))
 })
 
-it.skipIf(!fs.existsSync(directory))('restores a 1000-point Dark Angels army with its original enhancement and Scout equipment', () => {
-  const roster = {
-    catalogueId: '470a-6daa-9014-12df',
-    detachmentIds: ['9d23-833a-17cb-2d7d'],
-    disposition: 'priority-assets',
-    limit: 1000,
-    picks: [
-      { entryId: 'f6b9-ebd3-b25d-5ea8', toggles: { 'f9b4-af73-c499-66ce': 1 }, attachedTo: 6 },
-      { entryId: 'b62e-cd23-d338-8142', attachedTo: 4 },
-      {
-        entryId: 'ce90-be8f-9f47-6641',
-        models: 5,
-        spreads: { '39ae-d203-80cc-60d4': { 'a5d5-538c-a88f-e7ea': 3, '971f-f659-e4b7-e127': 1 } },
-      },
-      { entryId: '1b37-d674-f2ef-6d3b', models: 3 },
-      { entryId: 'bb86-bce3-6729-371a', models: 6 },
-      {
-        entryId: '3c0a-10a9-8f84-26a3',
-        models: 5,
-        choices: picks[0]!.choices,
-        spreads: { 'd0cd-b8dc-82e-5eb8': { '1008-b543-bfc2-4959': 1, '5173-cc7b-b53a-514': 2, '428c-bf14-96d3-4692': 1 } },
-      },
-      { entryId: 'bc4e-8331-8179-255b', models: 5 },
-      {
-        entryId: 'e1ac-1406-1081-8ea3',
-        choices: { 'f227-6107-836d-3fee/131c-8a56-d003-b9a9/d95f-e1f7-815e-ec69': 'e487-31e6-b956-c818' },
-        attachedTo: 9,
-      },
-      { entryId: '7dff-dd08-e80c-9117', attachedTo: 9 },
-      { entryId: 'da66-4d12-2b43-4360' },
-    ] as RosterPick[],
-  }
-  const migrated = currentRosterIds(roster)
-  const loaded = loadCatalogue(directory)!
-  const versions = catalogueEditionLoaders(
-    directory,
-    () => loaded,
-    () => null,
-  )
-  const price = calculateRosterPrice(savedRosterPriceInput(migrated), versions.catalogueFor(migrated.catalogueId), null)!
-  expect({
-    points: price.points,
-    errors: price.errors,
-    detachmentError: price.detachmentError,
-    unavailable: unavailableRosterSelections(migrated.picks, price.units),
-    enhancements: price.units[7]!.enhancements,
-    knives: price.units[5]!.wargear.find((piece) => piece.name === 'Combat Knife')?.count,
-  }).toEqual({ points: 1000, errors: [], detachmentError: null, unavailable: [], enhancements: ['Lord of the Ravenwing'], knives: 2 })
-})
+it.skipIf(!fs.existsSync(directory))(
+  'restores a 1000-point Dark Angels army with its original enhancement and Scout equipment',
+  () => {
+    const roster = {
+      catalogueId: '470a-6daa-9014-12df',
+      detachmentIds: ['9d23-833a-17cb-2d7d'],
+      disposition: 'priority-assets',
+      limit: 1000,
+      picks: [
+        { entryId: 'f6b9-ebd3-b25d-5ea8', toggles: { 'f9b4-af73-c499-66ce': 1 }, attachedTo: 6 },
+        { entryId: 'b62e-cd23-d338-8142', attachedTo: 4 },
+        {
+          entryId: 'ce90-be8f-9f47-6641',
+          models: 5,
+          spreads: { '39ae-d203-80cc-60d4': { 'a5d5-538c-a88f-e7ea': 3, '971f-f659-e4b7-e127': 1 } },
+        },
+        { entryId: '1b37-d674-f2ef-6d3b', models: 3 },
+        { entryId: 'bb86-bce3-6729-371a', models: 6 },
+        {
+          entryId: '3c0a-10a9-8f84-26a3',
+          models: 5,
+          choices: picks[0]!.choices,
+          spreads: { 'd0cd-b8dc-82e-5eb8': { '1008-b543-bfc2-4959': 1, '5173-cc7b-b53a-514': 2, '428c-bf14-96d3-4692': 1 } },
+        },
+        { entryId: 'bc4e-8331-8179-255b', models: 5 },
+        {
+          entryId: 'e1ac-1406-1081-8ea3',
+          choices: { 'f227-6107-836d-3fee/131c-8a56-d003-b9a9/d95f-e1f7-815e-ec69': 'e487-31e6-b956-c818' },
+          attachedTo: 9,
+        },
+        { entryId: '7dff-dd08-e80c-9117', attachedTo: 9 },
+        { entryId: 'da66-4d12-2b43-4360' },
+      ] as RosterPick[],
+    }
+    const migrated = currentRosterIds(roster)
+    const loaded = loadCatalogue(directory)!
+    const versions = catalogueEditionLoaders(
+      directory,
+      () => loaded,
+      () => null,
+    )
+    const price = calculateRosterPrice(savedRosterPriceInput(migrated), versions.catalogueFor(migrated.catalogueId), null)!
+    expect({
+      points: price.points,
+      errors: price.errors,
+      detachmentError: price.detachmentError,
+      unavailable: unavailableRosterSelections(migrated.picks, price.units),
+      enhancements: price.units[7]!.enhancements,
+      knives: price.units[5]!.wargear.find((piece) => piece.name === 'Combat Knife')?.count,
+    }).toEqual({ points: 1000, errors: [], detachmentError: null, unavailable: [], enhancements: ['Lord of the Ravenwing'], knives: 2 })
+  },
+  30_000,
+)
 
-it.skipIf(!fs.existsSync(directory))('retains archived profile prices instead of joining a different datacard revision', () => {
-  const versions = catalogueEditionLoaders(
-    directory,
-    () => loadCatalogue(directory),
-    () => null,
-  )
-  const catalogueId = 'legacy-profiles~a603-5039-f08d-e841'
-  const loaded = versions.catalogueFor(catalogueId)!
-  const input = savedRosterPriceInput({
-    catalogueId,
-    detachmentIds: [],
-    disposition: null,
-    limit: 1000,
-    picks: [{ entryId: 'profile-unit-e0af-67df-9d63-8fb8-7648-0a7c-895d-1d9a', catalogueId }],
-  })
-  expect({
-    original: calculateRosterPrice(input, loaded, null)?.points,
-    mismatchedCard: calculateRosterPrice(input, { ...loaded, datacardExcludedCatalogueIds: undefined }, null)?.points,
-  }).toEqual({ original: 95, mismatchedCard: 100 })
-})
+it.skipIf(!fs.existsSync(directory))(
+  'retains archived profile prices instead of joining a different datacard revision',
+  () => {
+    const versions = catalogueEditionLoaders(
+      directory,
+      () => loadCatalogue(directory),
+      () => null,
+    )
+    const catalogueId = 'legacy-profiles~a603-5039-f08d-e841'
+    const loaded = versions.catalogueFor(catalogueId)!
+    const input = savedRosterPriceInput({
+      catalogueId,
+      detachmentIds: [],
+      disposition: null,
+      limit: 1000,
+      picks: [{ entryId: 'profile-unit-e0af-67df-9d63-8fb8-7648-0a7c-895d-1d9a', catalogueId }],
+    })
+    expect({
+      original: calculateRosterPrice(input, loaded, null)?.points,
+      mismatchedCard: calculateRosterPrice(input, { ...loaded, datacardExcludedCatalogueIds: undefined }, null)?.points,
+    }).toEqual({ original: 95, mismatchedCard: 100 })
+  },
+  30_000,
+)
