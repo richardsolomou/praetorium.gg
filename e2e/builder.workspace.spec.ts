@@ -136,7 +136,7 @@ test('the roster header opens its force disposition', async ({ page }) => {
   )
   await expect(page.getByRole('link', { name: /^Awakened Dynasty/ })).toHaveAttribute(
     'href',
-    '/factions/necrons/detachments/awakened-dynasty',
+    '/factions/necrons/rules/mfm-1-5/detachments/awakened-dynasty',
   )
 })
 
