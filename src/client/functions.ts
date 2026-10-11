@@ -1,9 +1,11 @@
+import { requireReviewedRoster, type ReviewedServerSave } from './offline/reviewedRoster'
 import { projectBattles } from './offline/battleFunctions'
 import { cachedRead, cachedPage } from './offline/reads'
 import { hasLocalChanges, localOwner } from './offline/localRuntime'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { priceSchema, datasheetSchema, combatLoadoutSchema, saveRosterSchema } from '../contracts/schemas'
 import * as server from '../server/functions'
+import { syncRoster } from '../server/functions/offline'
 import { constructionRead, constructionData, localConstruction } from './offline/construction'
 import {
   localClient,
@@ -302,9 +304,32 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
   return access?.roster ?? null
 }
 
-export async function saveRoster(args: Parameters<typeof server.saveRoster>[0]): ReturnType<typeof server.saveRoster> {
+export async function saveRoster(
+  args: Parameters<typeof server.saveRoster>[0],
+  reviewed?: RosterInput,
+  reviewedOwner?: string | null,
+  serverReview?: ReviewedServerSave,
+): ReturnType<typeof server.saveRoster> {
   const owner = localOwner()?.id
-  if (!localEngine()) return server.saveRoster(args)
+  if (reviewedOwner !== undefined && (owner ?? null) !== reviewedOwner)
+    throw new Error('The account changed after this review. Reload before continuing.')
+  if (!localEngine()) {
+    if (!reviewed) return server.saveRoster(args)
+    if (!serverReview || !owner || !args.data.id)
+      throw new Error('Saved changes are not ready on this device. Reload the roster before reviewing it again.')
+    const answer = await syncRoster({
+      signal: args.signal ?? AbortSignal.timeout(15_000),
+      data: { ...serverReview, owner, roster: { ...saveRosterSchema.parse(args.data), id: args.data.id } },
+    })
+    if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
+    if (answer.outcome !== 'applied') throw new Error(`${answer.message} Go back, reload it and review the changes again.`)
+    const saved = await server.sharedRoster({ data: { id: args.data.id }, signal: args.signal ?? AbortSignal.timeout(15_000) })
+    if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
+    if (!saved || saved.updatedAt !== answer.version)
+      throw new Error('This roster changed after your review. Go back, reload it and review the changes again.')
+    requireReviewedRoster(saved, args.data)
+    return { id: args.data.id, updatedAt: answer.version }
+  }
   const input: RosterInput & { id: string } = {
     ...saveRosterSchema.parse(args.data),
     id: args.data.id ?? crypto.randomUUID(),
@@ -340,6 +365,12 @@ export async function saveRoster(args: Parameters<typeof server.saveRoster>[0]):
     undefined,
     undefined,
     owner,
+    reviewed
+      ? (current) => {
+          requireReviewedRoster(current, reviewed)
+          return roster
+        }
+      : undefined,
   )
   if (!previous && navigator.onLine) await attemptLocalSync()
   if (localOwner()?.id !== owner) throw new Error('The account changed while saving this roster.')

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from '@playwright/test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { createRoster, retryUntilVisible, signUp } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp } from './account'
 import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -850,7 +850,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('button', { name: 'Remove Awakened Dynasty' }).click()
   await setup.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await expect(page.getByText('Incursion', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
@@ -862,7 +862,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   await setup.getByRole('button', { name: 'Remove Cryptek Conclave' }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await page.getByLabel('Add a unit').fill('Lokhust Destroyers')
   await page.getByRole('button', { name: 'Add Lokhust Destroyers', exact: true }).first().click()
   await page

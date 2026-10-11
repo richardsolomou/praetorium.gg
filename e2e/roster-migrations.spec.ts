@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 
 for (const width of [390, 1440]) {
@@ -47,7 +47,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole('option').first()).toHaveText('Current Space Marines codex · 3 Oct 2026')
     await page.getByRole('option', { name: 'Space Marines codex · 3 Oct 2026 · Current', exact: true }).click()
     await expect(dialog.getByRole('button', { name: 'Convert roster', exact: true })).toBeEnabled()
-    await waitForRosterSave(page, () => dialog.getByRole('button', { name: 'Convert roster', exact: true }).click(), 'current-rosters~')
+    await waitForRosterSave(page, () => confirmRosterSetup(dialog), 'current-rosters~')
     await page.reload()
     await expect(notice).toHaveCount(0)
     expect((await operator.roster(id))?.catalogueId).toBe('current-rosters~470a-6daa-9014-12df')
@@ -89,7 +89,7 @@ test('converts a retired Marine faction identity without discarding its generate
   await dialog.getByRole('button', { name: 'Select Gladius Task Force', exact: true }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
-  await waitForRosterSave(page, () => dialog.getByRole('button', { name: 'Convert roster', exact: true }).click(), '4029-9237-e8db-af55')
+  await waitForRosterSave(page, () => confirmRosterSetup(dialog), '4029-9237-e8db-af55')
   await page.reload()
   await expect(notice).toHaveCount(0)
   expect(JSON.parse((await operator.roster(id))!.picks)).toEqual([{ entryId: '984d-c25b-86dd-9970' }])

@@ -284,19 +284,15 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           value={session?.draft ?? setupOf(editing)}
           onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft, mode: session?.mode })}
           hasUnits={Boolean(editing.unitCount)}
+          reviewSource={editing.id}
           pending={actions.update.isPending}
           saveError={actions.update.isError ? errorMessage(actions.update.error) : undefined}
-          onSave={(setup) =>
-            actions.update.mutate(
-              { roster: editing, setup },
-              {
-                onSuccess: () => {
-                  setEditing(null)
-                  if (session?.mode === 'convert') void navigate({ to: '/rosters/$id', params: { id: editing.id } })
-                },
-              },
-            )
-          }
+          onSave={async (_setup, review) => {
+            if (!review) throw new Error('Review the roster before saving changes.')
+            await actions.update.mutateAsync(review)
+            setEditing(null)
+            if (session?.mode === 'convert') void navigate({ to: '/rosters/$id', params: { id: editing.id } })
+          }}
         />
       ) : null}
       <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />

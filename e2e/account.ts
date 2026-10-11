@@ -504,3 +504,11 @@ export async function setupBattle(
   await expect(guest.getByRole('heading', { name: 'command phase' })).toBeVisible()
   return url
 }
+
+export async function confirmRosterSetup(dialog: Locator) {
+  await dialog.getByRole('button', { name: /^(Review changes|Convert roster)$/ }).click()
+  const review = dialog.page().getByRole('dialog', { name: 'Review roster changes' })
+  await expect(review.getByLabel('Roster change preview')).toBeVisible()
+  await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
+  await expect(review).toBeHidden()
+}

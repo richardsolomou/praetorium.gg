@@ -4,12 +4,11 @@ import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import type { RosterTextExport } from './RosterExportDialog'
 import type { RosterVisibility } from '../../../core/savedRoster'
-import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
 import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
-import type { RosterSetup } from './RosterSetupDialog'
+import type { RosterSetupReview } from './rosterSetupReview'
 
 /** One saved list, as the library reads it back. */
 export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
@@ -75,22 +74,8 @@ export function useRosterActions(origin: string) {
   })
 
   const update = useMutation({
-    mutationFn: async ({ roster: summary, setup }: { roster: SavedRoster; setup: RosterSetup }) => {
-      const roster = await load(summary)
-      return saveRoster({
-        data: {
-          id: roster.id,
-          ...setup,
-          picks:
-            currentCatalogueFamilyId(setup.catalogueId) === currentCatalogueFamilyId(roster.catalogueId)
-              ? picksForRulesVersion(roster.picks, setup.catalogueId)
-              : [],
-          prep: roster.prep,
-          visibility: setup.visibility,
-          source: roster.source,
-        },
-      })
-    },
+    mutationFn: async (review: RosterSetupReview) =>
+      saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave),
     onSuccess: refresh,
   })
 

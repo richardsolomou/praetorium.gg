@@ -52,7 +52,8 @@ import {
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
-import { picksAfterDetachmentChange } from './rosterPicks'
+import type { RosterSetupReview } from './rosterSetupReview'
+import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
@@ -82,7 +83,7 @@ import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { type CatalogueEdition } from '../../../core/catalogueEdition'
-import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
+import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
@@ -135,7 +136,11 @@ type Props = {
    * Every draft goes to `onDraftChange` instead of the server, and saving it is
    * `onSave`'s: the one thing a visitor cannot do here is keep the list.
    */
-  guest?: { onDraftChange: (draft: RosterDraft) => boolean; onSave: () => void }
+  guest?: {
+    onDraftChange: (draft: RosterDraft) => boolean
+    onReviewedChange: (draft: RosterDraft, source: RosterDraft) => boolean
+    onSave: () => void
+  }
   /** A datasheet a reference page asked to add, once this roster's limits say whether it can. */
   requested?: { entryId: string; onSettled: () => void }
 }
@@ -290,7 +295,7 @@ export function ListBuilder({
     [savedPrep, reminders],
   )
   const draft: RosterDraft = {
-    id: savedId,
+    id: savedId || undefined,
     name: listName,
     catalogueId,
     detachmentIds,
@@ -691,11 +696,26 @@ export function ListBuilder({
       visibility,
     })
   }
-  const applySetup = (setup: RosterSetup) => {
+  const setupSave = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: async (review: RosterSetupReview) => {
+      requireReviewedRoster(draft, review.source)
+      if (guest) {
+        if (!guest.onReviewedChange(review.candidate, review.source)) throw new Error('This browser could not keep the reviewed roster.')
+        return { updatedAt: Date.now() }
+      }
+      return saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave)
+    },
+  })
+  const applySetup = async (setup: RosterSetup, review?: RosterSetupReview) => {
+    if (!review) throw new Error('Review the roster before saving changes.')
+    const { updatedAt } = await setupSave.mutateAsync(review)
+    const key = draftKey(review.candidate)
+    lastSaved.current = key
+    lastApplied.current = key
+    savedAt.current = Math.max(savedAt.current, updatedAt)
     const changedFaction = currentCatalogueFamilyId(setup.catalogueId) !== currentCatalogueFamilyId(catalogueId)
-    if (setup.catalogueId === catalogueId)
-      setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
-    else if (!changedFaction) setPicks((current) => picksForRulesVersion(current, setup.catalogueId))
+    resetPicks(review.candidate.picks)
     setName(setup.name)
     setCatalogueId(setup.catalogueId)
     setDetachmentIds(setup.detachmentIds)
@@ -705,12 +725,14 @@ export function ListBuilder({
     setOptionalRules(setup.optionalRules)
     setBorrowedDetachmentId(setup.borrowedDetachmentId)
     setVisibility(setup.visibility)
+    setSavedPrep(review.candidate.prep ?? { stratagems: [], secondaries: [] })
+    setReminders(review.candidate.prep?.reminders ?? [])
     if (changedFaction) {
-      edit.clear()
       setReminders([])
       setSelected(null)
     }
     setSetupDraft(null)
+    await invalidateSavedRosters(queryClient)
   }
   const setupDialog =
     editable && editingSetup ? (
@@ -725,6 +747,8 @@ export function ListBuilder({
         onDraftChange={setSetupDraft}
         guest={Boolean(guest)}
         hasUnits={Boolean(picks.length)}
+        reviewSource={draft}
+        pending={saving || setupSave.isPending}
         namePlaceholder={label}
         onSave={applySetup}
       />

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { waitForRosterSave } from './account'
+import { confirmRosterSetup, waitForRosterSave } from './account'
 import { shot, expectNoHorizontalOverflow, openBuilder, add, attach } from './builder.harness'
 
 test('a squad grows from its unit editor', async ({ page }) => {
@@ -158,7 +158,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await expect(page.getByText('3/2 in roster')).toBeVisible()
   await expect(page.getByText('Roster is not legal')).toBeAttached()
   await expect(lychguard).toBeDisabled()
@@ -167,7 +167,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await expect(page.getByText('3/1 in roster')).toBeVisible()
   await expect(page.getByText('Lychguard: allows at most 1 of this datasheet, has 3')).toBeVisible()
   await expect(lychguard).toBeDisabled()
@@ -177,7 +177,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
 
   // The battle size's own restrictions are switched off from the picker's own menu,
   // over the book they act on.
@@ -392,7 +392,7 @@ test('changing detachments clears enhancements unless another detachment is adde
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   let setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await expect(card).toContainText('Mark of the Nekrosor')
 
   await page.getByRole('button', { name: 'Roster actions' }).click()
@@ -406,7 +406,7 @@ test('changing detachments clears enhancements unless another detachment is adde
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Remove Cursed Legion' }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await expect(card).not.toContainText('Mark of the Nekrosor')
 
   await page.reload()

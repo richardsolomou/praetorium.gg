@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import {
+  confirmRosterSetup,
   attachRoster,
   chooseBattlefield,
   createBattle,
@@ -130,7 +131,7 @@ Exported with BattleBase, Data Version: v20260812`)
   await notice.getByRole('button', { name: 'Choose one' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Take and Hold', exact: true }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await expect(notice).toHaveCount(0)
   await expect(page.getByText('Take and Hold', { exact: true })).toBeVisible()
 
@@ -139,7 +140,7 @@ Exported with BattleBase, Data Version: v20260812`)
       await page.getByRole('button', { name: 'Roster actions' }).click()
       await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
       await setup.getByRole('button', { name: disposition, exact: true }).click()
-      await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+      await waitForRosterSave(page, () => confirmRosterSetup(setup))
     }
     await page.reload()
     await expect(page.getByText(disposition, { exact: true })).toBeVisible()

@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test'
-import { attachRoster, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  confirmRosterSetup,
+  attachRoster,
+  createBattle,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 import { productOperator, withAuthSql } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
@@ -244,7 +253,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await setup.getByRole('button', { name: 'Remove Awakened Dynasty' }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
 
   const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const firstFrame = await firstFrameContext.newPage()
@@ -550,7 +559,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
   const promoted = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"unlisted"')))
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await promoted
 
   // Public reads exactly as unlisted does. What it adds is being listed on the
@@ -561,7 +570,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await publishing.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Public — listed on your profile' }).click()
   const published = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"public"')))
-  await publishing.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(publishing)
   await published
 
   await page.getByRole('button', { name: 'Account menu for Alice' }).click()
@@ -581,7 +590,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await reverting.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
   const relisted = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"unlisted"')))
-  await reverting.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(reverting)
   await relisted
 
   const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1600, height: 900 } })

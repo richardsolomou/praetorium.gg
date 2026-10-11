@@ -648,7 +648,7 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await expect(setup.getByRole('alert')).toContainText('This combination costs 3 DP')
-  await expect(setup.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+  await expect(setup.getByRole('button', { name: 'Review changes' })).toBeDisabled()
   await page.screenshot({ path: 'test-results/detachment-points.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   const firstDetachment = setup.getByRole('button', { name: 'Remove Cryptek Conclave' })
