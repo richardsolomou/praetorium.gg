@@ -13,7 +13,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { productOperator, productSql, withAuthSql } from './storage'
+import { productOperator, productSql, savedWork, withAuthSql } from './storage'
 
 test.setTimeout(300_000)
 
@@ -103,6 +103,8 @@ async function concede(page: Page) {
   await page.getByRole('menuitem', { name: 'Concede battle', exact: true }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
+  // The scoreboard updates before the queued concession reaches the server.
+  await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0, { timeout: 60_000 }).toBe(0)
 }
 
 async function deleteBattle(page: Page, url: string) {
@@ -243,9 +245,10 @@ test('self-account deletion removes populated shared history and sealed entries 
     const ownerRosterId = await sealableRoster(owner, ownerRoster)
     await signUp(opponent, opponentName)
     const opponentId = await playerId(opponentName)
+    // Take and Hold against the sealed list's Purge the Foe draws primaries that need no nominations.
     const opponentRoster = await createRoster(opponent, {
-      faction: 'Death Guard',
-      detachment: /Shamblerot Vectorium/,
+      faction: 'Necrons',
+      detachment: /Awakened Dynasty/,
       name: uniqueName('Surviving roster'),
     })
     const opponentRosterId = tokenOf(opponent.url())
