@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle } from './account'
+import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, retryUntilVisible, signUp, startBattle } from './account'
 
 async function inspectMap(page: Page) {
   const trigger = page.getByRole('button', { name: /^View .+ battlefield$/ })
-  await trigger.click()
   const dialog = page.getByRole('dialog')
+  await retryUntilVisible(dialog, () => trigger.click())
   const map = dialog.locator('svg[aria-label$="battlefield map"]')
   await expect(map).toBeVisible()
   await expect.poll(() => map.locator('polygon').count()).toBeGreaterThan(2)
