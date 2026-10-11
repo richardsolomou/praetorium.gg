@@ -27,7 +27,9 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
     .getByRole('dialog', { name: 'Add Imotekh the Stormlord to a roster' })
     .getByRole('link', { name: /Your unsaved roster/ })
     .click()
-  await expect(page.getByRole('alert').filter({ hasText: 'The unit was not added' })).toHaveText('The unit was not added. Limit reached')
+  await expect(page.getByRole('alert').filter({ hasText: 'The unit was not added' })).toHaveText(
+    'The unit was not added. Limit reached: 1 of 1 permitted copies in the roster.',
+  )
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
 })
 
