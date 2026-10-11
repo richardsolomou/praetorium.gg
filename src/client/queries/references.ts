@@ -1,7 +1,7 @@
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
 import { anySignal } from '../abortSignals'
 export { terrainMatchupIds } from '../../contracts/terrainReference'
-import { referenceRead, offlineSearch } from '../offline/runtime'
+import { offlineData, offlineSearch } from '../offline/runtime'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { referenceFactionId } from '../../core/factionReferenceRoute'
 import {
@@ -21,16 +21,10 @@ import {
   ruleSection,
   terrainReferences,
 } from '../functions'
-import { SSR_STALE_TIME } from './shared'
+import { referenceQuery, SSR_STALE_TIME } from './shared'
 
-export const factionQuery = (catalogueId: string) =>
-  queryOptions({
-    queryKey: ['faction', catalogueId],
-    queryFn: () => referenceRead(['faction', catalogueId], () => faction({ data: { catalogueId } })),
-    staleTime: Infinity,
-  })
-export const factionIndexQuery = () =>
-  queryOptions({ queryKey: ['faction-index'], queryFn: () => referenceRead(['faction-index'], () => factionIndex()), staleTime: Infinity })
+export const factionQuery = (catalogueId: string) => referenceQuery(['faction', catalogueId], () => faction({ data: { catalogueId } }))
+export const factionIndexQuery = () => referenceQuery(['faction-index'], () => factionIndex())
 
 export async function loadReferenceFaction(client: QueryClient, catalogueId: string, rules?: string) {
   const index = await client.query({ ...factionIndexQuery(), staleTime: 'static' })
@@ -53,9 +47,8 @@ export const favouriteDetachmentsQuery = () =>
   })
 export const gameReferencesQuery = () =>
   queryOptions({
-    queryKey: ['game-references'],
-    queryFn: () => referenceRead(['game-references'], () => gameReferences()),
-    staleTime: ({ state }) => (state.data ? Infinity : 0),
+    ...referenceQuery(['game-references'], () => gameReferences()),
+    staleTime: ({ state }) => (state.data ? (offlineData() ? Infinity : SSR_STALE_TIME) : 0),
     refetchInterval: ({ state }) => gameReferencesRefreshInterval(state.data),
   })
 
@@ -82,21 +75,16 @@ export const globalSearchQuery = (query: string) =>
 
 export const terrainReferencesQuery = (matchupIds: readonly string[]) =>
   queryOptions({
-    queryKey: ['terrain-references', TERRAIN_GEOMETRY_VERSION, ...matchupIds],
-    queryFn: () =>
-      referenceRead(['terrain-references', TERRAIN_GEOMETRY_VERSION, ...matchupIds], () =>
-        terrainReferences({ data: { matchupIds: [...matchupIds], geometryVersion: TERRAIN_GEOMETRY_VERSION } }),
-      ),
+    ...referenceQuery(['terrain-references', TERRAIN_GEOMETRY_VERSION, ...matchupIds], () =>
+      terrainReferences({ data: { matchupIds: [...matchupIds], geometryVersion: TERRAIN_GEOMETRY_VERSION } }),
+    ),
     enabled: Boolean(matchupIds.length),
-    staleTime: Infinity,
   })
 
 export const datasheetSlugQuery = (catalogueId: string, slug: string) =>
   queryOptions({
-    queryKey: ['datasheet-slug', catalogueId, slug],
-    queryFn: () => referenceRead(['datasheet-slug', catalogueId, slug], () => datasheetBySlug({ data: { catalogueId, slug } })),
+    ...referenceQuery(['datasheet-slug', catalogueId, slug], () => datasheetBySlug({ data: { catalogueId, slug } })),
     enabled: Boolean(catalogueId && slug),
-    staleTime: Infinity,
   })
 export const detachmentRulesQuery = (catalogueId: string, detachmentNames: readonly string[]) =>
   queryOptions({
@@ -107,32 +95,22 @@ export const detachmentRulesQuery = (catalogueId: string, detachmentNames: reado
   })
 export const detachmentDetailQuery = (catalogueId: string, slug: string) =>
   queryOptions({
-    queryKey: ['detachment-detail', catalogueId, slug],
-    queryFn: () => referenceRead(['detachment-detail', catalogueId, slug], () => detachmentDetail({ data: { catalogueId, slug } })),
+    ...referenceQuery(['detachment-detail', catalogueId, slug], () => detachmentDetail({ data: { catalogueId, slug } })),
     enabled: Boolean(catalogueId && slug),
-    staleTime: Infinity,
   })
 export const dispositionDetachmentsQuery = (dispositionId: string) =>
-  queryOptions({
-    queryKey: ['disposition-detachments', dispositionId],
-    queryFn: () => referenceRead(['disposition-detachments', dispositionId], () => dispositionDetachments({ data: { dispositionId } })),
-    staleTime: Infinity,
-  })
-export const deploymentsQuery = () =>
-  queryOptions({ queryKey: ['deployments'], queryFn: () => referenceRead(['deployments'], () => deployments()), staleTime: Infinity })
+  referenceQuery(['disposition-detachments', dispositionId], () => dispositionDetachments({ data: { dispositionId } }))
+export const deploymentsQuery = () => referenceQuery(['deployments'], () => deployments())
 export const ruleIndexQuery = () =>
   queryOptions({
-    queryKey: ['rule-index'],
-    queryFn: () => referenceRead(['rule-index'], () => ruleIndex()),
-    staleTime: ({ state }) => (state.data ? Infinity : 0),
+    ...referenceQuery(['rule-index'], () => ruleIndex()),
+    staleTime: ({ state }) => (state.data ? (offlineData() ? Infinity : SSR_STALE_TIME) : 0),
     refetchInterval: ({ state }) => (state.data ? false : 1_000),
   })
 export const ruleSectionQuery = (documentId: string, sectionId: string) =>
   queryOptions({
-    queryKey: ['rule-section', documentId, sectionId],
-    queryFn: () => referenceRead(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
+    ...referenceQuery(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
     enabled: Boolean(documentId && sectionId),
-    staleTime: Infinity,
   })
 export const catalogueStatusQuery = () =>
   queryOptions({

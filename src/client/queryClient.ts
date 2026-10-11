@@ -1,4 +1,4 @@
-import { offlineData, referenceData } from './offline/runtime'
+import { offlineData } from './offline/runtime'
 import { MutationCache, QueryClient } from '@tanstack/react-query'
 import { captureAppSnapshot, restoreAppSnapshot } from './offline/appSnapshot'
 import { writeAppSnapshot } from './offline/appStorage'
@@ -18,7 +18,7 @@ export function createQueryClient() {
       },
     }),
   })
-  const saved = referenceData()
+  const saved = offlineData()
   if (offlineData()) {
     client.setDefaultOptions({ queries: { retry: false, staleTime: 1000, networkMode: 'always' }, mutations: { networkMode: 'always' } })
     if (window.PraetoriumAppSnapshot) restoreAppSnapshot(client, window.PraetoriumAppSnapshot)

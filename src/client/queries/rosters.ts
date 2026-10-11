@@ -1,7 +1,8 @@
-import { offlineDatasheets } from '../offline/runtime'
+import { offlineData, offlineDatasheets, referenceData } from '../offline/runtime'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
+import type { UnitSummary } from '../../contracts/catalogue'
 import {
   collection,
   datasheet,
@@ -49,9 +50,23 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
   queryOptions({
     queryKey: ['faction-datasheets', catalogueId, query],
     networkMode: 'always',
-    queryFn: () => Promise.resolve(offlineDatasheets(catalogueId, query) ?? factionDatasheets({ data: { catalogueId, query } })),
+    initialData: () => offlineDatasheets(catalogueId, query) ?? undefined,
+    initialDataUpdatedAt: () => referenceData()?.savedAt ?? 0,
+    queryFn: async ({ client }) => {
+      const saved = offlineDatasheets(catalogueId, query)
+      const current = client.getQueryData<UnitSummary[]>(['faction-datasheets', catalogueId, query])
+      if (typeof window !== 'undefined' && !navigator.onLine && current !== undefined) return current
+      if (saved && offlineData()) return saved
+      try {
+        return await factionDatasheets({ data: { catalogueId, query } })
+      } catch (error) {
+        if (current !== undefined) return current
+        if (saved) return saved
+        throw error
+      }
+    },
     enabled: Boolean(catalogueId),
-    staleTime: Infinity,
+    staleTime: () => (offlineData() ? Infinity : SSR_STALE_TIME),
   })
 
 export const datasheetQuery = (
@@ -150,7 +165,11 @@ export const savedRosterPriceQuery = (
   })
 
 export const savedRosterSummariesQuery = () =>
-  queryOptions({ queryKey: ['saved-roster-summaries'], queryFn: () => savedRosterSummaries(), staleTime: SSR_STALE_TIME })
+  queryOptions({
+    queryKey: ['saved-roster-summaries'],
+    queryFn: ({ signal }) => savedRosterSummaries({ signal }),
+    staleTime: SSR_STALE_TIME,
+  })
 export const savedRosterPageQuery = (ids: string[]) =>
   queryOptions({
     queryKey: ['saved-roster-page', ids],
@@ -192,6 +211,6 @@ export const sharedRosterQuery = (id: string, battle?: string) =>
 export const rosterAccessQuery = (id: string, battle?: string) =>
   queryOptions({
     queryKey: ['roster-access', id, battle ?? null],
-    queryFn: () => rosterAccess({ data: { id, ...(battle ? { battle } : {}) } }),
+    queryFn: ({ signal }) => rosterAccess({ data: { id, ...(battle ? { battle } : {}) }, signal }),
     staleTime: SSR_STALE_TIME,
   })

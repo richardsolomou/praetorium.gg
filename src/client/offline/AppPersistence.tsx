@@ -16,10 +16,7 @@ import {
   meQuery,
   onboardingQuery,
   publicBattlesQuery,
-  savedRosterPageQuery,
   savedRosterSummariesQuery,
-  rosterBootstrapQuery,
-  outdatedLeagueEntriesQuery,
   standingsQuery,
   favouriteFactionsQuery,
   favouriteDetachmentsQuery,
@@ -31,7 +28,7 @@ import {
   leagueRosterQuery,
 } from '../queries'
 import { refreshBattleFeed } from './refreshBattleFeed'
-import { sortRosters } from '../features/rosters/rosterSort'
+import { prepareRosters } from './prepareRosters'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 
 export function AppPersistence() {
@@ -122,25 +119,7 @@ export function AppPersistence() {
                 client.query({ ...favouriteFactionsQuery(), staleTime: Infinity }),
                 client.query({ ...favouriteDetachmentsQuery(), staleTime: Infinity }),
                 client.query({ ...savedRosterSummariesQuery(), staleTime: Infinity }).then(async (summaries) => {
-                  if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) return
-                  const ids = sortRosters(summaries, 'updated-desc').map((roster) => roster.id)
-                  for (let index = 0; index < ids.length; index += ROSTER_LIBRARY_BATCH_SIZE) {
-                    if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
-                    await client.query({
-                      ...savedRosterPageQuery(ids.slice(index, index + ROSTER_LIBRARY_BATCH_SIZE)),
-                      staleTime: Infinity,
-                    })
-                  }
-                  for (let index = 0; index < ids.length; index += 3) {
-                    if (!active || client.getQueryData<{ id: string }>(['me'])?.id !== me.id) break
-                    await Promise.allSettled(
-                      ids.slice(index, index + 3).map(async (id) => {
-                        await client.query({ ...rosterBootstrapQuery(id), staleTime: Infinity })
-                        if (active && client.getQueryData<{ id: string }>(['me'])?.id === me.id)
-                          await client.query({ ...outdatedLeagueEntriesQuery(id), staleTime: Infinity })
-                      }),
-                    )
-                  }
+                  await prepareRosters(client, summaries, () => active && client.getQueryData<{ id: string }>(['me'])?.id === me.id)
                 }),
               ]
             : [client.query({ ...standingsQuery(), staleTime: Infinity })]),
@@ -179,8 +158,8 @@ export function AppPersistence() {
       }
       ready = true
       save()
-      void refresh()
     })
+    const cancelPreparation = afterInitialScreen(router, () => void refresh(), 10_000)
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') void refresh()
     }, 60_000)
@@ -190,6 +169,7 @@ export function AppPersistence() {
     document.addEventListener('visibilitychange', foreground)
     return () => {
       cancelInitial()
+      cancelPreparation()
       save()
       active = false
       clearTimeout(timer)

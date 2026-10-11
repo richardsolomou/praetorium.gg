@@ -10,8 +10,10 @@ import { requestCookie } from '../server/requestCookie'
 import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
 import { factionIndexQuery, meQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
+import { RosterLoading } from '../client/features/rosters/RosterLoading'
 
 export const Route = createFileRoute('/rosters/')({
+  pendingComponent: RosterLoading,
   validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & { add?: string } => {
     const limit = Number(search.limit)
     const faction = typeof search.faction === 'string' && search.faction.length <= 128 ? search.faction : undefined

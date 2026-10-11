@@ -178,7 +178,10 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                 }
               />
             ) : libraryPending ? (
-              <RosterLibrarySkeleton />
+              <div>
+                <output className="block py-3 text-sm text-dim">Loading your rosters…</output>
+                <RosterLibrarySkeleton />
+              </div>
             ) : shown.length ? (
               <>
                 {groups.map(({ head, variants }) => {
