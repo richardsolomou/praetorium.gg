@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.123.0
+
+### Minor Changes
+
+- 6aaa456: Record mission unit and objective choices during battles, retain their history through casualties and undo, and track Beacon choices manually.
+
 ## 0.122.0
 
 ### Minor Changes
