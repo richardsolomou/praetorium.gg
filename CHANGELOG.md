@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.122.0
+
+### Minor Changes
+
+- d5cc723: Add a datasheet to a roster, your favourites or your collection, and set its model count, from one Add to button on its page.
+- d5cc723: Track your collection on a new Collection page: add datasheets, count their models, and add units you have fielded in battles.
+- d5cc723: Heart datasheets as favourites to list them first and filter by them in the unit picker; hearts no longer mark collection ownership.
+- d5cc723: Remove the roster's Physical collection dialog; model counts now live on the Collection page.
+
 ## 0.121.1
 
 ### Patch Changes
