@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.120.0
+
+### Minor Changes
+
+- f0bc522: Review and explicitly publish public support reports, then follow their GitHub status and replies in the app when reporting is configured.
+
 ## 0.119.1
 
 ### Patch Changes
