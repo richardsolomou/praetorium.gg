@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.115.10
+
+### Patch Changes
+
+- 30a4af4: Keep the sync banner from flashing during quick online saves.
+
 ## 0.115.9
 
 ### Patch Changes

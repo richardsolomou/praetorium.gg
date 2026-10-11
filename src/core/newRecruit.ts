@@ -1,25 +1,38 @@
 import type { TextRoster, TextRosterUnit } from './textRoster'
 import { GAME_SIZES } from './battle'
+import type { GwTextRoster } from './gwText'
 
 const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*pts?\)(?::\s*(.*))?$/i
 const modelLine = /^[•*]\s*(\d+)x\s+([^:]+?)(?::\s*(.*))?$/
 
 export function fromNewRecruitText(input: string): TextRoster | null {
-  if (!/Created with newrecruit\.eu/i.test(input)) return null
+  const native = /Exported with Praetorium\.gg/i.test(input)
+  if (!/Created with newrecruit\.eu/i.test(input) && !(/Exported with Praetorium\.gg/i.test(input) && /^\+ FACTION KEYWORD:/m.test(input)))
+    return null
 
   const lines = input.replaceAll('\r', '').split('\n')
   const faction = metadata(lines, 'FACTION KEYWORD') ?? ''
-  const detachment = metadata(lines, 'DETACHMENT')?.replace(/\s+\([^()]+\)\s*$/, '') ?? null
+  const rawDetachment = metadata(lines, 'DETACHMENT')
+  const detachment = (native ? rawDetachment : rawDetachment?.replace(/\s+\([^()]+\)\s*$/, '')) ?? null
   const disposition = metadata(lines, 'FORCE DISPOSITION')
   const points = metadata(lines, 'TOTAL ARMY POINTS')?.match(/([\d,]+)\s*pts?/i)?.[1]
   const total = points ? Number(points.replaceAll(',', '')) : null
-  const limit = total === null ? null : (GAME_SIZES.find((size) => size.limit >= total)?.limit ?? total)
+  const explicitLimit = metadata(lines, 'BATTLE SIZE')?.match(/^([\d,]+)pts$/i)?.[1]
+  const limit = explicitLimit
+    ? Number(explicitLimit.replaceAll(',', ''))
+    : total === null
+      ? null
+      : (GAME_SIZES.find((size) => size.limit >= total)?.limit ?? total)
   const warlord = metadata(lines, 'WARLORD')?.replace(/^Char\d+:\s*/i, '') ?? null
   const units: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null
 
   for (const line of lines) {
     const trimmed = line.trim()
+    if (/^(Created with |Exported with |Ruleset:|Codex:)/i.test(trimmed)) {
+      current = null
+      continue
+    }
     const header = trimmed.match(unitHeader)
     if (header) {
       current = {
@@ -35,6 +48,12 @@ export function fromNewRecruitText(input: string): TextRoster | null {
       continue
     }
     if (!current) continue
+
+    const identity = trimmed.match(/^(Roster entry|Attached to entry):\s*(\d+)$/i)
+    if (identity) {
+      current[identity[1]!.toLowerCase() === 'roster entry' ? 'entry' : 'attachedToEntry'] = Number(identity[2])
+      continue
+    }
 
     const leading = trimmed.match(/^Leading\s+(.+)$/i)
     if (leading) {
@@ -53,6 +72,11 @@ export function fromNewRecruitText(input: string): TextRoster | null {
       continue
     }
     const model = trimmed.match(modelLine)
+    const equipment = native ? trimmed.match(/^[•*]\s*(\d+)x\s+(.+)$/) : null
+    if (equipment) {
+      addSelection(current, equipment[2]!, Number(equipment[1]))
+      continue
+    }
     if (model) {
       const count = Number(model[1]!)
       addSelection(current, model[2]!, count)
@@ -61,6 +85,7 @@ export function fromNewRecruitText(input: string): TextRoster | null {
     }
     const nested = trimmed.match(/^(\d+)\s+with\s+(.+)$/i)
     if (nested) addDetails(current, nested[2]!, Number(nested[1]!))
+    else if (trimmed) (current.unread ??= []).push(trimmed)
   }
 
   if (warlord) {
@@ -70,9 +95,10 @@ export function fromNewRecruitText(input: string): TextRoster | null {
 
   const factionName = faction.split(' - ').at(-1)?.trim() || 'Imported roster'
   return {
-    name: total === null ? `${factionName} roster` : `${factionName} ${total}pts`,
+    name: metadata(lines, 'ROSTER NAME') ?? (total === null ? `${factionName} roster` : `${factionName} ${total}pts`),
+    ...(total !== null ? { reportedPoints: total } : {}),
     faction,
-    detachment,
+    detachment: detachment === 'No detachment' ? null : detachment,
     disposition,
     limit,
     units,
@@ -119,3 +145,28 @@ const normalized = (value: string) =>
     .trim()
     .toLocaleLowerCase()
     .replaceAll(/[’‘]/g, "'")
+
+export function toCompactText(roster: GwTextRoster, version: string) {
+  const lines = [
+    '+++++++++++++++++++++++++++++++++++++++++++++++',
+    `+ ROSTER NAME: ${roster.name}`,
+    `+ FACTION KEYWORD: ${roster.faction}`,
+    `+ DETACHMENT: ${roster.detachments.map((detachment) => detachment.name).join(' and ') || 'No detachment'}`,
+    ...(roster.dispositions.length ? [`+ FORCE DISPOSITION: ${roster.dispositions.join(', ')}`] : []),
+    `+ BATTLE SIZE: ${roster.limit}pts`,
+    `+ TOTAL ARMY POINTS: ${roster.points}pts`,
+    '+++++++++++++++++++++++++++++++++++++++++++++++',
+  ]
+  for (const unit of roster.units) {
+    lines.push('', `${unit.models ?? 1}x ${unit.name} (${unit.points} pts)${unit.warlord ? ': Warlord' : ''}`)
+    for (const item of unit.wargear) lines.push(`• ${item.count}x ${item.name}`)
+    for (const enhancement of [...unit.enhancements, ...unit.upgrades]) lines.push(`Enhancement: ${enhancement}`)
+    for (const relation of unit.joined) {
+      if (relation.label === 'Leading' || relation.label === 'Supporting') lines.push(`Leading ${relation.name}`)
+    }
+    if (unit.entry !== undefined) lines.push(`Roster entry: ${unit.entry}`)
+    if (unit.attachedToEntry !== undefined) lines.push(`Attached to entry: ${unit.attachedToEntry}`)
+  }
+  lines.push('', `Exported with Praetorium.gg v${version}`, '')
+  return lines.join('\n')
+}

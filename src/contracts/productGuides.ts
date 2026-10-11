@@ -229,7 +229,7 @@ export const PRODUCT_GUIDES = [
       {
         question: 'Why can points differ from my original export?',
         answer:
-          'Imported choices are rebuilt and priced against Praetorium’s current catalogue. A source update or an unmatched option can change the total. Review the import messages and the saved loadouts.',
+          'The review shows the original reported points separately from the matched entries priced under the selected rules. A source update or an unmatched option can change the total. Review the import messages and the saved loadouts.',
       },
       {
         question: 'Does the importer silently drop unknown units?',
@@ -239,9 +239,9 @@ export const PRODUCT_GUIDES = [
     example: {
       title: 'Copy an Immortals list into a second roster',
       steps: [
-        'Create a Necrons roster with Awakened Dynasty and add one Immortals unit. In Roster actions, choose Export GW text and copy the complete export.',
+        'Create a Necrons roster with Awakened Dynasty and add one Immortals unit. In Roster actions, choose Export text and copy the complete export.',
         'Return to Rosters, choose Import roster and paste that export into Roster text. Keep the title, faction, detachment, battle size and equipment lines together.',
-        'Choose Import pasted roster, then open the saved list and check that it contains one Immortals unit. Compare its model count and equipment with the original; do not judge a successful import by its title alone.',
+        'Choose Import pasted roster, review the matched entries and points, then choose Import roster. Open the saved list and check that it contains one Immortals unit. Compare its model count and equipment with the original; do not judge a successful import by its title alone.',
       ],
       image: '/guides/import-a-roster-63c1fccd.png',
       imageAlt: 'The Import roster dialog containing a complete Games Workshop text export for an Immortals example list.',

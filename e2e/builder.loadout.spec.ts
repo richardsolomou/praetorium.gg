@@ -403,8 +403,8 @@ test('changing detachments clears enhancements unless another detachment is adde
   await expect(card).toContainText('Mark of the Nekrosor')
 
   await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export GW text' }).click()
-  const exported = page.getByRole('dialog', { name: 'Games Workshop text' })
+  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  const exported = page.getByRole('dialog', { name: 'Export roster' })
   await expect(exported.locator('pre')).toContainText('Force Disposition: Purge the Foe\n')
   await exported.screenshot({ path: 'test-results/selected-disposition-export.png' })
   await exported.getByRole('button', { name: 'Close' }).click()
@@ -1157,8 +1157,8 @@ test('Plague Marine cards and exports omit replaced default wargear', async ({ p
   await shot(card, 'test-results/plague-marines-replaced-wargear.png')
 
   await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export GW text' }).click()
-  const exported = page.getByRole('dialog', { name: 'Games Workshop text' }).locator('pre')
+  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
   await expect(exported).toContainText('4x Plague knives')
   await expect(exported).not.toContainText('Boltgun')
   await shot(exported, 'test-results/plague-marines-replaced-wargear-export.png')

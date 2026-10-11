@@ -97,16 +97,14 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
       return { ...imported, catalogueId: imported.catalogueId, source: imported.source }
     },
     onSuccess: (imported) => {
-      if (!onImport && !imported.unknown.length && !imported.unplaced.length) keep.mutate(imported)
-      else
-        posthog.capture('roster_import_review_required', {
-          missing_count: imported.unknown.length,
-          unplaced_count: imported.unplaced.length,
-        })
+      posthog.capture('roster_import_review_required', {
+        missing_count: imported.unknown.length,
+        unplaced_count: imported.unplaced.length,
+      })
     },
   })
 
-  const review = bring.data && (onImport || bring.data.unknown.length || bring.data.unplaced.length) ? bring.data : null
+  const review = bring.data ?? null
   const working = bring.isPending || keep.isPending
   const failure = bring.error ?? keep.error
 
@@ -141,7 +139,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
             <DialogDescription>
               {review
                 ? 'Review the matched list and any missing choices before continuing.'
-                : 'Paste Games Workshop roster text from Praetorium, BattleBase, or New Recruit.'}
+                : 'Paste a supported army-text export. You will review the entries and points before importing.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -149,8 +147,13 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
             {review ? (
               <div className="space-y-3">
                 <p className="text-sm">
-                  <span className="font-semibold">{review.name}</span> · {review.units.length} matched{' '}
+                  <span className="font-semibold">{review.name}</span> · {review.units.length} of {review.sourceUnitCount} matched{' '}
                   {review.units.length === 1 ? 'entry' : 'entries'}
+                </p>
+                <p className="text-xs text-dim">
+                  Reported army: {review.reportedPoints === null ? 'points not stated' : `${review.reportedPoints} points`}. Matched entries
+                  at selected rules: {review.currentPoints === null ? 'pricing unavailable' : `${review.currentPoints} points`}. Saving uses
+                  the selected rules' prices.
                 </p>
                 {review.unknown.length || review.unplaced.length ? (
                   <p className="text-xs text-dim">
@@ -159,7 +162,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
                 ) : null}
                 <Shortfall
                   title="Will not be imported"
-                  rows={review.unknown.map((entry) => ({ key: entry.name, name: entry.name, lines: [entry.reason] }))}
+                  rows={review.unknown.map((entry, at) => ({ key: `${at}:${entry.name}`, name: entry.name, lines: [entry.reason] }))}
                 />
                 <Shortfall
                   title="Will arrive as their datasheets build them"
@@ -172,12 +175,12 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
                 <Button className="w-full" disabled={working} onClick={() => accept(review)}>
                   {keep.isPending ? (
                     <LoaderCircle className="animate-spin" />
-                  ) : onImport && !review.unknown.length && !review.unplaced.length ? (
+                  ) : !review.unknown.length && !review.unplaced.length ? (
                     <Copy />
                   ) : (
                     <TriangleAlert />
                   )}
-                  {onImport ? 'Open imported draft' : 'Import anyway'}
+                  {onImport ? 'Open imported draft' : review.unknown.length || review.unplaced.length ? 'Import anyway' : 'Import roster'}
                 </Button>
                 {onImport ? (
                   <p className="text-xs text-dim">
