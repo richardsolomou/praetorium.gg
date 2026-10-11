@@ -17,6 +17,7 @@ import {
   playerDefaults,
   signInOptions,
   userProfile,
+  collectionProfile,
 } from '../functions'
 import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
@@ -92,3 +93,6 @@ export const userProfileQuery = (userId: string) =>
   })
 
 export const signInOptionsQuery = () => queryOptions({ queryKey: ['sign-in-options'], queryFn: () => signInOptions(), staleTime: Infinity })
+
+export const collectionProfileQuery = (userId: string) =>
+  queryOptions({ queryKey: ['collection-profile', userId], queryFn: () => collectionProfile({ data: { userId } }) })
