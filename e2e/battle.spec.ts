@@ -541,14 +541,25 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await saved.getByRole('button', { name: 'Use server version' }).click()
   await bob.getByRole('alertdialog').getByRole('button', { name: 'Discard changes', exact: true }).click()
   await expect(bob.getByRole('alertdialog')).toBeHidden()
-  await expect(saved).toBeHidden()
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
   await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
   await expect(
     alice.getByRole('dialog', { name: `${bobName}’s secondary missions` }).getByRole('button', { name: 'Undo latest action' }),
   ).toBeEnabled()
   await takeTheTurn(alice)
-  await expect(alice.getByText(new RegExp(`${aliceName} draws .+ for ${bobName}`)).first()).toBeVisible()
+  await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeHidden()
+  await expect(saved.getByText('All changes have synced.', { exact: true })).toBeVisible()
+  await saved.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(saved).toBeHidden()
+  const bobSecondaryCards = bob
+    .locator('[data-panel="player"]')
+    .filter({ hasText: 'Necrons' })
+    .locator('[data-secondary]')
+    .getByRole('button', { name: /^Read / })
+  await expect(bobSecondaryCards).toHaveCount(2)
+  const selectedForBob = await bobSecondaryCards.allTextContents()
+  await expect(alice.getByText(`${aliceName} selects ${selectedForBob.join(' and ')} for ${bobName}`, { exact: true })).toBeVisible()
+  await expect(alice.getByText(`${aliceName} reviews the drawn missions for ${bobName}`, { exact: true })).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   // Both armies arrive battle ready, so every score carries the bonus the battle paid at the start.
   await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
@@ -560,7 +571,6 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   )
 
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
-  await expect(alice.getByText(/draws /).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
   await alice.setViewportSize({ width: 1100, height: 900 })
   const stackedStratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()

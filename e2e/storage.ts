@@ -1,3 +1,5 @@
+import type { Page } from '@playwright/test'
+import type { LocalState } from '../src/contracts/localState'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -5,6 +7,27 @@ import { spacetimeSqlEndpoint } from '../scripts/lib/spacetimeSqlEndpoint'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { port, root, spacetimePort } from './stackEnv'
 
+export async function savedWork(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<LocalState | null>((resolve, reject) => {
+        const opened = indexedDB.open('praetorium-work')
+        opened.onerror = () => reject(opened.error)
+        opened.onsuccess = () => {
+          const database = opened.result
+          const request = database.transaction('state').objectStore('state').getAll()
+          request.onerror = () => {
+            database.close()
+            reject(request.error)
+          }
+          request.onsuccess = () => {
+            database.close()
+            resolve(request.result.find((entry: { state?: LocalState }) => entry.state)?.state ?? null)
+          }
+        }
+      }),
+  )
+}
 type Value = string | number | boolean | null
 type SqlResult = {
   schema: { elements: { name: { some?: string } }[] }

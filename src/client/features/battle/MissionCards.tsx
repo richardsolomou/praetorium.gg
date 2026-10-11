@@ -98,15 +98,6 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
         const tacticalActive = secondary.status === 'active' && side.secondaryMode === 'tactical'
         return (
           <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
-            <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={secondary.key} />
-            {view.missionChoices?.some(
-              (choice) =>
-                choice.playerId === side.captain.id && choice.cardKey === secondary.key && choice.kind === 'beacon' && choice.canChoose,
-            ) ? (
-              <Button size="xs" variant="outline" disabled={pending} onClick={() => setManualChoice(secondary.key)}>
-                Record Beacon
-              </Button>
-            ) : null}
             <div className="flex items-baseline justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                 <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />
@@ -120,6 +111,15 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
                 </span>
               ) : null}
             </div>
+            <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={secondary.key} />
+            {view.missionChoices?.some(
+              (choice) =>
+                choice.playerId === side.captain.id && choice.cardKey === secondary.key && choice.kind === 'beacon' && choice.canChoose,
+            ) ? (
+              <Button size="xs" variant="ghost" className="text-azure" disabled={pending} onClick={() => setManualChoice(secondary.key)}>
+                Record Beacon
+              </Button>
+            ) : null}
             {tacticalActive ? (
               scoredRounds.length ? (
                 <ScoredRounds rounds={scoredRounds} />
