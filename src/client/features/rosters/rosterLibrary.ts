@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
+import type { RosterTextExport } from './RosterExportDialog'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
 import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../functions'
@@ -27,7 +28,7 @@ export function useRosterActions(origin: string) {
 
   const [shareFeedback, setShareFeedback] = useState<{ id: string; result: 'copied' | 'shared' } | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
-  const [exportText, setExportText] = useState<string | null>(null)
+  const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const load = async (roster: SavedRoster) => {
     const complete = await sharedRoster({ data: { id: roster.id } })
     if (!complete) throw new Error('That roster could not be loaded.')
@@ -70,7 +71,7 @@ export function useRosterActions(origin: string) {
         },
       })
     },
-    onSuccess: ({ text }) => setExportText(text),
+    onSuccess: (exported) => setExportText(exported),
   })
 
   const update = useMutation({

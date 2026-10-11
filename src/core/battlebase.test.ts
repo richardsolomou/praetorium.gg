@@ -52,6 +52,7 @@ describe('BattleBase text import', () => {
   it('reads list setup and units', () => {
     expect(fromBattleBaseText(exportText)).toEqual({
       name: 'CL 1K - Ammentar Destroyer Spearhead',
+      reportedPoints: 990,
       faction: 'Necrons',
       detachment: 'Cursed Legion',
       disposition: 'Purge the Foe',

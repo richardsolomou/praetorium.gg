@@ -33,6 +33,7 @@ describe('NewRecruit text import', () => {
   it('reads list setup and units', () => {
     expect(fromNewRecruitText(exportText)).toEqual({
       name: 'Test Faction 485pts',
+      reportedPoints: 485,
       faction: 'Xenos - Test Faction',
       detachment: 'Test Detachment',
       disposition: 'Purge the Foe',

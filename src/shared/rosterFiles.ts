@@ -4,13 +4,13 @@ import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { nameOf } from '../core/catalogue'
 import type { Selection } from '../core/evaluate'
-import { fromNewRecruitText } from '../core/newRecruit'
+import { fromNewRecruitText, toCompactText } from '../core/newRecruit'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import type { TextRoster, TextRosterUnit } from '../core/textRoster'
-import { toGwText } from '../core/gwText'
+import { toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import { GAME_SIZES } from '../core/battle'
 import { factionDisplayName } from './factionNames'
@@ -28,15 +28,26 @@ import {
 } from './importMismatch'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
-import type { ExportRosterInput, ImportRosterInput } from '../contracts/schemas'
+import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
 import { editionLabel } from '../core/catalogueEdition'
+import { calculateRosterPrice } from './pricing'
+import type { LoadedRules } from './rules'
 
 function parsedImport(file: string) {
+  const newRecruit = fromNewRecruitText(file)
+  if (newRecruit)
+    return { parsed: newRecruit, source: /Exported with Praetorium\.gg/i.test(file) ? ('praetorium' as const) : ('newrecruit' as const) }
   const battleBase = fromBattleBaseText(file)
   if (battleBase)
-    return { parsed: battleBase, source: /Exported with Praetorium\.gg/i.test(file) ? ('praetorium' as const) : ('battlebase' as const) }
-  const newRecruit = fromNewRecruitText(file)
-  return newRecruit ? { parsed: newRecruit, source: 'newrecruit' as const } : null
+    return {
+      parsed: battleBase,
+      source: /Exported with Praetorium\.gg/i.test(file)
+        ? ('praetorium' as const)
+        : /Exported with BattleBase/i.test(file)
+          ? ('battlebase' as const)
+          : ('roster-file' as const),
+    }
+  return null
 }
 
 export function importRosterFaction(file: string) {
@@ -44,7 +55,7 @@ export function importRosterFaction(file: string) {
 }
 
 export function importRosterCatalogueId(file: string) {
-  return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file)?.[1] ?? null
+  return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file.replaceAll('\r', ''))?.[1] ?? null
 }
 
 export function matchesImportFaction(stated: string, name: string) {
@@ -55,18 +66,46 @@ export function importRosterFile(
   data: ImportRosterInput,
   loaded: LoadedCatalogue | null,
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+  rules: LoadedRules | null = null,
 ) {
+  importRosterSchema.parse(data)
   const found = parsedImport(data.file)
-  if (found) return { ...importTextRoster(found.parsed, loaded, factionNames), source: found.source }
+  if (found) {
+    if (found.parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
+    const result = importTextRoster(found.parsed, loaded, factionNames)
+    const currentPoints = result.catalogueId
+      ? (calculateRosterPrice(
+          {
+            catalogueId: result.catalogueId,
+            detachmentIds: result.detachmentIds,
+            disposition: 'disposition' in result ? (result.disposition ?? null) : null,
+            limit: 'limit' in result ? (result.limit ?? 2000) : 2000,
+            units: result.units,
+          },
+          loaded,
+          rules,
+        )?.points ?? null)
+      : null
+    return {
+      ...result,
+      source: found.source,
+      reportedPoints: found.parsed.reportedPoints ?? null,
+      currentPoints,
+      sourceUnitCount: found.parsed.units.length,
+    }
+  }
   return {
     name: 'Imported list',
     catalogueId: null,
     catalogueName: null,
     detachmentIds: [],
     units: [],
-    unknown: [{ name: 'the pasted text', reason: 'it is not an export from Praetorium, BattleBase or New Recruit' }],
+    unknown: [{ name: 'the pasted text', reason: 'it is not a supported army-text export' }],
     unplaced: [],
     source: null,
+    reportedPoints: null,
+    currentPoints: null,
+    sourceUnitCount: 0,
   }
 }
 
@@ -98,37 +137,56 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     detachments.length || !detachmentName
       ? []
       : [{ name: detachmentName, reason: unmatchedDetachmentReason(detachmentName, faction.id, loaded) }]
+  for (const line of parsed.unread ?? []) unknown.push({ name: line, reason: 'this line is not understood by the text importer' })
   const detachmentIds = detachments.map((detachment) => detachment.id)
   const detachmentSelections = rosterDetachments(loaded, faction.id, detachmentIds).selections
   const sourceToImported = new Map<number, number>()
-  const unplaced = new Map<string, Map<string, string>>()
+  const unplaced = new Map<number, Map<string, string>>()
+  const label = (unit: TextRosterUnit, at: number) =>
+    parsed.units.filter((other) => normalized(other.name) === normalized(unit.name)).length > 1
+      ? `${unit.name} (entry ${at + 1})`
+      : unit.name
   const units = parsed.units.flatMap((unit, sourceIndex) => {
     const entryId = [...(loaded.index.datasheets.get(faction.id) ?? [])].find((candidate) => {
       const definition = loaded.index.definitions.get(candidate)
       return definition && normalized(nameOf(definition, loaded.index.definitions)) === normalized(unit.name)
     })
     if (!entryId) {
-      unknown.push({ name: unit.name, reason: unmatchedDatasheetReason(unit.name, faction.id, loaded) })
+      unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded) })
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
     const read = textRosterPick(unit, entryId, faction.id, detachmentIds, detachmentSelections, loaded)
-    if (read.unplaced.length) note(unplaced, unit.name, read.unplaced)
+    if (read.unplaced.length) note(unplaced, sourceIndex, read.unplaced)
     return [read.pick]
   })
 
   attachTextUnits(parsed.units, units, sourceToImported)
-  // Read after the pairing, because who leads whom is settled across the whole list
-  // rather than inside one unit. Only the leader's own line is checked: both exporters
-  // print the attachment from both ends, so reading both would say it twice.
+  // Omitted units shift saved positions, so attachments are resolved after matching.
   const importedNames = new Set([...sourceToImported.keys()].map((source) => normalized(parsed.units[source]!.name)))
   for (const [source, imported] of sourceToImported) {
     const unit = parsed.units[source]!
-    if (!unit.leading || units[imported]?.attachedTo !== undefined) continue
-    note(unplaced, unit.name, [
+    if (units[imported]?.attachedTo !== undefined) continue
+    if (unit.attachedToEntry !== undefined) {
+      note(unplaced, source, [
+        { name: `Attached to entry ${unit.attachedToEntry}`, reason: 'the attachment does not identify exactly one other matched entry' },
+      ])
+      continue
+    }
+    if (!unit.leading) continue
+    note(unplaced, source, [
       { name: `Leading ${unit.leading}`, reason: attachmentReason(unit.leading, importedNames.has(normalized(unit.leading))) },
     ])
   }
+
+  const limit = GAME_SIZES.some((size) => size.limit === parsed.limit) ? parsed.limit : null
+  if (parsed.limit !== null && limit === null)
+    unknown.push({
+      name: `${parsed.limit} point battle size`,
+      reason: 'this battle size is not supported; choose a supported size in setup',
+    })
+  if (parsed.disposition?.includes(','))
+    unknown.push({ name: parsed.disposition, reason: 'more than one force disposition was stated; choose one in setup' })
 
   return {
     name: parsed.name,
@@ -136,18 +194,17 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     catalogueName: faction.name,
     detachmentIds,
     disposition: parsed.disposition && !parsed.disposition.includes(',') ? slug(parsed.disposition) : null,
-    limit: parsed.limit,
+    limit,
     units,
     unknown,
-    unplaced: [...unplaced].map(([unit, choices]) => ({
-      unit,
+    unplaced: [...unplaced].map(([at, choices]) => ({
+      unit: label(parsed.units[at]!, at),
       choices: [...choices].map(([name, reason]) => ({ name, reason })),
     })),
   }
 }
 
-/** One row per unit however many copies of it a list holds: the same gap is one thing to go and fix. */
-function note(found: Map<string, Map<string, string>>, unit: string, choices: readonly UnplacedChoice[]) {
+function note(found: Map<number, Map<string, string>>, unit: number, choices: readonly UnplacedChoice[]) {
   const named = found.get(unit) ?? new Map<string, string>()
   for (const choice of choices) named.set(choice.name, choice.reason)
   found.set(unit, named)
@@ -155,10 +212,17 @@ function note(found: Map<string, Map<string, string>>, unit: string, choices: re
 
 function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?: number }[], imported: ReadonlyMap<number, number>) {
   const importedSources = units.flatMap((_, source) => (imported.has(source) ? [source] : []))
+  for (const source of importedSources) {
+    const unit = units[source]!
+    if (unit.attachedToEntry === undefined) continue
+    const targets = importedSources.filter((candidate) => units[candidate]!.entry === unit.attachedToEntry)
+    const pick = picks[imported.get(source)!]
+    if (targets.length === 1 && targets[0] !== source && pick) pick.attachedTo = imported.get(targets[0]!)
+  }
   const sourceOccurrences = new Map<string, number>()
   for (const source of importedSources) {
     const unit = units[source]!
-    if (!unit.leading) continue
+    if (!unit.leading || unit.attachedToEntry !== undefined) continue
     const sourceName = normalized(unit.name)
     const targetName = normalized(unit.leading)
     const key = `${sourceName}\0${targetName}`
@@ -182,10 +246,12 @@ function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?:
     targetOccurrences.set(key, occurrence + 1)
     const named = importedSources.filter((candidate) => normalized(units[candidate]!.name) === sourceName)
     const confirmed = named.filter((candidate) => normalized(units[candidate]!.leading ?? '') === targetName)
-    const source = imported.get(confirmed[occurrence] ?? named[occurrence] ?? -1)
+    const sourceAt = confirmed[occurrence] ?? named[occurrence] ?? -1
+    const source = imported.get(sourceAt)
     const pick = picks[source ?? -1]
     const host = imported.get(target)
-    if (pick && pick.attachedTo === undefined && host !== undefined) pick.attachedTo = host
+    if (pick && units[sourceAt]?.attachedToEntry === undefined && pick.attachedTo === undefined && host !== undefined)
+      pick.attachedTo = host
   }
 }
 
@@ -271,11 +337,12 @@ function textRosterPick(
       name: labels.get(name) ?? name,
       reason: unplacedChoiceReason(labels.get(name) ?? name, { loaded, catalogueId, detachmentIds }),
     }))
+  for (const line of unit.unread ?? []) unplaced.push({ name: line, reason: 'this line is not understood by the text importer' })
   // A crown this datasheet cannot wear, and a squad size it does not field, are both
   // choices the list states and this build could not take. Only a stated size counts:
   // an export that prints no model count leaves one to be inferred from its weapons.
   if (unit.warlord && !Object.keys(toggles).length) unplaced.push({ name: 'Warlord', reason: WARLORD_REASON })
-  if (unit.models && built && built.size.models !== unit.models) {
+  if (unit.models !== undefined && unit.models !== null && built && built.size.models !== unit.models) {
     unplaced.push({ name: `${unit.models} models`, reason: squadSizeReason(built.size) })
   }
   return { pick, unplaced }
@@ -356,6 +423,7 @@ export function exportRosterFile(
     detachments: { name: string; points: number | null }[]
     units: {
       key: number
+      size: { models: number }
       name: string
       points: number
       group: UnitGroup
@@ -370,28 +438,30 @@ export function exportRosterFile(
   const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
   const keyedPicks = data.units.map((pick, key) => ({ ...pick, key }))
   const unitsByPick = data.units.map((_, index) => priced.units.find((unit) => unit.key === index))
+  const roster: GwTextRoster = {
+    name: data.name,
+    faction: factionDisplayName(faction),
+    detachments: priced.detachments,
+    dispositions: dispositionNames,
+    size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
+    limit: data.limit,
+    points: priced.points,
+    units: priced.units.map((unit) => ({
+      ...unit,
+      models: unit.size.models,
+      entry: unit.key + 1,
+      attachedToEntry: data.units[unit.key]?.attachedTo !== undefined ? data.units[unit.key]!.attachedTo! + 1 : undefined,
+      group: exportGroup(unit.group),
+      warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+      joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
+    })),
+  }
+  const metadata = (loaded.edition ? `\nCodex: ${editionLabel(loaded.edition)}` : '') + `\nRuleset: ${data.catalogueId}\n`
   return {
-    text:
-      toGwText(
-        {
-          name: data.name,
-          faction: factionDisplayName(faction),
-          detachments: priced.detachments,
-          dispositions: dispositionNames,
-          size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
-          limit: data.limit,
-          points: priced.points,
-          units: priced.units.map((unit) => ({
-            ...unit,
-            group: exportGroup(unit.group),
-            warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
-            joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
-          })),
-        },
-        version,
-      ) +
-      (loaded.edition ? `\nCodex: ${editionLabel(loaded.edition)}` : '') +
-      `\nRuleset: ${data.catalogueId}\n`,
+    text: toGwText(roster, version) + metadata,
+    compactText: toCompactText(roster, version) + metadata,
+    name: data.name,
+    omittedUnitCount: data.units.length - priced.units.length,
   }
 }
 
