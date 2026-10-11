@@ -81,12 +81,29 @@ export function mfmDetachmentFor(loaded: LoadedCatalogue, catalogueId: string, n
     ? mfmDetachment(loaded.mfm, routeSlug(factionDisplayName(faction.name)), name, faction.name.includes('Adeptus Astartes'))
     : null
 }
-function copyRange(range: string, copy: number) {
+function copyBounds(range: string) {
   const match = /^\[(\d+),(\d*)\)$|^\[(\d+),(\d+)\]$/.exec(range)
-  if (!match) return false
+  if (!match) return null
   const from = Number(match[1] ?? match[3])
   const to = match[2] ? Number(match[2]) : match[4] ? Number(match[4]) : Number.POSITIVE_INFINITY
-  return copy >= from && copy <= to
+  return { from, to }
+}
+function copyRange(range: string, copy: number) {
+  const bounds = copyBounds(range)
+  return bounds !== null && copy >= bounds.from && copy <= bounds.to
+}
+function ordinal(value: number) {
+  const remainder = value % 100
+  const suffix = remainder >= 11 && remainder <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][value % 10] ?? 'th')
+  return `${value}${suffix}`
+}
+export function mfmCopyLabel(range: string) {
+  const bounds = copyBounds(range)
+  if (!bounds) return range
+  if (!Number.isFinite(bounds.to)) return `Your ${ordinal(bounds.from)} + Unit Costs`
+  return bounds.from === bounds.to
+    ? `Your ${ordinal(bounds.from)} Unit Costs`
+    : `Your ${ordinal(bounds.from)} To ${ordinal(bounds.to)} Units Cost`
 }
 export function mfmPrice(unit: MfmUnit, models: number, copy: number): number | null {
   const tiers = unit.pricing.filter((tier) => copyRange(tier.range, copy))
@@ -108,7 +125,7 @@ export function mfmCostRows(unit: MfmUnit) {
         keyword: null,
         faction: null,
         detachment: null,
-        ...(tier.range === '[1,)' ? {} : { copies: tier.label ?? tier.range }),
+        ...(tier.range === '[1,)' ? {} : { copies: tier.label ?? mfmCopyLabel(tier.range) }),
       })),
   )
 }

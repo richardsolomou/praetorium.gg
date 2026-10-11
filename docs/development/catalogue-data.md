@@ -114,7 +114,7 @@ Startup prepares canonical reference records only for each edition's advertised 
 | Wargear prices                                                      | MFM only for matching executable options or source-backed pieces; remaining costs stay evaluated |
 | Terrain geometry                                                    | Pinned Battlemaster detail and lite objectives; source-pinned label corrections                  |
 
-Do not treat one source as globally authoritative. Replacement profile/ability joins must be unambiguous and preserve selected equipment/context. Conditional price rows require their actual model count and requisition context. Conflicts, missing joins, unsupported labels, and fallbacks remain visible in provenance and `issues`; unknown semantic mappings require a reviewed mapping and test.
+Do not treat one source as globally authoritative. Replacement profile/ability joins must be unambiguous and preserve selected equipment/context. Conditional price rows require their actual model count and requisition context. Reference copy tiers retain source labels; unlabeled ranges follow the existing MFM wording, such as “Your 1st To 3rd Units Cost” and “Your 4th + Unit Costs”. Apply the same fallback when reading packaged canonical records, without rebuilding the catalogue for a label correction. Check sibling reference pages before choosing fallback wording for source omissions. Conflicts, missing joins, unsupported labels, and fallbacks remain visible in provenance and `issues`; unknown semantic mappings require a reviewed mapping and test.
 
 ```sh
 pnpm catalogue:compile

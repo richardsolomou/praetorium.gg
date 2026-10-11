@@ -22,7 +22,7 @@ import { detachmentReference } from '../shared/detachmentReference'
 import { factionsFor } from '../shared/factionReferences'
 import { factionContentOf, factionDisplayName } from '../shared/factionNames'
 import { loadRules, type LoadedRules } from './rules'
-import { mfmAttribution, mfmCostRows } from './mfm'
+import { mfmAttribution, mfmCopyLabel, mfmCostRows } from './mfm'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
@@ -108,7 +108,7 @@ const canonicalDatasheetSchema = z.object({
       keyword: z.string().nullable(),
       faction: z.string().nullable(),
       detachment: z.string().nullable(),
-      copies: z.string().optional(),
+      copies: z.string().transform(mfmCopyLabel).optional(),
     }),
   ),
   attachments: z.array(relationshipSchema),

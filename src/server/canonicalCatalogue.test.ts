@@ -75,7 +75,7 @@ describe('canonical catalogue', () => {
               name: 'Squad',
               pricing: [
                 { range: '[1,2]', label: 'Your 1st To 2nd Units Cost', costs: [{ models: 1, points: 90 }] },
-                { range: '[3,)', label: 'Your 3rd + Unit Costs', costs: [{ models: 1, points: 105 }] },
+                { range: '[3,)', costs: [{ models: 1, points: 105 }] },
               ],
             },
           ],
@@ -400,8 +400,18 @@ describe('canonical catalogue', () => {
   })
 
   it.each([
-    { scenario: 'uses a current local projection', localRevision: 'definitions-revision', compilerVersion: 3, expected: 101 },
-    { scenario: 'ignores a local projection from another snapshot', localRevision: 'older-revision', compilerVersion: 3, expected: 100 },
+    {
+      scenario: 'uses a current local projection',
+      localRevision: 'definitions-revision',
+      compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
+      expected: 101,
+    },
+    {
+      scenario: 'ignores a local projection from another snapshot',
+      localRevision: 'older-revision',
+      compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
+      expected: 100,
+    },
     {
       scenario: 'ignores a local projection from an older compiler',
       localRevision: 'definitions-revision',
@@ -440,6 +450,28 @@ describe('canonical catalogue', () => {
     }
   })
 
+  it.each(['[1,3]', 'Your 1st To 3rd Units Cost'])('labels a packaged copy tier %s without recompiling its sources', (copies) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-copy-label-'))
+    try {
+      const packaged = compileCanonicalCatalogue(catalogue(), revisions)
+      packaged.datasheets[0]!.costs = [{ models: '1', cost: '70', keyword: null, faction: null, detachment: null, copies }]
+      fs.mkdirSync(path.join(root, 'canonical'))
+      fs.writeFileSync(path.join(root, 'canonical', 'catalogue.json'), JSON.stringify(packaged))
+      vi.stubEnv('PRAETORIUM_LOCAL_DEV', 'false')
+
+      expect(
+        referenceCatalogue(
+          root,
+          () => null,
+          () => null,
+        )?.datasheets[0]?.costs[0]?.copies,
+      ).toBe('Your 1st To 3rd Units Cost')
+    } finally {
+      vi.unstubAllEnvs()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('recompiles an older packaged catalogue that names a retired source from its verified sources in production', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-compiler-'))
     try {
@@ -469,7 +501,7 @@ describe('canonical catalogue', () => {
         () => null,
       )
       expect({ compilerVersion: result?.compilerVersion, points: result?.datasheets[0]?.points }).toEqual({
-        compilerVersion: 3,
+        compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
         points: 100,
       })
     } finally {
