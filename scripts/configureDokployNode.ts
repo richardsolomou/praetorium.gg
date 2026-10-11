@@ -92,6 +92,41 @@ type Domain = {
   enabled: boolean
 }
 
+export async function ensureWebHealthCheck(origin: URL, headers: Record<string, string>, applicationId: string, request = fetch) {
+  const healthCheckSwarm = {
+    Test: [
+      'CMD',
+      'node',
+      '-e',
+      "fetch('http://127.0.0.1:3000/api/health',{signal:AbortSignal.timeout(5000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+    ],
+    Interval: 10_000_000_000,
+    Timeout: 10_000_000_000,
+    StartPeriod: 360_000_000_000,
+    Retries: 3,
+  }
+  const response = await request(new URL('/api/application.update', origin), {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ applicationId, healthCheckSwarm }),
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!response.ok) throw new Error(`Dokploy health check save failed with HTTP ${response.status}`)
+  const url = new URL('/api/application.one', origin)
+  url.searchParams.set('applicationId', applicationId)
+  const readback = await request(url, { headers, signal: AbortSignal.timeout(30_000) })
+  if (!readback.ok) throw new Error(`Dokploy health check read failed with HTTP ${readback.status}`)
+  const saved = (await readback.json()) as { applicationId: string; healthCheckSwarm: typeof healthCheckSwarm | null }
+  if (
+    saved.applicationId !== applicationId ||
+    !saved.healthCheckSwarm ||
+    Object.entries(healthCheckSwarm).some(
+      ([key, value]) => JSON.stringify(saved.healthCheckSwarm![key as keyof typeof healthCheckSwarm]) !== JSON.stringify(value),
+    )
+  )
+    throw new Error('Dokploy health check did not persist')
+}
+
 export async function ensureWebDomain(origin: URL, headers: Record<string, string>, applicationId: string, host: string, request = fetch) {
   const list = async () => {
     const url = new URL('/api/domain.byApplicationId', origin)
@@ -237,6 +272,7 @@ async function run() {
   })
   if (!response.ok) throw new Error(`Dokploy environment save failed with HTTP ${response.status}`)
   if ((await inspect()).env !== env) throw new Error('Dokploy environment did not persist')
+  await ensureWebHealthCheck(origin, headers, applicationId)
   await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
   console.log(`Configured ${target} web environment`)
 }
