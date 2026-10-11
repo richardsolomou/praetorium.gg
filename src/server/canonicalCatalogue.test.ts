@@ -415,7 +415,7 @@ describe('canonical catalogue', () => {
     {
       scenario: 'ignores a local projection from an older compiler',
       localRevision: 'definitions-revision',
-      compilerVersion: 3,
+      compilerVersion: 2,
       expected: 100,
     },
   ])('$scenario', ({ localRevision, compilerVersion, expected }) => {
@@ -444,6 +444,28 @@ describe('canonical catalogue', () => {
           () => null,
         )?.datasheets[0]?.points,
       ).toBe(expected)
+    } finally {
+      vi.unstubAllEnvs()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['[1,3]', 'Your 1st To 3rd Units Cost'])('labels a packaged copy tier %s without recompiling its sources', (copies) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-copy-label-'))
+    try {
+      const packaged = compileCanonicalCatalogue(catalogue(), revisions)
+      packaged.datasheets[0]!.costs = [{ models: '1', cost: '70', keyword: null, faction: null, detachment: null, copies }]
+      fs.mkdirSync(path.join(root, 'canonical'))
+      fs.writeFileSync(path.join(root, 'canonical', 'catalogue.json'), JSON.stringify(packaged))
+      vi.stubEnv('PRAETORIUM_LOCAL_DEV', 'false')
+
+      expect(
+        referenceCatalogue(
+          root,
+          () => null,
+          () => null,
+        )?.datasheets[0]?.costs[0]?.copies,
+      ).toBe('Your 1st To 3rd Units Cost')
     } finally {
       vi.unstubAllEnvs()
       fs.rmSync(root, { recursive: true, force: true })

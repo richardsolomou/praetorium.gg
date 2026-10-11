@@ -97,7 +97,7 @@ function ordinal(value: number) {
   const suffix = remainder >= 11 && remainder <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][value % 10] ?? 'th')
   return `${value}${suffix}`
 }
-function copyLabel(range: string) {
+export function mfmCopyLabel(range: string) {
   const bounds = copyBounds(range)
   if (!bounds) return range
   if (!Number.isFinite(bounds.to)) return `Your ${ordinal(bounds.from)} + Unit Costs`
@@ -125,7 +125,7 @@ export function mfmCostRows(unit: MfmUnit) {
         keyword: null,
         faction: null,
         detachment: null,
-        ...(tier.range === '[1,)' ? {} : { copies: tier.label ?? copyLabel(tier.range) }),
+        ...(tier.range === '[1,)' ? {} : { copies: tier.label ?? mfmCopyLabel(tier.range) }),
       })),
   )
 }
