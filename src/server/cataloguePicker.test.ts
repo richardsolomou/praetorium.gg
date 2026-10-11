@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from '../shared/catalogue'
+import { pickerUnitsFor } from '../shared/pickerUnits'
 import { groupOfEntry, unitsIn } from '../shared/cataloguePicker'
 import { ability, bookOf, categories, offered, points, shelfOf, withCards } from './catalogue.fixtures'
 
@@ -845,5 +846,74 @@ describe('the picker', () => {
       { library: true, sharedSelectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: points(70) }] },
     )
     expect(shelf.factions.map((faction) => faction.id)).toEqual(['cat'])
+  })
+})
+
+describe('picker attachment facts', () => {
+  const loaded = bookOf({
+    categoryEntries: [{ id: 'command', name: 'Command Squad' }],
+    selectionEntries: [
+      {
+        id: 'leader',
+        name: 'Captain',
+        type: 'unit',
+        categoryLinks: [{ id: 'command-link', targetId: 'command' }],
+        profiles: [
+          {
+            id: 'leader-rule',
+            name: 'Leader',
+            typeName: 'Abilities',
+            characteristics: [{ name: 'Description', $text: 'This model can be attached to the following unit:\n- Bodyguard' }],
+          },
+        ],
+      },
+      {
+        id: 'host',
+        name: 'Bodyguard',
+        type: 'unit',
+        constraints: [{ id: 'leaders', childName: 'Leader', type: 'max', field: 'associations', scope: 'self', value: 2 }],
+      },
+    ],
+  })
+
+  it('projects supported leader eligibility from the selected catalogue source', () => {
+    expect(pickerUnitsFor(loaded, null, 'cat', '').find((unit) => unit.id === 'leader')?.attachment).toEqual({
+      kind: 'leader',
+      targets: ['Bodyguard'],
+    })
+  })
+  it('projects the bodyguard’s source-defined leader capacity', () => {
+    expect(pickerUnitsFor(loaded, null, 'cat', '').find((unit) => unit.id === 'host')?.attachmentLimits?.leader).toBe(2)
+  })
+  it('retains the source category used by shared attachment caps', () => {
+    expect(pickerUnitsFor(loaded, null, 'cat', '').find((unit) => unit.id === 'leader')?.attachmentCategories).toContain('id:command')
+  })
+  it('does not invent eligibility when the source supplies none', () => {
+    expect(pickerUnitsFor(loaded, null, 'cat', '').find((unit) => unit.id === 'host')?.attachment).toBeNull()
+  })
+})
+
+it('discovers a leader whose supported relationship exists only as a source association', () => {
+  const loaded = bookOf({
+    selectionEntries: [
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'unit',
+        associations: [
+          {
+            name: 'Leading',
+            action: 'group',
+            childId: 'unit',
+            conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'host' }],
+          },
+        ],
+      },
+      { id: 'host', name: 'Bodyguard', type: 'unit' },
+    ],
+  })
+  expect(pickerUnitsFor(loaded, null, 'cat', '').find((unit) => unit.id === 'captain')?.attachment).toEqual({
+    kind: 'leader',
+    targets: ['Bodyguard'],
   })
 })

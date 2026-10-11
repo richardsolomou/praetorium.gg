@@ -853,6 +853,10 @@ export function ListBuilder({
         {limitFailure}
         <div className="min-h-0 flex-1">
           <Picker
+            key={`${catalogueId}:${detachmentIds.join(',')}:${limit}`}
+            picks={picks}
+            rosterUnits={units}
+            disposition={priceFailed ? null : (priced?.disposition ?? null)}
             enabled={pickerEnabled}
             catalogueId={catalogueId}
             onAdd={add}

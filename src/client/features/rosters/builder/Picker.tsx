@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { EllipsisVertical, Heart, ListFilter, Plus } from 'lucide-react'
-import { Fragment, memo, useCallback, useMemo } from 'react'
+import { Fragment, memo, useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -16,6 +16,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { FormatRuleId } from '../../../../core/battle'
 import { enforces, formatRules } from '../../../../core/battle'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { pickerRelationships } from '../../../../core/pickerRelationships'
+import type { AttachableUnit } from '../../../../core/attachmentOptions'
+import type { KeyedPick } from '../rosterPicks'
 import type { UnitSummary } from '../../../../contracts/catalogue'
 import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
@@ -24,6 +28,7 @@ import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
 import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
+import { MissionGuidance } from './MissionGuidance'
 import { Section } from './Section'
 import { canAddCopy, unitLimitMessage } from './usePicks'
 
@@ -32,10 +37,13 @@ type Props = {
   catalogueId: string
   onAdd: (entryId: string) => void
   onPreview: (entryId: string, name: string) => void
+  picks: readonly KeyedPick[]
+  rosterUnits: readonly (AttachableUnit | undefined)[]
   inRoster: Record<string, number>
   limits: ReadonlyMap<string, number | null>
   controlsDisabled: boolean
   room: number | null
+  disposition: string | null
   battleSize: number
   /** Which of the battle size's restrictions the roster has switched off. */
   waivedRules: readonly FormatRuleId[]
@@ -67,10 +75,13 @@ export const Picker = memo(function Picker({
   catalogueId,
   onAdd,
   onPreview,
+  picks,
+  rosterUnits,
   inRoster,
   limits,
   controlsDisabled,
   room,
+  disposition,
   battleSize,
   waivedRules,
   onWaiveToggle,
@@ -88,7 +99,25 @@ export const Picker = memo(function Picker({
   const { data: me } = useQuery(meQuery())
   const signedIn = Boolean(me)
   const collectionResult = useQuery({ ...collectionQuery(), enabled: enabled && signedIn })
-  const found = useMemo(() => searchDatasheetEntries(unitsResult.data ?? [], query, (unit) => unit.search), [unitsResult.data, query])
+  const [relationship, setRelationship] = useState('all')
+  const relationshipChoices = picks.flatMap((pick, index) => {
+    const unit = rosterUnits[index]
+    return unit
+      ? [
+          { value: `leaders:${pick.key}`, label: `Leaders for ${unit.name} (${index + 1})` },
+          ...(unit.attachment?.kind === 'leader'
+            ? [{ value: `bodyguards:${pick.key}`, label: `Bodyguards for ${unit.name} (${index + 1})` }]
+            : []),
+        ]
+      : []
+  })
+  const chosenRelationship = relationshipChoices.some((choice) => choice.value === relationship) ? relationship : 'all'
+  const related = useMemo(() => {
+    if (chosenRelationship === 'all') return unitsResult.data ?? []
+    const [kind, key] = chosenRelationship.split(':')
+    return pickerRelationships(unitsResult.data ?? [], picks, rosterUnits, { kind: kind as 'leaders' | 'bodyguards', key: Number(key) })
+  }, [chosenRelationship, unitsResult.data, picks, rosterUnits])
+  const found = useMemo(() => searchDatasheetEntries(related, query, (unit) => unit.search), [related, query])
   const owned = collectionResult.data
   const own = useCollectionMutation()
   const { mutate: mutateCollection } = own
@@ -126,6 +155,27 @@ export const Picker = memo(function Picker({
           maxLength={80}
           inputClassName="h-9"
         />
+        {relationshipChoices.length ? (
+          <Select value={chosenRelationship} onValueChange={(value) => setRelationship(value ?? 'all')}>
+            <SelectTrigger aria-label="Unit relationships" className="h-11 w-full min-w-0 text-xs">
+              <SelectValue>
+                {chosenRelationship === 'all'
+                  ? 'All units'
+                  : relationshipChoices.find((choice) => choice.value === chosenRelationship)?.label}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="min-h-11">
+                All units
+              </SelectItem>
+              {relationshipChoices.map((choice) => (
+                <SelectItem key={choice.value} value={choice.value} className="min-h-11 text-xs">
+                  {choice.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
         <div className="flex flex-wrap items-center gap-1.5">
           <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
           {FILTERS.filter((filter) => signedIn || filter.id !== 'owned').map((filter) => (
@@ -192,6 +242,7 @@ export const Picker = memo(function Picker({
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">
+        <MissionGuidance disposition={disposition} />
         {unitsResult.isPending || (signedIn && collectionResult.isPending) ? (
           <PickerSkeleton />
         ) : unitsResult.isError ? (
@@ -213,6 +264,13 @@ export const Picker = memo(function Picker({
                         key={unit.id}
                         unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
                         limitMessage={unitLimitMessage(unit.id, held, limits)}
+                        budgetMessage={
+                          room !== null && unit.points !== null && unit.points > room
+                            ? `${unit.points - room} pts over the remaining budget at base cost.`
+                            : null
+                        }
+                        relationship={'relationship' in unit ? String(unit.relationship) : null}
+                        attachmentReason={'attachmentReason' in unit ? (unit.attachmentReason as string | null) : null}
                         held={held}
                         full={full}
                         controlsDisabled={controlsDisabled}
@@ -231,7 +289,13 @@ export const Picker = memo(function Picker({
           })
         ) : (
           <p className="py-3 text-xs text-faint">
-            {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'No units available.'}
+            {found?.length
+              ? 'Everything is filtered out.'
+              : chosenRelationship !== 'all'
+                ? 'No matching relationships in this rules version.'
+                : query
+                  ? 'No matching units.'
+                  : 'No units available.'}
           </p>
         )}
       </ScrollArea>
@@ -267,6 +331,9 @@ type PickerRowProps = {
   collectionPending: boolean
   query: string
   limitMessage: string | null
+  budgetMessage: string | null
+  relationship: string | null
+  attachmentReason: string | null
   onPreview: (entryId: string, name: string) => void
   onOwned?: (entryId: string, owned: boolean) => void
   onAdd: (entryId: string) => void
@@ -281,6 +348,9 @@ const PickerRow = memo(function PickerRow({
   collectionPending,
   query,
   limitMessage,
+  budgetMessage,
+  relationship,
+  attachmentReason,
   onPreview,
   onOwned,
   onAdd,
@@ -300,6 +370,14 @@ const PickerRow = memo(function PickerRow({
         <span className="min-w-0 flex-1">
           <span className="block text-sm leading-tight font-semibold tracking-wide uppercase">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
+          {relationship ? <span className="mt-1 block text-2xs font-normal normal-case text-dim">{relationship}</span> : null}
+          {attachmentReason ? (
+            <span className="mt-1 block text-2xs font-normal normal-case text-discarded">
+              {attachmentReason}
+              {full ? '' : ' Can be added separately.'}
+            </span>
+          ) : null}
+          {budgetMessage ? <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{budgetMessage}</span> : null}
           {limitMessage ? <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{limitMessage}</span> : null}
           {held ? (
             <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
