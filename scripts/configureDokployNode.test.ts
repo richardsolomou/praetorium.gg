@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { configureWebAssetRoute, ensureWebDomain, nodeEnvironment } from './configureDokployNode'
+import { configureWebAssetRoute, ensureWebDomain, ensureWebHealthCheck, nodeEnvironment } from './configureDokployNode'
 
 const environment = {
   AUTH_SECRET: 's'.repeat(64),
@@ -14,6 +14,49 @@ const environment = {
   ASSETS_R2_ACCESS_KEY_ID: 'assets-id',
   ASSETS_R2_SECRET_ACCESS_KEY: 'assets-secret',
 }
+
+it('gives a cold catalogue six minutes to become ready without disabling health checks', async () => {
+  let saved: unknown
+  const request: typeof fetch = async (_url, options) => {
+    if (options?.method === 'POST') {
+      saved = JSON.parse(options.body as string)
+      return Response.json(true)
+    }
+    return Response.json(saved)
+  }
+  await ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)
+  expect(saved).toEqual({
+    applicationId: 'web-id',
+    healthCheckSwarm: {
+      Test: [
+        'CMD',
+        'node',
+        '-e',
+        "fetch('http://127.0.0.1:3000/api/health',{signal:AbortSignal.timeout(5000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+      ],
+      Interval: 10_000_000_000,
+      Timeout: 10_000_000_000,
+      StartPeriod: 360_000_000_000,
+      Retries: 3,
+    },
+  })
+})
+
+it('rejects a health check update that Dokploy does not save', async () => {
+  const request: typeof fetch = async (_url, options) =>
+    options?.method === 'POST' ? Response.json(true) : Response.json({ applicationId: 'web-id', healthCheckSwarm: null })
+  await expect(ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)).rejects.toThrow(
+    'Dokploy health check did not persist',
+  )
+})
+
+it('stops configuration when Dokploy rejects the health check', async () => {
+  const request = vi.fn(async () => new Response(null, { status: 500 })) as typeof fetch
+  await expect(ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)).rejects.toThrow(
+    'Dokploy health check save failed with HTTP 500',
+  )
+  expect(request).toHaveBeenCalledTimes(1)
+})
 
 it('pins the staging database and audience together', () => {
   const config = nodeEnvironment(environment, 'staging')
