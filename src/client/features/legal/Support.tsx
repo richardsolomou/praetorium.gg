@@ -1,8 +1,11 @@
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
+import { SupportReports } from '../support/SupportReports'
+import type { SupportDraft } from '../../../core/supportReport'
 
-export function Support() {
+export function Support({ page }: { page: SupportDraft['page'] }) {
   return (
-    <LegalPage title="Support" updated="31 August 2026">
+    <LegalPage title="Support" updated="11 October 2026">
+      <SupportReports page={page} />
       <LegalSection title="Get help">
         <p>
           Report a product problem in the{' '}

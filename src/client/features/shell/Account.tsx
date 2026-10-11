@@ -1,7 +1,8 @@
 import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { supportPageForPath } from '../../../core/supportReport'
 import { CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -60,6 +61,7 @@ function useAccountControls() {
 }
 
 function AccountMenuItems() {
+  const path = useLocation({ select: (location) => location.pathname })
   const { me, onboarding, signOut } = useAccountControls()
   const onboardingResolved = onboarding ? resolvedOnboardingTasks(onboarding).size : 0
   const showOnboarding = onboarding && !onboardingComplete(onboarding)
@@ -110,16 +112,7 @@ function AccountMenuItems() {
               <ShieldCheck /> Admin
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem
-            render={
-              <a
-                href="https://github.com/richardsolomou/praetorium.gg/issues"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Send feedback"
-              />
-            }
-          >
+          <DropdownMenuItem render={<Link to="/support" search={{ page: supportPageForPath(path) }} />}>
             <MessageSquareWarning /> Send feedback
           </DropdownMenuItem>
           <DropdownMenuSeparator />

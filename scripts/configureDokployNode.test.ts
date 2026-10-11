@@ -78,6 +78,16 @@ it('keeps private backup credentials only in production', () => {
 const github = { GITHUB_CLIENT_ID: 'github-id', GITHUB_CLIENT_SECRET: 'github-secret', GITHUB_SPONSORS_TOKEN: 'sponsors-token' }
 const apple = { APPLE_CLIENT_ID: 'apple', APPLE_TEAM_ID: 'team', APPLE_KEY_ID: 'key', APPLE_PRIVATE_KEY: 'private' }
 
+it('passes the dedicated support credential only to production', () => {
+  expect(nodeEnvironment({ ...environment, ...apple, SUPPORT_GITHUB_TOKEN: 'support-service' }, 'production')).toContain(
+    'SUPPORT_GITHUB_TOKEN=support-service',
+  )
+})
+
+it('keeps the support credential out of staging', () => {
+  expect(nodeEnvironment({ ...environment, SUPPORT_GITHUB_TOKEN: 'support-service' }, 'staging')).not.toContain('SUPPORT_GITHUB_TOKEN=')
+})
+
 it('passes GitHub sponsor linking to production', () => {
   expect(nodeEnvironment({ ...environment, ...apple, ...github }, 'production')).toContain(
     'GITHUB_CLIENT_ID=github-id\nGITHUB_CLIENT_SECRET=github-secret\nGITHUB_SPONSORS_TOKEN=sponsors-token',
