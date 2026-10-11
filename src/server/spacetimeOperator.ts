@@ -1,6 +1,7 @@
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import type { SupportStoreCommand } from '../core/supportReport'
 import { z } from 'zod'
+import { collectionProfileSchema } from '../contracts/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
@@ -526,6 +527,17 @@ export class SpacetimeOperator {
 
   async deleteRoster(id: string, userId: string) {
     await this.call('delete_roster', [id, userId])
+  }
+
+  async collectionProfile(userId: string, viewerId: string | null) {
+    return collectionProfileSchema.parse(
+      await this.read('collection_profile', [userId, viewerId === null ? { none: [] } : { some: viewerId }]),
+    )
+  }
+
+  async setCollectionPublished(userId: string, published: boolean) {
+    const response = await this.call('set_collection_published', [userId, published])
+    return z.boolean().parse(await response.json())
   }
 
   async collectionByUser(userId: string) {

@@ -1,3 +1,4 @@
+import { collectionDatasheets } from '../../../core/collection'
 import { useQuery } from '@tanstack/react-query'
 import { Boxes, Plus, Swords, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -30,14 +31,12 @@ export function CollectionPage() {
   const [allSuggestions, setAllSuggestions] = useState(false)
   if (!me) return <SignInRequired title="Your collection" explanation="Sign in to keep track of the models you own." next="/collection" />
 
-  // A datasheet several factions share is listed once, under the first faction that offers it.
-  const datasheets = new Map<string, Datasheet>()
-  for (const faction of units.data ?? []) {
-    const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
-    for (const unit of faction.units)
-      if (!datasheets.has(unit.id))
-        datasheets.set(unit.id, { ...unit, catalogueId: faction.catalogueId, faction: faction.name, presentation })
-  }
+  const datasheets = new Map<string, Datasheet>(
+    [...collectionDatasheets(units.data ?? [])].map(([id, sheet]) => [
+      id,
+      { ...sheet, presentation: factions.data?.factions.find((entry) => entry.id === sheet.catalogueId) },
+    ]),
+  )
   const owned = new Set(collection.data ?? [])
   const countOf = (entryId: string) => counts.data?.[entryId] ?? 1
   const byFaction = new Map<string, Datasheet[]>()
