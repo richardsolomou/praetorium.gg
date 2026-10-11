@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.115.7
+
+### Patch Changes
+
+- a36a090: Identify rules versions by release name and date, remove duplicates, show their status as chips with distinct archived and preview markers, and give each version a readable URL with redirects from existing links.
+
+  Keep simultaneous connected battle setup choices from blocking later actions with an offline sync conflict.
+
 ## 0.115.6
 
 ### Patch Changes
