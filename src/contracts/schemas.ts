@@ -361,6 +361,7 @@ export const detachmentRulesSchema = z.object({
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
 export const rosterIdSchema = z.object({ id })
+export const journalIdSchema = z.object({ id })
 /** `setup` saves a reviewed rules-version conversion as a variant, leaving the original as it was. */
 export const copyRosterSchema = z
   .object({ id, variant: z.boolean(), setup: saveRosterSchema.optional() })
