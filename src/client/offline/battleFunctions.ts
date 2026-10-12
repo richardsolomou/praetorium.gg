@@ -175,7 +175,7 @@ export async function submit(
     if (!selected) throw new Error('Download this army’s rules before attaching it offline.')
     const { catalogue } = selected
     const priced = calculateRosterPrice(savedRosterPriceInput(capturedRoster), catalogue, selected.rules)
-    const problem = priced && rosterUseError(priced, capturedRoster.limit, capturedRoster.waivedRules)
+    const problem = priced && rosterUseError(priced, capturedRoster)
     if (!priced || problem) throw new Error(problem || 'Army data is unavailable.')
     const roster = rosterSnapshot(
       capturedRoster,

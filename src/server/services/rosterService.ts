@@ -42,6 +42,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       detachmentIds: identities.detachmentIds,
       disposition: row.disposition,
       limit: row.limit,
+      pointsBudget: row.pointsBudget ?? null,
       waivedRules: waivedRulesFrom(row.waivedRules),
       optionalRules: optionalRulesFrom(row.optionalRules),
       borrowedDetachmentId: identities.borrowedDetachmentId,
@@ -72,6 +73,7 @@ export class RosterService {
       detachmentIds: readonly string[]
       disposition: string | null
       limit: number
+      pointsBudget?: number | null
       picks: readonly RosterPick[]
       prep: SavedPrep | null
       waivedRules?: readonly FormatRuleId[]

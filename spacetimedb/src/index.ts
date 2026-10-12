@@ -5,7 +5,7 @@ import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from 
 import { attachedUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
-import { reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
+import { customPointsBudget, pointsBudgetError, reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, battleAudience, maySpectate, type BattleAudience } from '../../src/core/battleAudience'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
@@ -896,6 +896,7 @@ function parseRoster(payload: string) {
   }
   const nullable = (name: string, max: number) => (row[name] === null ? null : string(name, max))
   const limit = row.limit
+  const pointsBudget = row.pointsBudget
   const now = row.now
   const visibility = string('visibility', 8)
   const source = string('source', 16)
@@ -904,6 +905,7 @@ function parseRoster(payload: string) {
     !Number.isInteger(limit) ||
     limit < 0 ||
     limit > 10_000 ||
+    (pointsBudget !== undefined && pointsBudget !== null && (typeof pointsBudget !== 'number' || pointsBudgetError(limit, pointsBudget))) ||
     typeof now !== 'number' ||
     !Number.isSafeInteger(now) ||
     now < 0 ||
@@ -921,6 +923,8 @@ function parseRoster(payload: string) {
     detachmentId: nullable('detachmentId', 1_000),
     disposition: nullable('disposition', 128),
     limit,
+    /** Undefined when the client predates custom budgets, so its save keeps the stored one. */
+    pointsBudget: pointsBudget === undefined ? undefined : customPointsBudget(limit, pointsBudget),
     picks: string('picks', 1_000_000),
     prep: nullable('prep', 100_000),
     tags: string('tags', 10_000),
@@ -975,6 +979,7 @@ export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() },
           detachmentId: row.detachmentId,
           disposition: row.disposition,
           limit: row.limit,
+          pointsBudget: row.pointsBudget,
           waivedRules: row.waivedRules,
           optionalRules: row.optionalRules,
           borrowedDetachmentId: row.borrowedDetachmentId,
@@ -1056,8 +1061,20 @@ export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.s
 
 type StoredRoster = NonNullable<ReturnType<Context['db']['rosters']['id']['find']>>
 
+/** A save that does not state a budget keeps the stored one where its battle size still allows it. */
+function savedPointsBudget(current: StoredRoster | null, input: ReturnType<typeof parseRoster>) {
+  if (input.pointsBudget !== undefined) return input.pointsBudget
+  const stored = current?.pointsBudget ?? null
+  return pointsBudgetError(input.limit, stored) ? null : customPointsBudget(input.limit, stored)
+}
+
 function lockedEdit(current: StoredRoster | null, input: ReturnType<typeof parseRoster>) {
-  return current ? lockedRosterRefusal({ ...storedRosterContent(current), locked: current.locked }, storedRosterContent(input)) : null
+  return current
+    ? lockedRosterRefusal(
+        { ...storedRosterContent(current), locked: current.locked },
+        storedRosterContent({ ...input, pointsBudget: savedPointsBudget(current, input) }),
+      )
+    : null
 }
 
 function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
@@ -1071,6 +1088,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     detachmentId: input.detachmentId ?? undefined,
     disposition: input.disposition ?? undefined,
     limit: input.limit,
+    pointsBudget: savedPointsBudget(current, input) ?? undefined,
     picks: input.picks,
     prep: input.prep ?? undefined,
     tags: input.tags,

@@ -89,8 +89,10 @@ type BuiltRoster = {
   edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'>
   /** The catalogue revision this list was priced and validated against. */
   revision: string
-  /** The game size agreed for the battle, so both players see the same ceiling. */
+  /** The battle size the list was built to, which sets every size-dependent limit. */
   limit: number
+  /** A custom points budget the list was priced against; absent means the battle size's own total. */
+  pointsBudget?: number
   /** Frozen when reserve-limit facts are known; absent from older snapshots. */
   strategicReserveLimit?: number
   /** Named for display, since an opponent's device may have no catalogue loaded. */
@@ -524,6 +526,41 @@ export const GAME_SIZES = [
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean =>
   limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
+
+/**
+ * Bounds of a points budget agreed in place of a battle size's points total.
+ *
+ * The game system data offers this override inside its battle size with a 500-point
+ * minimum and no maximum; the maximum is the saved roster contract's own bound.
+ */
+export const POINTS_BUDGET_MIN = 500
+export const POINTS_BUDGET_MAX = 10_000
+
+/** King of the Colosseum fixes its points total, so only the core battle sizes take a custom budget. */
+export const allowsPointsBudget = (limit: number | null): boolean =>
+  limit !== null && !isKotcLimit(limit) && GAME_SIZES.some((size) => size.limit === limit)
+
+export function pointsBudgetError(limit: number, budget: number | null | undefined): string | null {
+  if (budget === null || budget === undefined || budget === limit) return null
+  if (!allowsPointsBudget(limit)) return 'This battle size has a fixed points total.'
+  if (!Number.isInteger(budget)) return 'Enter a whole number of points.'
+  if (budget < POINTS_BUDGET_MIN || budget > POINTS_BUDGET_MAX)
+    return `Choose between ${POINTS_BUDGET_MIN} and ${POINTS_BUDGET_MAX.toLocaleString('en')} points.`
+  return null
+}
+
+/** A budget equal to the battle size's own total is no custom budget at all. */
+export const customPointsBudget = (limit: number, budget: number | null | undefined): number | null =>
+  budget === null || budget === undefined || budget === limit ? null : budget
+
+/** What a roster may spend: its custom budget, or else its battle size's points total. */
+export const pointsBudgetOf = (roster: { limit: number; pointsBudget?: number | null }): number => roster.pointsBudget ?? roster.limit
+
+export const battleSizeName = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`
+
+/** The battle size whose limits apply, and beside it any custom points budget. */
+export const battleSizeLabel = (limit: number, pointsBudget?: number | null): string =>
+  pointsBudget === null || pointsBudget === undefined ? battleSizeName(limit) : `${battleSizeName(limit)} · ${pointsBudget}-point budget`
 export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
 /** Name every waivable format restriction here so legality and picker filtering read the same roster waiver. */
@@ -561,12 +598,12 @@ export const kotcDatasheetRepeatable = (keywords: readonly string[]) =>
   hasUnitKeyword(keywords, 'battleline') || hasUnitKeyword(keywords, 'dedicated transport')
 
 /** What this battle size restricts, in the order a player reads it. */
-export function formatRules(limit: number | null): FormatRule[] {
+export function formatRules(limit: number | null, pointsBudget?: number | null): FormatRule[] {
   if (limit === null) return []
   const pointsLimit: FormatRule = {
     id: 'points-limit',
     label: 'Points limit',
-    hint: `The roster costs at most ${limit} points`,
+    hint: `The roster costs at most ${pointsBudget ?? limit} points`,
   }
   if (isKotcLimit(limit)) {
     return [
@@ -597,8 +634,11 @@ export function formatRules(limit: number | null): FormatRule[] {
  * say the same thing about the same list. Waivers a size does not impose are not
  * counted: an id kept from another size restricts nothing here.
  */
-export const waivedFormatRules = (limit: number | null, waived: readonly string[] | undefined): FormatRule[] =>
-  formatRules(limit).filter((rule) => !enforces(waived, rule.id))
+export const waivedFormatRules = (
+  limit: number | null,
+  waived: readonly string[] | undefined,
+  pointsBudget?: number | null,
+): FormatRule[] => formatRules(limit, pointsBudget).filter((rule) => !enforces(waived, rule.id))
 
 export function kotcUnitExclusions(
   unit: { keywords: readonly string[]; toughness: number | null },
@@ -1309,6 +1349,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       ) {
         return refuse('roster-size-mismatch', 'every roster must match the battle size')
       }
+      if (!pointsBudgetsAgree(state)) return refuse('roster-format-mismatch', 'choose matching points budgets for each side')
       for (const candidate of state.players) {
         const reserveError = strategicReserveSideError(state, candidate)
         if (reserveError) return reserveError
@@ -2653,10 +2694,21 @@ function rosterLimit(state: BattleState, player: PlayerState): number | null {
   return state.settings.limit / teammates
 }
 
-export function rosterBattleFormat(state: {
-  settings: BattleSettings
-  players: { side: number; roster: { built?: { limit: number } } | null }[]
-}): { limit: number | null; problem: 'missing' | 'manual' | 'mismatch' | 'unsupported' | null } {
+type TableArmies = { players: readonly { side: number; roster: { built?: { limit: number; pointsBudget?: number } } | null }[] }
+
+/** Each built army's share of its side's points allowance, scaled up to the whole side so allies compare with an opponent. */
+function sideAllowances(state: TableArmies): number[] {
+  return state.players.flatMap((player) => {
+    const built = player.roster?.built
+    return built ? [pointsBudgetOf(built) * state.players.filter((candidate) => candidate.side === player.side).length] : []
+  })
+}
+
+/** The battle size the armies' formats make; custom budgets never change it, they only have to agree. */
+export function rosterBattleFormat(state: TableArmies & { settings: BattleSettings }): {
+  limit: number | null
+  problem: 'missing' | 'manual' | 'mismatch' | 'budget-mismatch' | 'unsupported' | null
+} {
   if (state.players.length !== battleCapacity(state.settings) || state.players.some((player) => !player.roster))
     return { limit: null, problem: 'missing' }
   if (state.players.some((player) => !player.roster?.built)) return { limit: null, problem: 'manual' }
@@ -2667,7 +2719,25 @@ export function rosterBattleFormat(state: {
   const limit = limits[0]
   if (!limits.every((value) => value === limit)) return { limit: null, problem: 'mismatch' }
   const size = GAME_SIZES.find((candidate) => candidate.limit === limit)
-  return size ? { limit: size.limit, problem: null } : { limit: null, problem: 'unsupported' }
+  if (!size) return { limit: null, problem: 'unsupported' }
+  return pointsBudgetsAgree(state) ? { limit: size.limit, problem: null } : { limit: null, problem: 'budget-mismatch' }
+}
+
+/** Whether every built army at the table brings the same points allowance per side. */
+export const pointsBudgetsAgree = (state: TableArmies): boolean => new Set(sideAllowances(state)).size <= 1
+
+/** The points budget every built army at the table agrees on, when it is not the battle size's own total. */
+export function battlePointsBudget(state: TableArmies & { settings: BattleSettings }): number | null {
+  const allowances = sideAllowances(state)
+  if (state.settings.limit === null || !allowances.length || !pointsBudgetsAgree(state)) return null
+  return customPointsBudget(state.settings.limit, allowances[0])
+}
+
+/** A battle's size as its screens name it: its points, or its size beside the custom budget its armies agree on. */
+export function battleSizeText(state: TableArmies & { settings: BattleSettings }): string | null {
+  if (!state.settings.limit) return null
+  const budget = battlePointsBudget(state)
+  return budget === null ? `${state.settings.limit} points` : battleSizeLabel(state.settings.limit, budget)
 }
 
 function inferBattleSize(state: BattleState) {

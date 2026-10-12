@@ -4,6 +4,8 @@ export type TextRoster = {
   detachment: string | null
   disposition: string | null
   limit: number | null
+  /** The battle size the text names beside its points, when it names one. */
+  sizeName?: string
   reportedPoints?: number
   unread?: string[]
   units: TextRosterUnit[]

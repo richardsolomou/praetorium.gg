@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DEFAULT_PLAYER_DEFAULTS } from '../../../core/playerDefaults'
+import { pointsBudgetOf } from '../../../core/battle'
 import { datasheetOfferedByQuery, factionIndexQuery, meQuery, playerDefaultsQuery, savedRosterSummariesQuery } from '../../queries'
 import { EMPTY_SETUP, type GuestDraft, readGuestDraft } from './guestDraft'
 import { type RosterReference, useNewRoster } from './newRoster'
@@ -175,7 +176,7 @@ export function AddToRoster({
                     to="/rosters"
                     entryId={entryId}
                     title={guestDraft.draft.name || 'Your unsaved roster'}
-                    detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${rulesVersion(guestDraft.draft.catalogueId)} · ${guestDraft.draft.limit} pts · not saved yet`}
+                    detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${rulesVersion(guestDraft.draft.catalogueId)} · ${pointsBudgetOf(guestDraft.draft)} pts · not saved yet`}
                   />
                 ) : null}
                 {rosters.map((roster) => {
@@ -187,7 +188,7 @@ export function AddToRoster({
                       id={roster.id}
                       entryId={entryId}
                       title={rosterTitle(roster, book)}
-                      detail={`${book?.displayName ?? ''} · ${rulesVersion(roster.catalogueId)} · ${roster.limit} pts`}
+                      detail={`${book?.displayName ?? ''} · ${rulesVersion(roster.catalogueId)} · ${pointsBudgetOf(roster)} pts`}
                     />
                   )
                 })}

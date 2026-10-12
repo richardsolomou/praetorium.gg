@@ -224,10 +224,12 @@ export class LeagueService {
   async submitLeagueRoster(
     token: string,
     userId: string,
-    roster: { id: string; limit: number; updatedAt: number },
+    roster: { id: string; limit: number; pointsBudget?: number | null; updatedAt: number },
     snapshot: Roster,
     eventToken?: string,
   ) {
+    if (roster.pointsBudget != null)
+      throw new Response('league events use their battle size’s standard points; remove the custom points budget first', { status: 409 })
     const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
     if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
     const { id: _savedRosterId, ...sealed } = command.roster

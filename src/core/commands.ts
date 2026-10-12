@@ -5,6 +5,8 @@ import {
   type Command,
   DETACHMENTS_MAX,
   FORMAT_RULE_IDS,
+  POINTS_BUDGET_MAX,
+  POINTS_BUDGET_MIN,
   ROSTER_MAX_LENGTH,
   ROSTER_NAME_MAX_LENGTH,
   SCORE_SETTLEMENT_MAX,
@@ -150,6 +152,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           edition: catalogueEditionSummarySchema.optional(),
           revision: id,
           limit: z.number().int().min(0).max(10_000),
+          pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).optional(),
           strategicReserveLimit: z.number().int().min(0).max(5_000).optional(),
           detachment: z.string().max(ROSTER_NAME_MAX_LENGTH).nullable(),
           detachments: z

@@ -5,6 +5,8 @@ export type GwTextRoster = {
   dispositions: string[]
   size: string
   limit: number
+  /** A custom points budget, written in place of the battle size's own total. */
+  pointsBudget?: number
   points: number
   units: {
     name: string
@@ -40,7 +42,7 @@ export function toGwText(roster: GwTextRoster, version: string): string {
     ...(roster.dispositions.length
       ? [`Force Disposition${roster.dispositions.length === 1 ? '' : 's'}: ${roster.dispositions.join(', ')}`]
       : []),
-    `${roster.size} (${roster.limit.toLocaleString('en-GB')} Points)`,
+    `${roster.size} (${(roster.pointsBudget ?? roster.limit).toLocaleString('en-GB')} Points)`,
   ]
 
   for (const group of Object.keys(headings) as (keyof typeof headings)[]) {

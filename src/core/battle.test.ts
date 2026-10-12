@@ -12,6 +12,7 @@ import {
   formatDatasheetLimit,
   formatRules,
   kotcUnitExclusions,
+  pointsBudgetError,
   waivedFormatRules,
   reduceBattle,
   sideDisposition,
@@ -526,6 +527,29 @@ describe('setup', () => {
     expect(formatRules(2000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points'])
     expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit'])
     expect(formatRules(null)).toEqual([])
+  })
+
+  it.each([
+    [2000, null, null],
+    [2000, 2000, null],
+    [2000, 1500, null],
+    [2000, 500, null],
+    [2000, 10_000, null],
+    [1000, 2500, null],
+    [2000, 499, 'Choose between 500 and 10,000 points.'],
+    [2000, 10_001, 'Choose between 500 and 10,000 points.'],
+    [2000, 1500.5, 'Enter a whole number of points.'],
+    [600, 750, 'This battle size has a fixed points total.'],
+    [600, 600, null],
+  ])('checks a %i-point battle size with a %s-point budget', (limit, budget, error) => {
+    expect(pointsBudgetError(limit, budget)).toBe(error)
+  })
+
+  it('names a custom budget in the points limit while the battle size keeps its detachment points', () => {
+    expect(formatRules(2000, 1500).map((rule) => rule.hint)).toEqual([
+      'The roster costs at most 1500 points',
+      'Detachments cost at most 3 DP together',
+    ])
   })
 
   it('counts only the waivers its own battle size imposes', () => {

@@ -20,6 +20,7 @@ const rosterRow = z.strictObject({
   detachmentId: z.string().nullable(),
   disposition: z.string().nullable(),
   limit: z.number().int(),
+  pointsBudget: z.number().int().nullable(),
   picks: z.string(),
   prep: z.string().nullable(),
   tags: z.string(),
@@ -161,6 +162,8 @@ type SaveRosterInput = {
   detachmentId: string | null
   disposition: string | null
   limit: number
+  /** Omitted by a client that predates custom budgets, which keeps the stored budget. */
+  pointsBudget?: number | null
   picks: string
   prep: string | null
   tags: string

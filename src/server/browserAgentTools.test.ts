@@ -111,6 +111,13 @@ it('preserves schema defaults in execution and publishes input JSON schemas', as
   })
 })
 
+it('publishes the bounded custom points budget beside the battle size in the roster schema', async () => {
+  const tools = await browserAgentDescriptors()
+  expect(tools.find((tool) => tool.name === 'save_roster')!.inputSchema).toMatchObject({
+    properties: { pointsBudget: { anyOf: [{ type: 'integer', minimum: 500, maximum: 10_000 }, { type: 'null' }] } },
+  })
+})
+
 it('prepares a visibility change with the owned roster name', async () => {
   expect(await prepareBrowserAgentWrite('set_roster_visibility', { id: 'roster-1', visibility: 'public' }, 'player-1')).toEqual({
     input: '{"id":"roster-1","visibility":"public"}',
