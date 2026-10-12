@@ -32,7 +32,9 @@ export type CombatRoster = {
 /** `initial` restores a standalone side from a shared link; a roster side starts from its roster. */
 export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | null) {
   const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? initial?.catalogueId ?? '')
-  const [pickIndex, selectRosterUnit] = useState(roster?.pickIndex ?? 0)
+  const [selectedIndex, selectRosterUnit] = useState(roster?.pickIndex ?? 0)
+  // A unit destroyed while the battle simulator is open hands the side back to the battle's choice.
+  const pickIndex = roster?.battle?.units[selectedIndex]?.available === false ? roster.pickIndex : selectedIndex
   // A restored pick takes the first key, so its rule choices belong to that identity.
   const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
     initial ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:0:${initial.pick.entryId}`]: initial.rules } : {},
@@ -44,6 +46,11 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const picks = usePicks(
     roster?.picks ?? (initial ? [initial.pick, ...(initial.attached ?? []).map((pick) => ({ ...pick, attachedTo: 0 }))] : []),
   )
+  const battlePicks = roster?.battle ? JSON.stringify(roster.picks) : null
+  const { resetPicks } = picks
+  useEffect(() => {
+    if (battlePicks) resetPicks(JSON.parse(battlePicks) as RosterPick[])
+  }, [battlePicks, resetPicks])
   const detachmentIds = roster?.detachmentIds ?? []
   const settled = useSettled(picks.positioned)
   const pick = picks.positioned[pickIndex]
@@ -52,6 +59,10 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const identityAt = (index: number) =>
     `${picks.positioned[index]?.catalogueId ?? catalogueId}:${picks.picks[index]?.key}:${picks.positioned[index]?.entryId}`
   const identity = identityAt(pickIndex)
+  const healthKey = (index: number) => {
+    const member = roster?.battle?.units[index]
+    return member ? JSON.stringify([identityAt(index), member.models, member.damage]) : identityAt(index)
+  }
   const price = useQuery({
     ...priceQuery(
       catalogueId,
@@ -95,7 +106,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     placeholderData: (previous, query) => (query?.queryKey[4] === pickIndex && query.queryKey[1] === catalogueId ? previous : undefined),
   })
   const battleUnit = roster?.battle?.units[pickIndex]
-  const currentHealth = health[identity] ?? battleUnit
+  const currentHealth = health[healthKey(pickIndex)] ?? battleUnit
   const models = currentHealth?.models ?? pick?.models ?? unit?.size.models ?? 0
   const damage = currentHealth?.damage ?? 0
   const allocationKey = JSON.stringify([identity, models, sheets.data?.carriers])
@@ -117,7 +128,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const activeRules = active(sheets.data?.rules ?? [])
   const companions = (sheets.data?.companions ?? []).map((member) => {
     const battleMember = roster?.battle?.units[member.pickIndex]
-    const memberModels = health[identityAt(member.pickIndex)]?.models ?? battleMember?.models ?? member.models
+    const memberModels = health[healthKey(member.pickIndex)]?.models ?? battleMember?.models ?? member.models
     const memberKey = JSON.stringify([identityAt(member.pickIndex), memberModels, member.carriers])
     const memberCarriers = battleMember ? (allocations[memberKey] ?? combatSurvivors(member.carriers, memberModels)) : member.carriers
     return {
@@ -125,7 +136,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       bodyguard: picks.positioned[member.pickIndex]?.attachedTo === undefined,
       models: memberModels,
       startingModels: member.models,
-      damage: health[identityAt(member.pickIndex)]?.damage ?? battleMember?.damage ?? 0,
+      damage: health[healthKey(member.pickIndex)]?.damage ?? battleMember?.damage ?? 0,
       carriers: memberCarriers ?? [],
       allocationRequired: !memberCarriers,
       rules: active(member.rules),
@@ -199,7 +210,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     allocationKey,
     setSurvivors: (carriers: CombatCarrier[]) => setAllocations((current) => ({ ...current, [allocationKey]: carriers })),
     setHealth: (update: Partial<{ models: number; damage: number }>) =>
-      setHealth((current) => ({ ...current, [identity]: { models, damage, ...update } })),
+      setHealth((current) => ({ ...current, [healthKey(pickIndex)]: { models, damage, ...update } })),
     roster: Boolean(roster),
     detachmentIds,
     pickIndex,
