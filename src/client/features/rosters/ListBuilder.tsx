@@ -214,6 +214,7 @@ export function ListBuilder({
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
+  const [compareTargets, setCompareTargets] = useState(false)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
@@ -1057,6 +1058,21 @@ export function ListBuilder({
     />
   ) : null
 
+  const openCombat = (pickIndex: number, compare: boolean) => {
+    setCompareTargets(compare)
+    setCombatRoster({
+      catalogueId,
+      detachmentIds,
+      disposition,
+      limit,
+      picks: positioned,
+      pickIndex,
+      waivedRules,
+      borrowedDetachmentId,
+      optionalRules,
+    })
+  }
+
   return (
     <RosterShell saving={saving} saveError={save.isError}>
       <RosterHeader
@@ -1084,6 +1100,16 @@ export function ListBuilder({
         actions={
           editable ? (
             <>
+              {!frozen ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!positioned.length || pricePending || priceLoading}
+                  onClick={() => openCombat(0, true)}
+                >
+                  <Swords aria-hidden /> Test targets
+                </Button>
+              ) : null}
               {variantMenu}
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -1515,19 +1541,7 @@ export function ListBuilder({
                           variant="ghost"
                           aria-label="Simulate combat"
                           disabled={!selectedUnit || pricePending || priceLoading}
-                          onClick={() =>
-                            setCombatRoster({
-                              catalogueId,
-                              detachmentIds,
-                              disposition,
-                              limit,
-                              picks: positioned,
-                              pickIndex: selected,
-                              waivedRules,
-                              borrowedDetachmentId,
-                              optionalRules,
-                            })
-                          }
+                          onClick={() => openCombat(selected, false)}
                         />
                       }
                     >
@@ -1597,7 +1611,9 @@ export function ListBuilder({
       />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
-      {combatRoster ? <RosterCombatDialog roster={combatRoster} onClose={() => setCombatRoster(null)} /> : null}
+      {combatRoster ? (
+        <RosterCombatDialog roster={combatRoster} startWithRosters={compareTargets} onClose={() => setCombatRoster(null)} />
+      ) : null}
       {reminderDraft ? (
         <ReminderEditorDialog
           draft={reminderDraft}

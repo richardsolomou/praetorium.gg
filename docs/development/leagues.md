@@ -38,6 +38,8 @@ Detail reads expose submission status and frozen name, not roster JSON. Before r
 
 Reveal is irreversible, closes registration/assignment/submission, and makes accepted snapshots readable without closing the league. The organizer may unseal one roster afterward: discard only that snapshot and reopen its submission. The event stays revealed; an entrant without a snapshot cannot start a battle. A replacement uses ordinary pricing and Warlord validation.
 
+Accepted entrants with a revealed roster can compare every unit against another revealed entrant’s roster through the swords action with the Simulate tooltip. Use an eye action with the View roster tooltip for reading each available roster. Use borderless icon buttons with entrant-specific accessible labels, ordered Simulate, Unseal roster when available, then View roster at the far right. Organizers get an Unseal roster icon in the same row, opening the existing confirmation; do not hide it in an overflow menu. Start the planner with the viewer’s roster attacking the selected entrant; Reverse direction checks incoming damage. Use the sealed copies and the existing roster-access read, without changing league submissions or battle state. [Combat simulation](combat-simulation.md#interface-and-context) owns the matrix, assumptions, and verification. Hide the action before reveal and while either snapshot is absent.
+
 ## Battles
 
 Accepted entrants in a revealed event choose a valid opposing composition. The server derives fixed teammates and verifies every sealed roster size; no friendship is required within this boundary.

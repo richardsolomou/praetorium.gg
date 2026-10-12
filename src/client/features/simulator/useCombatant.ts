@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
-import { combatSurvivors, combatSurvivorSheet } from '../../../core/combatSurvivors'
+import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleSelections } from '../../../core/combatRules'
 import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
@@ -110,11 +110,15 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const models = currentHealth?.models ?? pick?.models ?? unit?.size.models ?? 0
   const damage = currentHealth?.damage ?? 0
   const allocationKey = JSON.stringify([identity, models, sheets.data?.carriers])
-  const survivors = sheets.data
-    ? battleUnit
-      ? (allocations[allocationKey] ?? combatSurvivors(sheets.data.carriers, models))
-      : sheets.data.carriers
-    : null
+  const liveUnit =
+    sheets.data && battleUnit
+      ? combatAtHealth(
+          { sheet: sheets.data.selected, models: sheets.data.models, carriers: sheets.data.carriers },
+          { models, startingModels: battleUnit.startingModels, damage },
+          allocations[allocationKey],
+        )
+      : null
+  const survivors = sheets.data ? (liveUnit ? (liveUnit.allocationRequired ? null : liveUnit.carriers) : sheets.data.carriers) : null
   const ruleSelections = selectedRules[identity] ?? {}
   const {
     rules: allRules,
@@ -130,18 +134,24 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     const battleMember = roster?.battle?.units[member.pickIndex]
     const memberModels = health[healthKey(member.pickIndex)]?.models ?? battleMember?.models ?? member.models
     const memberKey = JSON.stringify([identityAt(member.pickIndex), memberModels, member.carriers])
-    const memberCarriers = battleMember ? (allocations[memberKey] ?? combatSurvivors(member.carriers, memberModels)) : member.carriers
-    return {
-      sheet: battleMember && memberCarriers ? combatSurvivorSheet(member.selected, member.carriers, memberCarriers) : member.selected,
+    const projected = {
+      sheet: member.selected,
       bodyguard: picks.positioned[member.pickIndex]?.attachedTo === undefined,
       models: memberModels,
       startingModels: member.models,
       damage: health[healthKey(member.pickIndex)]?.damage ?? battleMember?.damage ?? 0,
-      carriers: memberCarriers ?? [],
-      allocationRequired: !memberCarriers,
+      carriers: member.carriers,
+      allocationRequired: false,
       rules: active(member.rules),
       sharedDefenceSources: sharedDefenceSources(member.rules),
     }
+    return battleMember
+      ? combatAtHealth(
+          projected,
+          { models: memberModels, startingModels: battleMember.startingModels, damage: projected.damage },
+          allocations[memberKey],
+        )
+      : projected
   })
   const ready = Boolean(
     currentUnit &&
@@ -240,8 +250,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     snapshot:
       unit && sheets.data?.selected
         ? {
-            sheet:
-              battleUnit && survivors ? combatSurvivorSheet(sheets.data.selected, sheets.data.carriers, survivors) : sheets.data.selected,
+            sheet: liveUnit?.sheet ?? sheets.data.selected,
             bodyguard: pick?.attachedTo === undefined,
             startingModels: unit.size.models,
             models: battleUnit ? models : unit.size.models,

@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Toggle as ToggleButton } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -125,5 +126,26 @@ export function Chip({
     </Tooltip>
   ) : (
     control
+  )
+}
+
+export function SimulationMode({
+  rosters,
+  onChange,
+  className = '',
+}: {
+  rosters: boolean
+  onChange: (rosters: boolean) => void
+  className?: string
+}) {
+  return (
+    <div className={`flex gap-2 ${className}`} aria-label="Simulation mode">
+      <Button variant={rosters ? 'outline' : 'default'} aria-pressed={!rosters} onClick={() => onChange(false)}>
+        Units
+      </Button>
+      <Button variant={rosters ? 'default' : 'outline'} aria-pressed={rosters} onClick={() => onChange(true)}>
+        Rosters
+      </Button>
+    </div>
   )
 }

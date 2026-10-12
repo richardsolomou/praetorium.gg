@@ -7,6 +7,8 @@ import { advanceOnboarding, ONBOARDING_FOCUS_EVENT } from '../onboarding/onboard
 import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
+import { SimulationMode } from './CombatControls'
+import { RosterCombatComparison } from './RosterCombatComparison'
 import { type CombatRoster, useCombatant } from './useCombatant'
 import { decodeSimulatorState, encodeSimulatorState, type MatchupSettings, type SimulatorState } from '../../../contracts/simulatorState'
 
@@ -21,7 +23,7 @@ export function CombatSimulator({
   /** The reference page that opened the simulator, if one did. */
   reference?: 'datasheet'
 }) {
-  const [initial] = useState(() => decodeSimulatorState(shared))
+  const [comparingRosters, setComparingRosters] = useState(false)
   const share = useCallback(
     (state: SimulatorState) => {
       const encoded = state.sides.some(Boolean) ? encodeSimulatorState(state) : undefined
@@ -37,7 +39,12 @@ export function CombatSimulator({
         description="Compare shooting and melee between units with their leaders and support. Change a loadout and the odds update automatically."
       />
       <PageContent>
-        <CombatSimulatorMatchup initial={initial} onChange={share} reference={reference} />
+        <SimulationMode rosters={comparingRosters} onChange={setComparingRosters} className="mb-4" />
+        {comparingRosters ? (
+          <RosterCombatComparison />
+        ) : (
+          <CombatSimulatorMatchup initial={decodeSimulatorState(shared)} onChange={share} reference={reference} />
+        )}
         <p className="mt-3 text-xs text-faint">Data provided by game-datacards and BSData.</p>
       </PageContent>
     </main>

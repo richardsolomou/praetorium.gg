@@ -50,7 +50,7 @@ Attaching a saved roster rechecks ownership, price, and legality on the server b
 
 Battle summary faction lookup includes exact historical catalogue IDs even when they are absent from the selectable rules index. Preserve the rules-version metadata recorded in the frozen army; never replace it with the current version's status.
 
-One wound state drives models, current-model damage, and destruction. `wound-unit`, `damage-unit`, and `set-unit` must agree and remain undoable. Freeze wounds only when the datasheet has one supported uniform value; mixed or older units remain model-only rather than guessing.
+Army headers offer Simulate with Units/Rosters modes through the shared [combat simulator](combat-simulation.md#interface-and-context), using logged surviving models and wounds. Health and formation changes invalidate and recalculate the open planner; experiments never append battle commands. One wound state drives models, current-model damage, and destruction. `wound-unit`, `damage-unit`, and `set-unit` must agree and remain undoable. Freeze wounds only when the datasheet has one supported uniform value; mixed or older units remain model-only rather than guessing.
 
 Personal roster reminders are owner-only. Strip them from opponent, spectator, shared, and revealed-event reads. Their dismissals are bounded local state, not commands or shared prompts; destroyed-unit reminders stop until the unit is restored unless the player enables “Show while unit is destroyed”. First-round-only triggers match round 1, and “Any phase” matches each named phase boundary. Round reminders use either side’s turn: start before the first turn’s Command phase prompts, and end at the end of the second turn before passing to the next round.
 

@@ -12,6 +12,7 @@ import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, loadoutDatash
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
+import { CombatUnitPicker } from './CombatUnitPicker'
 import { LoadoutOddsContext, LoadoutOddsStatus, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
 import { useLoadoutOdds } from './useLoadoutOdds'
 import { namespaceLoadoutSpace } from '../../../core/combatLoadouts'
@@ -127,45 +128,19 @@ export function CombatantCard({
       ]}
     />
   ) : (
-    <SearchableSelect
+    <CombatUnitPicker
       ariaLabel={`${side} unit`}
       popupClassName="min-w-[min(20rem,var(--available-width))]"
       loading={Boolean(pick) && !ready}
       placeholder="Choose a unit"
       searchPlaceholder="Search units…"
-      virtualized
+      index={catalogueUnits.data ?? []}
+      extraGroups={selectedOutsideIndex}
       value={pick ? unitValue(combatant.faction, pick.entryId) : ''}
       onValueChange={(value) => {
         const [catalogueId, id] = JSON.parse(value) as [string, string]
         combatant.selectUnit(catalogueId, id)
       }}
-      groups={[
-        ...selectedOutsideIndex,
-        ...(catalogueUnits.data ?? []).flatMap((faction) => {
-          const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
-          return faction.units.length
-            ? [
-                {
-                  label: faction.name,
-                  items: faction.units.map((entry) => ({
-                    value: unitValue(faction.catalogueId, entry.id),
-                    label: entry.name,
-                    detail: entry.points === null ? undefined : `${entry.points} pts`,
-                    icon: presentation ? (
-                      <FactionMark
-                        id={presentation.slug}
-                        name={presentation.displayName}
-                        edition={presentation.edition}
-                        icon={presentation.icon}
-                        size="sm"
-                      />
-                    ) : undefined,
-                  })),
-                },
-              ]
-            : []
-        }),
-      ]}
     />
   )
   const warmLoadout = (index: number) => {

@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Eye } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import type { League } from './leagueEvent'
@@ -110,15 +111,24 @@ export function ViewRosterButton({
   label: string
 }) {
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="pointer-coarse:h-11"
-      nativeButton={false}
-      aria-label={`View ${label}’s roster`}
-      render={<Link to="/rosters/$id" params={{ id: userId }} search={{ league: token, event: eventToken }} />}
-    >
-      <Eye /> View roster
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-dim hover:text-info pointer-coarse:size-11"
+            nativeButton={false}
+            aria-label={`View ${label}’s roster`}
+            render={<Link to="/rosters/$id" params={{ id: userId }} search={{ league: token, event: eventToken }} />}
+          />
+        }
+      >
+        <Eye aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" side="bottom">
+        View roster
+      </TooltipContent>
+    </Tooltip>
   )
 }

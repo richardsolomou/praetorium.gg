@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Check, Circle, EllipsisVertical, Link2, LockKeyholeOpen, Share2, UserMinus, UserPlus, X } from 'lucide-react'
+import { Check, Circle, Link2, LockKeyholeOpen, Share2, UserMinus, UserPlus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import {
   AlertDialog,
@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { alliedLeagueRosterLimit, leagueRevealChecklist, type LeagueEntryView, type LeagueRevealCheck } from '../../../core/league'
 import {
   addLeagueEntrants,
@@ -143,25 +143,28 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
     )
   const revealedControls = (entry: LeagueEntryView) =>
     revealed && entry.submitted ? (
-      <>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon" className="pointer-coarse:size-11" aria-label={`More for ${label(entry)}`} />}
-          >
-            <EllipsisVertical />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-dim hover:text-discarded pointer-coarse:size-11"
+              aria-label={`Unseal ${label(entry)}’s roster`}
+              disabled={unseal.isPending}
               onClick={() => {
                 unseal.reset()
                 setUnsealing(entry)
               }}
-            >
-              <LockKeyholeOpen /> Unseal roster
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </>
+            />
+          }
+        >
+          <LockKeyholeOpen aria-hidden />
+        </TooltipTrigger>
+        <TooltipContent role="tooltip" side="bottom">
+          Unseal roster
+        </TooltipContent>
+      </Tooltip>
     ) : null
 
   const entrants = !accepted.length ? (
