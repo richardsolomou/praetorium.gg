@@ -100,6 +100,7 @@ function outcome(result: CombatResult) {
   })
   return {
     expectedModelsDestroyed: round(result.meanKills),
+    ...(result.uncappedKills === undefined ? {} : { expectedKillsUncapped: round(result.uncappedKills) }),
     expectedWoundsLost: round(result.meanDamage),
     destroyedChance: round(result.wipe),
     atLeastModelsDestroyedChance: atLeast,

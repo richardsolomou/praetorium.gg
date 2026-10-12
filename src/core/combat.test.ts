@@ -968,3 +968,58 @@ describe('shooting followed by melee', () => {
     expect(() => calculateCombatSequence([phase('ranged'), melee])).toThrow('same target')
   })
 })
+
+describe('uncapped kills', () => {
+  const nightbringer = (models: number) => {
+    const target = { groups: [{ models, toughness: 6, save: 3, invulnerable: null, wounds: 3 }], feelNoPain: null }
+    const shooting = input()
+    shooting.target = target
+    Object.assign(shooting.weapons[0]!, { attacks: { dice: 1, sides: 3, bonus: 0 }, skill: 2, strength: 12, ap: -3 })
+    const melee = input()
+    melee.target = target
+    melee.options.phase = 'melee'
+    Object.assign(melee.weapons[0]!, { attacks: { dice: 0, sides: 6, bonus: 6 }, skill: 2, strength: 14, ap: -4 })
+    return [shooting, melee]
+  }
+
+  it('averages every model the attacks would destroy, beyond the size of the target', () => {
+    expect(calculateCombatSequence(nightbringer(3)).uncappedKills).toBeCloseTo(2 * (5 / 6) ** 3 + 6 * (5 / 6) ** 2)
+  })
+
+  it('does not change with the size of the target', () => {
+    expect(calculateCombatSequence(nightbringer(4)).uncappedKills).toBeCloseTo(calculateCombatSequence(nightbringer(3)).uncappedKills!)
+  })
+
+  it('equals the models lost when the attacks cannot destroy the target', () => {
+    const result = calculateCombat(input())
+    expect(result.uncappedKills).toBe(result.meanKills)
+  })
+
+  it('counts Blast attacks against the real target size', () => {
+    const scenario = input()
+    scenario.target.groups[0]!.wounds = 1
+    Object.assign(scenario.weapons[0]!, { count: 5, blast: 1, torrent: true, strength: 8, damage: { dice: 0, sides: 6, bonus: 1 } })
+    expect(calculateCombat(scenario).uncappedKills).toBeCloseTo(10 * (5 / 6))
+  })
+
+  it('is omitted for a target with more than one defence profile', () => {
+    const scenario = input()
+    scenario.target.groups.push({ models: 1, toughness: 4, save: 3, invulnerable: null, wounds: 4 })
+    expect(calculateCombat(scenario).uncappedKills).toBeUndefined()
+  })
+
+  const horde = (weapon: Partial<CombatInput['weapons'][number]>) => {
+    const scenario = input()
+    scenario.target.groups[0]!.wounds = 1
+    Object.assign(scenario.weapons[0]!, { count: 2, attacks: { dice: 0, sides: 6, bonus: 60 }, strength: 8, ...weapon })
+    return scenario
+  }
+
+  it('is omitted when the model limit could hide kills', () => {
+    expect(calculateCombat(horde({ torrent: true })).uncappedKills).toBeUndefined()
+  })
+
+  it('remains when the attacks cannot plausibly reach the model limit', () => {
+    expect(calculateCombat(horde({ skill: 6 })).uncappedKills).toBeCloseTo(120 * (1 / 6) * (5 / 6))
+  })
+})

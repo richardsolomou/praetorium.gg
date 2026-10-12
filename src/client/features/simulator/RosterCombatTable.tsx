@@ -9,6 +9,7 @@ type Metric = CombatMetric
 const metrics = [
   ['meanDamage', 'Wounds lost'],
   ['meanKills', 'Models lost'],
+  ['uncappedKills', 'Kills, uncapped'],
   ['wipe', 'Destruction chance'],
 ] as const
 const phases = [
@@ -142,6 +143,9 @@ export function RosterCombatTable({
                   {defenders.map((target, column) => {
                     const answer = results[`${row}:${column}`]?.[phase]
                     const value = answer?.result?.[metric]
+                    const reason =
+                      answer?.error ??
+                      (answer?.result ? 'No uncapped estimate: the target has mixed profiles or too many possible kills.' : undefined)
                     const bestTarget = highlight === 'targets' ? best.includes(column) : bestAttackers[column]!.includes(row)
                     const bestLabel = highlight === 'targets' ? 'Best target' : 'Best attacker'
                     return (
@@ -152,9 +156,9 @@ export function RosterCombatTable({
                       >
                         <button
                           type="button"
-                          title={answer?.error}
+                          title={reason}
                           disabled={!answer}
-                          aria-label={`${unit.name} #${row + 1} against ${target.name} #${column + 1}: ${value === undefined ? (answer ? `Not calculated: ${answer.error}` : 'Pending') : formatCombatValue(answer?.result, metric)}${bestTarget ? `, ${bestLabel.toLowerCase()}` : ''}. Open matchup`}
+                          aria-label={`${unit.name} #${row + 1} against ${target.name} #${column + 1}: ${value === undefined ? (answer ? `Not calculated: ${reason}` : 'Pending') : formatCombatValue(answer?.result, metric)}${bestTarget ? `, ${bestLabel.toLowerCase()}` : ''}. Open matchup`}
                           onClick={() => onSelect(row, column)}
                           className="min-h-14 w-full p-2 text-center outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary disabled:text-faint"
                         >
@@ -172,7 +176,7 @@ export function RosterCombatTable({
                               <span aria-hidden className="text-discarded">
                                 —
                               </span>
-                              <span className="sr-only">Not calculated: {answer.error}</span>
+                              <span className="sr-only">Not calculated: {reason}</span>
                             </>
                           ) : (
                             <span className="text-xs">

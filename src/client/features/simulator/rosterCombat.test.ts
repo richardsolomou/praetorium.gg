@@ -83,6 +83,6 @@ it('stores only the summary for each completed pairing', () => {
   const snapshot = rosterCombatSnapshot(data, [{ entryId: 'squad' }])
   const { request, unavailable } = rosterCombatRequest(snapshot, snapshot)
   expect(summarizeRosterCombat(resolveCombatRequest(request), unavailable).combined).toEqual({
-    result: { wipe: 0, meanDamage: 0, meanKills: 0 },
+    result: { wipe: 0, meanDamage: 0, meanKills: 0, uncappedKills: 0 },
   })
 })
