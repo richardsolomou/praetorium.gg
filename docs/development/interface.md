@@ -37,7 +37,7 @@ Put the faction reference rules-version selector in its page header and offer di
 
 The builder has one picker and one loadout instance, moved by `src/client/features/rosters/builder/Pane.tsx` between desktop columns and compact panes. Reserve the desktop workspace before hydration. Edit squad size on the roster card, not in a second control. Its stepper's count also picks any listed size directly; `modelCountChoices` in `src/core/unitSize.ts` decides which counts are listed, and the simulator's model controls reuse it.
 
-The loadout pane opens with the selected unit's Nickname and Note fields and the roster-wide Share unit notes switch while building. Unit cards show a nickname above the datasheet name and a note in a clamped row; frozen cards, the army window and the print pack use the same order.
+The loadout pane opens with the selected unit's private Note field while building. Unit cards show the owner's note in a clamped row; frozen cards, the army window and the print pack show it to the owner in the same place.
 
 Loadouts group equipment by model and weapon choice. Keep required/default equipment readable after replacement, paired weapons under one counter, and alternate profiles under their weapon. Selection styling must not shift content. Display each option and equipped item once. `loadoutModel.ts`, `LoadoutControls.tsx`, `ModelCard.tsx`, and `Loadout.tsx` own this flow.
 

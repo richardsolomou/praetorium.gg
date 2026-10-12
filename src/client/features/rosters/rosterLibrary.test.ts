@@ -74,11 +74,8 @@ it.each([0, 1, 3])('retains %i units and their choices when library setup switch
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
 
-it('keeps unit nicknames and notes when library setup switches rules version', async () => {
-  const picks = [
-    { entryId: 'guard', nickname: 'Shield of Dawn', note: 'Screen the left objective.' },
-    { entryId: 'guard', nickname: 'Shield of Dusk' },
-  ]
+it('keeps unit notes when library setup switches rules version', async () => {
+  const picks = [{ entryId: 'guard', note: 'Screen the left objective.' }, { entryId: 'guard' }]
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
 
@@ -101,7 +98,7 @@ it('converts the existing roster ID with its preparation and source intact', asy
     ...source,
     catalogueId: 'preview~custodes',
     picks: [{ entryId: 'guard' }],
-    prep: { ...prep, shareNotes: false },
+    prep,
     source: 'editable',
   })
 })
