@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.133.4
+
+### Patch Changes
+
+- d5ac3fb: Show Teams Event Companion 20–0 battle points beside victory points on finished battles.
+- 3dd4e42: Keep roster and collection reads working while a deploy adds new saved fields.
+
 ## 0.133.3
 
 ### Patch Changes
