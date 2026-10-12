@@ -227,7 +227,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
     .poll(() => page.locator('[data-roster]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-roster'))))
     .toEqual(['Dynasty 2k', 'Dynasty 2k · 2', 'Another list'])
   await page.screenshot({ path: 'test-results/roster-variants-library.png', fullPage: true })
-  const baseVisibility = page.locator('[data-roster="Dynasty 2k"]').getByText('Private', { exact: true })
+  const baseVisibility = page.locator('[data-roster="Dynasty 2k"]').getByText('Public', { exact: true })
   await expect(baseVisibility).toBeVisible()
   const baseDetails = page.locator('[data-roster="Dynasty 2k"]').getByText(/^11th edition/)
   await expect(baseDetails).toHaveText(/1 unit · updated/, { useInnerText: true })
@@ -296,8 +296,8 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const baseChips = await baseRow.locator('[data-slot="roster-chips"]').boundingBox()
   expect(baseChips!.x + baseChips!.width).toBeGreaterThan(basePoints!.x)
   // A phone reads the visibility in the details line, leaving the points one line.
-  await expect(baseRow.getByText('Private', { exact: true })).toBeHidden()
-  await expect(baseDetails).toHaveText(/1 unit · Private · updated/, { useInnerText: true })
+  await expect(baseRow.getByText('Public', { exact: true })).toBeHidden()
+  await expect(baseDetails).toHaveText(/1 unit · Public · updated/, { useInnerText: true })
   // A phone gives a variant's chips their own line, running beneath its points rather than squeezed beside them.
   const chipLine = await third.locator('[data-slot="roster-differences"]').boundingBox()
   const thirdPoints = await third.getByText(/^\d+\/2000$/).boundingBox()
@@ -662,7 +662,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.goto('/rosters')
   const duplicated = guest.locator('[data-roster="Copy of Copy of Nurgle 2k"]')
   await expect(duplicated).toBeVisible()
-  await expect(duplicated).toContainText('Private')
+  await expect(duplicated).toContainText('Public')
   await guestContext.close()
 })
 

@@ -15,3 +15,23 @@ export const NATIVE_BROWSER_BRIDGE_SCRIPT = `${NATIVE_BRIDGE_SCRIPT}
     } else postMessage(message);
   };
 })();`
+
+/**
+ * The shell's saved-work store as `mobile/src/localStateStorage.ts` keeps it: a write lands only at
+ * the revision it was read at, and every answer arrives after a round trip.
+ */
+export const NATIVE_LOCAL_STATE_SCRIPT = `window.ReactNativeWebView = { postMessage: (message) => {
+  const request = JSON.parse(message);
+  const answer = (name, detail) => setTimeout(() => window.dispatchEvent(new CustomEvent(name, { detail })), 150);
+  if (request.type === 'native-app-snapshot') return answer('praetorium-native-app-snapshot', { id: request.id, saved: true });
+  if (request.type === 'native-offline-save') return answer('praetorium-native-offline', { id: request.id, saved: false });
+  if (request.type !== 'native-local-state') return;
+  const key = 'e2e-native-local-state:' + request.owner;
+  const previous = JSON.parse(localStorage.getItem(key) || 'null') || { epoch: crypto.randomUUID(), state: null };
+  let stored = previous;
+  if ('state' in request && previous.epoch === request.epoch && (previous.state?.revision ?? 0) === request.expectedRevision)
+    stored = request.state ? { epoch: request.epoch, state: request.state } : { epoch: crypto.randomUUID(), state: null };
+  localStorage.setItem(key, JSON.stringify(stored));
+  answer('praetorium-native-local-state', { id: request.id, ...stored, saved: !('state' in request) || stored !== previous });
+} };
+${NATIVE_BRIDGE_SCRIPT}`

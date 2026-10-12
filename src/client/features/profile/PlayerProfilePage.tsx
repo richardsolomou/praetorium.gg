@@ -172,7 +172,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
 
           <TabsContent value="collection" className="mt-4">
             {collection.data ? (
-              <PlayerCollection userId={userId} groups={collection.data.groups} published={collection.data.published} yourself={yourself} />
+              <PlayerCollection groups={collection.data.groups} published={collection.data.published} yourself={yourself} />
             ) : collection.isError ? (
               <p role="alert" className="text-sm text-destructive">
                 Could not load the collection.{' '}

@@ -24,6 +24,10 @@ describe('native application navigation', () => {
   it.each([
     ['/rosters', { section: 'rosters', title: 'Rosters' }],
     [
+      '/rosters/discover',
+      { back: { href: '/rosters', label: 'Back to rosters', preferHistory: true }, section: 'rosters', title: 'Discover armies' },
+    ],
+    [
       '/rosters/army-id',
       { back: { href: '/rosters', label: 'Back to rosters', preferHistory: true }, section: 'rosters', title: 'Roster' },
     ],

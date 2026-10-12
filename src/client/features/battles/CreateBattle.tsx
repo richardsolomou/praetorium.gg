@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { Check, ChevronRight, Link2 } from 'lucide-react'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
@@ -263,26 +263,6 @@ export function CreateBattle() {
               {create.error || opponentQuery.error ? (
                 <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
               ) : null}
-              <p className="text-xs text-dim">
-                Battles are public by default. The table's most private audience applies.{' '}
-                <Link to="/profile" hash="battle-sharing" className="text-info underline">
-                  Privacy settings
-                </Link>
-                .
-              </p>
-              <p className="text-xs text-dim">
-                Choose saved armies for both sides in setup. One device can record the whole game.{' '}
-                <Link
-                  to="/guides/$guideId"
-                  params={{ guideId: 'track-a-battle' }}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-info underline"
-                >
-                  Read the battle guide
-                </Link>
-                .
-              </p>
             </DialogBody>
             <DialogFooter>
               <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>
