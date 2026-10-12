@@ -1,5 +1,27 @@
 # praetorium
 
+## 0.132.0
+
+### Minor Changes
+
+- db71d3c: Show collections on profiles by default and move Show collection on profile to the account settings.
+- db71d3c: Start new rosters, copies and imports public for players who have not chosen a default visibility.
+
+### Patch Changes
+
+- 43c3a83: Show Attach unit and Attach to unit only when a unit can attach now, so a unit with a full Leader slot and no Support slot, such as Skorpekh Destroyers led by a Skorpekh Lord, no longer offers one.
+- 3e114ee: Show friends' and public games below your own on the battles page when signed in.
+- 8bf64cd: Discarding saved changes now completes while another screen is syncing them, and shows why if it cannot.
+- f1bcbfd: Let the Discover armies page scroll, so long lists reach Show more armies.
+- 92cb559: Edits in the iOS app, such as typing a unit note, no longer get stuck waiting to sync when several saves happen at once.
+- ce1db4f: Remove the privacy and setup notes from the Start a battle dialog.
+
+## 0.131.2
+
+### Patch Changes
+
+- 9311dc1: Send saved battle and roster changes straight away after a page reloads mid-sync, instead of waiting up to a minute.
+
 ## 0.131.1
 
 ### Patch Changes

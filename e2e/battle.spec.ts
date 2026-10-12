@@ -548,8 +548,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   ).toBeEnabled()
   await takeTheTurn(alice)
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeHidden()
-  await expect(saved.getByText('All changes have synced.', { exact: true })).toBeVisible()
-  await saved.getByRole('button', { name: 'Close', exact: true }).click()
+  // Using the server version leaves nothing to review, so the review closes itself.
   await expect(saved).toBeHidden()
   const bobSecondaryCards = bob
     .locator('[data-panel="player"]')

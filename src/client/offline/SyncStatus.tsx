@@ -35,6 +35,7 @@ export function SyncStatus() {
   const [problem, setProblem] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [discard, setDiscard] = useState<string | null>(null)
+  const [discardProblem, setDiscardProblem] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     if (!me || me.impersonatedBy) return
@@ -118,26 +119,25 @@ export function SyncStatus() {
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1_000)
   }
+  // A sync in flight acknowledges nothing once its change is gone, so discarding never waits for one.
   const discardResource = async () => {
     const resource = discard
-    const engine = localEngine()
-    if (!engine || !resource) return
+    if (!resource) return
     setBusy(true)
+    setDiscardProblem(null)
     try {
-      await engine.sync()
-      await engine.storage.change((current) => {
-        if (current.syncLease && current.syncLease.expiresAt > Date.now())
-          throw new Error('A sync is in progress. Wait for it to finish before discarding changes.')
-        return discardLocalResource(current, resource)
-      })
+      const engine = localEngine()
+      if (!engine) throw new Error('Sign in to the account that saved these changes.')
+      const discarded = await engine.storage.change((current) => discardLocalResource(current, resource))
       await restoreLocalWork()
-      await client.resetQueries({
+      void client.resetQueries({
         predicate: (query) => ['roster-access', 'roster-bootstrap', 'shared-roster', 'battle'].includes(String(query.queryKey[0])),
       })
-      await client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'local-work' })
+      void client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'local-work' })
       setDiscard(null)
+      if (!discarded.operations.length) setOpen(false)
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'Changes could not be updated.')
+      setDiscardProblem(error instanceof Error ? error.message : 'Changes could not be discarded.')
     } finally {
       setBusy(false)
     }
@@ -252,7 +252,9 @@ export function SyncStatus() {
       <AlertDialog
         open={discard !== null}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen && !busy) setDiscard(null)
+          if (nextOpen || busy) return
+          setDiscard(null)
+          setDiscardProblem(null)
         }}
       >
         <AlertDialogContent>
@@ -263,6 +265,11 @@ export function SyncStatus() {
               device and loads the server’s version. Export your changes first if you want to keep them.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {discardProblem ? (
+            <p role="alert" className="text-sm text-dim">
+              {discardProblem}
+            </p>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
             <AlertDialogAction disabled={busy || typeof window === 'undefined' || !navigator.onLine} onClick={() => void discardResource()}>

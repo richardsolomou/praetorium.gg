@@ -1,6 +1,6 @@
 import { memo, type ComponentProps, useLayoutEffect, useMemo, useRef } from 'react'
 import type { PickerUnit } from '../../../contracts/catalogue'
-import { newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
+import { availableChoices, newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
 import type { KeyedPick } from './rosterPicks'
 import { attachmentRows, joinableUnits } from './builder/attachments'
 import { type AttachChoice, UnitCard } from './builder/UnitCard'
@@ -95,27 +95,27 @@ export function useCardRelationships(
   const relationships = useMemo(() => {
     const next = new Map<number, CardRelationships>()
     const candidates = discovery?.candidates ?? []
-    const added = (options: (PickerUnit & { reason: string | null })[]): AttachChoice[] =>
+    const added = (options: PickerUnit[]): AttachChoice[] =>
       options
         .map((option) => ({
           kind: 'new' as const,
           entryId: option.id,
           name: option.name,
           points: option.points,
-          reason: (discovery && unitLimitMessage(option.id, discovery.held[option.id] ?? 0, discovery.limits)) ?? option.reason,
+          reason: discovery && unitLimitMessage(option.id, discovery.held[option.id] ?? 0, discovery.limits),
         }))
         .toSorted((left, right) => Number(Boolean(left.reason)) - Number(Boolean(right.reason)) || left.name.localeCompare(right.name))
     for (const [index, pick] of picks.entries()) {
       const candidate = {
         joined: attachmentRows(picks, units, index),
-        canJoin: [
+        canJoin: availableChoices([
           ...joinableUnits(picks, units, index).map((host) => ({ kind: 'roster' as const, ...host })),
           ...added(newHosts(candidates, picks, units, index)),
-        ],
-        canHost: [
+        ]),
+        canHost: availableChoices([
           ...rosterJoiners(picks, units, index).map((joiner) => ({ kind: 'roster' as const, ...joiner })),
           ...added(newJoiners(candidates, picks, units, index)),
-        ],
+        ]),
       }
       const current = previous.current.get(pick.key)
       next.set(pick.key, current && sameRelationships(current, candidate) ? current : candidate)

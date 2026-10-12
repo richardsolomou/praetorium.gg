@@ -23,7 +23,7 @@ import {
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
-import { MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
+import { DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -293,7 +293,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.battleSharing.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
   ctx.db.playerDefaults.userId.delete(userId)
-  if (ctx.db.collectionSharing.userId.find(userId)?.published) touchPublic(ctx, 'collection')
+  if (collectionPublished(ctx, userId)) touchPublic(ctx, 'collection')
   ctx.db.collectionSharing.userId.delete(userId)
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
@@ -1256,7 +1256,7 @@ export const collectionProfile = spacetime.procedure(
   (ctx, { userId, viewerId }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      const published = tx.db.collectionSharing.userId.find(userId)?.published ?? false
+      const published = collectionPublished(tx, userId)
       if (!published && viewerId !== userId) return productJson(null)
       moveHeartsToFavourites(tx, userId)
       const entries = []
@@ -1280,9 +1280,13 @@ export const setCollectionPublished = spacetime.procedure({ userId: t.string(), 
   }),
 )
 
+function collectionPublished(ctx: Context, userId: string) {
+  return ctx.db.collectionSharing.userId.find(userId)?.published ?? DEFAULT_COLLECTION_PUBLISHED
+}
+
 function touchCollection(ctx: Context, userId: string) {
   touchProduct(ctx, userId, 'collection')
-  if (ctx.db.collectionSharing.userId.find(userId)?.published) touchPublic(ctx, 'collection')
+  if (collectionPublished(ctx, userId)) touchPublic(ctx, 'collection')
 }
 
 export const addToCollection = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {

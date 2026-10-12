@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import { confirmRosterSetup, chooseRosterDefault, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 
 test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
   await signUp(page, uniqueName('Search roster'))
@@ -32,6 +32,12 @@ test('a private roster can be shared and made private again', async ({ browser }
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const page = await context.newPage()
   await signUp(page, uniqueName('Sharer'))
+  await page.goto('/profile')
+  await expect(page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: /^Public/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await chooseRosterDefault(page, 'Private')
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/rosters')
@@ -163,13 +169,6 @@ test('a private roster can be shared and made private again', async ({ browser }
     await expect(deletion).toContainText('Frozen copies in battles and league events are kept.')
     await deletion.screenshot({ path: `test-results/publication-delete-${width}.png` })
     await deletion.getByRole('button', { name: 'Cancel', exact: true }).click()
-    await page.goto('/battles')
-    const creation = page.getByRole('dialog', { name: 'Start a battle' })
-    await retryUntilVisible(creation, () => page.getByRole('button', { name: 'New battle', exact: true }).click())
-    await expect(creation.getByRole('link', { name: 'Privacy settings' })).toHaveAttribute('href', '/profile#battle-sharing')
-    await expect(creation.getByText('Loading players…', { exact: true })).toHaveCount(0)
-    await creation.screenshot({ path: `test-results/publication-create-${width}.png` })
-    await creation.getByRole('button', { name: 'Cancel', exact: true }).click()
     await page.goto('/profile')
     await page.locator('#battle-sharing').screenshot({ path: `test-results/publication-settings-${width}.png` })
     await page.goto('/privacy')
@@ -184,6 +183,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
   const context = await browser.newContext()
   const page = await context.newPage()
   await signUp(page, uniqueName('Detail sharer'))
+  await chooseRosterDefault(page, 'Private')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Detail share' })
   const sharedUrl = page.url()
   const anonymous = await (await browser.newContext()).newPage()
