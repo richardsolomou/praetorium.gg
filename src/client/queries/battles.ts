@@ -19,6 +19,7 @@ import {
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import type { BattlesCursor } from '../../contracts/battles'
 import { SSR_STALE_TIME } from './shared'
+import { liveProductRefresh } from '../liveProductRefresh'
 
 export type { BattlesCursor } from '../../contracts/battles'
 
@@ -49,6 +50,8 @@ export function requireBattlePage<T>(page: T | null | undefined): T {
 }
 
 const FEED_POLL_MS = 20_000
+/** A page without realtime refresh polls its feeds; with it, signals refresh them. */
+const feedPoll = () => (liveProductRefresh() ? false : FEED_POLL_MS)
 
 export const publicBattlesQuery = () =>
   infiniteQueryOptions({
@@ -57,7 +60,7 @@ export const publicBattlesQuery = () =>
     initialPageParam: null as BattlesCursor | null,
     getNextPageParam: (page) => page?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
-    refetchInterval: FEED_POLL_MS,
+    refetchInterval: feedPoll,
   })
 
 export const friendBattlesQuery = () =>
@@ -67,7 +70,7 @@ export const friendBattlesQuery = () =>
     initialPageParam: null as BattlesCursor | null,
     getNextPageParam: (page) => page?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
-    refetchInterval: FEED_POLL_MS,
+    refetchInterval: feedPoll,
   })
 
 export type PlayerProfileFilter = {

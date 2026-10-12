@@ -107,6 +107,9 @@ const SPECTATOR_ID = ''
 
 /** A page of a home-page feed. Small: every row on it costs a folded log. */
 const PUBLIC_BATTLES_PAGE = 10
+/** How long one public feed page serves repeated reads, such as a burst of tabs refetching after the same signal. */
+const PUBLIC_FEED_HOLD_MS = 5_000
+const PUBLIC_FEED_HELD_PAGES = 200
 
 /** How far back the standings look, and how many battles they will read to do it. */
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -386,6 +389,7 @@ export class PraetoriumService {
 
   /** The last standings folded, and when they stop being offered. See `standings`. */
   private standingsHeld: { key: string; until: number; fold: StandingsFold } | null = null
+  private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
   private standingsPending: { key: string; promise: Promise<StandingsFold> } | null = null
 
   adminUsers(input: Parameters<SpacetimeRepository['adminUsers']>[0]) {
@@ -435,12 +439,24 @@ export class PraetoriumService {
     page?: { limit: number; before?: BattlesCursor },
     factions?: readonly BattleFaction[],
   ) {
-    const { battles: histories, nextCursor } = await this.repository.publicBattles({
-      limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
-      before: page?.before,
-      viewerId,
-    })
-    return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
+    const now = this.clock()
+    const key = JSON.stringify([viewerId, page?.limit ?? PUBLIC_BATTLES_PAGE, page?.before ?? null])
+    const held = this.publicFeedHeld.get(key)
+    if (held && held.until > now) return held.page as ReturnType<typeof read>
+    const read = async () => {
+      const { battles: histories, nextCursor } = await this.repository.publicBattles({
+        limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
+        before: page?.before,
+        viewerId,
+      })
+      return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
+    }
+    const pending = read()
+    this.publicFeedHeld.set(key, { until: now + PUBLIC_FEED_HOLD_MS, page: pending })
+    pending.catch(() => this.publicFeedHeld.delete(key))
+    for (const [heldKey, entry] of this.publicFeedHeld)
+      if (entry.until <= now || this.publicFeedHeld.size > PUBLIC_FEED_HELD_PAGES) this.publicFeedHeld.delete(heldKey)
+    return pending
   }
 
   /** The battles this player's friends are in and they are not. */

@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
 import { maintainSpacetimeConnection } from './spacetimeConnection'
-import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
+import { coalescedBy, invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
+import { setLiveProductRefresh } from './liveProductRefresh'
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 import { anySignal } from './abortSignals'
@@ -127,22 +128,34 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
   }, [enabled, refresh, subscribed])
 }
 
+/** The shortest gap between two refetches of one signal scope. */
+const SIGNAL_WINDOW_MS = 10_000
+
 export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn: boolean) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
   const enabled = Boolean(config)
-  const refresh = useCallback(
-    (scope?: string) => {
-      void invalidateProductQueries(queryClient, scope)
-    },
+  const refresh = useMemo(
+    () => coalescedBy(SIGNAL_WINDOW_MS, (scope?: string) => void invalidateProductQueries(queryClient, scope)),
     [queryClient],
   )
-  const refreshPublic = useCallback(
-    (scope?: string) => {
-      void invalidatePublicProductQueries(queryClient, scope)
-    },
+  const refreshPublic = useMemo(
+    () => coalescedBy(SIGNAL_WINDOW_MS, (scope?: string) => void invalidatePublicProductQueries(queryClient, scope)),
     [queryClient],
   )
+  useEffect(
+    () => () => {
+      refresh.cancel()
+      refreshPublic.cancel()
+    },
+    [refresh, refreshPublic],
+  )
+  // Either the signals or the fallback refresh below keeps product data current, so feeds need no timer of their own.
+  useEffect(() => {
+    if (!enabled) return
+    setLiveProductRefresh(true)
+    return () => setLiveProductRefresh(false)
+  }, [enabled])
   const refreshAdmin = useCallback(
     (scope?: string) => {
       void invalidateAdminProductQueries(queryClient, scope)
