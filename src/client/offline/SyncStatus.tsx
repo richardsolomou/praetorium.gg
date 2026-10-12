@@ -1,4 +1,4 @@
-import { exportNativeWork } from '../nativeBridge'
+import { exportNativeWork, supportsNativeLocalState } from '../nativeBridge'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -200,7 +200,8 @@ export function SyncStatus() {
             <DialogTitle>Saved changes</DialogTitle>
             <DialogDescription>
               Edits are saved on this device before syncing. Invitations, league admissions, roster sealing and reveals take effect after
-              the server accepts them. Keep this app installed until your changes sync.
+              the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until your
+              changes sync.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

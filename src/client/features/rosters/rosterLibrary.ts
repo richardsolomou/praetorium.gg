@@ -96,6 +96,11 @@ export function useRosterActions(origin: string) {
     onSuccess: refresh,
   })
 
+  const convertAsVariant = useMutation({
+    mutationFn: (review: RosterSetupReview) => convertAsVariantOf(review),
+    onSuccess: refresh,
+  })
+
   /**
    * Copies a link, making the list unlisted first when it is not already.
    *
@@ -134,6 +139,7 @@ export function useRosterActions(origin: string) {
     take,
     exchange,
     update,
+    convertAsVariant,
     share,
     print: (id: string) => window.open(`/rosters/${id}?print=true`, '_blank'),
     shareFeedback,
@@ -146,3 +152,11 @@ export function useRosterActions(origin: string) {
 }
 
 export type RosterActions = ReturnType<typeof useRosterActions>
+
+/** A reviewed conversion saved beside its original, which keeps its rules version. */
+export async function convertAsVariantOf(review: RosterSetupReview) {
+  if (!review.source.id) throw new Error('Save this roster before keeping a converted copy.')
+  const copied = await copyRoster({ data: { id: review.source.id, variant: true, setup: review.candidate } })
+  posthog.capture('roster_duplicated', { unit_count: review.candidate.picks.length, variant: true, converted: true })
+  return copied
+}

@@ -83,6 +83,7 @@ import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './R
 import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
+import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
@@ -818,8 +819,15 @@ export function ListBuilder({
       return saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave)
     },
   })
-  const applySetup = async (setup: RosterSetup, review?: RosterSetupReview) => {
+  const applySetup = async (setup: RosterSetup, review?: RosterSetupReview, options?: { keepOriginal: boolean }) => {
     if (!review) throw new Error('Review the roster before saving changes.')
+    if (options?.keepOriginal) {
+      const { id } = await convertAsVariantOf(review)
+      setSetupDraft(null)
+      await invalidateSavedRosters(queryClient)
+      await navigate({ to: '/rosters/$id', params: { id } })
+      return
+    }
     const { updatedAt } = await setupSave.mutateAsync(review)
     const key = draftKey(review.candidate)
     lastSaved.current = key
@@ -862,6 +870,7 @@ export function ListBuilder({
         reviewSource={draft}
         pending={saving || setupSave.isPending}
         namePlaceholder={label}
+        canKeepOriginal={Boolean(savedId && !guest)}
         onSave={applySetup}
       />
     ) : null

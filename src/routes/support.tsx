@@ -6,7 +6,7 @@ export const Route = createFileRoute('/support')({
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Support',
-      description: 'Get help with the Praetorium web, iOS, and Android applications.',
+      description: 'Get help with Praetorium, report a problem, or recover your account.',
       path: '/support',
     }),
   component: Support,

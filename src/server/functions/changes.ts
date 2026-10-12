@@ -6,6 +6,8 @@ import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../../cor
 import { app } from '../app'
 import { factionHistory, indexedUpdate, referenceHistory, referencePath } from '../catalogueChangeLog'
 import { rpc } from '../rpc'
+import { parseReleaseNotes } from '../../core/releaseNotes'
+import changelog from '../../../CHANGELOG.md?raw'
 
 /** How many data updates one page of the index lists. */
 const CHANGE_LOG_PAGE = 20
@@ -46,3 +48,10 @@ export const referenceChanges = createServerFn({ method: 'GET' })
       return canonical ? referenceHistory(history, canonical, referencePath(data)).slice(0, REFERENCE_CHANGES) : []
     }),
   )
+
+/** How many app releases What's new lists. */
+const RELEASE_NOTES = 15
+const releaseNotes = parseReleaseNotes(changelog, RELEASE_NOTES)
+
+/** The app's own release notes, kept apart from the game-data updates above. */
+export const appReleaseNotes = createServerFn({ method: 'GET' }).handler(() => rpc(async () => releaseNotes))

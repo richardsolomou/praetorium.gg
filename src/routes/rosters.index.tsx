@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
 import { GAME_SIZES } from '../core/battle'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
+import { ROSTER_UPDATE_FILTERS, type RosterUpdateFilter } from '../client/features/rosters/RosterFilters'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { BuilderFrame, ClaimGuestRoster, GuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
@@ -25,6 +26,7 @@ export const Route = createFileRoute('/rosters/')({
       ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
+      ...(ROSTER_UPDATE_FILTERS.includes(search.updates as RosterUpdateFilter) ? { updates: search.updates as RosterUpdateFilter } : {}),
       // A datasheet a reference page asked to add to a visitor's list, dropped once the builder has answered.
       ...(typeof search.add === 'string' && search.add && search.add.length <= 64 ? { add: search.add } : {}),
     }

@@ -27,7 +27,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'roster-bootstrap',
   'roster-access',
   'roster-changes',
-  'saved-roster-changed-count',
+  'saved-roster-changed-ids',
   'price',
   'shared-roster',
   'saved-roster-loadout-datasheets',

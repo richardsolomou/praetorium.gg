@@ -34,3 +34,36 @@ export function picksAfterSetupChange<T extends RosterPick>(
   if (source.catalogueId !== next.catalogueId) return picksForRulesVersion(picks, next.catalogueId)
   return picksAfterDetachmentChange(picks, units, source.detachmentIds, next.detachmentIds)
 }
+
+type ConvertedSetup = Pick<
+  RosterSetupFields,
+  | 'catalogueId'
+  | 'detachmentIds'
+  | 'disposition'
+  | 'borrowedDetachmentId'
+  | 'limit'
+  | 'pointsBudget'
+  | 'picks'
+  | 'waivedRules'
+  | 'optionalRules'
+  | 'prep'
+>
+type RosterSetupFields = {
+  catalogueId: string
+  detachmentIds: readonly string[]
+  disposition: string | null
+  borrowedDetachmentId?: string | null
+  limit: number
+  pointsBudget?: number | null
+  picks: readonly RosterPick[]
+  waivedRules?: readonly string[]
+  optionalRules?: readonly string[]
+  prep: unknown
+}
+
+/** What a variant saved from a reviewed conversion takes from it; its name, access and group stay its own. */
+export function convertedSetup<T extends RosterSetupFields>(setup: T): Pick<T, keyof ConvertedSetup> {
+  const { catalogueId, detachmentIds, disposition, borrowedDetachmentId, limit, pointsBudget, picks, waivedRules, optionalRules, prep } =
+    setup
+  return { catalogueId, detachmentIds, disposition, borrowedDetachmentId, limit, pointsBudget, picks, waivedRules, optionalRules, prep }
+}
