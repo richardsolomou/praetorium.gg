@@ -11,7 +11,7 @@ async function closePickerOnPhone(page: Page, width: number) {
 }
 
 for (const width of [1440, 390]) {
-  test(`a unit's attach menu adds and attaches a new leader, then explains full slots at ${width}px`, async ({ page }) => {
+  test(`a unit's attach menu adds and attaches a new leader, then offers only its free support slot at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await openBuilder(page)
     await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toHaveCount(0)
@@ -38,13 +38,10 @@ for (const width of [1440, 390]) {
     await expect(immortals).toContainText('Imotekh the Stormlord')
 
     await immortals.getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
+    await expect(added.getByRole('menuitem', { name: 'Add new Technomancer and attach', exact: true })).toBeEnabled()
     await expect(roster).toHaveCount(0)
-    const overlord = added.getByRole('menuitem', { name: 'Add new Overlord and attach', exact: true })
-    await expect(overlord).toBeDisabled()
-    await expect(overlord).toContainText('Leader limit reached on Immortals.')
-    const second = added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })
-    await expect(second).toBeDisabled()
-    await expect(second).toContainText('Limit reached: 1 of 1 permitted copies in the roster.')
+    await expect(added.getByRole('menuitem', { name: 'Add new Overlord and attach', exact: true })).toHaveCount(0)
+    await expect(added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })).toHaveCount(0)
     await expectNoHorizontalOverflow(attachMenu(page))
     await expectNoHorizontalOverflow(page.locator('html'))
     await shot(attachMenu(page), `test-results/attach-menu-full-${width}.png`)
@@ -55,6 +52,30 @@ for (const width of [1440, 390]) {
     await expect(leader).toContainText('Immortals')
     await page.screenshot({ path: `test-results/attach-roster-${width}.png` })
     await expect(page.locator('[data-unit="Overlord"]')).not.toContainText('Leading')
+  })
+
+  test(`a unit whose only leader slot is full offers no attach menu at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openBuilder(page)
+    await waitForRosterSave(page, () => add(page, 'Skorpekh Destroyers'))
+    await closePickerOnPhone(page, width)
+
+    const destroyers = page.locator('[data-unit="Skorpekh Destroyers"]')
+    const attachUnit = destroyers.getByRole('button', { name: 'Attach a unit to Skorpekh Destroyers', exact: true })
+    await attachUnit.click()
+    const added = attachMenu(page).getByRole('group', { name: 'Add a new unit' })
+    await expect(added.getByRole('menuitem')).toHaveCount(1)
+    await waitForRosterSave(page, () => added.getByRole('menuitem', { name: 'Add new Skorpekh Lord and attach', exact: true }).click())
+
+    const lord = page.locator('[data-unit="Skorpekh Lord"]')
+    await expect(destroyers).toContainText('Skorpekh Lord')
+    await expect(attachUnit).toHaveCount(0)
+    await expect(lord.getByRole('button', { name: 'Attach Skorpekh Lord to unit', exact: true })).toHaveCount(0)
+    await expectNoHorizontalOverflow(page.locator('html'))
+    await shot(destroyers, `test-results/attach-full-skorpekh-${width}.png`)
+    await page.reload()
+    await expect(destroyers).toContainText('Skorpekh Lord')
+    await expect(attachUnit).toHaveCount(0)
   })
 
   test(`a character's attach menu adds and joins a new bodyguard at ${width}px`, async ({ page }) => {

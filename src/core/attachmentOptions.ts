@@ -68,40 +68,40 @@ export function rosterJoiners(picks: readonly AttachmentPick[], units: readonly 
   )
 }
 
-/** Datasheets the unattached unit at `index` could join once one is added, with why it could not yet. */
+/** Datasheets the unattached unit at `index` could join once one is added. */
 export function newHosts<T extends Candidate>(
   candidates: readonly T[],
   picks: readonly AttachmentPick[],
   units: readonly (AttachableUnit | undefined)[],
   index: number,
-): (T & { reason: string | null })[] {
+): T[] {
   if (!units[index]?.attachment || picks[index]?.attachedTo !== undefined) return []
-  return candidates.flatMap((candidate) => {
-    const option = attachmentOptions(
-      [...picks, { key: NEW }],
-      [...units, { ...candidate, attachment: candidate.attachment ?? null }],
-      index,
-    ).find(({ key }) => key === NEW)
-    return option ? [{ ...candidate, reason: option.reason }] : []
-  })
+  return candidates.filter((candidate) =>
+    attachmentOptions([...picks, { key: NEW }], [...units, { ...candidate, attachment: candidate.attachment ?? null }], index).some(
+      ({ key, reason }) => key === NEW && !reason,
+    ),
+  )
 }
 
-/** Datasheets that could join the unit at `index` once added, with why one could not. */
+/** Datasheets that could join the unit at `index` once added. */
 export function newJoiners<T extends Candidate>(
   candidates: readonly T[],
   picks: readonly AttachmentPick[],
   units: readonly (AttachableUnit | undefined)[],
   index: number,
-): (T & { reason: string | null })[] {
+): T[] {
   const host = picks[index]
   if (!host || !units[index]) return []
-  return candidates.flatMap((candidate) => {
-    if (!candidate.attachment) return []
-    const option = attachmentOptions(
-      [...picks, { key: NEW }],
-      [...units, { ...candidate, attachment: candidate.attachment }],
-      picks.length,
-    ).find(({ key }) => key === host.key)
-    return option ? [{ ...candidate, reason: option.reason }] : []
-  })
+  return candidates.filter(
+    (candidate) =>
+      candidate.attachment &&
+      attachmentOptions([...picks, { key: NEW }], [...units, { ...candidate, attachment: candidate.attachment }], picks.length).some(
+        ({ key, reason }) => key === host.key && !reason,
+      ),
+  )
+}
+
+/** An attach menu's choices, or none when no choice is available now. */
+export function availableChoices<T extends object>(choices: T[]): T[] {
+  return choices.some((choice) => !('reason' in choice) || !choice.reason) ? choices : []
 }
