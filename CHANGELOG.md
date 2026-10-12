@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.131.1
+
+### Patch Changes
+
+- 275f4e2: Fold the desktop navigation into its menu button when enlarged text would push Reference, Search and Account off the screen.
+- 275f4e2: Keep the account menu and other menus inside the screen with enlarged text.
+- 275f4e2: Wrap the End phase button's label instead of clipping it with enlarged text.
+- 275f4e2: Keep the battle scoreboard's scores clear of the phase title with enlarged text.
+- 275f4e2: Keep the simulator's result figures and breakdown apart with enlarged text.
+- 275f4e2: Keep weapon profile headings apart with enlarged text.
+
 ## 0.131.0
 
 ### Minor Changes
