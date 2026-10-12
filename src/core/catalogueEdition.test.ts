@@ -94,6 +94,12 @@ it('qualifies books and their references without changing unit or option identit
   expect(files[0]!.catalogue?.id).toBe('custodes')
 })
 
+it('shares source entries that name no book with the original files', () => {
+  const entry = { id: 'spear', name: 'Spear', profiles: [{ id: 'spear-profile', name: 'Spear' }] }
+  const files: CatalogueFile[] = [{ catalogue: { id: 'custodes', name: 'Custodes', sharedSelectionEntries: [entry] } }]
+  expect(editionCatalogueFiles(files, catalogueEditionSchema.parse(preview))[0]!.catalogue?.sharedSelectionEntries?.[0]).toBe(entry)
+})
+
 it.each(['released', 'retired'] as const)('allows %s codexes in leagues', (status) => {
   expect(leagueEditionError({ status })).toBeNull()
 })

@@ -164,9 +164,6 @@ export function AppPersistence() {
       save()
     })
     const cancelPreparation = afterInitialScreen(router, () => void refresh(), 10_000)
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') void refresh()
-    }, 60_000)
     window.addEventListener('online', reconnect)
     window.addEventListener('pagehide', save)
     window.addEventListener('storage', accountChanged)
@@ -177,7 +174,6 @@ export function AppPersistence() {
       save()
       active = false
       clearTimeout(timer)
-      clearInterval(interval)
       unsubscribe()
       window.removeEventListener('online', reconnect)
       window.removeEventListener('pagehide', save)

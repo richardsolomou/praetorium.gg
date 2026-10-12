@@ -96,12 +96,19 @@ export function editionCatalogueFiles(files: readonly CatalogueFile[], edition: 
   const ids = new Map(
     files.flatMap((file) => (file.catalogue ? [[file.catalogue.id, editionCatalogueId(edition.id, file.catalogue.id)] as const] : [])),
   )
+  // Unchanged values are returned as they are, so every edition shares the source objects that name no book.
   const replace = (value: unknown, key = ''): unknown => {
     if (typeof value === 'string')
       return ['id', 'targetId', 'childId', 'scope', 'gameSystemId', 'catalogueId'].includes(key) ? (ids.get(value) ?? value) : value
-    if (Array.isArray(value)) return value.map((child) => replace(child, key))
-    if (value && typeof value === 'object')
-      return Object.fromEntries(Object.entries(value).map(([field, child]) => [field, replace(child, field)]))
+    if (Array.isArray(value)) {
+      const replaced = value.map((child) => replace(child, key))
+      return replaced.some((child, at) => child !== value[at]) ? replaced : value
+    }
+    if (value && typeof value === 'object') {
+      const entries = Object.entries(value)
+      const replaced = entries.map(([field, child]) => [field, replace(child, field)] as const)
+      return replaced.some(([, child], at) => child !== entries[at]![1]) ? Object.fromEntries(replaced) : value
+    }
     return value
   }
   return files.map((file) => replace(file) as CatalogueFile)

@@ -1,7 +1,8 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
-import { serverTelemetry } from '../adapters/posthog'
+import os from 'node:os'
+import { deploymentHost, serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRules } from './rules'
 import {
@@ -37,6 +38,7 @@ import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsor
 import type { compiledGlobalSearchIndex } from './globalSearch'
 import { catalogueEditionLoaders } from './catalogueEditions'
 import { catalogueEditionId } from '../core/catalogueEdition'
+import { reportRuntimeMetrics } from './runtimeMetrics'
 import type { BattleFaction } from '../shared/battleSummary'
 
 type App = {
@@ -336,6 +338,11 @@ export function app(): App {
       refreshSponsors()
       setInterval(refreshSponsors, 60 * 60 * 1000).unref()
     }
+    if (process.env.NODE_ENV === 'production')
+      reportRuntimeMetrics((name, value, options) => void telemetry.metrics.gauge(name, value, options), {
+        instance: os.hostname(),
+        host: deploymentHost() ?? 'unknown',
+      })
     if (sync.state.status === 'ready') ready = warm(instance)
     return instance
   }
