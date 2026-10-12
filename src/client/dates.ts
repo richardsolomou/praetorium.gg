@@ -7,12 +7,17 @@ export const formatDate = (at: string | number | Date) => new Date(at).toLocaleD
 /** The one time-of-day format, for entries inside a single day's report. */
 export const formatTime = (at: string | number | Date) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
+/** A calendar day such as `2026-10-03`, which names the same day in every timezone. */
+const formatDay = (day: string, locale?: string) =>
+  new Date(`${day}T00:00:00Z`).toLocaleDateString(locale, { ...dateOptions, timeZone: 'UTC' })
+
 const utc = {
   date: (at: string | number | Date) => new Date(at).toLocaleDateString('en-GB', { ...dateOptions, timeZone: 'UTC' }),
+  day: (day: string) => formatDay(day, 'en-GB'),
   time: (at: string | number | Date) => new Date(at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }),
 }
 
-const local = { date: formatDate, time: formatTime }
+const local = { date: formatDate, time: formatTime, day: (day: string) => formatDay(day) }
 const subscribe = () => () => {}
 
 /** Match the server's first frame, then show dates in the reader's timezone. */

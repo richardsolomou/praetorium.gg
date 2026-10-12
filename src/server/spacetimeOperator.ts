@@ -9,6 +9,7 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
+import { JOURNAL_RESULTS, type JournalEventInput, type JournalGameInput } from '../core/gameJournal'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 
 // Whole table rows drop columns this build does not know, so a replica still on the previous build keeps
@@ -40,6 +41,26 @@ const rosterRow = z.object({
 
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true, copiedFromRosterId: true }).extend({
   unitCount: z.number().int().nonnegative(),
+})
+const journalRow = z.object({
+  events: z.array(z.object({ id: z.string(), name: z.string(), createdAt: z.number().int() })),
+  games: z.array(
+    z.object({
+      id: z.string(),
+      eventId: z.string().nullable(),
+      playedOn: z.string(),
+      factionId: z.string().nullable(),
+      army: z.string().nullable(),
+      opponentName: z.string().nullable(),
+      opponentFactionId: z.string().nullable(),
+      score: z.number().int().nullable(),
+      opponentScore: z.number().int().nullable(),
+      result: z.enum(JOURNAL_RESULTS),
+      notes: z.string().nullable(),
+      createdAt: z.number().int(),
+      updatedAt: z.number().int(),
+    }),
+  ),
 })
 const lentRosterRow = rosterSummaryRow.extend({ ownerId: z.string(), lentAt: z.number().int() })
 const collectionRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
@@ -573,6 +594,30 @@ export class SpacetimeOperator {
       .array(lentRosterRow)
       .max(1_000)
       .parse(await this.read('rosters_lent_to', [userId]))
+  }
+
+  async journal(userId: string) {
+    return journalRow.parse(await this.read('journal_by_user', [userId]))
+  }
+
+  async saveJournalGame(userId: string, game: JournalGameInput, now: number) {
+    const response = await this.call('save_journal_game', [userId, JSON.stringify(game), now])
+    return z.enum(['saved', 'forbidden', 'no-event', 'too-many']).parse(await response.json())
+  }
+
+  async deleteJournalGame(id: string, userId: string) {
+    const response = await this.call('delete_journal_game', [id, userId])
+    return z.boolean().parse(await response.json())
+  }
+
+  async saveJournalEvent(userId: string, event: JournalEventInput, now: number) {
+    const response = await this.call('save_journal_event', [userId, JSON.stringify(event), now])
+    return z.enum(['saved', 'forbidden', 'too-many']).parse(await response.json())
+  }
+
+  async deleteJournalEvent(id: string, userId: string) {
+    const response = await this.call('delete_journal_event', [id, userId])
+    return z.boolean().parse(await response.json())
   }
 
   async collectionProfile(userId: string, viewerId: string | null) {

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   Boxes,
+  NotebookPen,
   Dices,
   Gavel,
   History,
@@ -74,6 +75,9 @@ export function NativeMorePage() {
               <>
                 <Link to="/collection" className={secondaryClass}>
                   <Boxes className="size-5 text-info" /> Collection
+                </Link>
+                <Link to="/journal" className={secondaryClass}>
+                  <NotebookPen className="size-5 text-info" /> Game journal
                 </Link>
                 <Link to="/friends" className={secondaryClass}>
                   <Users className="size-5 text-info" /> Friends

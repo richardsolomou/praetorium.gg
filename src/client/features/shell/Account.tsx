@@ -2,7 +2,19 @@ import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
+import {
+  Boxes,
+  CircleUserRound,
+  LogIn,
+  LogOut,
+  Map,
+  MessageSquareWarning,
+  NotebookPen,
+  ShieldCheck,
+  UserRound,
+  UserRoundPen,
+  Users,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { onboardingComplete, resolvedOnboardingTasks } from '../../../core/onboarding'
@@ -106,6 +118,9 @@ function AccountMenuItems() {
           ) : null}
           <DropdownMenuItem render={<Link to="/collection" />}>
             <Boxes /> Collection
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link to="/journal" />}>
+            <NotebookPen /> Game journal
           </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/friends" />}>
             <Users /> Friends

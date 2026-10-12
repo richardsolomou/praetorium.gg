@@ -1,5 +1,5 @@
 # Services
 
-Application operations for rosters, leagues and the social graph, delegated from PraetoriumService.
+Application operations for rosters, leagues, the social graph and the game journal, delegated from PraetoriumService.
 
 ## invariants

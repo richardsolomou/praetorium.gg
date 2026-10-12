@@ -684,6 +684,26 @@ export class SpacetimeRepository {
     return this.product.rostersLentTo(...args)
   }
 
+  journal(...args: Parameters<SpacetimeOperator['journal']>) {
+    return this.product.journal(...args)
+  }
+
+  saveJournalGame(...args: Parameters<SpacetimeOperator['saveJournalGame']>) {
+    return this.product.saveJournalGame(...args)
+  }
+
+  deleteJournalGame(...args: Parameters<SpacetimeOperator['deleteJournalGame']>) {
+    return this.product.deleteJournalGame(...args)
+  }
+
+  saveJournalEvent(...args: Parameters<SpacetimeOperator['saveJournalEvent']>) {
+    return this.product.saveJournalEvent(...args)
+  }
+
+  deleteJournalEvent(...args: Parameters<SpacetimeOperator['deleteJournalEvent']>) {
+    return this.product.deleteJournalEvent(...args)
+  }
+
   async createBattle(...args: Parameters<SpacetimeOperator['createBattle']>) {
     await this.product.createBattle(...args)
   }
