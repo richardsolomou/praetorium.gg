@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.128.1
+
+### Patch Changes
+
+- b09c4b1: Return to the page you were reading after signing in from the account menu.
+- b09c4b1: Label link and invite actions Copy in the browser, where they copy to the clipboard.
+- b09c4b1: Keep the loadout model count controls on screen with enlarged text.
+- b09c4b1: Keep unit picker rows readable and their Add buttons reachable with enlarged text.
+- b09c4b1: Keep battle reserve counts on screen with enlarged text.
+- b09c4b1: Keep simulator unit choices usable with enlarged text.
+- b09c4b1: Stop phone section tab labels overlapping with enlarged text.
+
 ## 0.128.0
 
 ### Minor Changes
