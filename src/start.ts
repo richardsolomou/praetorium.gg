@@ -1,5 +1,5 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
-import { canonicalHostMiddleware } from 'ras-stack/tanstack/middleware'
+import { canonicalHostMiddleware, serverFunctionIdentityMiddleware } from 'ras-stack/tanstack/middleware'
 import { serverTelemetry } from './adapters/posthog'
 import { crawlerRequestEvent } from './server/crawlerRequests'
 
@@ -15,6 +15,8 @@ const crawlerRequestMiddleware = createMiddleware({ type: 'request' }).server(as
 })
 
 export const startInstance = createStart(() => ({
+  // Names each server function on its trace span and request metrics.
+  functionMiddleware: [serverFunctionIdentityMiddleware()],
   requestMiddleware: [
     canonicalHostMiddleware(() => ({
       canonicalUrl: process.env.APP_URL,

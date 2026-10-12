@@ -103,7 +103,7 @@
     "posthog-js": "^1.430.3",
     "posthog-node": "^5.52.4",
     "qrcode": "^1.5.4",
-    "ras-stack": "^3.0.1",
+    "ras-stack": "^3.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "10.1.0",
