@@ -27,6 +27,7 @@ import {
   rosterIdsSchema,
   rosterInBattleSchema,
   rosterLockSchema,
+  rosterLoanSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
   userSchema,
@@ -141,12 +142,12 @@ async function accessToRoster(data: { id: string; battle?: string }) {
   const access = await app().service.rosterAccess(data.id, userId, data.battle ?? null)
   if (!access) return null
   const copiedFrom = await app().service.copySource(access.roster.copiedFromRosterId, userId)
-  if (!access.editable || !userId) return { ...access, variants: [], differences: null, copiedFrom }
+  if (!access.editable || !userId) return { lentBy: null, ...access, variants: [], differences: null, copiedFrom }
   const [variants, differences] = await Promise.all([
     app().service.rosterGroup(userId, access.roster),
     variantDifferences(userId, [access.roster]),
   ])
-  return { ...access, variants, differences: differences.get(access.roster.id) ?? null, copiedFrom }
+  return { lentBy: null, ...access, variants, differences: differences.get(access.roster.id) ?? null, copiedFrom }
 }
 
 async function accessibleRoster(data: { id: string; battle?: string }) {
@@ -323,6 +324,45 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
       return null
     }),
   )
+
+export const lendRoster = createServerFn({ method: 'POST' })
+  .validator(rosterLoanSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.lendRoster(player.id, data.id, data.borrowerId)
+      await app().telemetry.capture(player.id, 'roster_lent')
+      return null
+    }),
+  )
+
+/** The owner revokes a loan, or the borrower hands it back. */
+export const endRosterLoan = createServerFn({ method: 'POST' })
+  .validator(rosterLoanSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.endRosterLoan(player.id, data.id, data.borrowerId)
+      await app().telemetry.capture(player.id, 'roster_loan_ended', { by: player.id === data.borrowerId ? 'borrower' : 'owner' })
+      return null
+    }),
+  )
+
+export const rosterLoans = createServerFn({ method: 'GET' })
+  .validator(rosterIdSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const player = await requireUser()
+      return app().service.rosterLoans(player.id, data.id)
+    }),
+  )
+
+export const rostersLentToMe = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.rostersLentTo(id) : []
+  }),
+)
 
 export const setRosterLocked = createServerFn({ method: 'POST' })
   .validator(rosterLockSchema)

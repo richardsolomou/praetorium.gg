@@ -664,6 +664,26 @@ export class SpacetimeRepository {
     return this.product.deleteRoster(...args)
   }
 
+  lendRoster(...args: Parameters<SpacetimeOperator['lendRoster']>) {
+    return this.product.lendRoster(...args)
+  }
+
+  endRosterLoan(...args: Parameters<SpacetimeOperator['endRosterLoan']>) {
+    return this.product.endRosterLoan(...args)
+  }
+
+  rosterLoansByRoster(...args: Parameters<SpacetimeOperator['rosterLoansByRoster']>) {
+    return this.product.rosterLoansByRoster(...args)
+  }
+
+  usableRoster(...args: Parameters<SpacetimeOperator['usableRoster']>) {
+    return this.product.usableRoster(...args)
+  }
+
+  rostersLentTo(...args: Parameters<SpacetimeOperator['rostersLentTo']>) {
+    return this.product.rostersLentTo(...args)
+  }
+
   async createBattle(...args: Parameters<SpacetimeOperator['createBattle']>) {
     await this.product.createBattle(...args)
   }

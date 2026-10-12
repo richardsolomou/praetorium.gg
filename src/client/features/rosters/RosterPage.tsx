@@ -62,6 +62,7 @@ export function RosterPage({
       variants={access.variants}
       differences={access.differences}
       copiedFrom={access.copiedFrom ?? null}
+      lentBy={access.lentBy ?? null}
       requested={requested}
     />
   )

@@ -239,6 +239,7 @@ function accessFor(roster: LocalRoster, state?: LocalState) {
     variants: variants.length ? variants : (cached?.variants ?? []),
     differences,
     copiedFrom: cached?.copiedFrom ?? null,
+    lentBy: null,
   }
 }
 

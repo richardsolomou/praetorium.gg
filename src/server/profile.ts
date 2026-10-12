@@ -1,4 +1,4 @@
-import { PROFILE_NAME_MAX_LENGTH } from '../authConfig'
+import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 import { isStoredProfileImageUrl, storeProfileImage } from './avatarStorage'
 
 type ProfileUpdate = Record<string, unknown>

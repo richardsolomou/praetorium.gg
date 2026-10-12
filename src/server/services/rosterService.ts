@@ -166,7 +166,7 @@ export class RosterService {
     }
   }
 
-  /** An opaque roster id grants unlisted or public access; private access requires ownership or a named battle whose seated reader can already see the snapshot. */
+  /** An opaque roster id grants unlisted or public access; private access requires ownership, a friend's loan, or a named battle whose seated reader can already see the snapshot. */
   async rosterAccess(id: string, userId: string | null = null, token: string | null = null) {
     const row = await this.repository.roster(id)
     if (!row) return null
@@ -174,6 +174,8 @@ export class RosterService {
     // Named rather than "anything but private", so a value added later is refused
     // until somebody decides it should not be.
     if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
+    const lender = userId ? await this.lender(id, userId) : null
+    if (lender) return { roster: readerRosterFromRow(row), editable: false, lentBy: lender }
     if (!userId || !token) return null
     return (await this.fieldedIn(token, userId, id)) ? { roster: readerRosterFromRow(row), editable: false } : null
   }
@@ -213,6 +215,54 @@ export class RosterService {
 
   async deleteRoster(userId: string, id: string) {
     await this.repository.deleteRoster(id, userId)
+  }
+
+  /**
+   * A roster this player may field: their own, or one a friend has lent them. A lent roster is read
+   * as any other reader would read it, so the owner's unit notes and battle preparation stay theirs.
+   */
+  async usableRoster(userId: string, id: string) {
+    const usable = await this.repository.usableRoster(id, userId)
+    if (!usable) return null
+    if (!usable.lentBy) return { roster: rosterFromRow(usable.roster, true), lentBy: null }
+    const lender = await this.named(usable.lentBy)
+    return lender ? { roster: readerRosterFromRow(usable.roster), lentBy: lender } : null
+  }
+
+  /** The friend lending this reader a roster they do not own. */
+  private async lender(id: string, userId: string) {
+    const lentBy = (await this.repository.usableRoster(id, userId))?.lentBy
+    return lentBy ? this.named(lentBy) : null
+  }
+
+  private async named(userId: string) {
+    const named = (await this.repository.namesByIds([userId])).get(userId)
+    return named ? { id: named.id, name: named.name } : null
+  }
+
+  async lendRoster(ownerId: string, rosterId: string, borrowerId: string) {
+    const outcome = await this.repository.lendRoster(rosterId, ownerId, borrowerId, this.clock())
+    if (outcome === 'forbidden') throw new Response('you do not own this roster', { status: 403 })
+    if (outcome === 'not-friends') throw new Response('you can only lend a roster to a friend', { status: 409 })
+    if (outcome === 'too-many') throw new Response('this roster is lent to too many players', { status: 409 })
+  }
+
+  /** The owner revokes a loan, or the borrower hands it back. */
+  async endRosterLoan(userId: string, rosterId: string, borrowerId: string) {
+    if (!(await this.repository.endRosterLoan(rosterId, userId, borrowerId))) throw new Response('this roster is not lent', { status: 404 })
+  }
+
+  async rosterLoans(ownerId: string, rosterId: string) {
+    return (await this.repository.rosterLoansByRoster(rosterId, ownerId)).map(({ borrowerId, lentAt }) => ({ borrowerId, lentAt }))
+  }
+
+  /** Rosters friends have lent this player, named for their owner; a roster whose owner has no account is left out. */
+  async rostersLentTo(userId: string) {
+    const rows = await this.repository.rostersLentTo(userId)
+    const owners = await this.repository.namesByIds(rows.map((row) => row.ownerId))
+    const lent = rows.filter((row) => owners.has(row.ownerId))
+    const summaries = rosterSummaries(lent)
+    return lent.map((row, index) => ({ summary: summaries[index]!, owner: owners.get(row.ownerId)!, lentAt: row.lentAt }))
   }
 
   /** The datasheets a user owns, as a set the picker can ask about directly. */

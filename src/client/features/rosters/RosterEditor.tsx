@@ -33,6 +33,7 @@ type Props = {
   variants?: ListBuilderProps['variants']
   differences?: ListBuilderProps['differences']
   copiedFrom?: ListBuilderProps['copiedFrom']
+  lentBy?: ListBuilderProps['lentBy']
   requested?: ListBuilderProps['requested']
 }
 
@@ -51,6 +52,7 @@ export function RosterEditor({
   variants,
   differences,
   copiedFrom,
+  lentBy,
   requested,
 }: Props) {
   return (
@@ -70,6 +72,7 @@ export function RosterEditor({
         variants={variants}
         differences={differences}
         copiedFrom={copiedFrom}
+        lentBy={lentBy}
         requested={requested}
       />
     </main>

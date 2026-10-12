@@ -3,6 +3,7 @@ import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Copy,
   Crown,
+  HandHelping,
   Download,
   EllipsisVertical,
   GitBranchPlus,
@@ -49,7 +50,7 @@ import {
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
-import { copyRoster, exportRoster, saveRoster, setRosterLocked } from '../../functions'
+import { copyRoster, endRosterLoan, exportRoster, saveRoster, setRosterLocked } from '../../functions'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
   factionIndexQuery,
@@ -58,6 +59,7 @@ import {
   meQuery,
   playerDefaultsQuery,
   priceQuery,
+  rostersLentToMeQuery,
   unitsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -81,6 +83,7 @@ import { type AttachLink, canAddCopy, unitLimitMessage, pickEditor, requestedUni
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
+import { RosterLoanDialog } from './RosterLoanDialog'
 import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
@@ -141,6 +144,8 @@ type Props = {
   differences?: NamedRosterDifferences | null
   /** The readable roster this one was duplicated from. */
   copiedFrom?: { id: string; name: string; ownerId: string; ownerName: string } | null
+  /** The friend lending this reader the roster, who can take it back or have it returned. */
+  lentBy?: { id: string; name: string } | null
   editable?: boolean
   /** The owner's own lock: the list reads as it does to anyone else, while unlocking and copying stay on offer. */
   locked?: boolean
@@ -198,6 +203,7 @@ export function ListBuilder({
   variants = NO_VARIANTS,
   differences = null,
   copiedFrom = null,
+  lentBy = null,
   editable = true,
   locked = false,
   print = false,
@@ -230,6 +236,7 @@ export function ListBuilder({
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
+  const [lending, setLending] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
   const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
@@ -446,6 +453,14 @@ export function ListBuilder({
       return { name: exchangeName, code }
     },
     onSuccess: (code) => setExchangeCode(code),
+  })
+
+  const returnLoan = useMutation({
+    mutationFn: () => endRosterLoan({ data: { id: savedId, borrowerId: me!.id } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: rostersLentToMeQuery().queryKey })
+      await navigate({ to: '/rosters' })
+    },
   })
 
   // A saved list is copied on the server, which records where the copy came from; a fielded army is copied as shown.
@@ -1156,6 +1171,9 @@ export function ListBuilder({
                       <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
                         <Lock /> Lock roster
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLending(true)}>
+                        <HandHelping /> Lend to a friend
+                      </DropdownMenuItem>
                     </>
                   ) : null}
                   <DropdownMenuSeparator />
@@ -1229,6 +1247,9 @@ export function ListBuilder({
                       </DropdownMenuItem>
                       <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
                         <Copy /> Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLending(true)}>
+                        <HandHelping /> Lend to a friend
                       </DropdownMenuItem>
                     </>
                   ) : me ? (
@@ -1323,6 +1344,25 @@ export function ListBuilder({
               {copiedFrom.ownerName}
             </Link>
           </p>
+        ) : null}
+        {lentBy && savedId && me ? (
+          <div data-roster-lent-by className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim">
+            <span>
+              Lent to you by{' '}
+              <Link to="/users/$userId" params={{ userId: lentBy.id }} className="text-info hover:text-parchment">
+                {lentBy.name}
+              </Link>
+              . You can field it in your battles.
+            </span>
+            <Button variant="outline" size="xs" disabled={returnLoan.isPending} onClick={() => returnLoan.mutate()}>
+              Return it
+            </Button>
+            {returnLoan.isError ? (
+              <span role="alert" className="text-destructive">
+                {errorMessage(returnLoan.error, 'Could not return the roster. Try again.')}
+              </span>
+            ) : null}
+          </div>
         ) : null}
         {savedId && !frozen ? <RosterDataChanges rosterId={savedId} /> : null}
         {!frozen ? (
@@ -1649,6 +1689,9 @@ export function ListBuilder({
       />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
+      {savedId && (editable || locked) && !guest ? (
+        <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
+      ) : null}
       {combatRoster ? (
         <RosterCombatDialog roster={combatRoster} startWithRosters={compareTargets} onClose={() => setCombatRoster(null)} />
       ) : null}

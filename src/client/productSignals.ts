@@ -15,6 +15,8 @@ const queryFamilies = {
     'player-rosters',
     'player-profile',
     'discovered-rosters',
+    'roster-loans',
+    'rosters-lent-to-me',
   ],
   collection: ['collection', 'collection-counts', 'collection-profile'],
   favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets'],

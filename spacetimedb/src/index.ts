@@ -147,6 +147,8 @@ function requireOperator(ctx: Context) {
   if (!configured?.operator || ctx.sender.toHexString() !== configured.operator) throw new SenderError('Operator required')
 }
 
+const ROSTER_LOANS_PER_ROSTER = 100
+
 type ProductScope = 'rosters' | 'collection' | 'favourites' | 'friends' | 'invites' | 'onboarding' | 'settings' | 'leagues' | 'battles'
 
 function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
@@ -176,6 +178,28 @@ function touchAdmin(ctx: Context) {
 function touchFriends(ctx: Context, leftId: string, rightId: string) {
   touchProduct(ctx, leftId, 'friends', 'onboarding')
   touchProduct(ctx, rightId, 'friends', 'onboarding')
+}
+
+type RosterLoan = NonNullable<ReturnType<Context['db']['rosterLoans']['key']['find']>>
+
+function endLoan(ctx: Context, loan: RosterLoan) {
+  ctx.db.rosterLoans.key.delete(loan.key)
+  touchProduct(ctx, loan.ownerId, 'rosters')
+  touchProduct(ctx, loan.borrowerId, 'rosters')
+}
+
+function endLoans(ctx: Context, rosterId: string) {
+  for (const loan of Array.from(ctx.db.rosterLoans.rosterId.filter(rosterId))) endLoan(ctx, loan)
+}
+
+function touchBorrowers(ctx: Context, rosterId: string) {
+  for (const loan of ctx.db.rosterLoans.rosterId.filter(rosterId)) touchProduct(ctx, loan.borrowerId, 'rosters')
+}
+
+/** A loan lasts only while the two players stay friends, so a removed friendship also ends it at the next read. */
+function activeLoan(ctx: Context, rosterId: string, borrowerId: string) {
+  const loan = ctx.db.rosterLoans.key.find(JSON.stringify([rosterId, borrowerId]))
+  return loan && friendshipBetween(ctx, loan.ownerId, borrowerId)?.acceptedAt !== undefined ? loan : undefined
 }
 
 function touchLeague(ctx: Context, leagueId: string, eventId?: string) {
@@ -311,9 +335,11 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   }
   for (const row of Array.from(ctx.db.commands.userId.filter(userId))) ctx.db.commands.key.delete(row.key)
   for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) ctx.db.battleUsers.key.delete(row.key)
+  for (const row of Array.from(ctx.db.rosterLoans.borrowerId.filter(userId))) endLoan(ctx, row)
   const ownedRosters = Array.from(ctx.db.rosters.userId.filter(userId))
   for (const row of ownedRosters) {
     if (row.visibility !== 'private') touchPublic(ctx, 'rosters')
+    endLoans(ctx, row.id)
     ctx.db.rosters.id.delete(row.id)
   }
   if (ownedRosters.length) touchAdmin(ctx)
@@ -974,6 +1000,30 @@ export const discoverRosters = spacetime.procedure({ payload: t.string() }, t.st
   }),
 )
 
+function rosterSummary(row: StoredRoster) {
+  const picks = JSON.parse(row.picks) as { attachedTo?: number }[]
+  return {
+    id: row.id,
+    name: row.name,
+    automaticName: row.automaticName,
+    catalogueId: row.catalogueId,
+    detachmentId: row.detachmentId,
+    disposition: row.disposition,
+    limit: row.limit,
+    pointsBudget: row.pointsBudget,
+    waivedRules: row.waivedRules,
+    optionalRules: row.optionalRules,
+    borrowedDetachmentId: row.borrowedDetachmentId,
+    baseRosterId: row.baseRosterId,
+    locked: row.locked,
+    visibility: row.visibility,
+    source: row.source,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    unitCount: attachedUnitCount(picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+  }
+}
+
 export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
@@ -981,31 +1031,7 @@ export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() },
     const rows = Array.from(tx.db.rosters.userId.filter(userId))
     if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
     rows.sort((left, right) => (right.createdAt > left.createdAt ? 1 : right.createdAt < left.createdAt ? -1 : 0))
-    return productJson(
-      rows.map((row) => {
-        const picks = JSON.parse(row.picks) as { attachedTo?: number }[]
-        return {
-          id: row.id,
-          name: row.name,
-          automaticName: row.automaticName,
-          catalogueId: row.catalogueId,
-          detachmentId: row.detachmentId,
-          disposition: row.disposition,
-          limit: row.limit,
-          pointsBudget: row.pointsBudget,
-          waivedRules: row.waivedRules,
-          optionalRules: row.optionalRules,
-          borrowedDetachmentId: row.borrowedDetachmentId,
-          baseRosterId: row.baseRosterId,
-          locked: row.locked,
-          visibility: row.visibility,
-          source: row.source,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-          unitCount: attachedUnitCount(picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
-        }
-      }),
-    )
+    return productJson(rows.map(rosterSummary))
   }),
 )
 
@@ -1115,6 +1141,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
   if (current) {
     tx.db.rosters.id.update({ ...current, ...fields })
     touchProduct(tx, input.userId, 'rosters', 'onboarding')
+    touchBorrowers(tx, input.id)
     if (current.visibility !== 'private' || input.visibility !== 'private') touchPublic(tx, 'rosters')
     return 'updated'
   }
@@ -1178,6 +1205,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
       })
     if (parsed.deleted) {
       if (current) {
+        endLoans(tx, input.id)
         tx.db.rosters.id.delete(input.id)
         touchProduct(tx, input.userId, 'rosters', 'onboarding')
         if (current.visibility !== 'private') touchPublic(tx, 'rosters')
@@ -1238,12 +1266,87 @@ export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string
   requireOperator(ctx)
   const current = ctx.db.rosters.id.find(id)
   if (current?.userId === userId) {
+    endLoans(ctx, id)
     ctx.db.rosters.id.delete(id)
     touchProduct(ctx, userId, 'rosters', 'onboarding')
     if (current.visibility !== 'private') touchPublic(ctx, 'rosters')
     touchAdmin(ctx)
   }
 })
+
+export const lendRoster = spacetime.procedure(
+  { rosterId: t.string(), ownerId: t.string(), borrowerId: t.string(), now: t.u64() },
+  t.string(),
+  (ctx, { rosterId, ownerId, borrowerId, now }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (tx.db.rosters.id.find(rosterId)?.userId !== ownerId) return 'forbidden'
+      if (!borrowerId || borrowerId === ownerId || borrowerId.length > 128) return 'not-friends'
+      if (friendshipBetween(tx, ownerId, borrowerId)?.acceptedAt === undefined) return 'not-friends'
+      const key = JSON.stringify([rosterId, borrowerId])
+      if (tx.db.rosterLoans.key.find(key)) return 'lent'
+      if (Array.from(tx.db.rosterLoans.rosterId.filter(rosterId)).length >= ROSTER_LOANS_PER_ROSTER) return 'too-many'
+      tx.db.rosterLoans.insert({ key, rosterId, ownerId, borrowerId, lentAt: now })
+      touchProduct(tx, ownerId, 'rosters')
+      touchProduct(tx, borrowerId, 'rosters')
+      return 'lent'
+    }),
+)
+
+/** The owner revokes a loan, or the borrower hands it back. */
+export const endRosterLoan = spacetime.procedure(
+  { rosterId: t.string(), userId: t.string(), borrowerId: t.string() },
+  t.bool(),
+  (ctx, { rosterId, userId, borrowerId }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      const loan = tx.db.rosterLoans.key.find(JSON.stringify([rosterId, borrowerId]))
+      if (!loan || (userId !== loan.ownerId && userId !== loan.borrowerId)) return false
+      endLoan(tx, loan)
+      return true
+    }),
+)
+
+export const rosterLoansByRoster = spacetime.procedure({ rosterId: t.string(), ownerId: t.string() }, t.string(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (tx.db.rosters.id.find(input.rosterId)?.userId !== input.ownerId) return productJson([])
+    return productJson(
+      Array.from(tx.db.rosterLoans.rosterId.filter(input.rosterId))
+        .filter((loan) => activeLoan(tx, loan.rosterId, loan.borrowerId))
+        .map((loan) => ({ borrowerId: loan.borrowerId, lentAt: safeNumber(loan.lentAt) })),
+    )
+  }),
+)
+
+/** A roster its owner may field, or a friend may field through an active loan. */
+export const usableRoster = spacetime.procedure({ id: t.string(), userId: t.string() }, t.string(), (ctx, { id, userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const row = tx.db.rosters.id.find(id)
+    if (!row || !userId) return productJson(null)
+    if (row.userId === userId) return productJson({ roster: row, lentBy: null })
+    return productJson(activeLoan(tx, id, userId) ? { roster: row, lentBy: row.userId } : null)
+  }),
+)
+
+export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!userId || userId.length > 128) throw new SenderError('Invalid roster query')
+    const loans = Array.from(tx.db.rosterLoans.borrowerId.filter(userId))
+    if (loans.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
+    return productJson(
+      loans
+        .filter((loan) => activeLoan(tx, loan.rosterId, userId))
+        .flatMap((loan) => {
+          const row = tx.db.rosters.id.find(loan.rosterId)
+          return row ? [{ ...rosterSummary(row), ownerId: row.userId, lentAt: safeNumber(loan.lentAt) }] : []
+        })
+        .sort((left, right) => right.lentAt - left.lentAt || left.id.localeCompare(right.id)),
+    )
+  }),
+)
 
 export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
@@ -1875,6 +1978,11 @@ function removeFriendIn(tx: Context, args: unknown[]) {
   if (!current) return false
   const deleted = tx.db.friendships.key.delete(current.key)
   if (deleted) touchFriends(tx, current.requesterId, current.addresseeId)
+  for (const [ownerId, borrowerId] of [
+    [input.leftId, input.rightId],
+    [input.rightId, input.leftId],
+  ] as const)
+    for (const loan of Array.from(tx.db.rosterLoans.borrowerId.filter(borrowerId))) if (loan.ownerId === ownerId) endLoan(tx, loan)
   return deleted
 }
 

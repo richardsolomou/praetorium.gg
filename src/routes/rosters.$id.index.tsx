@@ -43,10 +43,11 @@ export const Route = createFileRoute('/rosters/$id/')({
       return { editable: false, snapshot: true }
     }
     const bootstrapOptions = rosterBootstrapQuery(params.id, deps.battle)
-    const cachedBootstrap = context.queryClient.getQueryData(bootstrapOptions.queryKey)
+    // A cached refusal is asked again: access can arrive since, through a loan or a visibility change.
+    const cachedBootstrap = context.queryClient.getQueryData(bootstrapOptions.queryKey) ?? undefined
     const cachedUpdatedAt =
       cachedBootstrap === undefined ? undefined : context.queryClient.getQueryState(bootstrapOptions.queryKey)?.dataUpdatedAt
-    const bootstrap = cachedBootstrap === undefined ? await context.queryClient.query(bootstrapOptions) : cachedBootstrap
+    const bootstrap = cachedBootstrap ?? (await context.queryClient.query({ ...bootstrapOptions, staleTime: 0 }))
     const seedBootstrap = (value: NonNullable<typeof bootstrap>, updatedAt: number) => {
       const current = context.queryClient.getQueryData(rosterAccessQuery(params.id, deps.battle).queryKey)
       if (current && current.roster.updatedAt > value.roster.updatedAt) return
@@ -54,8 +55,8 @@ export const Route = createFileRoute('/rosters/$id/')({
         if ((context.queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) <= updatedAt)
           context.queryClient.setQueryData(key, data, { updatedAt })
       }
-      const { roster, editable, variants, differences, copiedFrom, faction, price, changes } = value
-      seed(rosterAccessQuery(params.id, deps.battle).queryKey, { roster, editable, variants, differences, copiedFrom, faction })
+      const { roster, editable, variants, differences, copiedFrom, lentBy, faction, price, changes } = value
+      seed(rosterAccessQuery(params.id, deps.battle).queryKey, { roster, editable, variants, differences, copiedFrom, lentBy, faction })
       seed(rosterChangesQuery(params.id).queryKey, changes)
       seed(
         savedRosterPriceQuery(

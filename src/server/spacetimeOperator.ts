@@ -41,6 +41,7 @@ const rosterRow = z.object({
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true, copiedFromRosterId: true }).extend({
   unitCount: z.number().int().nonnegative(),
 })
+const lentRosterRow = rosterSummaryRow.extend({ ownerId: z.string(), lentAt: z.number().int() })
 const collectionRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
@@ -542,6 +543,36 @@ export class SpacetimeOperator {
 
   async deleteRoster(id: string, userId: string) {
     await this.call('delete_roster', [id, userId])
+  }
+
+  async lendRoster(rosterId: string, ownerId: string, borrowerId: string, now: number) {
+    const response = await this.call('lend_roster', [rosterId, ownerId, borrowerId, now])
+    return z.enum(['lent', 'forbidden', 'not-friends', 'too-many']).parse(await response.json())
+  }
+
+  async endRosterLoan(rosterId: string, userId: string, borrowerId: string) {
+    const response = await this.call('end_roster_loan', [rosterId, userId, borrowerId])
+    return z.boolean().parse(await response.json())
+  }
+
+  async rosterLoansByRoster(rosterId: string, ownerId: string) {
+    return z
+      .array(z.object({ borrowerId: z.string(), lentAt: z.number().int() }))
+      .parse(await this.read('roster_loans_by_roster', [rosterId, ownerId]))
+  }
+
+  async usableRoster(id: string, userId: string) {
+    return z
+      .object({ roster: rosterRow, lentBy: z.string().nullable() })
+      .nullable()
+      .parse(await this.read('usable_roster', [id, userId]))
+  }
+
+  async rostersLentTo(userId: string) {
+    return z
+      .array(lentRosterRow)
+      .max(1_000)
+      .parse(await this.read('rosters_lent_to', [userId]))
   }
 
   async collectionProfile(userId: string, viewerId: string | null) {

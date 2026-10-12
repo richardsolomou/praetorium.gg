@@ -8,7 +8,8 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/compone
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AdminUser } from '../../../admin'
-import { PROFILE_NAME_MAX_LENGTH, type SocialAuthProvider } from '../../../authConfig'
+import type { SocialAuthProvider } from '../../../authConfig'
+import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import {
   deleteUserAsAdmin,
   markEmailVerifiedAsAdmin,

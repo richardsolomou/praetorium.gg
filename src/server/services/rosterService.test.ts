@@ -220,11 +220,20 @@ describe('public roster discovery', () => {
 })
 
 describe('the roster a copy came from', () => {
-  const source = (visibility: 'private' | 'unlisted' | 'public') => {
-    const roster = vi.fn().mockResolvedValue({ ...row, id: 'source', name: 'Original army', prep: null, visibility })
+  const source = (visibility: 'private' | 'unlisted' | 'public', lentBy: string | null = null) => {
+    const stored = { ...row, id: 'source', name: 'Original army', prep: null, visibility }
+    const roster = vi.fn().mockResolvedValue(stored)
+    const usableRoster = vi.fn().mockResolvedValue(lentBy ? { roster: stored, lentBy } : null)
     const namesByIds = vi.fn().mockResolvedValue(new Map([['user-1', { id: 'user-1', name: 'Original owner' }]]))
-    return new RosterService({ roster, namesByIds } as unknown as RepositoryPort, () => 0)
+    return new RosterService({ roster, usableRoster, namesByIds } as unknown as RepositoryPort, () => 0)
   }
+
+  it('opens a private roster read-only to a friend it is lent to, naming the lender', async () => {
+    expect(await source('private', 'user-1').rosterAccess('source', 'user-2')).toMatchObject({
+      editable: false,
+      lentBy: { id: 'user-1', name: 'Original owner' },
+    })
+  })
 
   it('names a public source and its owner for another reader', async () => {
     expect(await source('public').copySource('source', 'user-2')).toEqual({

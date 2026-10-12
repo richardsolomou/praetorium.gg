@@ -8,9 +8,13 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 export { rosterUseProblem, rosterUseError } from '../core/rosterLegality'
 import { rosterUseError } from '../core/rosterLegality'
 
-export async function rosterForUse(userId: string, rosterId: string, options: { releasedOnly?: boolean } = {}) {
-  const saved = await app().service.ownRoster(userId, rosterId)
-  if (!saved) throw new Response('you do not own this roster', { status: 403 })
+/** A battle may field a roster a friend lent; a league entry is sealed from the entrant's own rosters. */
+export async function rosterForUse(userId: string, rosterId: string, options: { releasedOnly?: boolean; lent?: boolean } = {}) {
+  const usable = await app().service.usableRoster(userId, rosterId)
+  if (!usable || (usable.lentBy && !options.lent)) {
+    throw new Response(options.lent ? 'this roster is not yours or lent to you' : 'you do not own this roster', { status: 403 })
+  }
+  const { roster: saved, lentBy } = usable
   const catalogue = await app().catalogueFor(saved.catalogueId)
   if (!catalogue) throw new Response('army data is not available', { status: 409 })
   const editionError = options.releasedOnly && leagueEditionError(catalogue.edition)
@@ -26,5 +30,5 @@ export async function rosterForUse(userId: string, rosterId: string, options: { 
     saved.catalogueId,
     saved.picks.map((pick) => pick.entryId),
   )
-  return { saved, snapshot: rosterSnapshot(saved, priced, details) }
+  return { saved, snapshot: { ...rosterSnapshot(saved, priced, details), ...(lentBy ? { lentBy } : {}) } }
 }

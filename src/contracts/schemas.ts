@@ -41,7 +41,8 @@ import {
   LEAGUE_VISIBILITIES,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
-import { PASSWORD_MIN_LENGTH, PROFILE_NAME_MAX_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
+import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
+import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
 const id = z.string().min(1).max(64)
 const token = id
@@ -374,6 +375,7 @@ export const rosterIdsSchema = z.object({
 export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({ before: rosterDiscoveryCursorSchema.nullable().default(null) })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
+export const rosterLoanSchema = z.object({ id, borrowerId: id })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const collectionModelsSchema = z.object({ entryId: id, models: z.number().int().min(1).max(MAX_COLLECTION_MODELS) })
