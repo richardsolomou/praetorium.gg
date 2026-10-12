@@ -10,6 +10,7 @@ import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries
 import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
+import { useNativeShare } from '../../nativeBridge'
 import { InviteQr, SHARED_LABEL, useFriendInvite } from '../friends/friendInvite'
 import { seatedPlayers, seatsFor, type Seat, type SoloPairRole } from '../../seats'
 import { Choice } from '../../components/Choice'
@@ -286,6 +287,7 @@ export function CreateBattle() {
 /** Until a player has a friend, the way to seat a real opponent is to invite one. */
 function InviteOpponent() {
   const invite = useFriendInvite()
+  const shareLabel = useNativeShare() ? 'Share invite link' : 'Copy invite link'
 
   return (
     <div className="space-y-1">
@@ -294,7 +296,7 @@ function InviteOpponent() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled={invite.busy} onClick={() => void invite.share()}>
             {invite.feedback ? <Check /> : <Link2 />}
-            {invite.creating ? 'Creating…' : invite.feedback ? SHARED_LABEL[invite.feedback] : 'Share invite link'}
+            {invite.creating ? 'Creating…' : invite.feedback ? SHARED_LABEL[invite.feedback] : shareLabel}
           </Button>
           {invite.url ? <InviteQr url={invite.url} disabled={invite.busy} size="sm" /> : null}
         </div>

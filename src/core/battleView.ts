@@ -27,6 +27,8 @@ import {
   type UnitState,
   validate,
   atBattleEnd,
+  type BattleMoment,
+  missedMoments,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
@@ -192,6 +194,8 @@ export type BattleView = {
   leagueEventToken: string | null
   advancePrompt: string | null
   secretMissionActionPlayerId: PlayerId | null
+  /** The earlier moments a missed action may still be recorded for, oldest first; absent from older servers. */
+  missedMoments?: BattleMoment[]
   /** The latest active command any seated player may take back. */
   undoable: number | null
   /** Whether taking back that command returns missions from this turn to the deck. */
@@ -372,6 +376,7 @@ export function battleView(
     leagueEventToken: state.leagueEventToken,
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
+    missedMoments: missedMoments(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw:
       state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries' || state.undoable?.kind === 'use-new-orders',

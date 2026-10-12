@@ -36,6 +36,7 @@ import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterRe
 import { setNativeWatchBattle, useNativeWatchBattleAvailability } from '../../nativeBridge'
 import { watchBattle } from './watchBattle'
 import { BattleMenu } from './BattleMenu'
+import { MissedActionDialog } from './MissedActionDialog'
 import { ReminderDialog } from './ReminderDialog'
 import { DrawDialog, type DrawSelection, type WhenDrawn } from './DrawDialog'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
@@ -102,6 +103,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     return () => window.removeEventListener(ONBOARDING_FOCUS_EVENT, changed)
   }, [view.viewerId])
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
+  const [recordingMissed, setRecordingMissed] = useState(false)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   const [dismissalsReady, setDismissalsReady] = useState(false)
   const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
@@ -398,6 +400,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const needsDrawAcknowledgement =
     active?.secondaryMode === 'tactical' && view.phase === 'command' && active.secondariesToReview.length > 0 && !view.drawAcknowledged
   const missionChoice = view.missionChoices?.find((choice) => !isManualSelection(choice.kind))
+  const missedMoments = view.missedMoments ?? []
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active ? dueForAdvance(view, active, awardsFor) : []
@@ -610,6 +613,16 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     <BattleMinimizeContext.Provider value={registerMinimized}>
       <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
+        {recordingMissed && missedMoments.length ? (
+          <MissedActionDialog
+            moments={missedMoments}
+            table={table}
+            send={send}
+            pending={pending}
+            problem={problem}
+            onClose={() => setRecordingMissed(false)}
+          />
+        ) : null}
         <div data-battle-sticky-header className="sticky top-12 z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
           <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
 
@@ -704,6 +717,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     onTimerPausedChange={(paused) => sendAction({ kind: paused ? 'pause-clock' : 'resume-clock' })}
                     players={view.players}
                     onActionRemindersChange={updateActionReminders}
+                    onRecordMissed={missedMoments.length ? () => setRecordingMissed(true) : undefined}
                     onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
                     onDelete={() => {
                       if (!promptMinimized) remove.mutate()

@@ -37,6 +37,7 @@ export const rosterPickSchema = z.object({
   note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
 })
 const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
+const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()
 const award = z.object({
   vp: z.number().int().min(0).max(100),
   per: z.string().max(200).nullable(),
@@ -230,6 +231,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     key: id,
     cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
     playerId: id.optional(),
+    missed,
   }),
   z.object({
     kind: z.literal('use-new-orders'),
@@ -262,6 +264,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       .max(SCORE_SETTLEMENT_MAX),
     round: z.number().int().min(1).max(BATTLE_ROUNDS).optional(),
     playerId: id.optional(),
+    missed,
   }),
   z.object({
     kind: z.literal('set-secondary-status'),
@@ -281,7 +284,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('select-secret'), secondary, playerId: id.optional() }),
   z.object({ kind: z.literal('reveal-secret'), playerId: id.optional() }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id, attackerId: id.optional() }),
-  z.object({ kind: z.literal('adjust-cp'), delta: z.number().int(), playerId: id.optional() }),
+  z.object({ kind: z.literal('adjust-cp'), delta: z.number().int(), playerId: id.optional(), missed }),
   z.object({
     kind: z.literal('resolve-tactical-hand'),
     keys: z.array(id).optional(),

@@ -19,7 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { deleteLeague } from '../../functions'
 import { leaguesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { shareLink } from '../../nativeBridge'
+import { shareLink, useNativeShare } from '../../nativeBridge'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 
 export type ManageableLeague = { token: string; name: string }
@@ -100,6 +100,7 @@ function LeagueActionItems({
   showView: boolean
   showShare: boolean
 }) {
+  const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
   return (
     <>
       {showView ? (
@@ -110,7 +111,7 @@ function LeagueActionItems({
       {showShare ? (
         <Item onClick={actions.copyInvite}>
           {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
-          {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : 'Share invite'}
+          {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : shareLabel}
         </Item>
       ) : null}
       <Item onClick={actions.openEdit}>

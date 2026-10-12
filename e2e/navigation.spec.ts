@@ -249,6 +249,30 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
 })
 
+test('signing in from the account menu returns to the exact page, query and fragment', async ({ browser }) => {
+  const email = `account-return-${crypto.randomUUID()}@example.test`
+  const password = 'a-long-enough-password'
+  for (const [width, destination] of [
+    [1440, '/rules/core-rules/core-abilities#24.33'],
+    [390, '/leaderboard?faction=necrons'],
+  ] as const) {
+    const context = await browser.newContext({ viewport: { width, height: 844 }, hasTouch: width === 390 })
+    const page = await context.newPage()
+    if (width === 1440) await page.request.post('/api/auth/sign-up/email', { data: { email, password, name: 'Account Return' } })
+    await context.clearCookies()
+    await page.goto(destination)
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Account menu', exact: true }).filter({ visible: true }).click()
+    await page.getByRole('menuitem', { name: 'Sign in' }).click()
+    await page.waitForLoadState('networkidle')
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Password').fill(password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page).toHaveURL(destination)
+    await context.close()
+  }
+})
+
 /** A page's canonical link is absolute, on the origin that served it, and its Open Graph address is the same. */
 async function expectCanonical(page: Page, path: string) {
   const href = new URL(path, page.url()).href

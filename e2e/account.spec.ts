@@ -337,7 +337,7 @@ test('a player without friends invites an opponent from the new battle dialog an
     await inviter.goto('/battles')
     const dialog = inviter.getByRole('dialog', { name: 'Start a battle' })
     await retryUntilVisible(dialog, () => inviter.getByRole('button', { name: 'New battle' }).click())
-    await dialog.getByRole('button', { name: 'Share invite link', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Copy invite link', exact: true }).click()
     await expect(dialog.getByRole('button', { name: 'Link copied', exact: true })).toBeVisible()
     const inviteUrl = await inviter.evaluate(() => navigator.clipboard.readText())
 

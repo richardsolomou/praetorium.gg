@@ -93,12 +93,12 @@ function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; m
 
   return (
     <article className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2 border-b border-edge pb-1">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-edge pb-1">
         <span className="min-w-0">
           <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
           {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
-        <span className="flex shrink-0 flex-wrap justify-end gap-1">
+        <span className="flex max-w-full shrink-0 flex-wrap justify-end gap-1">
           <span className="chip">{listed} units</span>
           {multiple || reserveLimit === undefined ? null : (
             <span className="chip">

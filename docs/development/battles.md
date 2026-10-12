@@ -22,6 +22,8 @@ Persist commands, not a second score, phase, round, mission, or casualty state. 
 
 Undo appends a command naming the latest active action. It preserves history and may rewind across turns. Scoring settlement, tactical draws, and discard/CP actions are each atomic undo targets. Start and shared prompt bookkeeping are outside the undo chain. Every required prompt keeps Undo available when rewinding reopens it.
 
+A missed action names the earlier moment it belongs to (`missed`: round, phase and a player on the side taking that turn) on `use-stratagem`, a positive `adjust-cp` or `score-settlement`. The log keeps recording order, so the entry's position, actor and timestamp say who recorded it and when, while the fold books its CP, usage and score ledgers against the named moment. `missedMoments` limits that moment to an earlier phase of the current or previous battle round. Reports append “recorded late for …”, replay shows the entry at its recorded position, and undo treats it like any other action. Battle options → Record a missed action (`MissedActionDialog.tsx`) offers it and shows the domain's refusal.
+
 Any seated player can operate either side's shared actions. Preserve the actor in the log and the affected side/player separately; omitted player IDs retain their historical meaning. Roster selection and ownership checks still apply. A seated player can record a concession for a non-automated player. Only the creator can delete a battle; reopening and reset preserve its history.
 
 ## Seating and setup

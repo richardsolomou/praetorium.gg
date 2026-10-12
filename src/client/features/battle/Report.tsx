@@ -99,7 +99,14 @@ export function Report({
                     </span>
                   </span>
                   <span className="min-w-0 break-words text-bone">
-                    {colourNames(entry.text, players)}
+                    {entry.missed ? (
+                      <>
+                        {colourNames(entry.text.slice(0, -entry.missed.length), players)}
+                        <span className="text-discarded">{colourNames(entry.missed, players)}</span>
+                      </>
+                    ) : (
+                      colourNames(entry.text, players)
+                    )}
                     {entry.elapsed ? <TimeTaken elapsed={entry.elapsed} /> : null}
                   </span>
                 </li>
