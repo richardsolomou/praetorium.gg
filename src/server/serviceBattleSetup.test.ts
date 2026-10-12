@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 
-it.each([undefined, null, 1000])('creates the initial format command atomically for preset %s', async (limit) => {
+function serviceRecordingCreation() {
   const createBattle = vi.fn()
   const repository = {
     namesByIds: vi.fn().mockResolvedValue(new Map([['opponent', 'Opponent']])),
@@ -15,8 +15,13 @@ it.each([undefined, null, 1000])('creates the initial format command atomically 
     () => 0,
     () => 0,
   )
+  return { service, initialCommand: () => createBattle.mock.calls[0]?.[0]?.initialCommand }
+}
+
+it.each([undefined, null, 1000])('creates the initial format command atomically for preset %s', async (limit) => {
+  const { service, initialCommand } = serviceRecordingCreation()
   await service.createBattle('actor', { opponentId: 'opponent', limit, missionPackId: null, casual: true })
-  expect(createBattle.mock.calls[0]?.[0]?.initialCommand).toEqual({
+  expect(initialCommand()).toEqual({
     kind: 'configure-battle',
     limit: limit ?? null,
     missionPackId: null,
@@ -26,4 +31,10 @@ it.each([undefined, null, 1000])('creates the initial format command atomically 
     playerCount: 2,
     clockLimitMinutes: null,
   })
+})
+
+it('creates a manually tracked battle without a mission pack', async () => {
+  const { service, initialCommand } = serviceRecordingCreation()
+  await service.createBattle('actor', { opponentId: 'opponent', missionPackId: 'pack', casual: true, manual: true })
+  expect(initialCommand()).toMatchObject({ missionPackId: null, manual: true })
 })

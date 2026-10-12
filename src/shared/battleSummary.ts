@@ -70,7 +70,7 @@ export function battleSummary(
         player.secondary +
         (state.status !== 'setup' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
     ),
-    mission: rules ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
+    mission: rules && !state.settings.manual ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
     deploymentId: state.deploymentId,
     settings: state.settings,
     result: state.result,

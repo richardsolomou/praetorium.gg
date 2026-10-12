@@ -469,6 +469,8 @@ export type BattleSettings = {
   twistId: string | null
   teamBattle: boolean
   playerCount: 2 | 3 | 4
+  /** The table keeps its own score: no mission pack, cards, caps, automatic CP or battle ready bonus. */
+  manual?: boolean
 }
 
 const DEFAULT_SETTINGS: BattleSettings = {
@@ -499,6 +501,7 @@ export const PAINTED_ARMY_POINTS = 10
  * whole bonus, exactly as an unpainted half of one player's army would.
  */
 export function sidePaintedPoints(state: BattleState, side: number): number {
+  if (state.settings.manual) return 0
   const seated = state.players.filter((player) => player.side === side)
   return seated.length && seated.every((player) => player.painted) ? PAINTED_ARMY_POINTS : 0
 }
@@ -742,6 +745,7 @@ export type Command =
       teamBattle?: boolean
       playerCount?: 2 | 3 | 4
       clockLimitMinutes: number | null
+      manual?: boolean
     }
   | { kind: 'reset-setup' }
   | { kind: 'set-setup-step'; step: number }
@@ -808,7 +812,36 @@ export type Command =
   | { kind: 'resume-clock' }
   | { kind: 'end-battle'; reason?: BattleEndReason; concededBy?: PlayerId }
   | { kind: 'reopen-battle' }
+  | { kind: 'add-note'; text: string }
   | { kind: 'undo'; target: number }
+
+/** The longest battle note, which joins the report every reader of the battle sees. */
+export const NOTE_MAX_LENGTH = 500
+
+/** Mission, card and stratagem automation that a manually tracked battle does not play. */
+const GUIDED_COMMANDS: ReadonlySet<Command['kind']> = new Set([
+  'select-mission',
+  'set-attacker',
+  'set-side-disposition',
+  'set-deployment',
+  'set-battlefield',
+  'set-prep',
+  'use-stratagem',
+  'use-new-orders',
+  'score-secondary',
+  'score-settlement',
+  'set-secondary-status',
+  'draw-secondary',
+  'draw-secondaries',
+  'acknowledge-draw',
+  'acknowledge-scoring',
+  'select-secret',
+  'reveal-secret',
+  'resolve-tactical-hand',
+  'settle-opponent-turn',
+  'request-advance',
+  'cancel-advance',
+])
 
 /**
  * Why a command was refused, as a stable name that carries no unit, card, number, or player text.
@@ -851,12 +884,14 @@ export type RefusalCode =
   | 'invalid-amount'
   | 'invalid-detachments'
   | 'invalid-draw'
+  | 'invalid-note'
   | 'invalid-prep'
   | 'invalid-roster'
   | 'invalid-settlement'
   | 'invalid-sides'
   | 'invalid-transport'
   | 'league-sealed'
+  | 'manual-tracking'
   | 'matchup-not-in-pack'
   | 'missing-deployment'
   | 'missing-disposition'
@@ -1222,12 +1257,17 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     return refuse('unknown-player', 'that player is not in this battle')
   }
   const player = targetArmy(state, actor, command)
+  if (state.settings.manual && GUIDED_COMMANDS.has(command.kind))
+    return refuse('manual-tracking', 'this battle is tracked manually, without missions or stratagems')
 
   switch (command.kind) {
     case 'select-mission':
       return missionSelectionRefusal(state, by, player, command)
     case 'configure-battle': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (command.manual && state.leagueToken) return refuse('league-sealed', 'league battles play their mission pack')
+      if (command.manual && (command.missionPackId || command.twistId || command.terrainLayoutId))
+        return refuse('manual-tracking', 'a manually tracked battle has no mission pack')
       if (state.leagueToken && command.limit !== state.settings.limit) return refuse('league-sealed', 'league roster battle size is sealed')
       if (state.leagueToken && (command.teamBattle ?? false) !== state.settings.teamBattle)
         return refuse('league-sealed', 'league battle sides are sealed')
@@ -1360,11 +1400,13 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'command points move in whole steps')
       if (command.missed) {
+        if (state.settings.manual) return refuse('manual-tracking', 'a manually tracked battle records command points as they change')
         const refusal = missedMomentRefusal(state, command.missed)
         if (refusal) return refusal
         if (command.delta < 0) return refuse('missed-unsupported', 'only a missed command point gain can be recorded late')
       }
       if (player.cp + command.delta < 0) return refuse('not-enough-cp', 'not enough command points')
+      if (state.settings.manual) return null
       const round = command.missed?.round ?? state.round
       if (command.delta > 0 && (player.bonusCpByRound[round - 1] ?? 0) + command.delta > 1) {
         return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
@@ -1477,6 +1519,11 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     }
     case 'reopen-battle':
       return state.status === 'finished' ? null : refuse('battle-not-over', 'the battle is not over')
+    case 'add-note': {
+      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
+      if (!command.text.trim()) return refuse('invalid-note', 'write the note first')
+      return command.text.length > NOTE_MAX_LENGTH ? refuse('invalid-note', 'that note is too long') : null
+    }
     case 'set-unit': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
@@ -1755,10 +1802,17 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         twistId: command.twistId,
         teamBattle: command.teamBattle ?? false,
         playerCount: command.playerCount ?? (command.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE),
+        ...(command.manual ? { manual: true } : {}),
       }
       if (missionPackChanged) {
         state.deploymentId = null
         state.settings.terrainLayoutId = null
+      }
+      if (command.manual) {
+        state.deploymentId = null
+        state.attackerId = null
+        state.sideDispositions = {}
+        for (const candidate of state.players) applyPrep(candidate, null)
       }
       for (const candidate of state.players) {
         if (!state.settings.sizeFromRosters && candidate.roster?.built && candidate.roster.built.limit !== rosterLimit(state, candidate))
@@ -1814,7 +1868,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       player.units = (command.roster.built?.units ?? []).map((unit) =>
         Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models, damage: 0 }, unit),
       )
-      if (command.prep !== undefined) applyPrep(player, command.prep)
+      if (command.prep !== undefined && !state.settings.manual) applyPrep(player, command.prep)
       // Most armies on a table are painted, so a list arrives claiming the bonus and
       // the few that are not turn it off. Only when the command says so: a log from
       // before this carries no claim, and folding one must not invent it a bonus.
@@ -2118,7 +2172,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         return
       }
       if (state.round === battleRoundLimit(state.settings.limit)) {
-        if (endsFirstTurn && !opponent) {
+        if ((endsFirstTurn && !opponent) || state.settings.manual) {
           state.status = 'finished'
           state.result = { reason: 'completed', concededBy: null }
           state.resumePlayerId = state.activePlayerId
@@ -2147,6 +2201,8 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.activePlayerId = null
       return
     }
+    case 'add-note':
+      return
     case 'reopen-battle': {
       state.advanceRequested = false
       state.scoringAcknowledged = false
@@ -2450,9 +2506,9 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
     for (const saved of player.missionSelections) {
       if (saved.selection.kind === 'punishment' || saved.selection.kind === 'guards') saved.expired = true
     }
-    state.pendingSettlement = settlementRound === null ? null : { playerId: player.id, round: settlementRound }
+    state.pendingSettlement = settlementRound === null || state.settings.manual ? null : { playerId: player.id, round: settlementRound }
     state.drawAcknowledged = false
-    for (const side of new Set(state.players.map((candidate) => candidate.side))) {
+    for (const side of state.settings.manual ? [] : new Set(state.players.map((candidate) => candidate.side))) {
       const resources = sideCaptain(state, side)
       resources.cp += COMMAND_PHASE_CP
       resources.cpGained += COMMAND_PHASE_CP
