@@ -71,7 +71,7 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
-import { UnitAnnotations } from './builder/UnitAnnotations'
+import { UnitNote } from './builder/UnitNote'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { type AttachLink, canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
@@ -99,13 +99,7 @@ import type { CombatRoster } from '../simulator/useCombatant'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
-  prep: {
-    stratagems: Stratagem[]
-    secondaries: Secondary[]
-    reminders?: RosterReminder[]
-    remindersEnabled?: boolean
-    shareNotes?: boolean
-  }
+  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
   initial: {
     id: string
     name: string
@@ -219,7 +213,6 @@ export function ListBuilder({
   const [name, setName] = useState(initial.automaticName ? '' : initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
-  const [shareNotes, setShareNotes] = useState(prep.shareNotes ?? false)
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
@@ -311,8 +304,8 @@ export function ListBuilder({
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true, shareNotes }),
-    [savedPrep, reminders, shareNotes],
+    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true }),
+    [savedPrep, reminders],
   )
   const draft: RosterDraft = {
     id: savedId || undefined,
@@ -382,7 +375,6 @@ export function ListBuilder({
     setVisibility(initial.visibility)
     setSavedPrep(prep)
     setReminders(prep.reminders ?? [])
-    setShareNotes(prep.shareNotes ?? false)
   }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   useEffect(() => {
     if (!editable || !catalogueId) return
@@ -459,7 +451,7 @@ export function ListBuilder({
           limit,
           pointsBudget,
           picks: annotated,
-          prep: { ...storedPrep, shareNotes: false },
+          prep: storedPrep,
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
@@ -1021,12 +1013,7 @@ export function ListBuilder({
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
         building && selected !== null && selectedPick ? (
-          <UnitAnnotations
-            nickname={selectedPick.nickname}
-            note={selectedPick.note}
-            onChange={(field, value) => edit.annotate(selected, field, value)}
-            shareNotes={guest ? undefined : { shared: shareNotes, onChange: setShareNotes }}
-          />
+          <UnitNote note={selectedPick.note} onChange={(value) => edit.annotate(selected, value)} />
         ) : undefined
       }
       reference={
@@ -1374,7 +1361,6 @@ export function ListBuilder({
                       <UnitCard
                         key={unit.entryId + index}
                         unit={unit}
-                        nickname={frozen.units[index]?.nickname}
                         note={frozen.units[index]?.note}
                         joined={joined}
                         selected={selected === index}
@@ -1385,7 +1371,6 @@ export function ListBuilder({
                       <BuilderUnitCard
                         key={picks[index]?.key ?? unit.entryId}
                         unit={unit}
-                        nickname={picks[index]?.nickname}
                         note={picks[index]?.note}
                         index={index}
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}

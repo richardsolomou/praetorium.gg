@@ -241,9 +241,9 @@ it('explains a requested unit blocked by current construction prerequisites', ()
   })
 })
 
-describe('unit nicknames and notes', () => {
+describe('unit notes', () => {
   function annotated(run: (edit: ReturnType<typeof pickEditor>) => void) {
-    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium', nickname: 'Alpha', note: 'Hold home.' }]
+    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium', note: 'Hold home.' }]
     let next = 1
     const edit = pickEditor(
       (update) => {
@@ -256,15 +256,15 @@ describe('unit nicknames and notes', () => {
     return picks
   }
 
-  it('renames one unit', () => {
-    expect(annotated((edit) => edit.annotate(0, 'nickname', 'Bravo'))[0]?.nickname).toBe('Bravo')
+  it('rewrites one unit’s note', () => {
+    expect(annotated((edit) => edit.annotate(0, 'Push midfield.'))[0]?.note).toBe('Push midfield.')
   })
 
   it('removes a note the player emptied', () => {
-    expect(annotated((edit) => edit.annotate(0, 'note', '  '))[0]).not.toHaveProperty('note')
+    expect(annotated((edit) => edit.annotate(0, '  '))[0]).not.toHaveProperty('note')
   })
 
-  it('duplicates a unit without its nickname or note', () => {
+  it('duplicates a unit without its note', () => {
     expect(annotated((edit) => edit.duplicate(0))[1]).toEqual({ key: 1, entryId: 'squad', catalogueId: 'imperium' })
   })
 })

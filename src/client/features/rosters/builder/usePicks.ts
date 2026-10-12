@@ -62,7 +62,7 @@ export function requestedUnit(entryId: string, held: number, limits: ReadonlyMap
  * key is the only thing that tells two of them apart while they are being moved
  * around. Everything the picks are sent to counts positions instead, which is what
  * `positioned` is for — the price and the datasheet — and `annotated` adds the
- * nicknames and notes a saved row keeps.
+ * notes a saved row keeps.
  */
 export function usePicks(initial: readonly RosterPick[]) {
   const [picks, setPicks] = useState<KeyedPick[]>(() => initial.map((pick, key) => ({ ...pick, key })))
@@ -131,7 +131,7 @@ export function pickEditor(
       })
     },
 
-    /** A copy takes the loadout; the nickname and note name the unit it was copied from. */
+    /** A copy takes the loadout; the note belongs to the unit it was copied from. */
     duplicate: (index: number) =>
       insert((current) => {
         const pick = current[index]
@@ -141,7 +141,7 @@ export function pickEditor(
           !canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
         )
           return null
-        const { nickname: _nickname, note: _note, ...copy } = pick
+        const { note: _note, ...copy } = pick
         return { pick: copy, after: index }
       }),
 
@@ -219,10 +219,10 @@ export function pickEditor(
     join: (index: number, targetKey: number | undefined) => editAt(index, (pick) => ({ ...pick, attachedTo: targetKey })),
 
     /** An emptied field is removed rather than saved blank. */
-    annotate: (index: number, field: 'nickname' | 'note', value: string) =>
+    annotate: (index: number, note: string) =>
       editAt(index, (pick) => {
-        const { [field]: _previous, ...rest } = pick
-        return value.trim() ? { ...rest, [field]: value } : rest
+        const { note: _previous, ...rest } = pick
+        return note.trim() ? { ...rest, note } : rest
       }),
 
     /** A new faction is a new list: nothing picked from the old book still applies. */

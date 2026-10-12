@@ -31,6 +31,7 @@ describe('a save to a locked roster', () => {
     ['converting the rules version', { catalogueId: 'necrons~2026' }],
     ['renaming it', { name: 'Practice list' }],
     ['switching to an automatic name', { name: '', automaticName: true }],
+    ['writing a unit note', { picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, note: 'Hold home.' }] }],
     ['editing reminders', { prep: { stratagems: [], secondaries: [], reminders: [{ key: 'r' }], remindersEnabled: true } }],
     ['replacing everything from an import', { ...saved, catalogueId: 'aeldari', detachmentIds: [], picks: [] }],
   ])('is refused when %s', (_change, change) => {
@@ -50,8 +51,14 @@ describe('a save to a locked roster', () => {
     ).toBeNull()
   })
 
-  it('applies when it only shares unit notes, which is a publication choice like visibility', () => {
-    expect(lockedRosterRefusal(locked, { ...saved, prep: { ...(saved.prep as object), shareNotes: true } })).toBeNull()
+  it('applies unchanged to a row saved with a unit nickname', () => {
+    expect(
+      lockedRosterRefusal({ ...locked, picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, nickname: 'Szarekh' }] }, saved),
+    ).toBeNull()
+  })
+
+  it('applies unchanged to a row saved with shared unit notes', () => {
+    expect(lockedRosterRefusal({ ...locked, prep: { ...(saved.prep as object), shareNotes: true } }, saved)).toBeNull()
   })
 
   it('treats absent preparation as the empty defaults', () => {

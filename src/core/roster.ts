@@ -29,8 +29,6 @@ export type RosterPick = {
   toggles?: Record<string, number>
   /** The position of the unit this one joins in the saved pick list. */
   attachedTo?: number
-  /** The player's name for this unit, shown beside the datasheet name rather than replacing it. */
-  nickname?: string
   /** The owner's private preparation note; see `withoutUnitNotes`. */
   note?: string
 }
