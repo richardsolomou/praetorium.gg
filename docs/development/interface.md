@@ -43,6 +43,8 @@ Loadouts group equipment by model and weapon choice. Keep required/default equip
 
 Keep each weapon option's profiles visible before selection so players can compare alternatives, including equipment quantities in bundles. Keep profiles in the bundle's equipment order when selection changes. Do not repeat choice-controlled profiles in a separate equipped section. Match structured equipment names to their own profiles; a single weapon must not match a similarly named dual weapon. Keep fixed equipment outside those choices visible.
 
+Editable roster cards offer Attach to unit on a character and Attach unit on a unit others can join. Each menu groups roster units under In this roster and datasheets under Add a new unit, with their base cost; choosing one adds the unit already attached. Unavailable new units stay listed, disabled, with their reason.
+
 Use the same roster cards for libraries, choosers, editable lists, read-only lists, and frozen battle/league snapshots. A pending price is a loading state, not an empty roster. Frozen snapshots retain their recorded cards and totals without today's legality or data-update warnings. Owners' View mode may retain the picker; other readers receive no mutation controls.
 
 A locked roster shows a Locked chip in library rows and a Locked line with Unlock under the builder header. The builder reads as it does to other readers, without picker, setup, conversion or name editing, and its Roster actions offer Unlock roster, Create variant and Duplicate. Library row menus offer Lock roster or Unlock roster and disable Edit setup and Convert rules version while locked. The datasheet roster chooser omits locked rosters.

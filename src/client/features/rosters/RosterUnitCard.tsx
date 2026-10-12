@@ -1,14 +1,20 @@
 import { memo, type ComponentProps, useLayoutEffect, useMemo, useRef } from 'react'
+import type { PickerUnit } from '../../../contracts/catalogue'
+import { newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
 import type { KeyedPick } from './rosterPicks'
 import { attachmentRows, joinableUnits } from './builder/attachments'
-import { UnitCard } from './builder/UnitCard'
+import { type AttachChoice, UnitCard } from './builder/UnitCard'
+import { unitLimitMessage } from './builder/usePicks'
+
+export type AttachDirection = 'join' | 'host'
 
 type BuilderUnitCardProps = {
   unit: ComponentProps<typeof UnitCard>['unit']
   note?: string
   index: number
   joined: ReturnType<typeof attachmentRows>
-  canJoin: ReturnType<typeof joinableUnits>
+  canJoin: AttachChoice[]
+  canHost: AttachChoice[]
   alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
   selected: boolean
   owned: boolean
@@ -20,7 +26,8 @@ type BuilderUnitCardProps = {
   canDuplicate?: boolean
   /** Absent for a visitor, whose collection has no account to live in. */
   onOwned?: (entryId: string, owned: boolean) => void
-  onJoin: (index: number, targetKey: number | undefined) => void
+  onDetach: (index: number) => void
+  onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
 }
 
 export const BuilderUnitCard = memo(function BuilderUnitCard({
@@ -29,6 +36,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   index,
   joined,
   canJoin,
+  canHost,
   alliedFaction,
   selected,
   owned,
@@ -39,7 +47,8 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onDuplicate,
   canDuplicate,
   onOwned,
-  onJoin,
+  onDetach,
+  onAttach,
 }: BuilderUnitCardProps) {
   return (
     <UnitCard
@@ -53,9 +62,11 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       canDuplicate={canDuplicate}
       owned={owned}
       onOwned={onOwned ? () => onOwned(unit.entryId, !owned) : undefined}
-      joined={joined.map((row) => ({ ...row, onAct: () => onJoin(row.detach, undefined) }))}
+      joined={joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) }))}
       canJoin={canJoin}
-      onJoin={(targetKey) => onJoin(index, targetKey)}
+      onJoin={(choice) => onAttach(index, 'join', choice)}
+      canHost={canHost}
+      onHost={(choice) => onAttach(index, 'host', choice)}
       alertCount={alertCount}
       editable={editable}
     />
@@ -64,20 +75,53 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
 
 type CardRelationships = {
   joined: ReturnType<typeof attachmentRows>
-  canJoin: ReturnType<typeof joinableUnits>
+  canJoin: AttachChoice[]
+  canHost: AttachChoice[]
 }
 
-export function useCardRelationships(picks: readonly KeyedPick[], units: Parameters<typeof attachmentRows>[1]) {
+/** The book's datasheets and the roster's copy limits, which decide whether a new unit can be added to attach. */
+export type AttachDiscovery = {
+  candidates: readonly PickerUnit[]
+  held: Readonly<Record<string, number>>
+  limits: ReadonlyMap<string, number | null>
+}
+
+export function useCardRelationships(
+  picks: readonly KeyedPick[],
+  units: Parameters<typeof attachmentRows>[1],
+  discovery: AttachDiscovery | null,
+) {
   const previous = useRef(new Map<number, CardRelationships>())
   const relationships = useMemo(() => {
     const next = new Map<number, CardRelationships>()
+    const candidates = discovery?.candidates ?? []
+    const added = (options: (PickerUnit & { reason: string | null })[]): AttachChoice[] =>
+      options
+        .map((option) => ({
+          kind: 'new' as const,
+          entryId: option.id,
+          name: option.name,
+          points: option.points,
+          reason: (discovery && unitLimitMessage(option.id, discovery.held[option.id] ?? 0, discovery.limits)) ?? option.reason,
+        }))
+        .toSorted((left, right) => Number(Boolean(left.reason)) - Number(Boolean(right.reason)) || left.name.localeCompare(right.name))
     for (const [index, pick] of picks.entries()) {
-      const candidate = { joined: attachmentRows(picks, units, index), canJoin: joinableUnits(picks, units, index) }
+      const candidate = {
+        joined: attachmentRows(picks, units, index),
+        canJoin: [
+          ...joinableUnits(picks, units, index).map((host) => ({ kind: 'roster' as const, ...host })),
+          ...added(newHosts(candidates, picks, units, index)),
+        ],
+        canHost: [
+          ...rosterJoiners(picks, units, index).map((joiner) => ({ kind: 'roster' as const, ...joiner })),
+          ...added(newJoiners(candidates, picks, units, index)),
+        ],
+      }
       const current = previous.current.get(pick.key)
       next.set(pick.key, current && sameRelationships(current, candidate) ? current : candidate)
     }
     return next
-  }, [picks, units])
+  }, [picks, units, discovery])
   useLayoutEffect(() => {
     previous.current = relationships
   }, [relationships])
@@ -85,15 +129,5 @@ export function useCardRelationships(picks: readonly KeyedPick[], units: Paramet
 }
 
 function sameRelationships(left: CardRelationships, right: CardRelationships) {
-  return (
-    left.joined.length === right.joined.length &&
-    left.joined.every((row, index) => {
-      const other = right.joined[index]
-      return Boolean(
-        other && row.label === other.label && row.name === other.name && row.action === other.action && row.detach === other.detach,
-      )
-    }) &&
-    left.canJoin.length === right.canJoin.length &&
-    left.canJoin.every((unit, index) => unit.key === right.canJoin[index]?.key && unit.name === right.canJoin[index]?.name)
-  )
+  return JSON.stringify(left) === JSON.stringify(right)
 }

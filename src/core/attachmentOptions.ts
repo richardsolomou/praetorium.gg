@@ -47,3 +47,61 @@ export function attachmentOptions(
 export function joinableUnits(picks: readonly AttachmentPick[], units: readonly (AttachableUnit | undefined)[], index: number) {
   return attachmentOptions(picks, units, index).flatMap(({ key, name, reason }) => (reason ? [] : [{ key, name }]))
 }
+
+type Candidate = {
+  name: string
+  attachment?: Attachment | null
+  attachmentLimits?: AttachmentLimits
+  attachmentCategories?: readonly string[]
+}
+
+const NEW = -1
+
+/** The roster units that may join the unit at `index` now. */
+export function rosterJoiners(picks: readonly AttachmentPick[], units: readonly (AttachableUnit | undefined)[], index: number) {
+  const host = picks[index]
+  if (!host) return []
+  return picks.flatMap((pick, at) =>
+    attachmentOptions(picks, units, at).some((option) => option.key === host.key && !option.reason)
+      ? [{ key: pick.key, name: units[at]!.name }]
+      : [],
+  )
+}
+
+/** Datasheets the unattached unit at `index` could join once one is added, with why it could not yet. */
+export function newHosts<T extends Candidate>(
+  candidates: readonly T[],
+  picks: readonly AttachmentPick[],
+  units: readonly (AttachableUnit | undefined)[],
+  index: number,
+): (T & { reason: string | null })[] {
+  if (!units[index]?.attachment || picks[index]?.attachedTo !== undefined) return []
+  return candidates.flatMap((candidate) => {
+    const option = attachmentOptions(
+      [...picks, { key: NEW }],
+      [...units, { ...candidate, attachment: candidate.attachment ?? null }],
+      index,
+    ).find(({ key }) => key === NEW)
+    return option ? [{ ...candidate, reason: option.reason }] : []
+  })
+}
+
+/** Datasheets that could join the unit at `index` once added, with why one could not. */
+export function newJoiners<T extends Candidate>(
+  candidates: readonly T[],
+  picks: readonly AttachmentPick[],
+  units: readonly (AttachableUnit | undefined)[],
+  index: number,
+): (T & { reason: string | null })[] {
+  const host = picks[index]
+  if (!host || !units[index]) return []
+  return candidates.flatMap((candidate) => {
+    if (!candidate.attachment) return []
+    const option = attachmentOptions(
+      [...picks, { key: NEW }],
+      [...units, { ...candidate, attachment: candidate.attachment }],
+      picks.length,
+    ).find(({ key }) => key === host.key)
+    return option ? [{ ...candidate, reason: option.reason }] : []
+  })
+}
