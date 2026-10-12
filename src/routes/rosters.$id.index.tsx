@@ -54,8 +54,8 @@ export const Route = createFileRoute('/rosters/$id/')({
         if ((context.queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) <= updatedAt)
           context.queryClient.setQueryData(key, data, { updatedAt })
       }
-      const { roster, editable, variants, differences, faction, price, changes } = value
-      seed(rosterAccessQuery(params.id, deps.battle).queryKey, { roster, editable, variants, differences, faction })
+      const { roster, editable, variants, differences, copiedFrom, faction, price, changes } = value
+      seed(rosterAccessQuery(params.id, deps.battle).queryKey, { roster, editable, variants, differences, copiedFrom, faction })
       seed(rosterChangesQuery(params.id).queryKey, changes)
       seed(
         savedRosterPriceQuery(
