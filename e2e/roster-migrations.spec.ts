@@ -94,3 +94,59 @@ test('converts a retired Marine faction identity without discarding its generate
   await expect(notice).toHaveCount(0)
   expect(JSON.parse((await operator.roster(id))!.picks)).toEqual([{ entryId: '984d-c25b-86dd-9970' }])
 })
+
+test('library and builder point a roster on earlier released rules at the current version', { tag: '@catalogue' }, async ({ page }) => {
+  const { email } = await signUp(page, 'Earlier Rules')
+  const user = await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string })
+  const operator = await productOperator()
+  const picks = JSON.stringify([{ entryId: '3c0a-10a9-8f84-26a3', models: 5 }])
+  const save = (name: string, catalogueId: string) => {
+    const id = crypto.randomUUID()
+    return operator
+      .saveRoster({
+        id,
+        userId: user.id,
+        name,
+        catalogueId,
+        detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
+        disposition: 'priority-assets',
+        limit: 1000,
+        picks,
+        prep: null,
+        tags: '[]',
+        waivedRules: '[]',
+        visibility: 'private',
+        source: 'editable',
+        now: Date.now(),
+      })
+      .then(() => id)
+  }
+  const earlier = await save('Earlier Scouts', 'current-rosters~470a-6daa-9014-12df')
+  await save('Current Scouts', 'marine-main~470a-6daa-9014-12df')
+  await page.goto('/rosters')
+  await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('Older rules')
+  await expect(page.locator('[data-roster="Current Scouts"]')).toContainText('11th edition')
+  await expect(page.locator('[data-roster="Current Scouts"]')).not.toContainText('Older rules')
+  await page.goto(`/rosters/${earlier}`)
+  const notice = page.locator('[data-roster-rules-notice]')
+  await expect(notice).toContainText(
+    'This roster uses Space Marines codex · 3 Oct 2026. Space Marines codex · 12 Oct 2026 is the current rules version.',
+  )
+  const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
+  await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
+  await dialog.getByRole('combobox', { name: 'Rules version' }).click()
+  await page.getByRole('option', { name: 'Space Marines codex · 12 Oct 2026 · Current', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
+  const review = page.getByRole('dialog', { name: 'Review roster changes' })
+  await expect(review.getByLabel('Roster change preview')).toContainText(/Scout Squad · 5 models · [\d →]+ pts/)
+  await review.getByRole('button', { name: 'Cancel', exact: true }).click()
+  expect((await operator.roster(earlier))?.catalogueId).toBe('current-rosters~470a-6daa-9014-12df')
+  await page.goto(`/rosters/${earlier}`)
+  await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
+  await dialog.getByRole('combobox', { name: 'Rules version' }).click()
+  await page.getByRole('option', { name: 'Space Marines codex · 12 Oct 2026 · Current', exact: true }).click()
+  await waitForRosterSave(page, () => confirmRosterSetup(dialog), 'marine-main~')
+  await page.goto('/rosters')
+  await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('11th edition')
+  await expect(page.locator('[data-roster="Earlier Scouts"]')).not.toContainText('Older rules')
+})

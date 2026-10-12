@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Compass, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { currentRulesFor } from '../../../core/currentRules'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -213,6 +214,10 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                       pointsLoading={pages.pending(index)}
                       problem={pageById.get(roster.id)?.problem ?? null}
                       differences={pageById.get(roster.id)?.differences}
+                      updates={{
+                        olderRules: Boolean(currentRulesFor(roster.catalogueId, available?.factions ?? [])),
+                        changes: pageById.get(roster.id)?.changes ?? 0,
+                      }}
                       showVisibility={roster.visibility !== head.roster.visibility}
                       actions={actions}
                       origin={origin}

@@ -83,12 +83,13 @@ import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './R
 import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
+import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { type CatalogueEdition } from '../../../core/catalogueEdition'
+import { type CatalogueEdition, rulesVersionDetails } from '../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
@@ -249,6 +250,7 @@ export function ListBuilder({
     enabled: Boolean(catalogueId) && initialFaction?.id !== catalogueId,
   })
   const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
+  const currentRules = currentRulesFor(catalogueId, factionIndex?.factions ?? [])
   // View mode simplifies the owner's roster cards and loadouts without taking away
   // their unit picker. Other readers still get the roster without builder controls.
   const building = editable && !readOnly
@@ -1265,6 +1267,7 @@ export function ListBuilder({
         {!frozen ? (
           <RosterRulesNotice
             edition={faction?.edition}
+            current={currentRules ? rulesVersionDetails(currentRules).name : null}
             onConvert={
               editable
                 ? () => {

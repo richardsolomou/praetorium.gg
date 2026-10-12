@@ -48,6 +48,24 @@ describe('roster summary', () => {
     expect(markup).not.toContain('switched off')
   })
 
+  it('marks a list changed by a data update since it was saved', () => {
+    const markup = renderToStaticMarkup(createElement(RosterSummary, { roster, updates: { olderRules: false, changes: 2 } }))
+
+    expect(markup).toContain('Changed by update')
+  })
+
+  it('marks a list kept on older rules', () => {
+    const markup = renderToStaticMarkup(createElement(RosterSummary, { roster, updates: { olderRules: true, changes: 0 } }))
+
+    expect(markup).toContain('Older rules')
+  })
+
+  it('leaves a current, unchanged list unmarked', () => {
+    const markup = renderToStaticMarkup(createElement(RosterSummary, { roster, updates: { olderRules: false, changes: 0 } }))
+
+    expect([markup.includes('Older rules'), markup.includes('Changed by update')]).toEqual([false, false])
+  })
+
   it('shows a custom points budget beside the battle size whose limits still apply', () => {
     const markup = renderToStaticMarkup(createElement(RosterSummary, { roster: { ...roster, pointsBudget: 1_500 }, points: 1_485 }))
 
