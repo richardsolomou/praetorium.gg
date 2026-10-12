@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Choice } from './CombatControls'
 import { CombatValue, formatCombatValue, type CombatMetric } from './CombatValue'
 import type { RosterCombatSummary, RosterCombatUnit } from './rosterCombat'
@@ -50,6 +51,7 @@ export function RosterCombatTable({
   const [phase, setPhase] = useState<keyof RosterCombatSummary>('ranged')
   const [metric, setMetric] = useState<Metric>('meanDamage')
   const [highlight, setHighlight] = useState(benchmarkTargets ? 'attackers' : 'targets')
+  const [optionsOpen, setOptionsOpen] = useState(false)
   const attackingHealth = useMemo(() => attackers.map(modelCount), [attackers])
   const defendingHealth = useMemo(() => defenders.map(modelCount), [defenders])
   const bestAttackers = defenders.map((_defender, column) =>
@@ -61,7 +63,17 @@ export function RosterCombatTable({
   const heading = metrics.find(([value]) => value === metric)![1]
   return (
     <div className="min-w-0 space-y-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <button
+        type="button"
+        aria-label="View options"
+        aria-expanded={optionsOpen}
+        onClick={() => setOptionsOpen(!optionsOpen)}
+        className="flex w-full items-center justify-between gap-2 border border-edge px-3 py-2 text-left text-xs focus-visible:ring-2 focus-visible:ring-primary sm:hidden"
+      >
+        {phases.find(([value]) => value === phase)![1]} · {heading}
+        <ChevronDown className={`size-4 shrink-0 ${optionsOpen ? 'rotate-180' : ''}`} aria-hidden />
+      </button>
+      <div className={`${optionsOpen ? 'grid' : 'hidden sm:grid'} grid-cols-2 gap-2 sm:grid-cols-3`}>
         <Choice label="Phase" ariaLabel="Comparison phase" choices={phases} value={phase} onChange={setPhase} />
         <Choice label="Show" ariaLabel="Comparison metric" choices={metrics} value={metric} onChange={setMetric} />
         <div className="col-span-2 min-w-0 sm:col-span-1">
@@ -79,7 +91,8 @@ export function RosterCombatTable({
       </div>
       <p className="text-xs text-dim">
         <span className="text-achieved">Green: {highlight === 'targets' ? 'best target per attacker' : 'best attacker per target'}.</span>{' '}
-        Select a result to adjust the matchup.
+        <span className="hidden sm:inline">Select a result to adjust the matchup.</span>
+        <span className="sm:hidden">Swipe for more targets; tap a result to adjust.</span>
       </p>
       <section
         aria-label="All unit matchups"
@@ -95,7 +108,7 @@ export function RosterCombatTable({
             <tr>
               <th
                 scope="col"
-                className="sticky top-0 left-0 z-30 w-36 min-w-32 border-b border-edge bg-sunken p-2 text-left text-xs text-dim sm:min-w-36"
+                className="sticky top-0 left-0 z-30 w-28 min-w-28 border-b border-edge bg-sunken p-2 text-left text-xs text-dim sm:w-36 sm:min-w-36"
               >
                 Attacker / Target
               </th>
@@ -121,7 +134,7 @@ export function RosterCombatTable({
                 <tr key={`${unit.rosterIndex}:${unit.pickIndex}`}>
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 w-36 min-w-32 border-b border-edge bg-panel p-2 text-left text-xs font-semibold sm:min-w-36"
+                    className="sticky left-0 z-10 w-28 min-w-28 border-b border-edge bg-panel p-2 text-left text-xs font-semibold sm:w-36 sm:min-w-36"
                   >
                     {unit.name}
                     <span className="block text-xs font-normal text-faint">{attackingHealth[row]}</span>

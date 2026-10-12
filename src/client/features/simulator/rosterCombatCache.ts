@@ -5,6 +5,8 @@ const MAX_BYTES = 8 * 1024 * 1024
 const cache = new Map<string, { results: RosterCombatSummary[]; bytes: number }>()
 let bytes = 0
 
+export const hasRosterCombatCache = () => cache.size > 0
+
 export function readRosterCombatCache(key: string) {
   const entry = cache.get(key)
   if (!entry) return undefined

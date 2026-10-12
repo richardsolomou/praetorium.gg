@@ -16,12 +16,13 @@ export function rosterCombatant(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
   data: Parameters<typeof rosterDatasheetContext>[1] & { inactivePicks?: number[] },
+  prepared?: Parameters<typeof rosterDatasheetContext>[2],
 ) {
   data = {
     ...data,
     picks: data.picks.map((pick, index) => (data.inactivePicks?.includes(index) ? { ...pick, attachedTo: undefined } : pick)),
   }
-  const projected = rosterDatasheetContext(loaded, data)
+  const projected = rosterDatasheetContext(loaded, data, prepared)
   const context = projected && {
     ...projected,
     companions: projected.companions.filter((selectionIndex) =>

@@ -36,15 +36,19 @@ export function CombatSimulator({
       <PageHeader
         eyebrow={null}
         title="Combat simulator"
-        description="Compare shooting and melee between units with their leaders and support. Change a loadout and the odds update automatically."
+        description="Compare shooting and melee between units or whole rosters. Unit odds update as you edit; roster comparisons run when you’re ready."
       />
       <PageContent>
-        <SimulationMode rosters={comparingRosters} onChange={setComparingRosters} className="mb-4" />
-        {comparingRosters ? (
-          <RosterCombatComparison />
-        ) : (
-          <CombatSimulatorMatchup initial={decodeSimulatorState(shared)} onChange={share} reference={reference} />
-        )}
+        <SimulationMode
+          rosters={comparingRosters}
+          onChange={setComparingRosters}
+          units={<CombatSimulatorMatchup initial={decodeSimulatorState(shared)} onChange={share} reference={reference} />}
+          comparison={
+            <div className="border border-edge bg-panel">
+              <RosterCombatComparison />
+            </div>
+          }
+        />
         <p className="mt-3 text-xs text-faint">Data provided by game-datacards and BSData.</p>
       </PageContent>
     </main>

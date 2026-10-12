@@ -10,6 +10,8 @@ The Node server trusts Cloudflare's visitor header for proxying/rate limits. Res
 
 ## Delivery
 
+Combat estimates use two worker threads per web replica, separate from the request event loop. Each worker has a 128 MiB old-generation heap limit; the pool bounds queued and running pairs and caches answers in memory per replica. `vite.seed.config.ts` builds the Node calculation worker alongside the preview seed entry, and the production image must contain `server/combat-calculation-worker.mjs` in its output directory. The offline browser worker remains in the saved application bundle. [Combat simulation](development/combat-simulation.md) owns calculation limits and cache behavior.
+
 `.github/workflows/dokploy-web.yml` owns image publication, product migration, Dokploy deployment, and health checks. It deploys a digest-pinned image without rebuilding it. Production follows main/releases; staging uses separate data.
 
 `.github/workflows/release.yml` runs on every push to `main`. With pending changesets, it commits the version and changelog updates as `chore: release vX [skip ci]` directly on `main`, tags that commit, creates the GitHub Release, and deploys it to production; without them it deploys the pushed commit. The release commit changes only release metadata on the tree CI already tested, so it gets no CI run of its own, and `[skip ci]` also skips the other push workflows for it, so the release run dispatches mobile delivery and the coverage baseline itself. The push uses the `CHANGESETS_TOKEN` repository secret, a fine-grained token acting as the owner, which the `main` ruleset's admin bypass lets past required checks. If that token expires or loses access, the release push is rejected and production is not deployed until the secret is replaced.

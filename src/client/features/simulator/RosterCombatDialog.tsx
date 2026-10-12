@@ -18,11 +18,16 @@ export function RosterCombatDialog({
   const [comparingRosters, setComparingRosters] = useState(startWithRosters)
   return (
     <CombatDialog onClose={onClose} title={startWithRosters ? 'Test targets' : 'Combat simulator'} wide={comparingRosters}>
-      {!startWithRosters ? <SimulationMode rosters={comparingRosters} onChange={setComparingRosters} className="p-3" /> : null}
-      {comparingRosters ? (
+      {startWithRosters ? (
         <RosterCombatComparison currentRoster={roster} />
       ) : (
-        <CombatSimulatorMatchup source="roster" roster={roster} inDialog />
+        <SimulationMode
+          rosters={comparingRosters}
+          onChange={setComparingRosters}
+          className="mx-3 mt-3"
+          units={<CombatSimulatorMatchup source="roster" roster={roster} inDialog />}
+          comparison={<RosterCombatComparison currentRoster={roster} />}
+        />
       )}
     </CombatDialog>
   )

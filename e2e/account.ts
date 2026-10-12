@@ -236,10 +236,9 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
   }).toPass({ timeout: 20_000 })
 }
 
-/** Setup is one page; a helper brings the section it needs into view. */
 export async function setupStep(page: Page, label: string) {
   const section = page.getByRole('region', { name: label, exact: true })
-  await section.scrollIntoViewIfNeeded()
+  await page.getByRole('navigation', { name: 'Setup sections' }).locator(`button[data-step="${label}"]`).click()
   await expect(section).toBeInViewport()
 }
 

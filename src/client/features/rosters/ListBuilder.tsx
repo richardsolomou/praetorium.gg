@@ -24,7 +24,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
@@ -1090,11 +1096,10 @@ export function ListBuilder({
     })
   }
 
-  // Simulation never changes the roster, so a reader can try a list they cannot edit.
   const testTargets = !frozen ? (
-    <Button variant="outline" size="sm" disabled={!positioned.length || pricePending || priceLoading} onClick={() => openCombat(0, true)}>
-      <Swords aria-hidden /> Test targets
-    </Button>
+    <DropdownMenuItem disabled={!positioned.length || pricePending || priceLoading} onClick={() => openCombat(0, true)}>
+      <Swords /> Test targets
+    </DropdownMenuItem>
   ) : null
 
   return (
@@ -1124,7 +1129,6 @@ export function ListBuilder({
         actions={
           editable ? (
             <>
-              {testTargets}
               {variantMenu}
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -1154,6 +1158,9 @@ export function ListBuilder({
                       </DropdownMenuItem>
                     </>
                   ) : null}
+                  <DropdownMenuSeparator />
+                  {testTargets}
+                  <DropdownMenuSeparator />
                   {visibility !== 'private' ? (
                     <DropdownMenuItem onClick={() => void shareRoster()}>
                       <Link2 /> {shareLabel}
@@ -1206,7 +1213,6 @@ export function ListBuilder({
             </>
           ) : (
             <>
-              {testTargets}
               {locked ? variantMenu : null}
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
@@ -1234,6 +1240,9 @@ export function ListBuilder({
                       <Copy /> Sign in to duplicate
                     </DropdownMenuItem>
                   )}
+                  {!frozen ? <DropdownMenuSeparator /> : null}
+                  {testTargets}
+                  <DropdownMenuSeparator />
                   {visibility !== 'private' && !battle ? (
                     <DropdownMenuItem onClick={() => void shareRoster()}>
                       <Link2 /> {shareLabel}

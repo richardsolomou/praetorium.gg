@@ -13,8 +13,13 @@ export function BattleCombatDialog(props: Props) {
   const [rosters, setRosters] = useState(false)
   return (
     <CombatDialog battle wide={rosters} onClose={props.onClose}>
-      <SimulationMode rosters={rosters} onChange={setRosters} className="p-3" />
-      {rosters ? <BattleMatchupPlanner {...props} /> : <BattleUnitCombatDialog {...props} />}
+      <SimulationMode
+        rosters={rosters}
+        onChange={setRosters}
+        className="mx-3 mt-3"
+        units={<BattleUnitCombatDialog {...props} />}
+        comparison={<BattleMatchupPlanner {...props} />}
+      />
     </CombatDialog>
   )
 }

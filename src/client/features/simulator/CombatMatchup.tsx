@@ -1,5 +1,5 @@
 import { invalidWeaponChoices } from './combatPreferences'
-import CombatWorker from './combatWorker'
+import { calculateCombatPair } from './combatCalculation'
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -298,49 +298,36 @@ export function CombatMatchup({
     if (pending || failed) return
     const request = JSON.parse(requestKey) as CombatRequest
     if (!request.ranged && !request.melee) return
-    let active = true
-    let worker: Worker | undefined
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const stop = () => {
-      active = false
-      worker?.terminate()
-      clearTimeout(timer)
-    }
-    const fail = (message: string, reason: 'worker_error' | 'timeout' | 'startup') => {
-      if (!active) return
-      setOutcome({
-        key: requestKey,
-        attempt: retry,
-        answer: { ranged: request.ranged ? { error: message } : null, melee: request.melee ? { error: message } : null },
-      })
-      if (!failureReported.current) {
-        failureReported.current = true
-        posthog.capture('combat_simulation_failed', { source: entryPoint, reason })
-      }
-      stop()
-    }
-    try {
-      worker = new CombatWorker()
-      worker.onmessage = (event: MessageEvent<CombatAnswer>) => {
-        if (active) {
-          setOutcome({ key: requestKey, attempt: retry, answer: event.data })
-          const telemetry = combatOutcomeEvent(event.data, entryPoint)
-          if (telemetry?.name === 'combat_simulation_completed' && !reported.current) {
-            reported.current = true
-            posthog.capture(telemetry.name, telemetry.properties)
-          } else if (telemetry?.name === 'combat_simulation_failed' && !failureReported.current) {
-            failureReported.current = true
-            posthog.capture(telemetry.name, telemetry.properties)
-          }
+    const controller = new AbortController()
+    void calculateCombatPair(request, controller.signal)
+      .then((answer) => {
+        if (controller.signal.aborted) return
+        setOutcome({ key: requestKey, attempt: retry, answer })
+        const telemetry = combatOutcomeEvent(answer, entryPoint)
+        if (telemetry?.name === 'combat_simulation_completed' && !reported.current) {
+          reported.current = true
+          posthog.capture(telemetry.name, telemetry.properties)
+        } else if (telemetry?.name === 'combat_simulation_failed' && !failureReported.current) {
+          failureReported.current = true
+          posthog.capture(telemetry.name, telemetry.properties)
         }
-        stop()
-      }
-      worker.onerror = () => fail('The calculation failed. Try again.', 'worker_error')
-      timer = setTimeout(() => fail('The calculation took too long. Reduce the model count and try again.', 'timeout'), 15_000)
-      worker.postMessage(request)
-    } catch {
-      fail('The calculation could not start. This browser must support Web Workers.', 'startup')
-    }
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setOutcome({
+          key: requestKey,
+          attempt: retry,
+          answer: {
+            ranged: request.ranged ? { error: 'The calculation failed. Try again.' } : null,
+            melee: request.melee ? { error: 'The calculation failed. Try again.' } : null,
+          },
+        })
+        if (!failureReported.current) {
+          failureReported.current = true
+          posthog.capture('combat_simulation_failed', { source: entryPoint, reason: 'calculation' })
+        }
+      })
+    const stop = () => controller.abort()
     return stop
   }, [requestKey, pending, failed, retry, entryPoint])
   // After the estimate's effect, so the matchup's own calculation starts first.

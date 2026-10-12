@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Toggle as ToggleButton } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -132,20 +132,24 @@ export function Chip({
 export function SimulationMode({
   rosters,
   onChange,
+  units,
+  comparison,
   className = '',
 }: {
   rosters: boolean
   onChange: (rosters: boolean) => void
+  units: ReactNode
+  comparison: ReactNode
   className?: string
 }) {
   return (
-    <div className={`flex gap-2 ${className}`} aria-label="Simulation mode">
-      <Button variant={rosters ? 'outline' : 'default'} aria-pressed={!rosters} onClick={() => onChange(false)}>
-        Units
-      </Button>
-      <Button variant={rosters ? 'default' : 'outline'} aria-pressed={rosters} onClick={() => onChange(true)}>
-        Rosters
-      </Button>
-    </div>
+    <Tabs value={rosters ? 'rosters' : 'units'} onValueChange={(value) => onChange(value === 'rosters')} className="flex-col gap-4">
+      <TabsList aria-label="Simulation mode" className={`h-9 ${className}`}>
+        <TabsTrigger value="units">Units</TabsTrigger>
+        <TabsTrigger value="rosters">Rosters</TabsTrigger>
+      </TabsList>
+      <TabsContent value="units">{units}</TabsContent>
+      <TabsContent value="rosters">{comparison}</TabsContent>
+    </Tabs>
   )
 }

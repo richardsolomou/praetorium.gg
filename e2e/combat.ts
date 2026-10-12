@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page, type Request, type Route } from '@playwright/test'
 import { chooseUnit } from './account'
 
 declare global {
@@ -7,7 +7,24 @@ declare global {
   }
 }
 
+export function isCombatCalculationRequest(request: Request) {
+  const body = request.postData() ?? ''
+  return request.url().includes('/_serverFn/') && body.includes('ranged') && body.includes('melee') && body.includes('weapons')
+}
+
 export async function holdCombatCalculations(page: Page) {
+  const waiting: (() => void)[] = []
+  const hold = async (route: Route) => {
+    if (!isCombatCalculationRequest(route.request())) return route.continue()
+    await page.evaluate(() => window.PraetoriumCombatGate?.pending.push(() => {}))
+    await new Promise<void>((resolve) => waiting.push(resolve))
+    try {
+      await route.continue()
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes('Route is already handled')) throw error
+    }
+  }
+  await page.route('**/_serverFn/**', hold)
   await page.evaluate(() => {
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Reflect.apply binds the saved method to its worker.
     const original = Worker.prototype.postMessage
@@ -28,7 +45,11 @@ export async function holdCombatCalculations(page: Page) {
   })
   return {
     waitForStart: () => expect.poll(() => page.evaluate(() => window.PraetoriumCombatGate?.pending.length ?? 0)).toBeGreaterThan(0),
-    release: () => page.evaluate(() => window.PraetoriumCombatGate?.release()),
+    release: async () => {
+      await page.unroute('**/_serverFn/**', hold)
+      for (const resume of waiting.splice(0)) resume()
+      await page.evaluate(() => window.PraetoriumCombatGate?.release())
+    },
   }
 }
 

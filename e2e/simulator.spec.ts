@@ -1,4 +1,11 @@
-import { chooseCombatUnit, closeCombatBreakdown, openCombatBreakdown, openCombatControls, holdCombatCalculations } from './combat'
+import {
+  chooseCombatUnit,
+  closeCombatBreakdown,
+  openCombatBreakdown,
+  openCombatControls,
+  holdCombatCalculations,
+  isCombatCalculationRequest,
+} from './combat'
 import { expect, test, type Locator, type Page } from './test'
 import { chooseUnit as chooseCatalogueUnit, retryUntilVisible } from './account'
 
@@ -160,7 +167,7 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   const resultsSummary = page.getByLabel('Results summary')
   await expect(resultsSummary).toBeVisible()
   await expect(page.locator('[data-result-numbers]')).toHaveCount(4)
-  expect(await resultsSummary.evaluate((element) => getComputedStyle(element).position)).toBe('fixed')
+  expect(await resultsSummary.evaluate((element) => getComputedStyle(element).position)).toBe('sticky')
   await expect(shootingDamage).toHaveText(/^\d+\.\d{2}$/)
   await expect(meleeDamage).toHaveText(/^\d+\.\d{2}$/)
   await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
@@ -786,6 +793,7 @@ for (const width of [1440, 350]) {
 }
 
 test('a failed worker can be retried without reselecting either unit', async ({ page }) => {
+  await page.route('**/_serverFn/**', (route) => (isCombatCalculationRequest(route.request()) ? route.abort() : route.continue()))
   await page.addInitScript(() => {
     const RealWorker = window.Worker
     let first = true
@@ -1066,7 +1074,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('tab', { name: 'All', exact: true })).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByRole('region', { name: 'Applied modifiers' })).toBeVisible()
     expect(await summary.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
-    await expect(page.locator('[data-results-space]')).toHaveCSS('height', '0px')
+    await expect(page.locator('[data-results-space]')).toHaveCount(0)
     const defender = page.getByRole('region', { name: 'Defender buffs', exact: true })
     await expect(page.locator('[data-combat-buffs]')).toHaveCount(1)
     await expect(page.locator('[data-combat-buffs]')).not.toHaveAttribute('open')
@@ -1121,6 +1129,18 @@ for (const width of [1440, 390]) {
     expect(
       await page.getByRole('region', { name: 'Applied modifiers' }).evaluate((element) => element.getBoundingClientRect().bottom),
     ).toBeLessThanOrEqual(await summary.evaluate((element) => element.getBoundingClientRect().top))
+    const footer = page.locator('[data-web-app-footer]')
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const end = document.querySelector('[data-web-app-footer]')!.getBoundingClientRect().bottom + scrollY
+          const navigation = document.querySelector('[data-native-app-tabs]')!
+          const reserved = getComputedStyle(navigation).display === 'none' ? 0 : navigation.getBoundingClientRect().height
+          return Math.abs(document.documentElement.scrollHeight - end - reserved)
+        }),
+      )
+      .toBeLessThan(2)
+    expect((await summary.boundingBox())!.y + (await summary.boundingBox())!.height).toBeLessThanOrEqual((await footer.boundingBox())!.y)
     await page.screenshot({ path: `test-results/simulator-bottom-${width}.png` })
   })
 }
