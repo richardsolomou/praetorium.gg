@@ -1125,7 +1125,7 @@ export function ListBuilder({
                         <LockOpen /> Unlock roster
                       </DropdownMenuItem>
                       <DropdownMenuItem disabled={createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
-                        <GitBranchPlus /> New variant
+                        <GitBranchPlus /> Create variant
                       </DropdownMenuItem>
                       <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
                         <Copy /> Duplicate

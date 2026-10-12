@@ -47,7 +47,7 @@ for (const width of [1440, 390]) {
 
     await page.goto(`/rosters/${id}`)
     await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'New variant' }).click()
+    await page.getByRole('menuitem', { name: 'Create variant' }).click()
     await page.waitForURL((url) => !url.pathname.endsWith(id))
     const variantId = new URL(page.url()).pathname.split('/').at(-1)!
     await waitForRosterSave(page, () => page.getByLabel('List name').fill('Experimental variant'), 'Experimental variant')

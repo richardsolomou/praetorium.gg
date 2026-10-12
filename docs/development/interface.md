@@ -43,7 +43,7 @@ Keep each weapon option's profiles visible before selection so players can compa
 
 Use the same roster cards for libraries, choosers, editable lists, read-only lists, and frozen battle/league snapshots. A pending price is a loading state, not an empty roster. Frozen snapshots retain their recorded cards and totals without today's legality or data-update warnings. Owners' View mode may retain the picker; other readers receive no mutation controls.
 
-A locked roster shows a Locked chip in library rows and a Locked line with Unlock under the builder header. The builder reads as it does to other readers, without picker, setup, conversion or name editing, and its Roster actions offer Unlock roster, New variant and Duplicate. Library row menus offer Lock roster or Unlock roster and disable Edit setup and Convert rules version while locked. The datasheet roster chooser omits locked rosters.
+A locked roster shows a Locked chip in library rows and a Locked line with Unlock under the builder header. The builder reads as it does to other readers, without picker, setup, conversion or name editing, and its Roster actions offer Unlock roster, Create variant and Duplicate. Library row menus offer Lock roster or Unlock roster and disable Edit setup and Convert rules version while locked. The datasheet roster chooser omits locked rosters.
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).
 
