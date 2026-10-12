@@ -67,14 +67,14 @@ export function PrivacyPolicy() {
         <LegalLinks>
           <li>Players seated in a battle see that battle's record, including its frozen copies of the armies played.</li>
           <li>
-            Saved rosters start private unless you choose another default or access level. An unlisted roster can be read by anyone holding
+            Saved rosters start public unless you choose another default or access level. An unlisted roster can be read by anyone holding
             its link; a public roster is also listed on your profile and in Discover armies, where any player can duplicate it into their
             own rosters. Private access requires ownership or a seat in the named battle where the roster was attached.
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
-            Your collection is private unless you turn on Show collection on profile. That publishes its datasheets and model counts;
-            turning it off hides them again.
+            Your collection's datasheets and model counts are shown on your profile by default. Turn off Show collection on profile in your
+            account settings to hide them; turning it back on shows them again.
           </li>
           <li>
             Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can

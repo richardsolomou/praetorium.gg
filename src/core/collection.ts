@@ -3,6 +3,8 @@ export const MAX_COLLECTION_MODELS = 10_000
 
 export const MAX_COLLECTION_DATASHEETS = 5_000
 
+export const DEFAULT_COLLECTION_PUBLISHED = true
+
 type CollectionFaction = { catalogueId: string; name: string; units: readonly { id: string; slug: string; name: string }[] }
 
 export function collectionDatasheets(factions: readonly CollectionFaction[]) {

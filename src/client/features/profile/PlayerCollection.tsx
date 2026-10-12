@@ -4,15 +4,12 @@ import { Link } from '@tanstack/react-router'
 import type { CollectionGroup } from '../../../contracts/collection'
 import { FactionMark, factionColour } from '../../components/FactionMark'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
-import { CollectionSharing } from '../collection/CollectionSharing'
 
 export function PlayerCollection({
-  userId,
   groups,
   published,
   yourself,
 }: {
-  userId: string
   groups: readonly CollectionGroup[]
   published: boolean
   yourself: boolean
@@ -32,7 +29,14 @@ export function PlayerCollection({
           </Link>
         ) : null}
       </div>
-      {yourself ? <CollectionSharing userId={userId} published={published} /> : null}
+      {yourself ? (
+        <p className="text-sm text-dim">
+          {published ? 'Anyone can see your collection here.' : 'Only you can see your collection here.'}{' '}
+          <Link to="/profile" hash="collection-sharing" className="text-info underline">
+            Privacy settings
+          </Link>
+        </p>
+      ) : null}
       {!groups.length ? (
         <p className="border border-edge bg-panel p-5 text-sm text-dim">Your shelf is empty. Add the models you own to your collection.</p>
       ) : (
