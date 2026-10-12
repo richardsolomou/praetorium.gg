@@ -1,80 +1,98 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 import { createRoster, signUp, waitForRosterSave } from './account'
-import { add, attach, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
+import { add, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
 
 test.use({ hasTouch: true })
 
-for (const width of [1600, 390]) {
-  test(`relationship discovery explains current limits and links missions at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => window.innerWidth)).toBe(width)
-    await openBuilder(page)
-    await waitForRosterSave(page, () => add(page, 'Immortals'))
-    await page.getByLabel('Add a unit').clear()
-    const picker = page.locator('div[data-onboarding="roster-picker"]')
-    const relationships = picker.getByRole('combobox', { name: 'Unit relationships' })
-    if (width < 500) {
-      await relationships.tap()
-      await page.getByRole('option', { name: 'Leaders for Immortals (1)', exact: true }).tap()
-    } else {
-      await relationships.focus()
-      await relationships.press('Enter')
-      await page.getByRole('option', { name: 'Leaders for Immortals (1)', exact: true }).press('Enter')
-    }
-    const imotekh = picker.locator('[data-picker-unit="Imotekh the Stormlord"]')
-    await expect(imotekh).toContainText('Compatible leader for Immortals')
-    await expect(picker.locator('[data-picker-unit="Plasmancer"]')).toHaveCount(0)
-    await waitForRosterSave(page, () => imotekh.getByRole('button', { name: 'Add Imotekh the Stormlord', exact: true }).click())
-    await expect(imotekh).toContainText('1/1 in roster')
-    await expect(imotekh).not.toContainText('Limit reached:')
-    await expect(imotekh.getByRole('button', { name: 'Add Imotekh the Stormlord', exact: true })).toBeDisabled()
-    if (width < 500) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
-    await waitForRosterSave(page, () => attach(page, 'Imotekh the Stormlord', 'Immortals'))
-    if (width < 500) {
-      await page.getByRole('button', { name: 'Add units', exact: true }).tap()
-      await relationships.tap()
-      await page.getByRole('option', { name: 'Leaders for Immortals (1)', exact: true }).tap()
-    }
-    await expect(imotekh).toContainText('Leader limit reached on Immortals.')
-    await expect(imotekh).not.toContainText('Can be added separately.')
-    const otherLeader = picker.locator('[data-picker-unit="Overlord"]')
-    await expect(otherLeader).toContainText('Leader limit reached on Immortals. Can be added separately.')
-    await expect(otherLeader.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
-    await expectNoHorizontalOverflow(picker)
-    await expectNoHorizontalOverflow(page.locator('html'))
-    await shot(picker, `test-results/builder-guidance-leaders-${width}.png`)
+const attachMenu = (page: Page) => page.getByRole('menu')
 
-    await relationships.click()
-    await page.getByRole('option', { name: 'Bodyguards for Imotekh the Stormlord (2)', exact: true }).click()
-    await expect(picker.locator('[data-picker-unit="Immortals"]')).toContainText(
-      'Already attached; detach before choosing another bodyguard.',
-    )
-    await shot(picker, `test-results/builder-guidance-bodyguards-${width}.png`)
-    await relationships.click()
-    await page.getByRole('option', { name: 'All units', exact: true }).click()
-    await expect(picker.getByText(/Mission matchups/)).toHaveCount(0)
-    if (width < 500) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
-    const mission = page.getByRole('link', { name: 'Take and Hold', exact: true })
-    const rosterURL = page.url()
-    await mission.click()
-    await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
-    await page.goto(rosterURL)
-    await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toHaveCount(1)
-    await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toContainText('Immortals')
+async function closePickerOnPhone(page: Page, width: number) {
+  if (width < 500) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
+}
+
+for (const width of [1440, 390]) {
+  test(`a unit's attach menu adds and attaches a new leader, then explains full slots at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openBuilder(page)
+    await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toHaveCount(0)
+    await waitForRosterSave(page, () => add(page, 'Immortals'))
+    await waitForRosterSave(page, () => add(page, 'Overlord'))
+    await closePickerOnPhone(page, width)
+
+    const immortals = page.locator('[data-unit="Immortals"]')
+    await immortals.getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
+    const roster = attachMenu(page).getByRole('group', { name: 'In this roster' })
+    const added = attachMenu(page).getByRole('group', { name: 'Add a new unit' })
+    await expect(roster.getByRole('menuitem', { name: 'Overlord', exact: true })).toBeEnabled()
+    const imotekh = added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })
+    await expect(imotekh).toBeEnabled()
+    await expect(imotekh).toContainText(/\d+ pts/)
+    await expect(added.getByRole('menuitem', { name: 'Add new Immortals and attach', exact: true })).toHaveCount(0)
+    await expectNoHorizontalOverflow(attachMenu(page))
+    await shot(attachMenu(page), `test-results/attach-menu-bodyguard-${width}.png`)
+
+    await waitForRosterSave(page, () => imotekh.click())
+    const leader = page.locator('[data-unit="Imotekh the Stormlord"]')
+    await expect(leader).toHaveCount(1)
+    await expect(leader).toContainText('Immortals')
+    await expect(immortals).toContainText('Imotekh the Stormlord')
+
+    await immortals.getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
+    await expect(roster).toHaveCount(0)
+    const overlord = added.getByRole('menuitem', { name: 'Add new Overlord and attach', exact: true })
+    await expect(overlord).toBeDisabled()
+    await expect(overlord).toContainText('Leader limit reached on Immortals.')
+    const second = added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })
+    await expect(second).toBeDisabled()
+    await expect(second).toContainText('Limit reached: 1 of 1 permitted copies in the roster.')
+    await expectNoHorizontalOverflow(attachMenu(page))
+    await expectNoHorizontalOverflow(page.locator('html'))
+    await shot(attachMenu(page), `test-results/attach-menu-full-${width}.png`)
+    await page.keyboard.press('Escape')
+
+    await page.reload()
+    await expect(leader).toHaveCount(1)
+    await expect(leader).toContainText('Immortals')
+    await page.screenshot({ path: `test-results/attach-roster-${width}.png` })
+    await expect(page.locator('[data-unit="Overlord"]')).not.toContainText('Leading')
+  })
+
+  test(`a character's attach menu adds and joins a new bodyguard at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await openBuilder(page)
+    await waitForRosterSave(page, () => add(page, 'Overlord'))
+    await closePickerOnPhone(page, width)
+
+    const overlord = page.locator('[data-unit="Overlord"]')
+    await overlord.getByRole('button', { name: 'Attach Overlord to unit', exact: true }).click()
+    await expect(attachMenu(page).getByRole('group', { name: 'In this roster' })).toHaveCount(0)
+    const immortals = attachMenu(page)
+      .getByRole('group', { name: 'Add a new unit' })
+      .getByRole('menuitem', { name: 'Add new Immortals and attach', exact: true })
+    await expect(immortals).toContainText(/\d+ pts/)
+    await shot(attachMenu(page), `test-results/attach-menu-leader-${width}.png`)
+    await waitForRosterSave(page, () => immortals.click())
+
+    await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
+    await expect(overlord).toContainText('Leading')
+    await expect(overlord).toContainText('Immortals')
+    await expect(overlord.getByRole('button', { name: 'Attach Overlord to unit', exact: true })).toHaveCount(0)
+    await page.reload()
+    await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
+    await expect(overlord).toContainText('Immortals')
   })
 }
 
-test('a relationship with no matches remains distinct from structured search', async ({ page }) => {
+test('a unit attaches a character already in the roster from its own card', async ({ page }) => {
   await openBuilder(page)
-  await add(page, "C'tan Shard of the Deceiver")
-  await page.getByLabel('Add a unit').clear()
-  await page.getByRole('combobox', { name: 'Unit relationships' }).click()
-  await page.getByRole('option', { name: "Leaders for C'tan Shard of the Deceiver (1)", exact: true }).click()
-  await expect(page.getByText('No matching relationships in this rules version.', { exact: true })).toBeVisible()
-  await page.getByRole('combobox', { name: 'Unit relationships' }).click()
-  await page.getByRole('option', { name: 'All units', exact: true }).click()
-  await page.getByLabel('Add a unit').fill('Leader')
-  await expect(page.locator('[data-picker-unit="Imotekh the Stormlord"]')).toBeVisible()
+  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await waitForRosterSave(page, () => add(page, 'Overlord'))
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
+  await waitForRosterSave(page, () =>
+    attachMenu(page).getByRole('group', { name: 'In this roster' }).getByRole('menuitem', { name: 'Overlord', exact: true }).click(),
+  )
+  await expect(page.locator('[data-unit="Overlord"]')).toContainText('Leading')
+  await expect(page.locator('[data-unit]')).toHaveCount(2)
 })
 
 test('picker card height stays stable as the roster crosses the points budget', async ({ page }) => {

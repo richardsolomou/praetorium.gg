@@ -28,7 +28,6 @@ import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
 import { productSyncRefusal } from './syncOutcome'
-import { publicSupportPayload, SUPPORT_REPORT_LIMIT, supportStoreCommandSchema } from '../../src/core/supportReport'
 
 const settings = table(
   { name: 'settings' },
@@ -329,7 +328,6 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   }
   for (const row of Array.from(ctx.db.collection.userId.filter(userId))) ctx.db.collection.key.delete(row.key)
   for (const row of Array.from(ctx.db.collectionStock.userId.filter(userId))) ctx.db.collectionStock.key.delete(row.key)
-  for (const row of Array.from(ctx.db.supportReports.userId.filter(userId))) ctx.db.supportReports.reference.delete(row.reference)
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDatasheets.userId.filter(userId))) ctx.db.favouriteDatasheets.key.delete(row.key)
@@ -1472,72 +1470,6 @@ export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) =>
     requireOperator(tx)
     return true
   }),
-)
-
-export const supportReportCommand = spacetime.procedure(
-  { userId: t.string(), payload: t.string() },
-  t.string(),
-  (ctx, { userId, payload }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
-      if (!userId || userId.length > 128 || payload.length > 100_000) throw new SenderError('Invalid support request')
-      const parsed = supportStoreCommandSchema.safeParse(JSON.parse(payload))
-      if (!parsed.success) throw new SenderError('Invalid support request')
-      const input = parsed.data
-      const record = (row: NonNullable<ReturnType<typeof tx.db.supportReports.reference.find>>) => ({
-        reference: row.reference,
-        title: row.title,
-        body: row.body,
-        createdAt: Number(row.createdAt),
-        delivery: row.delivery,
-        issueNumber: row.issueNumber ?? null,
-      })
-      if (input.operation === 'list') {
-        return productJson(
-          Array.from(tx.db.supportReports.userId.filter(userId))
-            .sort((a, b) => Number(b.createdAt - a.createdAt))
-            .map(record),
-        )
-      }
-      const reference = input.operation === 'create' ? input.draft.reference : input.reference
-      const current = tx.db.supportReports.reference.find(reference)
-      if (current && current.userId !== userId) throw new SenderError('Support report not found')
-      if (input.operation === 'create') {
-        const published = publicSupportPayload(input.draft)
-        if (current) {
-          if (current.title !== published.title || current.body !== published.body) throw new SenderError('The support report changed')
-          return productJson({ record: record(current), created: false })
-        }
-        const rows = Array.from(tx.db.supportReports.userId.filter(userId))
-        if (rows.length >= SUPPORT_REPORT_LIMIT) throw new SenderError('Support report limit reached')
-        if (rows.some((row) => BigInt(input.now) - row.createdAt < 30_000n)) throw new SenderError('Wait before sending another report')
-        const inserted = tx.db.supportReports.insert({
-          reference,
-          userId,
-          ...published,
-          createdAt: BigInt(input.now),
-          checkedAt: 0n,
-          delivery: 'sending',
-          issueNumber: undefined,
-        })
-        return productJson({ record: record(inserted), created: true })
-      }
-      if (!current) return productJson(null)
-      if (input.operation === 'read') return productJson(record(current))
-      if (input.operation === 'check') {
-        if (BigInt(input.now) - current.checkedAt < 30_000n || BigInt(input.now) - current.createdAt < 30_000n) return productJson(false)
-        tx.db.supportReports.reference.update({ ...current, checkedAt: BigInt(input.now) })
-        return productJson(true)
-      }
-      if (current.delivery === 'received') return productJson(record(current))
-      if ((input.delivery === 'received') !== (input.issueNumber !== null)) throw new SenderError('Invalid delivery result')
-      const updated = tx.db.supportReports.reference.update({
-        ...current,
-        delivery: input.delivery,
-        issueNumber: input.issueNumber ?? undefined,
-      })
-      return productJson(record(updated))
-    }),
 )
 
 export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx) =>

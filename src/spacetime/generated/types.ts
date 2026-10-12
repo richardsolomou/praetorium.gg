@@ -315,18 +315,6 @@ export const Settings = __t.object('Settings', {
 })
 export type Settings = __Infer<typeof Settings>
 
-export const SupportReports = __t.object('SupportReports', {
-  reference: __t.string(),
-  userId: __t.string(),
-  title: __t.string(),
-  body: __t.string(),
-  createdAt: __t.u64(),
-  checkedAt: __t.u64(),
-  delivery: __t.string(),
-  issueNumber: __t.option(__t.u32()),
-})
-export type SupportReports = __Infer<typeof SupportReports>
-
 export const SyncReceipts = __t.object('SyncReceipts', {
   id: __t.string(),
   owner: __t.string(),

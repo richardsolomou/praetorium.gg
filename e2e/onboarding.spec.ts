@@ -204,7 +204,6 @@ for (const width of [1440, 1300]) {
     await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).click())
     await page.getByLabel('Add a unit').fill('Intercessor Squad')
     await expect(prompt(page)).toContainText('Your list')
-    await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toBeVisible()
     const addBodyguard = page.getByRole('button', { name: 'Add Intercessor Squad', exact: true })
     await expect(addBodyguard).toBeEnabled()
     const bodyguardReceivesPointer = () =>

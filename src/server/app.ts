@@ -38,8 +38,6 @@ import type { compiledGlobalSearchIndex } from './globalSearch'
 import { catalogueEditionLoaders } from './catalogueEditions'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import type { BattleFaction } from '../shared/battleSummary'
-import { githubSupport } from '../adapters/githubSupport'
-import { supportReports } from './supportReports'
 
 type App = {
   hotReloadToken?: object
@@ -81,7 +79,6 @@ type App = {
   telemetry: ReturnType<typeof serverTelemetry>
   /** Mirrors GitHub's sponsor list into auth storage; a no-op without `GITHUB_SPONSORS_TOKEN`. */
   githubSponsors: GithubSponsorRefresh
-  support: ReturnType<typeof supportReports>
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
 }
@@ -320,10 +317,6 @@ export function app(): App {
       sync: () => sync.state,
       telemetry,
       githubSponsors,
-      support: supportReports(
-        (userId, command) => operator.supportReportCommand(userId, command),
-        githubSupport(process.env.SUPPORT_GITHUB_TOKEN?.trim() || undefined),
-      ),
       ready: () => ready,
     }
     // Everything read from the snapshot is read again from the one now on disk.

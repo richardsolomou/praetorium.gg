@@ -201,20 +201,6 @@ const collectionStock = table(
   },
 )
 
-const supportReports = table(
-  { name: 'support_reports' },
-  {
-    reference: t.string().primaryKey(),
-    userId: t.string().index('btree'),
-    title: t.string(),
-    body: t.string(),
-    createdAt: t.u64(),
-    checkedAt: t.u64(),
-    delivery: t.string(),
-    issueNumber: t.option(t.u32()),
-  },
-)
-
 const collectionSharing = table({ name: 'collection_sharing' }, { userId: t.string().primaryKey(), published: t.bool() })
 
 const collection = table(
@@ -310,7 +296,6 @@ const syncReceipts = table(
 )
 
 export const productTables = {
-  supportReports,
   syncReceipts,
   rosterSync,
   userOnboarding,

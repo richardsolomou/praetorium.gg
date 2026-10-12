@@ -107,7 +107,6 @@ import * as SetRosterLockedProcedure from './set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure'
 import * as ShareBattleProcedure from './share_battle_procedure'
 import * as SubmitBattleProcedure from './submit_battle_procedure'
-import * as SupportReportCommandProcedure from './support_report_command_procedure'
 import * as SyncProductProcedure from './sync_product_procedure'
 import * as SyncReceiptProcedure from './sync_receipt_procedure'
 import * as SyncRosterProcedure from './sync_roster_procedure'
@@ -264,7 +263,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('set_roster_visibility', SetRosterVisibilityProcedure.params, SetRosterVisibilityProcedure.returnType),
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),
   __procedureSchema('submit_battle', SubmitBattleProcedure.params, SubmitBattleProcedure.returnType),
-  __procedureSchema('support_report_command', SupportReportCommandProcedure.params, SupportReportCommandProcedure.returnType),
   __procedureSchema('sync_product', SyncProductProcedure.params, SyncProductProcedure.returnType),
   __procedureSchema('sync_receipt', SyncReceiptProcedure.params, SyncReceiptProcedure.returnType),
   __procedureSchema('sync_roster', SyncRosterProcedure.params, SyncRosterProcedure.returnType),

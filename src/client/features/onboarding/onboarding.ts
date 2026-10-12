@@ -251,7 +251,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Attach a leader',
     description:
-      'Attach to unit joins a character to an eligible bodyguard already in your list. The joined cards show who is leading whom.',
+      'Attach to unit joins a character to an eligible bodyguard in your list, or adds a new one already joined. The joined cards show who is leading whom.',
     placement: 'bottom',
     next: 'roster-reminder',
     nextLabel: 'Next',

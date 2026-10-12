@@ -296,7 +296,7 @@ export function battleView(
         cpGained: resources.cpGained,
         cpSpent: resources.cpSpent,
         cpByRound: resources.cpByRound,
-        canGainCp: (resources.bonusCpByRound[state.round - 1] ?? 0) < 1,
+        canGainCp: state.settings.manual === true || (resources.bonusCpByRound[state.round - 1] ?? 0) < 1,
         primary: resources.primary,
         secondary: resources.secondary,
         total: resources.primary + resources.secondary + (state.status === 'setup' ? 0 : sidePaintedPoints(state, player.side)),
@@ -376,7 +376,7 @@ export function battleView(
     leagueEventToken: state.leagueEventToken,
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
-    missedMoments: missedMoments(state),
+    missedMoments: state.settings.manual ? [] : missedMoments(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw:
       state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries' || state.undoable?.kind === 'use-new-orders',

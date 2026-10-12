@@ -1,5 +1,22 @@
 # praetorium
 
+## 0.131.0
+
+### Minor Changes
+
+- 2356c10: Track a battle manually: keep score, command points, rounds, the timer and battle notes without mission cards or scoring automation.
+
+### Patch Changes
+
+- 8c68320: Find leaders, support and bodyguards from a unit's attach menu, which can add a new unit already attached, instead of from the unit picker.
+- 010c4a7: Remove the in-app report form; report problems on the public GitHub tracker.
+
+## 0.130.0
+
+### Minor Changes
+
+- b64427a: Discover armies other players made public, filter them by faction, detachment and rules version, see who built each one and whether it is legal, and duplicate one into your rosters to edit. Making a roster private or unlisted takes it out of the list straight away.
+
 ## 0.129.1
 
 ### Patch Changes

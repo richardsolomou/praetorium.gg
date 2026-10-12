@@ -36,6 +36,14 @@ Setup is one page; devices share every answer but not a position. The next secti
 
 Tracker and replay battlefield names open the saved layout through `BattlefieldFact.tsx` and `battlefieldLayout.ts`. Load terrain on opening and fit the whole board without placement measurements or zoom controls. Legacy layout IDs resolve only through an unambiguous saved disposition pair and variant; never substitute another layout. Battles without a saved terrain layout show deployment zones/objectives alone. Shelves omit missing battlefield labels instead of showing internal IDs.
 
+## Manual tracking
+
+`settings.manual` folds from `configure-battle`. The New battle dialog or setup chooses it; it changes only during setup, never in a league battle, and names no mission pack, twist or terrain. Choosing it clears prepared cards, battlefield, defender and side dispositions; returning to guided setup derives cards again. Setup asks only for armies, battle size and first turn, and `setupReferenceError` skips the mission, deployment and terrain checks.
+
+During play the fold keeps rounds, turns, phases, the clock, casualties and undo. It grants no command-phase CP, owes no settlement, pays no battle ready bonus and finishes as the last turn ends. `commandRefusal` refuses card, stratagem, mission-choice, battlefield and scoring-review commands with `manual-tracking`. `score` and `adjust-cp` record the table's numbers without caps or the additional-CP allowance; missed actions are refused. Mission resolution and `scoringCapError` return nothing. Every surface that chooses or shows the mode states `MANUAL_TRACKING_LIMITS`, so nothing implies a rules check.
+
+`add-note` appends a bounded note to the report in either mode while play runs. Notes are undoable and readable by everyone the battle audience admits.
+
 ## Frozen armies
 
 Attaching a saved roster rechecks ownership, price, and legality on the server before freezing selections, cards, unit keys, model counts, supported wound values, and any custom points budget beside the battle size. Text-only imports remain usable without a catalogue. Incomplete validation is a warning, not invented legality. Later saved-list edits or deletion cannot rewrite a battle. Old snapshots retain card/text fallbacks.
@@ -64,9 +72,9 @@ The clock derives elapsed time from every logged timestamp, including undone act
 
 `battleAudience` folds the narrowest seat preference: anyone, friends, or nobody. No preference row means public. Friends means an accepted friend of any seated player. Feeds, links, replay, profiles, and previews use the same decision, including league-linked battles. League reveal grants access to sealed event rosters, not an exemption from battle audience. Filter the event feed before pagination in the product database and recheck in the service. A seated viewer receives controls, an allowed reader gets a spectator view, and others receive unavailable/sign-in state.
 
-`battleView` is the only field-visibility decision. Face-down Secret Mission identities and any deck that would identify them stay hidden; ordinary tactical cards/decks are public. Preview images always read as signed out. Player-content previews use `no-store` because publication can be revoked; public reference images may be cached. Profiles and service records use only watchable games; private results cannot leak through rank, counts, or metadata.
+`battleView` is the only field-visibility decision. Face-down Secret Mission identities and any deck that would identify them stay hidden; ordinary tactical cards/decks are public. Preview images always read as signed out. Player-content previews use `no-store` because publication can be revoked; public reference images may be cached. Profiles and service records use only watchable games; private results cannot leak through rank, counts, or metadata. Manual battles count in service records and are labelled on battle cards.
 
-Standings derive finished non-practice results and OpenSkill ratings from bounded logs in finish order. Allies share their side's result; concessions override score and draws remain ties. Faction records rate player/faction pairs against overall opposition. Sorting uses the displayed rounded rating. Revision changes invalidate caches across replicas after finish, reopen, deletion, or visibility changes; report the actual window covered when a count limit truncates it.
+Standings derive finished guided, non-practice results and OpenSkill ratings from bounded logs in finish order. Allies share their side's result; concessions override score and draws remain ties. Faction records rate player/faction pairs against overall opposition. Sorting uses the displayed rounded rating. Revision changes invalidate caches across replicas after finish, reopen, deletion, or visibility changes; report the actual window covered when a count limit truncates it.
 
 Public/friends feeds order by start time; the player's own games order by activity. Exclude the viewer's own battles on the server so pagination remains full. Failed refreshes retain prior pages; reject missing response pages before caching.
 

@@ -81,7 +81,7 @@ export function BattleShelf({
                     </span>
                     <span className="mt-1 block text-3xs text-faint">
                       {battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format'}
-                      {battle.mission ? ` · ${battle.mission.name}` : ''}
+                      {battle.settings.manual ? ' · Manual tracking' : battle.mission ? ` · ${battle.mission.name}` : ''}
                       {battlefield ? ` · ${battlefield}` : ''}
                       {battle.result?.reason && battle.result.reason !== 'completed'
                         ? ` · ${battle.result.reason.replaceAll('-', ' ')}`
