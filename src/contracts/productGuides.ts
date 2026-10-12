@@ -209,7 +209,7 @@ export const PRODUCT_GUIDES = [
       },
       {
         title: 'Paste it into Import roster',
-        text: 'Open Rosters and choose Import roster. Paste the export into Roster text, then choose Import pasted roster. You can try this without an account. Praetorium matches the text to its current community catalogue.',
+        text: 'Open Rosters and choose Import roster. Paste the export into Roster text or exchange code, then choose Import pasted roster. You can try this without an account. Praetorium matches the text to its current community catalogue.',
       },
       {
         title: 'Review anything that could not be matched',
@@ -240,7 +240,7 @@ export const PRODUCT_GUIDES = [
       title: 'Copy an Immortals list into a second roster',
       steps: [
         'Create a Necrons roster with Awakened Dynasty and add one Immortals unit. In Roster actions, choose Export text and copy the complete export.',
-        'Return to Rosters, choose Import roster and paste that export into Roster text. Keep the title, faction, detachment, battle size and equipment lines together.',
+        'Return to Rosters, choose Import roster and paste that export into Roster text or exchange code. Keep the title, faction, detachment, battle size and equipment lines together.',
         'Choose Import pasted roster, review the matched entries and points, then choose Import roster. Open the saved list and check that it contains one Immortals unit. Compare its model count and equipment with the original; do not judge a successful import by its title alone.',
       ],
       image: '/guides/import-a-roster-63c1fccd.png',

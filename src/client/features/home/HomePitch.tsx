@@ -85,12 +85,16 @@ export function HomeIncluded() {
           </a>
           . Sponsors get a badge, not extra features.
         </p>
+        <p className="mt-3 max-w-2xl font-rules text-dim">
+          Once a visit has finished downloading, the reference, the simulator and your saved lists keep working offline.
+        </p>
       </div>
       <aside data-home-import className="border border-info/30 bg-info/5 p-5">
         <ClipboardPaste className="size-6 text-info" aria-hidden />
         <h2 className="mt-4 text-xl leading-tight text-balance">Bring your existing lists</h2>
         <p className="mt-2 font-rules text-sm leading-relaxed text-dim">
-          Paste a Games Workshop text export from BattleBase or New Recruit. Review any unmatched units or options.
+          Paste a Games Workshop text export from BattleBase or New Recruit, or a Praetorium exchange code. Review any unmatched units or
+          options.
         </p>
         <Link to="/rosters" className={buttonVariants({ className: 'mt-5 w-full' })}>
           Try importing a list

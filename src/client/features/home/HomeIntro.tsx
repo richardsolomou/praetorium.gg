@@ -5,7 +5,7 @@ import { BookOpen, ChevronRight, Crosshair, ListChecks, Map as MapIcon, Shield }
 const builder = (signedIn: boolean) => ({
   icon: ListChecks,
   title: 'Build a roster',
-  text: signedIn ? 'Points and legality checked as you build.' : 'Points and legality as you build. Sign up to keep it.',
+  text: signedIn ? 'Points and legality checked as you build.' : 'Points and legality as you build. Sign up to save it to your account.',
   link: '/rosters' as const,
   action: signedIn ? 'Open the builder' : 'Try the builder',
 })
