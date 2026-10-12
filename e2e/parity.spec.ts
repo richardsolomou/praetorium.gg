@@ -3,6 +3,7 @@ import {
   confirmRosterSetup,
   advance,
   attachRoster,
+  chooseRosterDefault,
   createBattle,
   createRoster,
   PRACTICE_OPPONENT,
@@ -74,6 +75,12 @@ test('a private roster can be shared and made private again', async ({ browser }
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const page = await context.newPage()
   await signUp(page, uniqueName('Sharer'))
+  await page.goto('/profile')
+  await expect(page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: /^Public/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await chooseRosterDefault(page, 'Private')
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/rosters')
@@ -226,6 +233,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
   const context = await browser.newContext()
   const page = await context.newPage()
   await signUp(page, uniqueName('Detail sharer'))
+  await chooseRosterDefault(page, 'Private')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Detail share' })
   const sharedUrl = page.url()
   const anonymous = await (await browser.newContext()).newPage()
