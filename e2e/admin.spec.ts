@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { befriend, signUp, uniqueName } from './account'
 
 // The seeded administrator is shared by every attempt, so these tests never change its

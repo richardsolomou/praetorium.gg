@@ -1,5 +1,5 @@
 import { confirmRosterSetup } from './account'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { add, expectInsideHorizontalBounds, expectNoHorizontalOverflow } from './builder.harness'
 
 for (const width of [1440, 390]) {

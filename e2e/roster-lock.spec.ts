@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, savedWork } from './storage'
 

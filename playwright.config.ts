@@ -47,7 +47,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${readyPort}/ready`,
     reuseExistingServer: false,
     gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
-    // The first run builds current and archived rules before seeding the local databases.
-    timeout: 360_000,
+    // A CI runner builds the app for up to three minutes, then warms every catalogue edition for up to three more.
+    timeout: 600_000,
   },
 })

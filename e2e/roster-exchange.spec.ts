@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, test } from './test'
 import { createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { add, attach, shot } from './builder.harness'
 

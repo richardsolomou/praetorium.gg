@@ -153,10 +153,10 @@ e2e-native-guest-draft-ios:
 e2e-trace *args:
     PLAYWRIGHT_TRACE=1 pnpm exec playwright test {{ args }}
 
-# Rebalance the CI end-to-end runners from the test durations one CI run recorded
-e2e-durations run:
-    gh run download {{ run }} --pattern 'e2e-report-*' --dir "${TMPDIR:-/tmp}/praetorium-e2e-reports-{{ run }}"
-    pnpm exec tsx scripts/e2eShard.ts --record "${TMPDIR:-/tmp}"/praetorium-e2e-reports-{{ run }}/*/*.json
+# Rebalance the CI end-to-end runners from the median test durations several CI runs recorded
+e2e-durations +runs:
+    for run in {{ runs }}; do gh run download "$run" --pattern 'e2e-report-*' --dir "${TMPDIR:-/tmp}/praetorium-e2e-reports-$run"; done
+    pnpm exec tsx scripts/e2eShard.ts --record $(for run in {{ runs }}; do ls "${TMPDIR:-/tmp}/praetorium-e2e-reports-$run"/*/*.json; done)
 
 # Build the native watch companion and capture its three screens with debug demo data
 watch-simulator:

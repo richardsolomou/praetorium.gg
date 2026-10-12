@@ -126,8 +126,12 @@ export async function submit(
 ): ReturnType<typeof server.submit> {
   const engine = localEngine()
   const owner = localOwner()
-  if (!engine || !owner || !localConstruction()) return server.submit(args)
   const resource = `battle:${args.data.token}`
+  if (!engine || !owner || !localConstruction()) {
+    // Commands this battle saved on the device go first, or this one overtakes them.
+    if (engine && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
+    return server.submit(args)
+  }
   let workspace = await localDocument<BattleWorkspace>(resource)
   const sharedSetup = workspace && localBattleState(workspace.players, workspace.log).status === 'setup'
   const authoritative = options?.background || sharedSetup
