@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.133.9
+
+### Patch Changes
+
+- bc7201b: Show average kills without the target's model limit, so attackers that both usually destroy a small unit can still be compared.
+
 ## 0.133.8
 
 ### Patch Changes
