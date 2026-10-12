@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.126.0
+
+### Minor Changes
+
+- f1be99d: Lock a finished roster against edits, and duplicate it or create a variant when you want to try changes.
+
+### Patch Changes
+
+- 17be14d: Record Locate and Deny markers, Sensor Sweep removals and Consecrate objectives during battles.
+
 ## 0.125.1
 
 ### Patch Changes
