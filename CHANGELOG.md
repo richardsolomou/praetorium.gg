@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.133.1
+
+### Patch Changes
+
+- 58f5242: Show each unit's points before and after in the rules-version conversion review.
+- 4b50468: Mark saved rosters that use older rules or changed in a data update.
+
 ## 0.133.0
 
 ### Minor Changes
