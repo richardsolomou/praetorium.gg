@@ -162,3 +162,34 @@ describe('battle submission refusals', () => {
     })
   })
 })
+
+it('reads a roster row carrying a column added after this build', async () => {
+  const row = {
+    id: 'roster',
+    userId: 'user',
+    name: 'Army',
+    automaticName: false,
+    catalogueId: 'cat',
+    detachmentId: '[]',
+    disposition: null,
+    limit: 1000,
+    pointsBudget: null,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    optionalRules: '[]',
+    borrowedDetachmentId: null,
+    baseRosterId: null,
+    locked: null,
+    copiedFromRosterId: null,
+    visibility: 'private',
+    source: 'editable',
+    createdAt: 1,
+    updatedAt: 2,
+    columnFromALaterRelease: 'value',
+  }
+  const request = vi.fn(async () => Response.json(JSON.stringify(row)))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect((await operator.roster('roster'))?.name).toBe('Army')
+})

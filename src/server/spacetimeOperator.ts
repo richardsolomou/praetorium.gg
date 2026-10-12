@@ -11,7 +11,9 @@ import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 
-const rosterRow = z.strictObject({
+// Whole table rows drop columns this build does not know, so a replica still on the previous build keeps
+// reading after a migration appends an optional column.
+const rosterRow = z.object({
   id: z.string(),
   userId: z.string(),
   name: z.string(),
@@ -39,10 +41,10 @@ const rosterRow = z.strictObject({
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true, copiedFromRosterId: true }).extend({
   unitCount: z.number().int().nonnegative(),
 })
-const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
-const favouriteDatasheetRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int() })
-const favouriteFactionRow = z.strictObject({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
-const favouriteDetachmentRow = z.strictObject({
+const collectionRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
+const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
+const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
+const favouriteDetachmentRow = z.object({
   userId: z.string(),
   catalogueId: z.string(),
   detachmentId: z.string(),
@@ -74,7 +76,7 @@ const submission = z.strictObject({
   ]),
   log: battleSnapshot.shape.log,
 })
-const friendship = z.strictObject({ requesterId: z.string(), addresseeId: z.string(), acceptedAt: z.number().int().nullable() })
+const friendship = z.object({ requesterId: z.string(), addresseeId: z.string(), acceptedAt: z.number().int().nullable() })
 const productStat = z.strictObject({
   userId: z.string(),
   rosterCount: z.number().int().nonnegative(),
