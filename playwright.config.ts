@@ -40,6 +40,8 @@ export default defineConfig({
       LOCAL_VITE_ORIGIN: '',
       LOCAL_DATA_DIR: root,
       LOCAL_TEST_MODE: 'true',
+      LOCAL_BUILD_CACHE: process.env.PLAYWRIGHT_BUILD_CACHE ?? '',
+      ...(process.env.PLAYWRIGHT_STARTUP_REPORT ? { LOCAL_STARTUP_REPORT: process.env.PLAYWRIGHT_STARTUP_REPORT } : {}),
       NO_COLOR: '',
       EXPO_PUSH_ACCESS_TOKEN: 'unused-e2e-token',
       CATALOGUE_DIR: catalogue,

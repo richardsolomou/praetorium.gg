@@ -139,6 +139,14 @@ e2e *args:
 e2e-run *args:
     pnpm exec playwright test {{ args }}
 
+# Rerun test edits against one isolated production stack; restart after application edits
+e2e-ui *args:
+    pnpm exec playwright test --ui {{ args }}
+
+# Verify a fresh production build without reading or writing the browser-test build cache
+e2e-cold *args:
+    PLAYWRIGHT_BUILD_CACHE=off pnpm exec playwright test {{ args }}
+
 e2e-native-auth-ios:
     pnpm test:e2e:native-auth:ios
 
