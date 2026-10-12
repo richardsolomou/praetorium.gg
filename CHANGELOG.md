@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.125.1
+
+### Patch Changes
+
+- 90d0529: Clarify catalogue status dates and account requirements for public tools.
+- 90d0529: Clarify roster creation actions with the Create variant label.
+
 ## 0.125.0
 
 ### Minor Changes
