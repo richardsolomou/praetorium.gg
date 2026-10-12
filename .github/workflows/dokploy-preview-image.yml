@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   build:
-    if: startsWith(github.head_ref, 'release-candidate/') == false
     permissions:
       contents: read
       packages: write

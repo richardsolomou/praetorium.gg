@@ -10,7 +10,9 @@ The Node server trusts Cloudflare's visitor header for proxying/rate limits. Res
 
 ## Delivery
 
-`.github/workflows/dokploy-web.yml` owns image publication, product migration, Dokploy deployment, and health checks. It deploys a digest-pinned image without rebuilding it. Production follows main/releases; staging uses separate data. `scripts/releaseProof.sh` permits CI reuse only for an exact previously tested tree.
+`.github/workflows/dokploy-web.yml` owns image publication, product migration, Dokploy deployment, and health checks. It deploys a digest-pinned image without rebuilding it. Production follows main/releases; staging uses separate data.
+
+`.github/workflows/release.yml` runs on every push to `main`. With pending changesets, it commits the version and changelog updates as `chore: release vX [skip ci]` directly on `main`, tags that commit, creates the GitHub Release, and deploys it to production; without them it deploys the pushed commit. The release commit changes only release metadata on the tree CI already tested, so it gets no CI run of its own, and `[skip ci]` also skips the other push workflows for it. The push uses the `CHANGESETS_TOKEN` repository secret, a fine-grained token acting as the owner, which the `main` ruleset's admin bypass lets past required checks. If that token expires or loses access, the release push is rejected and production is not deployed until the secret is replaced.
 
 Before changing replicas or publishing the product module, the workflow copies hashed assets from the installed and replacement images to `web-assets/` in public R2. It verifies their bytes and immutable cache headers through storage and the public CDN, then routes same-origin `/assets/` reads directly to that store through Traefik. Hosted route verification restores the previous configuration on failure. Asset errors use the application's uncached miss handler. Source maps are excluded; retained files remain available to older open tabs and rollbacks.
 
