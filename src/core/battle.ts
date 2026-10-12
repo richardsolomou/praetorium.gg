@@ -10,12 +10,23 @@
  */
 
 import { attachedUnits } from './attachedUnits'
+import { refuse, sameSide } from './battlePrimitives'
+export { playsSide, refuse, sameSide } from './battlePrimitives'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
 import type { CatalogueEdition } from './catalogueEdition'
+import type { MissionSelection, MissionSelectionKind } from './missionSelections'
+import {
+  applyMissionSelection,
+  missionSelectionRefusal,
+  missionSelectionsDue,
+  MISSION_SELECTION_REQUIRED_MESSAGE,
+  recordBeaconDestruction,
+  type SavedMissionSelection,
+} from './missionSelections'
 
 /** The phases of a battle round, in the order 11th edition plays them. */
 export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
@@ -397,7 +408,7 @@ export const STRATAGEMS_MAX = 48
 export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
-export type Secondary = { key: string; name: string; awards?: MissionAward[] }
+export type Secondary = { key: string; name: string; awards?: MissionAward[]; selection?: MissionSelectionKind }
 export type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
 
 /**
@@ -731,6 +742,7 @@ export type Command =
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
   | ({ kind: 'draw-secondary'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'draw-secondaries'; secondaries: Secondary[]; selected?: true } & OnBehalfOf)
+  | ({ kind: 'select-mission'; cardKey: string; occurrence: number; selection: MissionSelection } & OnBehalfOf)
   | ({ kind: 'acknowledge-draw' } & OnBehalfOf)
   | ({ kind: 'acknowledge-scoring' } & OnBehalfOf)
   | ({ kind: 'select-secret'; secondary: Secondary } & OnBehalfOf)
@@ -777,6 +789,14 @@ export type RefusalCode =
   | 'draw-limit'
   | 'draw-unreviewed'
   | 'formation-unsupported'
+  | 'mission-selection-invalid'
+  | 'mission-selection-timing'
+  | 'mission-selection-owner'
+  | 'mission-selection-recorded'
+  | 'mission-selection-unit'
+  | 'mission-selection-count'
+  | 'mission-selection-facts'
+  | 'mission-selection-objective'
   | 'hand-acknowledged'
   | 'invalid-amount'
   | 'invalid-detachments'
@@ -855,10 +875,6 @@ export type RefusalCode =
 
 export type Refusal = { code: RefusalCode; message: string }
 
-export function refuse(code: RefusalCode, message: string): Refusal {
-  return { code, message }
-}
-
 /** `stale` carries the sequence the caller should have had; `refused` carries the domain reason as a code and a message. */
 export type SubmitResult =
   | { outcome: 'appended'; seq: number }
@@ -880,6 +896,7 @@ export type PlayerState = {
   primary: number
   secondary: number
   roster: Roster | null
+  rosterSeq: number | null
   /** Empty for a pasted list: nothing there names the units. */
   units: UnitState[]
   stratagems: Stratagem[]
@@ -898,6 +915,8 @@ export type PlayerState = {
   secondariesDrawnThisTurn: string[]
   additionalSecondaryDrawsThisTurn: number
   secondariesToReview: string[]
+  secondaryDrawSeq: Record<string, number>
+  missionSelections: SavedMissionSelection[]
   /** This side's primary mission for its ordered disposition matchup. */
   primaryCard: Secondary | null
   secondaryMode: SecondaryMode
@@ -928,6 +947,7 @@ export type BattleState = {
   round: number
   phase: Phase
   activePlayerId: PlayerId | null
+  turnSeq: number
   firstPlayerId: PlayerId | null
   attackerId: PlayerId | null
   /**
@@ -1029,7 +1049,8 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
 
 /** Applies one command that is standing when it is folded, and records whether undo may name it. */
 export function applyEntry(state: BattleState, entry: LoggedCommand) {
-  apply(state, entry.by, entry.command)
+  apply(state, entry.by, entry.command, entry.seq)
+  recordBeaconDestruction(state)
   if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-league-rosters') state.undoable = null
   else if (
     ![
@@ -1058,6 +1079,7 @@ export function emptyBattle(
     round: 0,
     phase: 'command',
     activePlayerId: null,
+    turnSeq: 0,
     firstPlayerId: null,
     attackerId: null,
     sideDispositions: {},
@@ -1084,6 +1106,7 @@ export function emptyBattle(
       primary: 0,
       secondary: 0,
       roster: null,
+      rosterSeq: null,
       units: [],
       stratagems: [],
       uses: [],
@@ -1091,6 +1114,8 @@ export function emptyBattle(
       secondariesDrawnThisTurn: [],
       additionalSecondaryDrawsThisTurn: 0,
       secondariesToReview: [],
+      secondaryDrawSeq: {},
+      missionSelections: [],
       primaryCard: null,
       secondaryMode: 'tactical',
       secondaryDeck: null,
@@ -1132,6 +1157,8 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
   const player = targetArmy(state, actor, command)
 
   switch (command.kind) {
+    case 'select-mission':
+      return missionSelectionRefusal(state, by, player, command)
     case 'configure-battle': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (state.leagueToken && command.limit !== state.settings.limit) return refuse('league-sealed', 'league roster battle size is sealed')
@@ -1324,6 +1351,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         return refuse('draw-unreviewed', 'review the new secondary missions before ending the command phase')
       }
       if (state.advanceRequested) return refuse('advance-requested', 'the phase is already waiting to advance')
+      if (missionSelectionsDue(state, player).length) return refuse('mission-selection-timing', MISSION_SELECTION_REQUIRED_MESSAGE)
       return null
     }
     case 'cancel-advance': {
@@ -1350,6 +1378,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         return refuse('draw-unreviewed', 'review the new secondary missions before ending the command phase')
       }
       const due = scoringDue(state, player)
+      if (missionSelectionsDue(state, player).length) return refuse('mission-selection-timing', MISSION_SELECTION_REQUIRED_MESSAGE)
       if (due.length && !state.advanceRequested) return refuse('scoring-unreviewed', 'review mission scoring before ending the phase')
       if (due.length && !state.scoringAcknowledged) return refuse('scoring-unreviewed', 'finish mission scoring before ending the phase')
       const unresolvedTactical =
@@ -1624,12 +1653,15 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
   }
 }
 
-function apply(state: BattleState, by: PlayerId, command: Command) {
+function apply(state: BattleState, by: PlayerId, command: Command, seq: number) {
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return
   const player = targetArmy(state, actor, command)
 
   switch (command.kind) {
+    case 'select-mission':
+      applyMissionSelection(state, player, command, seq)
+      return
     case 'configure-battle': {
       const missionPackChanged = state.settings.missionPackId !== command.missionPackId
       state.settings = {
@@ -1694,6 +1726,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'attach-roster': {
       if (state.status === 'setup') state.firstPlayerId = null
       player.roster = { ...command.roster, name: command.roster.name.trim() }
+      player.rosterSeq = seq
       // A replaced list is a different army, so nothing about the old one survives.
       player.units = (command.roster.built?.units ?? []).map((unit) =>
         Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models, damage: 0 }, unit),
@@ -1818,6 +1851,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       player.secondariesToReview = player.secondariesToReview.filter((key) => key !== command.secondaryKey)
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
+      player.secondaryDrawSeq[secondary.key] = seq
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secondariesDrawnThisTurn.push(secondary.key)
       player.secondariesToReview.push(secondary.key)
@@ -1864,6 +1898,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'draw-secondary': {
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
+      player.secondaryDrawSeq[secondary.key] = seq
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, secondary.key]
       player.secondariesToReview = [...player.secondariesToReview, secondary.key]
@@ -1874,6 +1909,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       for (const drawn of command.secondaries) {
         const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === drawn.key) ?? drawn) }
         player.secondaries.push(secondary)
+        player.secondaryDrawSeq[secondary.key] = seq
         player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, ...command.secondaries.map((drawn) => drawn.key)]
@@ -1893,6 +1929,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
     case 'select-secret': {
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
+      player.secondaryDrawSeq[secondary.key] = seq
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secretSecondary = secondary.key
       player.secretRevealed = false
@@ -1908,7 +1945,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       state.firstPlayerId = command.firstPlayerId
       state.attackerId = command.attackerId ?? state.attackerId ?? command.firstPlayerId
       state.result = null
-      enterTurn(state, command.firstPlayerId, null)
+      enterTurn(state, command.firstPlayerId, null, seq)
       return
     }
     case 'adjust-cp': {
@@ -1993,7 +2030,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
         ? sameSide(state, advancingPlayer, state.firstPlayerId ?? '')
         : advancingPlayer === state.firstPlayerId
       if (endsFirstTurn && opponent) {
-        enterTurn(state, opponent.id, state.round)
+        enterTurn(state, opponent.id, state.round, seq)
         return
       }
       if (state.round === battleRoundLimit(state.settings.limit)) {
@@ -2012,7 +2049,7 @@ function apply(state: BattleState, by: PlayerId, command: Command) {
       const endedRound = state.round
       state.round++
       if (state.firstPlayerId) {
-        enterTurn(state, state.firstPlayerId, endedRound)
+        enterTurn(state, state.firstPlayerId, endedRound, seq)
       }
       return
     }
@@ -2213,12 +2250,16 @@ function applyStratagemUse(state: BattleState, player: PlayerState, stratagem: S
   })
 }
 
-function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null) {
+function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null, seq: number) {
   state.activePlayerId = playerId
+  state.turnSeq = seq
   state.phase = 'command'
   const activeSide = state.players.find((candidate) => candidate.id === playerId)?.side
   const player = activeSide === undefined ? undefined : sideCaptain(state, activeSide)
   if (player) {
+    for (const saved of player.missionSelections) {
+      if (saved.selection.kind === 'punishment' || saved.selection.kind === 'guards') saved.expired = true
+    }
     state.pendingSettlement = settlementRound === null ? null : { playerId: player.id, round: settlementRound }
     state.drawAcknowledged = false
     for (const side of new Set(state.players.map((candidate) => candidate.side))) {
@@ -2349,16 +2390,6 @@ export function scoringTarget(
     secondaryMode: target.secondaryMode,
     scored: target.scored,
   }
-}
-
-export function sameSide(state: BattleState, left: PlayerId | null, right: PlayerId): boolean {
-  const leftSide = state.players.find((player) => player.id === left)?.side
-  return leftSide !== undefined && leftSide === state.players.find((player) => player.id === right)?.side
-}
-
-export function playsSide(state: BattleState, viewerId: PlayerId | null, side: number): boolean {
-  const players = state.players.filter((player) => player.side === side)
-  return players.some((player) => player.id === viewerId) || (players.length > 0 && players.every((player) => player.automated))
 }
 
 function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState, key: string): boolean {

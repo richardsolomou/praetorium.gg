@@ -32,7 +32,7 @@ import {
 import { normalizedName } from '../../../core/name'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
-import { VISIBILITY_DETAIL } from './visibility'
+import { VISIBILITY_DETAIL, VISIBILITY_REACH } from './visibility'
 import { factionQuery } from '../../queries'
 import { DetachmentReference } from '../reference/factions/DetachmentReference'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -616,7 +616,7 @@ export function RosterSetupDialog({
           value={draft.visibility}
           onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
         >
-          <SelectTrigger id="setup-visibility" className="mt-2 h-11 w-full">
+          <SelectTrigger id="setup-visibility" aria-describedby="setup-visibility-reach" className="mt-2 h-11 w-full">
             <SelectValue>
               {(visibility: unknown) => VISIBILITY_DETAIL[visibility as RosterVisibility] ?? VISIBILITY_DETAIL.private}
             </SelectValue>
@@ -629,6 +629,9 @@ export function RosterSetupDialog({
             ))}
           </SelectContent>
         </Select>
+        <p id="setup-visibility-reach" className="mt-1.5 text-xs text-dim">
+          {VISIBILITY_REACH[draft.visibility]}
+        </p>
       </div>
     </div>
   )

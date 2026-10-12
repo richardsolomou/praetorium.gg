@@ -160,7 +160,15 @@ function RosterActionItems({
         <Printer /> Print
       </Item>
       <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster, title)}>
-        <Link2 /> {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : 'Share link'}
+        <Link2 />
+        {roster.visibility === 'private' ? (
+          <span>
+            <span className="block">Make unlisted and share</span>
+            <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
+          </span>
+        ) : (
+          <span>{feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : 'Share link'}</span>
+        )}
       </Item>
       {showPrivacy && roster.visibility !== 'private' ? (
         <Item disabled={actions.access.isPending} onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}>

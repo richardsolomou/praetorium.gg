@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { advance, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
+import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 import { productSql } from './storage'
 
 test('New Orders, discard CP and carried cards survive a complete two-player round', async ({ page, browser }) => {
@@ -22,7 +22,33 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   const token = new URL(page.url()).pathname.split('/').at(-1)!
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   const recorded = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`
-  expect(recorded.map((command) => JSON.parse(command.body)).filter((command) => command.kind === 'use-new-orders')).toHaveLength(1)
+  const commands = recorded.map((command) => JSON.parse(command.body))
+  expect(commands.findLast((command) => command.kind === 'set-battlefield')?.terrainLayoutId).toBe('ed87b70c-bb09-49c7-bf06-54ca47956dcd')
+  const orders = commands.filter((command) => command.kind === 'use-new-orders')
+  expect(orders).toHaveLength(1)
+  test.info().annotations.push({ type: 'New Orders replacement', description: orders[0].secondary.name })
+  await test.info().attach('New Orders replacement', {
+    body: Buffer.from(JSON.stringify({ name: orders[0].secondary.name })),
+    contentType: 'application/json',
+  })
+  const target = opponent.getByRole('dialog', { name: 'A Tempting Target · choices', exact: true })
+  const guards = page.getByRole('dialog', { name: 'Burden Of Trust · choices', exact: true })
+  if ((await side.getByRole('button', { name: 'Read A Tempting Target', exact: true, includeHidden: true }).count()) > 0) {
+    await expect(target).toBeVisible()
+    test.info().annotations.push({ type: 'Replacement nomination', description: 'Opponent chose the centre objective at the table.' })
+    await target.getByRole('combobox', { name: 'Tempting target objective', exact: true }).click()
+    await opponent.getByRole('option', { name: 'Centre objective', exact: true }).click()
+    await target.getByRole('switch', { name: 'This is not a home objective', exact: true }).click()
+    await target.getByRole('switch', { name: 'This objective is within No Man’s Land', exact: true }).click()
+    await target.getByRole('button', { name: 'Record choice', exact: true }).click()
+    await expect(target).toBeHidden()
+  } else if ((await side.getByRole('button', { name: 'Read Burden Of Trust', exact: true, includeHidden: true }).count()) > 0) {
+    await expect(guards).toBeVisible()
+    test.info().annotations.push({ type: 'Replacement nomination', description: 'Burden Of Trust: no optional guards.' })
+    await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
+    await expect(guards).toBeHidden()
+  }
+  await expect(advanceButton(page)).toBeEnabled()
   await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toBeDisabled()
   await page.reload()
   await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toBeDisabled()
@@ -155,7 +181,7 @@ test('both sides settle source final awards beyond round caps through cold offli
       () =>
         page.evaluate(async () => {
           const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-          return Boolean(saved && (await saved.text()).includes('"construction"'))
+          return Boolean(saved && (await saved.text()).includes('"construction"') && window.PraetoriumReferenceCache?.construction)
         }),
       { timeout: 120_000 },
     )

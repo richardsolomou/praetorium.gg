@@ -98,7 +98,10 @@ for (const width of [390, 1440]) {
     await page.goto('/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/allarus-custodians')
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Add to', exact: true }).click()
-    await page.getByRole('button', { name: 'Roster…', exact: true }).click()
+    await page
+      .getByRole('dialog', { name: 'Add Allarus Custodians to', exact: true })
+      .getByRole('button', { name: 'Roster…', exact: true })
+      .click()
     const chooser = page.getByRole('dialog', { name: 'Add Allarus Custodians to a roster', exact: true })
     await expect(chooser.getByRole('link')).toHaveCount(2)
     await expect(chooser.locator(`a[href^="${current}?"]`)).toContainText('MFM 1.5 · Current')

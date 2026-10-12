@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="11 October 2026">
+    <LegalPage title="Privacy policy" updated="12 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -79,6 +79,10 @@ export function PrivacyPolicy() {
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
+            Your collection is private unless you turn on Show collection on profile. That publishes its datasheets and model counts;
+            turning it off hides them again.
+          </li>
+          <li>
             Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can
             watch. The most private choice at the table applies to past and live battles, including league battles. Spectators cannot change
             a battle or see a face-down Secret Mission.
@@ -86,8 +90,8 @@ export function PrivacyPolicy() {
           <li>Public battles may appear on the home page. Your profile's battle record includes only games its reader can watch.</li>
           <li>The leaderboard counts finished public games from the last 90 days. Games with a practice opponent do not count.</li>
           <li>
-            Sealing a league roster makes a separate frozen copy. Before reveal, only its owner and any assigned allies can read it;
-            organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that event.
+            Sealing a league roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can read
+            it; organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that event.
           </li>
         </LegalLinks>
         <p>

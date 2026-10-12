@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.124.0
+
+### Minor Changes
+
+- 6a812f0: Stabilize collection and favourite saves, keep roster Add controls responsive, simplify picker guidance, add numeric model counts and a Collection profile tab grouped by faction, and reduce logo hover rotation to 45°.
+
+## 0.123.0
+
+### Minor Changes
+
+- 6aaa456: Record mission unit and objective choices during battles, retain their history through casualties and undo, and track Beacon choices manually.
+
 ## 0.122.0
 
 ### Minor Changes

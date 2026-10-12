@@ -12,6 +12,7 @@ import { commandSchema } from '../../core/commands'
 import { createBattleSchema, saveRosterSchema, submitSchema } from '../../contracts/schemas'
 import { appendLocalCommand, resolveLocalDraw, localBattleState } from '../../core/offlineBattle'
 import { battleView } from '../../core/battleView'
+import { commandArmy } from '../../core/battle'
 import { battleClock } from '../../core/battleClock'
 import { battleReport as foldReport } from '../../core/battleReport'
 import { battleLogThroughSeq, battleTimeline } from '../../core/battleReplay'
@@ -192,8 +193,13 @@ export async function submit(
   }
   command = commandSchema.parse(command)
   hydrateAuthoritativeAwards(state, rules)
-  if (command.kind === 'set-prep') command = withAuthoritativeAwards(command, rules)
-  if (command.kind === 'attach-roster' && command.prep) command = { ...command, prep: withAuthoritativeAwards(command.prep, rules) }
+  if (command.kind === 'set-prep')
+    command = withAuthoritativeAwards(command, rules, state.status === 'playing' ? commandArmy(state, owner.id, command) : undefined)
+  if (command.kind === 'attach-roster' && command.prep)
+    command = {
+      ...command,
+      prep: withAuthoritativeAwards(command.prep, rules, state.status === 'playing' ? commandArmy(state, owner.id, command) : undefined),
+    }
   command = resolveLocalDraw(workspace.players, workspace.log, owner.id, command, (limit) =>
     Math.floor((crypto.getRandomValues(new Uint32Array(1))[0]! / 0x1_0000_0000) * limit),
   )
