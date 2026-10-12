@@ -27,13 +27,8 @@ export function CombatResults({
   const [height, setHeight] = useState(inDialog ? 112 : 0)
   useEffect(() => {
     const element = summary.current
-    if (!element) return
-    const measure = () => {
-      const total = element.getBoundingClientRect().height
-      const headline = element.firstElementChild!.getBoundingClientRect().height
-      const heading = element.querySelector('summary')!.getBoundingClientRect().height
-      setHeight(inDialog ? total : Math.max(0, total - headline - heading - element.clientTop * 2))
-    }
+    if (!element || !inDialog) return
+    const measure = () => setHeight(element.getBoundingClientRect().height)
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(element)
@@ -42,13 +37,13 @@ export function CombatResults({
   const muted = updating || failed
   return (
     <>
-      <div data-results-space style={{ height }} aria-hidden />
+      {inDialog ? <div data-results-space style={{ height }} aria-hidden /> : null}
       <div
         ref={summary}
         aria-label="Results summary"
         data-onboarding="simulator-results"
         data-results-summary
-        className={`right-0 left-0 z-40 mx-auto border border-edge bg-sunken shadow-lg ${inDialog ? 'absolute bottom-0' : 'fixed bottom-16 w-[calc(100%-1.5rem)] max-w-[calc(64rem-2rem)] sm:w-[calc(100%-2rem)] min-[860px]:bottom-0'}`}
+        className={`right-0 left-0 z-40 mx-auto border border-edge bg-sunken shadow-lg ${inDialog ? 'absolute bottom-0' : 'sticky bottom-16 w-full min-[860px]:bottom-0'}`}
       >
         <section aria-label="Combined estimate" aria-busy={supported && updating && !failed} className="px-3 pt-2 sm:px-4">
           <div className="flex items-baseline justify-between gap-2">

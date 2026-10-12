@@ -16,8 +16,14 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { useNativeShare } from '../../nativeBridge'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
@@ -144,12 +150,12 @@ export function RosterRow({
             <DropdownMenuItem render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
               <Eye /> View
             </DropdownMenuItem>
-            <RosterActionItems Item={DropdownMenuItem} showPrivacy {...items} />
+            <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} showPrivacy {...items} />
           </DropdownMenuContent>
         </DropdownMenu>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
-        <RosterActionItems Item={ContextMenuItem} {...items} />
+        <RosterActionItems Item={ContextMenuItem} Separator={ContextMenuSeparator} {...items} />
       </ContextMenuContent>
     </ContextMenu>
   )
@@ -158,6 +164,7 @@ export function RosterRow({
 /** The actions themselves, in whichever menu asked for them. */
 function RosterActionItems({
   Item,
+  Separator,
   roster,
   title,
   points,
@@ -169,6 +176,7 @@ function RosterActionItems({
   showPrivacy = false,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
+  Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
   roster: SavedRoster
   /** What the library calls this list, so an export and a share sheet say the same. */
   title: string
@@ -185,9 +193,30 @@ function RosterActionItems({
   const nativeShare = useNativeShare()
   return (
     <>
-      <Item onClick={() => actions.print(roster.id)}>
-        <Printer /> Print
+      <Item disabled={roster.locked} onClick={onEdit}>
+        <Pencil /> Edit setup
       </Item>
+      <Item disabled={roster.locked} onClick={onConvert}>
+        <Pencil /> Convert rules version
+      </Item>
+      <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>
+        <GitBranchPlus /> Create variant
+      </Item>
+      <Item disabled={actions.duplicate.isPending} onClick={() => actions.duplicate.mutate(roster)}>
+        <Copy /> Duplicate
+      </Item>
+      <Item disabled={actions.lock.isPending} onClick={() => actions.lock.mutate({ id: roster.id, locked: !roster.locked })}>
+        {roster.locked ? (
+          <>
+            <LockOpen /> Unlock roster
+          </>
+        ) : (
+          <>
+            <Lock /> Lock roster
+          </>
+        )}
+      </Item>
+      <Separator />
       <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster, title)}>
         <Link2 />
         {roster.visibility === 'private' ? (
@@ -212,29 +241,10 @@ function RosterActionItems({
       <Item disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title, points })}>
         <QrCode /> Exchange code
       </Item>
-      <Item disabled={actions.lock.isPending} onClick={() => actions.lock.mutate({ id: roster.id, locked: !roster.locked })}>
-        {roster.locked ? (
-          <>
-            <LockOpen /> Unlock roster
-          </>
-        ) : (
-          <>
-            <Lock /> Lock roster
-          </>
-        )}
+      <Item onClick={() => actions.print(roster.id)}>
+        <Printer /> Print
       </Item>
-      <Item disabled={roster.locked} onClick={onEdit}>
-        <Pencil /> Edit setup
-      </Item>
-      <Item disabled={roster.locked} onClick={onConvert}>
-        <Pencil /> Convert rules version
-      </Item>
-      <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>
-        <GitBranchPlus /> Create variant
-      </Item>
-      <Item disabled={actions.duplicate.isPending} onClick={() => actions.duplicate.mutate(roster)}>
-        <Copy /> Duplicate
-      </Item>
+      <Separator />
       <Item variant="destructive" disabled={actions.remove.isPending} onClick={onDelete}>
         <Trash2 /> Delete
       </Item>

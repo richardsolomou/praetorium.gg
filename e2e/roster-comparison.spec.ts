@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, signUp, waitForRosterSave } from './account'
+import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { holdCombatCalculations } from './combat'
 import { productOperator, withAuthSql } from './storage'
 
@@ -22,16 +22,31 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Benchmark Marines' })
   await add(page, 'Intercessor Squad')
   await add(page, 'Terminator Squad')
-  await page.getByRole('button', { name: 'Test targets', exact: true }).click()
+  let projections = 0
+  page.on('request', (request) => {
+    if (request.url().includes('/_serverFn/') && request.postData()?.includes('pickIndices')) projections++
+  })
+  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
+    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
+  )
+  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
   let dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
   await expect(dialog.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText('Benchmark targets')
+  await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toBeEnabled()
+  const benchmarks = dialog.getByRole('button', { name: 'Benchmark targets · 9', exact: true })
+  await expect(benchmarks).toHaveAttribute('aria-expanded', 'false')
+  await expect(dialog.getByRole('button', { name: 'Run all matchups' })).toBeEnabled()
+  expect(projections).toBe(0)
   await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(dialog).toContainText('18 / 18 matchups · Complete')
-  await expect(dialog.locator('details')).toHaveCount(0)
+  await expect(dialog).not.toContainText('Cached')
+  await benchmarks.click()
+  await expect(benchmarks).toHaveAttribute('aria-expanded', 'true')
+  expect((await benchmarks.boundingBox())!.y).toBeLessThan((await dialog.getByRole('table').boundingBox())!.y)
   await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toBeVisible()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Units', exact: true })).toHaveCount(0)
+  await expect(dialog.getByRole('tab', { name: 'Units', exact: true })).toHaveCount(0)
   let table = dialog.getByRole('table')
   await expect(dialog.getByRole('combobox', { name: 'Highlight matchups', exact: true })).toContainText('Best attackers per target')
   await expect(table.getByRole('columnheader')).toHaveCount(10)
@@ -65,7 +80,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
     const observation = {
       loading: false,
       observer: new MutationObserver(() => {
-        observation.loading ||= element.textContent?.includes('Loading roster units') ?? false
+        observation.loading ||= /Loading roster units|Calculating…/.test(element.textContent ?? '')
       }),
     }
     observation.observer.observe(element, { childList: true, subtree: true, characterData: true })
@@ -100,7 +115,6 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(table.getByRole('columnheader').filter({ hasText: 'Necron Warriors' })).toContainText('20 models')
   await expect(table).not.toContainText('Rhino')
   await expect(table.getByRole('columnheader').last()).toContainText('Boyz')
-  await expect(dialog.locator('details')).toHaveCount(0)
   await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toBeVisible()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/roster-benchmarks-desktop.png', animations: 'disabled' })
@@ -116,8 +130,12 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await detail.getByRole('button', { name: 'Close', exact: true }).click()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await page.getByRole('button', { name: 'Test targets', exact: true }).click()
+  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
+    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
+  )
+  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
+  await dialog.getByRole('button', { name: 'Benchmark targets · 9', exact: true }).click()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toHaveValue('20')
   await expect(dialog.getByRole('button', { name: 'Remove Boyz #9 benchmark', exact: true })).toBeVisible()
   await dialog.getByRole('button', { name: 'Reset benchmarks' }).click()
@@ -130,11 +148,15 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 0')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await page.getByRole('button', { name: 'Test targets', exact: true }).click()
+  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
+    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
+  )
+  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 0')
   await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(dialog).toContainText('Add at least one benchmark target.')
+  await dialog.getByRole('button', { name: 'Benchmark targets · 0', exact: true }).click()
   await dialog.getByRole('combobox', { name: 'Add benchmark target', exact: true }).click()
   await page.getByPlaceholder('Search benchmark units…').fill('Boyz Orks')
   await page.getByRole('option', { name: /^Boyz, Orks/ }).click()
@@ -142,7 +164,10 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(dialog).toContainText('2 / 2 matchups · Complete')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await page.getByRole('button', { name: 'Test targets', exact: true }).click()
+  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
+    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
+  )
+  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 1')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
@@ -161,7 +186,10 @@ test('long matchup tables keep target headings and attacker names visible while 
   const id = crypto.randomUUID()
   await operator.saveRoster({ ...source, id, userId: user.id, name: 'Long comparison', automaticName: false, now: Date.now() })
   await page.goto(`/rosters/${id}`)
-  await page.getByRole('button', { name: 'Test targets', exact: true }).click()
+  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
+    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
+  )
+  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(dialog).toContainText(/matchups · Complete/, { timeout: 120_000 })
@@ -201,16 +229,22 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   await add(page, 'Terminator Squad')
   const defenderUrl = page.url()
   await page.goto('/simulator')
-  await page.getByRole('button', { name: 'Rosters', exact: true }).click()
+  await page.getByRole('tab', { name: 'Rosters', exact: true }).click()
   await choose(page, 'Attacking roster', 'Attacking Necrons')
   await choose(page, 'Defending roster', 'Defending Marines')
   const comparison = page.getByRole('region', { name: 'Roster comparison' })
+  const firstGate = await holdCombatCalculations(page)
   await comparison.getByRole('button', { name: 'Run all matchups' }).click()
+  await firstGate.waitForStart()
+  await comparison.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(comparison).toContainText('Cancelled')
+  await firstGate.release()
+  await comparison.getByRole('button', { name: 'Run again' }).click()
   await expect(comparison).toContainText('4 / 4 matchups · Complete')
-  await page.getByRole('button', { name: 'Units', exact: true }).click()
+  await page.getByRole('tab', { name: 'Units', exact: true }).click()
   const cachedGate = await holdCombatCalculations(page)
-  await page.getByRole('button', { name: 'Rosters', exact: true }).click()
-  await expect(comparison).toContainText('4 / 4 matchups · Complete · Cached')
+  await page.getByRole('tab', { name: 'Rosters', exact: true }).click()
+  await expect(comparison).toContainText('4 / 4 matchups · Complete')
   await expect(comparison.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Attacking Necrons')
   await expect(comparison.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText('Defending Marines')
   expect(await page.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
@@ -238,6 +272,7 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   await matchup.getByRole('button', { name: 'More attacker models', exact: true }).click()
   await matchup.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(immortalCell.locator('.readout')).toHaveText(damage!)
+  await comparison.getByRole('button', { name: 'View options', exact: true }).click()
   await choose(page, 'Comparison phase', 'Melee')
   await expect(immortalCell.locator('.readout')).not.toHaveText(damage!)
   await choose(page, 'Comparison metric', 'Destruction chance')
@@ -249,15 +284,62 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   await expect(table.getByRole('columnheader').nth(1)).toContainText('Immortals')
   const gate = await holdCombatCalculations(page)
   await comparison.getByRole('button', { name: 'Run again' }).click()
-  await gate.waitForStart()
-  await comparison.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await expect(comparison).toContainText('Cancelled')
-  await gate.release()
-  await comparison.getByRole('button', { name: 'Run again' }).click()
   await expect(comparison).toContainText('4 / 4 matchups · Complete')
+  expect(await page.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
+  await gate.release()
   await page.goto(attackerUrl)
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Immortals models', { exact: true })).toHaveText('5')
   await page.goto(defenderUrl)
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
 })
+
+for (const width of [1440, 390]) {
+  test(`roster actions group editing, tools and exports at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await signUp(page, 'Roster menus')
+    await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Menu roster' })
+    if (width === 390) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Test targets', exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
+    const menu = page.getByRole('menu')
+    await expect(menu.getByRole('menuitem')).toHaveText([
+      'Edit roster setup',
+      'Convert rules version',
+      'Create variant',
+      'Lock roster',
+      'Test targets',
+      'Copy link',
+      'Export text',
+      'Exchange code',
+      'Print',
+    ])
+    await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
+    await expect(menu.getByRole('separator')).toHaveCount(2)
+    await page.screenshot({ path: test.info().outputPath(`builder-menu-${width}.png`) })
+    await page.keyboard.press('Escape')
+    await page.goto('/rosters')
+    await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
+    await expect(menu.getByRole('menuitem')).toHaveText([
+      'View',
+      'Edit setup',
+      'Convert rules version',
+      'Create variant',
+      'Duplicate',
+      'Lock roster',
+      'Copy link',
+      'Make private',
+      'Export text',
+      'Exchange code',
+      'Print',
+      'Delete',
+    ])
+    await expect(menu.getByRole('separator')).toHaveCount(2)
+    await page.screenshot({ path: test.info().outputPath(`library-menu-${width}.png`) })
+    await page.keyboard.press('Escape')
+    await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
+    await expect(menu.getByRole('menuitem').first()).toHaveText('Edit setup')
+    await expect(menu.getByRole('menuitem').last()).toHaveText('Delete')
+    await expect(menu.getByRole('separator')).toHaveCount(2)
+  })
+}

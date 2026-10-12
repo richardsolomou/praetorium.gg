@@ -23,7 +23,7 @@ The owner/readiness record is `data-dev/active-preview.json`; startup logs are `
 
 App ports are allocated automatically, preferring 3000, with separate internal/product ports. Explicit `LOCAL_APP_PORT`, `LOCAL_INTERNAL_PORT`, `LOCAL_SPACETIME_PORT`, and `LOCAL_CONTROL_PORT` fail if occupied. `LOCAL_DATA_DIR` and `LOCAL_PUBLIC_URL` override storage/origin. Existing data fixes its app port/origin through the auth issuer; changing those requires fresh data, preserving the original. For a control-port collision, choose an explicit free control port without touching its other owner.
 
-Default data/build output lives in `data-dev/hosted/` and survives restart. Startup applies checked-in auth migrations and seeds initial preview data. `SPACETIME_BIN` selects the required CLI; [Contributing](../../CONTRIBUTING.md#start-the-app) owns its version. Both loopback hostnames work for sign-in. Native development uses the reported origin via `EXPO_PUBLIC_APP_URL`, with Android's emulator host mapping.
+Default data/build output lives in `data-dev/hosted/` and survives restart. Startup applies checked-in auth migrations and seeds initial preview data. Product module updates use the server’s automatic migration plan, preserving saved data; a manual migration stops startup instead of clearing it. `SPACETIME_BIN` selects the required CLI; [Contributing](../../CONTRIBUTING.md#start-the-app) owns its version. Both loopback hostnames work for sign-in. Native development uses the reported origin via `EXPO_PUBLIC_APP_URL`, with Android's emulator host mapping.
 
 ## Browser tests
 

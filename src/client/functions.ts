@@ -44,6 +44,8 @@ import type { LocalState } from '../contracts/localState'
 import { playerDefaults } from './offline/actionFunctions'
 import { localRosterAssessment } from './offline/rosterAssessment'
 import { calculationRead } from './offline/calculationRead'
+import { rosterCombatantsSchema } from '../contracts/combatCalculation'
+import { rosterCombatants } from '../shared/rosterCombatants'
 import { anySignal } from './abortSignals'
 import { rosterPriceKey } from './queries/rosterPriceKey'
 
@@ -114,6 +116,14 @@ export const combatantDatasheet = (args: Parameters<typeof server.combatantDatas
     args.data.catalogueId,
     args.signal,
   )
+export const combatantDatasheets = (args: Parameters<typeof server.combatantDatasheets>[0]) =>
+  constructionRead(
+    ({ catalogue, rules }) => rosterCombatants(catalogue, rules, rosterCombatantsSchema.parse(args.data)),
+    (signal) => server.combatantDatasheets({ ...args, signal }),
+    args.data.catalogueId,
+    args.signal,
+  )
+export const calculateCombatBatch = (args: Parameters<typeof server.calculateCombatBatch>[0]) => server.calculateCombatBatch(args)
 export const combatLoadouts = (args: Parameters<typeof server.combatLoadouts>[0]) =>
   constructionRead(
     ({ catalogue }) => combatLoadoutSpace(catalogue, combatLoadoutSchema.parse(args.data)),

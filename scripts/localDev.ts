@@ -153,12 +153,28 @@ async function spacetime(method: string, pathname: string, credentialToken: stri
     signal: AbortSignal.timeout(60_000),
   })
   if (!response.ok)
-    throw new Error(`Local SpacetimeDB ${pathname} failed with HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`)
+    throw new Error(
+      `Local SpacetimeDB ${pathname.split('?')[0]} failed with HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`,
+    )
 }
 
 async function configure(value: Credentials) {
   const bundle = await readFile(path.join(root, 'module/spacetimedb/dist/bundle.js'))
-  await spacetime('PUT', `/v1/database/${database}?host_type=Js`, value.owner.token, bundle)
+  const migration = await fetch(`${spacetimeUrl}/v1/database/${database}/pre_publish?host_type=Js`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${value.owner.token}`, 'content-type': 'application/octet-stream' },
+    body: bundle,
+    signal: AbortSignal.timeout(60_000),
+  })
+  let query = '?host_type=Js'
+  if (migration.status === 200) {
+    const plan = (await migration.json()) as { AutoMigrate?: { token?: string } }
+    if (!plan.AutoMigrate?.token) throw new Error('The local product module requires a manual migration; saved data was retained.')
+    query += `&policy=BreakClients&token=${encodeURIComponent(plan.AutoMigrate.token)}`
+  } else if (migration.status !== 404) {
+    throw new Error(`Local product migration planning failed with HTTP ${migration.status}.`)
+  }
+  await spacetime('PUT', `/v1/database/${database}${query}`, value.owner.token, bundle)
   await spacetime(
     'POST',
     `/v1/database/${database}/call/configure`,

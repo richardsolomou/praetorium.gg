@@ -103,7 +103,6 @@ export function RosterCombatComparison({
   )
   const [comparison, setComparison] = useState<Comparison | null>(null)
   const [running, setRunning] = useState(false)
-  const [cached, setCached] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const [pair, setPair] = useState<{ row: number; column: number } | null>(null)
   const active = useRef<AbortController | null>(null)
@@ -139,6 +138,9 @@ export function RosterCombatComparison({
     writeRosterCombatSelection(selectionKey, side === 'attacker' ? id : attackerId, side === 'defender' ? id : defenderId)
   }
   const editTargets = (next: BenchmarkTarget[] | null) => {
+    active.current?.abort()
+    active.current = null
+    setRunning(false)
     setComparison(null)
     setProblem(null)
     setStoredTargets({ key: storageKey, targets: next })
@@ -150,12 +152,11 @@ export function RosterCombatComparison({
       setStorageProblem('Benchmark changes could not be saved. They will only last for this session.')
     }
   }
-  const run = async ({ cachedOnly = false, force = false } = {}) => {
+  const run = async ({ cachedOnly = false } = {}) => {
     active.current?.abort()
     const controller = new AbortController()
     active.current = controller
-    setRunning(true)
-    setCached(false)
+    setRunning(!cachedOnly)
     setComparison(null)
     setProblem(null)
     setPair(null)
@@ -172,12 +173,11 @@ export function RosterCombatComparison({
       controller.signal.throwIfAborted()
       const defender = structuredClone(await defenceSource.load(controller.signal))
       controller.signal.throwIfAborted()
-      const reused = await runRosterCombat({
+      await runRosterCombat({
         attacker,
         defender,
         signal: controller.signal,
         cachedOnly,
-        force,
         onPrepared: (attackers, defenders) => {
           setComparison({ attacker, defender, attackers, defenders, results: {}, completed: 0 })
         },
@@ -187,7 +187,6 @@ export function RosterCombatComparison({
               current && { ...current, results: { ...current.results, [`${row}:${column}`]: result }, completed: current.completed + 1 },
           ),
       })
-      if (active.current === controller) setCached(reused)
     } catch (error) {
       if (active.current === controller) setProblem(errorMessage(error))
     } finally {
@@ -199,6 +198,7 @@ export function RosterCombatComparison({
     }
   }
   const restore = useEffectEvent(() => {
+    if (liveKey === undefined && running) return
     if ((!sources && me.isPending) || !attackerId || !defenderId) return
     if ((attackerId === 'benchmarks' || defenderId === 'benchmarks') && (!catalogue.data || storedTargets?.key !== storageKey)) return
     if (!options.some((source) => source.id === attackerId) || !options.some((source) => source.id === defenderId)) return
@@ -234,9 +234,9 @@ export function RosterCombatComparison({
   return (
     <section aria-label="Roster comparison" className="min-w-0 space-y-3 p-3 sm:p-4">
       <div className="border-b border-edge pb-3">
-        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2 sm:gap-3">
           {(['attacker', 'defender'] as const).map((side, index) => (
-            <div key={side} className={index ? 'min-w-0 sm:col-start-3 sm:row-start-1' : 'min-w-0'}>
+            <div key={side} className={index ? 'col-start-3 row-start-1 min-w-0' : 'min-w-0'}>
               <p className="eyebrow mb-1">{index ? 'Targets' : 'Attackers'}</p>
               <SearchableSelect
                 ariaLabel={index ? 'Defending roster' : 'Attacking roster'}
@@ -277,9 +277,12 @@ export function RosterCombatComparison({
             variant="outline"
             size="icon-sm"
             aria-label="Reverse direction"
-            className="sm:col-start-2 sm:row-start-1 sm:mb-1"
+            className="col-start-2 row-start-1 mb-1"
             disabled={running || !attackerId || !defenderId}
             onClick={() => {
+              active.current?.abort()
+              active.current = null
+              setPair(null)
               setAttackerId(defenderId)
               setDefenderId(attackerId)
               writeRosterCombatSelection(selectionKey, defenderId, attackerId)
@@ -317,7 +320,7 @@ export function RosterCombatComparison({
       <div className="flex flex-wrap items-center gap-3">
         <Button
           disabled={running || !attackerId || !defenderId || (usingBenchmarks && (!catalogue.data || storedTargets?.key !== storageKey))}
-          onClick={() => void run({ force: true })}
+          onClick={() => void run()}
         >
           {comparison ? 'Run again' : 'Run all matchups'}
         </Button>
@@ -328,9 +331,9 @@ export function RosterCombatComparison({
         ) : null}
         <output aria-live="polite" className="text-sm text-dim">
           {comparison
-            ? `${comparison.completed} / ${total} matchups${running ? '…' : comparison.completed === total ? ` · Complete${cached ? ' · Cached' : ''}` : ' · Partial'}`
+            ? `${comparison.completed} / ${total} matchups${running ? '…' : comparison.completed === total ? ' · Complete' : ' · Partial'}`
             : running
-              ? 'Loading roster units…'
+              ? 'Calculating…'
               : ''}
         </output>
       </div>
@@ -339,18 +342,9 @@ export function RosterCombatComparison({
           {problem}
         </p>
       ) : null}
-      {comparison ? (
-        <RosterCombatTable
-          attackers={comparison.attackers}
-          defenders={comparison.defenders}
-          results={comparison.results}
-          benchmarkTargets={defenderId === 'benchmarks'}
-          onSelect={(row, column) => setPair({ row, column })}
-        />
-      ) : null}
       <p className="text-xs text-dim">
-        {liveKey === undefined ? 'Full health' : 'Live models and wounds'} · Default conditions. Supported passive rules apply; cover, range
-        bonuses and conditional buffs stay off.
+        {liveKey === undefined ? 'Full health' : 'Live models and wounds'} · Default conditions
+        <span className="hidden sm:inline">. Supported passive rules apply; cover, range bonuses and conditional buffs stay off.</span>
       </p>
       {!sources && usingBenchmarks ? (
         <BenchmarkTargets
@@ -359,6 +353,15 @@ export function RosterCombatComparison({
           disabled={running || !catalogue.data || storedTargets?.key !== storageKey}
           onChange={editTargets}
           onReset={() => editTargets(null)}
+        />
+      ) : null}
+      {comparison ? (
+        <RosterCombatTable
+          attackers={comparison.attackers}
+          defenders={comparison.defenders}
+          results={comparison.results}
+          benchmarkTargets={defenderId === 'benchmarks'}
+          onSelect={(row, column) => setPair({ row, column })}
         />
       ) : null}
       {selected ? (

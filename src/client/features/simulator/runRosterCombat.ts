@@ -1,9 +1,10 @@
-import { combatantDatasheet } from '../../functions'
+import { combatantDatasheets } from '../../functions'
+import { combatCalculator, readCombatAnswer } from './combatCalculation'
+import { COMBAT_BATCH_SIZE } from '../../../contracts/combatCalculation'
 import { errorMessage } from '../../queryClient'
 import type { CombatAnswer, CombatRequest } from '../../../core/combatMatchup'
 import type { CombatRoster } from './useCombatant'
-import CombatWorker from './combatWorker'
-import { readRosterCombatCache, writeRosterCombatCache } from './rosterCombatCache'
+import { hasRosterCombatCache, readRosterCombatCache, writeRosterCombatCache } from './rosterCombatCache'
 import {
   rosterCombatIndices,
   rosterCombatRequest,
@@ -17,58 +18,11 @@ export const MAX_ROSTER_MATCHUPS = 2500
 export const ROSTER_COMBAT_TIMEOUT = 300_000
 const CONCURRENT_MATCHUPS = 4
 
-export function calculateRosterPair(request: CombatRequest, signal: AbortSignal, onFailure?: () => void): Promise<CombatAnswer> {
-  signal.throwIfAborted()
-  if (!request.ranged && !request.melee) return Promise.resolve({ ranged: null, melee: null })
-  return new Promise((resolve, reject) => {
-    let active = true
-    let worker: Worker | undefined
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const stop = () => {
-      if (!active) return
-      active = false
-      clearTimeout(timer)
-      worker?.terminate()
-      signal.removeEventListener('abort', abort)
-    }
-    const fail = (message: string) => {
-      if (!active) return
-      stop()
-      onFailure?.()
-      resolve({
-        ranged: request.ranged ? { error: message } : null,
-        melee: request.melee ? { error: message } : null,
-        combined: { error: message },
-      })
-    }
-    const abort = () => {
-      stop()
-      reject(signal.reason)
-    }
-    signal.addEventListener('abort', abort, { once: true })
-    try {
-      worker = new CombatWorker()
-      worker.onmessage = (event: MessageEvent<CombatAnswer>) => {
-        if (!active) return
-        stop()
-        resolve(event.data)
-      }
-      worker.onerror = () => fail('The calculation failed. Run the comparison again to retry.')
-      worker.onmessageerror = () => fail('The calculation response could not be read. Try again.')
-      timer = setTimeout(() => fail('This pairing took too long to calculate. Try it in the unit simulator.'), 15_000)
-      worker.postMessage(request)
-    } catch {
-      fail('The calculation could not start. This browser must support Web Workers.')
-    }
-  })
-}
-
 export async function runRosterCombat({
   attacker,
   defender,
   signal,
   cachedOnly = false,
-  force = false,
   onPrepared,
   onResult,
 }: {
@@ -76,11 +30,11 @@ export async function runRosterCombat({
   defender: CombatRoster | readonly CombatRoster[]
   signal: AbortSignal
   cachedOnly?: boolean
-  force?: boolean
   onPrepared: (attackers: RosterCombatUnit[], defenders: RosterCombatUnit[]) => void
   onResult: (row: number, column: number, result: RosterCombatSummary) => void
 }) {
   signal.throwIfAborted()
+  if (cachedOnly && !hasRosterCombatCache()) return false
   const attackingRosters = 'picks' in attacker ? [attacker] : attacker
   const defendingRosters = 'picks' in defender ? [defender] : defender
   const unitIndices = (rosters: readonly CombatRoster[]) =>
@@ -95,50 +49,69 @@ export async function runRosterCombat({
   if (rows.length * columns.length > MAX_ROSTER_MATCHUPS)
     throw new Error(`Compare at most ${MAX_ROSTER_MATCHUPS.toLocaleString()} pairings at a time. Choose smaller rosters.`)
   const prepare = async (rosters: readonly CombatRoster[], indices: { rosterIndex: number; pickIndex: number }[]) => {
-    const units: RosterCombatUnit[] = []
-    for (const { rosterIndex, pickIndex } of indices) {
-      signal.throwIfAborted()
+    type Projection = Awaited<ReturnType<typeof combatantDatasheets>>[number] | { error: string }
+    const projections: Projection[][] = []
+    let nextRoster = 0
+    const load = async () => {
+      while (nextRoster < rosters.length) {
+        signal.throwIfAborted()
+        const rosterIndex = nextRoster++
+        const roster = rosters[rosterIndex]!
+        const pickIndices = indices.filter((index) => index.rosterIndex === rosterIndex).map((index) => index.pickIndex)
+        if (!pickIndices.length) {
+          projections[rosterIndex] = []
+          continue
+        }
+        try {
+          projections[rosterIndex] = await combatantDatasheets({
+            signal,
+            data: {
+              catalogueId: roster.catalogueId,
+              detachmentIds: [...roster.detachmentIds],
+              picks: [...roster.picks],
+              pickIndices,
+              inactivePicks: roster.battle?.units.flatMap((unit, index) => (unit.available ? [] : [index])) ?? [],
+            },
+          })
+        } catch (error) {
+          signal.throwIfAborted()
+          projections[rosterIndex] = pickIndices.map(() => ({ error: errorMessage(error) }))
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENT_MATCHUPS, rosters.length) }, load))
+    signal.throwIfAborted()
+    const positions = rosters.map(() => 0)
+    return indices.map(({ rosterIndex, pickIndex }): RosterCombatUnit => {
       const roster = rosters[rosterIndex]!
       const pick = roster.picks[pickIndex]!
+      const data = projections[rosterIndex]![positions[rosterIndex]!]!
+      positions[rosterIndex]! += 1
       try {
-        const data = await combatantDatasheet({
-          signal,
-          data: {
-            catalogueId: roster.catalogueId,
-            entryId: pick.entryId,
-            detachmentIds: [...roster.detachmentIds],
-            picks: [...roster.picks],
-            pickIndex,
-            inactivePicks: roster.battle?.units.flatMap((unit, index) => (unit.available ? [] : [index])),
-          },
-        })
-        signal.throwIfAborted()
         if (!data) throw new Error('This unit could not be loaded under the roster’s selected rules.')
+        if ('error' in data) throw new Error(data.error)
         if (pick.models !== undefined && data.models !== pick.models)
           throw new Error(`This unit cannot field ${pick.models} models under its selected rules. Use a legal model count.`)
-        units.push({
+        return {
           rosterIndex,
           pickIndex,
           name: [data.selected.name, ...data.companions.map((member) => member.selected.name)].join(' + '),
           snapshot: rosterCombatSnapshot(data, roster.picks, roster.battle ? { units: roster.battle.units, pickIndex } : undefined),
           live: Boolean(roster.battle),
           ...(data.attachmentErrors.length ? { error: data.attachmentErrors.map((error) => error.message).join('; ') } : {}),
-        })
+        }
       } catch (error) {
-        signal.throwIfAborted()
-        units.push({ rosterIndex, pickIndex, name: `Unit ${pickIndex + 1}`, snapshot: null, error: errorMessage(error) })
+        return { rosterIndex, pickIndex, name: `Unit ${pickIndex + 1}`, snapshot: null, error: errorMessage(error) }
       }
-    }
-    return units
+    })
   }
-  const attackers = await prepare(attackingRosters, rows)
-  const defenders = await prepare(defendingRosters, columns)
+  const [attackers, defenders] = await Promise.all([prepare(attackingRosters, rows), prepare(defendingRosters, columns)])
   signal.throwIfAborted()
   const key = JSON.stringify({
     attackers: attackers.map(({ snapshot, error }) => ({ snapshot, error })),
     defenders: defenders.map(({ snapshot, error }) => ({ snapshot, error })),
   })
-  const cached = force ? undefined : readRosterCombatCache(key)
+  const cached = readRosterCombatCache(key)
   if (cached) {
     onPrepared(attackers, defenders)
     cached.forEach((result, index) => {
@@ -151,39 +124,64 @@ export async function runRosterCombat({
   onPrepared(attackers, defenders)
   const pool = new AbortController()
   const abort = () => pool.abort(signal.reason)
-  signal.addEventListener('abort', abort, { once: true })
   let next = 0
   const total = attackers.length * defenders.length
   const results: RosterCombatSummary[] = Array.from({ length: total })
   let cacheable = [...attackers, ...defenders].every((unit) => !unit.error)
+  const jobs = new Map<
+    string,
+    { request: CombatRequest; cells: { index: number; unavailable: Partial<Record<'ranged' | 'melee', string>> }[] }
+  >()
+  const publish = (index: number, answer: CombatAnswer, unavailable: Partial<Record<'ranged' | 'melee', string>>) => {
+    signal.throwIfAborted()
+    const result = summarizeRosterCombat(answer, unavailable)
+    results[index] = result
+    onResult(Math.floor(index / defenders.length), index % defenders.length, result)
+  }
+  for (let index = 0; index < total; index++) {
+    const unit = attackers[Math.floor(index / defenders.length)]!
+    const target = defenders[index % defenders.length]!
+    const { request, unavailable } = rosterCombatRequest(unit.snapshot, target.snapshot, unit.error ?? target.error)
+    const hit = readCombatAnswer(request)
+    if (hit) publish(index, hit, unavailable)
+    else {
+      const requestKey = JSON.stringify(request)
+      const job = jobs.get(requestKey) ?? { request, cells: [] }
+      job.cells.push({ index, unavailable })
+      jobs.set(requestKey, job)
+    }
+  }
+  const pending = [...jobs.values()]
+  signal.addEventListener('abort', abort, { once: true })
+  const calculators: ReturnType<typeof combatCalculator>[] = []
   const calculate = async () => {
-    while (next < total) {
+    const calculator = combatCalculator()
+    calculators.push(calculator)
+    while (next < pending.length) {
       pool.signal.throwIfAborted()
-      const index = next++
-      const row = Math.floor(index / defenders.length)
-      const column = index % defenders.length
-      const unit = attackers[row]!
-      const target = defenders[column]!
-      const { request, unavailable } = rosterCombatRequest(unit.snapshot, target.snapshot, unit.error ?? target.error)
-      const answer = await calculateRosterPair(request, pool.signal, () => {
-        cacheable = false
+      const batch = pending.slice(next, next + COMBAT_BATCH_SIZE)
+      next += batch.length
+      const requests = batch.map((job) => job.request)
+      const answers = await calculator.calculate(requests, pool.signal)
+      if (calculator.failed) cacheable = false
+      pool.signal.throwIfAborted()
+      batch.forEach((job, index) => {
+        const answer = answers[index]!
+        for (const cell of job.cells) publish(cell.index, answer, cell.unavailable)
       })
-      pool.signal.throwIfAborted()
-      const result = summarizeRosterCombat(answer, unavailable)
-      results[index] = result
-      onResult(row, column, result)
     }
   }
   try {
     signal.throwIfAborted()
-    await Promise.all(Array.from({ length: Math.min(CONCURRENT_MATCHUPS, total) }, calculate))
+    await Promise.all(Array.from({ length: Math.min(CONCURRENT_MATCHUPS, Math.ceil(pending.length / COMBAT_BATCH_SIZE)) }, calculate))
     signal.throwIfAborted()
     if (cacheable) writeRosterCombatCache(key, results)
   } catch (error) {
     pool.abort(error)
     throw error
   } finally {
+    for (const calculator of calculators) calculator.dispose()
     signal.removeEventListener('abort', abort)
   }
-  return false
+  return !pending.length
 }

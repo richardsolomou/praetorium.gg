@@ -87,7 +87,8 @@ for (const [width, label] of [
 
     if (width === 1440) {
       await reader.goto(`/rosters/${sourceId}`)
-      await reader.getByRole('button', { name: 'Test targets' }).click()
+      await reader.getByRole('button', { name: 'Roster actions', exact: true }).click()
+      await reader.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
       const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
       await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
       await simulator.getByRole('button', { name: 'Close', exact: true }).click()

@@ -2,13 +2,20 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { rosterCombatant } from '../../../shared/rosterCombatRules'
 import { preferenceBook } from '../../../server/combatPreferences.fixtures'
 import { resolveCombatRequest, type CombatAnswer, type CombatRequest } from '../../../core/combatMatchup'
-import { calculateRosterPair, runRosterCombat } from './runRosterCombat'
+import { runRosterCombat } from './runRosterCombat'
+import { calculateCombatPair, clearCombatAnswerCache } from './combatCalculation'
 import type { CombatRoster } from './useCombatant'
 import type { RosterCombatSummary } from './rosterCombat'
 import { clearRosterCombatCache } from './rosterCombatCache'
 
 const mocks = vi.hoisted(() => ({ project: vi.fn(), worker: vi.fn() }))
-vi.mock('../../functions', () => ({ combatantDatasheet: (...args: unknown[]) => mocks.project(...args) }))
+vi.mock('../../functions', () => ({
+  combatantDatasheets: ({ data }: { data: { pickIndices: number[]; picks: { entryId: string }[] } }) =>
+    Promise.all(
+      data.pickIndices.map((pickIndex) => mocks.project({ data: { ...data, pickIndex, entryId: data.picks[pickIndex]!.entryId } })),
+    ),
+  calculateCombatBatch: vi.fn(),
+}))
 vi.mock('./combatWorker', () => ({
   default: function () {
     return mocks.worker()
@@ -38,6 +45,7 @@ const roster: CombatRoster = {
 
 beforeEach(() => {
   clearRosterCombatCache()
+  clearCombatAnswerCache()
   mocks.project.mockReset().mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(), null, data)))
   mocks.worker.mockReset().mockImplementation(() => {
     const current = worker()
@@ -60,6 +68,11 @@ function cachedComparison(overrides: Partial<Parameters<typeof runRosterCombat>[
   })
 }
 
+it('does not project rosters to restore an empty comparison cache', async () => {
+  await cachedComparison({ cachedOnly: true })
+  expect(mocks.project).not.toHaveBeenCalled()
+})
+
 it('restores a completed comparison after fresh projections without starting scoring workers', async () => {
   const original = vi.fn()
   await cachedComparison({ onResult: original })
@@ -74,11 +87,11 @@ it('restores a completed comparison after fresh projections without starting sco
   })
 })
 
-it('forces a fresh calculation when requested despite a completed cache entry', async () => {
+it('reuses completed pairings when a comparison is run again', async () => {
   await cachedComparison()
   mocks.worker.mockClear()
-  await cachedComparison({ force: true })
-  expect(mocks.worker).toHaveBeenCalledOnce()
+  await cachedComparison()
+  expect(mocks.worker).not.toHaveBeenCalled()
 })
 
 it('does not calculate or publish a cache miss while restoring', async () => {
@@ -101,12 +114,12 @@ it('invalidates cached results when current wounds change', async () => {
   expect(onResult).not.toHaveBeenCalled()
 })
 
-it('recalculates when the selected equipment changes', async () => {
+it('reuses attacks when changed equipment resolves to the same calculation', async () => {
   mocks.project.mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(true), null, data)))
   await cachedComparison({ attacker: { ...roster, picks: [{ entryId: 'support', choices: { 'support-weapon': 'staff' } }] } })
   mocks.worker.mockClear()
   await cachedComparison({ attacker: { ...roster, picks: [{ entryId: 'support', choices: { 'support-weapon': 'plasma' } }] } })
-  expect(mocks.worker).toHaveBeenCalledOnce()
+  expect(mocks.worker).not.toHaveBeenCalled()
 })
 
 it('does not reuse outgoing damage for the reversed matchup', async () => {
@@ -172,75 +185,60 @@ it('calculates every directional pairing, including repeated entries, with diffe
   ])
 })
 
-function parallelComparison(signal = new AbortController().signal, onResult = vi.fn()) {
-  const workers: ReturnType<typeof worker>[] = []
-  const requests: CombatRequest[] = []
-  mocks.worker.mockImplementation(() => {
-    const current = worker()
-    current.postMessage.mockImplementation((request: CombatRequest) => requests.push(request))
-    workers.push(current)
-    return current
-  })
-  const finished = runRosterCombat({
+it('scores repeated directional pairings once and publishes every cell', async () => {
+  const results = vi.fn()
+  await runRosterCombat({
     attacker: { ...roster, picks: [{ entryId: 'support' }, { entryId: 'support' }] },
     defender: { ...roster, picks: Array.from({ length: 3 }, () => ({ entryId: 'squad' })) },
-    signal,
+    signal: new AbortController().signal,
     onPrepared: () => {},
-    onResult,
+    onResult: results,
   })
-  const finish = (index: number) =>
-    workers[index]!.onmessage?.({ data: resolveCombatRequest(requests[index]!) } as MessageEvent<CombatAnswer>)
-  return { workers, finished, finish, onResult }
-}
-
-it('runs four pairings concurrently and records out-of-order completions in their original cells', async () => {
-  const batch = parallelComparison()
-  await vi.waitFor(() => expect(batch.workers).toHaveLength(4))
-  batch.finish(2)
-  await vi.waitFor(() => expect(batch.workers).toHaveLength(5))
-  expect(batch.onResult.mock.calls[0]!.slice(0, 2)).toEqual([0, 2])
-  batch.finish(0)
-  await vi.waitFor(() => expect(batch.workers).toHaveLength(6))
-  for (const index of [5, 4, 3, 1]) batch.finish(index)
-  await batch.finished
-  expect(batch.onResult.mock.calls.map(([row, column]) => `${row}:${column}`).sort()).toEqual(['0:0', '0:1', '0:2', '1:0', '1:1', '1:2'])
-})
-
-it('terminates every active pairing on cancellation and never starts queued pairings', async () => {
-  const controller = new AbortController()
-  const batch = parallelComparison(controller.signal)
-  await vi.waitFor(() => expect(batch.workers).toHaveLength(4))
-  const rejected = batch.finished.catch((error) => error)
-  controller.abort(new Error('Cancelled'))
-  expect(await rejected).toEqual(new Error('Cancelled'))
-  batch.finish(0)
   expect({
-    workers: batch.workers.length,
-    stopped: batch.workers.map((current) => current.terminate.mock.calls.length),
-    results: batch.onResult.mock.calls,
-  }).toEqual({ workers: 4, stopped: [1, 1, 1, 1], results: [] })
-  const onPrepared = vi.fn()
-  await cachedComparison({
-    attacker: { ...roster, picks: [{ entryId: 'support' }, { entryId: 'support' }] },
-    defender: { ...roster, picks: Array.from({ length: 3 }, () => ({ entryId: 'squad' })) },
-    cachedOnly: true,
-    onPrepared,
+    scores: mocks.worker.mock.results.flatMap((result) => result.value.postMessage.mock.calls).length,
+    cells: results.mock.calls.map(([row, column]) => `${row}:${column}`).sort(),
+  }).toEqual({
+    scores: 1,
+    cells: ['0:0', '0:1', '0:2', '1:0', '1:1', '1:2'],
   })
-  expect(onPrepared).not.toHaveBeenCalled()
 })
 
-it('stops the remaining workers when publishing a result fails', async () => {
-  const batch = parallelComparison(
-    undefined,
-    vi.fn(() => {
-      throw new Error('Result failed')
+it('reuses unchanged columns after one target changes', async () => {
+  await cachedComparison({ defender: [roster, roster] })
+  mocks.worker.mockClear()
+  await cachedComparison({
+    defender: [
+      roster,
+      { ...roster, battle: { units: [{ key: '0-squad', name: 'Squad', models: 1, startingModels: 1, damage: 1, available: true }] } },
+    ],
+  })
+  expect(mocks.worker.mock.results.flatMap((result) => result.value.postMessage.mock.calls)).toHaveLength(1)
+})
+
+it('cancels active scoring and does not publish late answers', async () => {
+  const current = worker()
+  mocks.worker.mockReturnValue(current)
+  const controller = new AbortController()
+  const onResult = vi.fn()
+  const pending = cachedComparison({ signal: controller.signal, onResult })
+  const failed = pending.catch((error) => error)
+  await vi.waitFor(() => expect(current.postMessage).toHaveBeenCalled())
+  const late = current.onmessage
+  controller.abort(new Error('Cancelled'))
+  expect(await failed).toEqual(new Error('Cancelled'))
+  late?.({ data: { ranged: null, melee: null } } as MessageEvent<CombatAnswer>)
+  expect(onResult).not.toHaveBeenCalled()
+})
+
+it('stops scoring when publishing a result fails', async () => {
+  await expect(
+    cachedComparison({
+      onResult: () => {
+        throw new Error('Result failed')
+      },
     }),
-  )
-  await vi.waitFor(() => expect(batch.workers).toHaveLength(4))
-  const rejected = batch.finished.catch((error) => error)
-  batch.finish(0)
-  expect(await rejected).toEqual(new Error('Result failed'))
-  expect(batch.workers.map((current) => current.terminate.mock.calls.length)).toEqual([1, 1, 1, 1])
+  ).rejects.toThrow('Result failed')
+  expect(mocks.worker.mock.results[0]!.value.terminate).toHaveBeenCalledOnce()
 })
 
 it('retains failed projections as errors for every affected pairing', async () => {
@@ -248,7 +246,7 @@ it('retains failed projections as errors for every affected pairing', async () =
   const results: RosterCombatSummary[] = []
   await runRosterCombat({
     attacker: roster,
-    defender: { ...roster, picks: [{ entryId: 'squad' }, { entryId: 'squad' }] },
+    defender: [roster, roster],
     signal: new AbortController().signal,
     onPrepared: () => {},
     onResult: (_, __, answer) => results.push(answer),
@@ -340,7 +338,7 @@ it('terminates a calculating worker on cancellation', async () => {
   const current = worker()
   mocks.worker.mockReturnValue(current)
   const controller = new AbortController()
-  const result = calculateRosterPair(request, controller.signal)
+  const result = calculateCombatPair(request, controller.signal)
   controller.abort(new Error('Cancelled'))
   await expect(result).rejects.toThrow('Cancelled')
   expect(current.terminate).toHaveBeenCalledOnce()
@@ -350,7 +348,7 @@ it('settles a worker timeout and terminates the worker', async () => {
   vi.useFakeTimers()
   const current = worker()
   mocks.worker.mockReturnValue(current)
-  const result = calculateRosterPair(request, new AbortController().signal)
+  const result = calculateCombatPair(request, new AbortController().signal)
   await vi.advanceTimersByTimeAsync(15_000)
   expect((await result).ranged?.error).toContain('too long')
   expect(current.terminate).toHaveBeenCalledOnce()
@@ -359,7 +357,7 @@ it('settles a worker timeout and terminates the worker', async () => {
 it.each(['onerror', 'onmessageerror'] as const)('settles %s without hanging the batch', async (event) => {
   const current = worker()
   mocks.worker.mockReturnValue(current)
-  const result = calculateRosterPair(request, new AbortController().signal)
+  const result = calculateCombatPair(request, new AbortController().signal)
   current[event]?.()
   expect((await result).ranged?.error).toBeTruthy()
 })
@@ -368,7 +366,7 @@ it('settles a worker constructor failure', async () => {
   mocks.worker.mockImplementation(() => {
     throw new Error('Unavailable')
   })
-  expect((await calculateRosterPair(request, new AbortController().signal)).ranged?.error).toContain('could not start')
+  expect((await calculateCombatPair(request, new AbortController().signal)).ranged?.error).toContain('could not start')
 })
 
 it('settles a worker posting failure', async () => {
@@ -377,6 +375,6 @@ it('settles a worker posting failure', async () => {
     throw new Error('Unavailable')
   })
   mocks.worker.mockReturnValue(current)
-  expect((await calculateRosterPair(request, new AbortController().signal)).ranged?.error).toContain('could not start')
+  expect((await calculateCombatPair(request, new AbortController().signal)).ranged?.error).toContain('could not start')
   expect(current.terminate).toHaveBeenCalledOnce()
 })
