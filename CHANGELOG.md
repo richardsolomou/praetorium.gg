@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.128.0
+
+### Minor Changes
+
+- 51a7f9b: Record a missed stratagem, command point or score for an earlier phase. It keeps that phase's limits and is marked as recorded late in battle events and replay.
+
 ## 0.127.0
 
 ### Minor Changes
