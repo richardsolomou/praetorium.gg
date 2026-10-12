@@ -18,6 +18,7 @@ import type { TableShape } from '../../core/tableShape'
 import type { RepositoryPort } from '../spacetimeRepository'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
+import { rosterWithoutUnitNotes } from '../../core/unitNotes'
 
 export class LeagueService {
   constructor(
@@ -297,7 +298,7 @@ export class LeagueService {
     )
     if (!readable) return null
     const { reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster } = parseRosterSnapshot(readable.snapshot)
-    return roster
+    return rosterWithoutUnitNotes(roster)
   }
 
   async createLeagueBattle(

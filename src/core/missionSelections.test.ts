@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand } from './battle'
-import { ALICE, BOB, NAMES, PLAYERS, attachedRoster, builtRoster, log, turns } from './battle.fixtures'
-import { missionSelectionsDue, missionUnitCandidates, savedMissionUnitStatus } from './missionSelections'
+import { ALICE, BOB, NAMES, PLAYERS, advance, attachedRoster, builtRoster, log, turns } from './battle.fixtures'
+import { missionSelectionsDue, missionUnitCandidates, operationMarkers, savedMissionUnitStatus } from './missionSelections'
 import { battleView } from './battleView'
 import { appendLocalCommand, localBattleView, visibleBattleLog } from './offlineBattle'
 import { commandSchema } from './commands'
@@ -691,5 +691,380 @@ describe('source-backed mission selections', () => {
         },
       }).success,
     ).toBe(false)
+  })
+})
+
+const locate = { key: 'locate', name: 'Locate and Deny', selection: 'locate-and-deny' as const }
+const relic = { key: 'relic', name: 'Extract Relic', selection: 'sensor-sweep' as const }
+const consecrate = { key: 'consecrate', name: 'Consecrate', selection: 'consecrate' as const }
+const prepare = (card: typeof locate | typeof relic | typeof consecrate): Command => ({
+  kind: 'set-prep',
+  primary: { ...card },
+  secondaries: [],
+  secondaryMode: 'fixed',
+  stratagems: [],
+})
+const area = (key: string) => ({ key, name: `Ruin ${key.toUpperCase()}` })
+type SelectionCommand = Extract<Command, { kind: 'select-mission' }>
+const markers = (...keys: string[]): SelectionCommand => ({
+  kind: 'select-mission',
+  cardKey: locate.key,
+  occurrence: 5,
+  selection: { kind: 'locate-and-deny', areas: keys.map(area), outsideZone: true, allEligible: keys.length < 5 },
+})
+const sweep = (key: string, occurrence: number, cardKey = relic.key): SelectionCommand => ({
+  kind: 'select-mission',
+  cardKey,
+  occurrence,
+  selection: { kind: 'sensor-sweep', marker: { playerId: ALICE, ...area(key) }, controlled: true },
+})
+
+/** Alice plays Locate and Deny against Bob's Extract Relic, and Bob takes the first turn. */
+const locateBattle = (...extra: [string, Command][]) =>
+  reduceBattle(
+    PLAYERS,
+    log(
+      [ALICE, builtRoster('Alice', ['Squad'])],
+      [BOB, builtRoster('Bob', ['Squad'])],
+      [ALICE, prepare(locate)],
+      [BOB, prepare(relic)],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
+      ...extra,
+    ),
+  )
+
+describe('Locate and Deny operation markers', () => {
+  it('asks the Locate and Deny side for its markers at the start of the battle when the opponent takes the first turn', () => {
+    expect(missionSelectionsDue(locateBattle(), locateBattle().players[0]!)).toEqual([
+      { cardKey: locate.key, cardName: locate.name, kind: 'locate-and-deny', occurrence: 5, chooserSide: 0 },
+    ])
+  })
+
+  it('stops the first turn leaving its Command phase until the markers are placed', () => {
+    expect(commandRefusal(locateBattle(), BOB, { kind: 'advance' })?.code).toBe('mission-selection-timing')
+  })
+
+  it('opens the first turn once the markers are placed', () => {
+    expect(commandRefusal(locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')]), BOB, { kind: 'advance' })).toBeNull()
+  })
+
+  it('shows the footer guidance to the player whose turn is waiting', () => {
+    expect(battleView({ token: 'test' }, NAMES, locateBattle(), BOB).advancePrompt).toBe(
+      'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
+    )
+  })
+
+  it('refuses the opposing side placing Locate and Deny markers', () => {
+    expect(commandRefusal(locateBattle(), BOB, { ...markers('a', 'b', 'c', 'd', 'e'), playerId: ALICE })?.code).toBe(
+      'mission-selection-owner',
+    )
+  })
+
+  it('accepts five distinct terrain areas outside the deployment zone', () => {
+    expect(commandRefusal(locateBattle(), ALICE, markers('a', 'b', 'c', 'd', 'e'))).toBeNull()
+  })
+
+  it('refuses fewer than five areas without confirming that no other area is eligible', () => {
+    const command = markers('a', 'b')
+    if (command.selection.kind !== 'locate-and-deny') throw new Error('expected markers')
+    command.selection.allEligible = false
+    expect(commandRefusal(locateBattle(), ALICE, command)?.code).toBe('mission-selection-count')
+  })
+
+  it('accepts fewer than five areas when they are every terrain area outside the deployment zone', () => {
+    expect(commandRefusal(locateBattle(), ALICE, markers('a', 'b'))).toBeNull()
+  })
+
+  it('records no markers when no terrain area lies outside the deployment zone', () => {
+    expect(commandRefusal(locateBattle(), ALICE, markers())).toBeNull()
+  })
+
+  it('refuses six terrain areas', () => {
+    expect(commandRefusal(locateBattle(), ALICE, markers('a', 'b', 'c', 'd', 'e', 'f'))?.code).toBe('mission-selection-objective')
+  })
+
+  it('bounds the wire marker count', () => {
+    expect(commandSchema.safeParse(markers('a', 'b', 'c', 'd', 'e', 'f')).success).toBe(false)
+  })
+
+  it('refuses two markers in one terrain area', () => {
+    expect(commandRefusal(locateBattle(), ALICE, markers('a', 'a', 'b', 'c', 'd'))?.code).toBe('mission-selection-objective')
+  })
+
+  it('requires confirmation that each terrain area is outside the deployment zone', () => {
+    const command = markers('a', 'b', 'c', 'd', 'e')
+    if (command.selection.kind !== 'locate-and-deny') throw new Error('expected markers')
+    command.selection.outsideZone = false
+    expect(commandRefusal(locateBattle(), ALICE, command)?.code).toBe('mission-selection-facts')
+  })
+
+  it('refuses placing the markers again; undo makes them due again', () => {
+    const placed = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')])
+    const undone = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')], [ALICE, { kind: 'undo', target: 6 }])
+    expect({
+      repeated: commandRefusal(placed, ALICE, markers('a', 'b', 'c', 'd', 'e'))?.code,
+      due: missionSelectionsDue(undone, undone.players[0]!).map((prompt) => prompt.kind),
+    }).toEqual({ repeated: 'mission-selection-recorded', due: ['locate-and-deny'] })
+  })
+
+  it('does not ask for markers again after the opening turn', () => {
+    const battle = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')], ...turns(6, BOB))
+    expect(missionSelectionsDue(battle, battle.players[0]!)).toEqual([])
+  })
+
+  it('does not award victory points for placing markers', () => {
+    const battle = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')])
+    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
+  })
+})
+
+describe('Sensor Sweep', () => {
+  const swept = (...extra: [string, Command][]) => locateBattle([ALICE, markers('a', 'b', 'c')], ...turns(5, BOB), ...extra)
+
+  it('offers the Extract Relic side a manual sweep at the end of its turn without blocking it', () => {
+    const view = battleView({ token: 'test' }, NAMES, swept(), BOB)
+    expect({
+      due: missionSelectionsDue(swept(), swept().players[1]!),
+      offered: view.missionChoices?.map((choice) => [choice.kind, choice.canChoose, choice.markers?.map((marker) => marker.key)]),
+    }).toEqual({ due: [], offered: [['sensor-sweep', true, ['a', 'b', 'c']]] })
+  })
+
+  it('removes the chosen opposing marker', () => {
+    const battle = swept([BOB, sweep('a', 5)])
+    expect(operationMarkers(battle).map((marker) => [marker.key, marker.removedRound])).toEqual([
+      ['a', 1],
+      ['b', null],
+      ['c', null],
+    ])
+  })
+
+  it('keeps the opening markers when the opening turn ends with a sweep of the same turn', () => {
+    const entries = log(
+      [ALICE, builtRoster('Alice', ['Squad'])],
+      [BOB, builtRoster('Bob', ['Squad'])],
+      [ALICE, prepare(locate)],
+      [BOB, prepare(relic)],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, markers('a', 'b', 'c')],
+      ...turns(5, ALICE),
+      [ALICE, sweep('a', 5, locate.key)],
+    )
+    expect(
+      reduceBattle(PLAYERS, entries).players[0]!.missionSelections.map((saved) => [saved.selection.kind, saved.removedMarkers]),
+    ).toEqual([
+      ['locate-and-deny', { a: 1 }],
+      ['sensor-sweep', undefined],
+    ])
+  })
+
+  it('refuses a sweep before the end of the turn', () => {
+    expect(commandRefusal(locateBattle([ALICE, markers('a', 'b', 'c')], ...turns(2, BOB)), BOB, sweep('a', 5))?.code).toBe(
+      'mission-selection-timing',
+    )
+  })
+
+  it('refuses a second sweep in the same turn', () => {
+    expect(commandRefusal(swept([BOB, sweep('a', 5)]), BOB, sweep('b', 5))?.code).toBe('mission-selection-recorded')
+  })
+
+  it('requires confirmation that the sweeping unit controls its objective', () => {
+    const command = sweep('a', 5)
+    if (command.selection.kind !== 'sensor-sweep') throw new Error('expected sweep')
+    command.selection.controlled = false
+    expect(commandRefusal(swept(), BOB, command)?.code).toBe('mission-selection-facts')
+  })
+
+  it('lets the Locate and Deny side sweep its own markers on its turn', () => {
+    const battle = swept([BOB, sweep('a', 5)], [BOB, advance()], ...turns(5, ALICE))
+    expect(commandRefusal(battle, ALICE, sweep('b', 13, locate.key))).toBeNull()
+  })
+
+  it('refuses removing a marker already removed', () => {
+    const battle = swept([BOB, sweep('a', 5)], [BOB, advance()], ...turns(5, ALICE))
+    expect(commandRefusal(battle, ALICE, sweep('a', 13, locate.key))?.code).toBe('mission-selection-objective')
+  })
+
+  it('refuses a sweep once only one operation marker remains', () => {
+    const battle = locateBattle([ALICE, markers('a', 'b')], ...turns(5, BOB), [BOB, sweep('a', 5)], [BOB, advance()], ...turns(5, ALICE))
+    expect(commandRefusal(battle, ALICE, sweep('b', 13, locate.key))?.code).toBe('mission-selection-count')
+  })
+
+  it('withdraws the sweep control once only one operation marker remains', () => {
+    const battle = locateBattle([ALICE, markers('a', 'b')], ...turns(5, BOB), [BOB, sweep('a', 5)], [BOB, advance()], ...turns(5, ALICE))
+    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices?.map((choice) => choice.canChoose)).toEqual([false])
+  })
+
+  it('undoing a sweep restores the marker', () => {
+    const battle = swept([BOB, sweep('a', 5)], [BOB, { kind: 'undo', target: 12 }])
+    expect(operationMarkers(battle).every((marker) => marker.removedRound === null)).toBe(true)
+  })
+
+  it('refuses a sweep from a mission without the action', () => {
+    const entries = log(
+      [ALICE, builtRoster('Alice', ['Squad'])],
+      [BOB, builtRoster('Bob', ['Squad'])],
+      [ALICE, prepare(locate)],
+      [BOB, prepare(consecrate)],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: BOB }],
+      [ALICE, markers('a', 'b', 'c')],
+      ...turns(5, BOB),
+    )
+    expect(commandRefusal(reduceBattle(PLAYERS, entries), BOB, sweep('a', 5, consecrate.key))?.code).toBe('mission-selection-invalid')
+  })
+
+  it('shows removed markers to a spectator', () => {
+    const view = battleView({ token: 'test' }, NAMES, swept([BOB, sweep('a', 5)]), 'spectator')
+    expect(view.players[0]!.missionSelections?.[0]?.removedMarkers).toEqual({ a: 1 })
+  })
+
+  it('round trips the marker identity through stored JSON', () => {
+    const command = sweep('a', 5)
+    expect(commandSchema.parse(JSON.parse(JSON.stringify(command)))).toEqual(command)
+  })
+})
+
+describe('Consecrate', () => {
+  const objective = (key: string) => ({ key, name: `Objective ${key}` })
+  const allies = (unitKey: string) => ({ playerId: ALICE, unitKey, rosterSeq: 1 })
+  const consecration = (entries: [string, string][], occurrence = 4): SelectionCommand => ({
+    kind: 'select-mission',
+    cardKey: consecrate.key,
+    occurrence,
+    selection: {
+      kind: 'consecrate',
+      consecrations: entries.map(([key, unitKey]) => ({ objective: objective(key), unit: allies(unitKey) })),
+      qualified: true,
+      notHome: true,
+    },
+  })
+  const consecrateBattle = (...extra: [string, Command][]) =>
+    reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, builtRoster('Alice', ['Squad', 'Second squad'])],
+        [BOB, attachedRoster()],
+        [ALICE, prepare(consecrate)],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        ...extra,
+      ),
+    )
+  const atEnd = (...extra: [string, Command][]) => consecrateBattle(...turns(5, ALICE), ...extra)
+
+  it('does not ask for consecrations at the start of the turn', () => {
+    expect(missionSelectionsDue(consecrateBattle(), consecrateBattle().players[0]!)).toEqual([])
+  })
+
+  it('asks for consecrations at the end of the own turn', () => {
+    expect(missionSelectionsDue(atEnd(), atEnd().players[0]!)).toEqual([
+      { cardKey: consecrate.key, cardName: consecrate.name, kind: 'consecrate', occurrence: 4, chooserSide: 0 },
+    ])
+  })
+
+  it.each(['request-advance', 'advance'] as const)('refuses %s out of the turn until consecrations are recorded', (kind) => {
+    expect(commandRefusal(atEnd(), ALICE, { kind })).toEqual({
+      code: 'mission-selection-timing',
+      message: 'Record the mission choices before ending the turn. If the choice controls are missing, reconnect and refresh Praetorium.',
+    })
+  })
+
+  it('permits recording no consecration because it is optional', () => {
+    expect(commandRefusal(atEnd(), ALICE, consecration([]))).toBeNull()
+  })
+
+  it('accepts two consecration units consecrating two objectives', () => {
+    expect(
+      commandRefusal(
+        atEnd(),
+        ALICE,
+        consecration([
+          ['a', 'u0'],
+          ['b', 'u1'],
+        ]),
+      ),
+    ).toBeNull()
+  })
+
+  it('refuses one consecration unit consecrating two objectives', () => {
+    expect(
+      commandRefusal(
+        atEnd(),
+        ALICE,
+        consecration([
+          ['a', 'u0'],
+          ['b', 'u0'],
+        ]),
+      )?.code,
+    ).toBe('mission-selection-count')
+  })
+
+  it('refuses consecrating one objective twice in one turn', () => {
+    expect(
+      commandRefusal(
+        atEnd(),
+        ALICE,
+        consecration([
+          ['a', 'u0'],
+          ['a', 'u1'],
+        ]),
+      )?.code,
+    ).toBe('mission-selection-objective')
+  })
+
+  it('refuses an objective consecrated in an earlier turn', () => {
+    const battle = atEnd([ALICE, consecration([['a', 'u0']])], [ALICE, advance()], ...turns(6, BOB), ...turns(5, ALICE))
+    expect(commandRefusal(battle, ALICE, consecration([['a', 'u1']], 17))?.code).toBe('mission-selection-objective')
+  })
+
+  it('leaves already consecrated objectives out of the choice', () => {
+    const battle = atEnd([ALICE, consecration([['a', 'u0']])], [ALICE, advance()], ...turns(6, BOB), ...turns(5, ALICE))
+    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices?.[0]?.consecrated).toEqual([objective('a')])
+  })
+
+  it('keeps consecrated objectives after the next own turn begins', () => {
+    const battle = atEnd([ALICE, consecration([['a', 'u0']])], [ALICE, advance()], ...turns(6, BOB))
+    expect(battle.players[0]!.missionSelections[0]!.expired).toBe(false)
+  })
+
+  it('refuses an enemy unit as a consecration unit', () => {
+    const command = consecration([['a', 'u0']])
+    if (command.selection.kind !== 'consecrate') throw new Error('expected consecration')
+    command.selection.consecrations[0]!.unit = { playerId: BOB, unitKey: 'u0', rosterSeq: 2 }
+    expect(commandRefusal(atEnd(), ALICE, command)?.code).toBe('mission-selection-unit')
+  })
+
+  it('refuses a destroyed consecration unit', () => {
+    expect(
+      commandRefusal(atEnd([ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }]), ALICE, consecration([['a', 'u0']]))?.code,
+    ).toBe('mission-selection-unit')
+  })
+
+  it.each(['qualified', 'notHome'] as const)('requires the independent %s table fact when consecrating', (missing) => {
+    const command = consecration([['a', 'u0']])
+    if (command.selection.kind !== 'consecrate') throw new Error('expected consecration')
+    command.selection[missing] = false
+    expect(commandRefusal(atEnd(), ALICE, command)?.code).toBe('mission-selection-facts')
+  })
+
+  it('refuses the opposing side recording consecrations', () => {
+    expect(commandRefusal(atEnd(), BOB, { ...consecration([]), playerId: ALICE })?.code).toBe('mission-selection-owner')
+  })
+
+  it('refuses a repeated record; undo makes it due again', () => {
+    const recorded = atEnd([ALICE, consecration([])])
+    const undone = atEnd([ALICE, consecration([])], [ALICE, { kind: 'undo', target: 10 }])
+    expect({
+      repeated: commandRefusal(recorded, ALICE, consecration([]))?.code,
+      due: missionSelectionsDue(undone, undone.players[0]!).map((prompt) => prompt.kind),
+    }).toEqual({ repeated: 'mission-selection-recorded', due: ['consecrate'] })
+  })
+
+  it('does not award victory points for consecrating', () => {
+    const battle = atEnd([ALICE, consecration([['a', 'u0']])])
+    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
+  })
+
+  it('shows consecrations to the opponent', () => {
+    const view = battleView({ token: 'test' }, NAMES, atEnd([ALICE, consecration([['a', 'u0']])]), BOB)
+    expect(view.players[0]!.missionSelections?.map((saved) => saved.units.map((unit) => unit.name))).toEqual([['Squad']])
   })
 })

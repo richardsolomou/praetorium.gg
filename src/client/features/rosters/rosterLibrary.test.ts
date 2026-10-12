@@ -72,6 +72,14 @@ it.each([0, 1, 3])('retains %i units and their choices when library setup switch
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
 
+it('keeps unit nicknames and notes when library setup switches rules version', async () => {
+  const picks = [
+    { entryId: 'guard', nickname: 'Shield of Dawn', note: 'Screen the left objective.' },
+    { entryId: 'guard', nickname: 'Shield of Dusk' },
+  ]
+  expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
+})
+
 it('remaps allied catalogue identities without losing attachments or equipment', async () => {
   expect(
     await update('preview~custodes', [{ entryId: 'ally', catalogueId: 'preview~agents', attachedTo: 0, models: 5 }], 'custodes'),
@@ -91,7 +99,7 @@ it('converts the existing roster ID with its preparation and source intact', asy
     ...source,
     catalogueId: 'preview~custodes',
     picks: [{ entryId: 'guard' }],
-    prep,
+    prep: { ...prep, shareNotes: false },
     source: 'editable',
   })
 })

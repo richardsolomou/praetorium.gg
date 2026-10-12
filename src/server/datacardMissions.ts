@@ -102,7 +102,7 @@ function cardOf(
     awards,
     actions: actions.get(criteriaKey(name)) ?? [],
     whenDrawn: whenDrawn(english(raw.description), ids),
-    selection: missionSelectionKind(packId, raw.id, english(raw.description)),
+    selection: missionSelectionKind(packId, raw),
   }
 }
 

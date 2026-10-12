@@ -23,6 +23,43 @@ describe('the view', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.roster).not.toHaveProperty('reminders')
   })
 
+  describe('unit nicknames and notes', () => {
+    const annotated = () => {
+      const command = builtRoster('Ultramarines', ['Intercessors', 'Intercessors'])
+      if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster command')
+      command.roster.built.units = command.roster.built.units.map((unit, index) => ({
+        ...unit,
+        nickname: index ? 'Bravo' : 'Alpha',
+        note: index ? 'Push the far objective.' : 'Hold home.',
+      }))
+      command.roster.built.picks = [
+        { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+        { entryId: 'intercessors', nickname: 'Bravo', note: 'Push the far objective.' },
+      ]
+      return reduceBattle(PLAYERS, log([ALICE, command], [BOB, roster('Death Guard')]))
+    }
+
+    it('shows both nicknames to the opponent', () => {
+      const army = battleView({ token: 'abc' }, NAMES, annotated(), BOB).players[0]
+      expect([army?.units.map((unit) => unit.nickname), army?.roster?.built?.picks?.map((pick) => pick.nickname)]).toEqual([
+        ['Alpha', 'Bravo'],
+        ['Alpha', 'Bravo'],
+      ])
+    })
+
+    it('keeps the owner’s notes out of the opponent’s view', () => {
+      expect(JSON.stringify(battleView({ token: 'abc' }, NAMES, annotated(), BOB).players[0])).not.toMatch(/Hold home|far objective/)
+    })
+
+    it('shows the owner their notes on units and frozen picks', () => {
+      const army = battleView({ token: 'abc' }, NAMES, annotated(), ALICE).players[0]
+      expect([army?.units.map((unit) => unit.note), army?.roster?.built?.picks?.map((pick) => pick.note)]).toEqual([
+        ['Hold home.', 'Push the far objective.'],
+        ['Hold home.', 'Push the far objective.'],
+      ])
+    })
+  })
+
   it('only shows alerts for units still standing and restores them when a loss is undone', () => {
     const command = builtRoster('Ultramarines', ['Intercessors', 'Captain'])
     if (command.kind !== 'attach-roster') throw new Error('expected a roster command')

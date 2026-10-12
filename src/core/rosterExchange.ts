@@ -3,6 +3,7 @@ import { FORMAT_RULE_IDS, MAX_DETACHMENTS, OPTIONAL_RULE_IDS, ROSTER_NAME_MAX_LE
 import { detachmentIdSchema, rosterPickSchema } from './commands'
 import { currentRosterIds } from './retiredCatalogueIds'
 import type { RosterPick } from './roster'
+import { withoutUnitNotes } from './unitNotes'
 
 export const ROSTER_EXCHANGE_VERSION = 1
 /** Longer codes are refused before decompression; QR codes hold far less. */
@@ -30,7 +31,7 @@ const payloadSchema = z.object({
   picks: z.array(rosterPickSchema).max(MAX_PICKS),
 })
 
-/** A roster's contents and rules identity; owner, visibility, preparation and reminders are never part of it. */
+/** A roster's contents, unit nicknames and rules identity; owner, visibility, preparation, reminders and unit notes are never part of it. */
 export type RosterExchange = z.infer<typeof payloadSchema>
 
 export type RosterExchangeProblem = 'malformed' | 'oversized' | 'unsupported-version'
@@ -72,7 +73,7 @@ export async function encodeRosterExchange(roster: {
     points: roster.points ?? null,
     waivedRules: roster.waivedRules ?? [],
     optionalRules: roster.optionalRules ?? [],
-    picks: roster.picks,
+    picks: withoutUnitNotes(roster.picks),
   })
   const compressed = await transform(new TextEncoder().encode(JSON.stringify(payload)), new CompressionStream('deflate-raw'))
   return `${PREFIX}${ROSTER_EXCHANGE_VERSION}.${toBase64Url(compressed)}`

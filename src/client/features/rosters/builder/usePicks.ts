@@ -1,7 +1,7 @@
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
 import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
-import { type KeyedPick, positionedPicks } from '../rosterPicks'
+import { type KeyedPick, positionedAnnotatedPicks, positionedPicks } from '../rosterPicks'
 import type { SpreadUpdate } from './loadoutModel'
 
 /**
@@ -58,7 +58,8 @@ export function requestedUnit(entryId: string, held: number, limits: ReadonlyMap
  * Picks carry their own key: the same datasheet may legitimately appear twice, so a
  * key is the only thing that tells two of them apart while they are being moved
  * around. Everything the picks are sent to counts positions instead, which is what
- * `positioned` is for — the price, the datasheet and the saved row alike.
+ * `positioned` is for — the price and the datasheet — and `annotated` adds the
+ * nicknames and notes a saved row keeps.
  */
 export function usePicks(initial: readonly RosterPick[]) {
   const [picks, setPicks] = useState<KeyedPick[]>(() => initial.map((pick, key) => ({ ...pick, key })))
@@ -69,6 +70,7 @@ export function usePicks(initial: readonly RosterPick[]) {
     setPicks(saved.map((pick, key) => ({ ...pick, key })))
   }, [])
   const positioned = useMemo(() => positionedPicks(picks), [picks])
+  const annotated = useMemo(() => positionedAnnotatedPicks(picks), [picks])
   /** How many of each datasheet the list already holds, so the picker can say so. */
   const held = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -76,7 +78,7 @@ export function usePicks(initial: readonly RosterPick[]) {
     return counts
   }, [picks])
 
-  return { picks, setPicks, resetPicks, positioned, held, allocateKey }
+  return { picks, setPicks, resetPicks, positioned, annotated, held, allocateKey }
 }
 
 /**
@@ -113,14 +115,18 @@ export function pickEditor(
           : null
       }),
 
+    /** A copy takes the loadout; the nickname and note name the unit it was copied from. */
     duplicate: (index: number) =>
       insert((current) => {
         const pick = current[index]
-        return pick &&
-          context.limits &&
-          canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
-          ? { pick, after: index }
-          : null
+        if (
+          !pick ||
+          !context.limits ||
+          !canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
+        )
+          return null
+        const { nickname: _nickname, note: _note, ...copy } = pick
+        return { pick: copy, after: index }
       }),
 
     /** Everything standing with the dropped unit is left standing alone, never pointing at a gap. */
@@ -195,6 +201,13 @@ export function pickEditor(
       ),
 
     join: (index: number, targetKey: number | undefined) => editAt(index, (pick) => ({ ...pick, attachedTo: targetKey })),
+
+    /** An emptied field is removed rather than saved blank. */
+    annotate: (index: number, field: 'nickname' | 'note', value: string) =>
+      editAt(index, (pick) => {
+        const { [field]: _previous, ...rest } = pick
+        return value.trim() ? { ...rest, [field]: value } : rest
+      }),
 
     /** A new faction is a new list: nothing picked from the old book still applies. */
     clear: () => setPicks([]),

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePostHog } from '@posthog/react'
-import { cloneElement, type ReactElement, useEffect, useRef } from 'react'
+import { cloneElement, type ReactElement, type ReactNode, useEffect, useRef } from 'react'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
@@ -43,6 +43,8 @@ type Props = {
   /** Something to say beside an option, such as what it would do in a combat simulation. */
   optionNote?: OptionNote
   providedSheets?: Awaited<ReturnType<typeof loadoutDatasheets>>
+  /** The roster's own fields for this unit, scrolled with the loadout. */
+  header?: ReactNode
 }
 
 /**
@@ -71,6 +73,7 @@ export function Loadout({
   reminders,
   optionNote,
   providedSheets,
+  header,
 }: Props) {
   const posthog = usePostHog()
   const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
@@ -186,6 +189,7 @@ export function Loadout({
         }
       >
         <div className="w-full min-w-0 space-y-4">
+          {header}
           {profile ? <UnitProfile profile={profile} /> : null}
           {unit.models.length ? (
             <div className="space-y-6">
