@@ -10,7 +10,7 @@ type ProjectedCombatant = NonNullable<Awaited<ReturnType<typeof combatantDatashe
 export type RosterCombatSummary = Record<
   'ranged' | 'melee' | 'combined',
   {
-    result?: Pick<CombatResult, 'wipe' | 'meanDamage' | 'meanKills'>
+    result?: Pick<CombatResult, 'wipe' | 'meanDamage' | 'meanKills' | 'uncappedKills'>
     error?: string
   }
 >
@@ -101,7 +101,7 @@ export function summarizeRosterCombat(answer: CombatAnswer, unavailable: Partial
   const phase = (name: keyof RosterCombatSummary) => {
     const result = answer[name]?.result
     return result
-      ? { result: { wipe: result.wipe, meanDamage: result.meanDamage, meanKills: result.meanKills } }
+      ? { result: { wipe: result.wipe, meanDamage: result.meanDamage, meanKills: result.meanKills, uncappedKills: result.uncappedKills } }
       : {
           error:
             answer[name]?.error ??

@@ -135,7 +135,15 @@ export type CombatTargetGroup = CombatInput['target']['groups'][number]
 export type CombatWeapon = CombatInput['weapons'][number]
 export type CombatOptions = CombatInput['options']
 export type DiceExpression = z.infer<typeof diceSchema>
-export type CombatResult = { kills: number[]; damage: number[]; meanKills: number; meanDamage: number; wipe: number }
+export type CombatResult = {
+  kills: number[]
+  damage: number[]
+  meanKills: number
+  meanDamage: number
+  wipe: number
+  /** Mean models destroyed if a single-profile target had enough models to absorb every attack. */
+  uncappedKills?: number
+}
 export const rerollRank = { none: 0, ones: 1, failed: 2 } as const
 
 export const DEFAULT_COMBAT_OPTIONS: CombatOptions = {
@@ -833,7 +841,7 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
   return state
 }
 
-function combatResult(state: State, target: CombatInput['target'], layout: Allocation): CombatResult {
+function combatResult(state: State, layout: Allocation, target: CombatInput['target']): CombatResult {
   const damage = Array.from(state)
   const kills = Array.from({ length: targetModels(target) + 1 }, () => 0)
   damage.forEach((weight, lost) => (kills[layout.killed[lost]!]! += weight))
@@ -846,12 +854,46 @@ function combatResult(state: State, target: CombatInput['target'], layout: Alloc
   }
 }
 
+/** The most models a phase could destroy: each attack and Sustained Hit destroys at most one, and each mortal wound one. */
+function mostKills(input: CombatInput, models: number) {
+  const halfRange = input.options.phase === 'ranged' && input.options.halfRange
+  const attacks = input.weapons.reduce((total, weapon) => {
+    const each =
+      maximum(weapon.attacks) + (weapon.blast + (weapon.cleave ?? 0)) * Math.floor(models / 5) + (halfRange ? maximum(weapon.rapidFire) : 0)
+    return total + weapon.count * each * (1 + maximum(weapon.sustained))
+  }, 0)
+  const mortals = (input.mortalWounds ?? []).reduce(
+    (total, ability) => total + ability.rolls * Math.max(...ability.outcomes.map((outcome) => maximum(outcome.damage))),
+    0,
+  )
+  return attacks + mortals
+}
+
+function uncappedKills(inputs: readonly CombatInput[], capped: CombatResult, maxWork: number) {
+  if (inputs.some((input) => input.target.groups.length !== 1)) return undefined
+  const models = targetModels(inputs[0]!.target)
+  const reach = inputs.reduce((total, input) => total + mostKills(input, models), 0)
+  if (reach <= models) return capped.meanKills
+  const extended = Math.min(MAX_COMBAT_MODELS, reach)
+  const inflated = inputs.map((input) => ({
+    ...input,
+    target: { ...input.target, groups: [{ ...input.target.groups[0]!, models: extended }] },
+  }))
+  let result: CombatResult
+  try {
+    result = combatResult(...resolveSequence(inflated, maxWork, models), inflated[0]!.target)
+  } catch {
+    return undefined
+  }
+  // Wiping the extended target hides any further kills; keep the mean only while that cannot change its second decimal.
+  return result.wipe * (reach - extended) < 0.005 ? result.meanKills : undefined
+}
+
 /** Resolve successive phases against the surviving models and their remaining wounds. */
 export function calculateCombatSequence(scenarios: readonly CombatInput[], maxWork = MAX_COMBAT_WORK): CombatResult {
   if (!scenarios.length) throw new Error('Select an attack to simulate.')
   const inputs = scenarios.map(checkedCombat)
   const target = inputs[0]!.target
-  const layout = allocation(target)
   if (
     inputs.some(
       (input) =>
@@ -867,6 +909,14 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[], maxWo
     )
   )
     throw new Error('Every phase must attack the same target with the same starting wounds.')
+  const result = combatResult(...resolveSequence(inputs, maxWork), target)
+  const uncapped = uncappedKills(inputs, result, maxWork)
+  return uncapped === undefined ? result : { ...result, uncappedKills: uncapped }
+}
+
+/** `attackModels` is the target size Blast and Cleave count, before this sequence's losses. */
+function resolveSequence(inputs: readonly CombatInput[], maxWork: number, attackModels = targetModels(inputs[0]!.target)) {
+  const layout = allocation(inputs[0]!.target)
   let state: State = new Float64Array(layout.total + 1)
   state[0] = 1
   let work = 0
@@ -877,7 +927,7 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[], maxWo
     const sources = [...new Set(input.target.groups.flatMap((group) => group.feelNoPainSources?.map((source) => source.unit) ?? []))]
     for (let at = 0; at < layout.total; at++) {
       if (!state[at]) continue
-      const models = targetModels(target) - (varies ? layout.killed[at]! : 0)
+      const models = Math.max(0, attackModels - (varies ? layout.killed[at]! : 0))
       const alive = sources.filter((source) =>
         input.target.groups.some((group, index) => group.unit === source && index >= layout.group[at]!),
       )
@@ -911,7 +961,7 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[], maxWo
     for (const part of byModels.values()) addInto(next, resolveCombat(part.input, currentLayout, part.state, part.models))
     state = next
   }
-  return combatResult(state, target, layout)
+  return [state, layout] as const
 }
 
 /** The exact distribution of wounds lost and models destroyed after every attack resolves. */

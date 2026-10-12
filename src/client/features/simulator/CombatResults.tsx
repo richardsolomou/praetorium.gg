@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Crosshair, Swords } from 'lucide-react'
 import type { CombatResult } from '../../../core/combat'
+import { HoverTooltip } from '../../components/HoverTooltip'
 import { CombatEstimate } from './CombatEstimate'
-import { CombatValue, formatCombatValue } from './CombatValue'
+import { CombatValue, formatCombatValue, UNCAPPED_KILLS_EXPLANATION } from './CombatValue'
 
 export function CombatResults({
   ranged,
@@ -35,6 +36,7 @@ export function CombatResults({
     return () => observer.disconnect()
   }, [inDialog])
   const muted = updating || failed
+  const uncapped = combined?.uncappedKills !== undefined
   return (
     <>
       {inDialog ? <div data-results-space style={{ height }} aria-hidden /> : null}
@@ -64,8 +66,20 @@ export function CombatResults({
               <p className="text-xs text-dim">avg. wounds lost</p>
             </div>
             <div className="flex-1">
-              <CombatValue result={combined} metric="meanKills" className={`block text-lg ${muted ? 'text-dim' : 'text-bone'}`} />
-              <p className="text-xs text-dim">avg. models lost</p>
+              <CombatValue
+                result={combined}
+                metric={uncapped ? 'uncappedKills' : 'meanKills'}
+                className={`block text-lg ${muted ? 'text-dim' : 'text-bone'}`}
+              />
+              {uncapped ? (
+                <div className="flex">
+                  <HoverTooltip title="Uncapped kills" body={UNCAPPED_KILLS_EXPLANATION} className="text-left text-xs text-dim">
+                    uncapped kills
+                  </HoverTooltip>
+                </div>
+              ) : (
+                <p className="text-xs text-dim">avg. models lost</p>
+              )}
             </div>
           </div>
         </section>

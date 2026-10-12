@@ -1,10 +1,13 @@
 import type { CombatResult } from '../../../core/combat'
 
-export type CombatMetric = 'meanDamage' | 'meanKills' | 'wipe'
+export type CombatMetric = 'meanDamage' | 'meanKills' | 'uncappedKills' | 'wipe'
+
+export const UNCAPPED_KILLS_EXPLANATION =
+  'Models destroyed on average if the target had enough models to take every attack. Compares attackers that all usually destroy a small unit.'
 
 export function formatCombatValue(result: Pick<CombatResult, CombatMetric> | undefined, metric: CombatMetric) {
   if (!result) return '—'
-  return metric === 'wipe' ? `${(result.wipe * 100).toFixed(1)}%` : result[metric].toFixed(2)
+  return metric === 'wipe' ? `${(result.wipe * 100).toFixed(1)}%` : (result[metric]?.toFixed(2) ?? '—')
 }
 
 export function CombatValue({
