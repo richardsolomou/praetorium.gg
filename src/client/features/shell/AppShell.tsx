@@ -18,6 +18,7 @@ import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
+import { WhatsNewNotice } from './WhatsNew'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
@@ -248,6 +249,7 @@ export function AppShell() {
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
+                {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.
@@ -278,6 +280,9 @@ export function AppShell() {
                       </Link>
                       <Link to="/data-updates" className="transition-colors hover:text-bone">
                         Data updates
+                      </Link>
+                      <Link to="/whats-new" className="transition-colors hover:text-bone">
+                        What's new
                       </Link>
                     </p>
                   </footer>
