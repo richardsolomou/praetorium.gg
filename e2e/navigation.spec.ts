@@ -245,7 +245,7 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page).toHaveURL('/factions')
   await page.goBack()
-  await expect(page).toHaveURL('/support?page=support')
+  await expect(page).toHaveURL('/support')
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
 })
 

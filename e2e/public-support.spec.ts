@@ -17,3 +17,18 @@ for (const pageDetails of [
     ).toEqual({ heading: pageDetails.heading, hasHorizontalOverflow: false })
   })
 }
+
+for (const width of [390, 1440]) {
+  test(`support sends problem reports to the public issue tracker at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/support')
+
+    await expect(page.getByRole('link', { name: 'public issue tracker' })).toHaveAttribute(
+      'href',
+      'https://github.com/richardsolomou/praetorium.gg/issues/new',
+    )
+    await expect(page.getByRole('heading', { name: 'Report a problem' })).toHaveCount(0)
+    await expect(page.getByRole('main').getByRole('textbox')).toHaveCount(0)
+    await page.screenshot({ path: `test-results/support-${width}.png`, fullPage: true })
+  })
+}

@@ -264,7 +264,7 @@ export function AppShell() {
                       <Link to="/guides" className="transition-colors hover:text-bone">
                         Player guides
                       </Link>
-                      <Link to="/support" search={{ page: 'support' }} className="transition-colors hover:text-bone">
+                      <Link to="/support" className="transition-colors hover:text-bone">
                         Support
                       </Link>
                       <Link to="/privacy" className="transition-colors hover:text-bone">
