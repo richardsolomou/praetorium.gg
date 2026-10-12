@@ -33,19 +33,18 @@ Canonical catalogue output carries a compiler version. When its version is older
 
 `catalogue/composition.json` selects files from independently pinned repositories. Its root `overlays` replace exact files in `definitions`, `points`, or `datacards` after fetching `catalogue/sources.json`. Every repository source uses a full commit SHA; `branch` is used for drift reporting, never as a moving download target. Include imported libraries and shared dependencies required by a replacement. Materialization rejects missing files, duplicate book IDs, duplicate overlay destinations, and missing imported books before replacing the output. It does not validate every upstream entry-ID collision or every rules interpretation; inspect the selected source and run the ordinary catalogue audits.
 
-The composition selects the Praetorium fork’s `main`, which tracks BSData main, then overlays the Marine/chapter and Astartes library files from the fork’s `Space-Marine-Codex` tracking branch, together with its compatible shared game system. Main removed an Extra Attacks category that the codex files still reference; keep the game-system file with those files until the branches share that schema. This retains the released Marine rules without waiting for BSData's branch merge. Branch placement does not determine official release status. Advance base and overlay pins deliberately after inspecting their changes; `pnpm catalogue:upstream` reports both published base drift and configured overlay/edition branch drift.
+The composition selects the Praetorium fork’s `main`, which tracks BSData main. The Space Marines codex was [merged upstream](https://github.com/BSData/wh40k-11e/pull/2409) on 11 October 2026; the current rules snapshot pins main with the subsequent corrections. The retained 3 October codex version pins the previous base sources and Marine/chapter overlay, including its compatible shared game system and local Ceramite Sentinels correction. Keep those pins and its saved rules identity unchanged.
 
-`richardsolomou/wh40k-11e` supplies both configured definition branches. Keep `main` and `Space-Marine-Codex` as upstream tracking branches; author new codexes on separate branches in that fork, preserving BSData identities and file structure. Select their exact commits as edition overlays when their data is verified. A branch created from current rules is only an authoring baseline; do not configure it as a preview until the new rules, points, and datacards are verified. Keep small verified corrections in `catalogue/patches/`; do not copy whole catalogues or rules prose into this application.
+`richardsolomou/wh40k-11e` supplies definitions. Keep `main` as an upstream tracking branch; author new codexes on separate branches in that fork, preserving BSData identities and file structure. Select their exact commits as edition overlays when their data is verified. A branch created from current rules is only an authoring baseline; do not configure it as a preview until the new rules, points, and datacards are verified. Keep small verified corrections in `catalogue/patches/`; do not copy whole catalogues or rules prose into this application. Historical branch pins remain fixed even after their content merges into main.
 
-Before checking upstream drift, fast-forward both fork tracking branches without force, then inspect their changes and advance the application pins deliberately:
+Before checking upstream drift, fast-forward the fork’s main without force, then inspect its changes and advance the application pins deliberately:
 
 ```sh
 gh repo sync richardsolomou/wh40k-11e --source BSData/wh40k-11e --branch main
-gh repo sync richardsolomou/wh40k-11e --source BSData/wh40k-11e --branch Space-Marine-Codex
 pnpm catalogue:upstream
 ```
 
-A divergent tracking branch must be investigated rather than reset. Syncing the fork does not move the application’s pinned commits or publish a snapshot.
+A divergent tracking branch must be investigated rather than reset. Syncing the fork does not move the application’s pinned commits or publish a snapshot. Source changes to released versions require retaining their effective source pins and adding a new current version through the verified publisher.
 
 Correction contents contribute to source revisions; edition revisions also contribute to the combined faction-cache revision. A correction-only publication must invalidate saved-roster pricing, totals, and legality caches.
 

@@ -1569,11 +1569,11 @@ for (const width of [1440, 390]) {
       .first()
       .click()
     const captain = attacker.locator('[data-combat-member]').nth(1)
-    await expect(captain.locator('[data-faction-mark="current-rosters~e0af-67df-9d63-8fb7"]')).toBeVisible()
+    await expect(captain.locator('[data-faction-mark="marine-main~e0af-67df-9d63-8fb7"]')).toBeVisible()
     await expect(
       attacker
         .getByRole('combobox', { name: 'Attacker unit', exact: true })
-        .locator('[data-faction-mark="current-rosters~470a-6daa-9014-12df"]'),
+        .locator('[data-faction-mark="marine-main~470a-6daa-9014-12df"]'),
     ).toBeVisible()
     const loadout = captain.getByRole('button', { name: /loadout$/ })
     await expect(loadout).toHaveText('')
