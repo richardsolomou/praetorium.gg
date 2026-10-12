@@ -4,6 +4,7 @@ import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { attachedUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
+import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
 import { reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
@@ -955,6 +956,19 @@ export const rostersByUser = spacetime.procedure(
       if (!publicOnly && rows.length > limit) throw new SenderError('Roster list exceeds the supported limit')
       return productJson(rows.slice(0, limit))
     }),
+)
+
+export const discoverRosters = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (payload.length > 200_000) throw new SenderError('Invalid roster discovery')
+    const parsed = rosterDiscoveryQuerySchema.safeParse(JSON.parse(payload))
+    if (!parsed.success) throw new SenderError('Invalid roster discovery')
+    const rows = function* () {
+      for (const row of tx.db.rosters.visibility.filter('public')) yield { ...row, updatedAt: safeNumber(row.updatedAt) }
+    }
+    return productJson(discoveryPage(rows(), parsed.data))
+  }),
 )
 
 export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>

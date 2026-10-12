@@ -406,7 +406,8 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
   const owner = localOwner()?.id
   if (!localEngine()) return server.copyRoster(args)
   const access = await rosterAccess({ data: { id: args.data.id } })
-  if (!access?.editable) throw new Error('You do not own this roster.')
+  if (!access) throw new Error('That roster could not be loaded.')
+  if (args.data.variant && !access.editable) throw new Error('You do not own this roster.')
   const roster = access.roster
   const summaries = await savedRosterSummaries()
   const baseId = roster.baseRosterId ?? roster.id

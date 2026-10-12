@@ -1,14 +1,16 @@
 import { offlineData, offlineDatasheets, referenceData } from '../offline/runtime'
-import { type QueryClient, queryOptions } from '@tanstack/react-query'
+import { infiniteQueryOptions, type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { UnitSummary } from '../../contracts/catalogue'
+import type { RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
 import {
   collection,
   collectionCounts,
   fieldedDatasheets,
   datasheet,
   datasheetOfferedBy,
+  discoverRosters,
   factionDatasheets,
   homeRosters,
   loadoutDatasheets,
@@ -25,6 +27,16 @@ import {
 import { savedRosterChangedCountQuery } from './changes'
 import { SSR_STALE_TIME } from './shared'
 import { rosterPriceKey } from './rosterPriceKey'
+
+/** Never saved for offline reading: a roster made private must leave the page on the next read. */
+export const discoveredRostersQuery = (filter: RosterDiscoveryFilter) =>
+  infiniteQueryOptions({
+    queryKey: ['discovered-rosters', filter],
+    queryFn: ({ pageParam }) => discoverRosters({ data: { ...filter, before: pageParam } }),
+    initialPageParam: null as RosterDiscoveryCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: SSR_STALE_TIME,
+  })
 
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 export const fieldedDatasheetsQuery = () =>

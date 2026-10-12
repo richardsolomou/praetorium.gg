@@ -24,15 +24,15 @@ export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveR
 }
 
 /**
- * A new roster holding everything an owned one does, at the owner's default visibility
- * and with its unit notes unshared.
- * A variant joins the original's group and is numbered after the group's base; a copy of
- * an automatically named roster is named automatically either way.
+ * A new roster holding everything a readable one does as this player reads it, at their
+ * default visibility and with its unit notes unshared. Nothing is written to the source.
+ * Only an owned roster has variants: a variant joins the original's group and is numbered
+ * after the group's base; a copy of an automatically named roster is named automatically.
  */
-export async function copyOwnedRoster(userId: string, id: string, variant: boolean) {
+export async function copySavedRoster(userId: string, id: string, variant: boolean) {
   const instance = app()
   const access = await instance.service.rosterAccess(id, userId)
-  if (!access?.editable) return null
+  if (!access || (variant && !access.editable)) return null
   const { roster } = access
   const { rosterVisibility } = await instance.service.playerDefaults(userId)
   const data: z.infer<typeof saveRosterSchema> = {

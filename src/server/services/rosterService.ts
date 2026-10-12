@@ -10,6 +10,7 @@ import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, waivedRulesFrom 
 import { detachmentIds } from '../../core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
+import type { RosterDiscoveryQuery } from '../../core/rosterDiscovery'
 
 type SavedPrep = {
   stratagems: Stratagem[]
@@ -55,6 +56,9 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
     }
   })
 }
+
+/** A variant's base can be private or unlisted, so another reader is never told which list it is. */
+const readerSummaries = (rows: readonly FullRow[]) => rosterSummaries(rows).map((summary) => ({ ...summary, baseRosterId: null }))
 
 export class RosterService {
   constructor(
@@ -142,7 +146,19 @@ export class RosterService {
   /** Public profile rosters exclude private and unlisted lists. Return priceable picks separately from summaries so they stay server-side. */
   async publicRosters(userId: string) {
     const rows = await this.repository.publicRostersByUser(userId, PROFILE_ROSTER_LIMIT)
-    return { summaries: rosterSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
+    return { summaries: readerSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
+  }
+
+  /** Public rosters anyone can find, newest save first, named for their owner; a roster whose owner has no account is left out. */
+  async discoverRosters(query: RosterDiscoveryQuery) {
+    const { rows, nextCursor } = await this.repository.discoverRosters(query)
+    const owners = await this.repository.namesByIds(rows.map((row) => row.userId))
+    const owned = rows.filter((row) => owners.has(row.userId))
+    const summaries = readerSummaries(owned)
+    return {
+      rosters: owned.map((row, index) => ({ summary: summaries[index]!, owner: owners.get(row.userId)!, priceable: rosterFromRow(row) })),
+      nextCursor,
+    }
   }
 
   /** An opaque roster id grants unlisted or public access; private access requires ownership or a named battle whose seated reader can already see the snapshot. */

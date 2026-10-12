@@ -60,6 +60,15 @@ it('refreshes public roster and league readers without touching catalogue assets
   ).toEqual([true, true, true, true, false])
 })
 
+it('takes a roster out of public army discovery when its owner changes who can read it', async () => {
+  const client = new QueryClient()
+  client.setQueryData(['discovered-rosters', {}], {})
+
+  await invalidatePublicProductQueries(client, 'rosters')
+
+  expect(client.getQueryState(['discovered-rosters', {}])?.isInvalidated).toBe(true)
+})
+
 it('refreshes opponent choices when a practice account is removed', async () => {
   const client = new QueryClient()
   client.setQueryData(['opponents'], [])

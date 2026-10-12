@@ -49,6 +49,48 @@ it.skipIf(!url || !database || !token)('keeps roster writes atomic and owned in 
   expect(await store.roster(id)).toBeUndefined()
 })
 
+it.skipIf(!url || !database || !token)('lists a roster for discovery only while its owner keeps it public', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const id = randomUUID()
+  const userId = randomUUID()
+  const catalogueId = `catalogue-${randomUUID()}`
+  const now = Date.now()
+  const discovered = async () =>
+    (await store.discoverRosters({ catalogueIds: [catalogueId], detachmentIds: null, before: null, limit: 10 })).rows.map((row) => row.id)
+  const input = {
+    id,
+    userId,
+    name: 'Discovered roster',
+    catalogueId,
+    detachmentId: null,
+    disposition: null,
+    limit: 1_000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    optionalRules: '[]',
+    borrowedDetachmentId: null,
+    visibility: 'private' as const,
+    source: 'editable' as const,
+    now,
+  }
+  try {
+    await store.saveRoster(input)
+    expect(await discovered()).toEqual([])
+    await store.setRosterVisibility(id, userId, 'unlisted', now + 1)
+    expect(await discovered()).toEqual([])
+    await store.setRosterVisibility(id, userId, 'public', now + 2)
+    expect(await discovered()).toEqual([id])
+    await store.setRosterVisibility(id, userId, 'private', now + 3)
+    expect(await discovered()).toEqual([])
+    await store.setRosterVisibility(id, userId, 'public', now + 4)
+  } finally {
+    await store.deleteRoster(id, userId)
+  }
+  expect(await discovered()).toEqual([])
+})
+
 it.skipIf(!url || !database || !token)('keeps roster variants in one flat group owned by one player', async () => {
   const store = new SpacetimeOperator(url!, database!, token!)
   const userId = randomUUID()
