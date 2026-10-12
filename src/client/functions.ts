@@ -29,7 +29,9 @@ import {
   matchesImportFaction,
   importRosterFaction,
   importRosterCatalogueId,
+  importRosterExchange,
 } from '../shared/rosterFiles'
+import { decodeRosterExchange, isRosterExchangeCode, ROSTER_EXCHANGE_RULES_UNAVAILABLE } from '../core/rosterExchange'
 import { battleDetachmentData, selectedBattleDetachmentData } from '../shared/battleDetachmentData'
 import { unitWoundsIn } from '../shared/catalogue'
 import { attachedUnitCount } from '../core/attachedUnits'
@@ -143,12 +145,26 @@ export const exportRoster = (args: Parameters<typeof server.exportRoster>[0]) =>
     args.data.catalogueId,
     args.signal,
   )
-export const importRoster = (args: Parameters<typeof server.importRoster>[0]) => {
+export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
   const factions = (
     referenceData()?.queries.find((entry) => entry.key[0] === 'faction-index')?.data as
       | Awaited<ReturnType<typeof server.factionIndex>>
       | undefined
   )?.factions
+  if (isRosterExchangeCode(args.data.file)) {
+    const exchange = await decodeRosterExchange(args.data.file)
+    if (!factions) return server.importRoster(args)
+    const faction = factions.find((candidate) => candidate.id === exchange.catalogueId)
+    return constructionRead(
+      ({ catalogue, rules }) => {
+        if (!faction) throw new Error(ROSTER_EXCHANGE_RULES_UNAVAILABLE)
+        return importRosterExchange(exchange, catalogue, rules, faction.name)
+      },
+      (signal) => server.importRoster({ ...args, signal }),
+      faction?.id,
+      args.signal,
+    )
+  }
   if (!factions) return server.importRoster(args)
   const stated = importRosterFaction(args.data.file)
   const statedId = importRosterCatalogueId(args.data.file)

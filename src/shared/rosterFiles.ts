@@ -32,6 +32,8 @@ import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } fr
 import { editionLabel } from '../core/catalogueEdition'
 import { calculateRosterPrice } from './pricing'
 import type { LoadedRules } from './rules'
+import type { RosterExchange } from '../core/rosterExchange'
+import type { RosterPick } from '../core/roster'
 
 function parsedImport(file: string) {
   const newRecruit = fromNewRecruitText(file)
@@ -106,6 +108,65 @@ export function importRosterFile(
     reportedPoints: null,
     currentPoints: null,
     sourceUnitCount: 0,
+  }
+}
+
+/**
+ * An exchange code's roster, checked against the rules version it names.
+ *
+ * Entries and detachments that version no longer resolves are left out with a reason,
+ * and attachments to a left-out entry are dropped, so the review accounts for each one.
+ */
+export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCatalogue, rules: LoadedRules | null, factionName: string) {
+  const unknown: UnmatchedName[] = []
+  const offered = new Set((loaded.detachments.get(exchange.catalogueId)?.options ?? []).map((option) => option.id))
+  const detachmentIds = exchange.detachmentIds.filter((id) => {
+    if (offered.has(id)) return true
+    unknown.push({ name: `Detachment ${id}`, reason: 'this rules version no longer offers it' })
+    return false
+  })
+  const roster = { ...exchange, detachmentIds, units: exchange.picks }
+  const resolved = new Set(calculateRosterPrice(roster, loaded, rules)?.units.map((unit) => unit.key) ?? [])
+  const name = (pick: RosterPick, at: number) => {
+    const definition = loaded.index.definitions.get(pick.entryId)
+    return definition ? `${nameOf(definition, loaded.index.definitions)} (entry ${at + 1})` : `Entry ${at + 1}`
+  }
+  const kept = exchange.picks.flatMap((pick, at) => {
+    if (resolved.has(at)) return [{ pick, at }]
+    unknown.push({ name: name(pick, at), reason: 'this datasheet is not in the selected rules version' })
+    return []
+  })
+  const position = new Map(kept.map(({ at }, next) => [at, next]))
+  const unplaced: UnplacedChoices[] = []
+  const units = kept.map(({ pick, at }) => {
+    const { attachedTo, ...rest } = pick
+    if (attachedTo === undefined) return rest
+    const host = position.get(attachedTo)
+    if (host !== undefined) return { ...rest, attachedTo: host }
+    unplaced.push({
+      unit: name(pick, at),
+      choices: [{ name: `Attached to entry ${attachedTo + 1}`, reason: 'that entry is not imported' }],
+    })
+    return rest
+  })
+  const priced = calculateRosterPrice({ ...roster, units }, loaded, rules)
+  return {
+    name: exchange.name,
+    catalogueId: exchange.catalogueId,
+    catalogueName: factionName,
+    detachmentIds,
+    disposition: exchange.disposition,
+    borrowedDetachmentId: exchange.borrowedDetachmentId,
+    limit: exchange.limit,
+    waivedRules: exchange.waivedRules,
+    optionalRules: exchange.optionalRules,
+    units,
+    unknown,
+    unplaced,
+    source: 'praetorium' as const,
+    reportedPoints: exchange.points,
+    currentPoints: priced?.points ?? null,
+    sourceUnitCount: exchange.picks.length,
   }
 }
 
