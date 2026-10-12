@@ -21,6 +21,7 @@ export function rosterVerdict(
     catalogueId: string
     detachmentIds: readonly string[]
     limit: number
+    pointsBudget?: number | null
     waivedRules?: readonly string[]
     picks: readonly { entryId: string }[]
   },
@@ -28,7 +29,7 @@ export function rosterVerdict(
 ): RosterVerdict {
   const modelsByPick = new Map(priced?.units.map((unit) => [unit.key, unit.size.models] as const) ?? [])
   return {
-    problem: priced ? (rosterUseProblem(priced, roster.limit, roster.waivedRules)?.kind ?? null) : null,
+    problem: priced ? (rosterUseProblem(priced, roster)?.kind ?? null) : null,
     contents: {
       catalogueId: roster.catalogueId,
       detachmentIds: [...roster.detachmentIds],

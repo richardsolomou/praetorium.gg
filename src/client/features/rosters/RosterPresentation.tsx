@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEventHandler, CSSProperties, ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { GAME_SIZES, type FormatRule } from '../../../core/battle'
+import { battleSizeLabel, type FormatRule } from '../../../core/battle'
 import type { OnboardingTarget } from '../onboarding/onboarding'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { WaiverChip } from '../../components/FormatWaivers'
@@ -42,6 +42,7 @@ type RosterHeaderProps = {
   factionLoading?: boolean
   points?: number | null
   limit?: number
+  pointsBudget?: number | null
   /** How many units the list holds, said the way the library says it. */
   unitCount?: number
   detachments?: readonly PresentedDetachment[]
@@ -103,6 +104,7 @@ export function RosterHeader({
   factionLoading = false,
   points,
   limit,
+  pointsBudget,
   unitCount,
   detachments = NO_DETACHMENTS,
   disposition,
@@ -161,9 +163,7 @@ export function RosterHeader({
             {faction && hasSummary ? <span aria-hidden>·</span> : null}
             {hasPoints ? <span className="chip text-info">{points} pts</span> : null}
             {hasPoints && limit !== undefined ? <span aria-hidden>·</span> : null}
-            {limit !== undefined ? (
-              <span className="shrink-0">{GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`}</span>
-            ) : null}
+            {limit !== undefined ? <span className="shrink-0">{battleSizeLabel(limit, pointsBudget)}</span> : null}
             {unitCount === undefined ? null : (
               <span className="contents">
                 <span aria-hidden>·</span>

@@ -106,7 +106,8 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     'save_roster',
     {
       title: 'Create or edit my roster',
-      description: 'Saves a complete roster. Pass its id to edit an owned roster; omit id to create one. Requires mcp:write.',
+      description:
+        'Saves a complete roster. Pass its id to edit an owned roster; omit id to create one. limit is the battle size (1000, 2000 or 3000 points, or 600 for King of the Colosseum), which sets detachment points, enhancement and unit limits. pointsBudget optionally replaces only its points total (500 to 10000, not King of the Colosseum); omit it to keep a saved budget, or send null for the standard total. Requires mcp:write.',
       inputSchema: saveRosterSchema,
       annotations: WRITE,
     },

@@ -2,7 +2,15 @@ import { useQuery } from '@tanstack/react-query'
 import { factionQuery } from '../../queries'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import type { RosterSetupReview as Review } from './rosterSetupReview'
-import { detachmentLimit, detachmentPointBudget, enforces, pickedOptionalRules, waivedFormatRules } from '../../../core/battle'
+import {
+  battleSizeName,
+  detachmentLimit,
+  detachmentPointBudget,
+  enforces,
+  pickedOptionalRules,
+  pointsBudgetOf,
+  waivedFormatRules,
+} from '../../../core/battle'
 
 export function SetupConsequences({ review, guest }: { review: Review; guest: boolean }) {
   const { source, candidate, before, after } = review
@@ -14,6 +22,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
       : 'None'
   const removedDetachments = before.detachments.filter((entry) => !after.detachments.some((next) => next.name === entry.name))
   const keptUnits = new Map(after.units.map((unit) => [unit.key, unit]))
+  const budget = pointsBudgetOf(candidate)
   const sourceEntries = source.picks.map((pick, key) => ({ pick, key, unit: before.units.find((entry) => entry.key === key) }))
   return (
     <div className="space-y-5" aria-label="Roster change preview">
@@ -27,9 +36,13 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
         <dd className="readout">
           {before.points} → {after.points}
         </dd>
+        <dt>Battle size</dt>
+        <dd>
+          {battleSizeName(source.limit)} → {battleSizeName(candidate.limit)}
+        </dd>
         <dt>Points limit</dt>
         <dd className="readout">
-          {source.limit} → {candidate.limit}
+          {pointsBudgetOf(source)} → {budget}
         </dd>
         <dt>Detachment limit</dt>
         <dd>
@@ -58,7 +71,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
       </dl>
       <p className="text-sm">
         Waived restrictions:{' '}
-        {waivedFormatRules(candidate.limit, candidate.waivedRules)
+        {waivedFormatRules(candidate.limit, candidate.waivedRules, candidate.pointsBudget)
           .map((rule) => rule.label)
           .join(', ') || 'None'}
         .
@@ -125,8 +138,8 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
       </section>
       <section>
         <h3 className="rubric">Legality under the selected rules</h3>
-        {after.points > candidate.limit && enforces(candidate.waivedRules, 'points-limit') ? (
-          <p className="mt-2 text-sm text-destructive">Over budget by {after.points - candidate.limit} points.</p>
+        {after.points > budget && enforces(candidate.waivedRules, 'points-limit') ? (
+          <p className="mt-2 text-sm text-destructive">Over budget by {after.points - budget} points.</p>
         ) : null}
         <ul className="mt-2 space-y-1 text-sm text-destructive">
           {[
@@ -155,7 +168,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
         !after.detachmentError &&
         !after.dispositionError &&
         !after.borrowedError &&
-        (after.points <= candidate.limit || !enforces(candidate.waivedRules, 'points-limit')) ? (
+        (after.points <= budget || !enforces(candidate.waivedRules, 'points-limit')) ? (
           <p className="mt-2 text-sm">No reported legality problems.</p>
         ) : null}
         <p className="mt-2 text-xs text-dim">

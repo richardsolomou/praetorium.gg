@@ -68,6 +68,7 @@ const roster: LocalRoster = {
   prep: null,
   waivedRules: [],
   optionalRules: [],
+  pointsBudget: null,
 }
 const row = { id: 'army', points: 80, problem: null, label: 'Army', changes: 0, differences: null }
 function pending(data: LocalRoster | null) {

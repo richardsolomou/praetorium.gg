@@ -24,6 +24,7 @@ describe('a save to a locked roster', () => {
     ['changing detachments', { detachmentIds: ['hypercrypt-legion'] }],
     ['changing the force disposition', { disposition: 'purge-the-foe' }],
     ['changing the battle size', { limit: 1_000 }],
+    ['setting a custom points budget', { pointsBudget: 1_500 }],
     ['waiving a construction rule', { waivedRules: ['points-limit'] }],
     ['choosing an optional rule', { optionalRules: ['kotc-borrowed-disposition'] }],
     ['borrowing a detachment', { borrowedDetachmentId: 'canoptek-court' }],

@@ -28,7 +28,7 @@ const env = process.env;
 const host = env.SPACETIME_INTERNAL_HOST;
 const database = env.SPACETIME_DATABASE;
 if (!/^[a-z][a-z0-9-]+$/.test(host) || !/^[a-z0-9-]+$/.test(database)) throw new Error('Invalid product connection');
-const fields = ['id', 'catalogueId', 'disposition', 'limit', 'borrowedDetachmentId', 'baseRosterId', 'source', 'createdAt', 'updatedAt'];
+const fields = ['id', 'catalogueId', 'disposition', 'limit', 'pointsBudget', 'borrowedDetachmentId', 'baseRosterId', 'source', 'createdAt', 'updatedAt'];
 (async () => {
   const rosters = [];
   let bytes = 0;
