@@ -289,7 +289,7 @@ async function main() {
       { ...environment, PORT: undefined, NODE_INTERNAL_PORT: undefined },
     )
   }
-  await waitFor(`${appUrl}/api/health`, (response) => response.ok)
+  await waitFor(`${appUrl}/api/health`, (response) => response.ok, 1_080)
   preview.ready = true
   await writePreview()
   console.log(`Local Praetorium (${testMode ? 'production browser test' : 'Vite development'}) is ready at ${appUrl}`)

@@ -29,6 +29,8 @@ Default data/build output lives in `data-dev/hosted/` and survives restart. Star
 
 `just e2e` owns isolated production-mode stacks with allocated ports, unique fresh `/tmp/praetorium-e2e-<id>` data/build output, and per-run results. Shutdown stops owned process groups before deleting their data. Repeated cleanup of a stopped child must not signal its old process group again. Concurrent worktrees never share test databases or reset each other's data.
 
+Keep the browser runner's startup deadline longer than the build, preview seed and Node readiness budgets combined. The local health wait must allow both seeding and catalogue warmup to finish; a rules snapshot can add retained versions without changing the database schema.
+
 `just e2e-install` installs Chromium; `just e2e-trace` records traces. Configuration and worker/retry/shard counts live in the Playwright config and CI. Prefer automatic allocation; explicit `PLAYWRIGHT_*` overrides require fresh data under the expected `/tmp` prefix. `just e2e-durations <run id>` refreshes shard timings.
 
 [Native authentication](mobile.md#check-it) owns its separate stack and exclusive simulator reservation.
