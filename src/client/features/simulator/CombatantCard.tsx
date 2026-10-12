@@ -217,7 +217,9 @@ export function CombatantCard({
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {unit ? (
             <span className="flex min-h-5 items-center gap-2 whitespace-nowrap text-xs text-dim">
-              <span>{totalModels} {totalModels === 1 ? 'model' : 'models'}</span>
+              <span>
+                {totalModels} {totalModels === 1 ? 'model' : 'models'}
+              </span>
               <span className="readout text-sm text-info">
                 {unit.points +
                   (combatant.sheets.data?.companions ?? []).reduce(

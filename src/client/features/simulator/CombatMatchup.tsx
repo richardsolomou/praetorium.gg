@@ -968,7 +968,11 @@ function CombatantHeading({ side, unit }: { side: string; unit: CombatantSnapsho
     <div className="min-w-0 p-3 sm:p-4">
       <h2 className="rubric">{side}</h2>
       <p className="mt-2 text-sm">{unit?.sheet.name ?? 'Select a unit'}</p>
-      {unit ? <p className="mt-1 text-xs text-dim">{unit.models} {unit.models === 1 ? 'model' : 'models'}</p> : null}
+      {unit ? (
+        <p className="mt-1 text-xs text-dim">
+          {unit.models} {unit.models === 1 ? 'model' : 'models'}
+        </p>
+      ) : null}
     </div>
   )
 }
