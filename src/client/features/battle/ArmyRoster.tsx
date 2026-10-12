@@ -183,6 +183,8 @@ function BattleUnit({
         enhancements: unit.enhancements ?? [],
         upgrades: unit.upgrades ?? [],
       }}
+      nickname={unit.nickname}
+      note={unit.note}
       selected={selected}
       onSelect={onSelect}
       joined={unit.joined ?? []}

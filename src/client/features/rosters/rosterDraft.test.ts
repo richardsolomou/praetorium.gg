@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { RosterPick } from '../../../core/roster'
 import { picksSchema } from '../../../contracts/schemas'
-import { positionedPicks } from './rosterPicks'
+import { positionedAnnotatedPicks, positionedPicks } from './rosterPicks'
 import { draftKey, savedDraft } from './rosterDraft'
 
 const prep = { stratagems: [], secondaries: [] }
@@ -20,19 +20,19 @@ const roster = (picks: RosterPick[]) => ({
 })
 
 const picks: RosterPick[] = [
-  { entryId: 'overlord', choices: { enhancement: 'circlet' }, toggles: { warlord: 1 } },
-  { entryId: 'warriors', models: 20, spreads: { weapons: { gauss: 15, reaper: 5 } } },
+  { entryId: 'overlord', choices: { enhancement: 'circlet' }, toggles: { warlord: 1 }, nickname: 'The Phaeron' },
+  { entryId: 'warriors', models: 20, spreads: { weapons: { gauss: 15, reaper: 5 } }, note: 'Hold the centre.' },
   { entryId: 'cryptek', attachedTo: 1 },
 ]
 
 /** What the builder sends for picks it has not touched: keyed as it loads them, then positioned. */
 const untouched = (stored: RosterPick[]) => ({
   ...savedDraft(roster(stored), prep),
-  picks: positionedPicks(stored.map((pick, key) => ({ ...pick, key }))),
+  picks: positionedAnnotatedPicks(stored.map((pick, key) => ({ ...pick, key }))),
 })
 
 it('sees an unchanged list read back from its row as the draft already saved', () => {
-  const stored = picksSchema.parse(JSON.parse(JSON.stringify(positionedPicks(picks.map((pick, key) => ({ ...pick, key }))))))
+  const stored = picksSchema.parse(JSON.parse(JSON.stringify(positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key }))))))
 
   expect(draftKey(untouched(stored))).toBe(draftKey(savedDraft(roster(stored), prep)))
 })
@@ -56,8 +56,23 @@ it('sees picks the builder rewrote while loading as a draft to save', () => {
   expect(draftKey(untouched(dangling))).not.toBe(draftKey(savedDraft(roster(dangling), prep)))
 })
 
+it('sees a renamed unit as a draft to save', () => {
+  const renamed = {
+    ...untouched(picks),
+    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, nickname: key === 0 ? 'Szarekh' : pick.nickname }))),
+  }
+
+  expect(draftKey(renamed)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
+})
+
+it('prices the same picks whatever their nicknames and notes say', () => {
+  const plain = picks.map(({ nickname: _nickname, note: _note, ...pick }, key) => ({ ...pick, key }))
+
+  expect(positionedPicks(picks.map((pick, key) => ({ ...pick, key })))).toEqual(positionedPicks(plain))
+})
+
 it('sees a list with no prep stored as the empty prep the builder sends', () => {
-  const sent = { ...untouched(picks), prep: { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true } }
+  const sent = { ...untouched(picks), prep: { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true, shareNotes: false } }
 
   expect(draftKey(sent)).toBe(draftKey(savedDraft(roster(picks), prep)))
 })

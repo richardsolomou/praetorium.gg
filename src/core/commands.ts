@@ -21,6 +21,7 @@ import {
 import { UNIT_GROUPS } from './unitGroups'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from './reminders'
 import { MISSION_SELECTION_KINDS } from './missionSelections'
+import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 
 const id = z.string().min(1).max(64)
 export const detachmentIdSchema = z.string().min(1).max(128)
@@ -32,6 +33,8 @@ export const rosterPickSchema = z.object({
   spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
   toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
   attachedTo: z.number().int().min(0).max(99).optional(),
+  nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
+  note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
 })
 const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
 const award = z.object({
@@ -150,6 +153,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
               z.object({
                 key: id,
                 name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+                nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
+                note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
                 points: z.number().int().min(0).max(10_000),
                 models: z.number().int().min(0).max(100),
                 wounds: z.number().int().min(1).max(100).optional(),

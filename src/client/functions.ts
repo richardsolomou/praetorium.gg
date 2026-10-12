@@ -366,7 +366,12 @@ export async function saveRoster(
     visibility: input.visibility ?? 'private',
     source: input.source ?? 'editable',
     prep: input.prep
-      ? { ...input.prep, reminders: input.prep.reminders ?? [], remindersEnabled: input.prep.remindersEnabled ?? true }
+      ? {
+          ...input.prep,
+          reminders: input.prep.reminders ?? [],
+          remindersEnabled: input.prep.remindersEnabled ?? true,
+          shareNotes: input.prep.shareNotes ?? false,
+        }
       : null,
     reminders: input.prep?.reminders ?? [],
     remindersEnabled: input.prep?.remindersEnabled ?? true,
@@ -411,7 +416,14 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
         )
       : `Copy of ${roster.name}`.slice(0, 80)
   const { rosterVisibility } = await playerDefaults()
-  const input = { ...draftFor(roster), id: undefined, name, visibility: rosterVisibility, baseRosterId: args.data.variant ? baseId : null }
+  const input = {
+    ...draftFor(roster),
+    id: undefined,
+    name,
+    visibility: rosterVisibility,
+    prep: roster.prep && { ...roster.prep, shareNotes: false },
+    baseRosterId: args.data.variant ? baseId : null,
+  }
   if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
   const result = await saveRoster({ data: input })
   return { id: result.id }

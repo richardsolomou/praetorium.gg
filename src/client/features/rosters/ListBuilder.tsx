@@ -27,6 +27,7 @@ import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
+import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
   reminderKey,
   reminderTimingCountsByUnit,
@@ -67,6 +68,7 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
+import { UnitAnnotations } from './builder/UnitAnnotations'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
@@ -93,7 +95,13 @@ import type { CombatRoster } from '../simulator/useCombatant'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
-  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
+  prep: {
+    stratagems: Stratagem[]
+    secondaries: Secondary[]
+    reminders?: RosterReminder[]
+    remindersEnabled?: boolean
+    shareNotes?: boolean
+  }
   initial: {
     id: string
     name: string
@@ -192,7 +200,7 @@ export function ListBuilder({
   const { data: me } = useQuery(meQuery())
   const { data: factionIndex } = useQuery(factionIndexQuery())
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
-  const { picks, setPicks, resetPicks, positioned, held, allocateKey } = usePicks(initial.picks)
+  const { picks, setPicks, resetPicks, positioned, annotated, held, allocateKey } = usePicks(initial.picks)
   const [limit, setLimit] = useState(initial.limit)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
@@ -202,6 +210,7 @@ export function ListBuilder({
   const [name, setName] = useState(initial.automaticName ? '' : initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
+  const [shareNotes, setShareNotes] = useState(prep.shareNotes ?? false)
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
@@ -293,8 +302,8 @@ export function ListBuilder({
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true }),
-    [savedPrep, reminders],
+    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true, shareNotes }),
+    [savedPrep, reminders, shareNotes],
   )
   const draft: RosterDraft = {
     id: savedId || undefined,
@@ -303,7 +312,7 @@ export function ListBuilder({
     detachmentIds,
     disposition,
     limit,
-    picks: positioned,
+    picks: annotated,
     prep: storedPrep,
     waivedRules,
     optionalRules,
@@ -340,13 +349,13 @@ export function ListBuilder({
 
   // Held steppers and typed names change many times a second; the settled values
   // trigger one save per pause while the mutation still reads the newest draft.
-  const settledPicks = useSettled(positioned)
+  const settledPicks = useSettled(annotated)
   const settledListName = useSettled(listName)
   useEffect(() => {
     if (!savedId) return
     const incoming = draftKey(savedDraft(initial, prep))
     if (incoming === lastApplied.current || (initial.updatedAt ?? 0) < savedAt.current) return
-    if (save.isPending || currentDraftKey !== lastSaved.current || settledListName !== listName || settledPicks !== positioned) return
+    if (save.isPending || currentDraftKey !== lastSaved.current || settledListName !== listName || settledPicks !== annotated) return
 
     lastApplied.current = incoming
     lastSaved.current = incoming
@@ -362,7 +371,8 @@ export function ListBuilder({
     setVisibility(initial.visibility)
     setSavedPrep(prep)
     setReminders(prep.reminders ?? [])
-  }, [currentDraftKey, initial, listName, positioned, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
+    setShareNotes(prep.shareNotes ?? false)
+  }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   useEffect(() => {
     if (!editable || !catalogueId) return
     const key = draftKey(draft)
@@ -391,7 +401,15 @@ export function ListBuilder({
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: { catalogueId, detachmentIds, disposition, limit, name: shownName || 'Roster', units: positioned, waivedRules },
+        data: {
+          catalogueId,
+          detachmentIds,
+          disposition,
+          limit,
+          name: shownName || 'Roster',
+          units: withoutUnitNotes(annotated),
+          waivedRules,
+        },
       }),
     onSuccess: (exported) => setExportText(exported),
   })
@@ -409,7 +427,7 @@ export function ListBuilder({
         points: priced?.points ?? null,
         waivedRules,
         optionalRules,
-        picks: positioned,
+        picks: annotated,
       })
       return { name: exchangeName, code }
     },
@@ -425,8 +443,8 @@ export function ListBuilder({
           detachmentIds,
           disposition,
           limit,
-          picks: positioned,
-          prep: storedPrep,
+          picks: annotated,
+          prep: { ...storedPrep, shareNotes: false },
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
@@ -451,7 +469,7 @@ export function ListBuilder({
       await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
-  const saving = !guest && (save.isPending || settledPicks !== positioned || settledListName !== listName)
+  const saving = !guest && (save.isPending || settledPicks !== annotated || settledListName !== listName)
   const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
   const priceRequest = priceQuery(
@@ -524,7 +542,7 @@ export function ListBuilder({
       catalogueId,
       detachmentIds,
       limit,
-      picks: positioned,
+      picks: annotated,
       price: priced,
       waivedRules,
       optionalRules,
@@ -539,7 +557,7 @@ export function ListBuilder({
     guest,
     limit,
     optionalRules,
-    positioned,
+    annotated,
     priceLoading,
     pricePending,
     priced,
@@ -939,6 +957,16 @@ export function ListBuilder({
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reminders={building && selected !== null ? reminderControls : undefined}
+      header={
+        building && selected !== null && selectedPick ? (
+          <UnitAnnotations
+            nickname={selectedPick.nickname}
+            note={selectedPick.note}
+            onChange={(field, value) => edit.annotate(selected, field, value)}
+            shareNotes={guest ? undefined : { shared: shareNotes, onChange: setShareNotes }}
+          />
+        ) : undefined
+      }
       reference={
         <DatasheetPanel
           catalogueId={datasheetCatalogueId}
@@ -1241,6 +1269,8 @@ export function ListBuilder({
                       <UnitCard
                         key={unit.entryId + index}
                         unit={unit}
+                        nickname={frozen.units[index]?.nickname}
+                        note={frozen.units[index]?.note}
                         joined={joined}
                         selected={selected === index}
                         onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
@@ -1250,6 +1280,8 @@ export function ListBuilder({
                       <BuilderUnitCard
                         key={picks[index]?.key ?? unit.entryId}
                         unit={unit}
+                        nickname={picks[index]?.nickname}
+                        note={picks[index]?.note}
                         index={index}
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
                         canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
