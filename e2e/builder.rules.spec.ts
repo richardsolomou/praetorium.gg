@@ -21,6 +21,15 @@ test('enhancement choices show descriptions when rule and catalogue names differ
 test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Necrons', /Pantheon of Woe/)
+  await page.getByLabel('Add a unit').fill("C'tan Shard of the Deceiver")
+  const pickerRow = page.locator('[data-picker-unit="C\'tan Shard of the Deceiver"]')
+  await expect(pickerRow).toContainText('375 pts')
+  await shot(pickerRow, 'test-results/pantheon-picker-price.png')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  await expect(pickerRow).toContainText('375 pts')
+  await shot(pickerRow, 'test-results/pantheon-picker-price-phone.png')
+  await page.setViewportSize({ width: 1600, height: 900 })
   await add(page, "C'tan Shard of the Deceiver")
 
   const card = page.locator('[data-unit="C\'tan Shard of the Deceiver"]')

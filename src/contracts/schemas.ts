@@ -260,6 +260,7 @@ export const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RUL
 
 export const unitsSchema = z.object({
   catalogueId,
+  detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS).optional(),
   query: z.string().max(80).default(''),
   battleSize: z
     .number()

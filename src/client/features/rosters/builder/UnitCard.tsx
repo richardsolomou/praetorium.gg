@@ -1,11 +1,10 @@
-import { BellRing, Boxes, Copy, EllipsisVertical, Plus, X } from 'lucide-react'
+import { BellRing, Copy, EllipsisVertical, Plus, X } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { ContextMenu, ContextMenuCheckboxItem, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -56,8 +55,6 @@ type Editing = {
   onRemove: () => void
   onDuplicate: () => void
   canDuplicate: boolean
-  owned: boolean
-  onOwned: () => void
   /** Units this one may join. */
   canJoin: AttachChoice[]
   onJoin: (choice: AttachChoice) => void
@@ -79,8 +76,6 @@ export function UnitCard({
   onRemove = noop,
   onDuplicate = noop,
   canDuplicate = true,
-  owned = false,
-  onOwned,
   joined = NONE,
   canJoin = NONE,
   onJoin = noop,
@@ -93,7 +88,7 @@ export function UnitCard({
   const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:layout_style] ${
     selected ? 'border-parchment' : 'border-edge hover:border-info'
   }`
-  const actions = { owned, onOwned, onDuplicate, canDuplicate, onRemove }
+  const actions = { onDuplicate, canDuplicate, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -121,7 +116,7 @@ export function UnitCard({
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={MENU}>
-                  <UnitActions Item={DropdownMenuItem} Checkbox={DropdownMenuCheckboxItem} {...actions} />
+                  <UnitActions Item={DropdownMenuItem} {...actions} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </span>
@@ -231,7 +226,7 @@ export function UnitCard({
     <ContextMenu>
       <ContextMenuTrigger render={<div data-unit={unit.name} className={cardClassName} />}>{card}</ContextMenuTrigger>
       <ContextMenuContent className={MENU}>
-        <UnitActions Item={ContextMenuItem} Checkbox={ContextMenuCheckboxItem} {...actions} />
+        <UnitActions Item={ContextMenuItem} {...actions} />
       </ContextMenuContent>
     </ContextMenu>
   )
@@ -340,25 +335,13 @@ function UnitAlertMarker({ count, unitName }: { count: number; unitName: string 
   )
 }
 
-/**
- * The same three actions, in whichever menu asked for them.
- *
- * The overflow button and the right-click menu are two ways to reach one list, so the
- * list is written once and handed the item components of the menu drawing it.
- */
 function UnitActions({
   Item,
-  Checkbox,
-  owned,
-  onOwned,
   onDuplicate,
   canDuplicate,
   onRemove,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
-  Checkbox: typeof DropdownMenuCheckboxItem | typeof ContextMenuCheckboxItem
-  owned: boolean
-  onOwned?: () => void
   onDuplicate: () => void
   canDuplicate: boolean
   onRemove: () => void
@@ -368,12 +351,6 @@ function UnitActions({
       <Item className={ITEM} disabled={!canDuplicate} onClick={onDuplicate}>
         <Copy className="size-3.5" /> Duplicate unit
       </Item>
-      {onOwned ? (
-        <Checkbox className={ITEM} checked={owned} onCheckedChange={onOwned}>
-          <Boxes className="size-3.5" />
-          {owned ? 'Remove from collection' : 'Add to collection'}
-        </Checkbox>
-      ) : null}
       <Item variant="destructive" className={ITEM} onClick={onRemove}>
         <X className="size-3.5" /> Delete unit
       </Item>

@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Boxes, EllipsisVertical, Heart, ListFilter, Plus, type LucideIcon } from 'lucide-react'
 import { Fragment, memo, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ import { canAddCopy, unitLimitMessage } from './usePicks'
 type Props = {
   enabled: boolean
   catalogueId: string
+  detachmentIds: readonly string[]
   onAdd: (entryId: string) => void
   onPreview: (entryId: string, name: string) => void
   inRoster: Record<string, number>
@@ -74,6 +75,7 @@ const EMPTY_FILTER: Partial<Record<PickerFilter, string>> = {
 export const Picker = memo(function Picker({
   enabled,
   catalogueId,
+  detachmentIds,
   onAdd,
   onPreview,
   inRoster,
@@ -89,9 +91,8 @@ export const Picker = memo(function Picker({
   onFilterToggle,
 }: Props) {
   const unitsResult = useQuery({
-    ...unitsQuery(catalogueId, battleSize, waivedRules),
+    ...unitsQuery(catalogueId, battleSize, waivedRules, detachmentIds),
     enabled: enabled && Boolean(catalogueId),
-    placeholderData: keepPreviousData,
   })
   // Collections and favourites belong to an account, so a visitor's picker has none to mark or filter by.
   const { data: me } = useQuery(meQuery())

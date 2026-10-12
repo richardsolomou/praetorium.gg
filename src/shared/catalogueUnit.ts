@@ -1,5 +1,5 @@
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
-import { evaluate } from '../core/evaluate'
+import { evaluate, type Selection } from '../core/evaluate'
 import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
 import { choiceOptionWargear } from '../core/modelKinds'
@@ -17,21 +17,22 @@ export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition)
 }
 
 /** What the smallest legal version of one datasheet costs, or null if it cannot be built. */
-export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
-  const built = buildUnit(entryId, loaded.index, undefined, undefined, { primaryCatalogueId: catalogueId })
+export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[] = []) {
+  const options = { primaryCatalogueId: catalogueId, mustering: true, roster }
+  const built = buildUnit(entryId, loaded.index, undefined, undefined, options)
   if (!built) return null
   const mfmUnit = mfmUnitFor(loaded, catalogueId, entryId)
   const wargearAdjustment = built.choices
     .flatMap((choice) =>
       choice.options.flatMap((option) => {
-        const pieces = choiceOptionWargear(choice.key, option.id, built.selection, loaded.index, { primaryCatalogueId: catalogueId })
+        const pieces = choiceOptionWargear(choice.key, option.id, built.selection, loaded.index, options)
         const price = mfmWargearOptionPoints(mfmUnit, option.name, pieces, option.count || 1)
         return option.count > option.min && price !== null ? [(price - option.points) * (option.count - option.min)] : []
       }),
     )
     .reduce((total, difference) => total + difference, 0)
   return (
-    evaluate([built.selection], loaded.index, { primaryCatalogueId: catalogueId }).points +
+    evaluate([...roster, built.selection], loaded.index, options).selectionPoints[0]![roster.length]! +
     unitPointAdjustment(loaded, catalogueId, catalogueId, entryId, built.size.models) +
     wargearAdjustment
   )

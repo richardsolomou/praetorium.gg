@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { confirmRosterSetup, waitForRosterSave } from './account'
+import { savedWork } from './storage'
 import { shot, expectNoHorizontalOverflow, openBuilder, add, attach } from './builder.harness'
 
 test('a squad grows from its unit editor', async ({ page }) => {
@@ -96,7 +97,12 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
   await waitForRosterSave(page, () => add(page, 'Immortals'))
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
+  await page.locator('[data-unit="Immortals"]').click({ button: 'right' })
+  await expect(page.getByRole('menu').filter({ visible: true })).not.toContainText(/collection/i)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menu')).toBeHidden()
   await page.getByLabel('Unit actions for Immortals').click()
+  await expect(page.getByRole('menu').filter({ visible: true })).not.toContainText(/collection/i)
   await page.screenshot({ path: 'test-results/unit-actions.png', fullPage: true })
   await page.getByRole('menuitem', { name: 'Duplicate unit' }).click()
 
@@ -135,7 +141,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   // Unit limit: three Lychguard is as many as the data allows.
   // One at a time on purpose: each click re-prices the list, and the next click's
   // effect is only meaningful once the previous one has landed.
-  for (let taken = 0; taken < 3; taken++) await lychguard.click()
+  for (let taken = 0; taken < 3; taken++) await waitForRosterSave(page, () => lychguard.click())
   await expect(page.getByText('3/3 in roster')).toBeVisible()
   await expect(lychguard).toBeDisabled()
   await page.getByRole('button', { name: 'View Lychguard datasheet' }).click()
@@ -143,17 +149,21 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitem', { name: 'Duplicate unit' })).toBeDisabled()
   await page.keyboard.press('Escape')
-  await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
-  await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
-  await page.keyboard.press('Escape')
+  const rosterUrl = page.url()
+  await page.goto('/collection')
+  await page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click()
+  await page.getByPlaceholder('Search datasheets…').fill('Lychguard Necrons')
+  await page.getByRole('option', { name: /^Lychguard, Necrons/ }).click()
+  await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await page.goto(rosterUrl)
   await expect(ownedFilter).not.toHaveAttribute('aria-disabled')
   await ownedFilter.click()
   await expect(lychguard).toBeVisible()
   await ownedFilter.click()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
-  await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeVisible()
+  await expect(page.getByRole('menu').filter({ visible: true })).not.toContainText(/collection/i)
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeHidden()
   await page.getByRole('button', { name: 'Unit limit' }).click()
   await expect(lychguard).toBeHidden()
 

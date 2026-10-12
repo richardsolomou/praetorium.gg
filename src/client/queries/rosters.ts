@@ -44,12 +44,23 @@ export const fieldedDatasheetsQuery = () =>
 export const collectionCountsQuery = () =>
   queryOptions({ queryKey: ['collection-counts'], queryFn: () => collectionCounts(), staleTime: SSR_STALE_TIME })
 
-export const unitsQuery = (catalogueId: string, battleSize?: number, waivedRules: readonly FormatRuleId[] = []) =>
+export const unitsQuery = (
+  catalogueId: string,
+  battleSize?: number,
+  waivedRules: readonly FormatRuleId[] = [],
+  detachmentIds: readonly string[] = [],
+) =>
   queryOptions({
-    queryKey: ['units', catalogueId, battleSize ?? null, waivedRules],
+    queryKey: ['units', catalogueId, battleSize ?? null, waivedRules, detachmentIds],
     queryFn: ({ signal }) =>
       units({
-        data: { catalogueId, query: '', ...(battleSize === undefined ? {} : { battleSize }), waivedRules: [...waivedRules] },
+        data: {
+          catalogueId,
+          detachmentIds: [...detachmentIds],
+          query: '',
+          ...(battleSize === undefined ? {} : { battleSize }),
+          waivedRules: [...waivedRules],
+        },
         signal,
       }),
     enabled: Boolean(catalogueId),
