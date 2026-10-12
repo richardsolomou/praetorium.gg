@@ -101,11 +101,12 @@ export function terrainFromDatacards(packs: readonly MissionPack[], battlemaster
       const slotId = battlemaster.slots.get([...[left, right].sort(), variant].join('|'))
       const permitted = Array.isArray(raw.deployments) ? raw.deployments : []
       const deploymentId = permitted.length === 1 && typeof permitted[0] === 'string' ? (deploymentIds.get(permitted[0]) ?? null) : null
-      const geometry = slotId ? battlemasterGeometry(battlemasterDirectory, slotId) : null
-      const markers = geometry?.areas.flatMap((area) => area.markers) ?? []
-      if (geometry && ['AB', 'CD', 'EF', 'GH'].some((label) => markers.filter((marker) => marker.label === label).length !== 2)) {
-        for (const area of geometry.areas) area.markers = []
-      }
+      const source = slotId ? battlemasterGeometry(battlemasterDirectory, slotId) : null
+      const markers = source?.areas.flatMap((area) => area.markers) ?? []
+      const geometry =
+        source && ['AB', 'CD', 'EF', 'GH'].some((label) => markers.filter((marker) => marker.label === label).length !== 2)
+          ? { ...source, areas: source.areas.map((area) => ({ ...area, markers: [] })) }
+          : source
       terrainLayouts.push({
         id: raw.id,
         name,

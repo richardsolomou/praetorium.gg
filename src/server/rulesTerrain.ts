@@ -78,14 +78,34 @@ function labelCorrection(directory: string, id: string, raw: Layout): LabelCorre
   return correction
 }
 
+const geometries = new Map<string, { source: string; geometry: TerrainGeometry | null }>()
+
+/**
+ * A layout's geometry, shared by every rules load that reads it while its source files are unchanged.
+ *
+ * Every rules version reads the same Battlemaster directory, and geometry is most of a version's terrain data.
+ * Callers must not modify the result.
+ */
 export function battlemasterGeometry(directory: string, id: string): TerrainGeometry | null {
   if (!/^terrain-[0-9a-f-]+$/.test(id)) return null
   const file = path.join(directory, 'layouts', `${id}.json`)
   if (!fs.existsSync(file)) return null
+  const liteFile = path.join(directory, 'layouts', `${id}.lite.json`)
+  const source = createHash('sha256')
+  for (const input of [file, liteFile, path.join(directory, 'terrain-labels.json'), path.join(directory, 'catalog.json')])
+    source.update(fs.existsSync(input) ? fs.readFileSync(input) : '').update('\0')
+  const fingerprint = source.digest('hex')
+  const cached = geometries.get(file)
+  if (cached?.source === fingerprint) return cached.geometry
+  const geometry = readGeometry(directory, id, file, liteFile)
+  geometries.set(file, { source: fingerprint, geometry })
+  return geometry
+}
+
+function readGeometry(directory: string, id: string, file: string, liteFile: string): TerrainGeometry | null {
   const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Layout
   if (!raw.terrain?.length || !matches(raw.layout, id)) return null
   const correction = labelCorrection(directory, id, raw)
-  const liteFile = path.join(directory, 'layouts', `${id}.lite.json`)
   const objectives = fs.existsSync(liteFile) ? battlemasterObjectiveHosts(raw, JSON.parse(fs.readFileSync(liteFile, 'utf8')), id) : []
   return {
     board: { width: 60, height: 44 },
