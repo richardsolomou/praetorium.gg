@@ -193,7 +193,7 @@ export function AppShell() {
                       to="/"
                       className="group flex shrink-0 items-center gap-1.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-info"
                     >
-                      <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-180" />
+                      <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
                       <span className="min-[860px]:hidden min-[1100px]:inline">Praetorium</span>
                     </Link>
                     <PrimaryNavigation path={path} />
@@ -215,7 +215,7 @@ export function AppShell() {
                       <img
                         src={offlineData()?.logo ?? '/logo.svg'}
                         alt=""
-                        className="size-7 shrink-0 transition-transform group-hover:rotate-180"
+                        className="size-7 shrink-0 transition-transform group-hover:rotate-45"
                       />
                       <span className="truncate">Praetorium</span>
                     </Link>
@@ -264,7 +264,7 @@ export function AppShell() {
                       <Link to="/guides" className="transition-colors hover:text-bone">
                         Player guides
                       </Link>
-                      <Link to="/support" className="transition-colors hover:text-bone">
+                      <Link to="/support" search={{ page: 'support' }} className="transition-colors hover:text-bone">
                         Support
                       </Link>
                       <Link to="/privacy" className="transition-colors hover:text-bone">

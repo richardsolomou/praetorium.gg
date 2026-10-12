@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createBattle, createRoster, signUp, uniqueName, setupStep, retryUntilVisible, attachRoster, startBattle, advance } from './account'
-import { productOperator, withAuthSql } from './storage'
-import type { LocalState } from '../src/contracts/localState'
+import { productOperator, savedWork, withAuthSql } from './storage'
 import { chooseCombatUnit } from './combat'
 
 test.use({ actionTimeout: 15_000 })
@@ -30,27 +29,6 @@ test('simulation and loadout optimization work in a cold offline application', a
   await reopened.screenshot({ path: test.info().outputPath('offline-simulation-phone.png') })
 })
 
-async function savedWork(page: Page) {
-  return page.evaluate(
-    () =>
-      new Promise<LocalState | null>((resolve, reject) => {
-        const opened = indexedDB.open('praetorium-work')
-        opened.onerror = () => reject(opened.error)
-        opened.onsuccess = () => {
-          const database = opened.result
-          const request = database.transaction('state').objectStore('state').getAll()
-          request.onerror = () => {
-            database.close()
-            reject(request.error)
-          }
-          request.onsuccess = () => {
-            database.close()
-            resolve(request.result.find((entry: { state?: LocalState }) => entry.state)?.state ?? null)
-          }
-        }
-      }),
-  )
-}
 async function waitForOfflineApp(page: Page) {
   await expect
     .poll(

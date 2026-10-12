@@ -5,6 +5,8 @@ import { UnitCard } from './builder/UnitCard'
 
 type BuilderUnitCardProps = {
   unit: ComponentProps<typeof UnitCard>['unit']
+  nickname?: string
+  note?: string
   index: number
   joined: ReturnType<typeof attachmentRows>
   canJoin: ReturnType<typeof joinableUnits>
@@ -24,6 +26,8 @@ type BuilderUnitCardProps = {
 
 export const BuilderUnitCard = memo(function BuilderUnitCard({
   unit,
+  nickname,
+  note,
   index,
   joined,
   canJoin,
@@ -42,6 +46,8 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   return (
     <UnitCard
       unit={unit}
+      nickname={nickname}
+      note={note}
       alliedFaction={alliedFaction}
       selected={selected}
       onSelect={() => onSelect(index)}

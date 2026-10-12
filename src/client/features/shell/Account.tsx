@@ -1,8 +1,9 @@
 import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { supportPageForPath } from '../../../core/supportReport'
+import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { onboardingComplete, resolvedOnboardingTasks } from '../../../core/onboarding'
@@ -60,6 +61,8 @@ function useAccountControls() {
 }
 
 function AccountMenuItems() {
+  const path = useLocation({ select: (location) => location.pathname })
+  const href = useLocation({ select: (location) => location.href })
   const { me, onboarding, signOut } = useAccountControls()
   const onboardingResolved = onboarding ? resolvedOnboardingTasks(onboarding).size : 0
   const showOnboarding = onboarding && !onboardingComplete(onboarding)
@@ -102,6 +105,9 @@ function AccountMenuItems() {
               ) : null}
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem render={<Link to="/collection" />}>
+            <Boxes /> Collection
+          </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/friends" />}>
             <Users /> Friends
           </DropdownMenuItem>
@@ -110,16 +116,7 @@ function AccountMenuItems() {
               <ShieldCheck /> Admin
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem
-            render={
-              <a
-                href="https://github.com/richardsolomou/praetorium.gg/issues"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Send feedback"
-              />
-            }
-          >
+          <DropdownMenuItem render={<Link to="/support" search={{ page: supportPageForPath(path) }} />}>
             <MessageSquareWarning /> Send feedback
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -128,7 +125,7 @@ function AccountMenuItems() {
           </DropdownMenuItem>
         </>
       ) : (
-        <DropdownMenuItem render={<Link to="/sign-in" search={{ next: undefined }} />}>
+        <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path === '/sign-in' ? undefined : href }} />}>
           <LogIn /> Sign in
         </DropdownMenuItem>
       )}

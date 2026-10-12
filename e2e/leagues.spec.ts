@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { z } from 'zod'
-import { befriend, createRoster, uniqueName, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave } from './account'
 import { productOperator, productSql, withAuthSql } from './storage'
 
 test.setTimeout(180_000)
@@ -638,7 +638,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await owner.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const setup = owner.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
-  await waitForRosterSave(owner, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(owner, () => confirmRosterSetup(setup))
 
   await owner.getByLabel('Add a unit').fill('Lokhust Destroyers')
   await owner.getByRole('button', { name: 'Add Lokhust Destroyers', exact: true }).first().click()
@@ -799,7 +799,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
       value: { writeText: () => Promise.reject(new Error('clipboard unavailable')) },
     })
   })
-  await dropdown.getByRole('menuitem', { name: 'Share invite' }).click()
+  await dropdown.getByRole('menuitem', { name: 'Copy invite link' }).click()
   await expect(dropdown).toBeHidden()
   const copyError = owner.getByText('Could not share the invite. Try again.', { exact: true })
   await expect(copyError).toBeVisible()

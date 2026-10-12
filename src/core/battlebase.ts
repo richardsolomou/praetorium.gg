@@ -1,4 +1,4 @@
-import type { TextRoster, TextRosterUnit } from './textRoster'
+import { textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
 
 const unitHeader = /^(.*?)\s+\(\d[\d,]* Points?\)$/i
 const selection = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
@@ -18,6 +18,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   const sizeLine = setup.find((line) => /\([\d,]+ Points?\)$/i.test(line))
   if (!/Exported with (?:BattleBase|Praetorium\.gg)/i.test(input) && (!titleMatch || !faction || !sizeLine || firstSection < 0)) return null
   const detachmentLine = setup.find((line) => /\(\d+ Detachment Points?\)$/i.test(line)) ?? (setup[1] !== sizeLine ? setup[1] : undefined)
+  const size = sizeLine?.match(/^(.*?)\s*\(([\d,]+) Points?\)$/i)
   const dispositionLine = setup.find((line) => /^Force Dispositions?:/i.test(line))
   const units: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null
@@ -55,7 +56,8 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     if (numeric) {
       const field = { models: 'models', 'roster entry': 'entry', 'attached to entry': 'attachedToEntry' } as const
       current[field[numeric[1]!.toLowerCase() as keyof typeof field]] = Number(numeric[2])
-    } else if (/^Warlord$/i.test(name)) current.warlord = true
+    } else if (/^Nickname:/i.test(name)) current.nickname = textNickname(name.replace(/^Nickname:\s*/i, ''))
+    else if (/^Warlord$/i.test(name)) current.warlord = true
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
     else current.selections.push({ name, count: Number(picked[1] ?? 1) })
@@ -67,7 +69,8 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     faction,
     detachment: detachmentLine && detachmentLine !== 'No detachment' ? detachmentLine.replace(/\s+\(\d+ Detachment Points?\)$/i, '') : null,
     disposition: dispositionLine?.replace(/^Force Dispositions?:\s*/i, '') ?? null,
-    limit: sizeLine ? Number(sizeLine.match(/\(([\d,]+) Points?\)$/i)?.[1]?.replaceAll(',', '')) : null,
+    limit: size ? Number(size[2]!.replaceAll(',', '')) : null,
+    ...(size?.[1] ? { sizeName: size[1] } : {}),
     units,
     ...(unread.length ? { unread } : {}),
   }

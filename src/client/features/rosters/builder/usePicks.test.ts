@@ -223,11 +223,48 @@ describe('a unit a reference page asks the builder to add', () => {
     expect(requestedUnit('squad', 3, limits)).toEqual({
       kind: 'refused',
       reason: 'limit',
-      message: 'Limit reached',
+      message: 'Limit reached: 3 of 3 permitted copies in the roster.',
     })
   })
 
   it('is refused when the roster’s book does not offer it', () => {
     expect(requestedUnit('stranger', 0, limits)).toMatchObject({ kind: 'refused', reason: 'not_offered' })
+  })
+})
+
+it('explains a requested unit blocked by current construction prerequisites', () => {
+  const limits = new Map([['ally', 0]])
+  expect(requestedUnit('ally', 0, limits)).toEqual({
+    kind: 'refused',
+    reason: 'limit',
+    message: 'No copies available with the current detachments and prerequisite units.',
+  })
+})
+
+describe('unit nicknames and notes', () => {
+  function annotated(run: (edit: ReturnType<typeof pickEditor>) => void) {
+    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium', nickname: 'Alpha', note: 'Hold home.' }]
+    let next = 1
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
+      () => next++,
+    )
+    run(edit)
+    return picks
+  }
+
+  it('renames one unit', () => {
+    expect(annotated((edit) => edit.annotate(0, 'nickname', 'Bravo'))[0]?.nickname).toBe('Bravo')
+  })
+
+  it('removes a note the player emptied', () => {
+    expect(annotated((edit) => edit.annotate(0, 'note', '  '))[0]).not.toHaveProperty('note')
+  })
+
+  it('duplicates a unit without its nickname or note', () => {
+    expect(annotated((edit) => edit.duplicate(0))[1]).toEqual({ key: 1, entryId: 'squad', catalogueId: 'imperium' })
   })
 })

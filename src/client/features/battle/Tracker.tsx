@@ -29,15 +29,18 @@ import {
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
 import { type Side, type SideMission, sides } from '../../sides'
-import type { Command } from '../../../core/battle'
+import { battleSizeText, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
 import { setNativeWatchBattle, useNativeWatchBattleAvailability } from '../../nativeBridge'
 import { watchBattle } from './watchBattle'
 import { BattleMenu } from './BattleMenu'
+import { MissedActionDialog } from './MissedActionDialog'
 import { ReminderDialog } from './ReminderDialog'
 import { DrawDialog, type DrawSelection, type WhenDrawn } from './DrawDialog'
+import { MissionSelectionDialog } from './MissionSelectionDialog'
+import { isManualSelection } from '../../../core/missionSelections'
 import { DiscardSecondaryDialog } from './DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
@@ -100,6 +103,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     return () => window.removeEventListener(ONBOARDING_FOCUS_EVENT, changed)
   }, [view.viewerId])
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
+  const [recordingMissed, setRecordingMissed] = useState(false)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   const [dismissalsReady, setDismissalsReady] = useState(false)
   const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
@@ -395,6 +399,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     active.remainingSecondaries.length > 0
   const needsDrawAcknowledgement =
     active?.secondaryMode === 'tactical' && view.phase === 'command' && active.secondariesToReview.length > 0 && !view.drawAcknowledged
+  const missionChoice = view.missionChoices?.find((choice) => !isManualSelection(choice.kind))
+  const missedMoments = view.missedMoments ?? []
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active ? dueForAdvance(view, active, awardsFor) : []
@@ -420,9 +426,13 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         ? 'Draw the active side’s secondary missions first.'
         : needsDrawAcknowledgement
           ? 'Review the active side’s new secondary missions first.'
-          : activeNeedsReferences && deckUnknown
-            ? 'Loading the active side’s mission cards…'
-            : null
+          : missionChoice
+            ? missionChoice.canChoose
+              ? 'Record the mission choices first.'
+              : 'Waiting for the opposing side’s mission choice.'
+            : activeNeedsReferences && deckUnknown
+              ? 'Loading the active side’s mission cards…'
+              : null
   const advanceBlocked = Boolean(blockReason)
   const advanceNow = () => {
     if (promptMinimized || advanceBlocked || !active) return
@@ -471,7 +481,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const settlementRulesPending = settlementNeedsReferences && (settlementRuleResults.some((result) => result.isPending) || deckUnknown)
   const owedCards =
     settlementRound !== null && settlementSide
-      ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide))
+      ? dueFromTheirTurn(settlementRound, view.rounds, settlementSide, awardsFor, heldKeys(settlementSide), view.endOfBattle)
       : []
   const activeScoringDraft = active ? scoringDraft(active, view.round, activeScoringMoment, due) : null
   const owedScoringDraft = settlementSide
@@ -603,6 +613,16 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     <BattleMinimizeContext.Provider value={registerMinimized}>
       <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
+        {recordingMissed && missedMoments.length ? (
+          <MissedActionDialog
+            moments={missedMoments}
+            table={table}
+            send={send}
+            pending={pending}
+            problem={problem}
+            onClose={() => setRecordingMissed(false)}
+          />
+        ) : null}
         <div data-battle-sticky-header className="sticky top-12 z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
           <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
 
@@ -669,7 +689,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
                 <BattlefieldFact view={view} deployment={deployment} objectives />
                 <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
-                <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
+                <Fact label="Battle size" value={battleSizeText(view) ?? 'Legacy format'} />
                 <Fact label="Format" value={formatName(table)} />
                 {/*
                  * A twist changes one rule for the whole battle, so it is not enough to
@@ -697,6 +717,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     onTimerPausedChange={(paused) => sendAction({ kind: paused ? 'pause-clock' : 'resume-clock' })}
                     players={view.players}
                     onActionRemindersChange={updateActionReminders}
+                    onRecordMissed={missedMoments.length ? () => setRecordingMissed(true) : undefined}
                     onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
                     onDelete={() => {
                       if (!promptMinimized) remove.mutate()
@@ -783,8 +804,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onAnswersChange={owedScoringDraft.onAnswersChange}
             side={settlementSide}
             due={owedCards}
-            moment="end of their turn"
-            confirmLabel="Take the turn"
+            moment={view.endOfBattle ? 'end of battle' : 'end of their turn'}
+            confirmLabel={view.endOfBattle ? 'Finish battle' : 'Take the turn'}
             pending={pending}
             send={send}
             referenceFor={referenceFor}
@@ -831,6 +852,18 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             referenceFor={referenceFor}
             whenDrawnFor={whenDrawnFor}
             onDone={() => send({ kind: 'acknowledge-draw', playerId: active.captain.id })}
+          />
+        ) : null}
+
+        {!reminderPrompt && !prompt && missionChoice?.canChoose ? (
+          <MissionSelectionDialog
+            key={`${missionChoice.playerId}:${missionChoice.cardKey}:${missionChoice.occurrence}`}
+            view={view}
+            choice={missionChoice}
+            deployment={deployment}
+            pending={pending}
+            send={send}
+            reference={referenceFor(missionChoice.cardKey)}
           />
         ) : null}
 

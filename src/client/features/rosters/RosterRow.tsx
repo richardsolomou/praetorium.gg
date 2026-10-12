@@ -1,10 +1,25 @@
 import { Link } from '@tanstack/react-router'
-import { Copy, Download, EllipsisVertical, Eye, GitBranchPlus, Link2, Lock, Pencil, Printer, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  Download,
+  EllipsisVertical,
+  Eye,
+  EyeOff,
+  GitBranchPlus,
+  Link2,
+  Lock,
+  LockOpen,
+  Pencil,
+  Printer,
+  QrCode,
+  Trash2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
+import { useNativeShare } from '../../nativeBridge'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import { type RosterProblem, RosterSummary, type RosterSummaryFaction, RosterVariantSummary, rosterTitle } from './RosterSummary'
 
@@ -65,7 +80,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, actions, origin, onEdit, onConvert, onDelete }
+  const items = { roster, title, points: points ?? null, actions, origin, onEdit, onConvert, onDelete }
 
   return (
     <ContextMenu>
@@ -134,6 +149,7 @@ function RosterActionItems({
   Item,
   roster,
   title,
+  points,
   actions,
   origin,
   onEdit,
@@ -145,6 +161,7 @@ function RosterActionItems({
   roster: SavedRoster
   /** What the library calls this list, so an export and a share sheet say the same. */
   title: string
+  points: number | null
   actions: RosterActions
   origin: string
   onEdit: () => void
@@ -154,30 +171,55 @@ function RosterActionItems({
   showPrivacy?: boolean
 }) {
   const feedback = actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null
+  const nativeShare = useNativeShare()
   return (
     <>
       <Item onClick={() => actions.print(roster.id)}>
         <Printer /> Print
       </Item>
       <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster, title)}>
-        <Link2 /> {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : 'Share link'}
+        <Link2 />
+        {roster.visibility === 'private' ? (
+          <span>
+            <span className="block">{nativeShare ? 'Make unlisted and share' : 'Make unlisted and copy link'}</span>
+            <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
+          </span>
+        ) : (
+          <span>
+            {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'}
+          </span>
+        )}
       </Item>
       {showPrivacy && roster.visibility !== 'private' ? (
         <Item disabled={actions.access.isPending} onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}>
-          <Lock /> Make private
+          <EyeOff /> Make private
         </Item>
       ) : null}
       <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
         <Download /> Export text
       </Item>
-      <Item onClick={onEdit}>
+      <Item disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title, points })}>
+        <QrCode /> Exchange code
+      </Item>
+      <Item disabled={actions.lock.isPending} onClick={() => actions.lock.mutate({ id: roster.id, locked: !roster.locked })}>
+        {roster.locked ? (
+          <>
+            <LockOpen /> Unlock roster
+          </>
+        ) : (
+          <>
+            <Lock /> Lock roster
+          </>
+        )}
+      </Item>
+      <Item disabled={roster.locked} onClick={onEdit}>
         <Pencil /> Edit setup
       </Item>
-      <Item onClick={onConvert}>
+      <Item disabled={roster.locked} onClick={onConvert}>
         <Pencil /> Convert rules version
       </Item>
       <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>
-        <GitBranchPlus /> New variant
+        <GitBranchPlus /> Create variant
       </Item>
       <Item disabled={actions.duplicate.isPending} onClick={() => actions.duplicate.mutate(roster)}>
         <Copy /> Duplicate

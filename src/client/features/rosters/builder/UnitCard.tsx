@@ -1,4 +1,4 @@
-import { BellRing, Copy, EllipsisVertical, Heart, X } from 'lucide-react'
+import { BellRing, Boxes, Copy, EllipsisVertical, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../../../core/attach'
+import { nicknamedUnit } from '../../../../core/unitNotes'
 import { FactionLabel, type FactionPresentation } from '../../../components/FactionMark'
 
 type BuiltUnit = {
@@ -29,6 +30,10 @@ type Joined = { label: string; name: string; action?: string; onAct?: () => void
 
 type Props = {
   unit: BuiltUnit
+  /** The player's name for the unit, shown above the datasheet name. */
+  nickname?: string
+  /** Only present for readers allowed to see it. */
+  note?: string
   alliedFaction?: FactionPresentation
   selected: boolean
   /** Omit when the card has no detail pane to open, such as a frozen battle snapshot. */
@@ -59,6 +64,8 @@ type Editing = {
  */
 export function UnitCard({
   unit,
+  nickname,
+  note,
   alliedFaction,
   selected,
   onSelect,
@@ -92,7 +99,7 @@ export function UnitCard({
           data-print-hide
           onClick={onSelect}
           aria-pressed={selected}
-          aria-label={unit.name}
+          aria-label={nicknamedUnit(unit.name, nickname)}
         />
       ) : null}
       <div className="flow-root px-2.5 py-2">
@@ -114,9 +121,10 @@ export function UnitCard({
         <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
             <span className="rubric block leading-tight text-bone">
-              {unit.name}
+              {nickname ?? unit.name}
               {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
             </span>
+            {nickname ? <span className="mt-0.5 block text-xs text-dim">{unit.name}</span> : null}
             {alliedFaction ? (
               <span className="eyebrow mt-1 flex items-center gap-1 text-info">
                 Allied unit · <FactionLabel faction={alliedFaction} />
@@ -140,6 +148,13 @@ export function UnitCard({
           ) : null}
         </div>
       </div>
+
+      {note ? (
+        <div className={`${ROW} ph-no-capture pointer-events-none items-start gap-2`} data-unit-note>
+          <span className="chip shrink-0">Note</span>
+          <span className="min-w-0 flex-1 text-xs break-words whitespace-pre-line line-clamp-3 print:line-clamp-none">{note}</span>
+        </div>
+      ) : null}
 
       {unit.enhancements.map((enhancement) => (
         <div key={enhancement} className={`${ROW} pointer-events-none gap-2`}>
@@ -282,7 +297,7 @@ function UnitActions({
       </Item>
       {onOwned ? (
         <Checkbox className={ITEM} checked={owned} onCheckedChange={onOwned}>
-          <Heart className={`size-3.5 ${owned ? 'fill-rust text-rust' : ''}`} />
+          <Boxes className="size-3.5" />
           {owned ? 'Remove from collection' : 'Add to collection'}
         </Checkbox>
       ) : null}

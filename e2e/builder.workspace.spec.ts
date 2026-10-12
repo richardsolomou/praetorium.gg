@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import {
   shot,
   expectNoHorizontalOverflow,
@@ -164,7 +164,7 @@ test('a three-point detachment lets the player choose either disposition', async
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await page.reload()
   await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold' })).toBeVisible()
 })
@@ -504,17 +504,17 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await openBuilder(page)
 
   await page.getByLabel('Add a unit').fill('Immortals')
-  await page.getByRole('button', { name: 'Owned', exact: true }).click()
+  await page.getByRole('button', { name: 'Points fit', exact: true }).click()
   await page.setViewportSize({ width: 1200, height: 800 })
   await expect(page.getByLabel('Add a unit')).toHaveCount(0)
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
-  await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'Points fit', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
 
   await page.setViewportSize({ width: 1600, height: 900 })
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
-  await expect(page.getByRole('button', { name: 'Owned', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'Points fit', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
   await page.reload()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
@@ -627,6 +627,24 @@ test('collection changes do not reorder roster and reference rows', async ({ pag
   const datasheets = page.getByRole('link', { name: /^(Immortals|Necron Warriors)/ })
   await expect(datasheets.first()).toHaveAccessibleName(/^Immortals/)
   await page.screenshot({ path: 'test-results/stable-collection-order.png', fullPage: true })
+})
+
+test('favourite datasheets rise to the top without joining the collection', async ({ page }) => {
+  await openBuilder(page)
+  await page.getByLabel('Add a unit').fill('')
+  const pickerRows = page.getByRole('button', { name: /^Add (Immortals|Necron Warriors)$/ })
+  const favouritesFilter = page.getByRole('button', { name: 'Favourites', exact: true })
+  await expect(pickerRows.first()).toHaveAccessibleName('Add Immortals')
+  await expect(favouritesFilter).toHaveAttribute('aria-disabled', 'true')
+  await page.getByRole('button', { name: 'Add Necron Warriors to favourite datasheets', exact: true }).click()
+  await expect(pickerRows.first()).toHaveAccessibleName('Add Necron Warriors')
+  await favouritesFilter.click()
+  await expect(pickerRows).toHaveCount(1)
+  await favouritesFilter.click()
+  await page.goto('/factions/necrons/datasheets')
+  await expect(page.getByRole('link', { name: /^(Immortals|Necron Warriors)/ }).first()).toHaveAccessibleName(/^Necron Warriors/)
+  await page.goto('/collection')
+  await expect(page.getByRole('heading', { name: 'Your shelf is empty', exact: true })).toBeVisible()
 })
 
 test('contained faction datasheet rows stay accessible and resize without horizontal overflow', async ({ page }) => {

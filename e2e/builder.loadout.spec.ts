@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { waitForRosterSave } from './account'
+import { confirmRosterSetup, waitForRosterSave } from './account'
 import { shot, expectNoHorizontalOverflow, openBuilder, add, attach } from './builder.harness'
 
 test('a squad grows from its unit editor', async ({ page }) => {
@@ -111,26 +111,26 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
 test('the filters narrow the book to what is worth taking', async ({ browser, page }) => {
   await openBuilder(page)
 
-  // Owned: nothing is, until something is said to be.
-  await page.getByRole('button', { name: 'Owned' }).click()
-  await expect(page.getByText('Everything is filtered out.')).toBeVisible()
-  await page.getByRole('button', { name: 'Owned' }).click()
+  // Owned: nothing is, until something is said to be, and the filter says where to say it.
+  const ownedFilter = page.getByRole('button', { name: 'Owned', exact: true })
+  await expect(ownedFilter).toHaveAttribute('aria-disabled', 'true')
+  await ownedFilter.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Collection page')
+  await page.keyboard.press('Escape')
 
   await page.getByLabel('Add a unit').fill('Lychguard')
   const lychguard = page.getByRole('button', { name: 'Add Lychguard', exact: true }).first()
   await expect(lychguard).toBeVisible()
-  const ownLychguard = page.getByRole('button', { name: /Lychguard to your collection/ })
-  await ownLychguard.click()
-  await expect(page.getByRole('button', { name: /Lychguard from your collection/ })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: /Lychguard to favourite datasheets/ }).click()
+  await expect(page.getByRole('button', { name: /Lychguard from favourite datasheets/ })).toHaveAttribute('aria-pressed', 'true')
   const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const serverPage = await serverContext.newPage()
   await serverPage.goto('/factions/necrons/datasheets')
-  await expect(serverPage.getByLabel('Loading collection status for Lychguard')).toBeVisible()
-  await serverPage.screenshot({ path: 'test-results/collection-loading-state.png', fullPage: true })
+  await expect(serverPage.getByLabel('Loading favourite status for Lychguard')).toBeVisible()
+  await serverPage.screenshot({ path: 'test-results/favourite-loading-state.png', fullPage: true })
   await serverContext.close()
-  await page.getByRole('button', { name: 'Owned' }).click()
-  await expect(lychguard).toBeVisible()
-  await page.getByRole('button', { name: 'Owned' }).click()
+  // A favourite is not a claim to own the models.
+  await expect(ownedFilter).toHaveAttribute('aria-disabled', 'true')
 
   // Unit limit: three Lychguard is as many as the data allows.
   // One at a time on purpose: each click re-prices the list, and the next click's
@@ -143,6 +143,13 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitem', { name: 'Duplicate unit' })).toBeDisabled()
   await page.keyboard.press('Escape')
+  await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
+  await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
+  await page.keyboard.press('Escape')
+  await expect(ownedFilter).not.toHaveAttribute('aria-disabled')
+  await ownedFilter.click()
+  await expect(lychguard).toBeVisible()
+  await ownedFilter.click()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitemcheckbox', { name: 'Remove from collection' })).toBeVisible()
   await page.keyboard.press('Escape')
@@ -158,7 +165,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await expect(page.getByText('3/2 in roster')).toBeVisible()
   await expect(page.getByText('Roster is not legal')).toBeAttached()
   await expect(lychguard).toBeDisabled()
@@ -167,7 +174,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await expect(page.getByText('3/1 in roster')).toBeVisible()
   await expect(page.getByText('Lychguard: allows at most 1 of this datasheet, has 3')).toBeVisible()
   await expect(lychguard).toBeDisabled()
@@ -177,7 +184,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
 
   // The battle size's own restrictions are switched off from the picker's own menu,
   // over the book they act on.
@@ -392,7 +399,7 @@ test('changing detachments clears enhancements unless another detachment is adde
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   let setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await expect(card).toContainText('Mark of the Nekrosor')
 
   await page.getByRole('button', { name: 'Roster actions' }).click()
@@ -406,7 +413,7 @@ test('changing detachments clears enhancements unless another detachment is adde
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Remove Cursed Legion' }).click()
-  await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await expect(card).not.toContainText('Mark of the Nekrosor')
 
   await page.reload()

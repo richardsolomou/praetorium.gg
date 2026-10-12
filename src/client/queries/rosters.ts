@@ -5,7 +5,8 @@ import type { RosterPick } from '../../core/roster'
 import type { UnitSummary } from '../../contracts/catalogue'
 import {
   collection,
-  collectionStock,
+  collectionCounts,
+  fieldedDatasheets,
   datasheet,
   datasheetOfferedBy,
   factionDatasheets,
@@ -26,8 +27,10 @@ import { SSR_STALE_TIME } from './shared'
 import { rosterPriceKey } from './rosterPriceKey'
 
 export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
-export const collectionStockQuery = () =>
-  queryOptions({ queryKey: ['collection-stock'], queryFn: () => collectionStock(), staleTime: SSR_STALE_TIME })
+export const fieldedDatasheetsQuery = () =>
+  queryOptions({ queryKey: ['fielded-datasheets'], queryFn: () => fieldedDatasheets(), staleTime: SSR_STALE_TIME })
+export const collectionCountsQuery = () =>
+  queryOptions({ queryKey: ['collection-counts'], queryFn: () => collectionCounts(), staleTime: SSR_STALE_TIME })
 
 export const unitsQuery = (catalogueId: string, battleSize?: number, waivedRules: readonly FormatRuleId[] = []) =>
   queryOptions({

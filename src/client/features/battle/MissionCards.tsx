@@ -8,6 +8,9 @@ import type { Side } from '../../sides'
 import { MissionActions } from '../../components/MissionActions'
 import { MissionCardReference } from '../../components/MissionCardReference'
 import { CARD, CARD_NAME } from './battleTints'
+import { MissionSelectionRecords } from './MissionSelectionRecord'
+import { MissionSelectionDialog } from './MissionSelectionDialog'
+import { isManualSelection } from '../../../core/missionSelections'
 
 import type { MissionAction } from '../../../contracts/missions'
 import type { MissionAward as Award } from '../../missionText'
@@ -32,13 +35,22 @@ type Props = {
   guides: { primary: number; secondary: number }
 }
 
-export function PrimaryMission({ view, side, referenceFor, guides }: Props) {
+export function PrimaryMission({ view, side, pending, send, referenceFor, guides }: Props) {
   if (!side.primaryCard) return null
   return (
     <section className="space-y-1.5">
       <p className="eyebrow">Primary mission</p>
       <div className={`${CARD} space-y-2`}>
         <MissionName name={side.primaryCard.name} card={referenceFor(side.primaryCard.key)} type="Primary mission" />
+        <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={side.primaryCard.key} />
+        <ManualMissionChoice
+          view={view}
+          side={side}
+          cardKey={side.primaryCard.key}
+          pending={pending}
+          send={send}
+          reference={referenceFor(side.primaryCard.key)}
+        />
         <RoundScores
           view={view}
           scores={side.rounds.map((round) => round.primary)}
@@ -48,6 +60,41 @@ export function PrimaryMission({ view, side, referenceFor, guides }: Props) {
         />
       </div>
     </section>
+  )
+}
+
+function ManualMissionChoice({
+  view,
+  side,
+  cardKey,
+  pending,
+  send,
+  reference,
+}: Pick<Props, 'view' | 'side' | 'pending' | 'send'> & { cardKey: string; reference?: ReferenceCard }) {
+  const [open, setOpen] = useState(false)
+  const choice = view.missionChoices?.find(
+    (candidate) =>
+      candidate.playerId === side.captain.id && candidate.cardKey === cardKey && isManualSelection(candidate.kind) && candidate.canChoose,
+  )
+  if (!choice) return null
+  return (
+    <>
+      <Button size="xs" variant="ghost" className="text-azure" disabled={pending} onClick={() => setOpen(true)}>
+        {choice.kind === 'beacon' ? 'Record Beacon' : 'Record Sensor Sweep'}
+      </Button>
+      {open ? (
+        <MissionSelectionDialog
+          key={`${choice.kind}:${choice.occurrence}`}
+          view={view}
+          choice={choice}
+          deployment={null}
+          pending={pending}
+          send={send}
+          reference={reference}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </>
   )
 }
 
@@ -92,6 +139,15 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
                 </span>
               ) : null}
             </div>
+            <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={secondary.key} />
+            <ManualMissionChoice
+              view={view}
+              side={side}
+              cardKey={secondary.key}
+              pending={pending}
+              send={send}
+              reference={referenceFor(secondary.key)}
+            />
             {tacticalActive ? (
               scoredRounds.length ? (
                 <ScoredRounds rounds={scoredRounds} />

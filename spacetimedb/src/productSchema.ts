@@ -131,6 +131,8 @@ const rosters = table(
     updatedAt: t.u64(),
     automaticName: t.option(t.bool()).default(undefined),
     baseRosterId: t.option(t.string()).default(undefined),
+    locked: t.option(t.bool()).default(undefined),
+    pointsBudget: t.option(t.u32()).default(undefined),
   },
 )
 
@@ -189,6 +191,7 @@ const leagueEventBattles = table(
   },
 )
 
+/** Retired roster-tied stock. SpacetimeDB refuses to drop a table that still holds rows, so it stays until it is emptied. */
 const collectionStock = table(
   { name: 'collection_stock' },
   {
@@ -198,6 +201,22 @@ const collectionStock = table(
   },
 )
 
+const supportReports = table(
+  { name: 'support_reports' },
+  {
+    reference: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    title: t.string(),
+    body: t.string(),
+    createdAt: t.u64(),
+    checkedAt: t.u64(),
+    delivery: t.string(),
+    issueNumber: t.option(t.u32()),
+  },
+)
+
+const collectionSharing = table({ name: 'collection_sharing' }, { userId: t.string().primaryKey(), published: t.bool() })
+
 const collection = table(
   { name: 'collection' },
   {
@@ -205,6 +224,7 @@ const collection = table(
     userId: t.string().index('btree'),
     entryId: t.string(),
     at: t.u64(),
+    models: t.option(t.u32()).default(undefined),
   },
 )
 
@@ -232,6 +252,16 @@ const favouriteDetachments = table(
     userId: t.string().index('btree'),
     catalogueId: t.string(),
     detachmentId: t.string(),
+    at: t.u64(),
+  },
+)
+
+const favouriteDatasheets = table(
+  { name: 'favourite_datasheets' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    entryId: t.string(),
     at: t.u64(),
   },
 )
@@ -280,6 +310,7 @@ const syncReceipts = table(
 )
 
 export const productTables = {
+  supportReports,
   syncReceipts,
   rosterSync,
   userOnboarding,
@@ -299,10 +330,12 @@ export const productTables = {
   leagueEventEntries,
   leagueEventBattles,
   collection,
+  collectionSharing,
   collectionStock,
   favouriteFactions,
   practiceOpponents,
   favouriteDetachments,
+  favouriteDatasheets,
   productRevisions,
   publicRevisions,
 }

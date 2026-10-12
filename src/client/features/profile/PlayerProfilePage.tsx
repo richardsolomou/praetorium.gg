@@ -10,11 +10,13 @@ import { AdminBadge } from '../../components/AdminBadge'
 import { SupporterBadge } from '../../components/SupporterBadge'
 import { PlayerRankings } from './PlayerRankings'
 import { PlayerRosters } from './PlayerRosters'
+import { PlayerCollection } from './PlayerCollection'
 import { recordSummary } from './recordSummary'
 import { ServiceRecordPanel } from './ServiceRecordPanel'
 import { PersonalPerformancePanel } from './PersonalPerformancePanel'
 import {
   factionIndexQuery,
+  collectionProfileQuery,
   meQuery,
   type PlayerProfileFilter,
   playerProfileQuery,
@@ -23,8 +25,7 @@ import {
   userProfileQuery,
 } from '../../queries'
 
-/** Which of the three answers a profile holds is on screen. */
-const TABS = ['record', 'battles', 'rosters'] as const
+const TABS = ['record', 'battles', 'rosters', 'collection'] as const
 type ProfileTab = (typeof TABS)[number]
 
 export type ProfileSearch = PlayerProfileFilter & { tab?: ProfileTab }
@@ -62,6 +63,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   const { data: profile } = useQuery(userProfileQuery(userId))
   const { data } = useQuery(playerProfileQuery(userId, filter))
   const { data: rankings } = useQuery(playerRankingsQuery(userId))
+  const collection = useQuery(collectionProfileQuery(userId))
   const { data: published } = useQuery(playerRostersQuery(userId))
   // Only fetched when there is a list to name a faction for, since the index is large.
   const factions = useQuery({ ...factionIndexQuery(), enabled: Boolean(published?.rosters.length) })
@@ -87,6 +89,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
     { value: 'record' as const, label: 'Record', count: undefined },
     { value: 'battles' as const, label: 'Battles', count: data?.played ?? 0 },
     ...(published?.rosters.length ? [{ value: 'rosters' as const, label: 'Rosters', count: published.rosters.length }] : []),
+    ...(yourself || collection.data?.entries.length ? [{ value: 'collection' as const, label: 'Collection', count: undefined }] : []),
   ]
   const tab = tabs.some((candidate) => candidate.value === search.tab) ? (search.tab as ProfileTab) : 'record'
   return (
@@ -164,6 +167,21 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                   ? 'None of your battles are listed here. Only the ones your sharing setting allows appear.'
                   : 'This player has no battles anyone else can watch.'}
               </p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="collection" className="mt-4">
+            {collection.data ? (
+              <PlayerCollection userId={userId} groups={collection.data.groups} published={collection.data.published} yourself={yourself} />
+            ) : collection.isError ? (
+              <p role="alert" className="text-sm text-destructive">
+                Could not load the collection.{' '}
+                <button type="button" className="text-info underline" onClick={() => void collection.refetch()}>
+                  Retry
+                </button>
+              </p>
+            ) : (
+              <p className="text-sm text-dim">Loading collection…</p>
             )}
           </TabsContent>
 

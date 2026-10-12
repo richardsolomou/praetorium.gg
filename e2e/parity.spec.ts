@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import {
+  confirmRosterSetup,
   advance,
   attachRoster,
   createBattle,
@@ -26,7 +27,7 @@ test('roster visibility controls search indexing and public URL variants', async
     await setup.getByRole('combobox', { name: 'Access' }).click()
     await page.getByRole('option', { name }).click()
     const saved = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes(`"${value}"`)))
-    await waitForRosterSave(page, () => setup.getByRole('button', { name: 'Save changes' }).click())
+    await waitForRosterSave(page, () => confirmRosterSetup(setup))
     await saved
   }
 
@@ -73,7 +74,51 @@ test('a private roster can be shared and made private again', async ({ browser }
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const page = await context.newPage()
   await signUp(page, uniqueName('Sharer'))
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/rosters')
+    const creation = page.getByRole('dialog', { name: 'Create roster' })
+    await retryUntilVisible(creation, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+    await expect(creation.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
+    await expect(creation).toContainText('You and seated players through a battle using this list')
+    await creation.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+    await expect(creation.locator('#setup-visibility-reach')).toBeInViewport()
+    await creation.screenshot({ path: test.info().outputPath(`private-roster-create-${width}.png`), animations: 'disabled' })
+    await creation.getByRole('button', { name: 'Cancel', exact: true }).click()
+  }
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shareable roster' })
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  const privateSetup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await expect(privateSetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
+  await expect(privateSetup).toContainText('You and seated players through a battle using this list')
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await privateSetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+    await expect(privateSetup.locator('#setup-visibility-reach')).toBeInViewport()
+    await privateSetup.screenshot({ path: test.info().outputPath(`private-roster-edit-${width}.png`), animations: 'disabled' })
+  }
+  await privateSetup.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('link', { name: 'Awakened Dynasty', exact: true }).click()
+  await page.getByRole('button', { name: 'Start a roster', exact: true }).click()
+  const referenceSetup = page.getByRole('dialog', { name: 'Create roster' })
+  await expect(referenceSetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
+  await expect(referenceSetup).toContainText('You and seated players through a battle using this list')
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await referenceSetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+    await expect(referenceSetup.locator('#setup-visibility-reach')).toBeInViewport()
+    await referenceSetup.screenshot({ path: test.info().outputPath(`private-roster-reference-${width}.png`), animations: 'disabled' })
+  }
+  await referenceSetup.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.goto('/profile')
+  const privateDefault = page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: /^Private/ })
+  await expect(privateDefault).toContainText('You and seated players through a battle using this list')
+  await expect(privateDefault).toHaveAttribute('aria-pressed', 'true')
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await privateDefault.screenshot({ path: test.info().outputPath(`private-roster-default-${width}.png`) })
+  }
   await page.goto('/rosters')
 
   // Scoped to the row, because 'Unlisted' and 'Private' also appear in the menu
@@ -81,8 +126,36 @@ test('a private roster can be shared and made private again', async ({ browser }
   // to the visible label, because a phone reads it in the row's details line instead.
   const row = page.locator('[data-roster="Shareable roster"]')
 
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
+    await page.getByRole('menuitem', { name: 'Edit setup', exact: true }).click()
+    const librarySetup = page.getByRole('dialog', { name: 'Edit roster setup' })
+    await expect(librarySetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
+    await expect(librarySetup).toContainText('You and seated players through a battle using this list')
+    await librarySetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+    await expect(librarySetup.locator('#setup-visibility-reach')).toBeInViewport()
+    await librarySetup.screenshot({ path: test.info().outputPath(`private-library-edit-${width}.png`), animations: 'disabled' })
+    await librarySetup.getByRole('button', { name: 'Cancel', exact: true }).click()
+    for (const menu of ['context', 'overflow']) {
+      if (menu === 'context') await row.click({ button: 'right' })
+      else await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
+      const sharing = page.getByRole('menuitem', { name: /^Make unlisted and copy link/ })
+      await expect(sharing).toContainText('Anyone with the link can read this roster.')
+      await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
+      expect(
+        await sharing.evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
+        }),
+      ).toBe(true)
+      await sharing.screenshot({ path: test.info().outputPath(`private-share-${menu}-${width}.png`) })
+      await page.keyboard.press('Escape')
+      await expect(sharing).toBeHidden()
+    }
+  }
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-  await page.getByRole('menuitem', { name: 'Share link' }).click()
+  await page.getByRole('menuitem', { name: /^Make unlisted and copy link/ }).click()
   await expect(row.getByText('Unlisted').filter({ visible: true })).toBeVisible()
   // Polled, because the link is copied only once the visibility change comes back.
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
@@ -90,11 +163,15 @@ test('a private roster can be shared and made private again', async ({ browser }
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(sharedUrl)
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Copy link' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.evaluate(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
     window.ReactNativeWebView = {
       postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
     }
+    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
   })
   await page.getByRole('button', { name: 'Roster actions' }).click()
   const rosterShare = page.getByRole('menuitem', { name: 'Share link' })
@@ -151,11 +228,14 @@ test('editable detail waits for public access to save before sharing', async ({ 
   await signUp(page, uniqueName('Detail sharer'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Detail share' })
   const sharedUrl = page.url()
+  const anonymous = await (await browser.newContext()).newPage()
+  const previewPath = `/api/previews${new URL(sharedUrl).pathname}`
   await page.evaluate(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
     window.ReactNativeWebView = {
       postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
     }
+    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
   })
 
   let releaseSave: () => void = () => undefined
@@ -180,18 +260,23 @@ test('editable detail waits for public access to save before sharing', async ({ 
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
-  await saveStarted
-
+  await setup.getByRole('button', { name: 'Review changes' }).click()
+  const review = page.getByRole('dialog', { name: 'Review roster changes' })
+  try {
+    await review.getByRole('button', { name: 'Confirm changes' }).click()
+    await saveStarted
+    await expect(review.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled()
+    expect((await anonymous.request.get(previewPath, { timeout: 5000 })).status()).toBe(404)
+    await review.screenshot({ path: test.info().outputPath('reviewed-access-save-held.png') })
+    expect(await page.locator('html').getAttribute('data-native-message')).toBeNull()
+  } finally {
+    releaseSave()
+  }
+  await expect(review).toBeHidden()
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Share link' }).click()
-  await page.waitForTimeout(250)
-  const sharedBeforeSave = await page.locator('html').getAttribute('data-native-message')
-  releaseSave()
-  expect(sharedBeforeSave).toBeNull()
   await expect.poll(() => page.locator('html').getAttribute('data-native-message')).toContain('"type":"native-share"')
 
-  const anonymous = await (await browser.newContext()).newPage()
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByLabel('List name')).toHaveValue('Detail share')
 })

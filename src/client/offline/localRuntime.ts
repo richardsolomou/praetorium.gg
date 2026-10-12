@@ -199,12 +199,13 @@ export async function queueLocal(
   id = crypto.randomUUID(),
   expectedOwner = localOwner()?.id,
   update?: LocalDocumentUpdate,
+  relatedUpdates?: Record<string, LocalDocumentUpdate>,
 ) {
   const engine = localEngine()
   if (!engine) throw new Error('Sign in before saving changes.')
   if (localOwner()?.id !== expectedOwner) throw new Error('The account changed before these edits could be saved.')
   const operation: LocalOperation = { id, kind, input, resource, dependencies, createdAt: Date.now(), status: 'pending' }
-  await engine.enqueue(operation, data, update)
+  await engine.enqueue(operation, data, update, relatedUpdates)
   if (navigator.onLine)
     void engine.sync().catch((error) => {
       engine.lastError = error

@@ -15,7 +15,7 @@ export function combatUnitsFor(loaded: LoadedCatalogue, rules: LoadedRules | nul
     catalogueId: book.id,
     name: book.displayName,
     units: units.flatMap((unit) =>
-      isReferenceDatasheet(loaded, book.id, unit.id) ? [{ id: unit.id, name: unit.name, points: unit.points }] : [],
+      isReferenceDatasheet(loaded, book.id, unit.id) ? [{ id: unit.id, slug: unit.slug, name: unit.name, points: unit.points }] : [],
     ),
   }))
 }

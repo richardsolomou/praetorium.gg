@@ -46,7 +46,7 @@ describe('when a mission is asked about', () => {
   })
 
   it('settles the battle when the last round ends', () => {
-    expect(momentsPassed(at('end', 5))).toContain('end-of-battle')
+    expect(momentsPassed({ ...at('end', 5), endOfBattle: true })).toContain('end-of-battle')
   })
 
   it('leaves the battle unsettled before the last round', () => {
@@ -318,6 +318,24 @@ describe('settleAgainstCaps', () => {
   const primary: Card = { key: 'p', category: 'primary' }
   const first: Card = { key: 'a', category: 'secondary' }
   const second: Card = { key: 'b', category: 'secondary' }
+
+  it('banks final awards beyond the ordinary round allowance', () => {
+    expect(settleAgainstCaps([{ card: primary, claimed: 15, finalClaimed: 10 }], { primary: 0, secondary: 15 }, undefined, 20)).toEqual([
+      { card: primary, claimed: 15, scoring: 10, finalScoring: 10 },
+    ])
+  })
+
+  it('keeps final awards within the remaining whole-battle allowance', () => {
+    expect(settleAgainstCaps([{ card: primary, claimed: 15, finalClaimed: 10 }], { primary: 5, secondary: 15 }, undefined, 8)).toEqual([
+      { card: primary, claimed: 15, scoring: 8, finalScoring: 3 },
+    ])
+  })
+
+  it('banks zero final points when the battle allowance is already full', () => {
+    expect(settleAgainstCaps([{ card: primary, claimed: 10, finalClaimed: 10 }], { primary: 0, secondary: 15 }, undefined, 0)).toEqual([
+      { card: primary, claimed: 10, scoring: 0, finalScoring: 0 },
+    ])
+  })
 
   it('banks everything claimed when there is room for it', () => {
     expect(settleAgainstCaps([{ card: primary, claimed: 10 }], { primary: 15, secondary: 15 })).toEqual([

@@ -1,6 +1,7 @@
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
-import { collectionStockSchema, type CollectionLotUpdate } from '../core/collection'
+import type { SupportStoreCommand } from '../core/supportReport'
 import { z } from 'zod'
+import { collectionProfileSchema } from '../contracts/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
@@ -19,6 +20,7 @@ const rosterRow = z.strictObject({
   detachmentId: z.string().nullable(),
   disposition: z.string().nullable(),
   limit: z.number().int(),
+  pointsBudget: z.number().int().nullable(),
   picks: z.string(),
   prep: z.string().nullable(),
   tags: z.string(),
@@ -26,6 +28,7 @@ const rosterRow = z.strictObject({
   optionalRules: z.string(),
   borrowedDetachmentId: z.string().nullable(),
   baseRosterId: z.string().nullable(),
+  locked: z.boolean().nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES),
   source: z.enum(ROSTER_SOURCES),
   createdAt: z.number().int(),
@@ -35,7 +38,8 @@ const rosterRow = z.strictObject({
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true }).extend({
   unitCount: z.number().int().nonnegative(),
 })
-const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int() })
+const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
+const favouriteDatasheetRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.strictObject({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.strictObject({
   userId: z.string(),
@@ -158,6 +162,8 @@ type SaveRosterInput = {
   detachmentId: string | null
   disposition: string | null
   limit: number
+  /** Omitted by a client that predates custom budgets, which keeps the stored budget. */
+  pointsBudget?: number | null
   picks: string
   prep: string | null
   tags: string
@@ -218,6 +224,10 @@ export class SpacetimeOperator {
   async health() {
     const response = await this.call('operator_health', [])
     return z.literal(true).parse(await response.json())
+  }
+
+  async supportReportCommand(userId: string, command: SupportStoreCommand) {
+    return this.read('support_report_command', [userId, JSON.stringify(command)])
   }
 
   async deleteUserData(userId: string) {
@@ -510,7 +520,7 @@ export class SpacetimeOperator {
         borrowedDetachmentId: input.borrowedDetachmentId ?? null,
       }),
     ])
-    const outcome = z.enum(['inserted', 'updated', 'forbidden']).parse(await response.json())
+    const outcome = z.enum(['inserted', 'updated', 'forbidden', 'locked']).parse(await response.json())
     return outcome === 'forbidden' ? null : outcome
   }
 
@@ -519,16 +529,24 @@ export class SpacetimeOperator {
     return z.boolean().parse(await response.json())
   }
 
+  async setRosterLocked(id: string, userId: string, locked: boolean, now: number) {
+    const response = await this.call('set_roster_locked', [id, userId, locked, now])
+    return z.boolean().parse(await response.json())
+  }
+
   async deleteRoster(id: string, userId: string) {
     await this.call('delete_roster', [id, userId])
   }
 
-  async collectionStock(userId: string) {
-    return collectionStockSchema.parse(await this.read('collection_stock_by_user', [userId]))
+  async collectionProfile(userId: string, viewerId: string | null) {
+    return collectionProfileSchema.parse(
+      await this.read('collection_profile', [userId, viewerId === null ? { none: [] } : { some: viewerId }]),
+    )
   }
 
-  async updateCollectionLot(userId: string, update: CollectionLotUpdate) {
-    return z.boolean().parse(await this.read('update_collection_lot', [userId, JSON.stringify(update)]))
+  async setCollectionPublished(userId: string, published: boolean) {
+    const response = await this.call('set_collection_published', [userId, published])
+    return z.boolean().parse(await response.json())
   }
 
   async collectionByUser(userId: string) {
@@ -541,6 +559,10 @@ export class SpacetimeOperator {
 
   async removeFromCollection(userId: string, entryId: string) {
     await this.call('remove_from_collection', [userId, entryId])
+  }
+
+  async setCollectionModels(input: { userId: string; entryId: string; models: number; now: number }) {
+    await this.call('set_collection_models', [input.userId, input.entryId, input.models, input.now])
   }
 
   async favouriteFactionsByUser(userId: string) {
@@ -565,6 +587,18 @@ export class SpacetimeOperator {
 
   async removeFavouriteDetachment(userId: string, catalogueId: string, detachmentId: string) {
     await this.call('remove_favourite_detachment', [userId, catalogueId, detachmentId])
+  }
+
+  async favouriteDatasheetsByUser(userId: string) {
+    return z.array(favouriteDatasheetRow).parse(await this.read('favourite_datasheets_by_user', [userId]))
+  }
+
+  async addFavouriteDatasheet(input: { userId: string; entryId: string; now: number }) {
+    await this.call('add_favourite_datasheet', [input.userId, input.entryId, input.now])
+  }
+
+  async removeFavouriteDatasheet(userId: string, entryId: string) {
+    await this.call('remove_favourite_datasheet', [userId, entryId])
   }
 
   async pushEnabled(userId: string) {

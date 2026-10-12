@@ -84,7 +84,7 @@ export function capRoom(caps: { round: number | null; game: number | null }, ban
  * the one thing this must not do is pick one the player cannot see.
  */
 export function settleAgainstCaps<T extends { category: 'primary' | 'secondary' }>(
-  claims: readonly { card: T; claimed: number }[],
+  claims: readonly { card: T; claimed: number; finalClaimed?: number }[],
   room: { primary: number; secondary: number },
   /**
    * What this one card still has room for, where it has a ceiling of its own. A fixed
@@ -94,11 +94,18 @@ export function settleAgainstCaps<T extends { category: 'primary' | 'secondary' 
    * throws away the whole settlement it was part of.
    */
   cardRoom: (card: T) => number = () => Infinity,
-): { card: T; claimed: number; scoring: number }[] {
+  finalPrimaryRoom = Infinity,
+): { card: T; claimed: number; scoring: number; finalScoring?: number }[] {
   const left = { ...room }
-  return claims.map(({ card, claimed }) => {
-    const scoring = Math.max(0, Math.min(claimed, left[card.category], cardRoom(card)))
-    left[card.category] -= scoring
-    return { card, claimed, scoring }
+  return claims.map(({ card, claimed, finalClaimed = 0 }) => {
+    const ordinary = Math.max(
+      0,
+      Math.min(claimed - finalClaimed, left[card.category], cardRoom(card), card.category === 'primary' ? finalPrimaryRoom : Infinity),
+    )
+    const finalScoring = card.category === 'primary' ? Math.max(0, Math.min(finalClaimed, finalPrimaryRoom - ordinary)) : 0
+    const scoring = ordinary + finalScoring
+    left[card.category] -= ordinary
+    if (card.category === 'primary') finalPrimaryRoom -= scoring
+    return { card, claimed, scoring, ...(finalClaimed ? { finalScoring } : {}) }
   })
 }

@@ -1,5 +1,6 @@
 import { mayNameCard, sameSide, playsSide, reduceBattle, commandArmy, validate, type Command, type LoggedCommand } from './battle'
 import { battleView } from './battleView'
+import { rosterWithoutUnitNotes } from './unitNotes'
 
 type Players = { id: string; name: string; side: number; automated: boolean }[]
 export function visibleBattleLog(players: Players, log: readonly LoggedCommand[], viewerId: string): LoggedCommand[] {
@@ -44,6 +45,11 @@ export function visibleBattleLog(players: Players, log: readonly LoggedCommand[]
     if (command.kind === 'attach-roster' && target?.id !== viewerId) {
       delete command.roster.reminders
       delete command.roster.remindersEnabled
+      command.roster = rosterWithoutUnitNotes(command.roster)
+    }
+    if (command.kind === 'select-mission' && hidden.has(command.cardKey)) {
+      command.selection = { kind: 'beacon', unit: null, note: '' }
+      command.occurrence = 1
     }
     return { ...entry, command: clean(command) as Command }
   })

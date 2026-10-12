@@ -4,11 +4,13 @@ Praetorium uses a compact, dark interface. [Product design](../product-design.md
 
 ## Voice and copy
 
-Write for a player building an army or playing Warhammer 40,000. Name the game task, outcome, and next action. Keep implementation terms in technical documentation. Deletion warnings name what will be lost. Marketing leads with player benefits; retain licensing, attribution, and operational detail where readers need them. Avoid unsupported competitor comparisons.
+Write for a player building an army or playing Warhammer 40,000. Name the game task, outcome, and next action. Keep implementation terms in technical documentation. Deletion warnings name what will be lost. Name an action by what it does on the current device: Copy when it writes to the clipboard, Share only when `useNativeShare` reports the system share sheet. Marketing leads with player benefits; retain licensing, attribution, and operational detail where readers need them. Avoid unsupported competitor comparisons.
 
 Keep contextual help brief. Player guides combine practical preparation, army roles and scoring advice with app walkthroughs. Give each guide a visual overview and compact reading sections rather than an unbroken essay. Use labelled decision diagrams or cropped app screenshots; illustrative positions do not define terrain or deployment rules. Keep learning guidance in player guides; do not add standalone simulator examples, tracker-help panels or finished-game score breakdowns. Practice uses the ordinary New battle dialog; do not add a separate practice action. Show a roster limit count once, beside a short state label; retain explanations for unavailable units.
 
 ## Application navigation
+
+Public support reporting follows [Support reports](support-reports.md), including explicit publication review and private-context exclusions.
 
 `src/client/features/shell` owns the shared web and native navigation. Phones use a Home/search/account utility bar and bottom application tabs; immersive roster screens omit the utility bar. Native wide layouts use a rail, while the website uses its desktop header. Read `src/styles.css` for the breakpoints and safe-area dimensions rather than duplicating them in components.
 
@@ -31,15 +33,19 @@ Release notices use one compact sentence and a manual Refresh action, centred at
 
 ## Rosters
 
-Put the faction reference rules-version selector in its page header and offer direct version links from faction index rows. Keep the version menu in the metadata line below the faction name, beside the detachment count, so it does not truncate the name. Keep faction, rules version, and battle size in one row in roster setup at wider widths; stack them on phones. Call the catalogue selector “Rules version”: versions may contain codex, points, or other rules updates. Render rules-version states (Current, Archived, Preview) as equally wide, centered chips before the release name in menus, selector values, and tooltips. Keep the full release and state in option accessible names. Keep faction marks and tints identical across versions. `FactionMark` and `FactionLabel` use the ordinary faction logo for released rules. Archived rules add a grey archive marker and previews add an amber flask marker wherever the faction is shown, including selectors, reference headers, roster cards, battles, and profile summaries. Current chips are green, archived chips grey, and preview chips amber. Show the full version name in its tooltip on hover, keyboard focus, and touch; do not add a version text chip beside the faction name. Carry version metadata through summary projections; frozen armies retain their recorded status. Do not repeat the preview status in a separate warning sentence.
+Put the faction reference rules-version selector in its page header and offer direct version links from faction index rows. Keep the version menu in the metadata line below the faction name, beside the detachment count, so it does not truncate the name. Keep faction, rules version, and battle size in one row in roster setup at wider widths; stack them on phones. The optional custom points budget sits below that row with its bounds and says the battle size still sets the other limits; wherever a roster's size is shown, name a custom budget beside the size with `battleSizeLabel` and use the budget as the points ceiling. Call the catalogue selector “Rules version”: versions may contain codex, points, or other rules updates. Render rules-version states (Current, Archived, Preview) as equally wide, centered chips before the release name in menus, selector values, and tooltips. Keep the full release and state in option accessible names. Keep faction marks and tints identical across versions. `FactionMark` and `FactionLabel` use the ordinary faction logo for released rules. Archived rules add a grey archive marker and previews add an amber flask marker wherever the faction is shown, including selectors, reference headers, roster cards, battles, and profile summaries. Current chips are green, archived chips grey, and preview chips amber. Show the full version name in its tooltip on hover, keyboard focus, and touch; do not add a version text chip beside the faction name. Carry version metadata through summary projections; frozen armies retain their recorded status. Do not repeat the preview status in a separate warning sentence.
 
 The builder has one picker and one loadout instance, moved by `src/client/features/rosters/builder/Pane.tsx` between desktop columns and compact panes. Reserve the desktop workspace before hydration. Edit squad size on the roster card, not in a second control. Its stepper's count also picks any listed size directly; `modelCountChoices` in `src/core/unitSize.ts` decides which counts are listed, and the simulator's model controls reuse it.
+
+The loadout pane opens with the selected unit's Nickname and Note fields and the roster-wide Share unit notes switch while building. Unit cards show a nickname above the datasheet name and a note in a clamped row; frozen cards, the army window and the print pack use the same order.
 
 Loadouts group equipment by model and weapon choice. Keep required/default equipment readable after replacement, paired weapons under one counter, and alternate profiles under their weapon. Selection styling must not shift content. Display each option and equipped item once. `loadoutModel.ts`, `LoadoutControls.tsx`, `ModelCard.tsx`, and `Loadout.tsx` own this flow.
 
 Keep each weapon option's profiles visible before selection so players can compare alternatives, including equipment quantities in bundles. Keep profiles in the bundle's equipment order when selection changes. Do not repeat choice-controlled profiles in a separate equipped section. Match structured equipment names to their own profiles; a single weapon must not match a similarly named dual weapon. Keep fixed equipment outside those choices visible.
 
 Use the same roster cards for libraries, choosers, editable lists, read-only lists, and frozen battle/league snapshots. A pending price is a loading state, not an empty roster. Frozen snapshots retain their recorded cards and totals without today's legality or data-update warnings. Owners' View mode may retain the picker; other readers receive no mutation controls.
+
+A locked roster shows a Locked chip in library rows and a Locked line with Unlock under the builder header. The builder reads as it does to other readers, without picker, setup, conversion or name editing, and its Roster actions offer Unlock roster, Create variant and Duplicate. Library row menus offer Lock roster or Unlock roster and disable Edit setup and Convert rules version while locked. The datasheet roster chooser omits locked rosters.
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).
 
@@ -52,6 +58,8 @@ Saved and guest roster Print actions prepare `RosterPrintPack.tsx` from current 
 ## Battles and leagues
 
 Setup is one page in rules order under `StepRail`, a jump index highlighting the viewed section in blue and marking the next decision in amber. Dim sections while their prerequisites are missing. Keep Fixed/Tactical secondary choices, reserves controls, deployment units, and pre-battle units visible without a Change or Show action. King of the Colosseum shows only Tactical. Only settled format and twist choices may fold to one line with Change. Folding and scroll position are local to the device. The fixed bar lists what is left, shows refusals, and holds Start battle. Render battle controls by side, not seat. Allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Missions and stratagems remain visible together, stacking when the panel is narrow.
+
+Keep recorded mission choices compact beneath the mission name. Show a guard or consecration beside its objective once, mark a removed operation marker with its round, and retain round, expiry, casualty and manual-tracking information.
 
 Required prompts open one at a time. Minimize preserves local answers and exposes a persistent return control; battle-changing controls remain in place but disabled until parked dialogs are resumed or closed. Undo must preserve answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 
@@ -75,7 +83,7 @@ Administration uses shared account controls, server-side filtering/pagination, a
 
 [Combat simulation](combat-simulation.md#interface-and-context) owns the shared matchup UI, pinned outcome, loadout odds, and pending states.
 
-Friend invite QR codes encode the existing one-time link and use the same expiry/revocation boundary. Keep the readable link available if image generation fails. Battle cards and Home activity show scores once, without an additional result sentence. Dates spell out the month.
+Roster exchange QR codes encode the exchange import link only while it stays within `ROSTER_EXCHANGE_QR_MAX_LENGTH`; longer rosters keep the copyable code and say why there is no QR code. Friend invite QR codes encode the existing one-time link and use the same expiry/revocation boundary. Keep the readable link available if image generation fails. Battle cards and Home activity show scores once, without an additional result sentence. Dates spell out the month.
 
 ## Link previews
 
@@ -102,9 +110,11 @@ Run `just e2e offline-work.spec.ts offline.spec.ts app-cache.spec.ts` after chan
 
 ## Verification
 
-Selector options name the choice and its detail explicitly; interactive rules badges must not change the option's accessible name. Exercise both grouped and virtualized selectors when changing their contents.
+Selector options name the choice and its detail explicitly; interactive rules badges must not change the option's accessible name. Assert selected values separately from decorative trigger text. Exercise both grouped and virtualized selectors when changing their contents.
 
-Inspect affected surfaces at desktop and phone widths before the relevant browser flow. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard/touch access, and loading geometry. Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
+Inspect affected surfaces at desktop and phone widths before the relevant browser flow. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard/touch access, and loading geometry. Rows that pair a name with controls must survive doubled text at phone width: give the name a minimum width and let the control group wrap below it rather than overflow, as `e2e/accessibility.spec.ts` checks. Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
+
+Read multiple elements' geometry in one browser evaluation so a moving layout cannot change between measurements.
 
 For rosters, inspect both the unopened list and opened unit. For battles, check live and finished scorecards, army accordion scroll/collapse, spectator/replay access, and several replay frames. Use the shared E2E phase helper to avoid reminder races. Exercise scoring, draw, and discard through minimize, Undo, and return; test the domain guard separately from the local UI lock.
 

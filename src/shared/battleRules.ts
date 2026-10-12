@@ -2,40 +2,51 @@ import {
   type BattleState,
   type Command,
   type PlayerId,
+  type PlayerState,
   type Secondary,
   type Refusal,
   reduceBattle,
   commandArmy,
+  commandRefusal,
   sideDisposition,
   sideCaptain,
   scoringTarget,
+  pointsRound,
   FIXED_SECONDARIES,
   isKotcLimit,
   refuse,
 } from '../core/battle'
 import { KOTC_MATCHUP_ID } from '../contracts/terrain'
 import type { MissionAward } from '../core/scoring'
+import type { MissionSelectionKind } from '../core/missionSelections'
 import { type LoadedRules, type BattleReadRules, missionFor } from './rules'
 
 export function withAuthoritativeAwards<
   T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>,
->(prep: T, rules: LoadedRules): T {
+>(prep: T, rules: LoadedRules, frozen?: PlayerState): T {
   const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
   const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
+  const existing = frozen
+    ? [...(frozen.primaryCard ? [frozen.primaryCard] : []), ...frozen.secondaries, ...(frozen.secondaryDeck ?? [])]
+    : null
+  const card = (submitted: Secondary, available: Map<string, AvailableCard>) => {
+    const authoritative = authoritativeCard(submitted, available)
+    return existing ? { ...authoritative, selection: existing.find((saved) => saved.key === submitted.key)?.selection } : authoritative
+  }
   return {
     ...prep,
-    primary: prep.primary ? authoritativeCard(prep.primary, primaryByKey) : null,
-    secondaries: prep.secondaries.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
-    secondaryDeck: prep.secondaryDeck?.map((secondary) => authoritativeCard(secondary, secondaryByKey)),
+    primary: prep.primary ? card(prep.primary, primaryByKey) : null,
+    secondaries: prep.secondaries.map((secondary) => card(secondary, secondaryByKey)),
+    secondaryDeck: prep.secondaryDeck?.map((secondary) => card(secondary, secondaryByKey)),
   }
 }
 
-type AvailableCard = { key: string; name: string; awards: MissionAward[] }
+type AvailableCard = { key: string; name: string; awards: MissionAward[]; selection?: MissionSelectionKind }
 
 function authoritativeCard(submitted: Secondary, available: Map<string, AvailableCard>): Secondary {
   const authoritative = available.get(submitted.key)
   return authoritative
-    ? { key: authoritative.key, name: authoritative.name, awards: authoritative.awards }
+    ? { key: authoritative.key, name: authoritative.name, awards: authoritative.awards, selection: authoritative.selection }
     : { key: submitted.key, name: submitted.name }
 }
 
@@ -43,7 +54,7 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
   const primaryByKey = new Map((rules.primaries ?? []).map((card) => [card.key, card]))
   const secondaryByKey = new Map((rules.secondaries ?? []).map((card) => [card.key, card]))
   const hydrate = (card: Secondary, available: Map<string, AvailableCard>) =>
-    card.awards === undefined ? authoritativeCard(card, available) : card
+    card.awards === undefined ? { ...authoritativeCard(card, available), selection: card.selection } : card
   for (const player of state.players) {
     if (player.primaryCard) {
       const mission = state.status === 'setup' ? null : resolvedMissionForSide(state, rules, player.side)
@@ -53,6 +64,7 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
             key: mission.id,
             name: mission.name,
             awards: player.primaryCard.awards ?? primary?.awards,
+            selection: player.primaryCard.selection,
           }
         : hydrate(player.primaryCard, primaryByKey)
     }
@@ -162,10 +174,14 @@ export function scoringCapError(
   state: ReturnType<typeof reduceBattle>,
   by: PlayerId,
   command: Extract<Command, { kind: 'score' } | { kind: 'score-secondary' } | { kind: 'score-settlement' }>,
-  rules: LoadedRules,
+  rules: Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>,
 ): Refusal | null {
   const target = scoringTarget(state, by, command)
   if (!target) return null
+  if (command.kind === 'score-settlement' && command.scores.some((score) => score.category === 'primary' && score.final)) {
+    const invalid = commandRefusal(state, by, command)
+    if (invalid) return invalid
+  }
   const deltas =
     command.kind === 'score-settlement'
       ? {
@@ -187,7 +203,7 @@ export function scoringCapError(
   if (!mission) return null
   // The round the points land in, which for a settlement of a turn already ended is
   // the round that turn was in rather than the one now being played.
-  const round = command.kind === 'score-settlement' ? (command.round ?? state.round) : state.round
+  const round = command.kind === 'score-settlement' ? pointsRound(state, command) : state.round
   const named = round === state.round ? 'this round’s' : `battle round ${round}’s`
   // A fixed card carries a ceiling of its own for the whole battle, which the per-round
   // and per-battle secondary caps do not cover: a card paying per model destroyed would
@@ -210,10 +226,16 @@ export function scoringCapError(
     if (delta <= 0) continue
     const roundCap = category === 'primary' ? mission.roundCap : mission.secondaryRoundCap
     const gameCap = category === 'primary' ? mission.gameCap : mission.secondaryGameCap
-    const roundSoFar = (category === 'primary' ? target.primaryByRound : target.secondaryByRound)[round - 1] ?? 0
+    const roundSoFar =
+      ((category === 'primary' ? target.primaryByRound : target.secondaryByRound)[round - 1] ?? 0) -
+      (category === 'primary' && round === state.round ? target.finalPrimary : 0)
+    const finalDelta =
+      command.kind === 'score-settlement' && category === 'primary'
+        ? command.scores.reduce((sum, score) => sum + (score.category === 'primary' ? (score.final?.delta ?? 0) : 0), 0)
+        : 0
     const gameSoFar = category === 'primary' ? target.primary : target.secondary
     const label = category === 'primary' ? 'primary mission' : 'secondary missions'
-    if (roundCap !== null && roundSoFar + delta > roundCap)
+    if (roundCap !== null && roundSoFar + delta - finalDelta > roundCap)
       return refuse('score-cap-round', `that would score past ${named} ${roundCap} VP cap for ${label}`)
     if (gameCap !== null && gameSoFar + delta > gameCap)
       return refuse('score-cap-battle', `that would score past the battle’s ${gameCap} VP cap for ${label}`)

@@ -8,14 +8,10 @@ import { currentUserId, requireUser } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
-import {
-  exportRosterFile,
-  importRosterCatalogueId,
-  importRosterFaction,
-  importRosterFile,
-  matchesImportFaction,
-} from '../../shared/rosterFiles'
+import { exportRosterFile } from '../../shared/rosterFiles'
+import { importRosterInput } from '../rosterImport'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
+import { isRosterExchangeCode } from '../../core/rosterExchange'
 import { variantDifferences } from '../rosterDifferences'
 import { copyOwnedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
@@ -27,6 +23,7 @@ import {
   rosterIdSchema,
   rosterIdsSchema,
   rosterInBattleSchema,
+  rosterLockSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
   userSchema,
@@ -294,31 +291,23 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
     }),
   )
 
+export const setRosterLocked = createServerFn({ method: 'POST' })
+  .validator(rosterLockSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const saved = await app().service.setRosterLocked(player.id, data.id, data.locked)
+      await app().telemetry.capture(player.id, 'roster_lock_updated', { locked: data.locked })
+      return saved
+    }),
+  )
+
 export const importRoster = createServerFn({ method: 'POST' })
   .validator(importRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const instance = app()
-      const factionName = importRosterFaction(data.file)
-      const factions = (await instance.factionsFor())?.factions ?? []
-      const statedCatalogueId = importRosterCatalogueId(data.file)
-      const faction = factionName
-        ? factions.find(
-            (candidate) =>
-              matchesImportFaction(factionName, candidate.name) &&
-              (statedCatalogueId ? candidate.id === statedCatalogueId : candidate.isDefault),
-          )
-        : null
-      if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
-      const loaded = faction ? await instance.catalogueFor(faction.id) : null
-      if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
-      const rules = await instance.rulesFor(faction?.id)
-      const result = importRosterFile(
-        data,
-        loaded,
-        factions.map((candidate) => candidate.name),
-        rules,
-      )
+      const { result, loaded, rules } = await importRosterInput(data.file)
       const userId = await currentUserId()
       if (userId) {
         await instance.telemetry.capture(userId, 'roster_imported', {
@@ -331,6 +320,7 @@ export const importRoster = createServerFn({ method: 'POST' })
             : {}),
           unit_count: result.units.length,
           source: result.source,
+          input: isRosterExchangeCode(data.file) ? 'exchange-code' : 'text',
           missing_count: result.unknown.length,
           unplaced_count: result.unplaced.length,
         })

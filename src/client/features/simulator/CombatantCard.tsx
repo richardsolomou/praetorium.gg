@@ -12,13 +12,14 @@ import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, loadoutDatash
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
-import { LoadoutOddsContext, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
+import { LoadoutOddsContext, LoadoutOddsStatus, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
 import { useLoadoutOdds } from './useLoadoutOdds'
 import { namespaceLoadoutSpace } from '../../../core/combatLoadouts'
 import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 import { useLoadoutOptimizer } from './useLoadoutOptimizer'
 import { attachedUnit } from '../../../core/attach'
+import { rulesVersionLabel } from '../../../core/catalogueEdition'
 
 const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
 
@@ -78,6 +79,28 @@ export function CombatantCard({
       : count + direction
   const more = nextSize(models, 1)
   const fewer = nextSize(models, -1)
+  const selectedOutsideIndex =
+    !combatant.roster &&
+    ready &&
+    pick &&
+    unit &&
+    !(catalogueUnits.data ?? []).some(
+      (faction) => faction.catalogueId === combatant.faction && faction.units.some((entry) => entry.id === pick.entryId),
+    )
+      ? [
+          {
+            label: selectedFaction ? `${selectedFaction.displayName} · ${rulesVersionLabel(selectedFaction)}` : 'Selected unit',
+            items: [
+              {
+                value: unitValue(combatant.faction, pick.entryId),
+                label: unit.name,
+                detail: `${unit.points} pts`,
+                icon: factionIcon(combatant.faction),
+              },
+            ],
+          },
+        ]
+      : []
   const unitPicker = combatant.roster ? (
     <SearchableSelect
       ariaLabel={`${side} unit`}
@@ -116,30 +139,33 @@ export function CombatantCard({
         const [catalogueId, id] = JSON.parse(value) as [string, string]
         combatant.selectUnit(catalogueId, id)
       }}
-      groups={(catalogueUnits.data ?? []).flatMap((faction) => {
-        const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
-        return faction.units.length
-          ? [
-              {
-                label: faction.name,
-                items: faction.units.map((entry) => ({
-                  value: unitValue(faction.catalogueId, entry.id),
-                  label: entry.name,
-                  detail: entry.points === null ? undefined : `${entry.points} pts`,
-                  icon: presentation ? (
-                    <FactionMark
-                      id={presentation.slug}
-                      name={presentation.displayName}
-                      edition={presentation.edition}
-                      icon={presentation.icon}
-                      size="sm"
-                    />
-                  ) : undefined,
-                })),
-              },
-            ]
-          : []
-      })}
+      groups={[
+        ...selectedOutsideIndex,
+        ...(catalogueUnits.data ?? []).flatMap((faction) => {
+          const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
+          return faction.units.length
+            ? [
+                {
+                  label: faction.name,
+                  items: faction.units.map((entry) => ({
+                    value: unitValue(faction.catalogueId, entry.id),
+                    label: entry.name,
+                    detail: entry.points === null ? undefined : `${entry.points} pts`,
+                    icon: presentation ? (
+                      <FactionMark
+                        id={presentation.slug}
+                        name={presentation.displayName}
+                        edition={presentation.edition}
+                        icon={presentation.icon}
+                        size="sm"
+                      />
+                    ) : undefined,
+                  })),
+                },
+              ]
+            : []
+        }),
+      ]}
     />
   )
   const warmLoadout = (index: number) => {
@@ -191,7 +217,9 @@ export function CombatantCard({
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {unit ? (
             <span className="flex min-h-5 items-center gap-2 whitespace-nowrap text-xs text-dim">
-              <span>{totalModels} models</span>
+              <span>
+                {totalModels} {totalModels === 1 ? 'model' : 'models'}
+              </span>
               <span className="readout text-sm text-info">
                 {unit.points +
                   (combatant.sheets.data?.companions ?? []).reduce(
@@ -248,8 +276,8 @@ export function CombatantCard({
         <>
           <div className="space-y-1" aria-label={`${side} unit members`}>
             {members.map((member) => (
-              <div key={member.index} className="flex min-w-0 items-center gap-2 text-sm" data-combat-member={member.name}>
-                <div className="min-w-0 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
+              <div key={member.index} className="flex min-w-0 flex-wrap items-center gap-2 text-sm" data-combat-member={member.name}>
+                <div className="min-w-12 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
                   {member.index === pickIndex ? (
                     unitPicker
                   ) : (
@@ -284,7 +312,7 @@ export function CombatantCard({
                     />
                   )}
                 </div>
-                <div className="ml-auto flex shrink-0 items-center gap-2">
+                <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center gap-2">
                   {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
                     <Stepper
                       label={`${side.toLowerCase()} models`}
@@ -518,6 +546,7 @@ function CombatMemberLoadoutEditor({
   const unit = combatant.price.data?.units[index]
   return (
     <WeaponProfileNote.Provider value={profileNote}>
+      <LoadoutOddsStatus />
       <Loadout
         catalogueId={combatant.picks.positioned[index]?.catalogueId ?? combatant.catalogueId}
         unit={unit ?? null}

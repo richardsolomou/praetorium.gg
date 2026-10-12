@@ -18,6 +18,7 @@ import type { TableShape } from '../../core/tableShape'
 import type { RepositoryPort } from '../spacetimeRepository'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
+import { rosterWithoutUnitNotes } from '../../core/unitNotes'
 
 export class LeagueService {
   constructor(
@@ -223,10 +224,12 @@ export class LeagueService {
   async submitLeagueRoster(
     token: string,
     userId: string,
-    roster: { id: string; limit: number; updatedAt: number },
+    roster: { id: string; limit: number; pointsBudget?: number | null; updatedAt: number },
     snapshot: Roster,
     eventToken?: string,
   ) {
+    if (roster.pointsBudget != null)
+      throw new Response('league events use their battle size’s standard points; remove the custom points budget first', { status: 409 })
     const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
     if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
     const { id: _savedRosterId, ...sealed } = command.roster
@@ -297,7 +300,7 @@ export class LeagueService {
     )
     if (!readable) return null
     const { reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster } = parseRosterSnapshot(readable.snapshot)
-    return roster
+    return rosterWithoutUnitNotes(roster)
   }
 
   async createLeagueBattle(

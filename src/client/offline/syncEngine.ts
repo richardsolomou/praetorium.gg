@@ -41,7 +41,12 @@ export class SyncEngine {
     private readonly changed: (state: LocalState) => void,
   ) {}
 
-  async enqueue(operation: LocalOperation, data?: unknown, update?: LocalDocumentUpdate) {
+  async enqueue(
+    operation: LocalOperation,
+    data?: unknown,
+    update?: LocalDocumentUpdate,
+    relatedUpdates: Record<string, LocalDocumentUpdate> = {},
+  ) {
     const state = await this.storage.change((current) => {
       if (current.operations.some((candidate) => candidate.id === operation.id)) throw new Error('This change is already saved.')
       if (operation.kind === 'battleCommand') {
@@ -60,17 +65,14 @@ export class SyncEngine {
       const operations = coalesce ? current.operations.slice(0, -1) : current.operations
       if (operations.length >= MAX_LOCAL_OPERATIONS) throw new Error('Too many unsynced changes. Connect before making more edits.')
       const projected = update ? update(current.documents[operation.resource]?.data) : data
-      const next = {
-        ...current,
-        operations: [...operations, operation],
-        documents:
-          projected === undefined
-            ? current.documents
-            : {
-                ...current.documents,
-                [operation.resource]: { data: projected, serverVersion: current.documents[operation.resource]?.serverVersion ?? null },
-              },
+      const documents = { ...current.documents }
+      if (projected !== undefined)
+        documents[operation.resource] = { data: projected, serverVersion: documents[operation.resource]?.serverVersion ?? null }
+      for (const [resource, apply] of Object.entries(relatedUpdates)) {
+        const updated = apply(documents[resource]?.data)
+        if (updated !== undefined) documents[resource] = { data: updated, serverVersion: documents[resource]?.serverVersion ?? null }
       }
+      const next = { ...current, operations: [...operations, operation], documents }
       if (new TextEncoder().encode(JSON.stringify(next)).byteLength > MAX_LOCAL_STATE_BYTES)
         throw new Error('This device has no room for more saved changes.')
       return next

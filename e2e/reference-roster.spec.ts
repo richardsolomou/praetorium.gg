@@ -5,7 +5,8 @@ const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
 async function addFromDatasheet(page: Page) {
   await page.goto(DATASHEET)
   await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Add to roster' }).click()
+  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  await page.getByRole('button', { name: 'Roster…' }).click()
 }
 
 /** A reader of one datasheet reaches the builder with that unit, under the roster's own limits. */
@@ -26,7 +27,9 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
     .getByRole('dialog', { name: 'Add Imotekh the Stormlord to a roster' })
     .getByRole('link', { name: /Your unsaved roster/ })
     .click()
-  await expect(page.getByRole('alert').filter({ hasText: 'The unit was not added' })).toHaveText('The unit was not added. Limit reached')
+  await expect(page.getByRole('alert').filter({ hasText: 'The unit was not added' })).toHaveText(
+    'The unit was not added. Limit reached: 1 of 1 permitted copies in the roster.',
+  )
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
 })
 

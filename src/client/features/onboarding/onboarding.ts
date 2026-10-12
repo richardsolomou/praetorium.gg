@@ -392,7 +392,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Share, print, or make a variant',
     description:
-      'Roster actions offers New variant, Export text, and Print. To share a link, set the list to Unlisted or Public in Edit roster setup; private lists have no share action. A variant is a separate saved list you can edit.',
+      'Roster actions offers Create variant, Export text, and Print. To share a link, set the list to Unlisted or Public in Edit roster setup; private lists have no share action. A variant is a separate saved list you can edit.',
     placement: 'bottom',
     next: 'tools-variants',
     nextLabel: 'Next',
@@ -697,7 +697,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Your list',
     description: 'Chosen units sit here by battlefield role. Each card shows its points, its models and any enhancement it carries.',
-    placement: 'left',
+    placement: 'right',
     next: 'roster-points',
     nextLabel: 'Next',
   },

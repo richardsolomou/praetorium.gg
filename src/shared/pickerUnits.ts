@@ -1,3 +1,5 @@
+import { attachmentOf, attachmentLimitsOf, attachmentCategoriesOf } from '../core/attach'
+import { defaultSelection } from '../core/expand'
 import { routeSlug } from '../core/slug'
 import type { PickerUnit } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn } from './catalogue'
@@ -5,6 +7,32 @@ import { unitsIn } from './cataloguePicker'
 import { factionDisplayName } from './factionNames'
 import type { LoadedCatalogue } from './catalogueIndex'
 import type { LoadedRules } from './rules'
+
+const attachmentCache = new WeakMap<
+  LoadedCatalogue,
+  Map<string, Pick<PickerUnit, 'attachment' | 'attachmentLimits' | 'attachmentCategories'>>
+>()
+
+function pickerAttachments(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
+  const key = `${catalogueId}:${entryId}`
+  const cached = attachmentCache.get(loaded)
+  const existing = cached?.get(key)
+  if (existing) return existing
+  const definition = loaded.index.definitions.get(entryId)!
+  const facts = {
+    attachment: attachmentOf(
+      definition,
+      loaded.index,
+      defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }) ?? undefined,
+    ),
+    attachmentLimits: attachmentLimitsOf(definition, loaded.index),
+    attachmentCategories: attachmentCategoriesOf(definition, loaded.index),
+  }
+  const entries = cached ?? new Map()
+  entries.set(key, facts)
+  if (!cached) attachmentCache.set(loaded, entries)
+  return facts
+}
 
 function pickerRestrictions(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string) {
   const book = loaded.factions.find((entry) => entry.id === catalogueId)
@@ -24,6 +52,7 @@ export function pickerUnitsFor(
   const restrictions = pickerRestrictions(loaded, rules, catalogueId)
   return unitsIn(loaded, catalogueId, query, { restrictions, battleSize, waivedRules }).map((unit) => ({
     ...unit,
+    ...pickerAttachments(loaded, catalogueId, unit.id),
     alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
     search: datasheetSearchFieldsIn(loaded, catalogueId, unit.id),
   }))

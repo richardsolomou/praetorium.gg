@@ -1,5 +1,5 @@
+import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
-import { collectionLotUpdateSchema } from '../../core/collection'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import { app } from '../app'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
@@ -16,6 +16,9 @@ import {
   friendInviteSchema,
   playerSearchSchema,
   ownedSchema,
+  collectionModelsSchema,
+  collectionPublishedSchema,
+  favouriteDatasheetSchema,
   userSchema,
   setOwnPasswordSchema,
   unlinkOwnAccountSchema,
@@ -267,17 +270,6 @@ export const removeFriend = createServerFn({ method: 'POST' })
     }),
   )
 
-export const collectionStock = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.collectionStock(id) : []
-  }),
-)
-
-export const updateCollectionLot = createServerFn({ method: 'POST' })
-  .validator(collectionLotUpdateSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.updateCollectionLot(await requireUserId(), data)))
-
 export const collection = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
@@ -296,6 +288,31 @@ export const setOwned = createServerFn({ method: 'POST' })
     }),
   )
 
+export const collectionCounts = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    const counts: Record<string, number> = id ? await app().service.collectionCounts(id) : {}
+    return counts
+  }),
+)
+
+export const fieldedDatasheets = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.fieldedDatasheets(id) : []
+  }),
+)
+
+export const setCollectionModels = createServerFn({ method: 'POST' })
+  .validator(collectionModelsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.setCollectionModels(player.id, data.entryId, data.models)
+      await app().telemetry.capture(player.id, 'player_collection_counted', { models: data.models })
+    }),
+  )
+
 export const favouriteFactions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
@@ -310,6 +327,24 @@ export const setFavouriteFaction = createServerFn({ method: 'POST' })
       const player = await requireUser()
       await app().service.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
       await app().telemetry.capture(player.id, 'favourite_faction_updated', { favourite: data.favourite })
+      return null
+    }),
+  )
+
+export const favouriteDatasheets = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.favouriteDatasheets(id) : []
+  }),
+)
+
+export const setFavouriteDatasheet = createServerFn({ method: 'POST' })
+  .validator(favouriteDatasheetSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.setFavouriteDatasheet(player.id, data.entryId, data.favourite)
+      await app().telemetry.capture(player.id, 'favourite_datasheet_updated', { favourite: data.favourite })
       return null
     }),
   )
@@ -335,3 +370,17 @@ export const setFavouriteDetachment = createServerFn({ method: 'POST' })
 export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => ({ providers: configuredAuthProviders(), passwordReset: Boolean(app().email) })),
 )
+
+export const collectionProfile = createServerFn({ method: 'GET' })
+  .validator(userSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const profileCollection = await app().service.collectionProfile(data.userId, await currentUserId())
+      if (!profileCollection) return null
+      return { ...profileCollection, groups: groupCollection(profileCollection.entries, await app().combatUnitsFor()) }
+    }),
+  )
+
+export const setCollectionPublished = createServerFn({ method: 'POST' })
+  .validator(collectionPublishedSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.setCollectionPublished(await requireUserId(), data.published)))

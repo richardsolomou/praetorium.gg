@@ -1,4 +1,4 @@
-import { GAME_SIZES } from '../../../core/battle'
+import { battleSizeLabel, pointsBudgetOf } from '../../../core/battle'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { useDateFormatting } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -6,7 +6,7 @@ import { FactionLabel, type FactionPresentation } from '../../components/Faction
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { CornerDownRight } from 'lucide-react'
+import { CornerDownRight, Lock } from 'lucide-react'
 import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
@@ -55,10 +55,13 @@ export function RosterSummary({
   pointsLoading = false,
   problem = null,
   differences = null,
+  showLock = true,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
   points?: number | null
+  /** The lock is the owner's; a reader of their profile is not told about it. */
+  showLock?: boolean
   /** What an unnamed list is called, folded from its units. Absent until the totals land. */
   label?: string
   /** A variant drawn without its base above it, such as when a filter leaves the base out, says what it varies. */
@@ -70,7 +73,6 @@ export function RosterSummary({
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
-  const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
   const waivers = rosterWaivers(roster)
 
   return (
@@ -96,10 +98,11 @@ export function RosterSummary({
           <span className={`chip ${dispositionTone(roster.disposition)}`}>{dispositionName}</span>
         ) : null}
         <WaiverChip rules={waivers} />
+        {showLock && roster.locked ? <LockedChip /> : null}
       </span>
       <span className="col-span-2 block text-xs text-dim sm:col-span-1">
-        11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'} ·{' '}
-        <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>updated {date(roster.updatedAt)}
+        11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'}{' '}
+        · <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>updated {date(roster.updatedAt)}
       </span>
       {differences ? (
         <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1">
@@ -110,6 +113,15 @@ export function RosterSummary({
           <RosterDifferenceChips differences={differences} setup={variantSetup(roster, faction, dispositionName)} />
         </span>
       ) : null}
+    </span>
+  )
+}
+
+export function LockedChip() {
+  return (
+    <span className="chip shrink-0 gap-1">
+      <Lock className="size-3" aria-hidden />
+      Locked
     </span>
   )
 }
@@ -143,7 +155,7 @@ function RosterStanding({
         <Skeleton className={`ml-auto w-20 ${compact ? 'h-4' : 'h-5'}`} />
       ) : (
         <span className={`readout block font-bold ${compact ? 'text-sm' : 'text-lg'}`}>
-          {points ?? '—'}/{roster.limit}
+          {points ?? '—'}/{pointsBudgetOf(roster)}
         </span>
       )}
       {problem || showVisibility ? (
@@ -188,7 +200,8 @@ export function RosterVariantSummary({
     <span className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 text-left sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
       <CornerDownRight className="size-4 text-faint" aria-hidden />
       <span className="min-w-0 truncate text-sm font-bold uppercase sm:max-w-64">{rosterTitle(roster, faction, label)}</span>
-      <span className="col-span-2 col-start-2 row-start-2 flex min-h-[1.125rem] min-w-0 items-center sm:col-span-1 sm:col-start-3 sm:row-start-1">
+      <span className="col-span-2 col-start-2 row-start-2 flex min-h-[1.125rem] min-w-0 items-center gap-1.5 sm:col-span-1 sm:col-start-3 sm:row-start-1">
+        {roster.locked ? <LockedChip /> : null}
         {differences ? (
           <RosterDifferenceChips differences={differences} setup={variantSetup(roster, faction, dispositionName)} />
         ) : pointsLoading ? (

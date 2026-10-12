@@ -85,6 +85,7 @@ export async function cachedRosterPrice(roster: {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: Parameters<typeof calculateRosterPrice>[0]['units']
   waivedRules: Parameters<typeof calculateRosterPrice>[0]['waivedRules']
   optionalRules: Parameters<typeof calculateRosterPrice>[0]['optionalRules']

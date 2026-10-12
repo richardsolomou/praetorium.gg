@@ -24,3 +24,15 @@ it('leaves corrected source timing unchanged', () => {
   const corrected = correctStratagemTiming(bravery)
   expect(correctStratagemTiming(corrected)).toBe(corrected)
 })
+
+it('corrects only the missing battle restriction on the source New Orders card', () => {
+  const stratagem: Stratagem = {
+    key: '0f9b69bd-a7e0-5e3d-b3fc-d0440c30269c',
+    name: 'New Orders',
+    cp: 1,
+    limit: 'phase',
+    phases: ['command'],
+    turn: 'your-turn',
+  }
+  expect(correctStratagemTiming(stratagem)).toEqual({ ...stratagem, limit: 'battle' })
+})

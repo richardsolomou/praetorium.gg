@@ -1,9 +1,12 @@
+import { requireReviewedRoster, type ReviewedServerSave } from './offline/reviewedRoster'
 import { projectBattles } from './offline/battleFunctions'
 import { cachedRead, cachedPage } from './offline/reads'
-import { hasLocalChanges, localOwner } from './offline/localRuntime'
+import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
+import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { priceSchema, datasheetSchema, combatLoadoutSchema, saveRosterSchema } from '../contracts/schemas'
 import * as server from '../server/functions'
+import { syncRoster } from '../server/functions/offline'
 import { constructionRead, constructionData, localConstruction } from './offline/construction'
 import {
   localClient,
@@ -27,7 +30,9 @@ import {
   matchesImportFaction,
   importRosterFaction,
   importRosterCatalogueId,
+  importRosterExchange,
 } from '../shared/rosterFiles'
+import { decodeRosterExchange, isRosterExchangeCode, ROSTER_EXCHANGE_RULES_UNAVAILABLE } from '../core/rosterExchange'
 import { battleDetachmentData, selectedBattleDetachmentData } from '../shared/battleDetachmentData'
 import { unitWoundsIn } from '../shared/catalogue'
 import { attachedUnitCount } from '../core/attachedUnits'
@@ -141,12 +146,26 @@ export const exportRoster = (args: Parameters<typeof server.exportRoster>[0]) =>
     args.data.catalogueId,
     args.signal,
   )
-export const importRoster = (args: Parameters<typeof server.importRoster>[0]) => {
+export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
   const factions = (
     referenceData()?.queries.find((entry) => entry.key[0] === 'faction-index')?.data as
       | Awaited<ReturnType<typeof server.factionIndex>>
       | undefined
   )?.factions
+  if (isRosterExchangeCode(args.data.file)) {
+    const exchange = await decodeRosterExchange(args.data.file)
+    if (!factions) return server.importRoster(args)
+    const faction = factions.find((candidate) => candidate.id === exchange.catalogueId)
+    return constructionRead(
+      ({ catalogue, rules }) => {
+        if (!faction) throw new Error(ROSTER_EXCHANGE_RULES_UNAVAILABLE)
+        return importRosterExchange(exchange, catalogue, rules, faction.name)
+      },
+      (signal) => server.importRoster({ ...args, signal }),
+      faction?.id,
+      args.signal,
+    )
+  }
   if (!factions) return server.importRoster(args)
   const stated = importRosterFaction(args.data.file)
   const statedId = importRosterCatalogueId(args.data.file)
@@ -302,9 +321,32 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
   return access?.roster ?? null
 }
 
-export async function saveRoster(args: Parameters<typeof server.saveRoster>[0]): ReturnType<typeof server.saveRoster> {
+export async function saveRoster(
+  args: Parameters<typeof server.saveRoster>[0],
+  reviewed?: RosterInput,
+  reviewedOwner?: string | null,
+  serverReview?: ReviewedServerSave,
+): ReturnType<typeof server.saveRoster> {
   const owner = localOwner()?.id
-  if (!localEngine()) return server.saveRoster(args)
+  if (reviewedOwner !== undefined && (owner ?? null) !== reviewedOwner)
+    throw new Error('The account changed after this review. Reload before continuing.')
+  if (!localEngine()) {
+    if (!reviewed) return server.saveRoster(args)
+    if (!serverReview || !owner || !args.data.id)
+      throw new Error('Saved changes are not ready on this device. Reload the roster before reviewing it again.')
+    const answer = await syncRoster({
+      signal: args.signal ?? AbortSignal.timeout(15_000),
+      data: { ...serverReview, owner, roster: { ...saveRosterSchema.parse(args.data), id: args.data.id } },
+    })
+    if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
+    if (answer.outcome !== 'applied') throw new Error(`${answer.message} Go back, reload it and review the changes again.`)
+    const saved = await server.sharedRoster({ data: { id: args.data.id }, signal: args.signal ?? AbortSignal.timeout(15_000) })
+    if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
+    if (!saved || saved.updatedAt !== answer.version)
+      throw new Error('This roster changed after your review. Go back, reload it and review the changes again.')
+    requireReviewedRoster(saved, args.data)
+    return { id: args.data.id, updatedAt: answer.version }
+  }
   const input: RosterInput & { id: string } = {
     ...saveRosterSchema.parse(args.data),
     id: args.data.id ?? crypto.randomUUID(),
@@ -319,17 +361,26 @@ export async function saveRoster(args: Parameters<typeof server.saveRoster>[0]):
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
     borrowedDetachmentId: input.borrowedDetachmentId ?? null,
+    pointsBudget: input.pointsBudget === undefined ? (previous?.pointsBudget ?? null) : input.pointsBudget,
     optionalRules: input.optionalRules ?? [],
     waivedRules: input.waivedRules ?? [],
     baseRosterId: previous?.baseRosterId ?? (input as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
     visibility: input.visibility ?? 'private',
     source: input.source ?? 'editable',
     prep: input.prep
-      ? { ...input.prep, reminders: input.prep.reminders ?? [], remindersEnabled: input.prep.remindersEnabled ?? true }
+      ? {
+          ...input.prep,
+          reminders: input.prep.reminders ?? [],
+          remindersEnabled: input.prep.remindersEnabled ?? true,
+          shareNotes: input.prep.shareNotes ?? false,
+        }
       : null,
     reminders: input.prep?.reminders ?? [],
     remindersEnabled: input.prep?.remindersEnabled ?? true,
+    locked: previous?.locked ?? false,
   }
+  const refusal = lockedRosterRefusal(previous, roster)
+  if (refusal) throw new Error(refusal)
   const price = roster.automaticName ? pricedRoster(roster) : null
   if (roster.automaticName) roster.name = price?.label ?? previous?.name ?? ''
   await queueLocal(
@@ -340,6 +391,12 @@ export async function saveRoster(args: Parameters<typeof server.saveRoster>[0]):
     undefined,
     undefined,
     owner,
+    reviewed
+      ? (current) => {
+          requireReviewedRoster(current, reviewed)
+          return roster
+        }
+      : undefined,
   )
   if (!previous && navigator.onLine) await attemptLocalSync()
   if (localOwner()?.id !== owner) throw new Error('The account changed while saving this roster.')
@@ -364,7 +421,14 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
         )
       : `Copy of ${roster.name}`.slice(0, 80)
   const { rosterVisibility } = await playerDefaults()
-  const input = { ...draftFor(roster), id: undefined, name, visibility: rosterVisibility, baseRosterId: args.data.variant ? baseId : null }
+  const input = {
+    ...draftFor(roster),
+    id: undefined,
+    name,
+    visibility: rosterVisibility,
+    prep: roster.prep && { ...roster.prep, shareNotes: false },
+    baseRosterId: args.data.variant ? baseId : null,
+  }
   if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
   const result = await saveRoster({ data: input })
   return { id: result.id }
@@ -457,6 +521,21 @@ export async function setRosterVisibility(
   if (localOwner()?.id !== owner) throw new Error('The account changed before these edits could be saved.')
   await saveRoster({ data: { ...draftFor(roster.roster), visibility: args.data.visibility } })
   return null
+}
+
+/** Locking is accepted by the server, after this device has sent the roster's saved changes. */
+export async function setRosterLocked(args: Parameters<typeof server.setRosterLocked>[0]): ReturnType<typeof server.setRosterLocked> {
+  const owner = localOwner()?.id
+  const resource = `roster:${args.data.id}`
+  if (localEngine()) {
+    if (!navigator.onLine) throw new Error('Connect to the internet to lock or unlock this roster.')
+    if (await hasLocalChanges(resource)) await syncLocalWork()
+    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
+  }
+  const saved = await server.setRosterLocked(args)
+  const local = await localDocument<LocalRoster | null>(resource)
+  if (local) await rememberDocument(resource, { ...local, locked: args.data.locked, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
+  return saved
 }
 
 export async function savedRosterPrice(args: Parameters<typeof server.savedRosterPrice>[0]): ReturnType<typeof server.savedRosterPrice> {
@@ -581,7 +660,7 @@ async function assessedRoster(roster: LocalRoster, owner: string, signal?: Abort
       const price = await server.priceRoster({ data: savedRosterPriceInput(roster), signal: requestSignal })
       return {
         points: price?.points ?? null,
-        problem: price ? (rosterUseProblem(price, roster.limit, roster.waivedRules)?.kind ?? null) : null,
+        problem: price ? (rosterUseProblem(price, roster)?.kind ?? null) : null,
         label: roster.name || price?.label || '',
       }
     },
@@ -720,11 +799,12 @@ export {
 
 export {
   collection,
-  collectionStock,
-  updateCollectionLot,
+  collectionCounts,
+  fieldedDatasheets,
   updateOnboardingProgress,
   favouriteFactions,
   favouriteDetachments,
+  favouriteDatasheets,
   playerDefaults,
   battleAudience,
   onboardingProgress,
@@ -755,8 +835,10 @@ export {
   deleteLeague,
   deleteBattle,
   setOwned,
+  setCollectionModels,
   setFavouriteFaction,
   setFavouriteDetachment,
+  setFavouriteDatasheet,
   setPlayerDefaults,
   setBattleAudience,
   setPushNotifications,

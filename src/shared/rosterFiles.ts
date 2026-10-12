@@ -9,10 +9,10 @@ import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
-import type { TextRoster, TextRosterUnit } from '../core/textRoster'
+import { textNickname, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
-import { GAME_SIZES } from '../core/battle'
+import { allowsPointsBudget, customPointsBudget, GAME_SIZES, pointsBudgetError } from '../core/battle'
 import { factionDisplayName } from './factionNames'
 import {
   attachmentReason,
@@ -32,6 +32,8 @@ import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } fr
 import { editionLabel } from '../core/catalogueEdition'
 import { calculateRosterPrice } from './pricing'
 import type { LoadedRules } from './rules'
+import type { RosterExchange } from '../core/rosterExchange'
+import type { RosterPick } from '../core/roster'
 
 function parsedImport(file: string) {
   const newRecruit = fromNewRecruitText(file)
@@ -109,6 +111,66 @@ export function importRosterFile(
   }
 }
 
+/**
+ * An exchange code's roster, checked against the rules version it names.
+ *
+ * Entries and detachments that version no longer resolves are left out with a reason,
+ * and attachments to a left-out entry are dropped, so the review accounts for each one.
+ */
+export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCatalogue, rules: LoadedRules | null, factionName: string) {
+  const unknown: UnmatchedName[] = []
+  const offered = new Set((loaded.detachments.get(exchange.catalogueId)?.options ?? []).map((option) => option.id))
+  const detachmentIds = exchange.detachmentIds.filter((id) => {
+    if (offered.has(id)) return true
+    unknown.push({ name: `Detachment ${id}`, reason: 'this rules version no longer offers it' })
+    return false
+  })
+  const roster = { ...exchange, detachmentIds, units: exchange.picks }
+  const resolved = new Set(calculateRosterPrice(roster, loaded, rules)?.units.map((unit) => unit.key) ?? [])
+  const name = (pick: RosterPick, at: number) => {
+    const definition = loaded.index.definitions.get(pick.entryId)
+    return definition ? `${nameOf(definition, loaded.index.definitions)} (entry ${at + 1})` : `Entry ${at + 1}`
+  }
+  const kept = exchange.picks.flatMap((pick, at) => {
+    if (resolved.has(at)) return [{ pick, at }]
+    unknown.push({ name: name(pick, at), reason: 'this datasheet is not in the selected rules version' })
+    return []
+  })
+  const position = new Map(kept.map(({ at }, next) => [at, next]))
+  const unplaced: UnplacedChoices[] = []
+  const units = kept.map(({ pick, at }) => {
+    const { attachedTo, ...rest } = pick
+    if (attachedTo === undefined) return rest
+    const host = position.get(attachedTo)
+    if (host !== undefined) return { ...rest, attachedTo: host }
+    unplaced.push({
+      unit: name(pick, at),
+      choices: [{ name: `Attached to entry ${attachedTo + 1}`, reason: 'that entry is not imported' }],
+    })
+    return rest
+  })
+  const priced = calculateRosterPrice({ ...roster, units }, loaded, rules)
+  return {
+    name: exchange.name,
+    catalogueId: exchange.catalogueId,
+    catalogueName: factionName,
+    detachmentIds,
+    disposition: exchange.disposition,
+    borrowedDetachmentId: exchange.borrowedDetachmentId,
+    limit: exchange.limit,
+    pointsBudget: exchange.pointsBudget ?? null,
+    waivedRules: exchange.waivedRules,
+    optionalRules: exchange.optionalRules,
+    units,
+    unknown,
+    unplaced,
+    source: 'praetorium' as const,
+    reportedPoints: exchange.points,
+    currentPoints: priced?.points ?? null,
+    sourceUnitCount: exchange.picks.length,
+  }
+}
+
 /** Choices a list states that its unit could not be given, named back per unit with why. */
 export type UnplacedChoices = { unit: string; choices: UnplacedChoice[] }
 
@@ -179,12 +241,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     ])
   }
 
-  const limit = GAME_SIZES.some((size) => size.limit === parsed.limit) ? parsed.limit : null
-  if (parsed.limit !== null && limit === null)
-    unknown.push({
-      name: `${parsed.limit} point battle size`,
-      reason: 'this battle size is not supported; choose a supported size in setup',
-    })
+  const { limit, pointsBudget } = importedBattleSize(parsed, unknown)
   if (parsed.disposition?.includes(','))
     unknown.push({ name: parsed.disposition, reason: 'more than one force disposition was stated; choose one in setup' })
 
@@ -195,6 +252,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     detachmentIds,
     disposition: parsed.disposition && !parsed.disposition.includes(',') ? slug(parsed.disposition) : null,
     limit,
+    pointsBudget,
     units,
     unknown,
     unplaced: [...unplaced].map(([at, choices]) => ({
@@ -202,6 +260,32 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
       choices: [...choices].map(([name, reason]) => ({ name, reason })),
     })),
   }
+}
+
+/**
+ * The battle size a text states, and a custom points budget when it names a size beside other points.
+ *
+ * Points alone only ever choose a size whose total they equal, so an unnamed number is
+ * never guessed into a format.
+ */
+function importedBattleSize(parsed: TextRoster, unknown: UnmatchedName[]): { limit: number | null; pointsBudget: number | null } {
+  if (parsed.limit === null) return { limit: null, pointsBudget: null }
+  const named = GAME_SIZES.find((size) => normalized(size.name) === normalized(parsed.sizeName ?? ''))
+  if (named && allowsPointsBudget(named.limit)) {
+    const error = pointsBudgetError(named.limit, parsed.limit)
+    if (!error) return { limit: named.limit, pointsBudget: customPointsBudget(named.limit, parsed.limit) }
+    unknown.push({
+      name: `${named.name} at ${parsed.limit} points`,
+      reason: `${error} It is imported at the standard ${named.limit} points.`,
+    })
+    return { limit: named.limit, pointsBudget: null }
+  }
+  if (GAME_SIZES.some((size) => size.limit === parsed.limit)) return { limit: parsed.limit, pointsBudget: null }
+  unknown.push({
+    name: `${parsed.limit} point battle size`,
+    reason: 'this battle size is not supported; choose a supported size in setup',
+  })
+  return { limit: null, pointsBudget: null }
 }
 
 function note(found: Map<number, Map<string, string>>, unit: number, choices: readonly UnplacedChoice[]) {
@@ -329,6 +413,7 @@ function textRosterPick(
     ),
     toggles,
     attachedTo: undefined as number | undefined,
+    ...(unit.nickname ? { nickname: unit.nickname } : {}),
   }
 
   const unplaced = [...stated.keys()]
@@ -445,9 +530,11 @@ export function exportRosterFile(
     dispositions: dispositionNames,
     size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
     limit: data.limit,
+    ...(data.pointsBudget ? { pointsBudget: data.pointsBudget } : {}),
     points: priced.points,
     units: priced.units.map((unit) => ({
       ...unit,
+      nickname: textNickname(data.units[unit.key]?.nickname ?? ''),
       models: unit.size.models,
       entry: unit.key + 1,
       attachedToEntry: data.units[unit.key]?.attachedTo !== undefined ? data.units[unit.key]!.attachedTo! + 1 : undefined,

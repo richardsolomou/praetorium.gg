@@ -1,3 +1,4 @@
+import type { Attachment, AttachmentLimits } from '../core/attach'
 import type { UnitGroup } from '../core/unitGroups'
 import type { Datasheet, StructuredDatasheetProfile } from '../core/datasheet'
 import type { DatasheetSearchFields, DatasheetSearchReason } from '../core/datasheetSearch'
@@ -27,7 +28,12 @@ export type UnitSummary = {
   matchReasons?: DatasheetSearchReason[]
 }
 
-export type PickerUnit = UnitSummary & { search: DatasheetSearchFields | null }
+export type PickerUnit = UnitSummary & {
+  search: DatasheetSearchFields | null
+  attachment?: Attachment | null
+  attachmentLimits?: AttachmentLimits
+  attachmentCategories?: string[]
+}
 
 export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'
 

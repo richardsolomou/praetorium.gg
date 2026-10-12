@@ -236,7 +236,7 @@ export async function setupStep(page: Page, label: string) {
 export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
   await setupStep(page, 'Armies')
   const chooser = forPlayer
-    ? page.getByRole('button', { name: new RegExp(`roster for ${forPlayer}$`) })
+    ? page.getByRole('button', { name: new RegExp(`^(Choose|Change) roster for ${forPlayer}$`) })
     : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
   const dialog = page.getByRole('dialog', { name: /roster$/ })
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -282,7 +282,7 @@ export const advanceButton = (page: Page) => page.getByRole('button', { name: /^
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
 const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
-const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of their turn/ })
+const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of (their turn|battle)/ })
 
 export async function dismissBattleReminder(page: Page) {
   const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })
@@ -300,51 +300,53 @@ async function clearDrawPrompt(prompt: Locator) {
     .getByRole('button', {
       name: 'Put back and draw another',
     })
+  const enabled = async (button: Locator) => (await button.count()) > 0 && (await button.isEnabled({ timeout: 100 }).catch(() => false))
   for (let guard = 0; guard < 20; guard += 1) {
-    const random = prompt.getByRole('button', { name: 'Draw at random' })
+    const select = prompt.getByRole('button', { name: 'Select missions', exact: true })
+    let action = 'waiting'
     await expect
       .poll(
-        async () =>
-          (await random.isVisible().catch(() => false)) ||
-          (await done.isEnabled().catch(() => false)) ||
-          ((await mustReturn
-            .first()
-            .isVisible()
-            .catch(() => false)) &&
-            (await mustReturn
-              .first()
-              .isEnabled({ timeout: 100 })
-              .catch(() => false))),
+        async () => {
+          action = (await enabled(done))
+            ? 'done'
+            : (await enabled(select))
+              ? 'select'
+              : (await enabled(mustReturn.first()))
+                ? 'return'
+                : 'waiting'
+          return action
+        },
         { timeout: 15_000 },
       )
-      .toBe(true)
-    if (await random.isVisible().catch(() => false)) {
-      await random.click({ timeout: 15_000 })
-      continue
-    }
-    if (await done.isEnabled()) {
+      .not.toBe('waiting')
+    if (action === 'done') {
       await done.click({ timeout: 15_000 })
       await expect(prompt).toBeHidden()
       return
     }
-    if (
-      await mustReturn
-        .first()
-        .isEnabled({ timeout: 100 })
-        .catch(() => false)
-    ) {
-      await mustReturn.first().click({ timeout: 15_000 })
-    }
+    if (action === 'select') {
+      await select.click()
+      await selectOrdinaryMissions(prompt)
+      await prompt.getByRole('button', { name: 'Add selected missions', exact: true }).click()
+    } else await mustReturn.first().click({ timeout: 15_000 })
   }
   throw new Error('secondary redraws did not settle')
 }
 
+export async function selectOrdinaryMissions(prompt: Locator) {
+  const add = prompt.getByRole('button', { name: 'Add selected missions', exact: true })
+  const available = prompt.getByRole('button', { name: /^Select (?!A Tempting Target$|Burden Of Trust$)/i })
+  for (let count = 0; count < 6; count++) {
+    if (await add.isEnabled()) return
+    await available.first().click()
+  }
+  throw new Error('Not enough ordinary mission cards for this test hand')
+}
+
 /**
  * Clears whatever a turn opens with: what their turn owed, and the hand this one deals.
- *
- * Raced against the board rather than waited for: both prompts are modal, so the board
- * only reaches the accessibility tree when nothing is covering it, and whichever
- * arrives first is the answer.
+ * Compact prompts leave the board accessible; journeys expecting a particular
+ * settlement must wait for that prompt before calling this helper.
  */
 export async function takeTheTurn(page: Page) {
   for (let guard = 0; guard < 3; guard += 1) {
@@ -363,7 +365,7 @@ export async function takeTheTurn(page: Page) {
     const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
     if (seen === 'drawn') await clearDrawPrompt(prompt)
     else {
-      await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+      await prompt.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
       await expect(prompt).toBeHidden()
     }
   }
@@ -388,7 +390,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
       if (!(await prompt.isVisible().catch(() => false))) continue
       if (kind === 'draw') await clearDrawPrompt(prompt)
       else {
-        await prompt.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+        await prompt.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
         await expect(prompt).toBeHidden()
       }
     }
@@ -430,7 +432,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
           await expect(discard).toBeHidden()
           continue
         }
-        await owed.getByRole('button', { name: 'Take the turn' }).click({ timeout: 15_000 })
+        await owed.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
         await expect(owed).toBeHidden()
       }
       await expect.poll(() => phase.textContent()).not.toBe(before)
@@ -503,4 +505,12 @@ export async function setupBattle(
   await startBattle(host, undefined, true, openingSecondaries)
   await expect(guest.getByRole('heading', { name: 'command phase' })).toBeVisible()
   return url
+}
+
+export async function confirmRosterSetup(dialog: Locator) {
+  await dialog.getByRole('button', { name: /^(Review changes|Convert roster)$/ }).click()
+  const review = dialog.page().getByRole('dialog', { name: 'Review roster changes' })
+  await expect(review.getByLabel('Roster change preview')).toBeVisible()
+  await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
+  await expect(review).toBeHidden()
 }

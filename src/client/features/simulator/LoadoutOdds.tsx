@@ -6,6 +6,7 @@ import { HoverTooltip } from '../../components/HoverTooltip'
 import type { OptionNote } from '../rosters/builder/LoadoutControls'
 import type { LoadoutOdds } from './useLoadoutOdds'
 import type { CombatRequest } from '../../../core/combatMatchup'
+import { Button } from '@/components/ui/button'
 
 type Phase = 'ranged' | 'melee'
 const titles: Record<Phase, string> = { ranged: 'Shooting', melee: 'Melee' }
@@ -33,6 +34,19 @@ export type LoadoutOptimization = {
   apply: (preferences: Record<string, string>) => void
 }
 export const LoadoutOptimizationContext = createContext<LoadoutOptimization | null>(null)
+
+export function LoadoutOddsStatus() {
+  const odds = useContext(LoadoutOddsContext)
+  if (!odds?.error) return null
+  return (
+    <p role="alert" className="mx-2.5 mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-discarded">
+      {odds.error} {odds.estimates.size || odds.profiles.size ? 'Previous odds are shown. ' : null}
+      <Button size="sm" variant="outline" onClick={odds.retry}>
+        Retry
+      </Button>
+    </p>
+  )
+}
 
 function PhaseIcon({ phase }: { phase: Phase }) {
   const Icon = phase === 'ranged' ? Crosshair : Swords
@@ -111,7 +125,7 @@ export function useOptionNote(): OptionNote | undefined {
                   bestBy={shown.bestBy}
                   prefix={estimate.step ? `Unit with 1 ${estimate.step > 0 ? 'more' : 'fewer'}` : 'Unit'}
                   subject={estimate.step ? `unit with one ${estimate.step > 0 ? 'more' : 'fewer'}` : 'unit'}
-                  muted={Boolean(updating)}
+                  muted={Boolean(updating || odds.error)}
                 />,
               ]
             : []
@@ -141,7 +155,7 @@ export function useProfileNote(prefix = ''): ((weapon: { id: string; name: strin
           bestBy={alone.bestBy}
           prefix={`${alone.models} ${alone.models === 1 ? 'model' : 'models'}`}
           subject={`${alone.models} ${alone.models === 1 ? 'model' : 'models'} with this weapon`}
-          muted={Boolean(updating)}
+          muted={Boolean(updating || odds.error)}
         />
       </span>
     )

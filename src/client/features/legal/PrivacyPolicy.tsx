@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="11 October 2026">
+    <LegalPage title="Privacy policy" updated="12 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -24,9 +24,16 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
-          and actions recorded during a game, friendships, datasheets you mark as owned, favourites, and practice opponents you seat.
+          and actions recorded during a game, friendships, datasheets in your collection and their model counts, favourites, and practice
+          opponents you seat.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
+        <p>
+          Public support reports contain only the title, description, report type and reference, page category, app version, optional rules
+          version and text attachment you review and agree to publish. We keep a private account-to-report reference so you can follow its
+          public GitHub status and replies. Deleting your account removes that private reference, but does not remove a published issue or
+          copies of it. Use privacy@praetorium.gg for private account, privacy and deletion requests.
+        </p>
         <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
           cookie remembers the order you sort your rosters in on that device.
@@ -48,8 +55,8 @@ export function PrivacyPolicy() {
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
           session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or
-          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security
-          and administration screens are not recorded. Only signed-in visitors get an identified profile.
+          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account,
+          security, administration and support-report surfaces are not recorded. Only signed-in visitors get an identified profile.
         </p>
       </LegalSection>
 
@@ -72,6 +79,10 @@ export function PrivacyPolicy() {
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
+            Your collection is private unless you turn on Show collection on profile. That publishes its datasheets and model counts;
+            turning it off hides them again.
+          </li>
+          <li>
             Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can
             watch. The most private choice at the table applies to past and live battles, including league battles. Spectators cannot change
             a battle or see a face-down Secret Mission.
@@ -79,8 +90,8 @@ export function PrivacyPolicy() {
           <li>Public battles may appear on the home page. Your profile's battle record includes only games its reader can watch.</li>
           <li>The leaderboard counts finished public games from the last 90 days. Games with a practice opponent do not count.</li>
           <li>
-            Sealing a league roster makes a separate frozen copy. Before reveal, only its owner and any assigned allies can read it;
-            organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that event.
+            Sealing a league roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can read
+            it; organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that event.
           </li>
         </LegalLinks>
         <p>

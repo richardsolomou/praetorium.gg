@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { createHash, randomUUID } from 'node:crypto'
 import { rosterPickSchema } from '../../src/core/commands'
-import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS } from '../../src/core/battle'
+import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, pointsBudgetOf } from '../../src/core/battle'
 import { ROSTER_SOURCES } from '../../src/core/savedRoster'
 import { currentRosterIds } from '../../src/core/retiredCatalogueIds'
 import { detachmentIds } from '../../src/server/rosterPersistence'
@@ -17,6 +17,8 @@ const rosterSchema = z.strictObject({
   detachmentIds: z.array(z.string().max(128)).max(20),
   disposition: z.string().nullable(),
   limit: z.number().int().min(0).max(10_000),
+  /** Absent from snapshots fetched before custom budgets existed. */
+  pointsBudget: z.number().int().nullable().optional(),
   picks: z.array(rosterPickSchema.strict()).max(100),
   waivedRules: z.array(z.enum(FORMAT_RULE_IDS)),
   optionalRules: z.array(z.enum(OPTIONAL_RULE_IDS)),
@@ -110,7 +112,7 @@ export function compareRosterAudits(current: readonly AuditIdentity[], previous?
 
 // A single read captures all roster rows together, without account data or free-text fields.
 export const productionRosterQuery =
-  'SELECT id, catalogueId, detachmentId, disposition, limit, picks, waivedRules, optionalRules, borrowedDetachmentId, baseRosterId, source, createdAt, updatedAt FROM rosters'
+  'SELECT id, catalogueId, detachmentId, disposition, limit, pointsBudget, picks, waivedRules, optionalRules, borrowedDetachmentId, baseRosterId, source, createdAt, updatedAt FROM rosters'
 export const MAX_ROSTER_SNAPSHOT_BYTES = 64 * 1024 * 1024
 
 export async function boundedResponseText(response: Response) {
@@ -158,16 +160,16 @@ export async function fetchProductionRosters(
     .array(z.object({ rows: z.array(z.array(z.unknown())).max(10_000) }))
     .length(1)
     .parse(JSON.parse(await boundedResponseText(response)))
-  const nullable = z.union([
-    z.tuple([z.literal(0), z.string()]).transform(([, value]) => value),
-    z.tuple([z.literal(1), z.tuple([])]).transform(() => null),
-  ])
+  const option = <T extends z.ZodType>(value: T) =>
+    z.union([z.tuple([z.literal(0), value]).transform(([, some]) => some), z.tuple([z.literal(1), z.tuple([])]).transform(() => null)])
+  const nullable = option(z.string())
   const rowSchema = z.tuple([
     rosterSchema.shape.id,
     rosterSchema.shape.catalogueId,
     nullable,
     nullable,
     rosterSchema.shape.limit,
+    option(z.number().int()),
     z.string(),
     z.string(),
     z.string(),
@@ -184,6 +186,7 @@ export async function fetchProductionRosters(
       detachmentId,
       disposition,
       limit,
+      pointsBudget,
       picks,
       waivedRules,
       optionalRules,
@@ -199,6 +202,7 @@ export async function fetchProductionRosters(
       detachmentIds: detachmentIds(detachmentId),
       disposition,
       limit,
+      pointsBudget,
       picks: JSON.parse(picks),
       waivedRules: JSON.parse(waivedRules),
       optionalRules: JSON.parse(optionalRules),
@@ -244,7 +248,7 @@ export function auditProductionRosters(
           return saved !== undefined && saved !== unit.size.models ? [{ pickIndex: unit.key, saved, current: unit.size.models }] : []
         }) ?? [],
       points: price?.points ?? null,
-      limit: roster.limit,
+      limit: pointsBudgetOf(roster),
       errors: price?.errors ?? [],
       detachmentError: price?.detachmentError ?? null,
     }
@@ -282,6 +286,7 @@ export async function importProductionRosters(
       detachmentId: JSON.stringify(roster.detachmentIds),
       disposition: roster.disposition,
       limit: roster.limit,
+      pointsBudget: roster.pointsBudget ?? null,
       picks: JSON.stringify(roster.picks),
       waivedRules: JSON.stringify(roster.waivedRules),
       optionalRules: JSON.stringify(roster.optionalRules),

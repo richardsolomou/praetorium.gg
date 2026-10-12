@@ -1,5 +1,125 @@
 # praetorium
 
+## 0.129.0
+
+### Minor Changes
+
+- 7d36375: Set a custom points budget for a roster while its battle size still sets detachment points, enhancement and unit limits.
+
+## 0.128.1
+
+### Patch Changes
+
+- b09c4b1: Return to the page you were reading after signing in from the account menu.
+- b09c4b1: Label link and invite actions Copy in the browser, where they copy to the clipboard.
+- b09c4b1: Keep the loadout model count controls on screen with enlarged text.
+- b09c4b1: Keep unit picker rows readable and their Add buttons reachable with enlarged text.
+- b09c4b1: Keep battle reserve counts on screen with enlarged text.
+- b09c4b1: Keep simulator unit choices usable with enlarged text.
+- b09c4b1: Stop phone section tab labels overlapping with enlarged text.
+
+## 0.128.0
+
+### Minor Changes
+
+- 51a7f9b: Record a missed stratagem, command point or score for an earlier phase. It keeps that phase's limits and is marked as recorded late in battle events and replay.
+
+## 0.127.0
+
+### Minor Changes
+
+- b849af7: Name units and keep private notes on them in your rosters. Nicknames appear beside the datasheet name in copies, variants, text exports, exchange codes, printed packs and battles; notes stay yours unless you share them with people who can open the roster.
+
+## 0.126.0
+
+### Minor Changes
+
+- f1be99d: Lock a finished roster against edits, and duplicate it or create a variant when you want to try changes.
+
+### Patch Changes
+
+- 17be14d: Record Locate and Deny markers, Sensor Sweep removals and Consecrate objectives during battles.
+
+## 0.125.1
+
+### Patch Changes
+
+- 90d0529: Clarify catalogue status dates and account requirements for public tools.
+- 90d0529: Clarify roster creation actions with the Create variant label.
+
+## 0.125.0
+
+### Minor Changes
+
+- a1db385: Share a roster as an exchange code or QR code that another player can review and import as their own copy.
+
+## 0.124.2
+
+### Patch Changes
+
+- 0dbc837: Preserve valid weapon choices through attached-unit edits, explain calculation context, and retry failed loadout comparisons.
+
+## 0.124.1
+
+### Patch Changes
+
+- 4d7609d: Explain roster link sharing before publication and clarify private access, frozen roster retention, sealed league access and account deletion.
+
+## 0.124.0
+
+### Minor Changes
+
+- 6a812f0: Stabilize collection and favourite saves, keep roster Add controls responsive, simplify picker guidance, add numeric model counts and a Collection profile tab grouped by faction, and reduce logo hover rotation to 45°.
+
+## 0.123.0
+
+### Minor Changes
+
+- 6aaa456: Record mission unit and objective choices during battles, retain their history through casualties and undo, and track Beacon choices manually.
+
+## 0.122.0
+
+### Minor Changes
+
+- d5cc723: Add a datasheet to a roster, your favourites or your collection, and set its model count, from one Add to button on its page.
+- d5cc723: Track your collection on a new Collection page: add datasheets, count their models, and add units you have fielded in battles.
+- d5cc723: Heart datasheets as favourites to list them first and filter by them in the unit picker; hearts no longer mark collection ownership.
+- d5cc723: Remove the roster's Physical collection dialog; model counts now live on the Collection page.
+
+### Patch Changes
+
+- 37c06fb: Keep datasheets you hearted before favourites existed as favourites, and start everyone's collection empty.
+
+## 0.121.1
+
+### Patch Changes
+
+- 95ff466: Explain weapon, ability, and keyword matches in faction datasheet searches. Identify rules versions in reference roster choices and retain preview or archived unit labels in the simulator.
+
+## 0.121.0
+
+### Minor Changes
+
+- 5033f6d: Find compatible leaders and bodyguards, explain roster limits, and open mission matchups from the builder.
+
+## 0.120.0
+
+### Minor Changes
+
+- f0bc522: Review and explicitly publish public support reports, then follow their GitHub status and replies in the app when reporting is configured.
+
+## 0.119.1
+
+### Patch Changes
+
+- 4001ecd: Settle supported final mission awards after both final turns, preserve their battle cap without applying the round cap, and enforce New Orders once per battle.
+
+## 0.119.0
+
+### Minor Changes
+
+- b2d8844: Preview roster points, removed selections and legality before confirming army setup changes.
+
 ## 0.118.0
 
 ### Minor Changes

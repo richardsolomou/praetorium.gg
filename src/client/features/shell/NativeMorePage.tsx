@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
+  Boxes,
   Dices,
   Gavel,
   History,
@@ -68,9 +69,14 @@ export function NativeMorePage() {
           </h2>
           <div className="grid gap-2 sm:grid-cols-2">
             {me ? (
-              <Link to="/friends" className={secondaryClass}>
-                <Users className="size-5 text-info" /> Friends
-              </Link>
+              <>
+                <Link to="/collection" className={secondaryClass}>
+                  <Boxes className="size-5 text-info" /> Collection
+                </Link>
+                <Link to="/friends" className={secondaryClass}>
+                  <Users className="size-5 text-info" /> Friends
+                </Link>
+              </>
             ) : null}
             {me?.role === 'admin' ? (
               <Link to="/admin" className={secondaryClass}>

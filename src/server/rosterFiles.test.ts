@@ -3,8 +3,9 @@ import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
 import { descriptionKey } from './datacards'
-import { exportRosterFile, importRosterFile, importRosterCatalogueId } from '../shared/rosterFiles'
+import { exportRosterFile, importRosterExchange, importRosterFile, importRosterCatalogueId } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
 const faction: CatalogueFile = {
@@ -833,8 +834,38 @@ describe('Praetorium roster import', () => {
   })
 
   it('does not guess a supported battle size for an explicitly unsupported size', () => {
-    const text = (setup + footer).replace('2,000 Points', '2,500 Points')
+    const text = (setup + footer).replace('Strike Force (2,000 Points)', 'Battle (2,500 Points)')
     expect(importRosterFile({ file: text }, loaded)).toMatchObject({ limit: null, unknown: [{ name: '2500 point battle size' }] })
+  })
+
+  it('reads a named battle size at its own points as no custom budget', () => {
+    expect(importRosterFile({ file: setup + footer }, loaded)).toMatchObject({ limit: 2000, pointsBudget: null })
+  })
+
+  it('reads a named battle size beside other points as that size with a custom points budget', () => {
+    const text = (setup + footer).replace('Strike Force (2,000 Points)', 'Strike Force (1,500 Points)')
+    expect(importRosterFile({ file: text }, loaded)).toMatchObject({ limit: 2000, pointsBudget: 1500, unknown: [] })
+  })
+
+  it('reports a custom points budget below the minimum and keeps the named size', () => {
+    const text = (setup + footer).replace('Strike Force (2,000 Points)', 'Strike Force (400 Points)')
+    expect(importRosterFile({ file: text }, loaded)).toMatchObject({
+      limit: 2000,
+      pointsBudget: null,
+      unknown: [
+        { name: 'Strike Force at 400 points', reason: 'Choose between 500 and 10,000 points. It is imported at the standard 2000 points.' },
+      ],
+    })
+  })
+
+  it.each(['text', 'compactText'] as const)('round-trips a custom points budget through the %s export', (layout) => {
+    const exported = exportRosterFile(
+      { catalogueId: 'necrons', detachmentIds: [], disposition: null, limit: 2000, pointsBudget: 1500, name: 'Budget force', units: [] },
+      loaded,
+      { points: 0, disposition: null, detachments: [], units: [] },
+      [],
+    )
+    expect(importRosterFile({ file: exported[layout] }, loaded)).toMatchObject({ limit: 2000, pointsBudget: 1500 })
   })
 
   it('reports an explicit zero model count instead of silently using the minimum squad size', () => {
@@ -996,5 +1027,143 @@ Created with newrecruit.eu v35.51`,
       units: [{ models: 3, spreads: { 'model/weapon': { blaster: 1, beamer: 2 } } }],
       unknown: [],
     })
+  })
+})
+
+describe('unit nicknames in text', () => {
+  const immortals = (key: number) => ({
+    key,
+    size: { models: 5 },
+    name: 'Immortals',
+    points: 200,
+    group: 'other' as const,
+    attachment: null,
+    enhancements: [],
+    upgrades: [],
+    wargear: [],
+  })
+  const exported = exportRosterFile(
+    {
+      catalogueId: 'necrons',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2000,
+      name: 'Named squads',
+      units: [
+        { entryId: 'immortals', nickname: 'Alpha', note: 'Private plan' },
+        { entryId: 'immortals', nickname: 'Bravo' },
+      ],
+    },
+    loaded,
+    { points: 400, disposition: null, detachments: [], units: [immortals(0), immortals(1)] },
+    [],
+  )
+
+  it.each(['text', 'compactText'] as const)('reads back each repeated unit’s nickname from %s', (layout) => {
+    expect(importRosterFile({ file: exported[layout] }, loaded).units.map((unit) => unit.nickname)).toEqual(['Alpha', 'Bravo'])
+  })
+
+  it.each(['text', 'compactText'] as const)('reports nothing unread for the nickname lines in %s', (layout) => {
+    const imported = importRosterFile({ file: exported[layout] }, loaded)
+    expect([imported.unknown, imported.unplaced]).toEqual([[], []])
+  })
+
+  it.each(['text', 'compactText'] as const)('leaves unit notes out of %s', (layout) => {
+    expect(exported[layout]).not.toContain('Private plan')
+  })
+})
+
+describe('roster exchange import', () => {
+  const exchange = {
+    name: 'Exchanged army',
+    catalogueId: 'necrons',
+    detachmentIds: ['pantheon'],
+    disposition: 'disruption',
+    borrowedDetachmentId: null,
+    limit: 2000,
+    points: 135,
+    waivedRules: [],
+    optionalRules: [],
+    picks: [
+      { entryId: 'lord', attachedTo: 1 },
+      { entryId: 'immortals', models: 5 },
+      { entryId: 'tomb-blades', models: 3 },
+    ],
+  }
+
+  it('keeps every resolved entry and its attachment', () => {
+    expect(importRosterExchange(exchange, loaded, null, 'Xenos - Necrons')).toMatchObject({
+      units: exchange.picks,
+      unknown: [],
+      unplaced: [],
+      sourceUnitCount: 3,
+      reportedPoints: 135,
+    })
+  })
+
+  it('carries a custom points budget beside the battle size', () => {
+    expect(importRosterExchange({ ...exchange, pointsBudget: 1500 }, loaded, null, 'Xenos - Necrons')).toMatchObject({
+      limit: exchange.limit,
+      pointsBudget: 1500,
+    })
+  })
+
+  it('keeps nicknames on the entries it imports', () => {
+    const named = { ...exchange, picks: exchange.picks.map((pick, at) => ({ ...pick, nickname: `Unit ${at + 1}` })) }
+    expect(importRosterExchange(named, loaded, null, 'Xenos - Necrons').units.map((unit) => unit.nickname)).toEqual([
+      'Unit 1',
+      'Unit 2',
+      'Unit 3',
+    ])
+  })
+
+  it('prices the imported entries under the selected rules', () => {
+    expect(importRosterExchange(exchange, loaded, null, 'Xenos - Necrons').currentPoints).toBe(
+      calculateRosterPrice({ ...exchange, units: exchange.picks }, loaded, null)?.points,
+    )
+  })
+
+  it('names an entry the rules version cannot resolve and leaves it out', () => {
+    const imported = importRosterExchange(
+      { ...exchange, picks: [{ entryId: 'retired-unit' }, ...exchange.picks] },
+      loaded,
+      null,
+      'Xenos - Necrons',
+    )
+    expect([imported.unknown, imported.units.length]).toEqual([
+      [{ name: 'Entry 1', reason: 'this datasheet is not in the selected rules version' }],
+      3,
+    ])
+  })
+
+  it('moves attachments with the entries that remain', () => {
+    const imported = importRosterExchange(
+      { ...exchange, picks: [{ entryId: 'retired-unit' }, { entryId: 'lord', attachedTo: 2 }, { entryId: 'immortals' }] },
+      loaded,
+      null,
+      'Xenos - Necrons',
+    )
+    expect(imported.units[0]).toEqual({ entryId: 'lord', attachedTo: 1 })
+  })
+
+  it('reports an attachment to an entry that is left out', () => {
+    const imported = importRosterExchange(
+      { ...exchange, picks: [{ entryId: 'lord', attachedTo: 1 }, { entryId: 'retired-unit' }] },
+      loaded,
+      null,
+      'Xenos - Necrons',
+    )
+    expect([imported.units, imported.unplaced]).toEqual([
+      [{ entryId: 'lord' }],
+      [{ unit: 'Lokhust Lord (entry 1)', choices: [{ name: 'Attached to entry 2', reason: 'that entry is not imported' }] }],
+    ])
+  })
+
+  it('names a detachment the rules version no longer offers and leaves it out', () => {
+    const imported = importRosterExchange({ ...exchange, detachmentIds: ['pantheon', 'retired'] }, loaded, null, 'Xenos - Necrons')
+    expect([imported.detachmentIds, imported.unknown]).toEqual([
+      ['pantheon'],
+      [{ name: 'Detachment retired', reason: 'this rules version no longer offers it' }],
+    ])
   })
 })

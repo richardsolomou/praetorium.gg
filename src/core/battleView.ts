@@ -26,8 +26,39 @@ import {
   type StratagemLimit,
   type UnitState,
   validate,
+  atBattleEnd,
+  type BattleMoment,
+  missedMoments,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
+import { withoutUnitNotes } from './unitNotes'
+import {
+  consecratedObjectives,
+  isManualSelection,
+  manualMissionSelections,
+  manualSelectionOpen,
+  missionSelectionRequiredMessage,
+  missionSelectionsDue,
+  missionUnitCandidates,
+  remainingOperationMarkers,
+  savedMissionUnitStatus,
+  type MissionObjectiveRef,
+  type MissionSelectionPrompt,
+  type OperationMarker,
+  type SavedMissionSelection,
+  type SavedMissionUnit,
+} from './missionSelections'
+
+export type MissionSelectionView = Omit<SavedMissionSelection, 'units'> & {
+  units: (SavedMissionUnit & { status: ReturnType<typeof savedMissionUnitStatus> })[]
+}
+export type MissionChoiceView = MissionSelectionPrompt & {
+  playerId: string
+  canChoose: boolean
+  units: SavedMissionUnit[]
+  markers?: OperationMarker[]
+  consecrated?: MissionObjectiveRef[]
+}
 
 /**
  * The only place visibility is decided.
@@ -38,7 +69,8 @@ import { battleUnitCounts } from './attachedUnits'
  * answer, and it is easier to hold to when it has a file of its own.
  *
  * Cards, lists and points are public to both players. Only an unrevealed Secret
- * Mission and the deck state that would identify it are held back here.
+ * Mission and the deck state that would identify it are held back here, along with
+ * each player's personal reminders and unit notes.
  */
 
 /**
@@ -61,6 +93,7 @@ export type BattleView = {
   round: number
   phase: Phase
   rounds: number
+  endOfBattle: boolean
   /** What a command must carry to be accepted. Anything older is a stale client. */
   seq: number
   viewerId: PlayerId
@@ -77,6 +110,7 @@ export type BattleView = {
   drawAcknowledged: boolean
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
+  missionChoices?: MissionChoiceView[]
   players: {
     id: PlayerId
     side: number
@@ -136,6 +170,8 @@ export type BattleView = {
       revealed: boolean
     }[]
     primaryCard: Secondary | null
+    missionSelections?: MissionSelectionView[]
+    finalPrimary: number
     secondaryMode: SecondaryMode
     /** Whether this side has a secondary deck, without exposing the cards in it. */
     secondaryDeckReady: boolean
@@ -158,6 +194,8 @@ export type BattleView = {
   leagueEventToken: string | null
   advancePrompt: string | null
   secretMissionActionPlayerId: PlayerId | null
+  /** The earlier moments a missed action may still be recorded for, oldest first; absent from older servers. */
+  missedMoments?: BattleMoment[]
   /** The latest active command any seated player may take back. */
   undoable: number | null
   /** Whether taking back that command returns missions from this turn to the deck. */
@@ -198,6 +236,7 @@ export function battleView(
     round: state.round,
     phase: state.phase,
     rounds: battleRoundLimit(state.settings.limit),
+    endOfBattle: atBattleEnd(state),
     seq: state.seq,
     viewerId,
     creatorId: players[0]?.id ?? viewerId,
@@ -211,6 +250,30 @@ export function battleView(
     drawAcknowledged: state.drawAcknowledged,
     settings: state.settings,
     result: state.result,
+    missionChoices: state.pendingSettlement
+      ? []
+      : state.players
+          .filter((player) => sideCaptain(state, player.side).id === player.id)
+          .flatMap((player) =>
+            [...missionSelectionsDue(state, player), ...manualMissionSelections(state, player)]
+              .filter((prompt) => mayNameCard(state, viewerId, player, prompt.cardKey))
+              .map((prompt) => ({
+                ...prompt,
+                playerId: player.id,
+                canChoose:
+                  playsSide(state, viewerId, prompt.chooserSide) &&
+                  (!isManualSelection(prompt.kind) || manualSelectionOpen(state, player, prompt)),
+                units: missionUnitCandidates(
+                  state,
+                  prompt.kind === 'punishment'
+                    ? (state.players.find((candidate) => candidate.side !== player.side)?.side ?? -1)
+                    : player.side,
+                  prompt.kind !== 'beacon',
+                ),
+                ...(prompt.kind === 'sensor-sweep' ? { markers: remainingOperationMarkers(state) } : {}),
+                ...(prompt.kind === 'consecrate' ? { consecrated: consecratedObjectives(player, prompt.cardKey) } : {}),
+              })),
+          ),
     players: state.players.map((player) => {
       const resources = sideCaptain(state, player.side)
       const units = battleUnitCounts(player.units)
@@ -251,7 +314,7 @@ export function battleView(
           total: (resources.primaryByRound[round] ?? 0) + (resources.secondaryByRound[round] ?? 0),
         })),
         roster: viewRoster(player.roster, player.units, player.id === viewerId),
-        units: player.units,
+        units: player.id === viewerId ? player.units : withoutUnitNotes(player.units),
         unitCount: units.total,
         standing: units.standing,
         deployed: units.deployed,
@@ -263,6 +326,13 @@ export function battleView(
           refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
         })),
         primaryCard: resources.primaryCard,
+        missionSelections: resources.missionSelections
+          .filter((saved) => mayNameCard(state, viewerId, resources, saved.cardKey))
+          .map((saved) => ({
+            ...saved,
+            units: saved.units.map((unit) => ({ ...unit, status: savedMissionUnitStatus(state, unit) })),
+          })),
+        finalPrimary: resources.finalPrimary,
         secondaryMode: resources.secondaryMode,
         secondaryDeckReady: Boolean(resources.secondaryDeck?.length),
         secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn.map((key) =>
@@ -306,6 +376,7 @@ export function battleView(
     leagueEventToken: state.leagueEventToken,
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
+    missedMoments: missedMoments(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw:
       state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries' || state.undoable?.kind === 'use-new-orders',
@@ -336,8 +407,8 @@ function viewRoster(roster: Roster | null, units: readonly UnitState[], own: boo
       }
     : {}
   if (!roster.built) return { ...visible, ...privateFields }
-  const { units: _frozen, ...built } = roster.built
-  return { ...visible, ...privateFields, built }
+  const { units: _frozen, picks, ...built } = roster.built
+  return { ...visible, ...privateFields, built: { ...built, ...(picks ? { picks: own ? picks : withoutUnitNotes(picks) } : {}) } }
 }
 
 function secretMissionActionPlayerId(state: BattleState): PlayerId | null {
@@ -358,6 +429,14 @@ function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
   if (owed === 'settlement') return 'The previous turn is still to be settled.'
   if (owed === 'cards') return 'The active side has secondary missions to draw.'
   if (owed === 'secret') return 'The active side has a secret mission to reveal or discard.'
+  if (
+    state.players.some(
+      (captain) =>
+        sideCaptain(state, captain.side).id === captain.id &&
+        missionSelectionsDue(state, captain).some((choice) => mayNameCard(state, viewerId, captain, choice.cardKey)),
+    )
+  )
+    return missionSelectionRequiredMessage(state.phase)
   if (state.phase !== 'end') return null
   const unscored = player.secondaries.filter(
     (secondary) =>

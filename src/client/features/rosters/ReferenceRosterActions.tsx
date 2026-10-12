@@ -2,17 +2,19 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Plus } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DEFAULT_PLAYER_DEFAULTS } from '../../../core/playerDefaults'
+import { pointsBudgetOf } from '../../../core/battle'
 import { datasheetOfferedByQuery, factionIndexQuery, meQuery, playerDefaultsQuery, savedRosterSummariesQuery } from '../../queries'
 import { EMPTY_SETUP, type GuestDraft, readGuestDraft } from './guestDraft'
 import { type RosterReference, useNewRoster } from './newRoster'
 import { RosterSetupDialog, type RosterSetupFaction } from './RosterSetupDialog'
 import { rosterTitle } from './RosterSummary'
 import { sortRosters } from './rosterSort'
+import { rulesVersionLabel } from '../../../core/catalogueEdition'
 
 const NO_DETACHMENTS: string[] = []
 
@@ -86,14 +88,25 @@ export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFac
  * Space Marines datasheet offers a Blood Angels list too. The builder then adds the
  * unit under that roster's own limits, and says so when it cannot.
  */
-export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFaction; entryId: string; name: string }) {
+export function AddToRoster({
+  faction,
+  entryId,
+  name,
+  renderTrigger,
+}: {
+  faction: RosterSetupFaction
+  entryId: string
+  name: string
+  /** Draws whatever opens the flow; the dialogs stay here so the trigger may live in a menu that closes. */
+  renderTrigger: (open: () => void) => ReactNode
+}) {
   const [step, setStep] = useState<'closed' | 'choose' | 'create'>('closed')
   const [guestDraft, setGuestDraft] = useState<GuestDraft | null>(null)
   const { data: me } = useQuery(meQuery())
   const choosing = step === 'choose'
   const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: choosing && Boolean(me) })
   const { data: factionIndex } = useQuery({ ...factionIndexQuery(), enabled: choosing })
-  const candidates = me ? (saved.data ?? []) : []
+  const candidates = me ? (saved.data ?? []).filter((roster) => !roster.locked) : []
   const books = [
     ...new Set([...candidates.map((roster) => roster.catalogueId), ...(guestDraft ? [guestDraft.draft.catalogueId] : [])]),
   ].toSorted()
@@ -108,6 +121,10 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
   const failed = saved.isError || offered.isError
   const canStart = faction.detachments.length > 0
   const factionName = (catalogueId: string) => factionIndex?.factions.find((entry) => entry.id === catalogueId)
+  const rulesVersion = (catalogueId: string) => {
+    const book = factionName(catalogueId)
+    return book ? rulesVersionLabel(book) : 'Loading rules version…'
+  }
 
   const open = () => {
     posthog.capture('roster_add_started', { reference: 'datasheet' })
@@ -123,9 +140,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={open}>
-        <Plus /> Add to roster
-      </Button>
+      {renderTrigger(open)}
       <Dialog open={choosing} onOpenChange={(next) => !next && setStep('closed')}>
         <DialogContent>
           <DialogHeader>
@@ -161,7 +176,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
                     to="/rosters"
                     entryId={entryId}
                     title={guestDraft.draft.name || 'Your unsaved roster'}
-                    detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${guestDraft.draft.limit} pts · not saved yet`}
+                    detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${rulesVersion(guestDraft.draft.catalogueId)} · ${pointsBudgetOf(guestDraft.draft)} pts · not saved yet`}
                   />
                 ) : null}
                 {rosters.map((roster) => {
@@ -173,7 +188,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
                       id={roster.id}
                       entryId={entryId}
                       title={rosterTitle(roster, book)}
-                      detail={`${book?.displayName ?? ''} · ${roster.limit} pts`}
+                      detail={`${book?.displayName ?? ''} · ${rulesVersion(roster.catalogueId)} · ${pointsBudgetOf(roster)} pts`}
                     />
                   )
                 })}
@@ -218,7 +233,7 @@ function RosterChoice({
     <>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{title}</span>
-        <span className="block truncate text-xs text-dim">{detail}</span>
+        <span className="block text-xs text-dim">{detail}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-faint" aria-hidden />
     </>

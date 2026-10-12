@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from '@playwright/test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { createRoster, retryUntilVisible, signUp } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp } from './account'
 import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -245,8 +245,32 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page).toHaveURL('/factions')
   await page.goBack()
-  await expect(page).toHaveURL('/support')
+  await expect(page).toHaveURL('/support?page=support')
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
+})
+
+test('signing in from the account menu returns to the exact page, query and fragment', async ({ browser }) => {
+  const email = `account-return-${crypto.randomUUID()}@example.test`
+  const password = 'a-long-enough-password'
+  for (const [width, destination] of [
+    [1440, '/rules/core-rules/core-abilities#24.33'],
+    [390, '/leaderboard?faction=necrons'],
+  ] as const) {
+    const context = await browser.newContext({ viewport: { width, height: 844 }, hasTouch: width === 390 })
+    const page = await context.newPage()
+    if (width === 1440) await page.request.post('/api/auth/sign-up/email', { data: { email, password, name: 'Account Return' } })
+    await context.clearCookies()
+    await page.goto(destination)
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Account menu', exact: true }).filter({ visible: true }).click()
+    await page.getByRole('menuitem', { name: 'Sign in' }).click()
+    await page.waitForLoadState('networkidle')
+    await page.getByLabel('Email').fill(email)
+    await page.getByLabel('Password').fill(password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page).toHaveURL(destination)
+    await context.close()
+  }
 })
 
 /** A page's canonical link is absolute, on the origin that served it, and its Open Graph address is the same. */
@@ -524,13 +548,18 @@ test('signed-out faction browsing does not load account collection data before b
   expect(serverReads).toHaveLength(0)
 })
 
-for (const [path, name] of [
-  ['/factions/necrons/datasheets/overlord', 'Sign in to add Overlord to your collection'],
-  ['/factions/necrons', 'Sign in to add Necrons to favourites'],
-  ['/factions/necrons/detachments/cryptek-conclave', 'Sign in to add Cryptek Conclave to favourite detachments'],
+for (const [path, name, menu] of [
+  ['/factions/necrons/datasheets', 'Sign in to add Overlord to favourite datasheets', null],
+  ['/factions/necrons/datasheets/overlord', 'Sign in to add Overlord to your collection', 'Add to'],
+  ['/factions/necrons', 'Sign in to add Necrons to favourites', null],
+  ['/factions/necrons/detachments/cryptek-conclave', 'Sign in to add Cryptek Conclave to favourite detachments', null],
 ] as const) {
   test(`crawlers are asked not to follow the sign-in link on ${path}`, async ({ page }) => {
     await page.goto(path)
+    if (menu) {
+      await page.waitForLoadState('networkidle')
+      await page.getByRole('button', { name: menu, exact: true }).click()
+    }
     await expect(page.getByRole('link', { name })).toHaveAttribute('rel', 'nofollow')
   })
 }
@@ -790,7 +819,8 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('button', { name: 'Create editable roster' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('combobox', { name: 'Access' })).toContainText('Private — only you')
+  await expect(dialog.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
+  await expect(dialog).toContainText('You and seated players through a battle using this list')
   await expect(dialog.getByLabel('Tags')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/create-roster-dialog.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
@@ -850,7 +880,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('option', { name: /Incursion/ }).click()
   await setup.getByRole('button', { name: 'Remove Awakened Dynasty' }).click()
   await setup.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await expect(page.getByText('Incursion', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
@@ -862,7 +892,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   await setup.getByRole('button', { name: 'Remove Cryptek Conclave' }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
-  await setup.getByRole('button', { name: 'Save changes' }).click()
+  await confirmRosterSetup(setup)
   await page.getByLabel('Add a unit').fill('Lokhust Destroyers')
   await page.getByRole('button', { name: 'Add Lokhust Destroyers', exact: true }).first().click()
   await page

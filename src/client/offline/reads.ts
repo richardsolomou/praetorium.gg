@@ -1,6 +1,10 @@
 import { localClient, localOwner } from './localRuntime'
 
-export async function cachedRead<T>(key: readonly unknown[], online: () => Promise<T>): Promise<T> {
+export async function cachedRead<T>(
+  key: readonly unknown[],
+  online: () => Promise<T>,
+  options: { updateCache?: boolean } = {},
+): Promise<T> {
   const client = localClient()
   const cached = client?.getQueryData<T>(key)
   if (typeof window === 'undefined') return online()
@@ -12,7 +16,7 @@ export async function cachedRead<T>(key: readonly unknown[], online: () => Promi
   try {
     const data = await online()
     if (key[0] !== 'me' && localOwner()?.id !== owner) throw new Error('The account changed while loading this screen.')
-    if (key[0] !== 'me') client?.setQueryData(key, data)
+    if (key[0] !== 'me' && options.updateCache !== false) client?.setQueryData(key, data)
     return data
   } catch (error) {
     if (cached !== undefined && localOwner()?.id === owner) return cached

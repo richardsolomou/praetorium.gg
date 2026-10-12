@@ -29,6 +29,7 @@ import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { friendshipsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useOrigin } from '../../useOrigin'
+import { useNativeShare } from '../../nativeBridge'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus, sideGroups } from './LeagueEntrants'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
@@ -716,6 +717,7 @@ export function NextEventPanel({ league }: { league: League }) {
 export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
   const invite = useInviteShare(league)
+  const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
   return (
     <section className="border border-edge bg-panel p-4">
       <h2 className="rubric">Invite players</h2>
@@ -724,7 +726,7 @@ export function InvitePanel({ league }: { league: League }) {
       </p>
       <button
         type="button"
-        aria-label={invite.feedback === 'copied' ? 'Invite link copied' : invite.feedback === 'shared' ? 'Invite shared' : 'Share invite'}
+        aria-label={invite.feedback === 'copied' ? 'Invite link copied' : invite.feedback === 'shared' ? 'Invite shared' : shareLabel}
         disabled={!origin}
         className="group mt-3 block w-full border border-edge-strong bg-sunken text-left hover:border-info disabled:opacity-60"
         onClick={() => void invite.share()}
@@ -741,7 +743,7 @@ export function InvitePanel({ league }: { league: League }) {
           className={`flex items-center justify-center gap-1.5 border-t border-edge-strong px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
         >
           {invite.feedback === 'copied' || invite.feedback === 'shared' ? <Check className="size-3.5" /> : <Share2 className="size-3.5" />}
-          {invite.feedback === 'copied' ? 'Link copied' : invite.feedback === 'shared' ? 'Invite shared' : 'Share invite'}
+          {invite.feedback === 'copied' ? 'Link copied' : invite.feedback === 'shared' ? 'Invite shared' : shareLabel}
         </span>
       </button>
       <p aria-live="polite" className={`mt-2 text-xs ${invite.feedback === 'error' ? 'text-destructive' : 'sr-only'}`}>

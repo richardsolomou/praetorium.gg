@@ -11,6 +11,7 @@
 
 import { type AdvanceTime, advanceTimes } from './battleClock'
 import {
+  type BattleMoment,
   type BattleState,
   type Command,
   emptyBattle,
@@ -19,6 +20,7 @@ import {
   type PlayerId,
   type PlayerState,
   replay,
+  mayNameCard,
   sameSide,
   transportLabel,
 } from './battle'
@@ -34,6 +36,8 @@ export type ReportEntry = {
   text: string
   /** How long the phase this entry ends took, and the turn when it ends that too. */
   elapsed?: AdvanceTime
+  /** The end of `text` that names the earlier moment an action recorded late belongs to. */
+  missed?: string
 }
 
 type BattleReportReferences = {
@@ -56,8 +60,10 @@ export function battleReport(
   let returned: { entry: ReportEntry; targetId: PlayerId; by: PlayerId } | null = null
 
   for (const { entry, before, army } of replay(state, log)) {
-    const text = describe(entry.command, state, before, entry.by, army, named, deployments, viewerId)
-    if (!text) continue
+    const described = describe(entry.command, state, before, entry.by, army, named, deployments, viewerId)
+    if (!described) continue
+    const missed = 'missed' in entry.command && entry.command.missed ? missedLabel(entry.command.missed, named) : undefined
+    const text = missed ? `${described}${missed}` : described
     const targetId = commandTarget(entry.command, entry.by)
     if (
       returned &&
@@ -79,6 +85,7 @@ export function battleReport(
       commandKind: entry.command.kind,
       text,
       ...(elapsed.has(entry.seq) ? { elapsed: elapsed.get(entry.seq) } : {}),
+      ...(missed ? { missed } : {}),
     }
     entries.push(reportEntry)
     returned =
@@ -285,6 +292,15 @@ function describe(
         return targetId === by ? `${who} heals ${count} ${wounds} on ${name}` : `${who} heals ${count} ${wounds} on ${whose} ${name}`
       return targetId === by ? `${who} takes ${count} ${wounds} on ${name}` : `${who} puts ${count} ${wounds} on ${whose} ${name}`
     }
+    case 'select-mission': {
+      const card =
+        player?.primaryCard?.key === command.cardKey
+          ? player.primaryCard
+          : player?.secondaries.find((candidate) => candidate.key === command.cardKey)
+      const name =
+        player && mayNameCard(after, viewerId ?? null, player, command.cardKey) ? (card?.name ?? 'a mission') : 'a secret mission'
+      return `${who} records choices for ${name}`
+    }
     case 'pause-clock':
       return `${who} pauses the timer`
     case 'resume-clock':
@@ -303,6 +319,10 @@ function describe(
       return exhaustive
     }
   }
+}
+
+function missedLabel(moment: BattleMoment, named: Map<PlayerId, string>): string {
+  return `, recorded late for round ${moment.round}, ${named.get(moment.turn) ?? 'another player'}’s ${moment.phase} phase`
 }
 
 function commandTarget(command: Command, by: PlayerId): PlayerId {

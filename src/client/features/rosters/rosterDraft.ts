@@ -3,7 +3,7 @@ import type { RosterReminder } from '../../../core/reminders'
 import type { RosterPick } from '../../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { saveRoster } from '../../functions'
-import { normalisePicks } from './rosterPicks'
+import { annotatedPicks } from './rosterPicks'
 
 /** A list exactly as the builder's autosave sends it. */
 export type RosterDraft = Parameters<typeof saveRoster>[0]['data']
@@ -16,6 +16,7 @@ type SavedRoster = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: readonly RosterPick[]
   waivedRules: FormatRuleId[]
   optionalRules?: OptionalRuleId[]
@@ -24,7 +25,13 @@ type SavedRoster = {
   source: RosterSource
 }
 
-type SavedPrep = { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
+type SavedPrep = {
+  stratagems: Stratagem[]
+  secondaries: Secondary[]
+  reminders?: RosterReminder[]
+  remindersEnabled?: boolean
+  shareNotes?: boolean
+}
 
 /** Two drafts that would save the same row compare equal. */
 export const draftKey = (draft: RosterDraft) => JSON.stringify(draft)
@@ -45,12 +52,14 @@ export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
     limit: roster.limit,
-    picks: normalisePicks(roster.picks),
+    pointsBudget: roster.pointsBudget ?? null,
+    picks: annotatedPicks(roster.picks),
     prep: {
       stratagems: prep.stratagems,
       secondaries: prep.secondaries,
       reminders: prep.reminders ?? [],
       remindersEnabled: prep.remindersEnabled ?? true,
+      shareNotes: prep.shareNotes ?? false,
     },
     waivedRules: roster.waivedRules,
     optionalRules: roster.optionalRules ?? [],

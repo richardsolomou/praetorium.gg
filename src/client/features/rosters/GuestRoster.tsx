@@ -1,5 +1,6 @@
+import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useRouter } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { attachedUnitCount } from '../../../core/attachedUnits'
@@ -26,7 +27,7 @@ import {
 import { ListBuilder } from './ListBuilder'
 import { RosterBody, RosterShell } from './RosterPresentation'
 import { RosterSetupDialog } from './RosterSetupDialog'
-import { RosterImport } from './RosterImport'
+import { importedSetup, RosterImport } from './RosterImport'
 
 const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
@@ -84,6 +85,7 @@ export function GuestRoster({
 }) {
   const navigate = useNavigate()
   const [unkept, setUnkept] = useState(false)
+  const linkedCode = useLocation({ select: (location) => location.hash.startsWith('code=') })
   const { data: factionIndex } = useQuery(factionIndexQuery())
   const factionResult = useQuery({ ...factionQuery(guest?.draft.catalogueId ?? ''), enabled: Boolean(guest) })
   const faction = factionResult.data
@@ -100,14 +102,7 @@ export function GuestRoster({
             <>
               <RosterImport
                 onImport={(imported) => {
-                  const started = newGuestDraft({
-                    ...EMPTY_SETUP,
-                    name: imported.name,
-                    catalogueId: imported.catalogueId,
-                    detachmentIds: imported.detachmentIds,
-                    disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
-                    limit: 'limit' in imported && imported.limit ? imported.limit : EMPTY_SETUP.limit,
-                  })
+                  const started = newGuestDraft({ ...EMPTY_SETUP, ...importedSetup(imported, EMPTY_SETUP.limit) })
                   started.draft = { ...started.draft, picks: imported.units, source: imported.source }
                   setUnkept(!writeGuestDraft(started))
                   onStart(started)
@@ -175,6 +170,27 @@ export function GuestRoster({
           This browser is not keeping the list. Allow browser storage to save it; reloading will lose it.
         </p>
       ) : null}
+      {linkedCode ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-2 border-b border-discarded/40 bg-discarded/5 px-3 py-2 text-xs text-discarded"
+        >
+          <p className="min-w-0 flex-1">
+            Your link carries another roster. This device keeps one draft: sign in to save this one first, or discard it to import the
+            linked roster.
+          </p>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => {
+              clearGuestDraft()
+              onDiscard()
+            }}
+          >
+            Discard draft and import
+          </Button>
+        </div>
+      ) : null}
       <ListBuilder
         key={guest.id}
         prep={guest.draft.prep ?? NO_PREP}
@@ -190,6 +206,13 @@ export function GuestRoster({
         requested={requested}
         guest={{
           onDraftChange: ({ id: _saved, ...draft }) => {
+            const kept = writeGuestDraft({ ...guest, draft })
+            setUnkept(!kept)
+            return kept
+          },
+          onReviewedChange: ({ id: _id, ...draft }, source) => {
+            const latest = readGuestDraft()
+            requireReviewedRoster(latest?.id === guest.id ? latest.draft : null, { ...source, id: undefined })
             const kept = writeGuestDraft({ ...guest, draft })
             setUnkept(!kept)
             return kept

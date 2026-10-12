@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useLocation, useNavigate } from '@tanstack/react-router'
 import { Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,10 +10,34 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { importRoster, saveRoster } from '../../functions'
 import { errorMessage } from '../../queryClient'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
+import { isRosterExchangeCode } from '../../../core/rosterExchange'
+import { battleSizeLabel } from '../../../core/battle'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
+type Matched<T> = T extends { catalogueId: string | null; source: string | null }
+  ? T & { catalogueId: string; source: NonNullable<T['source']> }
+  : never
 /** A list whose faction was recognised, which is the only thing an import cannot do without. */
-export type MatchedImport = Imported & { catalogueId: string; source: NonNullable<Imported['source']> }
+export type MatchedImport = Matched<Imported>
+const matched = (imported: Imported): imported is MatchedImport => Boolean(imported.catalogueId && imported.source)
+
+/** The roster setup an import carries; text exports leave out rule waivers and allied detachments. */
+export function importedSetup(imported: MatchedImport, defaultLimit: number) {
+  const stated = 'limit' in imported && imported.limit ? imported.limit : null
+  return {
+    name: imported.name,
+    catalogueId: imported.catalogueId,
+    detachmentIds: imported.detachmentIds,
+    disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
+    limit: stated ?? defaultLimit,
+    pointsBudget: stated !== null && 'pointsBudget' in imported ? imported.pointsBudget : null,
+    waivedRules: 'waivedRules' in imported ? imported.waivedRules : [],
+    optionalRules: 'optionalRules' in imported ? imported.optionalRules : [],
+    borrowedDetachmentId: 'borrowedDetachmentId' in imported ? imported.borrowedDetachmentId : null,
+  }
+}
+
+const CODE_HASH = 'code='
 
 /** Each name the import refused, on its own line, so the player reads why rather than only what. */
 const explain = (unknown: readonly { name: string; reason: string }[]) =>
@@ -56,11 +80,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
       const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
       const { id } = await saveRoster({
         data: {
-          name: imported.name,
-          catalogueId: imported.catalogueId,
-          detachmentIds: imported.detachmentIds,
-          disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
-          limit: 'limit' in imported && imported.limit ? imported.limit : defaults.battleSize,
+          ...importedSetup(imported, defaults.battleSize),
           picks: imported.units,
           prep: null,
           visibility: defaults.rosterVisibility,
@@ -83,18 +103,19 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
     },
   })
 
+  const inputOf = (file: string) => (isRosterExchangeCode(file) ? 'exchange-code' : 'text')
   const bring = useMutation({
-    onMutate: () => posthog.capture('roster_import_submitted', { input: 'text' }),
+    onMutate: (file) => posthog.capture('roster_import_submitted', { input: inputOf(file) }),
     mutationFn: async (file: string): Promise<MatchedImport> => {
       const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
-        posthog.capture('roster_import_failed', { reason: 'request', input: 'text' })
+        posthog.capture('roster_import_failed', { reason: 'request', input: inputOf(file) })
         throw error
       })
-      if (!imported.catalogueId || !imported.source) {
-        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: 'text' })
+      if (!matched(imported)) {
+        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: inputOf(file) })
         throw new Error(explain(imported.unknown) || `Could not match ${imported.catalogueName || 'the faction'}`)
       }
-      return { ...imported, catalogueId: imported.catalogueId, source: imported.source }
+      return imported
     },
     onSuccess: (imported) => {
       posthog.capture('roster_import_review_required', {
@@ -105,8 +126,25 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
   })
 
   const review = bring.data ?? null
+  const fromCode = bring.variables !== undefined && isRosterExchangeCode(bring.variables)
   const working = bring.isPending || keep.isPending
   const failure = bring.error ?? keep.error
+
+  // A scanned QR code opens this page with the code in the fragment, which never reaches the server.
+  const hash = useLocation({ select: (location) => location.hash })
+  const { mutate: submit, reset: resetSubmit } = bring
+  const consumed = useRef<string | null>(null)
+  useEffect(() => {
+    if (!hash.startsWith(CODE_HASH) || consumed.current === hash) return
+    consumed.current = hash
+    const code = hash.slice(CODE_HASH.length)
+    void navigate({ to: '.', hash: '', replace: true, resetScroll: false })
+    posthog.capture('roster_import_started', { input: 'exchange-link' })
+    resetSubmit()
+    setText(code)
+    setOpen(true)
+    submit(code)
+  }, [hash, navigate, resetSubmit, submit])
 
   const accept = (imported: MatchedImport) => {
     if (!onImport) return keep.mutate(imported)
@@ -139,7 +177,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
             <DialogDescription>
               {review
                 ? 'Review the matched list and any missing choices before continuing.'
-                : 'Paste a supported army-text export. You will review the entries and points before importing.'}
+                : 'Paste a supported army-text export or an exchange code. You will review the entries and points before importing.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -155,6 +193,15 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
                   at selected rules: {review.currentPoints === null ? 'pricing unavailable' : `${review.currentPoints} points`}. Saving uses
                   the selected rules' prices.
                 </p>
+                {'limit' in review && review.limit ? (
+                  <p className="text-xs text-dim">Battle size: {battleSizeLabel(review.limit, review.pointsBudget)}.</p>
+                ) : null}
+                {fromCode ? (
+                  <p className="text-xs text-dim">
+                    The exchange code carries units, model counts, equipment, attachments, Warlord, enhancements, setup and rules version.
+                    Importing makes your own copy; the sender's preparation and reminders are not included.
+                  </p>
+                ) : null}
                 {review.unknown.length || review.unplaced.length ? (
                   <p className="text-xs text-dim">
                     Missing units will be left out. Unmatched equipment uses the datasheet defaults; check it in the builder.
@@ -195,19 +242,19 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
                     keep.reset()
                   }}
                 >
-                  Edit pasted text
+                  {fromCode ? 'Edit code' : 'Edit pasted text'}
                 </Button>
               </div>
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="roster-text" className="eyebrow">
-                  Roster text
+                  Roster text or exchange code
                 </Label>
                 <Textarea
                   id="roster-text"
                   value={text}
                   onChange={(event) => setText(event.target.value)}
-                  placeholder="Paste Games Workshop roster text…"
+                  placeholder="Paste Games Workshop roster text or an exchange code…"
                   className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
                   disabled={working}
                   maxLength={200_000}

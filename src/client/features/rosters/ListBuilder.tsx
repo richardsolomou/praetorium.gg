@@ -7,9 +7,12 @@ import {
   EllipsisVertical,
   GitBranchPlus,
   Link2,
+  Lock,
+  LockOpen,
   Pencil,
   Plus,
   Printer,
+  QrCode,
   SlidersHorizontal,
   Swords,
   TriangleAlert,
@@ -26,6 +29,7 @@ import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
+import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
   reminderKey,
   reminderTimingCountsByUnit,
@@ -39,8 +43,8 @@ import {
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
-import { copyRoster, exportRoster, saveRoster } from '../../functions'
-import { shareLink } from '../../nativeBridge'
+import { copyRoster, exportRoster, saveRoster, setRosterLocked } from '../../functions'
+import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
   collectionQuery,
   factionIndexQuery,
@@ -52,7 +56,8 @@ import {
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
-import { picksAfterDetachmentChange } from './rosterPicks'
+import type { RosterSetupReview } from './rosterSetupReview'
+import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
@@ -65,11 +70,13 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
+import { UnitAnnotations } from './builder/UnitAnnotations'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
-import { CollectionDialog } from './CollectionDialog'
+import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
+import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
@@ -82,7 +89,7 @@ import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { type CatalogueEdition } from '../../../core/catalogueEdition'
-import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
+import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
@@ -90,7 +97,13 @@ import type { CombatRoster } from '../simulator/useCombatant'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
-  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
+  prep: {
+    stratagems: Stratagem[]
+    secondaries: Secondary[]
+    reminders?: RosterReminder[]
+    remindersEnabled?: boolean
+    shareNotes?: boolean
+  }
   initial: {
     id: string
     name: string
@@ -99,6 +112,7 @@ type Props = {
     detachmentIds: string[]
     disposition: string | null
     limit: number
+    pointsBudget?: number | null
     picks: RosterPick[]
     waivedRules: FormatRuleId[]
     optionalRules?: OptionalRuleId[]
@@ -124,6 +138,8 @@ type Props = {
   /** How this variant's saved row differs from its base's. */
   differences?: NamedRosterDifferences | null
   editable?: boolean
+  /** The owner's own lock: the list reads as it does to anyone else, while unlocking and copying stay on offer. */
+  locked?: boolean
   print?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
@@ -135,7 +151,11 @@ type Props = {
    * Every draft goes to `onDraftChange` instead of the server, and saving it is
    * `onSave`'s: the one thing a visitor cannot do here is keep the list.
    */
-  guest?: { onDraftChange: (draft: RosterDraft) => boolean; onSave: () => void }
+  guest?: {
+    onDraftChange: (draft: RosterDraft) => boolean
+    onReviewedChange: (draft: RosterDraft, source: RosterDraft) => boolean
+    onSave: () => void
+  }
   /** A datasheet a reference page asked to add, once this roster's limits say whether it can. */
   requested?: { entryId: string; onSettled: () => void }
 }
@@ -174,6 +194,7 @@ export function ListBuilder({
   variants = NO_VARIANTS,
   differences = null,
   editable = true,
+  locked = false,
   print = false,
   battle,
   resolvePersistedRoster = true,
@@ -185,8 +206,9 @@ export function ListBuilder({
   const { data: me } = useQuery(meQuery())
   const { data: factionIndex } = useQuery(factionIndexQuery())
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
-  const { picks, setPicks, resetPicks, positioned, held, allocateKey } = usePicks(initial.picks)
+  const { picks, setPicks, resetPicks, positioned, annotated, held, allocateKey } = usePicks(initial.picks)
   const [limit, setLimit] = useState(initial.limit)
+  const [pointsBudget, setPointsBudget] = useState<number | null>(initial.pointsBudget ?? null)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
   const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
@@ -195,13 +217,14 @@ export function ListBuilder({
   const [name, setName] = useState(initial.automaticName ? '' : initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
+  const [shareNotes, setShareNotes] = useState(prep.shareNotes ?? false)
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
-  const [collectionOpen, setCollectionOpen] = useState(false)
+  const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
   const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
@@ -286,17 +309,18 @@ export function ListBuilder({
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true }),
-    [savedPrep, reminders],
+    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true, shareNotes }),
+    [savedPrep, reminders, shareNotes],
   )
   const draft: RosterDraft = {
-    id: savedId,
+    id: savedId || undefined,
     name: listName,
     catalogueId,
     detachmentIds,
     disposition,
     limit,
-    picks: positioned,
+    pointsBudget,
+    picks: annotated,
     prep: storedPrep,
     waivedRules,
     optionalRules,
@@ -333,19 +357,20 @@ export function ListBuilder({
 
   // Held steppers and typed names change many times a second; the settled values
   // trigger one save per pause while the mutation still reads the newest draft.
-  const settledPicks = useSettled(positioned)
+  const settledPicks = useSettled(annotated)
   const settledListName = useSettled(listName)
   useEffect(() => {
     if (!savedId) return
     const incoming = draftKey(savedDraft(initial, prep))
     if (incoming === lastApplied.current || (initial.updatedAt ?? 0) < savedAt.current) return
-    if (save.isPending || currentDraftKey !== lastSaved.current || settledListName !== listName || settledPicks !== positioned) return
+    if (save.isPending || currentDraftKey !== lastSaved.current || settledListName !== listName || settledPicks !== annotated) return
 
     lastApplied.current = incoming
     lastSaved.current = incoming
     setCatalogueId(initial.catalogueId)
     resetPicks(initial.picks)
     setLimit(initial.limit)
+    setPointsBudget(initial.pointsBudget ?? null)
     setDetachmentIds(initial.detachmentIds)
     setDisposition(initial.disposition)
     setWaivedRules(initial.waivedRules)
@@ -355,7 +380,8 @@ export function ListBuilder({
     setVisibility(initial.visibility)
     setSavedPrep(prep)
     setReminders(prep.reminders ?? [])
-  }, [currentDraftKey, initial, listName, positioned, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
+    setShareNotes(prep.shareNotes ?? false)
+  }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   useEffect(() => {
     if (!editable || !catalogueId) return
     const key = draftKey(draft)
@@ -374,6 +400,7 @@ export function ListBuilder({
     disposition,
     editable,
     limit,
+    pointsBudget,
     settledListName,
     settledPicks,
     storedPrep,
@@ -384,9 +411,39 @@ export function ListBuilder({
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: { catalogueId, detachmentIds, disposition, limit, name: shownName || 'Roster', units: positioned, waivedRules },
+        data: {
+          catalogueId,
+          detachmentIds,
+          disposition,
+          limit,
+          pointsBudget,
+          name: shownName || 'Roster',
+          units: withoutUnitNotes(annotated),
+          waivedRules,
+        },
       }),
     onSuccess: (exported) => setExportText(exported),
+  })
+
+  const exchange = useMutation({
+    mutationFn: async () => {
+      const exchangeName = shownName || 'Roster'
+      const code = await encodeRosterExchange({
+        name: exchangeName,
+        catalogueId,
+        detachmentIds,
+        disposition,
+        borrowedDetachmentId,
+        limit,
+        pointsBudget,
+        points: priced?.points ?? null,
+        waivedRules,
+        optionalRules,
+        picks: annotated,
+      })
+      return { name: exchangeName, code }
+    },
+    onSuccess: (code) => setExchangeCode(code),
   })
 
   const duplicateRoster = useMutation({
@@ -398,8 +455,9 @@ export function ListBuilder({
           detachmentIds,
           disposition,
           limit,
-          picks: positioned,
-          prep: storedPrep,
+          pointsBudget,
+          picks: annotated,
+          prep: { ...storedPrep, shareNotes: false },
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
@@ -424,7 +482,13 @@ export function ListBuilder({
       await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
-  const saving = !guest && (save.isPending || settledPicks !== positioned || settledListName !== listName)
+  // Queued behind the autosave, so a lock never lands between an edit and its save.
+  const lockRoster = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: (next: boolean) => setRosterLocked({ data: { id: savedId, locked: next } }),
+    onSuccess: () => invalidateSavedRosters(queryClient),
+  })
+  const saving = !guest && (save.isPending || settledPicks !== annotated || settledListName !== listName)
   const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
   const priceRequest = priceQuery(
@@ -497,7 +561,8 @@ export function ListBuilder({
       catalogueId,
       detachmentIds,
       limit,
-      picks: positioned,
+      pointsBudget,
+      picks: annotated,
       price: priced,
       waivedRules,
       optionalRules,
@@ -512,7 +577,8 @@ export function ListBuilder({
     guest,
     limit,
     optionalRules,
-    positioned,
+    pointsBudget,
+    annotated,
     priceLoading,
     pricePending,
     priced,
@@ -550,7 +616,9 @@ export function ListBuilder({
       setShareProblem(errorMessage(error))
     }
   }
-  const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
+  const nativeShare = useNativeShare()
+  const shareLabel =
+    shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'
   const rosterLoading = !frozen && priceLoading && picks.length > 0
   const edit = useMemo(
     () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits }, allocateKey),
@@ -583,16 +651,46 @@ export function ListBuilder({
     },
     [setSelected],
   )
-  const add = useCallback((entryId: string) => {
-    editor.current.add(entryId)
-    reporting.current = { event: 'roster_unit_added' }
-  }, [])
   const [requestRefusal, setRequestRefusal] = useState<string | null>(null)
+  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[] }[]>([])
+  const add = (entryId: string) => {
+    setRequestRefusal(null)
+    setQueuedAdds((current) => {
+      const queued = current.filter((entry) => entry.entryId === entryId).length
+      if (picks.length + current.length >= 100 || !canAddCopy(entryId, (held[entryId] ?? 0) + queued, unitLimits)) return current
+      return [...current, { entryId, context: priceRequest.queryKey }]
+    })
+  }
+  useEffect(() => {
+    const next = queuedAdds[0]
+    if (!next) return
+    if (!editable) {
+      setQueuedAdds([])
+      return
+    }
+    if (pricePending || priceLoading || priceFailed) return
+    setQueuedAdds((current) => current.slice(1))
+    if (!samePriceContext(next.context, priceRequest.queryKey)) return
+    const outcome = requestedUnit(next.entryId, held[next.entryId] ?? 0, unitLimits)
+    if (outcome.kind === 'refused') {
+      setRequestRefusal(outcome.message)
+      return
+    }
+    editor.current.add(next.entryId)
+    reporting.current = { event: 'roster_unit_added' }
+  }, [editable, held, priceFailed, priceLoading, pricePending, priceRequest.queryKey, queuedAdds, unitLimits])
   const requestHandled = useRef(false)
   const requestedHeld = requested ? (held[requested.entryId] ?? 0) : 0
   const limitsKnown = Boolean(priced) && !pricePending && !priceFailed
   useEffect(() => {
-    if (!requested || !editable || requestHandled.current) return
+    if (!requested || requestHandled.current) return
+    if (locked) {
+      requestHandled.current = true
+      setRequestRefusal('This roster is locked. Unlock it to add units.')
+      requested.onSettled()
+      return
+    }
+    if (!editable) return
     const outcome = requestedUnit(requested.entryId, requestedHeld, limitsKnown ? unitLimits : null)
     if (outcome.kind === 'pending') return
     requestHandled.current = true
@@ -604,7 +702,7 @@ export function ListBuilder({
       posthog.capture('roster_unit_add_refused', { reason: outcome.reason, reference: 'datasheet' })
     }
     requested.onSettled()
-  }, [editable, limitsKnown, requested, requestedHeld, unitLimits])
+  }, [editable, limitsKnown, locked, requested, requestedHeld, unitLimits])
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
       const nextPreview = { catalogueId: previewCatalogueId, entryId, name: unitName }
@@ -685,32 +783,51 @@ export function ListBuilder({
       detachmentIds,
       disposition,
       limit,
+      pointsBudget,
       waivedRules,
       optionalRules,
       borrowedDetachmentId,
       visibility,
     })
   }
-  const applySetup = (setup: RosterSetup) => {
+  const setupSave = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: async (review: RosterSetupReview) => {
+      requireReviewedRoster(draft, review.source)
+      if (guest) {
+        if (!guest.onReviewedChange(review.candidate, review.source)) throw new Error('This browser could not keep the reviewed roster.')
+        return { updatedAt: Date.now() }
+      }
+      return saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave)
+    },
+  })
+  const applySetup = async (setup: RosterSetup, review?: RosterSetupReview) => {
+    if (!review) throw new Error('Review the roster before saving changes.')
+    const { updatedAt } = await setupSave.mutateAsync(review)
+    const key = draftKey(review.candidate)
+    lastSaved.current = key
+    lastApplied.current = key
+    savedAt.current = Math.max(savedAt.current, updatedAt)
     const changedFaction = currentCatalogueFamilyId(setup.catalogueId) !== currentCatalogueFamilyId(catalogueId)
-    if (setup.catalogueId === catalogueId)
-      setPicks((current) => picksAfterDetachmentChange(current, units, detachmentIds, setup.detachmentIds))
-    else if (!changedFaction) setPicks((current) => picksForRulesVersion(current, setup.catalogueId))
+    resetPicks(review.candidate.picks)
     setName(setup.name)
     setCatalogueId(setup.catalogueId)
     setDetachmentIds(setup.detachmentIds)
     setDisposition(setup.disposition)
     setLimit(setup.limit)
+    setPointsBudget(setup.pointsBudget)
     setWaivedRules(setup.waivedRules)
     setOptionalRules(setup.optionalRules)
     setBorrowedDetachmentId(setup.borrowedDetachmentId)
     setVisibility(setup.visibility)
+    setSavedPrep(review.candidate.prep ?? { stratagems: [], secondaries: [] })
+    setReminders(review.candidate.prep?.reminders ?? [])
     if (changedFaction) {
-      edit.clear()
       setReminders([])
       setSelected(null)
     }
     setSetupDraft(null)
+    await invalidateSavedRosters(queryClient)
   }
   const setupDialog =
     editable && editingSetup ? (
@@ -725,6 +842,8 @@ export function ListBuilder({
         onDraftChange={setSetupDraft}
         guest={Boolean(guest)}
         hasUnits={Boolean(picks.length)}
+        reviewSource={draft}
+        pending={saving || setupSave.isPending}
         namePlaceholder={label}
         onSave={applySetup}
       />
@@ -751,7 +870,8 @@ export function ListBuilder({
   }
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
-  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > limit : Boolean(priced && priced.points > limit))
+  const budget = pointsBudget ?? limit
+  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
@@ -804,7 +924,7 @@ export function ListBuilder({
           })),
         }
       : selectedUnit
-  const waivers = waivedFormatRules(limit, waivedRules)
+  const waivers = waivedFormatRules(limit, waivedRules, pointsBudget)
   /*
    * Dismissing says "I know", not "never tell me": the key is the set of waived
    * restrictions, so switching another one off says something the player has not
@@ -829,15 +949,18 @@ export function ListBuilder({
         {limitFailure}
         <div className="min-h-0 flex-1">
           <Picker
+            key={`${catalogueId}:${detachmentIds.join(',')}:${limit}`}
+            picks={picks}
+            rosterUnits={units}
             enabled={pickerEnabled}
             catalogueId={catalogueId}
             onAdd={add}
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
-            controlsDisabled={pricePending}
-            room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
+            room={priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null}
             battleSize={limit}
+            pointsBudget={pointsBudget}
             waivedRules={waivedRules}
             onWaiveToggle={toggleWaivedRule}
             query={pickerQuery}
@@ -868,6 +991,16 @@ export function ListBuilder({
       showOptions={inspectorView !== 'readonly'}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reminders={building && selected !== null ? reminderControls : undefined}
+      header={
+        building && selected !== null && selectedPick ? (
+          <UnitAnnotations
+            nickname={selectedPick.nickname}
+            note={selectedPick.note}
+            onChange={(field, value) => edit.annotate(selected, field, value)}
+            shareNotes={guest ? undefined : { shared: shareNotes, onChange: setShareNotes }}
+          />
+        ) : undefined
+      }
       reference={
         <DatasheetPanel
           catalogueId={datasheetCatalogueId}
@@ -903,6 +1036,20 @@ export function ListBuilder({
 
   if (printInput) return <RosterPrintPack input={printInput} onClose={() => setPrintInput(null)} />
 
+  const variantMenu = savedId ? (
+    <RosterVariantMenu
+      current={savedId}
+      variants={variants}
+      differences={differences}
+      setup={{
+        factionName: faction?.displayName,
+        detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
+        disposition: variantDisposition ? { id: variantDisposition.id, name: variantDisposition.name } : null,
+      }}
+      disabled={saving}
+    />
+  ) : null
+
   return (
     <RosterShell saving={saving} saveError={save.isError}>
       <RosterHeader
@@ -915,6 +1062,7 @@ export function ListBuilder({
         edition={snapshotEdition}
         factionLoading={factionLoading}
         limit={limit}
+        pointsBudget={pointsBudget}
         unitCount={fieldedUnitCount}
         detachments={
           frozen
@@ -929,19 +1077,7 @@ export function ListBuilder({
         actions={
           editable ? (
             <>
-              {savedId ? (
-                <RosterVariantMenu
-                  current={savedId}
-                  variants={variants}
-                  differences={differences}
-                  setup={{
-                    factionName: faction?.displayName,
-                    detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
-                    disposition: variantDisposition ? { id: variantDisposition.id, name: variantDisposition.name } : null,
-                  }}
-                  disabled={saving}
-                />
-              ) : null}
+              {variantMenu}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={<Button data-onboarding="roster-actions" variant="ghost" size="icon-sm" aria-label="Roster actions" />}
@@ -961,9 +1097,14 @@ export function ListBuilder({
                     <SlidersHorizontal /> Convert rules version
                   </DropdownMenuItem>
                   {savedId && !guest ? (
-                    <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
-                      <GitBranchPlus /> New variant
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                        <GitBranchPlus /> Create variant
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
+                        <Lock /> Lock roster
+                      </DropdownMenuItem>
+                    </>
                   ) : null}
                   {visibility !== 'private' ? (
                     <DropdownMenuItem onClick={() => void shareRoster()}>
@@ -973,14 +1114,12 @@ export function ListBuilder({
                   <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                     <Download /> Export text
                   </DropdownMenuItem>
+                  <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                    <QrCode /> Exchange code
+                  </DropdownMenuItem>
                   <DropdownMenuItem disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
                     <Printer /> Print
                   </DropdownMenuItem>
-                  {me && !guest ? (
-                    <DropdownMenuItem disabled={pricePending || priceFailed || !units.length} onClick={() => setCollectionOpen(true)}>
-                      Physical collection
-                    </DropdownMenuItem>
-                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Tooltip>
@@ -1018,39 +1157,77 @@ export function ListBuilder({
               </Tooltip>
             </>
           ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
-                <EllipsisVertical />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-52">
-                {me ? (
-                  <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
-                    <Copy /> Duplicate to my rosters
+            <>
+              {locked ? variantMenu : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
+                  <EllipsisVertical />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-52">
+                  {locked ? (
+                    <>
+                      <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
+                        <LockOpen /> Unlock roster
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                        <GitBranchPlus /> Create variant
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
+                        <Copy /> Duplicate
+                      </DropdownMenuItem>
+                    </>
+                  ) : me ? (
+                    <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
+                      <Copy /> Duplicate to my rosters
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path }} />}>
+                      <Copy /> Sign in to duplicate
+                    </DropdownMenuItem>
+                  )}
+                  {visibility !== 'private' && !battle ? (
+                    <DropdownMenuItem onClick={() => void shareRoster()}>
+                      <Link2 /> {shareLabel}
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                    <Download /> Export text
                   </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path }} />}>
-                    <Copy /> Sign in to duplicate
+                  <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                    <QrCode /> Exchange code
                   </DropdownMenuItem>
-                )}
-                {visibility !== 'private' && !battle ? (
-                  <DropdownMenuItem onClick={() => void shareRoster()}>
-                    <Link2 /> {shareLabel}
+                  <DropdownMenuItem
+                    disabled={!frozenReference && (!priced || pricePending || priceLoading)}
+                    onClick={frozenReference ? () => window.print() : preparePrint}
+                  >
+                    <Printer /> Print
                   </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                  <Download /> Export text
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={!frozenReference && (!priced || pricePending || priceLoading)}
-                  onClick={frozenReference ? () => window.print() : preparePrint}
-                >
-                  <Printer /> Print
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )
         }
       >
+        {locked ? (
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-dim">
+            <Lock className="size-3 shrink-0" aria-hidden />
+            Locked. Unlock to edit, or create a variant.
+            <Button
+              variant="link"
+              size="xs"
+              className="h-auto p-0"
+              disabled={lockRoster.isPending}
+              onClick={() => lockRoster.mutate(false)}
+            >
+              Unlock
+            </Button>
+          </p>
+        ) : null}
+        {lockRoster.isError ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            {errorMessage(lockRoster.error)}
+          </p>
+        ) : null}
         {!editable && duplicateRoster.isError ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             That roster could not be duplicated. Try again.
@@ -1064,6 +1241,11 @@ export function ListBuilder({
         {shareProblem ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             Could not share the link: {shareProblem}
+          </p>
+        ) : null}
+        {exchange.isError ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            Could not make an exchange code: {errorMessage(exchange.error)}
           </p>
         ) : null}
         {requestRefusal ? (
@@ -1164,6 +1346,8 @@ export function ListBuilder({
                       <UnitCard
                         key={unit.entryId + index}
                         unit={unit}
+                        nickname={frozen.units[index]?.nickname}
+                        note={frozen.units[index]?.note}
                         joined={joined}
                         selected={selected === index}
                         onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
@@ -1173,6 +1357,8 @@ export function ListBuilder({
                       <BuilderUnitCard
                         key={picks[index]?.key ?? unit.entryId}
                         unit={unit}
+                        nickname={picks[index]?.nickname}
+                        note={picks[index]?.note}
                         index={index}
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
                         canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
@@ -1243,14 +1429,14 @@ export function ListBuilder({
                   <Button
                     size="sm"
                     className="px-2"
-                    disabled={pricePending || !canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                    disabled={!canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
                     onClick={() => add(preview.entryId)}
                   >
                     <Plus className="size-3" />
                     Add to list
                   </Button>
                 ) : optimisticUnit ? (
-                  <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                  <span className="flex max-w-full shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
                     {warlord && inspectorView === 'edit' ? (
                       <Toggle
                         variant="outline"
@@ -1373,7 +1559,7 @@ export function ListBuilder({
         over={over}
         illegal={illegal}
         points={points}
-        limit={limit}
+        limit={budget}
         hasUnits={Boolean(cards.length)}
         editable={editable}
         canAddUnits={Boolean(faction)}
@@ -1399,15 +1585,13 @@ export function ListBuilder({
         waiversDismissed={dismissedWaivers === waiverKey}
         onDismissWaivers={() => dismissWaivers(waiverKey)}
         leagueWarning={
-          editable && savedId && me ? (
+          (editable || locked) && savedId && me ? (
             <OutdatedLeagueRosters rosterId={savedId} saved={!save.isPending && currentDraftKey === lastApplied.current} />
           ) : null
         }
       />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
-      {collectionOpen && me && !guest ? (
-        <CollectionDialog open onClose={() => setCollectionOpen(false)} demands={units.flatMap((unit) => unit.collection ?? [])} />
-      ) : null}
+      <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
       {combatRoster ? <RosterCombatDialog roster={combatRoster} onClose={() => setCombatRoster(null)} /> : null}
       {reminderDraft ? (
         <ReminderEditorDialog

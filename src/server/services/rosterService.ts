@@ -6,9 +6,10 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RosterReminder } from '../../core/reminders'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
-import { detachmentIds, optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
+import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
+import { detachmentIds } from '../../core/savedRoster'
+import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
-import type { CollectionLotUpdate } from '../../core/collection'
 
 type SavedPrep = {
   stratagems: Stratagem[]
@@ -41,10 +42,12 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       detachmentIds: identities.detachmentIds,
       disposition: row.disposition,
       limit: row.limit,
+      pointsBudget: row.pointsBudget ?? null,
       waivedRules: waivedRulesFrom(row.waivedRules),
       optionalRules: optionalRulesFrom(row.optionalRules),
       borrowedDetachmentId: identities.borrowedDetachmentId,
       baseRosterId: row.baseRosterId,
+      locked: row.locked ?? false,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
@@ -70,6 +73,7 @@ export class RosterService {
       detachmentIds: readonly string[]
       disposition: string | null
       limit: number
+      pointsBudget?: number | null
       picks: readonly RosterPick[]
       prep: SavedPrep | null
       waivedRules?: readonly FormatRuleId[]
@@ -105,6 +109,7 @@ export class RosterService {
       now,
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
+    if (saved === 'locked') throw new Response(LOCKED_ROSTER_MESSAGE, { status: 409 })
     const stored = await this.repository.roster(id)
     if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
     return { id, created: saved === 'inserted', updatedAt: stored.updatedAt }
@@ -149,9 +154,9 @@ export class RosterService {
     if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
     // Named rather than "anything but private", so a value added later is refused
     // until somebody decides it should not be.
-    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: rosterFromRow(row), editable: false }
+    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
     if (!userId || !token) return null
-    return (await this.fieldedIn(token, userId, id)) ? { roster: rosterFromRow(row), editable: false } : null
+    return (await this.fieldedIn(token, userId, id)) ? { roster: readerRosterFromRow(row), editable: false } : null
   }
 
   async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
@@ -171,20 +176,19 @@ export class RosterService {
     }
   }
 
+  async setRosterLocked(userId: string, id: string, locked: boolean) {
+    if (!(await this.repository.setRosterLocked(id, userId, locked, this.clock())))
+      throw new Response('you do not own this roster', { status: 403 })
+    const stored = await this.repository.roster(id)
+    if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
+    return { updatedAt: stored.updatedAt }
+  }
+
   async deleteRoster(userId: string, id: string) {
     await this.repository.deleteRoster(id, userId)
   }
 
-  collectionStock(userId: string) {
-    return this.repository.collectionStock(userId)
-  }
-
-  async updateCollectionLot(userId: string, update: CollectionLotUpdate) {
-    if (!(await this.repository.updateCollectionLot(userId, update)))
-      throw new Response('This stock was changed on another device. Your edit is retained for review.', { status: 409 })
-    return null
-  }
-
+  /** The datasheets a user owns, as a set the picker can ask about directly. */
   async collection(userId: string) {
     const rows = await this.repository.collectionByUser(userId)
     return rows.map((row) => row.entryId)
@@ -195,6 +199,15 @@ export class RosterService {
     else await this.repository.removeFromCollection(userId, entryId)
   }
 
+  async collectionCounts(userId: string): Promise<Record<string, number>> {
+    const rows = await this.repository.collectionByUser(userId)
+    return Object.fromEntries(rows.map((row) => [row.entryId, row.models]))
+  }
+
+  async setCollectionModels(userId: string, entryId: string, models: number) {
+    await this.repository.setCollectionModels({ userId, entryId, models, now: this.clock() })
+  }
+
   async favouriteFactions(userId: string) {
     const rows = await this.repository.favouriteFactionsByUser(userId)
     return rows.map((row) => row.catalogueId)
@@ -203,6 +216,16 @@ export class RosterService {
   async setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
     if (favourite) await this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
     else await this.repository.removeFavouriteFaction(userId, catalogueId)
+  }
+
+  async favouriteDatasheets(userId: string) {
+    const rows = await this.repository.favouriteDatasheetsByUser(userId)
+    return rows.map((row) => row.entryId)
+  }
+
+  async setFavouriteDatasheet(userId: string, entryId: string, favourite: boolean) {
+    if (favourite) await this.repository.addFavouriteDatasheet({ userId, entryId, now: this.clock() })
+    else await this.repository.removeFavouriteDatasheet(userId, entryId)
   }
 
   async favouriteDetachments(userId: string) {

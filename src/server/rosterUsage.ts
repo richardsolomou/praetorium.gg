@@ -19,7 +19,7 @@ export async function rosterForUse(userId: string, rosterId: string, options: { 
   if (!rules) throw new Response('army rules data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)
   if (!priced) throw new Response('army data is not available', { status: 409 })
-  const error = rosterUseError(priced, saved.limit, saved.waivedRules)
+  const error = rosterUseError(priced, saved)
   if (error) throw new Response(`${ROSTER_NOT_USABLE}: ${error}`, { status: 409 })
   const details = unitBattleDetailsIn(
     catalogue,

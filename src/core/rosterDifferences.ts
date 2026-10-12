@@ -6,6 +6,7 @@ type Compared = {
   disposition: string | null
   borrowedDetachmentId?: string | null
   limit: number
+  pointsBudget?: number | null
   picks: readonly RosterPick[]
   waivedRules: readonly string[]
   optionalRules?: readonly string[]
@@ -62,7 +63,7 @@ function unitsOf(picks: readonly RosterPick[]) {
 export function rosterDifferences(base: Compared, variant: Compared): RosterDifferences {
   const setup: RosterSetupChange[] = []
   if (base.catalogueId !== variant.catalogueId) setup.push('faction')
-  if (base.limit !== variant.limit) setup.push('size')
+  if (base.limit !== variant.limit || (base.pointsBudget ?? null) !== (variant.pointsBudget ?? null)) setup.push('size')
   if (!sameSet(base.detachmentIds, variant.detachmentIds) || (base.borrowedDetachmentId ?? null) !== (variant.borrowedDetachmentId ?? null))
     setup.push('detachment')
   if (base.disposition !== variant.disposition) setup.push('disposition')

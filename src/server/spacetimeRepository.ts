@@ -592,12 +592,16 @@ export class SpacetimeRepository {
     return this.product.setRosterVisibility(...args)
   }
 
-  collectionStock(...args: Parameters<SpacetimeOperator['collectionStock']>) {
-    return this.product.collectionStock(...args)
+  setRosterLocked(...args: Parameters<SpacetimeOperator['setRosterLocked']>) {
+    return this.product.setRosterLocked(...args)
   }
 
-  updateCollectionLot(...args: Parameters<SpacetimeOperator['updateCollectionLot']>) {
-    return this.product.updateCollectionLot(...args)
+  collectionProfile(...args: Parameters<SpacetimeOperator['collectionProfile']>) {
+    return this.product.collectionProfile(...args)
+  }
+
+  setCollectionPublished(...args: Parameters<SpacetimeOperator['setCollectionPublished']>) {
+    return this.product.setCollectionPublished(...args)
   }
 
   collectionByUser(...args: Parameters<SpacetimeOperator['collectionByUser']>) {
@@ -612,6 +616,10 @@ export class SpacetimeRepository {
     return this.product.removeFromCollection(...args)
   }
 
+  setCollectionModels(...args: Parameters<SpacetimeOperator['setCollectionModels']>) {
+    return this.product.setCollectionModels(...args)
+  }
+
   favouriteFactionsByUser(...args: Parameters<SpacetimeOperator['favouriteFactionsByUser']>) {
     return this.product.favouriteFactionsByUser(...args)
   }
@@ -622,6 +630,18 @@ export class SpacetimeRepository {
 
   removeFavouriteFaction(...args: Parameters<SpacetimeOperator['removeFavouriteFaction']>) {
     return this.product.removeFavouriteFaction(...args)
+  }
+
+  favouriteDatasheetsByUser(...args: Parameters<SpacetimeOperator['favouriteDatasheetsByUser']>) {
+    return this.product.favouriteDatasheetsByUser(...args)
+  }
+
+  addFavouriteDatasheet(...args: Parameters<SpacetimeOperator['addFavouriteDatasheet']>) {
+    return this.product.addFavouriteDatasheet(...args)
+  }
+
+  removeFavouriteDatasheet(...args: Parameters<SpacetimeOperator['removeFavouriteDatasheet']>) {
+    return this.product.removeFavouriteDatasheet(...args)
   }
 
   favouriteDetachmentsByUser(...args: Parameters<SpacetimeOperator['favouriteDetachmentsByUser']>) {

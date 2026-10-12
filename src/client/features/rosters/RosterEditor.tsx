@@ -10,6 +10,7 @@ type Roster = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: ListBuilderProps['initial']['picks']
   waivedRules: ListBuilderProps['initial']['waivedRules']
   prep?: ListBuilderProps['prep'] | null
@@ -23,6 +24,7 @@ type Props = {
   faction: ListBuilderProps['initialFaction']
   snapshotEdition?: ListBuilderProps['snapshotEdition']
   editable: boolean
+  locked?: boolean
   print?: boolean
   battle?: string
   resolvePersistedRoster?: boolean
@@ -40,6 +42,7 @@ export function RosterEditor({
   faction,
   snapshotEdition,
   editable,
+  locked,
   print,
   battle,
   resolvePersistedRoster = true,
@@ -57,6 +60,7 @@ export function RosterEditor({
         initialFaction={faction}
         snapshotEdition={snapshotEdition}
         editable={editable}
+        locked={locked}
         print={print}
         battle={battle}
         resolvePersistedRoster={resolvePersistedRoster}

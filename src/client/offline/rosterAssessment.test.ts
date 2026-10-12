@@ -30,9 +30,11 @@ function roster(): LocalRoster {
     updatedAt: 1,
     automaticName: false,
     baseRosterId: null,
+    locked: false,
     prep: null,
     waivedRules: [],
     optionalRules: [],
+    pointsBudget: null,
   }
 }
 it('reports real points and legality without full unit projections', async () => {
@@ -57,4 +59,8 @@ it('reassesses an unchanged roster when the downloaded catalogue changes', async
   await localRosterAssessment(saved, 'alice')
   prepare(1001, 'second')
   expect(await localRosterAssessment(saved, 'alice')).toEqual({ points: 1001, problem: 'over-limit', label: 'Army' })
+})
+it('judges a downloaded roster against its custom points budget rather than its battle size', async () => {
+  prepare(1001, 'first')
+  expect(await localRosterAssessment({ ...roster(), pointsBudget: 1200 }, 'alice')).toEqual({ points: 1001, problem: null, label: 'Army' })
 })

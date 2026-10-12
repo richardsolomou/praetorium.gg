@@ -1,0 +1,202 @@
+import { expect, type Locator, type Page, test } from '@playwright/test'
+import {
+  attachRoster,
+  befriend,
+  confirmRosterSetup,
+  createBattle,
+  createRoster,
+  PRACTICE_OPPONENT,
+  signUp,
+  startBattle,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
+import { shot } from './builder.harness'
+
+const phone = { viewport: { width: 390, height: 844 } }
+const desktop = { viewport: { width: 1440, height: 900 } }
+const SQUAD = 'Plague Marines'
+const ALPHA_NOTE = 'Hold the home objective'
+const BRAVO_NOTE = 'Screen the left flank'
+
+const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
+
+async function addSquads(page: Page, count: number) {
+  for (let added = 0; added < count; added++) {
+    await page.getByLabel('Add a unit').fill(SQUAD)
+    await waitForRosterSave(page, () =>
+      page
+        .getByRole('button', { name: `Add ${SQUAD}`, exact: true })
+        .first()
+        .click(),
+    )
+  }
+  const picker = page.getByRole('dialog', { name: 'Add units' })
+  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
+  await expect(page.locator(`[data-unit="${SQUAD}"]`)).toHaveCount(count)
+}
+
+/** Names one card's unit from its loadout pane, leaving the roster showing again. */
+async function annotate(page: Page, card: Locator, nickname: string, note?: string) {
+  await card.getByRole('button', { name: new RegExp(`^(?:.+ · )?${SQUAD}$`) }).click()
+  const fields = page.getByRole('region', { name: 'Nickname and note' })
+  await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Nickname', exact: true }).fill(nickname), nickname)
+  if (note) await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(note), note)
+  const back = page.getByRole('button', { name: 'Back to roster' })
+  if (await back.isVisible()) await back.click()
+}
+
+async function setAccess(page: Page, name: string, value: string) {
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await setup.getByRole('combobox', { name: 'Access' }).click()
+  await page.getByRole('option', { name }).click()
+  await waitForRosterSave(page, () => confirmRosterSetup(setup), `"${value}"`)
+}
+
+for (const [size, label] of [
+  [phone, 'phone'],
+  [desktop, 'desktop'],
+] as const) {
+  test(`repeated units keep their own nicknames and private notes from the builder to a frozen battle army (${label})`, async ({
+    browser,
+  }) => {
+    test.setTimeout(240_000)
+    const owner = await (await browser.newContext(size)).newPage()
+    await signUp(owner, uniqueName('Nicknames'))
+    const roster = await createRoster(owner, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Named Plague' })
+    await addSquads(owner, 2)
+    const cards = owner.locator(`[data-unit="${SQUAD}"]`)
+    await annotate(owner, cards.nth(0), 'Rot Alpha', ALPHA_NOTE)
+    await cards.nth(1).getByRole('button', { name: SQUAD, exact: true }).click()
+    await shot(owner.getByRole('region', { name: 'Nickname and note' }), `test-results/unit-nickname-fields-${label}.png`)
+    const back = owner.getByRole('button', { name: 'Back to roster' })
+    if (await back.isVisible()) await back.click()
+    await annotate(owner, cards.nth(1), 'Rot Bravo', BRAVO_NOTE)
+
+    await owner.reload()
+    await expect(cards.nth(0)).toContainText(`Rot Alpha${SQUAD}`)
+    await expect(cards.nth(0)).toContainText(ALPHA_NOTE)
+    await expect(cards.nth(1)).toContainText(`Rot Bravo${SQUAD}`)
+    await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
+    await shot(owner.locator('[data-roster-builder]'), `test-results/unit-nickname-cards-${label}.png`)
+
+    await owner.getByRole('button', { name: 'Roster actions' }).click()
+    await owner.getByRole('menuitem', { name: 'Export text' }).click()
+    const exported = owner.getByRole('dialog', { name: 'Export roster' })
+    await expect(exported.locator('pre')).toContainText('• Nickname: Rot Alpha')
+    await expect(exported.locator('pre')).toContainText('• Nickname: Rot Bravo')
+    await expect(exported.locator('pre')).not.toContainText(ALPHA_NOTE)
+    await exported.getByRole('button', { name: 'Close' }).click()
+
+    await owner.evaluate(() => {
+      window.print = () => undefined
+    })
+    await owner.getByRole('button', { name: 'Roster actions' }).click()
+    await owner.getByRole('menuitem', { name: 'Print', exact: true }).click()
+    const pack = owner.locator('[data-battle-reference-pack]')
+    await expect(pack.getByRole('heading', { name: `Rot Alpha · ${SQUAD} ·`, exact: false })).toBeVisible()
+    await expect(pack).toContainText(`Note: ${ALPHA_NOTE}`)
+    await expect(pack).toContainText(`Note: ${BRAVO_NOTE}`)
+    await shot(pack.locator('.pack-unit').first(), `test-results/unit-nickname-print-${label}.png`)
+    await owner.getByRole('button', { name: 'Return to roster' }).click()
+
+    const original = rosterId(owner)
+    const opponentName = uniqueName('Opponent')
+    const opponent = await (await browser.newContext(size)).newPage()
+    await signUp(opponent, opponentName)
+    await befriend(owner, opponent)
+    const battle = await createBattle(owner, { opponent: opponentName })
+    await attachRoster(owner, roster)
+    const token = new URL(battle).pathname.split('/').at(-1)!
+    const fielded = `/rosters/${original}?battle=${token}`
+
+    await opponent.goto(fielded)
+    const frozen = opponent.locator(`[data-unit="${SQUAD}"]`)
+    await expect(frozen.nth(0)).toContainText(`Rot Alpha${SQUAD}`)
+    await expect(frozen.nth(1)).toContainText(`Rot Bravo${SQUAD}`)
+    await expect(opponent.locator('body')).not.toContainText(ALPHA_NOTE)
+    await expect(opponent.locator('body')).not.toContainText(BRAVO_NOTE)
+    await shot(opponent.locator('main'), `test-results/unit-nickname-opponent-${label}.png`)
+
+    await owner.goto(fielded)
+    await expect(owner.locator(`[data-unit="${SQUAD}"]`).nth(0)).toContainText(ALPHA_NOTE)
+
+    await owner.goto(`/rosters/${original}`)
+    await annotate(owner, cards.nth(0), 'Rot Prime')
+    await opponent.reload()
+    await expect(frozen.nth(0)).toContainText('Rot Alpha')
+    await expect(opponent.locator('body')).not.toContainText('Rot Prime')
+
+    await owner.getByRole('button', { name: 'Roster actions' }).click()
+    await owner.getByRole('menuitem', { name: 'Create variant' }).click()
+    await owner.waitForURL((url) => !url.pathname.endsWith(original))
+    await expect(cards.nth(0)).toContainText(`Rot Prime${SQUAD}`)
+    await expect(cards.nth(0)).toContainText(ALPHA_NOTE)
+    await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
+  })
+
+  test(`another account reads a public roster's nicknames, and its notes only once the owner shares them (${label})`, async ({
+    browser,
+  }) => {
+    test.setTimeout(120_000)
+    const owner = await (await browser.newContext(size)).newPage()
+    await signUp(owner, uniqueName('Public nicknames'))
+    await createRoster(owner, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Public Plague' })
+    await addSquads(owner, 1)
+    await annotate(owner, owner.locator(`[data-unit="${SQUAD}"]`), 'Rot Alpha', ALPHA_NOTE)
+    await setAccess(owner, 'Public — listed on your profile', 'public')
+    const path = new URL(owner.url()).pathname
+
+    const reader = await (await browser.newContext(size)).newPage()
+    await signUp(reader, uniqueName('Reader'))
+    await reader.goto(path)
+    const card = reader.locator(`[data-unit="${SQUAD}"]`)
+    await expect(card).toContainText(`Rot Alpha${SQUAD}`)
+    await expect(reader.locator('body')).not.toContainText(ALPHA_NOTE)
+
+    await owner
+      .locator(`[data-unit="${SQUAD}"]`)
+      .getByRole('button', { name: new RegExp(`^(?:.+ · )?${SQUAD}$`) })
+      .click()
+    const share = owner.getByRole('switch', { name: /Share unit notes/ })
+    await waitForRosterSave(owner, () => share.click())
+    await expect(share).toBeChecked()
+    await reader.reload()
+    await expect(card).toContainText(ALPHA_NOTE)
+  })
+
+  test(`the battle army window names units by nickname and shows notes only on the player's own army (${label})`, async ({ browser }) => {
+    test.setTimeout(180_000)
+    const page = await (await browser.newContext(size)).newPage()
+    await signUp(page, uniqueName('Army nicknames'))
+    const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Army Plague' })
+    await addSquads(page, 1)
+    await annotate(page, page.locator(`[data-unit="${SQUAD}"]`), 'Rot Alpha', ALPHA_NOTE)
+    await createBattle(page, { practice: true })
+    await attachRoster(page, roster)
+    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await startBattle(page)
+
+    const army = page.locator('[data-army-roster]')
+    const squad = army.locator(`[data-unit="${SQUAD}"]`)
+    await page
+      .locator('[data-panel="player"][data-side="0"]')
+      .getByRole('button', { name: `Open ${roster}` })
+      .click()
+    await expect(squad).toContainText(`Rot Alpha${SQUAD}`)
+    await expect(squad).toContainText(ALPHA_NOTE)
+    await shot(army, `test-results/unit-nickname-army-${label}.png`)
+    await army.getByRole('button', { name: 'Close' }).click()
+
+    const opponentTab = page.getByRole('tab', { name: 'Opponent' })
+    if (await opponentTab.isVisible()) await opponentTab.click()
+    await page
+      .locator('[data-panel="player"][data-side="1"]')
+      .getByRole('button', { name: `Open ${roster}` })
+      .click()
+    await expect(squad).toContainText(`Rot Alpha${SQUAD}`)
+    await expect(squad).not.toContainText(ALPHA_NOTE)
+  })
+}

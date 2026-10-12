@@ -366,3 +366,99 @@ it('fields a list nobody named under the label it had when it was fielded', () =
   )
   expect(snapshot.name).toBe("HL 1K - C'tan & Hexmark")
 })
+
+it('freezes a custom points budget and halves it for the strategic reserve limit', () => {
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      pointsBudget: 1_500,
+      waivedRules: [],
+      picks: [],
+    },
+    {
+      points: 0,
+      revision: 'revision',
+      strategicReserveFactsComplete: true,
+      label: 'Army',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: 3,
+      disposition: null,
+      units: [],
+    },
+    [],
+  )
+
+  expect([roster.built?.limit, roster.built?.pointsBudget, roster.built?.strategicReserveLimit, roster.text.split('\n')[0]]).toEqual([
+    2_000,
+    1_500,
+    750,
+    '0 / 1500 pts',
+  ])
+})
+
+it('freezes two identical units with their own nicknames and notes, unaffected by later edits to the saved list', () => {
+  const unit = (key: number) => ({
+    key,
+    entryId: 'intercessors',
+    name: 'Intercessor Squad',
+    points: 80,
+    group: 'battleline' as const,
+    toggles: [],
+    size: { models: 5, resizable: false },
+    attachment: null,
+    wargear: [],
+    enhancements: [],
+    upgrades: [],
+    formationOptions: [],
+    prebattleRules: [],
+  })
+  const saved = {
+    id: 'list',
+    name: 'Army',
+    catalogueId: 'marines',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    waivedRules: [],
+    picks: [
+      { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+      { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
+    ],
+  }
+  const snapshot = rosterSnapshot(
+    saved,
+    {
+      points: 160,
+      revision: 'revision',
+      label: 'Army',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      units: [unit(0), unit(1)],
+    },
+    [],
+  )
+  saved.picks[0]!.nickname = 'Renamed'
+  saved.picks[1]!.note = 'Changed plan.'
+
+  expect({
+    units: snapshot.built?.units.map(({ name, nickname, note }) => ({ name, nickname, note })),
+    picks: snapshot.built?.picks?.map(({ nickname, note }) => ({ nickname, note })),
+  }).toEqual({
+    units: [
+      { name: 'Intercessor Squad', nickname: 'Alpha', note: 'Hold home.' },
+      { name: 'Intercessor Squad', nickname: 'Bravo', note: 'Push midfield.' },
+    ],
+    picks: [
+      { nickname: 'Alpha', note: 'Hold home.' },
+      { nickname: 'Bravo', note: 'Push midfield.' },
+    ],
+  })
+})

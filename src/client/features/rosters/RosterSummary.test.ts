@@ -12,6 +12,7 @@ const roster = {
   detachmentIds: ['awakened-dynasty'],
   disposition: null,
   limit: 2_000,
+  pointsBudget: null,
   createdAt: 0,
   updatedAt: 0,
   unitCount: 0,
@@ -21,6 +22,7 @@ const roster = {
   optionalRules: [],
   borrowedDetachmentId: null,
   baseRosterId: null,
+  locked: false,
 } satisfies SavedRoster
 
 describe('roster summary', () => {
@@ -44,6 +46,12 @@ describe('roster summary', () => {
     expect(markup).toContain('1985/2000')
     expect(markup).toContain('Private')
     expect(markup).not.toContain('switched off')
+  })
+
+  it('shows a custom points budget beside the battle size whose limits still apply', () => {
+    const markup = renderToStaticMarkup(createElement(RosterSummary, { roster: { ...roster, pointsBudget: 1_500 }, points: 1_485 }))
+
+    expect([markup.includes('1485/1500'), markup.includes('Strike Force · 1500-point budget')]).toEqual([true, true])
   })
 
   it('shows the selected force disposition beside the detachment', () => {

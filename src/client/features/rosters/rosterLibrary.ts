@@ -3,13 +3,14 @@ import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import type { RosterTextExport } from './RosterExportDialog'
+import type { RosterExchangeCode } from './RosterExchangeDialog'
+import { encodeRosterExchange } from '../../../core/rosterExchange'
 import type { RosterVisibility } from '../../../core/savedRoster'
-import { currentCatalogueFamilyId, picksForRulesVersion } from '../../../core/retiredCatalogueIds'
-import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterVisibility, sharedRoster } from '../../functions'
+import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterLocked, setRosterVisibility, sharedRoster } from '../../functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
-import type { RosterSetup } from './RosterSetupDialog'
+import type { RosterSetupReview } from './rosterSetupReview'
 
 /** One saved list, as the library reads it back. */
 export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
@@ -29,6 +30,7 @@ export function useRosterActions(origin: string) {
   const [shareFeedback, setShareFeedback] = useState<{ id: string; result: 'copied' | 'shared' } | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
+  const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const load = async (roster: SavedRoster) => {
     const complete = await sharedRoster({ data: { id: roster.id } })
     if (!complete) throw new Error('That roster could not be loaded.')
@@ -54,6 +56,11 @@ export function useRosterActions(origin: string) {
     onSuccess: refresh,
   })
 
+  const lock = useMutation({
+    mutationFn: ({ id, locked }: { id: string; locked: boolean }) => setRosterLocked({ data: { id, locked } }),
+    onSuccess: refresh,
+  })
+
   // Another tool has nowhere to put a list with no name, so an export and a share
   // sheet are handed what the library calls it.
   const take = useMutation({
@@ -74,23 +81,18 @@ export function useRosterActions(origin: string) {
     onSuccess: (exported) => setExportText(exported),
   })
 
-  const update = useMutation({
-    mutationFn: async ({ roster: summary, setup }: { roster: SavedRoster; setup: RosterSetup }) => {
+  const exchange = useMutation({
+    mutationFn: async ({ roster: summary, title, points }: { roster: SavedRoster; title: string; points: number | null }) => {
       const roster = await load(summary)
-      return saveRoster({
-        data: {
-          id: roster.id,
-          ...setup,
-          picks:
-            currentCatalogueFamilyId(setup.catalogueId) === currentCatalogueFamilyId(roster.catalogueId)
-              ? picksForRulesVersion(roster.picks, setup.catalogueId)
-              : [],
-          prep: roster.prep,
-          visibility: setup.visibility,
-          source: roster.source,
-        },
-      })
+      const name = roster.name || title
+      return { name, code: await encodeRosterExchange({ ...roster, name, points }) }
     },
+    onSuccess: (code) => setExchangeCode(code),
+  })
+
+  const update = useMutation({
+    mutationFn: async (review: RosterSetupReview) =>
+      saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave),
     onSuccess: refresh,
   })
 
@@ -128,7 +130,9 @@ export function useRosterActions(origin: string) {
     variant,
     remove,
     access,
+    lock,
     take,
+    exchange,
     update,
     share,
     print: (id: string) => window.open(`/rosters/${id}?print=true`, '_blank'),
@@ -136,6 +140,8 @@ export function useRosterActions(origin: string) {
     shareProblem,
     exportText,
     clearExport: () => setExportText(null),
+    exchangeCode,
+    clearExchange: () => setExchangeCode(null),
   }
 }
 

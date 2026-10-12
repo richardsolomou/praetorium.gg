@@ -57,6 +57,7 @@ export const Collection = __t.object('Collection', {
   userId: __t.string(),
   entryId: __t.string(),
   at: __t.u64(),
+  models: __t.option(__t.u32()),
 })
 export type Collection = __Infer<typeof Collection>
 
@@ -76,6 +77,14 @@ export const Commands = __t.object('Commands', {
   body: __t.string(),
 })
 export type Commands = __Infer<typeof Commands>
+
+export const FavouriteDatasheets = __t.object('FavouriteDatasheets', {
+  key: __t.string(),
+  userId: __t.string(),
+  entryId: __t.string(),
+  at: __t.u64(),
+})
+export type FavouriteDatasheets = __Infer<typeof FavouriteDatasheets>
 
 export const FavouriteDetachments = __t.object('FavouriteDetachments', {
   key: __t.string(),
@@ -284,6 +293,8 @@ export const Rosters = __t.object('Rosters', {
   updatedAt: __t.u64(),
   automaticName: __t.option(__t.bool()),
   baseRosterId: __t.option(__t.string()),
+  locked: __t.option(__t.bool()),
+  pointsBudget: __t.option(__t.u32()),
 })
 export type Rosters = __Infer<typeof Rosters>
 
@@ -303,6 +314,18 @@ export const Settings = __t.object('Settings', {
   audience: __t.string(),
 })
 export type Settings = __Infer<typeof Settings>
+
+export const SupportReports = __t.object('SupportReports', {
+  reference: __t.string(),
+  userId: __t.string(),
+  title: __t.string(),
+  body: __t.string(),
+  createdAt: __t.u64(),
+  checkedAt: __t.u64(),
+  delivery: __t.string(),
+  issueNumber: __t.option(__t.u32()),
+})
+export type SupportReports = __Infer<typeof SupportReports>
 
 export const SyncReceipts = __t.object('SyncReceipts', {
   id: __t.string(),

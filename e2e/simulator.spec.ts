@@ -592,7 +592,7 @@ for (const width of [1440, 390, 860, 1024]) {
     await page.getByRole('button', { name: 'More defender models' }).click()
     await calculation.waitForStart()
     await expect(shooting).toHaveAttribute('aria-busy', 'true')
-    await expect(page.getByText(/Updating…|Estimates · up to/)).toHaveCount(0)
+    await expect(page.getByRole('region', { name: 'Combined estimate' }).getByText('Updating…', { exact: true })).toBeVisible()
     await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('6')
     for (let added = 0; added < 4; added++) await page.getByRole('button', { name: 'More defender models' }).click()
     await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('10')

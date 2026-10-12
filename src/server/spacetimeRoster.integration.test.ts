@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { expect, it, vi } from 'vitest'
 import { DbConnection, tables } from '../spacetime/generated'
 import { SpacetimeOperator } from './spacetimeOperator'
+import { LOCKED_ROSTER_MESSAGE } from '../core/rosterLock'
 
 const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
@@ -87,6 +88,110 @@ it.skipIf(!url || !database || !token)('keeps roster variants in one flat group 
   }
 })
 
+const lockedInput = (userId: string, id = randomUUID(), now = Date.now()) => ({
+  id,
+  userId,
+  name: 'Finished list',
+  automaticName: false,
+  catalogueId: 'catalogue-proof',
+  detachmentId: '["detachment-proof"]',
+  disposition: null,
+  limit: 1_000,
+  picks: '[{"entryId":"unit-proof"}]',
+  prep: null,
+  tags: '[]',
+  waivedRules: '[]',
+  optionalRules: '[]',
+  borrowedDetachmentId: null,
+  baseRosterId: null,
+  visibility: 'private' as const,
+  source: 'editable' as const,
+  now,
+})
+
+it.skipIf(!url || !database || !token)(
+  'refuses direct content saves to a locked roster while visibility and deletion stay available',
+  async () => {
+    const store = new SpacetimeOperator(url!, database!, token!)
+    const userId = randomUUID()
+    const input = lockedInput(userId)
+    try {
+      await store.saveRoster(input)
+      expect(await store.setRosterLocked(input.id, 'other', true, input.now + 1)).toBe(false)
+      expect(await store.setRosterLocked(input.id, userId, true, input.now + 1)).toBe(true)
+      expect({
+        edit: await store.saveRoster({ ...input, picks: '[]', now: input.now + 2 }),
+        rename: await store.saveRoster({ ...input, name: 'Renamed', now: input.now + 2 }),
+        visibility: await store.saveRoster({ ...input, visibility: 'unlisted', now: input.now + 3 }),
+        shared: await store.setRosterVisibility(input.id, userId, 'public', input.now + 4),
+        stored: await store
+          .roster(input.id)
+          .then((row) => row && { name: row.name, picks: row.picks, locked: row.locked, visibility: row.visibility }),
+        summary: (await store.rosterSummariesByUser(userId))[0]?.locked,
+      }).toEqual({
+        edit: 'locked',
+        rename: 'locked',
+        visibility: 'updated',
+        shared: true,
+        stored: { name: 'Finished list', picks: input.picks, locked: true, visibility: 'public' },
+        summary: true,
+      })
+      await store.deleteRoster(input.id, userId)
+      expect(await store.roster(input.id)).toBeUndefined()
+    } finally {
+      await store.deleteRoster(input.id, userId)
+    }
+  },
+)
+
+it.skipIf(!url || !database || !token)('refuses queued edits to a locked roster from stale and current devices', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const input = lockedInput(userId)
+  const sync = (row: typeof input, expectedVersion: number | null) =>
+    store.syncRoster({ row: JSON.stringify(row), operationId: randomUUID(), fingerprint: 'b'.repeat(64), expectedVersion, deleted: false })
+  try {
+    await store.saveRoster(input)
+    const before = (await store.roster(input.id))!.updatedAt
+    await store.setRosterLocked(input.id, userId, true, input.now + 1)
+    const locked = (await store.roster(input.id))!.updatedAt
+    expect({
+      lockedVersionAdvanced: locked > before,
+      stale: await sync({ ...input, picks: '[]', now: input.now + 2 }, before),
+      current: await sync({ ...input, picks: '[]', now: input.now + 2 }, locked),
+      picks: (await store.roster(input.id))?.picks,
+    }).toEqual({
+      lockedVersionAdvanced: true,
+      stale: { outcome: 'refused', message: LOCKED_ROSTER_MESSAGE },
+      current: { outcome: 'refused', message: LOCKED_ROSTER_MESSAGE },
+      picks: input.picks,
+    })
+  } finally {
+    await store.deleteRoster(input.id, userId)
+  }
+})
+
+it.skipIf(!url || !database || !token)('saves edits again once unlocked and starts copies of a locked roster unlocked', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const input = lockedInput(userId)
+  const copy = randomUUID()
+  try {
+    await store.saveRoster(input)
+    await store.setRosterLocked(input.id, userId, true, input.now + 1)
+    expect(await store.saveRoster({ ...lockedInput(userId, copy, input.now + 2), baseRosterId: input.id })).toBe('inserted')
+    expect(await store.saveRoster({ ...lockedInput(userId, copy, input.now + 3), picks: '[]' })).toBe('updated')
+    await store.setRosterLocked(input.id, userId, false, input.now + 4)
+    expect(await store.saveRoster({ ...input, picks: '[]', now: input.now + 5 })).toBe('updated')
+    expect({ original: (await store.roster(input.id))?.locked, copy: (await store.roster(copy))?.locked ?? null }).toEqual({
+      original: false,
+      copy: null,
+    })
+  } finally {
+    for (const id of [input.id, copy]) await store.deleteRoster(id, userId)
+  }
+})
+
 it.skipIf(!url || !database || !token)('streams public roster changes to an anonymous reader without private signals', async () => {
   const store = new SpacetimeOperator(url!, database!, token!)
   const id = randomUUID()
@@ -169,14 +274,35 @@ it.skipIf(!url || !database || !token)('keeps collection and favourites idempote
     await store.addFavouriteFaction({ userId, catalogueId, now: now + 1 })
     await store.addFavouriteDetachment({ userId, catalogueId, detachmentId, now })
     await store.addFavouriteDetachment({ userId, catalogueId, detachmentId, now: now + 1 })
-    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now }])
+    await store.addFavouriteDatasheet({ userId, entryId, now })
+    await store.addFavouriteDatasheet({ userId, entryId, now: now + 1 })
+    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now, models: 1 }])
     expect(await store.favouriteFactionsByUser(userId)).toEqual([{ userId, catalogueId, at: now }])
     expect(await store.favouriteDetachmentsByUser(userId)).toEqual([{ userId, catalogueId, detachmentId, at: now }])
+    expect(await store.favouriteDatasheetsByUser(userId)).toEqual([{ userId, entryId, at: now }])
+    expect(await store.favouriteDatasheetsByUser('other')).toEqual([])
     expect(await store.collectionByUser('other')).toEqual([])
   } finally {
     await store.removeFromCollection(userId, entryId)
     await store.removeFavouriteFaction(userId, catalogueId)
     await store.removeFavouriteDetachment(userId, catalogueId, detachmentId)
+    await store.removeFavouriteDatasheet(userId, entryId)
   }
   expect(await store.collectionByUser(userId)).toEqual([])
+})
+
+it.skipIf(!url || !database || !token)('records a model count without duplicating the collection entry', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const entryId = randomUUID()
+  const now = Date.now()
+  try {
+    await store.setCollectionModels({ userId, entryId, models: 3, now })
+    await store.addToCollection({ userId, entryId, now: now + 1 })
+    await store.setCollectionModels({ userId, entryId, models: 12, now: now + 2 })
+    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now, models: 12 }])
+    expect(await store.collectionByUser('other')).toEqual([])
+  } finally {
+    await store.removeFromCollection(userId, entryId)
+  }
 })
