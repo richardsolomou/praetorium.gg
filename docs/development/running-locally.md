@@ -41,6 +41,8 @@ Use `just e2e-ui <spec>` for repeated test-only edits: Playwright keeps the isol
 
 A spec that opens another browser context with `browser.newContext()` imports `test` from `e2e/test.ts`, which closes those contexts when the test ends. Playwright closes only the contexts its fixtures create; a left-open player keeps polling and downloading for the rest of the worker's tests. Test titles must differ after punctuation is removed, because Playwright derives each test's output directory from its title.
 
+Another tab can send a queued edit through its sync worker. Cross-tab save checks must observe the browser context and match the edited operation’s content; waiting for a response only on the editor page can miss a successful save.
+
 [Native authentication](mobile.md#check-it) owns its separate stack and exclusive simulator reservation.
 
 ## Repository backup
