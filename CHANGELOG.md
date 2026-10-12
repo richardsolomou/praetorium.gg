@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.132.5
+
+### Patch Changes
+
+- 3074fb2: Keep battle simulator choices when casualties are recorded while it is open.
+
 ## 0.132.4
 
 ### Patch Changes
