@@ -276,8 +276,8 @@ export function CombatantCard({
         <>
           <div className="space-y-1" aria-label={`${side} unit members`}>
             {members.map((member) => (
-              <div key={member.index} className="flex min-w-0 items-center gap-2 text-sm" data-combat-member={member.name}>
-                <div className="min-w-0 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
+              <div key={member.index} className="flex min-w-0 flex-wrap items-center gap-2 text-sm" data-combat-member={member.name}>
+                <div className="min-w-12 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
                   {member.index === pickIndex ? (
                     unitPicker
                   ) : (
@@ -312,7 +312,7 @@ export function CombatantCard({
                     />
                   )}
                 </div>
-                <div className="ml-auto flex shrink-0 items-center gap-2">
+                <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center gap-2">
                   {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
                     <Stepper
                       label={`${side.toLowerCase()} models`}

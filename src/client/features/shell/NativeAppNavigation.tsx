@@ -124,7 +124,7 @@ export function NativeAppNavigation({
             className={`flex ${tabClass(active === section)}`}
           >
             <Icon className="size-5" />
-            <span className="truncate">{label}</span>
+            <span className="max-w-full truncate">{label}</span>
           </Link>
         ))}
         <Link
@@ -138,7 +138,7 @@ export function NativeAppNavigation({
           }}
         >
           <Ellipsis className="size-5" />
-          <span className="truncate">More</span>
+          <span className="max-w-full truncate">More</span>
         </Link>
       </nav>
     </>

@@ -7,7 +7,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, Dia
 import { activeFriendInviteQuery } from '../../queries'
 import { cancelFriendInvite, createFriendInvite } from '../../functions'
 import { errorMessage } from '../../queryClient'
-import { shareLink } from '../../nativeBridge'
+import { shareLink, useNativeShare } from '../../nativeBridge'
 import { useOrigin } from '../../useOrigin'
 import { useQrCode } from '../../components/useQrCode'
 
@@ -67,6 +67,7 @@ export function InviteQr({
 }: { url: string; disabled: boolean } & Pick<ComponentProps<typeof Button>, 'variant' | 'size'>) {
   const [open, setOpen] = useState(false)
   const { image, failed } = useQrCode(open ? url : null, 256)
+  const nativeShare = useNativeShare()
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" {...trigger} disabled={disabled} />}>
@@ -82,7 +83,7 @@ export function InviteQr({
         <DialogBody>
           {failed ? (
             <p role="alert" className="text-sm text-destructive">
-              Could not make a QR code. Close this window and use Share invite.
+              Could not make a QR code. Close this window and use {nativeShare ? 'Share invite' : 'Copy invite link'}.
             </p>
           ) : image ? (
             <img src={image} alt="Friend invite QR code" className="mx-auto size-64 bg-white" />

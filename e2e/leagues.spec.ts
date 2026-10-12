@@ -799,7 +799,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
       value: { writeText: () => Promise.reject(new Error('clipboard unavailable')) },
     })
   })
-  await dropdown.getByRole('menuitem', { name: 'Share invite' }).click()
+  await dropdown.getByRole('menuitem', { name: 'Copy invite link' }).click()
   await expect(dropdown).toBeHidden()
   const copyError = owner.getByText('Could not share the invite. Try again.', { exact: true })
   await expect(copyError).toBeVisible()
