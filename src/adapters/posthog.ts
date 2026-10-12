@@ -13,14 +13,8 @@ export function serverEventContext(host: string | undefined): BeforeSendFn {
   return (event) => (event && host ? { ...event, properties: { ...event.properties, $host: host } } : event)
 }
 
-/** Resource attributes for spans, logs, and metrics, which otherwise carry no host to separate previews from production. */
-export function deploymentResource(host: string | undefined) {
-  return host ? { host } : undefined
-}
-
 export const serverTelemetry = () =>
   globalSingleton('praetorium.posthog', () => {
-    const host = deploymentHost()
     const telemetry = createManagedPostHogServerTelemetry({
       environment: postHogEnvironment({
         projectToken: process.env.VITE_POSTHOG_PROJECT_TOKEN,
@@ -29,8 +23,7 @@ export const serverTelemetry = () =>
       serviceName: 'praetorium',
       serviceVersion: version,
       deploymentEnvironment: process.env.NODE_ENV,
-      resourceAttributes: deploymentResource(host),
-      clientOptions: { before_send: serverEventContext(host) },
+      clientOptions: { before_send: serverEventContext(deploymentHost()) },
       onError: (error) => console.error({ event: 'telemetry_failed', error }),
     })
     if (!process.env.VITEST) installPostHogServerTelemetryShutdown(telemetry)
