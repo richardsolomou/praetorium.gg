@@ -252,3 +252,16 @@ it('rejects a terrain label correction from another Battlemaster revision', () =
   )
   expect(() => battlemasterGeometry(directory, id)).toThrow('terrain label corrections do not match the Battlemaster source')
 })
+
+it('shares one geometry between reads of unchanged sources', () => {
+  expect(battlemasterGeometry(directory, id)).toBe(battlemasterGeometry(directory, id))
+})
+
+it('reads a layout again after its source changes', () => {
+  battlemasterGeometry(directory, id)
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+  raw.terrain[0].name = 'Area CD'
+  fs.writeFileSync(file, JSON.stringify(raw))
+  expect(battlemasterGeometry(directory, id)?.areas[0]?.name).toBe('Area CD')
+})

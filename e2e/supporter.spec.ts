@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Page } from './test'
 import { signUp, uniqueName } from './account'
 import { withAuthSql } from './storage'
 

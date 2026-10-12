@@ -162,6 +162,13 @@ for (const width of [1440, 390]) {
     await page.getByRole('group', { name: 'First turn', exact: true }).getByRole('button').first().click()
     await expect(prompt(page)).toContainText('Resolve pre-battle rules')
     await page.getByRole('button', { name: 'Start battle', exact: true }).click()
+    // The opening hand can arrive just after the battle starts, so the turn waits for it or the command phase.
+    await expect(
+      page
+        .getByRole('dialog', { name: /secondary missions$/ })
+        .or(page.getByRole('heading', { name: 'command phase' }))
+        .first(),
+    ).toBeVisible()
     await takeTheTurn(page)
     await next(page, 'Follow the score')
     await next(page, 'Advance phases and undo')

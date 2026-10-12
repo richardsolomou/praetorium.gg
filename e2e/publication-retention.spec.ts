@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { z } from 'zod'
 import {
   attachRoster,
@@ -208,8 +208,15 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.goto(`/rosters/${rosterId}?battle=${tokenOf(battleUrl)}`)
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)
   await deleteBattle(page, battleUrl)
-  expect(await productSql`SELECT seq FROM commands WHERE battle_id = ${battle.id}`).toEqual([])
-  expect(await productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id}`).toEqual([])
+  // The card leaves the list as soon as the deletion is saved on the device, before the server has it.
+  await expect
+    .poll(() =>
+      Promise.all([
+        productSql`SELECT seq FROM commands WHERE battle_id = ${battle.id}`,
+        productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id}`,
+      ]),
+    )
+    .toEqual([[], []])
   await page.goto(battleUrl)
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
 

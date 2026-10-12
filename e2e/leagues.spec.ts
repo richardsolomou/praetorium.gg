@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
 import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave } from './account'
 import { productOperator, productSql, withAuthSql } from './storage'

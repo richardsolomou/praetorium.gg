@@ -29,7 +29,9 @@ Default data/build output lives in `data-dev/hosted/` and survives restart. Star
 
 `just e2e` owns isolated production-mode stacks with allocated ports, unique fresh `/tmp/praetorium-e2e-<id>` data/build output, and per-run results. Shutdown stops owned process groups before deleting their data. Repeated cleanup of a stopped child must not signal its old process group again. Concurrent worktrees never share test databases or reset each other's data.
 
-`just e2e-install` installs Chromium; `just e2e-trace` records traces. Configuration and worker/retry/shard counts live in the Playwright config and CI. Prefer automatic allocation; explicit `PLAYWRIGHT_*` overrides require fresh data under the expected `/tmp` prefix. `just e2e-durations <run id>` refreshes shard timings.
+`just e2e-install` installs Chromium; `just e2e-trace` records traces. Configuration and worker/retry/shard counts live in the Playwright config and CI. Prefer automatic allocation; explicit `PLAYWRIGHT_*` overrides require fresh data under the expected `/tmp` prefix. `just e2e-durations <run id>...` refreshes shard timings from the median of several complete CI runs.
+
+A spec that opens another browser context with `browser.newContext()` imports `test` from `e2e/test.ts`, which closes those contexts when the test ends. Playwright closes only the contexts its fixtures create; a left-open player keeps polling and downloading for the rest of the worker's tests. Test titles must differ after punctuation is removed, because Playwright derives each test's output directory from its title.
 
 [Native authentication](mobile.md#check-it) owns its separate stack and exclusive simulator reservation.
 

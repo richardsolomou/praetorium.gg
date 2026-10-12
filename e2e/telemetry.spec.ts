@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { signUp, uniqueName } from './account'
+import { retryUntilVisible, signUp, uniqueName } from './account'
 import { add } from './builder.harness'
 
 test.use({ serviceWorkers: 'block' })
@@ -42,8 +42,10 @@ test('search reports empty results, dismissal, and successful selection without 
   await page.goto('/')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
-  await page.getByRole('button', { name: 'Search Praetorium' }).click()
-  await page.getByPlaceholder('Search everything…').fill('private query zzzxyz987')
+  const search = page.getByPlaceholder('Search everything…')
+  // The button answers only once the page has hydrated.
+  await retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
+  await search.fill('private query zzzxyz987')
   await expect
     .poll(() => events.filter((event) => event.name === 'global_search_completed'))
     .toEqual([{ name: 'global_search_completed', properties: { outcome: 'success', result_count: 0 } }])
@@ -67,8 +69,9 @@ test('a failed search reports an error rather than a successful empty search', a
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
   await page.route('**/_serverFn/**', (route) => route.abort())
-  await page.getByRole('button', { name: 'Search Praetorium' }).click()
-  await page.getByPlaceholder('Search everything…').fill('Necrons')
+  const search = page.getByPlaceholder('Search everything…')
+  await retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
+  await search.fill('Necrons')
   await expect
     .poll(() => events.filter((event) => event.name === 'global_search_completed'))
     .toEqual([{ name: 'global_search_completed', properties: { outcome: 'error', result_count: 0 } }])

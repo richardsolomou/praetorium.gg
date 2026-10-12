@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { createRoster, signUp, uniqueName } from './account'
 
 for (const width of [1440, 390]) {
@@ -17,8 +17,9 @@ for (const width of [1440, 390]) {
       }
       const states: boolean[] = []
       Object.assign(window, { factionVisibility: states })
+      // A slow server streams the search field ahead of the list, so the parser can stop between them.
       new MutationObserver(() => {
-        if (document.querySelector('input[placeholder="Find a faction"]'))
+        if (document.readyState !== 'loading' && document.querySelector('input[placeholder="Find a faction"]'))
           states.push(Boolean(document.querySelector('main a[href^="/factions/"]')))
       }).observe(document, { childList: true, subtree: true })
     })

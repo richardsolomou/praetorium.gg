@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.131.2
+
+### Patch Changes
+
+- 9311dc1: Send saved battle and roster changes straight away after a page reloads mid-sync, instead of waiting up to a minute.
+
 ## 0.131.1
 
 ### Patch Changes

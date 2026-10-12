@@ -100,6 +100,8 @@ Retained editions can pin an immutable `snapshot` instead of inheriting current 
 
 Startup prepares canonical reference records only for each edition's advertised factions. Exact support-book reads compile and cache that faction on demand, retaining the complete rules index for imports and relationships. Do not compile unrelated armies from every archived source before health can succeed.
 
+Every configured rules version's complete catalogue, datacards, and rules stay loaded for the process lifetime, so each retained edition adds to every replica's resident memory. Loads that retain parsed sources read them through `src/server/sharedJson.ts`, which keeps one copy of each repeated string within a load instead of one per occurrence. Rules versions reading the same unchanged Battlemaster files share one geometry object per layout, so treat loaded geometry as read-only and copy before adjusting it. Compare heap use with and without a change using the same catalogue snapshot before claiming a memory reduction.
+
 `scripts/retainRosterCatalogue.ts` reproduces historical profile construction with the exact compiler commit and source/icon snapshots in `catalogue/retained-profile-build.json`. Run it with verified source and icon directories and a new output directory. Its archive retains the original datacard exclusion policy in `reference-policy.json`; server and offline construction apply that policy to defining books, including borrowed units. Publish and verify the immutable archives before pinning them in a release. Preserve saved loadouts even where the original dataset itself reports a legality error; never suppress the error to pass a rehearsal.
 
 ## Canonical catalogue and audits

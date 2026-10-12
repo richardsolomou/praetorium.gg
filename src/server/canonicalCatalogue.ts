@@ -23,6 +23,7 @@ import { factionsFor } from '../shared/factionReferences'
 import { factionContentOf, factionDisplayName } from '../shared/factionNames'
 import { loadRules, type LoadedRules } from './rules'
 import { mfmAttribution, mfmCopyLabel, mfmCostRows } from './mfm'
+import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
@@ -537,7 +538,7 @@ export const loadCanonicalCatalogue = (directory = catalogueDirectory()) => curr
 /** Null for an artifact of another format or compiler, which older schemas may not parse; its snapshot is recompiled instead. */
 function currentCanonicalCatalogue(file: string): CanonicalCatalogue | null {
   if (!fs.existsSync(file)) return null
-  const candidate: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const candidate = readSharedJson(file)
   if (
     candidate &&
     typeof candidate === 'object' &&
