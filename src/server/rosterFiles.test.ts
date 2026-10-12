@@ -3,8 +3,9 @@ import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
 import { descriptionKey } from './datacards'
-import { exportRosterFile, importRosterFile, importRosterCatalogueId } from '../shared/rosterFiles'
+import { exportRosterFile, importRosterExchange, importRosterFile, importRosterCatalogueId } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
 const faction: CatalogueFile = {
@@ -996,5 +997,84 @@ Created with newrecruit.eu v35.51`,
       units: [{ models: 3, spreads: { 'model/weapon': { blaster: 1, beamer: 2 } } }],
       unknown: [],
     })
+  })
+})
+
+describe('roster exchange import', () => {
+  const exchange = {
+    name: 'Exchanged army',
+    catalogueId: 'necrons',
+    detachmentIds: ['pantheon'],
+    disposition: 'disruption',
+    borrowedDetachmentId: null,
+    limit: 2000,
+    points: 135,
+    waivedRules: [],
+    optionalRules: [],
+    picks: [
+      { entryId: 'lord', attachedTo: 1 },
+      { entryId: 'immortals', models: 5 },
+      { entryId: 'tomb-blades', models: 3 },
+    ],
+  }
+
+  it('keeps every resolved entry and its attachment', () => {
+    expect(importRosterExchange(exchange, loaded, null, 'Xenos - Necrons')).toMatchObject({
+      units: exchange.picks,
+      unknown: [],
+      unplaced: [],
+      sourceUnitCount: 3,
+      reportedPoints: 135,
+    })
+  })
+
+  it('prices the imported entries under the selected rules', () => {
+    expect(importRosterExchange(exchange, loaded, null, 'Xenos - Necrons').currentPoints).toBe(
+      calculateRosterPrice({ ...exchange, units: exchange.picks }, loaded, null)?.points,
+    )
+  })
+
+  it('names an entry the rules version cannot resolve and leaves it out', () => {
+    const imported = importRosterExchange(
+      { ...exchange, picks: [{ entryId: 'retired-unit' }, ...exchange.picks] },
+      loaded,
+      null,
+      'Xenos - Necrons',
+    )
+    expect([imported.unknown, imported.units.length]).toEqual([
+      [{ name: 'Entry 1', reason: 'this datasheet is not in the selected rules version' }],
+      3,
+    ])
+  })
+
+  it('moves attachments with the entries that remain', () => {
+    const imported = importRosterExchange(
+      { ...exchange, picks: [{ entryId: 'retired-unit' }, { entryId: 'lord', attachedTo: 2 }, { entryId: 'immortals' }] },
+      loaded,
+      null,
+      'Xenos - Necrons',
+    )
+    expect(imported.units[0]).toEqual({ entryId: 'lord', attachedTo: 1 })
+  })
+
+  it('reports an attachment to an entry that is left out', () => {
+    const imported = importRosterExchange(
+      { ...exchange, picks: [{ entryId: 'lord', attachedTo: 1 }, { entryId: 'retired-unit' }] },
+      loaded,
+      null,
+      'Xenos - Necrons',
+    )
+    expect([imported.units, imported.unplaced]).toEqual([
+      [{ entryId: 'lord' }],
+      [{ unit: 'Lokhust Lord (entry 1)', choices: [{ name: 'Attached to entry 2', reason: 'that entry is not imported' }] }],
+    ])
+  })
+
+  it('names a detachment the rules version no longer offers and leaves it out', () => {
+    const imported = importRosterExchange({ ...exchange, detachmentIds: ['pantheon', 'retired'] }, loaded, null, 'Xenos - Necrons')
+    expect([imported.detachmentIds, imported.unknown]).toEqual([
+      ['pantheon'],
+      [{ name: 'Detachment retired', reason: 'this rules version no longer offers it' }],
+    ])
   })
 })

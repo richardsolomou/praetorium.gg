@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.124.2
+
+### Patch Changes
+
+- 0dbc837: Preserve valid weapon choices through attached-unit edits, explain calculation context, and retry failed loadout comparisons.
+
+## 0.124.1
+
+### Patch Changes
+
+- 4d7609d: Explain roster link sharing before publication and clarify private access, frozen roster retention, sealed league access and account deletion.
+
 ## 0.124.0
 
 ### Minor Changes

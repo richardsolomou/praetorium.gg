@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   Printer,
+  QrCode,
   SlidersHorizontal,
   Swords,
   TriangleAlert,
@@ -72,6 +73,8 @@ import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
+import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
+import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
@@ -210,6 +213,7 @@ export function ListBuilder({
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
+  const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
   const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
@@ -395,6 +399,26 @@ export function ListBuilder({
         data: { catalogueId, detachmentIds, disposition, limit, name: shownName || 'Roster', units: positioned, waivedRules },
       }),
     onSuccess: (exported) => setExportText(exported),
+  })
+
+  const exchange = useMutation({
+    mutationFn: async () => {
+      const exchangeName = shownName || 'Roster'
+      const code = await encodeRosterExchange({
+        name: exchangeName,
+        catalogueId,
+        detachmentIds,
+        disposition,
+        borrowedDetachmentId,
+        limit,
+        points: priced?.points ?? null,
+        waivedRules,
+        optionalRules,
+        picks: positioned,
+      })
+      return { name: exchangeName, code }
+    },
+    onSuccess: (code) => setExchangeCode(code),
   })
 
   const duplicateRoster = useMutation({
@@ -1045,6 +1069,9 @@ export function ListBuilder({
                   <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                     <Download /> Export text
                   </DropdownMenuItem>
+                  <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                    <QrCode /> Exchange code
+                  </DropdownMenuItem>
                   <DropdownMenuItem disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
                     <Printer /> Print
                   </DropdownMenuItem>
@@ -1121,6 +1148,9 @@ export function ListBuilder({
                   <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                     <Download /> Export text
                   </DropdownMenuItem>
+                  <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                    <QrCode /> Exchange code
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={!frozenReference && (!priced || pricePending || priceLoading)}
                     onClick={frozenReference ? () => window.print() : preparePrint}
@@ -1166,6 +1196,11 @@ export function ListBuilder({
         {shareProblem ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             Could not share the link: {shareProblem}
+          </p>
+        ) : null}
+        {exchange.isError ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            Could not make an exchange code: {errorMessage(exchange.error)}
           </p>
         ) : null}
         {requestRefusal ? (
@@ -1507,6 +1542,7 @@ export function ListBuilder({
         }
       />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
+      <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
       {combatRoster ? <RosterCombatDialog roster={combatRoster} onClose={() => setCombatRoster(null)} /> : null}
       {reminderDraft ? (
         <ReminderEditorDialog

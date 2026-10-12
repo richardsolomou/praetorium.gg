@@ -61,7 +61,9 @@ const unit: CombatantSnapshot = {
 }
 
 it('calculates zero-attack phases when no weapons are equipped', () => {
-  const markup = renderToStaticMarkup(createElement(CombatMatchup, { attacker: unit, defender: unit }))
+  const markup = renderToStaticMarkup(
+    createElement(CombatMatchup, { attacker: unit, defender: unit, preferences: {}, onPreferencesChange: () => {} }),
+  )
   expect([...markup.matchAll(/aria-label="(?:Shooting|Melee) results" aria-busy="([^"]+)"/g)].map((match) => match[1])).toEqual([
     'true',
     'true',
@@ -79,9 +81,63 @@ it('does not promise a calculation against unsupported defensive characteristics
       })),
     },
   }
-  const markup = renderToStaticMarkup(createElement(CombatMatchup, { attacker: unit, defender }))
+  const markup = renderToStaticMarkup(
+    createElement(CombatMatchup, { attacker: unit, defender, preferences: {}, onPreferencesChange: () => {} }),
+  )
   expect([...markup.matchAll(/aria-label="(?:Shooting|Melee) results" aria-busy="([^"]+)"/g)].map((match) => match[1])).toEqual([
     'false',
     'false',
   ])
+})
+
+it('includes evaluated companion profile sources in the visible calculation summary', () => {
+  const companion = {
+    ...unit,
+    sheet: {
+      ...unit.sheet,
+      profiles: unit.sheet.profiles.map((profile) => ({
+        ...profile,
+        values: profile.values.map((value) => ({ ...value, modifiers: ['Companion equipment'] })),
+      })),
+    },
+  }
+  const markup = renderToStaticMarkup(
+    createElement(CombatMatchup, {
+      attacker: { ...unit, companions: [companion] },
+      defender: unit,
+      preferences: {},
+      onPreferencesChange: () => {},
+    }),
+  )
+  expect(markup.slice(markup.indexOf('aria-label="Applied modifiers"'))).toContain('Profile changes: Companion equipment.')
+})
+
+it('separates sourced re-rolls from explicit manual adjustments in the calculation summary', () => {
+  const attacker: CombatantSnapshot = {
+    ...unit,
+    rules: [{ name: 'Source re-roll', effects: [{ role: 'attacker', phases: ['ranged'], options: { woundReroll: 'ones' } }] }],
+  }
+  const markup = renderToStaticMarkup(
+    createElement(CombatMatchup, {
+      attacker,
+      defender: unit,
+      preferences: {},
+      onPreferencesChange: () => {},
+      initialSettings: { adjustments: { all: { hitModifier: 1 } }, preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] },
+    }),
+  )
+  expect(markup.slice(markup.indexOf('aria-label="Applied modifiers"'))).toContain('Re-roll wound 1s from rules. Manual: +1 to hit (All).')
+})
+
+it('explains when equipment invalidates a previously selected weapon profile', () => {
+  const markup = renderToStaticMarkup(
+    createElement(CombatMatchup, {
+      attacker: unit,
+      defender: unit,
+      preferences: {},
+      onPreferencesChange: () => {},
+      invalidatedPreferences: true,
+    }),
+  )
+  expect(markup).toContain('Some previous weapon choices no longer apply to this equipment. Current profiles are used.')
 })

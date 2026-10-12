@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Copy, Download, EllipsisVertical, Eye, EyeOff, GitBranchPlus, Link2, Lock, LockOpen, Pencil, Printer, Trash2 } from 'lucide-react'
+import { Copy, Download, EllipsisVertical, Eye, EyeOff, GitBranchPlus, Link2, Lock, LockOpen, Pencil, Printer, QrCode, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
@@ -65,7 +65,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, actions, origin, onEdit, onConvert, onDelete }
+  const items = { roster, title, points: points ?? null, actions, origin, onEdit, onConvert, onDelete }
 
   return (
     <ContextMenu>
@@ -134,6 +134,7 @@ function RosterActionItems({
   Item,
   roster,
   title,
+  points,
   actions,
   origin,
   onEdit,
@@ -145,6 +146,7 @@ function RosterActionItems({
   roster: SavedRoster
   /** What the library calls this list, so an export and a share sheet say the same. */
   title: string
+  points: number | null
   actions: RosterActions
   origin: string
   onEdit: () => void
@@ -177,6 +179,9 @@ function RosterActionItems({
       ) : null}
       <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
         <Download /> Export text
+      </Item>
+      <Item disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title, points })}>
+        <QrCode /> Exchange code
       </Item>
       <Item disabled={actions.lock.isPending} onClick={() => actions.lock.mutate({ id: roster.id, locked: !roster.locked })}>
         {roster.locked ? (
