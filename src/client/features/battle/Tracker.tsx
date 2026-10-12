@@ -39,6 +39,7 @@ import { BattleMenu } from './BattleMenu'
 import { ReminderDialog } from './ReminderDialog'
 import { DrawDialog, type DrawSelection, type WhenDrawn } from './DrawDialog'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
+import { isManualSelection } from '../../../core/missionSelections'
 import { DiscardSecondaryDialog } from './DiscardSecondaryDialog'
 import type { Award, ReferenceCard, StratagemText } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
@@ -396,7 +397,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     active.remainingSecondaries.length > 0
   const needsDrawAcknowledgement =
     active?.secondaryMode === 'tactical' && view.phase === 'command' && active.secondariesToReview.length > 0 && !view.drawAcknowledged
-  const missionChoice = view.missionChoices?.find((choice) => choice.playerId === active?.captain.id && choice.kind !== 'beacon')
+  const missionChoice = view.missionChoices?.find((choice) => !isManualSelection(choice.kind))
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active ? dueForAdvance(view, active, awardsFor) : []
@@ -424,7 +425,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           ? 'Review the active side’s new secondary missions first.'
           : missionChoice
             ? missionChoice.canChoose
-              ? 'Record the active side’s mission choices first.'
+              ? 'Record the mission choices first.'
               : 'Waiting for the opposing side’s mission choice.'
             : activeNeedsReferences && deckUnknown
               ? 'Loading the active side’s mission cards…'
