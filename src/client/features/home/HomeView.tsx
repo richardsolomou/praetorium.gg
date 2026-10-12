@@ -1,11 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { Standing } from '../../../core/standings'
-import { HomeFeed } from './HomeFeed'
+import { FriendTables, PublicTables, RECENT, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
 import { HomeLeaders } from './HomeLeaders'
@@ -35,9 +34,6 @@ export type HomeData = {
   more?: { pending: boolean; onShow: () => void } | null
 }
 
-/** How much of a finished shelf is a reminder rather than an archive; the archive is `/battles`. */
-const RECENT = 5
-
 /** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
 export function HomeView({
   me,
@@ -61,13 +57,7 @@ export function HomeView({
   // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
   const hero = me ? undefined : open[0]
-  // Named once, for the same reason. A friend's battle is usually public too, and
-  // the server can only remove what it knows the reader has seen — their own seats
-  // — so the shelf that names the relationship wins and the public shelf drops the
-  // repeat.
-  const shownFriends = friends.slice(0, RECENT)
-  const shown = new Set([...shownFriends.map((battle) => battle.token), ...(hero ? [hero.token] : [])])
-  const rest = open.filter((battle) => !shown.has(battle.token))
+  const { friends: shownFriends, open: rest } = watchedTables(friends, open, hero)
   // The tools appear for a player only when their table and everyone else's are
   // empty, which is a new account on a new instance — otherwise the page would be
   // a long scroll of nothing, under a menu they have not learned yet.
@@ -186,65 +176,6 @@ function Columns({ lead, aside, rest }: { lead: ReactNode; aside?: ReactNode; re
       {lead ? <div className="min-w-0 space-y-8 lg:col-start-1">{lead}</div> : null}
       {aside ? <aside className="min-w-0 space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1">{aside}</aside> : null}
       {rest ? <div className={`min-w-0 space-y-8 lg:col-start-1 ${lead ? '' : 'lg:row-start-1'}`}>{rest}</div> : null}
-    </div>
-  )
-}
-
-/**
- * The games this player's friends are in, or where friendships are kept.
- *
- * Friendships are in the account menu rather than the navigation, so an empty
- * shelf is the only thing on this page that names them. It says nothing about
- * whether the player has any: a table of four friends who all play together has
- * no friend games either, because every one of them already has this reader in it.
- *
- * On a bare page the section is gone, because the product introduction below it
- * says more to a new account than a third grey box would.
- */
-function FriendTables({ battles, explain }: { battles: readonly Battle[]; explain: boolean }) {
-  if (battles.length) return <HomeFeed onboarding="home-friends" title="Friends' games" battles={battles} />
-  if (!explain) return null
-  return (
-    <section data-friends-empty>
-      <p className="rubric border-b border-edge pb-2">Friends' games</p>
-      <div className="flex flex-col gap-4 border-b border-edge py-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-rules text-sm text-dim">Your friends' games appear here, apart from the ones you are already sitting in.</p>
-        <Button render={<Link to="/friends" />} variant="outline" className="shrink-0" nativeButton={false}>
-          <Users /> Your friends
-        </Button>
-      </div>
-    </section>
-  )
-}
-
-/** Every battle anyone may watch. The server has already removed the reader's own. */
-function PublicTables({
-  battles,
-  signedIn,
-  more,
-}: {
-  battles: readonly Battle[]
-  signedIn: boolean
-  more?: { pending: boolean; onShow: () => void } | null
-}) {
-  if (!battles.length) {
-    return signedIn ? null : (
-      <section data-public-empty>
-        <p className="rubric border-b border-edge pb-2">Public games</p>
-        <p className="border-b border-edge py-5 font-rules text-sm text-dim">
-          No public battles yet. Create an account and start the first one.
-        </p>
-      </section>
-    )
-  }
-  return (
-    <div>
-      <HomeFeed onboarding="home-public" title="Public games" battles={battles} />
-      {more ? (
-        <Button variant="outline" size="sm" className="mt-2" disabled={more.pending} onClick={more.onShow}>
-          {more.pending ? 'Loading…' : 'Show more battles'}
-        </Button>
-      ) : null}
     </div>
   )
 }
