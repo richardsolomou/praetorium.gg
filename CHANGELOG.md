@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.133.2
+
+### Patch Changes
+
+- d87e059: Correct what support, home and agent pages say about guest import, offline use and the mobile app.
+- ee535bf: Keep the original roster when converting rules versions by saving the conversion as a variant.
+- ddfc019: Keep benchmark model edits responsive and pin matchup table headings while scrolling.
+- ee535bf: Filter the roster library by older rules or changes from a data update.
+- ddfc019: Open saved rosters when league checks fail, explain changes that cannot sync, and keep normal saves quiet for 10 seconds.
+- fce9854: Show what changed after an update, with a What's new page listing recent app changes.
+
 ## 0.133.1
 
 ### Patch Changes
