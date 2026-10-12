@@ -73,6 +73,12 @@ check:
 catalogue-sync:
     pnpm catalogue:sync
 
+# Validate the pinned snapshot and exercise its catalogue release flows
+catalogue-preflight:
+    pnpm catalogue:sync
+    pnpm exec vitest run scripts/lib/offlineReferenceBundle.test.ts src/server/catalogueEditions.test.ts
+    pnpm exec playwright test --grep @catalogue
+
 # Follow the publisher's newest catalogue instead of the release pin
 catalogue-latest:
     pnpm catalogue:sync --latest

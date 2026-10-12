@@ -457,13 +457,14 @@ export function enhancementEligibility(
       .toLowerCase()
       .match(/[a-z0-9]+/g) ?? []
   const requirement = (phrase: string) => {
-    const named = datasheetNames.filter((name) => joinKey(name) === joinKey(phrase))
+    const key = joinKey(phrase)
+    const named = datasheetNames.filter((name) => joinKey(name) === key)
     if (named.length === 1) return [named[0]!]
-    const exact = !invalidKeywords ? keywords.filter((keyword) => joinKey(keyword) === joinKey(phrase)) : []
+    const exact = !invalidKeywords ? keywords.filter((keyword) => joinKey(keyword) === key) : []
     if (exact.length === 1) return exact
     const ending = words(phrase)
-    const suffixed =
-      ending.length >= 2 ? datasheetNames.filter((name) => words(name).slice(-ending.length).join(' ') === ending.join(' ')) : []
+    const endingText = ending.join(' ')
+    const suffixed = ending.length >= 2 ? datasheetNames.filter((name) => words(name).slice(-ending.length).join(' ') === endingText) : []
     if (suffixed.length === 1) return [suffixed[0]!]
     if ((!plain && !exclusion) || invalidKeywords || !keywords.length) return null
     const required = new Set(words(phrase))
@@ -473,8 +474,10 @@ export function enhancementEligibility(
   }
   const phrases = included.split(/\s+or\s+|\//i)
   if (phrases.length > 3) return null
-  const exact = (phrase: string) =>
-    datasheetNames.some((name) => joinKey(name) === joinKey(phrase)) || keywords.some((keyword) => joinKey(keyword) === joinKey(phrase))
+  const exact = (phrase: string) => {
+    const key = joinKey(phrase)
+    return datasheetNames.some((name) => joinKey(name) === key) || keywords.some((keyword) => joinKey(keyword) === key)
+  }
   const alternatives: string[][][] = []
   if (included.includes('/') && !phrases.every(exact) && phrases.length === 2 && !invalidKeywords) {
     const [left, right] = phrases.map(words)

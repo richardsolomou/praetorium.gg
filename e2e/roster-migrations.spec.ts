@@ -3,7 +3,7 @@ import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave } from
 import { productOperator, withAuthSql } from './storage'
 
 for (const width of [390, 1440]) {
-  test(`preserved rules remain explicit and conversion is optional at ${width}px`, async ({ page }) => {
+  test(`preserved rules remain explicit and conversion is optional at ${width}px`, { tag: '@catalogue' }, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     const { email } = await signUp(page, 'Retained')
     const user = await withAuthSql(

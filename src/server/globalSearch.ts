@@ -30,14 +30,14 @@ export function prepareGlobalSearch(catalogue: LoadedCatalogue | null, rules: Lo
   if (catalogue) globalSearchIndexFor(catalogue, rules)
 }
 
-function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null): GlobalSearchIndex {
+function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueIds?: ReadonlySet<string>): GlobalSearchIndex {
   const cached = globalSearchIndexes.get(loaded)
-  if (cached?.rules === rules) return cached.index
+  if (!catalogueIds && cached?.rules === rules) return cached.index
 
   const factions: IndexedResult[] = []
   const detachments: IndexedResult[] = []
   const datasheets: IndexedDatasheet[] = []
-  for (const faction of factionsFor(loaded, rules).factions) {
+  for (const faction of factionsFor(loaded, rules, catalogueIds).factions) {
     factions.push({
       search: `${faction.displayName} ${faction.name}`.toLowerCase(),
       result: {
@@ -83,12 +83,12 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
     }
   }
   const index = { factions, detachments, datasheets, missions: indexedMissions(rules), rules: indexedRules(rules) }
-  globalSearchIndexes.set(loaded, { rules, index })
+  if (!catalogueIds) globalSearchIndexes.set(loaded, { rules, index })
   return index
 }
 
-export function compiledGlobalSearchIndex(loaded: LoadedCatalogue, rules: LoadedRules | null) {
-  return globalSearchIndexFor(loaded, rules)
+export function compiledGlobalSearchIndex(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueIds?: ReadonlySet<string>) {
+  return globalSearchIndexFor(loaded, rules, catalogueIds)
 }
 
 export async function searchEverything(query: string, sources: Sources): Promise<GlobalSearchResult[]> {

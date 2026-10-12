@@ -55,10 +55,9 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
         .filter((faction) => defaults.has(faction.id) && !baseEditions.has(faction.id))
         .map((faction) => [faction.slug, faction.id]),
     )
-    const editions = editionContexts().flatMap(({ edition, catalogue, rules }) =>
-      factionsFor(catalogue, rules).factions.filter((faction) =>
-        edition.catalogueIds.some((id) => editionCatalogueId(edition.id, id) === faction.id),
-      ),
+    const editions = editionContexts().flatMap(
+      ({ edition, catalogue, rules }) =>
+        factionsFor(catalogue, rules, new Set(edition.catalogueIds.map((id) => editionCatalogueId(edition.id, id)))).factions,
     )
     factions = {
       revision: createHash('sha256')
@@ -236,17 +235,16 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
       if (!loaded) return null
       const ids = defaults()
       const indexes = [
-        compiledGlobalSearchIndex(loaded, baseRules()),
+        compiledGlobalSearchIndex(loaded, baseRules(), ids),
         ...editionContexts()
           .filter(({ edition }) => edition.default)
-          .map(({ catalogue, rules }) => compiledGlobalSearchIndex(catalogue, rules)),
+          .map(({ catalogue, rules }) => compiledGlobalSearchIndex(catalogue, rules, ids)),
       ]
-      const allowed = (kind: string, id: string) => [...ids].some((book) => id === `${kind}:${book}` || id.startsWith(`${kind}:${book}:`))
       return {
         ...indexes[0]!,
-        factions: indexes.flatMap((index) => index.factions.filter((entry) => allowed('faction', entry.result.id))),
-        datasheets: indexes.flatMap((index) => index.datasheets.filter((entry) => allowed('datasheet', entry.result.id))),
-        detachments: indexes.flatMap((index) => index.detachments.filter((entry) => allowed('detachment', entry.result.id))),
+        factions: indexes.flatMap((index) => index.factions),
+        datasheets: indexes.flatMap((index) => index.datasheets),
+        detachments: indexes.flatMap((index) => index.detachments),
       }
     },
     combatUnits: () => {
@@ -254,11 +252,11 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
       if (!loaded) return []
       const ids = defaults()
       return [
-        ...combatUnitsFor(loaded, baseRules()),
+        ...combatUnitsFor(loaded, baseRules(), ids),
         ...editionContexts()
           .filter(({ edition }) => edition.default)
-          .flatMap(({ catalogue, rules }) => combatUnitsFor(catalogue, rules)),
-      ].filter((unit) => ids.has(unit.catalogueId))
+          .flatMap(({ catalogue, rules }) => combatUnitsFor(catalogue, rules, ids)),
+      ]
     },
   }
 }

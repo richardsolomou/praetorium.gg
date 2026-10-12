@@ -19,7 +19,7 @@ async function estimate(page: Page, phase: 'Shooting' | 'Melee') {
 }
 
 for (const width of [1440, 390]) {
-  test(`Terminator hammer and shield loadouts survive reload at ${width}px`, async ({ page }) => {
+  test(`Terminator hammer and shield loadouts survive reload at ${width}px`, { tag: '@catalogue' }, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 })
     await page.goto('/simulator')
     await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Terminator Assault Squad')
@@ -29,8 +29,12 @@ for (const width of [1440, 390]) {
     const loadout = page.getByRole('dialog')
     await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
     const hammers = 'Assault Terminator w/ Thunder Hammer & Storm Shield'
-    for (let selected = 1; selected <= 2; selected++) {
-      await loadout.getByRole('button', { name: `More ${hammers}`, exact: true }).click()
+    const initial = Number(await loadout.getByLabel(`${hammers} count`, { exact: true }).innerText())
+    expect(Number.isInteger(initial)).toBe(true)
+    for (let selected = initial; selected !== 2;) {
+      const increasing = selected < 2
+      await loadout.getByRole('button', { name: `${increasing ? 'More' : 'Fewer'} ${hammers}`, exact: true }).click()
+      selected += increasing ? 1 : -1
       await expect(loadout.getByLabel(`${hammers} count`, { exact: true })).toHaveText(String(selected))
     }
     await noOverflow(page)

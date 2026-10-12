@@ -9,27 +9,34 @@ const factions = [
 ]
 
 for (const width of [390, 1440]) {
-  test(`rules history labels recorded status dates rather than publisher dates at ${width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 })
-    for (const path of ['/factions/space-marines/rules/space-marines-codex-2026-10-03', '/factions/dark-angels/rules/mfm-1-4-2026-09-30']) {
-      await page.goto(path)
-      await expect(page).toHaveURL(path)
-      const history = page.locator('main details').filter({ has: page.locator('summary', { hasText: 'Rules history' }) })
-      await history.locator('summary').click()
-      await expect(history).toContainText(
-        'These dates record status changes in Praetorium; publisher release and effective dates can differ.',
-      )
-      const events = history.getByRole('listitem')
-      await expect(events.first()).toBeVisible()
-      for (const event of await events.all()) await expect(event).toHaveText(/ · (Preview|Release|Archive) recorded$/)
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-      await page.screenshot({ path: testInfo.outputPath(`status-history-${path.split('/').at(-1)}-${width}.png`) })
-    }
-  })
+  test(
+    `rules history labels recorded status dates rather than publisher dates at ${width}px`,
+    { tag: '@catalogue' },
+    async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 })
+      for (const path of [
+        '/factions/space-marines/rules/space-marines-codex-2026-10-03',
+        '/factions/dark-angels/rules/mfm-1-4-2026-09-30',
+      ]) {
+        await page.goto(path)
+        await expect(page).toHaveURL(path)
+        const history = page.locator('main details').filter({ has: page.locator('summary', { hasText: 'Rules history' }) })
+        await history.locator('summary').click()
+        await expect(history).toContainText(
+          'These dates record status changes in Praetorium; publisher release and effective dates can differ.',
+        )
+        const events = history.getByRole('listitem')
+        await expect(events.first()).toBeVisible()
+        for (const event of await events.all()) await expect(event).toHaveText(/ · (Preview|Release|Archive) recorded$/)
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+        await page.screenshot({ path: testInfo.outputPath(`status-history-${path.split('/').at(-1)}-${width}.png`) })
+      }
+    },
+  )
 }
 
 for (const width of [390, 1440]) {
-  test(`faction links open current rules and version menus identify archives at ${width}px`, async ({ page }) => {
+  test(`faction links open current rules and version menus identify archives at ${width}px`, { tag: '@catalogue' }, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     for (const faction of factions) {
       await page.goto('/factions')

@@ -77,6 +77,7 @@ function start(command: string, args: string[], persistent = false, childEnviron
 }
 
 async function run(command: string, args: string[]) {
+  const started = performance.now()
   const child = start(command, args)
   const code = await new Promise<number>((resolve, reject) => {
     child.once('error', reject)
@@ -85,6 +86,7 @@ async function run(command: string, args: string[]) {
   children.splice(children.indexOf(child), 1)
   abort.signal.throwIfAborted()
   if (code !== 0) throw new Error(`${command} exited with status ${code}`)
+  console.error(`Local startup: ${command} ${args.join(' ')} completed in ${Math.round(performance.now() - started)}ms`)
 }
 
 // A persistent child's exit aborts the wait sooner; a loaded CI runner can spend minutes warming the catalogue.
@@ -161,6 +163,7 @@ async function configure(value: Credentials) {
 }
 
 async function main() {
+  const started = performance.now()
   if (testMode) {
     if (path.dirname(root) !== '/tmp' || !/^praetorium-(e2e|native-auth-ios)-[a-zA-Z0-9-]+$/.test(path.basename(root))) {
       throw new Error('Tests require a fresh Praetorium directory directly under /tmp')
@@ -257,6 +260,7 @@ async function main() {
           AUTH_RATE_LIMIT: 'off',
           NODE_ENV: 'production',
           NITRO_PRESET: 'node-server',
+          CATALOGUE_UPDATE_MODE: 'off',
           VITE_POSTHOG_PROJECT_TOKEN: '',
           VITE_POSTHOG_HOST: '',
         }
@@ -276,6 +280,7 @@ async function main() {
   await app.release()
   if (testMode) await internal.release()
   const web = start(process.execPath, ['scripts/nodeServer.ts'], true)
+  const webStarted = performance.now()
   if (!testMode) {
     const seedDeadline = Date.now() + 240_000
     while (!existsSync(environment.AUTH_SQLITE_PATH!)) {
@@ -292,9 +297,11 @@ async function main() {
     )
   }
   await waitFor(`${appUrl}/api/health`, (response) => response.ok)
+  console.error(`Local startup: web readiness completed in ${Math.round(performance.now() - webStarted)}ms`)
   preview.ready = true
   await writePreview()
   console.log(`Local Praetorium (${testMode ? 'production browser test' : 'Vite development'}) is ready at ${appUrl}`)
+  console.error(`Local startup: total ${Math.round(performance.now() - started)}ms`)
   if (web.exitCode !== null) throw new Error('Web server exited during startup')
   await new Promise<void>((resolve) => {
     if (abort.signal.aborted) resolve()
