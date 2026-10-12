@@ -1000,6 +1000,49 @@ Created with newrecruit.eu v35.51`,
   })
 })
 
+describe('unit nicknames in text', () => {
+  const immortals = (key: number) => ({
+    key,
+    size: { models: 5 },
+    name: 'Immortals',
+    points: 200,
+    group: 'other' as const,
+    attachment: null,
+    enhancements: [],
+    upgrades: [],
+    wargear: [],
+  })
+  const exported = exportRosterFile(
+    {
+      catalogueId: 'necrons',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2000,
+      name: 'Named squads',
+      units: [
+        { entryId: 'immortals', nickname: 'Alpha', note: 'Private plan' },
+        { entryId: 'immortals', nickname: 'Bravo' },
+      ],
+    },
+    loaded,
+    { points: 400, disposition: null, detachments: [], units: [immortals(0), immortals(1)] },
+    [],
+  )
+
+  it.each(['text', 'compactText'] as const)('reads back each repeated unit’s nickname from %s', (layout) => {
+    expect(importRosterFile({ file: exported[layout] }, loaded).units.map((unit) => unit.nickname)).toEqual(['Alpha', 'Bravo'])
+  })
+
+  it.each(['text', 'compactText'] as const)('reports nothing unread for the nickname lines in %s', (layout) => {
+    const imported = importRosterFile({ file: exported[layout] }, loaded)
+    expect([imported.unknown, imported.unplaced]).toEqual([[], []])
+  })
+
+  it.each(['text', 'compactText'] as const)('leaves unit notes out of %s', (layout) => {
+    expect(exported[layout]).not.toContain('Private plan')
+  })
+})
+
 describe('roster exchange import', () => {
   const exchange = {
     name: 'Exchanged army',
@@ -1026,6 +1069,15 @@ describe('roster exchange import', () => {
       sourceUnitCount: 3,
       reportedPoints: 135,
     })
+  })
+
+  it('keeps nicknames on the entries it imports', () => {
+    const named = { ...exchange, picks: exchange.picks.map((pick, at) => ({ ...pick, nickname: `Unit ${at + 1}` })) }
+    expect(importRosterExchange(named, loaded, null, 'Xenos - Necrons').units.map((unit) => unit.nickname)).toEqual([
+      'Unit 1',
+      'Unit 2',
+      'Unit 3',
+    ])
   })
 
   it('prices the imported entries under the selected rules', () => {

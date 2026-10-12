@@ -68,9 +68,19 @@ it('duplicates every choice of a roster at the default visibility, outside its g
     automaticName: false,
     baseRosterId: null,
     picks,
-    prep,
+    prep: { ...prep, shareNotes: false },
     visibility: 'private',
   })
+})
+
+it.each([false, true])('keeps unit nicknames and notes in a copy (variant: %s) and leaves its notes unshared', async (variant) => {
+  const picks = [
+    { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+    { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
+  ]
+  library([{ ...base, picks, prep: { ...base.prep, shareNotes: true } as typeof base.prep }])
+  await copyOwnedRoster('player', 'base', variant)
+  expect(saved()).toMatchObject({ picks, prep: { shareNotes: false } })
 })
 
 it('numbers a variant after its base and joins it to the base', async () => {

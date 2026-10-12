@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { RosterService } from './rosterService'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
@@ -73,6 +73,44 @@ it('retains the original Marine codex for a library summary saved against it', a
   expect(await service.savedRosterSummaries('user-1')).toMatchObject([{ catalogueId: 'legacy-profiles~a603-5039-f08d-e841' }])
 })
 
+describe('unit notes on a shared roster', () => {
+  const picks = JSON.stringify([
+    { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+    { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
+  ])
+  const prep = (shareNotes?: boolean) =>
+    JSON.stringify({ stratagems: [], secondaries: [], ...(shareNotes === undefined ? {} : { shareNotes }) })
+  const read = async (saved: { picks: string; prep: string | null; visibility: 'private' | 'unlisted' | 'public' }, readerId: string) => {
+    const service = new RosterService({ roster: vi.fn().mockResolvedValue({ ...row, ...saved }) } as unknown as RepositoryPort, () => 0)
+    return (await service.rosterAccess('roster-1', readerId))?.roster.picks
+  }
+
+  it('shows another reader of a public roster the nicknames', async () => {
+    expect((await read({ picks, prep: prep(), visibility: 'public' }, 'user-2'))?.map((pick) => pick.nickname)).toEqual(['Alpha', 'Bravo'])
+  })
+
+  it('keeps notes from another reader of a public roster', async () => {
+    expect((await read({ picks, prep: prep(), visibility: 'public' }, 'user-2'))?.map((pick) => pick.note)).toEqual([undefined, undefined])
+  })
+
+  it('keeps notes from another reader of an unlisted roster with no preparation saved', async () => {
+    expect((await read({ picks, prep: null, visibility: 'unlisted' }, 'user-2'))?.map((pick) => pick.note)).toEqual([undefined, undefined])
+  })
+
+  it('shows another reader the notes once the owner shares them', async () => {
+    expect((await read({ picks, prep: prep(true), visibility: 'unlisted' }, 'user-2'))?.map((pick) => pick.note)).toEqual([
+      'Hold home.',
+      'Push midfield.',
+    ])
+  })
+
+  it('shows the owner their notes on a private roster', async () => {
+    expect((await read({ picks, prep: prep(), visibility: 'private' }, 'user-1'))?.map((pick) => pick.note)).toEqual([
+      'Hold home.',
+      'Push midfield.',
+    ])
+  })
+})
 const edit = {
   id: 'roster-1',
   name: 'Army',

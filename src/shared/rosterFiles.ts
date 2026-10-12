@@ -9,7 +9,7 @@ import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
-import type { TextRoster, TextRosterUnit } from '../core/textRoster'
+import { textNickname, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import { GAME_SIZES } from '../core/battle'
@@ -390,6 +390,7 @@ function textRosterPick(
     ),
     toggles,
     attachedTo: undefined as number | undefined,
+    ...(unit.nickname ? { nickname: unit.nickname } : {}),
   }
 
   const unplaced = [...stated.keys()]
@@ -509,6 +510,7 @@ export function exportRosterFile(
     points: priced.points,
     units: priced.units.map((unit) => ({
       ...unit,
+      nickname: textNickname(data.units[unit.key]?.nickname ?? ''),
       models: unit.size.models,
       entry: unit.key + 1,
       attachedToEntry: data.units[unit.key]?.attachedTo !== undefined ? data.units[unit.key]!.attachedTo! + 1 : undefined,

@@ -1,4 +1,4 @@
-import type { TextRoster, TextRosterUnit } from './textRoster'
+import { textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
 import { GAME_SIZES } from './battle'
 import type { GwTextRoster } from './gwText'
 
@@ -52,6 +52,12 @@ export function fromNewRecruitText(input: string): TextRoster | null {
     const identity = trimmed.match(/^(Roster entry|Attached to entry):\s*(\d+)$/i)
     if (identity) {
       current[identity[1]!.toLowerCase() === 'roster entry' ? 'entry' : 'attachedToEntry'] = Number(identity[2])
+      continue
+    }
+
+    const nickname = trimmed.match(/^Nickname:\s*(.+)$/i)
+    if (nickname) {
+      current.nickname = textNickname(nickname[1]!)
       continue
     }
 
@@ -159,6 +165,7 @@ export function toCompactText(roster: GwTextRoster, version: string) {
   ]
   for (const unit of roster.units) {
     lines.push('', `${unit.models ?? 1}x ${unit.name} (${unit.points} pts)${unit.warlord ? ': Warlord' : ''}`)
+    if (unit.nickname) lines.push(`Nickname: ${unit.nickname}`)
     for (const item of unit.wargear) lines.push(`• ${item.count}x ${item.name}`)
     for (const enhancement of [...unit.enhancements, ...unit.upgrades]) lines.push(`Enhancement: ${enhancement}`)
     for (const relation of unit.joined) {

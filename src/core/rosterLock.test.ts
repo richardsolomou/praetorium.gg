@@ -49,6 +49,10 @@ describe('a save to a locked roster', () => {
     ).toBeNull()
   })
 
+  it('applies when it only shares unit notes, which is a publication choice like visibility', () => {
+    expect(lockedRosterRefusal(locked, { ...saved, prep: { ...(saved.prep as object), shareNotes: true } })).toBeNull()
+  })
+
   it('treats absent preparation as the empty defaults', () => {
     expect(lockedRosterRefusal({ ...locked, prep: null }, { ...saved, prep: { stratagems: [], secondaries: [] } })).toBeNull()
   })

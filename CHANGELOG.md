@@ -1,5 +1,21 @@
 # praetorium
 
+## 0.127.0
+
+### Minor Changes
+
+- b849af7: Name units and keep private notes on them in your rosters. Nicknames appear beside the datasheet name in copies, variants, text exports, exchange codes, printed packs and battles; notes stay yours unless you share them with people who can open the roster.
+
+## 0.126.0
+
+### Minor Changes
+
+- f1be99d: Lock a finished roster against edits, and duplicate it or create a variant when you want to try changes.
+
+### Patch Changes
+
+- 17be14d: Record Locate and Deny markers, Sensor Sweep removals and Consecrate objectives during battles.
+
 ## 0.125.1
 
 ### Patch Changes
