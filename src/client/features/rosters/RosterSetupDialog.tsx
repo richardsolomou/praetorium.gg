@@ -442,7 +442,7 @@ export function RosterSetupDialog({
 
       {allowsPointsBudget(draft.limit) ? (
         <div>
-          <Label className="rubric block" htmlFor="setup-budget">
+          <Label className="eyebrow block" htmlFor="setup-budget">
             Custom points budget
           </Label>
           <Input
@@ -455,7 +455,7 @@ export function RosterSetupDialog({
             placeholder={`${draft.limit} (standard)`}
             aria-invalid={Boolean(budgetError)}
             aria-describedby="setup-budget-hint"
-            className="mt-2 h-11 w-full text-base sm:w-48"
+            className="mt-1 h-11 w-full text-base sm:w-48"
           />
           {budgetError ? (
             <p role="alert" className="mt-1.5 text-xs text-destructive">
