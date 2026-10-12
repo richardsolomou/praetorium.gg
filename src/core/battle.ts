@@ -685,6 +685,11 @@ export function detachmentPointsError(
 
 type OnBehalfOf = { playerId?: PlayerId }
 
+/** A moment of play: the battle round, the phase, and a player whose side was taking that turn. */
+export type BattleMoment = { round: number; phase: Phase; turn: PlayerId }
+/** The earlier moment an action recorded late belongs to; absent means the moment being played. */
+type Missed = { missed?: BattleMoment }
+
 export type Command =
   | {
       kind: 'configure-battle'
@@ -722,7 +727,7 @@ export type Command =
       secondaryMode: SecondaryMode
     } & OnBehalfOf)
   /** `cp` overrides the printed cost, for the stratagems whose price depends on the board. */
-  | ({ kind: 'use-stratagem'; key: string; cp?: number } & OnBehalfOf)
+  | ({ kind: 'use-stratagem'; key: string; cp?: number } & OnBehalfOf & Missed)
   | ({ kind: 'use-new-orders'; stratagemKey: string; secondaryKey: string; secondary: Secondary; cp?: number } & OnBehalfOf)
   | ({ kind: 'score-secondary'; key: string; delta: number } & OnBehalfOf)
   | ({
@@ -738,7 +743,8 @@ export type Command =
        * field existed meant.
        */
       round?: number
-    } & OnBehalfOf)
+    } & OnBehalfOf &
+      Missed)
   | ({ kind: 'set-secondary-status'; key: string; status: SecondaryStatus } & OnBehalfOf)
   | ({ kind: 'draw-secondary'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'draw-secondaries'; secondaries: Secondary[]; selected?: true } & OnBehalfOf)
@@ -748,7 +754,7 @@ export type Command =
   | ({ kind: 'select-secret'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'reveal-secret' } & OnBehalfOf)
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }
-  | ({ kind: 'adjust-cp'; delta: number } & OnBehalfOf)
+  | ({ kind: 'adjust-cp'; delta: number } & OnBehalfOf & Missed)
   | ({ kind: 'resolve-tactical-hand'; keys?: string[]; gainCp?: boolean } & OnBehalfOf)
   | ({ kind: 'score'; category: 'primary' | 'secondary'; delta: number } & OnBehalfOf)
   | { kind: 'correct-player'; playerId: PlayerId; resource: 'cp' | 'primary' | 'secondary'; delta: number }
@@ -797,6 +803,8 @@ export type RefusalCode =
   | 'mission-selection-count'
   | 'mission-selection-facts'
   | 'mission-selection-objective'
+  | 'missed-moment'
+  | 'missed-unsupported'
   | 'hand-acknowledged'
   | 'invalid-amount'
   | 'invalid-detachments'
@@ -893,6 +901,11 @@ export type PlayerState = {
   cpByRound: number[]
   /** Additional rules-limited gains, excluding the command-phase grant and corrections. */
   bonusCpByRound: number[]
+  /**
+   * The fewest CP held during each moment played and the CP it closed with, keyed by
+   * `momentOrder`, so a missed spend placed at the end of its moment cannot overdraw any moment since.
+   */
+  cpByMoment: Record<number, { fewest: number; last: number }>
   primary: number
   secondary: number
   roster: Roster | null
@@ -916,6 +929,8 @@ export type PlayerState = {
   additionalSecondaryDrawsThisTurn: number
   secondariesToReview: string[]
   secondaryDrawSeq: Record<string, number>
+  /** The moment each drawn card arrived, so a missed score cannot predate the card. */
+  secondaryDrawnAt: Record<string, number>
   missionSelections: SavedMissionSelection[]
   /** This side's primary mission for its ordered disposition matchup. */
   primaryCard: Secondary | null
@@ -1051,6 +1066,14 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
 export function applyEntry(state: BattleState, entry: LoggedCommand) {
   apply(state, entry.by, entry.command, entry.seq)
   recordBeaconDestruction(state)
+  const now = playedMoment(state)
+  if (now) {
+    const order = momentOrder(state, now)
+    for (const player of state.players) {
+      const fewest = Math.min(player.cpByMoment[order]?.fewest ?? player.cp, player.cp)
+      player.cpByMoment[order] = { fewest, last: player.cp }
+    }
+  }
   if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-league-rosters') state.undoable = null
   else if (
     ![
@@ -1103,6 +1126,7 @@ export function emptyBattle(
       cpSpent: 0,
       cpByRound: Array(BATTLE_ROUNDS).fill(0),
       bonusCpByRound: Array(BATTLE_ROUNDS).fill(0),
+      cpByMoment: {},
       primary: 0,
       secondary: 0,
       roster: null,
@@ -1115,6 +1139,7 @@ export function emptyBattle(
       additionalSecondaryDrawsThisTurn: 0,
       secondariesToReview: [],
       secondaryDrawSeq: {},
+      secondaryDrawnAt: {},
       missionSelections: [],
       primaryCard: null,
       secondaryMode: 'tactical',
@@ -1291,8 +1316,14 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'adjust-cp': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'command points move in whole steps')
+      if (command.missed) {
+        const refusal = missedMomentRefusal(state, command.missed)
+        if (refusal) return refusal
+        if (command.delta < 0) return refuse('missed-unsupported', 'only a missed command point gain can be recorded late')
+      }
       if (player.cp + command.delta < 0) return refuse('not-enough-cp', 'not enough command points')
-      if (command.delta > 0 && (player.bonusCpByRound[state.round - 1] ?? 0) + command.delta > 1) {
+      const round = command.missed?.round ?? state.round
+      if (command.delta > 0 && (player.bonusCpByRound[round - 1] ?? 0) + command.delta > 1) {
         return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
       }
       return null
@@ -1479,7 +1510,13 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
       if (!stratagem) return refuse('unknown-stratagem', 'that is not one of your stratagems')
-      return stratagemRefusal(state, player, stratagem, command.cp)
+      if (command.missed) {
+        const refusal = missedMomentRefusal(state, command.missed)
+        if (refusal) return refusal
+        if (isNewOrders(stratagem))
+          return refuse('missed-unsupported', 'New Orders draws a replacement card, so it cannot be recorded late')
+      }
+      return stratagemRefusal(state, player, stratagem, command.cp, command.missed)
     }
     case 'use-new-orders': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
@@ -1513,9 +1550,12 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'score-settlement': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (!command.scores.length) return refuse('invalid-settlement', 'record at least one score')
-      // Naming a round is only ever answering the turn that is waiting to be settled.
-      // Anything else is a second way to say which round a score belongs to.
-      if (command.round !== undefined && command.round !== state.round) {
+      if (command.missed) {
+        const refusal = missedScoreRefusal(state, by, player, command, command.missed)
+        if (refusal) return refusal
+      } else if (command.round !== undefined && command.round !== state.round) {
+        // Naming a round is only ever answering the turn that is waiting to be settled.
+        // Anything else is a second way to say which round a score belongs to.
         const pending = state.pendingSettlement
         if (!pending || pending.playerId !== player.id || pending.round !== command.round) {
           return refuse('wrong-settlement-turn', 'that is not the turn waiting to be settled')
@@ -1838,7 +1878,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'use-stratagem': {
       const stratagem = player.stratagems.find((candidate) => candidate.key === command.key)
       if (!stratagem) return
-      applyStratagemUse(state, player, stratagem, command.cp)
+      applyStratagemUse(state, player, stratagem, command.cp, command.missed)
       return
     }
     case 'use-new-orders': {
@@ -1851,7 +1891,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       player.secondariesToReview = player.secondariesToReview.filter((key) => key !== command.secondaryKey)
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
-      player.secondaryDrawSeq[secondary.key] = seq
+      markDrawn(state, player, secondary.key, seq)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secondariesDrawnThisTurn.push(secondary.key)
       player.secondariesToReview.push(secondary.key)
@@ -1865,7 +1905,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'score-settlement': {
       // A payout the previous turn owed belongs to the round that turn was in, which
       // the second player passing the turn has already moved the battle out of.
-      const round = command.round ?? state.round
+      const round = pointsRound(state, command)
       for (const score of command.scores) {
         if (score.category === 'primary') {
           player.primary += score.delta
@@ -1879,7 +1919,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
           if (score.key === player.secretSecondary) player.secretRevealed = true
         }
       }
-      if (state.advanceRequested) state.scoringAcknowledged = true
+      if (state.advanceRequested && !command.missed) state.scoringAcknowledged = true
       return
     }
     case 'set-secondary-status': {
@@ -1898,7 +1938,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'draw-secondary': {
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
-      player.secondaryDrawSeq[secondary.key] = seq
+      markDrawn(state, player, secondary.key, seq)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, secondary.key]
       player.secondariesToReview = [...player.secondariesToReview, secondary.key]
@@ -1909,7 +1949,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       for (const drawn of command.secondaries) {
         const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === drawn.key) ?? drawn) }
         player.secondaries.push(secondary)
-        player.secondaryDrawSeq[secondary.key] = seq
+        markDrawn(state, player, secondary.key, seq)
         player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       }
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, ...command.secondaries.map((drawn) => drawn.key)]
@@ -1929,7 +1969,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'select-secret': {
       const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
       player.secondaries.push(secondary)
-      player.secondaryDrawSeq[secondary.key] = seq
+      markDrawn(state, player, secondary.key, seq)
       player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
       player.secretSecondary = secondary.key
       player.secretRevealed = false
@@ -1949,12 +1989,13 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'adjust-cp': {
+      const round = command.missed?.round ?? state.round
       player.cp += command.delta
       if (command.delta > 0) {
         player.cpGained += command.delta
-        player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + command.delta
+        player.bonusCpByRound[round - 1] = (player.bonusCpByRound[round - 1] ?? 0) + command.delta
       } else player.cpSpent += Math.abs(command.delta)
-      player.cpByRound[state.round - 1] = player.cp
+      recordCpChange(state, player, command.delta, command.missed)
       return
     }
     case 'resolve-tactical-hand': {
@@ -2207,47 +2248,153 @@ function canRepairPlayingPrep(player: PlayerState, prep: BattlePrep) {
   return sameKeys(prep.secondaries, fixedSecondaries)
 }
 
-/** Whether a stratagem's allowance is spent for now. `turn` and `phase` reset as play moves on. */
-function limitReached(player: PlayerState, stratagem: Stratagem, state: BattleState): boolean {
+/** Whether a stratagem's allowance is spent at a moment. `turn` and `phase` reset as play moves on. */
+function limitReached(state: BattleState, player: PlayerState, stratagem: Stratagem, moment: BattleMoment): boolean {
   if (stratagem.limit === 'unlimited') return false
   const uses = player.uses.filter((use) => use.key === stratagem.key)
   if (stratagem.limit === 'battle') return uses.length > 0
-  if (stratagem.limit === 'battle-round') return uses.some((use) => use.round === state.round)
-  const thisTurn = uses.filter((use) => use.round === state.round && use.turn === state.activePlayerId)
-  return stratagem.limit === 'turn' ? thisTurn.length > 0 : thisTurn.some((use) => use.phase === state.phase)
+  if (stratagem.limit === 'battle-round') return uses.some((use) => use.round === moment.round)
+  const thatTurn = uses.filter((use) => use.round === moment.round && sameSide(state, use.turn, moment.turn))
+  return stratagem.limit === 'turn' ? thatTurn.length > 0 : thatTurn.some((use) => use.phase === moment.phase)
 }
 
 export const isNewOrders = (stratagem: Pick<Stratagem, 'name'>) => stratagem.name.trim().toLocaleLowerCase() === 'new orders'
 
-function stratagemRefusal(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number): Refusal | null {
-  if (stratagem.phases?.length && !stratagem.phases.includes(state.phase))
-    return refuse('stratagem-wrong-phase', `${stratagem.name} cannot be used in this phase`)
-  if (stratagem.turn === 'your-turn' && !sameSide(state, state.activePlayerId, player.id))
+function stratagemRefusal(
+  state: BattleState,
+  player: PlayerState,
+  stratagem: Stratagem,
+  overriddenCost?: number,
+  missed?: BattleMoment,
+): Refusal | null {
+  const moment = missed ?? { round: state.round, phase: state.phase, turn: state.activePlayerId ?? '' }
+  const when = missed ? 'that' : 'this'
+  if (stratagem.phases?.length && !stratagem.phases.includes(moment.phase))
+    return refuse('stratagem-wrong-phase', `${stratagem.name} cannot be used in ${when} phase`)
+  if (stratagem.turn === 'your-turn' && !sameSide(state, moment.turn, player.id))
     return refuse('stratagem-wrong-turn', `${stratagem.name} is used on your turn`)
-  if (stratagem.turn === 'opponent-turn' && sameSide(state, state.activePlayerId, player.id)) {
+  if (stratagem.turn === 'opponent-turn' && sameSide(state, moment.turn, player.id)) {
     return refuse('stratagem-wrong-turn', `${stratagem.name} is used on your opponent’s turn`)
   }
   const cost = overriddenCost ?? stratagem.cp
   if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return refuse('invalid-amount', 'that is not a possible cost')
   if (player.cp < cost) return refuse('not-enough-cp', 'not enough command points')
-  if (limitReached(player, stratagem, state))
-    return refuse('stratagem-limit', `${stratagem.name} has been used this ${stratagem.limit.replace('-', ' ')}`)
+  if (missed && fewestCpSince(state, player, missed) < cost)
+    return refuse('not-enough-cp', 'that would leave too few command points at a later moment')
+  if (limitReached(state, player, stratagem, moment))
+    return refuse(
+      'stratagem-limit',
+      `${stratagem.name} has been used ${stratagem.limit === 'battle' ? 'this' : when} ${stratagem.limit.replace('-', ' ')}`,
+    )
   return null
 }
 
-function applyStratagemUse(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number) {
+function applyStratagemUse(state: BattleState, player: PlayerState, stratagem: Stratagem, overriddenCost?: number, missed?: BattleMoment) {
   const spent = overriddenCost ?? stratagem.cp
   player.cp -= spent
   player.cpSpent += spent
+  recordCpChange(state, player, -spent, missed)
+  const moment = missed ?? { round: state.round, phase: state.phase, turn: state.activePlayerId }
+  player.uses.push({ key: stratagem.key, name: stratagem.name, cp: spent, round: moment.round, phase: moment.phase, turn: moment.turn })
+}
+
+/**
+ * The moment being played, or null outside play.
+ *
+ * Moments are ordered by `momentOrder`, so an action recorded late can be placed
+ * against the moments since without storing a second clock.
+ */
+function playedMoment(state: BattleState): BattleMoment | null {
+  return state.status === 'playing' && state.round > 0 && state.activePlayerId
+    ? { round: state.round, phase: state.phase, turn: state.activePlayerId }
+    : null
+}
+
+function momentOrder(state: BattleState, moment: BattleMoment): number {
+  const turn = sameSide(state, moment.turn, state.firstPlayerId ?? '') ? 0 : 1
+  return ((moment.round - 1) * 2 + turn) * PHASES.length + PHASES.indexOf(moment.phase)
+}
+
+/**
+ * The earlier moments a missed action may name: this battle round and the one before.
+ *
+ * Bounded so a correction stays within what the table can still remember, and so the
+ * usage limits, CP and card holdings it is judged against stay those of a recent turn.
+ */
+export function missedMoments(state: BattleState): BattleMoment[] {
+  const now = playedMoment(state)
+  if (!now || !state.firstPlayerId) return []
+  const second = state.players.find((player) => !sameSide(state, player.id, state.firstPlayerId ?? ''))?.id
+  const turns = [state.firstPlayerId, ...(second ? [second] : [])]
+  const latest = momentOrder(state, now)
+  return [Math.max(1, state.round - 1), state.round]
+    .filter((round, index, rounds) => rounds.indexOf(round) === index)
+    .flatMap((round) => turns.flatMap((turn) => PHASES.map((phase) => ({ round, phase, turn }))))
+    .filter((moment) => momentOrder(state, moment) < latest)
+}
+
+function missedMomentRefusal(state: BattleState, moment: BattleMoment): Refusal | null {
+  return missedMoments(state).some(
+    (candidate) => candidate.round === moment.round && candidate.phase === moment.phase && sameSide(state, candidate.turn, moment.turn),
+  )
+    ? null
+    : refuse('missed-moment', 'a missed action belongs to an earlier phase of this battle round or the previous one')
+}
+
+function missedScoreRefusal(
+  state: BattleState,
+  by: PlayerId,
+  player: PlayerState,
+  command: Extract<Command, { kind: 'score-settlement' }>,
+  moment: BattleMoment,
+): Refusal | null {
+  const refusal = missedMomentRefusal(state, moment)
+  if (refusal) return refusal
+  if (command.round !== undefined) return refuse('missed-unsupported', 'a missed score names its moment rather than a settlement round')
+  for (const score of command.scores) {
+    if (score.category === 'primary') {
+      if (score.final) return refuse('missed-unsupported', 'end-of-battle points cannot be recorded late')
+      continue
+    }
+    if (!mayNameSecondary(state, by, player, score.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
+    if (player.secondaryStatus[score.key] !== 'active')
+      return refuse('missed-unsupported', 'only a secondary mission still held can be scored late')
+    if ((player.secondaryDrawnAt[score.key] ?? -1) > momentOrder(state, moment))
+      return refuse('missed-unsupported', 'that secondary mission had not been drawn yet')
+  }
+  return null
+}
+
+/** The fewest CP the side held from the end of a moment until now, which a missed spend may not exceed. */
+function fewestCpSince(state: BattleState, player: PlayerState, moment: BattleMoment): number {
+  const from = momentOrder(state, moment)
+  return Object.entries(player.cpByMoment).reduce((fewest, [key, cp]) => {
+    const order = Number(key)
+    return order < from ? fewest : Math.min(fewest, order === from ? cp.last : cp.fewest)
+  }, player.cp)
+}
+
+/** Carries a CP change through every moment since the one it belongs to. */
+function recordCpChange(state: BattleState, player: PlayerState, delta: number, missed?: BattleMoment) {
+  if (missed) {
+    const from = momentOrder(state, missed)
+    for (const [key, cp] of Object.entries(player.cpByMoment)) {
+      if (Number(key) >= from) player.cpByMoment[Number(key)] = { fewest: cp.fewest + delta, last: cp.last + delta }
+    }
+    for (let round = missed.round; round < state.round; round++) player.cpByRound[round - 1]! += delta
+  }
   player.cpByRound[state.round - 1] = player.cp
-  player.uses.push({
-    key: stratagem.key,
-    name: stratagem.name,
-    cp: spent,
-    round: state.round,
-    phase: state.phase,
-    turn: state.activePlayerId,
-  })
+}
+
+/** The round a settlement's points belong to. */
+export function pointsRound(state: BattleState, command: Extract<Command, { kind: 'score-settlement' }>): number {
+  return command.missed?.round ?? command.round ?? state.round
+}
+
+function markDrawn(state: BattleState, player: PlayerState, key: string, seq: number) {
+  player.secondaryDrawSeq[key] = seq
+  const now = playedMoment(state)
+  if (now) player.secondaryDrawnAt[key] = momentOrder(state, now)
 }
 
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null, seq: number) {
