@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Copy,
@@ -53,6 +53,7 @@ import {
   meQuery,
   playerDefaultsQuery,
   priceQuery,
+  unitsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -72,7 +73,7 @@ import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
-import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
+import { type AttachLink, canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
@@ -80,7 +81,8 @@ import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
-import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
@@ -642,13 +644,13 @@ export function ListBuilder({
     [setSelected],
   )
   const [requestRefusal, setRequestRefusal] = useState<string | null>(null)
-  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[] }[]>([])
-  const add = (entryId: string) => {
+  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[]; link?: AttachLink }[]>([])
+  const add = (entryId: string, link?: AttachLink) => {
     setRequestRefusal(null)
     setQueuedAdds((current) => {
       const queued = current.filter((entry) => entry.entryId === entryId).length
       if (picks.length + current.length >= 100 || !canAddCopy(entryId, (held[entryId] ?? 0) + queued, unitLimits)) return current
-      return [...current, { entryId, context: priceRequest.queryKey }]
+      return [...current, { entryId, context: priceRequest.queryKey, ...(link ? { link } : {}) }]
     })
   }
   useEffect(() => {
@@ -666,8 +668,9 @@ export function ListBuilder({
       setRequestRefusal(outcome.message)
       return
     }
-    editor.current.add(next.entryId)
+    editor.current.add(next.entryId, next.link)
     reporting.current = { event: 'roster_unit_added' }
+    if (next.link) posthog.capture('roster_attachment_updated', { attached: true })
   }, [editable, held, priceFailed, priceLoading, pricePending, priceRequest.queryKey, queuedAdds, unitLimits])
   const requestHandled = useRef(false)
   const requestedHeld = requested ? (held[requested.entryId] ?? 0) : 0
@@ -717,6 +720,25 @@ export function ListBuilder({
   useLayoutEffect(() => {
     selection.current = { picks, updateLoadoutHistory, workspacePath }
   }, [picks, updateLoadoutHistory, workspacePath])
+  const adding = useRef(add)
+  useLayoutEffect(() => {
+    adding.current = add
+  })
+  const detach = useCallback((index: number) => join(index, undefined), [join])
+  const attach = useCallback(
+    (index: number, direction: AttachDirection, choice: AttachChoice) => {
+      const { picks: currentPicks } = selection.current
+      const key = currentPicks[index]?.key
+      if (key === undefined) return
+      if (choice.kind === 'new') adding.current(choice.entryId, direction === 'join' ? { joinedBy: key } : { joins: key })
+      else if (direction === 'join') join(index, choice.key)
+      else {
+        const joiner = currentPicks.findIndex((pick) => pick.key === choice.key)
+        join(joiner, key)
+      }
+    },
+    [join],
+  )
   const selectUnit = useCallback(
     (index: number) => {
       setPreview(null)
@@ -764,7 +786,16 @@ export function ListBuilder({
     [editReminder, reminders, selected],
   )
   const reminderCountsByUnit = useMemo(() => reminderTimingCountsByUnit(reminders), [reminders])
-  const cardRelationships = useCardRelationships(picks, units)
+  const { data: attachCandidates } = useQuery({
+    ...unitsQuery(catalogueId, limit, waivedRules),
+    enabled: building && workspaceMeasured && Boolean(catalogueId),
+    placeholderData: keepPreviousData,
+  })
+  const attachDiscovery = useMemo(
+    () => (attachCandidates ? { candidates: attachCandidates, held, limits: unitLimits } : null),
+    [attachCandidates, held, unitLimits],
+  )
+  const cardRelationships = useCardRelationships(picks, units, attachDiscovery)
   const openSetup = () => {
     setSetupMode('edit')
     setSetupDraft({
@@ -936,9 +967,6 @@ export function ListBuilder({
         {limitFailure}
         <div className="min-h-0 flex-1">
           <Picker
-            key={`${catalogueId}:${detachmentIds.join(',')}:${limit}`}
-            picks={picks}
-            rosterUnits={units}
             enabled={pickerEnabled}
             catalogueId={catalogueId}
             onAdd={add}
@@ -1347,6 +1375,7 @@ export function ListBuilder({
                         index={index}
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
                         canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
+                        canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
                         alliedFaction={
                           picks[index]?.catalogueId === catalogueId
                             ? undefined
@@ -1360,7 +1389,8 @@ export function ListBuilder({
                         onDuplicate={duplicate}
                         canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
                         onOwned={me ? setUnitOwned : undefined}
-                        onJoin={join}
+                        onDetach={detach}
+                        onAttach={attach}
                         editable={building}
                       />
                     ),

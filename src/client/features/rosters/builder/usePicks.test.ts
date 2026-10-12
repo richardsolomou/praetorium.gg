@@ -268,3 +268,46 @@ describe('unit nicknames and notes', () => {
     expect(annotated((edit) => edit.duplicate(0))[1]).toEqual({ key: 1, entryId: 'squad', catalogueId: 'imperium' })
   })
 })
+
+describe('adding a unit to attach', () => {
+  function added(limits: Map<string, number | null>, run: (edit: ReturnType<typeof pickEditor>) => void) {
+    let picks: KeyedPick[] = [
+      { key: 0, entryId: 'squad', catalogueId: 'cat' },
+      { key: 1, entryId: 'captain', catalogueId: 'cat' },
+    ]
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'cat', units: [], limits },
+      () => 2,
+    )
+    run(edit)
+    return picks
+  }
+  const open = new Map<string, number | null>([
+    ['captain', null],
+    ['squad', null],
+  ])
+
+  it('adds a new leader already joined to the chosen unit', () => {
+    expect(added(open, (edit) => edit.add('captain', { joins: 0 })).at(-1)).toEqual({
+      key: 2,
+      entryId: 'captain',
+      catalogueId: 'cat',
+      attachedTo: 0,
+    })
+  })
+
+  it('joins the chosen character to a newly added bodyguard', () => {
+    expect(added(open, (edit) => edit.add('squad', { joinedBy: 1 }))[1]?.attachedTo).toBe(2)
+  })
+
+  it('adds nothing when the copy limit is reached', () => {
+    expect(added(new Map([['captain', 1]]), (edit) => edit.add('captain', { joins: 0 }))).toHaveLength(2)
+  })
+
+  it('adds nothing when the chosen unit has left the roster', () => {
+    expect(added(open, (edit) => edit.add('captain', { joins: 9 }))).toHaveLength(2)
+  })
+})

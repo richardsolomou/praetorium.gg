@@ -40,6 +40,9 @@ export function unitLimitMessage(entryId: string, held: number, limits: Readonly
     : `Limit reached: ${held} of ${limit} permitted copies in the roster.`
 }
 
+/** The roster unit a newly added unit joins, or the one that joins it. */
+export type AttachLink = { joins: number } | { joinedBy: number }
+
 export type RequestedUnit = { kind: 'pending' } | { kind: 'add' } | { kind: 'refused'; reason: 'limit' | 'not_offered'; message: string }
 
 /** A unit asked for from outside the builder waits for the roster's own limits, then gets the picker's answer. */
@@ -108,12 +111,25 @@ export function pickEditor(
   }
 
   return {
-    add: (entryId: string) =>
-      insert((current) => {
-        return context.limits && canAddCopy(entryId, current.filter((pick) => pick.entryId === entryId).length, context.limits)
-          ? { pick: { entryId, catalogueId: context.catalogueId } }
-          : null
-      }),
+    /** A linked unit is added already joined to, or joined by, the unit it was chosen for. */
+    add: (entryId: string, link?: AttachLink) => {
+      const key = allocateKey()
+      setPicks((current) => {
+        if (!context.limits || !canAddCopy(entryId, current.filter((pick) => pick.entryId === entryId).length, context.limits))
+          return current
+        const partner = link && ('joins' in link ? link.joins : link.joinedBy)
+        if (partner !== undefined && !current.some((pick) => pick.key === partner)) return current
+        const added: KeyedPick = {
+          entryId,
+          catalogueId: context.catalogueId,
+          key,
+          ...(link && 'joins' in link ? { attachedTo: link.joins } : {}),
+        }
+        const rest =
+          link && 'joinedBy' in link ? current.map((pick) => (pick.key === link.joinedBy ? { ...pick, attachedTo: key } : pick)) : current
+        return [...rest, added]
+      })
+    },
 
     /** A copy takes the loadout; the nickname and note name the unit it was copied from. */
     duplicate: (index: number) =>

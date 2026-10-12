@@ -233,7 +233,9 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
 
   await add(page, 'Chronomancer')
   await expect(page.locator('header').getByText('2 units', { exact: true })).toBeVisible()
-  await expect(page.locator('[data-unit="Chronomancer"]').getByRole('button', { name: 'Attach Chronomancer to unit' })).toHaveCount(0)
+  await page.locator('[data-unit="Chronomancer"]').getByRole('button', { name: 'Attach Chronomancer to unit' }).click()
+  await expect(page.getByRole('menu').getByRole('menuitem', { name: 'Immortals', exact: true })).toHaveCount(0)
+  await page.keyboard.press('Escape')
 
   // The unit states both, from its own side.
   await expect(page.getByText('Leader', { exact: true })).toBeVisible()
@@ -257,13 +259,18 @@ test('Murdermind lets a Chronomancer support Destroyer Cult units', async ({ pag
   await add(page, 'Lokhust Heavy Destroyers')
   const chronomancer = page.locator('[data-unit="Chronomancer"]')
   const attachButton = chronomancer.getByRole('button', { name: 'Attach Chronomancer to unit' })
-  await expect(attachButton).toHaveCount(0)
+  const destroyers = page.getByRole('menu').getByRole('menuitem', { name: 'Lokhust Heavy Destroyers', exact: true })
+  await attachButton.click()
+  await expect(destroyers).toHaveCount(0)
+  await page.keyboard.press('Escape')
 
   await chronomancer.getByRole('button', { name: 'Chronomancer', exact: true }).click()
   await page.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Select Murdermind' }).click()
-  await expect(attachButton).toBeVisible()
   await attachButton.click()
-  await page.getByRole('menu').getByRole('menuitem', { name: 'Lokhust Heavy Destroyers', exact: true }).click()
+  await expect(
+    page.getByRole('menu').getByRole('menuitem', { name: 'Add new Lokhust Heavy Destroyers and attach', exact: true }),
+  ).toBeEnabled()
+  await destroyers.click()
 
   await expect(chronomancer).toContainText('Supporting')
   await expect(chronomancer).toContainText('Lokhust Heavy Destroyers')
