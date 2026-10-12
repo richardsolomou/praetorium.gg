@@ -1,6 +1,6 @@
 import type { Attachment } from './attach'
 import { attachmentRows } from './attachmentRows'
-import { type FormatRuleId, type Roster, strategicReserveLimit } from './battle'
+import { customPointsBudget, type FormatRuleId, pointsBudgetOf, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { nicknamedUnit } from './unitNotes'
@@ -14,6 +14,7 @@ type SavedRoster = {
   detachmentIds: readonly string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: readonly RosterPick[]
   waivedRules: readonly FormatRuleId[]
   reminders?: readonly RosterReminder[]
@@ -69,6 +70,7 @@ export function rosterSnapshot(
     }),
   )
   const detailsByEntry = new Map(details.map((entry) => [entry.entryId, entry]))
+  const pointsBudget = customPointsBudget(saved.limit, saved.pointsBudget)
   return {
     // A list nobody named is fielded under the label it had when it was fielded. The
     // log and the seat then keep saying that, whatever the library later folds.
@@ -88,7 +90,7 @@ export function rosterSnapshot(
     }),
     remindersEnabled: saved.remindersEnabled ?? true,
     text: [
-      `${priced.points} / ${saved.limit} pts`,
+      `${priced.points} / ${pointsBudgetOf(saved)} pts`,
       ...(priced.edition ? [`Codex: ${editionLabel(priced.edition)}`] : []),
       ...priced.detachments.map(
         (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
@@ -104,7 +106,8 @@ export function rosterSnapshot(
       ...(priced.edition ? { edition: { ...priced.edition } } : {}),
       revision: priced.revision,
       limit: saved.limit,
-      ...(priced.strategicReserveFactsComplete ? { strategicReserveLimit: strategicReserveLimit(saved.limit) } : {}),
+      ...(pointsBudget === null ? {} : { pointsBudget }),
+      ...(priced.strategicReserveFactsComplete ? { strategicReserveLimit: strategicReserveLimit(pointsBudgetOf(saved)) } : {}),
       detachment: priced.detachment,
       detachments: [...priced.detachments],
       detachmentPointBudget: priced.detachmentPointBudget,

@@ -133,3 +133,29 @@ it('asks for a connection before locking a roster saved on the device', async ()
   await expect(setRosterLocked({ data: { id: 'original', locked: true } })).rejects.toThrow(/Connect/)
   expect(mocks.setLocked).not.toHaveBeenCalled()
 })
+
+async function holdBudget() {
+  await mocks.engines.get('alice')!.storage.change((state: ReturnType<typeof emptyLocalState>) => ({
+    ...state,
+    documents: { 'roster:original': { data: { ...roster, limit: 2000, pointsBudget: 1500 }, serverVersion: 1 } },
+  }))
+}
+
+it('keeps a custom points budget when a save from an older screen does not state one', async () => {
+  await holdBudget()
+  const { pointsBudget: _unstated, ...older } = { ...roster, limit: 2000 }
+  await saveRoster({ data: { ...older, name: 'Renamed' } })
+  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ name: 'Renamed', pointsBudget: 1500 })
+})
+
+it('clears a custom points budget when a save asks for the standard total', async () => {
+  await holdBudget()
+  await saveRoster({ data: { ...roster, limit: 2000, pointsBudget: null } })
+  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ pointsBudget: null })
+})
+
+it('copies a custom points budget into a variant saved on the device', async () => {
+  await holdBudget()
+  await copyRoster({ data: { id: 'original', variant: true } })
+  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ limit: 2000, pointsBudget: 1500 })
+})

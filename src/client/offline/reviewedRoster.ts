@@ -10,6 +10,7 @@ export function rosterSaveKey(value: unknown) {
   const parsed = saveRosterSchema.safeParse({
     ...roster,
     name: roster.automaticName ? '' : roster.name,
+    pointsBudget: roster.pointsBudget ?? null,
     prep: roster.prep ?? { stratagems: [], secondaries: [] },
   })
   return parsed.success ? JSON.stringify(parsed.data) : null

@@ -361,6 +361,7 @@ export async function saveRoster(
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
     borrowedDetachmentId: input.borrowedDetachmentId ?? null,
+    pointsBudget: input.pointsBudget === undefined ? (previous?.pointsBudget ?? null) : input.pointsBudget,
     optionalRules: input.optionalRules ?? [],
     waivedRules: input.waivedRules ?? [],
     baseRosterId: previous?.baseRosterId ?? (input as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
@@ -660,7 +661,7 @@ async function assessedRoster(roster: LocalRoster, owner: string, signal?: Abort
       const price = await server.priceRoster({ data: savedRosterPriceInput(roster), signal: requestSignal })
       return {
         points: price?.points ?? null,
-        problem: price ? (rosterUseProblem(price, roster.limit, roster.waivedRules)?.kind ?? null) : null,
+        problem: price ? (rosterUseProblem(price, roster)?.kind ?? null) : null,
         label: roster.name || price?.label || '',
       }
     },

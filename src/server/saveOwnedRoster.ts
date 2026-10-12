@@ -46,6 +46,7 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
     disposition: roster.disposition,
     borrowedDetachmentId: roster.borrowedDetachmentId,
     limit: roster.limit,
+    pointsBudget: roster.pointsBudget,
     picks: roster.picks,
     waivedRules: roster.waivedRules,
     optionalRules: roster.optionalRules,

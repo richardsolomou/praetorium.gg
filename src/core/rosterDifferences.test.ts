@@ -68,6 +68,10 @@ describe('how a variant differs from its base', () => {
     expect(rosterDifferences(list([]), after).setup).toEqual(['size', 'detachment', 'disposition', 'rules'])
   })
 
+  it('names a variant at a custom points budget as a size change', () => {
+    expect(rosterDifferences(list([]), list([], { pointsBudget: 1_500 })).setup).toEqual(['size'])
+  })
+
   it('names the detachments a variant adds and drops', () => {
     expect(
       rosterDifferences(list([], { detachmentIds: ['awakened', 'cursed'] }), list([], { detachmentIds: ['awakened', 'hypercrypt'] }))

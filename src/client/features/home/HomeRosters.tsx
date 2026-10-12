@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, ScrollText } from 'lucide-react'
 import type { SavedRoster } from '../rosters/rosterLibrary'
+import { pointsBudgetOf } from '../../../core/battle'
 import { FactionMark } from '../../components/FactionMark'
 import { PROBLEM_LABEL, type RosterProblem, type RosterSummaryFaction, rosterTitle } from '../rosters/RosterSummary'
 
@@ -44,7 +45,7 @@ export function HomeRosters({ rosters, count }: { rosters: readonly HomeRoster[]
                   <span className="shrink-0 text-xs font-semibold text-destructive">{PROBLEM_LABEL[problem]}</span>
                 ) : (
                   <span className="readout shrink-0 text-sm text-dim">
-                    {points ?? '—'}/{roster.limit}
+                    {points ?? '—'}/{pointsBudgetOf(roster)}
                   </span>
                 )}
               </Link>

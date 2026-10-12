@@ -1,4 +1,4 @@
-import { GAME_SIZES } from '../../../core/battle'
+import { battleSizeLabel, pointsBudgetOf } from '../../../core/battle'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { useDateFormatting } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -76,7 +76,6 @@ export function RosterSummary({
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
-  const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
   const waivers = rosterWaivers(roster)
 
   return (
@@ -107,8 +106,8 @@ export function RosterSummary({
         {showLock && roster.locked ? <LockedChip /> : null}
       </span>
       <span className="col-span-2 block text-xs text-dim sm:col-span-1">
-        11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'} ·{' '}
-        {showLegality ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}updated {date(roster.updatedAt)}
+        11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'}{' '}
+        · {showLegality ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}updated {date(roster.updatedAt)}
       </span>
       {differences ? (
         <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1">
@@ -163,7 +162,7 @@ function RosterStanding({
         <Skeleton className={`ml-auto w-20 ${compact ? 'h-4' : 'h-5'}`} />
       ) : (
         <span className={`readout block font-bold ${compact ? 'text-sm' : 'text-lg'}`}>
-          {points ?? '—'}/{roster.limit}
+          {points ?? '—'}/{pointsBudgetOf(roster)}
         </span>
       )}
       {legal ? <span className="block text-xs whitespace-nowrap text-dim">Legal</span> : null}

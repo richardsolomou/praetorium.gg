@@ -16,6 +16,7 @@ type SavedRoster = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: readonly RosterPick[]
   waivedRules: FormatRuleId[]
   optionalRules?: OptionalRuleId[]
@@ -51,6 +52,7 @@ export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
     limit: roster.limit,
+    pointsBudget: roster.pointsBudget ?? null,
     picks: annotatedPicks(roster.picks),
     prep: {
       stratagems: prep.stratagems,

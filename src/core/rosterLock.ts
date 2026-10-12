@@ -10,6 +10,7 @@ export type RosterContent = {
   detachmentIds: readonly string[]
   disposition: string | null | undefined
   limit: number
+  pointsBudget?: number | null
   picks: unknown
   prep: unknown
   waivedRules?: readonly string[]
@@ -25,6 +26,7 @@ export function storedRosterContent(row: {
   detachmentId?: string | null
   disposition?: string | null
   limit: number
+  pointsBudget?: number | null
   picks: string
   prep?: string | null
   waivedRules: string
@@ -38,6 +40,7 @@ export function storedRosterContent(row: {
     detachmentIds: detachmentIds(row.detachmentId),
     disposition: row.disposition,
     limit: row.limit,
+    pointsBudget: row.pointsBudget ?? null,
     picks: JSON.parse(row.picks),
     prep: row.prep ? JSON.parse(row.prep) : null,
     waivedRules: JSON.parse(row.waivedRules) as string[],
@@ -68,6 +71,7 @@ function comparable(content: RosterContent) {
     detachmentIds: content.detachmentIds,
     disposition: content.disposition ?? null,
     limit: content.limit,
+    pointsBudget: content.pointsBudget ?? null,
     picks: content.picks,
     prep: {
       ...prep,

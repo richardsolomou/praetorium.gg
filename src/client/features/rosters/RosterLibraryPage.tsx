@@ -107,6 +107,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
     limit: roster.limit,
+    pointsBudget: roster.pointsBudget,
     waivedRules: roster.waivedRules,
     optionalRules: roster.optionalRules ?? [],
     borrowedDetachmentId: roster.borrowedDetachmentId ?? null,

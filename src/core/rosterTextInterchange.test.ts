@@ -90,6 +90,24 @@ describe('roster text interchange', () => {
     expect(fromBattleBaseText(text)?.detachment).toBe('First')
   })
 
+  it('writes a custom points budget beside the battle size in readable text', () => {
+    expect(toGwText({ ...roster, pointsBudget: 1500 }, 'test')).toContain('Strike Force (1,500 Points)')
+  })
+
+  it('reads the battle size and its custom points budget back from readable text', () => {
+    const parsed = fromBattleBaseText(toGwText({ ...roster, pointsBudget: 1500 }, 'test'))
+    expect([parsed?.sizeName, parsed?.limit]).toEqual(['Strike Force', 1500])
+  })
+
+  it('reads the battle size and its custom points budget back from compact text', () => {
+    const parsed = fromNewRecruitText(toCompactText({ ...roster, pointsBudget: 1500 }, 'test'))
+    expect([parsed?.sizeName, parsed?.limit]).toEqual(['Strike Force', 1500])
+  })
+
+  it('keeps a standard compact battle size line unchanged', () => {
+    expect(toCompactText(roster, 'test')).toContain('+ BATTLE SIZE: 2000pts\n')
+  })
+
   it('refuses arbitrary text that merely contains a points value', () => {
     expect(fromBattleBaseText('Sample (90 Points)\nTest Faction\nTest Squad (90 Points)')).toBeNull()
   })
