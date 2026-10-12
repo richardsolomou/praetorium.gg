@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.124.1
+
+### Patch Changes
+
+- 4d7609d: Explain roster link sharing before publication and clarify private access, frozen roster retention, sealed league access and account deletion.
+
 ## 0.124.0
 
 ### Minor Changes
