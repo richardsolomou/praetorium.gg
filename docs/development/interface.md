@@ -10,7 +10,7 @@ Keep contextual help brief. Player guides combine practical preparation, army ro
 
 ## Application navigation
 
-`src/client/features/shell` owns the shared web and native navigation. Phones use a Home/search/account utility bar and bottom application tabs; immersive roster screens omit the utility bar. Native wide layouts use a rail, while the website uses its desktop header. Read `src/styles.css` for the breakpoints and safe-area dimensions rather than duplicating them in components. The desktop header's own steps are rem container queries, so enlarged text folds its navigation into the menu button instead of pushing Search and Account off the screen; media queries ignore page text size.
+`src/client/features/shell` owns the shared web and native navigation. Phones use a Home/search/account utility bar and bottom application tabs; immersive roster screens omit the utility bar. Only builder screens are immersive; other pages under `/rosters`, such as Discover armies, scroll with the document. Native wide layouts use a rail, while the website uses its desktop header. Read `src/styles.css` for the breakpoints and safe-area dimensions rather than duplicating them in components. The desktop header's own steps are rem container queries, so enlarged text folds its navigation into the menu button instead of pushing Search and Account off the screen; media queries ignore page text size.
 
 `nativeTabs.ts` preserves each section's URL, route state, and scroll position for the browser session. Tapping the current section returns to its top. Home selects no tab. More holds secondary destinations without repeating the dedicated tabs. Scroll-restoration browser tests must first confirm an interactive control and then use player input such as a wheel gesture; `window.scrollTo` does not cancel the restoration retries and can race with them.
 
@@ -77,7 +77,7 @@ League entrants and organizers share one event page. Its next-action card and pr
 
 Import new guide illustrations from client source with `?no-inline` so Vite emits hashed assets that deployment publishes before changing replicas.
 
-Home prioritizes the player's active game and actionable items, with public activity for visitors. Empty states explain how to start. `Home` owns fetching and `HomeView` renders props; reserve shelf geometry in SSR and bound roster assessment to displayed rows.
+Home prioritizes the player's active game and actionable items, with public activity for visitors. Empty states explain how to start. `Home` owns fetching and `HomeView` renders props; reserve shelf geometry in SSR and bound roster assessment to displayed rows. A signed-in player's battles page follows their own shelves with Home's Friends' games and Public games sections from `HomeFeed.tsx`, naming each battle once.
 
 Search keeps a stable panel and prior results while queries settle. Friends search requires a name rather than listing every account. Public guide screenshots use a content hash in their filename; refresh the hash when replacing an image so cached URLs cannot serve stale controls. The onboarding guide opens only by player choice, stays nonmodal, follows real actions, and skips controls absent from the current data. Domain-backed progress is derived; only reading tours, skips, and welcome state are stored.
 
