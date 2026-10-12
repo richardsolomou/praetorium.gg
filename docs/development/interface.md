@@ -106,7 +106,7 @@ Run `just e2e offline-work.spec.ts offline.spec.ts app-cache.spec.ts` after chan
 
 ## Verification
 
-Selector options name the choice and its detail explicitly; interactive rules badges must not change the option's accessible name. Exercise both grouped and virtualized selectors when changing their contents.
+Selector options name the choice and its detail explicitly; interactive rules badges must not change the option's accessible name. Assert selected values separately from decorative trigger text. Exercise both grouped and virtualized selectors when changing their contents.
 
 Inspect affected surfaces at desktop and phone widths before the relevant browser flow. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard/touch access, and loading geometry. Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
 

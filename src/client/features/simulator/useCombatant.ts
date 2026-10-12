@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { combatSurvivors, combatSurvivorSheet } from '../../../core/combatSurvivors'
@@ -11,6 +11,8 @@ import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
+import { attachedUnit } from '../../../core/attach'
+import { restoreWeaponPreferences, storeWeaponPreferences, type PreferenceMember, type StoredWeaponPreferences } from './combatPreferences'
 
 export type CombatRoster = {
   catalogueId: string
@@ -35,9 +37,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
     initial ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:0:${initial.pick.entryId}`]: initial.rules } : {},
   )
-  const [selectedPreferences, setSelectedPreferences] = useState<Record<string, Record<string, string>>>(() =>
-    initial?.preferences ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:0:${initial.pick.entryId}`]: initial.preferences } : {},
-  )
+  const [initialPreferences] = useState(initial?.preferences ?? {})
+  const [selectedPreferences, setSelectedPreferences] = useState<StoredWeaponPreferences | null>(null)
   const [health, setHealth] = useState<Record<string, { models: number; damage: number }>>({})
   const [allocations, setAllocations] = useState<Record<string, CombatCarrier[]>>({})
   const picks = usePicks(
@@ -51,14 +52,6 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const identityAt = (index: number) =>
     `${picks.positioned[index]?.catalogueId ?? catalogueId}:${picks.picks[index]?.key}:${picks.positioned[index]?.entryId}`
   const identity = identityAt(pickIndex)
-  const weaponPreferences = selectedPreferences[identity] ?? {}
-  const setWeaponPreferences = useCallback(
-    (preferences: Record<string, string>) =>
-      setSelectedPreferences((current) =>
-        JSON.stringify(current[identity] ?? {}) === JSON.stringify(preferences) ? current : { ...current, [identity]: preferences },
-      ),
-    [identity],
-  )
   const price = useQuery({
     ...priceQuery(
       catalogueId,
@@ -150,6 +143,51 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     !price.isError &&
     !sheets.isError,
   )
+  const preferenceKey = JSON.stringify(
+    [pickIndex, ...attachedUnit(picks.positioned, pickIndex).filter((index) => roster?.battle?.units[index]?.available !== false)].map(
+      (index) => ({
+        identity: identityAt(index),
+        pickIndex: index,
+        profileIds:
+          (index === pickIndex
+            ? sheets.data?.selected
+            : sheets.data?.companions.find((member) => member.pickIndex === index)?.selected
+          )?.profiles.map((profile) => profile.id) ?? [],
+      }),
+    ),
+  )
+  const preferenceMembers = useMemo(() => JSON.parse(preferenceKey) as PreferenceMember[], [preferenceKey])
+  const preferenceRoster = JSON.stringify(picks.picks.map((_, index) => identityAt(index)))
+  const weaponPreferences = useMemo(
+    () => (selectedPreferences ? restoreWeaponPreferences(selectedPreferences, preferenceMembers, ready) : initialPreferences),
+    [selectedPreferences, preferenceMembers, initialPreferences, ready],
+  )
+  const preferenceContext = useRef({ key: preferenceKey, ready })
+  preferenceContext.current = { key: preferenceKey, ready }
+  const invalidatedPreferences =
+    ready &&
+    selectedPreferences !== null &&
+    preferenceMembers.reduce((count, member) => count + Object.keys(selectedPreferences[member.identity]?.choices ?? {}).length, 0) >
+      Object.keys(weaponPreferences).length
+  const setWeaponPreferences = useCallback(
+    (update: SetStateAction<Record<string, string>>) => {
+      if (!preferenceContext.current.ready || preferenceContext.current.key !== preferenceKey) return
+      setSelectedPreferences((current) => {
+        const identities = new Set(JSON.parse(preferenceRoster) as string[])
+        const retained = Object.fromEntries(Object.entries(current ?? {}).filter(([key]) => identities.has(key)))
+        const preferences =
+          typeof update === 'function'
+            ? update(current ? restoreWeaponPreferences(current, preferenceMembers) : initialPreferences)
+            : update
+        const next = storeWeaponPreferences(retained, preferenceMembers, preferences)
+        return JSON.stringify(next) === JSON.stringify(current) ? current : next
+      })
+    },
+    [preferenceKey, preferenceMembers, preferenceRoster, initialPreferences],
+  )
+  useEffect(() => {
+    if (ready) setWeaponPreferences((current) => current)
+  }, [ready, weaponPreferences, setWeaponPreferences])
   return {
     catalogueId,
     faction,
@@ -173,6 +211,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     sheets,
     ruleSelections,
     weaponPreferences,
+    invalidatedPreferences,
     setWeaponPreferences,
     allRules,
     companions,

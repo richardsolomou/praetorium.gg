@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="2 October 2026">
+    <LegalPage title="Terms of service" updated="12 October 2026">
       <LegalSection title="The service">
         <p>
           Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. Using
@@ -38,7 +38,12 @@ export function Terms() {
         <p>
           Your lists stay yours. You grant us only the licence needed to store, price and display them to the people entitled to see them:
           you, the players seated opposite you, and anyone you share an unlisted or public list with. You are responsible for the names,
-          tags and text you type. You can export any roster at any time, and deleting content removes it.
+          tags and text you type. You can export any roster at any time. Deleting a saved roster removes the saved list, while frozen copies
+          in battles and league events remain as described in the{' '}
+          <a href="/privacy" className="text-info hover:text-parchment">
+            privacy policy
+          </a>
+          .
         </p>
       </LegalSection>
 
@@ -70,11 +75,11 @@ export function Terms() {
 
       <LegalSection title="Ending">
         <p>
-          Delete your account whenever you like by emailing{' '}
+          Delete your account from your profile whenever you like, or email{' '}
           <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
             privacy@praetorium.gg
-          </a>
-          . When an account ends, its data is handled as the{' '}
+          </a>{' '}
+          for help. When an account ends, its data is handled as the{' '}
           <a href="/privacy" className="text-info hover:text-parchment">
             privacy policy
           </a>{' '}

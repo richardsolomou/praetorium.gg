@@ -12,7 +12,7 @@ import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, loadoutDatash
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
-import { LoadoutOddsContext, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
+import { LoadoutOddsContext, LoadoutOddsStatus, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
 import { useLoadoutOdds } from './useLoadoutOdds'
 import { namespaceLoadoutSpace } from '../../../core/combatLoadouts'
 import { WeaponProfileNote } from '../../components/DatasheetProfiles'
@@ -217,7 +217,9 @@ export function CombatantCard({
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {unit ? (
             <span className="flex min-h-5 items-center gap-2 whitespace-nowrap text-xs text-dim">
-              <span>{totalModels} models</span>
+              <span>
+                {totalModels} {totalModels === 1 ? 'model' : 'models'}
+              </span>
               <span className="readout text-sm text-info">
                 {unit.points +
                   (combatant.sheets.data?.companions ?? []).reduce(
@@ -544,6 +546,7 @@ function CombatMemberLoadoutEditor({
   const unit = combatant.price.data?.units[index]
   return (
     <WeaponProfileNote.Provider value={profileNote}>
+      <LoadoutOddsStatus />
       <Loadout
         catalogueId={combatant.picks.positioned[index]?.catalogueId ?? combatant.catalogueId}
         unit={unit ?? null}
