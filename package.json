@@ -65,7 +65,7 @@
     "@base-ui/react": "^1.7.0",
     "@better-auth/cimd": "1.7.7",
     "@better-auth/mcp": "1.7.7",
-    "@better-auth/oauth-provider": "1.7.5",
+    "@better-auth/oauth-provider": "1.7.7",
     "@fontsource-variable/martian-mono": "5.3.0",
     "@fontsource-variable/sofia-sans-semi-condensed": "5.3.0",
     "@fontsource/chakra-petch": "5.3.0",
