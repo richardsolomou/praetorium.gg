@@ -251,13 +251,20 @@ export function supportsNativeWatchBattle() {
   return supports('watch-battle')
 }
 
+function subscribeCapabilities(changed: () => void) {
+  window.addEventListener('praetorium-native-capabilities', changed)
+  return () => window.removeEventListener('praetorium-native-capabilities', changed)
+}
+
 export function useNativeWatchBattleAvailability() {
+  return useSyncExternalStore(subscribeCapabilities, supportsNativeWatchBattle, () => false)
+}
+
+/** Whether `shareLink` opens the system share sheet rather than copying the link. */
+export function useNativeShare() {
   return useSyncExternalStore(
-    (changed) => {
-      window.addEventListener('praetorium-native-capabilities', changed)
-      return () => window.removeEventListener('praetorium-native-capabilities', changed)
-    },
-    supportsNativeWatchBattle,
+    subscribeCapabilities,
+    () => supports('share'),
     () => false,
   )
 }

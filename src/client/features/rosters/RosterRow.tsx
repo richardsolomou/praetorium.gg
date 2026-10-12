@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
+import { useNativeShare } from '../../nativeBridge'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import { type RosterProblem, RosterSummary, type RosterSummaryFaction, RosterVariantSummary, rosterTitle } from './RosterSummary'
 
@@ -170,6 +171,7 @@ function RosterActionItems({
   showPrivacy?: boolean
 }) {
   const feedback = actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null
+  const nativeShare = useNativeShare()
   return (
     <>
       <Item onClick={() => actions.print(roster.id)}>
@@ -179,11 +181,13 @@ function RosterActionItems({
         <Link2 />
         {roster.visibility === 'private' ? (
           <span>
-            <span className="block">Make unlisted and share</span>
+            <span className="block">{nativeShare ? 'Make unlisted and share' : 'Make unlisted and copy link'}</span>
             <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
           </span>
         ) : (
-          <span>{feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : 'Share link'}</span>
+          <span>
+            {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'}
+          </span>
         )}
       </Item>
       {showPrivacy && roster.visibility !== 'private' ? (

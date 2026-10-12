@@ -43,7 +43,7 @@ import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { copyRoster, exportRoster, saveRoster, setRosterLocked } from '../../functions'
-import { shareLink } from '../../nativeBridge'
+import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
   collectionQuery,
   factionIndexQuery,
@@ -588,7 +588,9 @@ export function ListBuilder({
       setShareProblem(errorMessage(error))
     }
   }
-  const shareLabel = shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : 'Share link'
+  const nativeShare = useNativeShare()
+  const shareLabel =
+    shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'
   const rosterLoading = !frozen && priceLoading && picks.length > 0
   const edit = useMemo(
     () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits }, allocateKey),
@@ -1387,7 +1389,7 @@ export function ListBuilder({
                     Add to list
                   </Button>
                 ) : optimisticUnit ? (
-                  <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                  <span className="flex max-w-full shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
                     {warlord && inspectorView === 'edit' ? (
                       <Toggle
                         variant="outline"
