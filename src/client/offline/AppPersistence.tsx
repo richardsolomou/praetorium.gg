@@ -33,9 +33,6 @@ import { refreshBattleFeed } from './refreshBattleFeed'
 import { prepareRosters } from './prepareRosters'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 
-// Each refresh refetches every saved account query at once, so an open tab must not repeat it every minute.
-const BACKGROUND_REFRESH_MS = 5 * 60_000
-
 export function AppPersistence() {
   const client = useQueryClient()
   const router = useRouter()
@@ -167,9 +164,6 @@ export function AppPersistence() {
       save()
     })
     const cancelPreparation = afterInitialScreen(router, () => void refresh(), 10_000)
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') void refresh()
-    }, BACKGROUND_REFRESH_MS)
     window.addEventListener('online', reconnect)
     window.addEventListener('pagehide', save)
     window.addEventListener('storage', accountChanged)
@@ -180,7 +174,6 @@ export function AppPersistence() {
       save()
       active = false
       clearTimeout(timer)
-      clearInterval(interval)
       unsubscribe()
       window.removeEventListener('online', reconnect)
       window.removeEventListener('pagehide', save)

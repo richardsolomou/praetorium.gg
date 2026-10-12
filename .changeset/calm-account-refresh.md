@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Refresh saved account data in the background every five minutes instead of every minute.
+Stop refreshing saved account data on a timer while a tab stays open.
