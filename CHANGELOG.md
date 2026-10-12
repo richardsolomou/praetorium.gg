@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.124.2
+
+### Patch Changes
+
+- 0dbc837: Preserve valid weapon choices through attached-unit edits, explain calculation context, and retry failed loadout comparisons.
+
 ## 0.124.1
 
 ### Patch Changes
