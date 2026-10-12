@@ -31,12 +31,18 @@ import {
 import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
 import {
-  missionSelectionPrompt,
+  consecratedObjectives,
+  isManualSelection,
+  manualMissionSelections,
+  manualSelectionOpen,
+  missionSelectionRequiredMessage,
   missionSelectionsDue,
   missionUnitCandidates,
+  remainingOperationMarkers,
   savedMissionUnitStatus,
-  MISSION_SELECTION_REQUIRED_MESSAGE,
+  type MissionObjectiveRef,
   type MissionSelectionPrompt,
+  type OperationMarker,
   type SavedMissionSelection,
   type SavedMissionUnit,
 } from './missionSelections'
@@ -44,7 +50,13 @@ import {
 export type MissionSelectionView = Omit<SavedMissionSelection, 'units'> & {
   units: (SavedMissionUnit & { status: ReturnType<typeof savedMissionUnitStatus> })[]
 }
-export type MissionChoiceView = MissionSelectionPrompt & { playerId: string; canChoose: boolean; units: SavedMissionUnit[] }
+export type MissionChoiceView = MissionSelectionPrompt & {
+  playerId: string
+  canChoose: boolean
+  units: SavedMissionUnit[]
+  markers?: OperationMarker[]
+  consecrated?: MissionObjectiveRef[]
+}
 
 /**
  * The only place visibility is decided.
@@ -238,24 +250,15 @@ export function battleView(
       ? []
       : state.players
           .filter((player) => sideCaptain(state, player.side).id === player.id)
-          .flatMap((player) => {
-            const manual = player.secondaries.flatMap((card) => {
-              const prompt = card.selection === 'beacon' ? missionSelectionPrompt(state, player, card) : null
-              return prompt ? [prompt] : []
-            })
-            return [...missionSelectionsDue(state, player), ...manual]
+          .flatMap((player) =>
+            [...missionSelectionsDue(state, player), ...manualMissionSelections(state, player)]
               .filter((prompt) => mayNameCard(state, viewerId, player, prompt.cardKey))
               .map((prompt) => ({
                 ...prompt,
                 playerId: player.id,
                 canChoose:
                   playsSide(state, viewerId, prompt.chooserSide) &&
-                  !(
-                    prompt.kind === 'beacon' &&
-                    player.missionSelections.some(
-                      (saved) => saved.cardKey === prompt.cardKey && saved.occurrence === prompt.occurrence && saved.beaconDestroyed,
-                    )
-                  ),
+                  (!isManualSelection(prompt.kind) || manualSelectionOpen(state, player, prompt)),
                 units: missionUnitCandidates(
                   state,
                   prompt.kind === 'punishment'
@@ -263,8 +266,10 @@ export function battleView(
                     : player.side,
                   prompt.kind !== 'beacon',
                 ),
-              }))
-          }),
+                ...(prompt.kind === 'sensor-sweep' ? { markers: remainingOperationMarkers(state) } : {}),
+                ...(prompt.kind === 'consecrate' ? { consecrated: consecratedObjectives(player, prompt.cardKey) } : {}),
+              })),
+          ),
     players: state.players.map((player) => {
       const resources = sideCaptain(state, player.side)
       const units = battleUnitCounts(player.units)
@@ -419,8 +424,14 @@ function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
   if (owed === 'settlement') return 'The previous turn is still to be settled.'
   if (owed === 'cards') return 'The active side has secondary missions to draw.'
   if (owed === 'secret') return 'The active side has a secret mission to reveal or discard.'
-  if (missionSelectionsDue(state, player).some((choice) => mayNameCard(state, viewerId, player, choice.cardKey)))
-    return MISSION_SELECTION_REQUIRED_MESSAGE
+  if (
+    state.players.some(
+      (captain) =>
+        sideCaptain(state, captain.side).id === captain.id &&
+        missionSelectionsDue(state, captain).some((choice) => mayNameCard(state, viewerId, captain, choice.cardKey)),
+    )
+  )
+    return missionSelectionRequiredMessage(state.phase)
   if (state.phase !== 'end') return null
   const unscored = player.secondaries.filter(
     (secondary) =>

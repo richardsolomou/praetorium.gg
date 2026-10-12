@@ -7,6 +7,8 @@ import {
   EllipsisVertical,
   GitBranchPlus,
   Link2,
+  Lock,
+  LockOpen,
   Pencil,
   Plus,
   Printer,
@@ -41,7 +43,7 @@ import {
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
-import { copyRoster, exportRoster, saveRoster } from '../../functions'
+import { copyRoster, exportRoster, saveRoster, setRosterLocked } from '../../functions'
 import { shareLink } from '../../nativeBridge'
 import {
   collectionQuery,
@@ -135,6 +137,8 @@ type Props = {
   /** How this variant's saved row differs from its base's. */
   differences?: NamedRosterDifferences | null
   editable?: boolean
+  /** The owner's own lock: the list reads as it does to anyone else, while unlocking and copying stay on offer. */
+  locked?: boolean
   print?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
@@ -189,6 +193,7 @@ export function ListBuilder({
   variants = NO_VARIANTS,
   differences = null,
   editable = true,
+  locked = false,
   print = false,
   battle,
   resolvePersistedRoster = true,
@@ -469,6 +474,12 @@ export function ListBuilder({
       await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
+  // Queued behind the autosave, so a lock never lands between an edit and its save.
+  const lockRoster = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: (next: boolean) => setRosterLocked({ data: { id: savedId, locked: next } }),
+    onSuccess: () => invalidateSavedRosters(queryClient),
+  })
   const saving = !guest && (save.isPending || settledPicks !== annotated || settledListName !== listName)
   const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
@@ -660,7 +671,14 @@ export function ListBuilder({
   const requestedHeld = requested ? (held[requested.entryId] ?? 0) : 0
   const limitsKnown = Boolean(priced) && !pricePending && !priceFailed
   useEffect(() => {
-    if (!requested || !editable || requestHandled.current) return
+    if (!requested || requestHandled.current) return
+    if (locked) {
+      requestHandled.current = true
+      setRequestRefusal('This roster is locked. Unlock it to add units.')
+      requested.onSettled()
+      return
+    }
+    if (!editable) return
     const outcome = requestedUnit(requested.entryId, requestedHeld, limitsKnown ? unitLimits : null)
     if (outcome.kind === 'pending') return
     requestHandled.current = true
@@ -672,7 +690,7 @@ export function ListBuilder({
       posthog.capture('roster_unit_add_refused', { reason: outcome.reason, reference: 'datasheet' })
     }
     requested.onSettled()
-  }, [editable, limitsKnown, requested, requestedHeld, unitLimits])
+  }, [editable, limitsKnown, locked, requested, requestedHeld, unitLimits])
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
       const nextPreview = { catalogueId: previewCatalogueId, entryId, name: unitName }
@@ -1002,6 +1020,20 @@ export function ListBuilder({
 
   if (printInput) return <RosterPrintPack input={printInput} onClose={() => setPrintInput(null)} />
 
+  const variantMenu = savedId ? (
+    <RosterVariantMenu
+      current={savedId}
+      variants={variants}
+      differences={differences}
+      setup={{
+        factionName: faction?.displayName,
+        detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
+        disposition: variantDisposition ? { id: variantDisposition.id, name: variantDisposition.name } : null,
+      }}
+      disabled={saving}
+    />
+  ) : null
+
   return (
     <RosterShell saving={saving} saveError={save.isError}>
       <RosterHeader
@@ -1028,19 +1060,7 @@ export function ListBuilder({
         actions={
           editable ? (
             <>
-              {savedId ? (
-                <RosterVariantMenu
-                  current={savedId}
-                  variants={variants}
-                  differences={differences}
-                  setup={{
-                    factionName: faction?.displayName,
-                    detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
-                    disposition: variantDisposition ? { id: variantDisposition.id, name: variantDisposition.name } : null,
-                  }}
-                  disabled={saving}
-                />
-              ) : null}
+              {variantMenu}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={<Button data-onboarding="roster-actions" variant="ghost" size="icon-sm" aria-label="Roster actions" />}
@@ -1060,9 +1080,14 @@ export function ListBuilder({
                     <SlidersHorizontal /> Convert rules version
                   </DropdownMenuItem>
                   {savedId && !guest ? (
-                    <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
-                      <GitBranchPlus /> Create variant
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                        <GitBranchPlus /> Create variant
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
+                        <Lock /> Lock roster
+                      </DropdownMenuItem>
+                    </>
                   ) : null}
                   {visibility !== 'private' ? (
                     <DropdownMenuItem onClick={() => void shareRoster()}>
@@ -1115,42 +1140,77 @@ export function ListBuilder({
               </Tooltip>
             </>
           ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
-                <EllipsisVertical />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-52">
-                {me ? (
-                  <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
-                    <Copy /> Duplicate to my rosters
+            <>
+              {locked ? variantMenu : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
+                  <EllipsisVertical />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-52">
+                  {locked ? (
+                    <>
+                      <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
+                        <LockOpen /> Unlock roster
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                        <GitBranchPlus /> Create variant
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
+                        <Copy /> Duplicate
+                      </DropdownMenuItem>
+                    </>
+                  ) : me ? (
+                    <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
+                      <Copy /> Duplicate to my rosters
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path }} />}>
+                      <Copy /> Sign in to duplicate
+                    </DropdownMenuItem>
+                  )}
+                  {visibility !== 'private' && !battle ? (
+                    <DropdownMenuItem onClick={() => void shareRoster()}>
+                      <Link2 /> {shareLabel}
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                    <Download /> Export text
                   </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path }} />}>
-                    <Copy /> Sign in to duplicate
+                  <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                    <QrCode /> Exchange code
                   </DropdownMenuItem>
-                )}
-                {visibility !== 'private' && !battle ? (
-                  <DropdownMenuItem onClick={() => void shareRoster()}>
-                    <Link2 /> {shareLabel}
+                  <DropdownMenuItem
+                    disabled={!frozenReference && (!priced || pricePending || priceLoading)}
+                    onClick={frozenReference ? () => window.print() : preparePrint}
+                  >
+                    <Printer /> Print
                   </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                  <Download /> Export text
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
-                  <QrCode /> Exchange code
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={!frozenReference && (!priced || pricePending || priceLoading)}
-                  onClick={frozenReference ? () => window.print() : preparePrint}
-                >
-                  <Printer /> Print
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )
         }
       >
+        {locked ? (
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-dim">
+            <Lock className="size-3 shrink-0" aria-hidden />
+            Locked. Unlock to edit, or create a variant.
+            <Button
+              variant="link"
+              size="xs"
+              className="h-auto p-0"
+              disabled={lockRoster.isPending}
+              onClick={() => lockRoster.mutate(false)}
+            >
+              Unlock
+            </Button>
+          </p>
+        ) : null}
+        {lockRoster.isError ? (
+          <p role="alert" className="mt-1 text-xs text-destructive">
+            {errorMessage(lockRoster.error)}
+          </p>
+        ) : null}
         {!editable && duplicateRoster.isError ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             That roster could not be duplicated. Try again.
@@ -1508,7 +1568,7 @@ export function ListBuilder({
         waiversDismissed={dismissedWaivers === waiverKey}
         onDismissWaivers={() => dismissWaivers(waiverKey)}
         leagueWarning={
-          editable && savedId && me ? (
+          (editable || locked) && savedId && me ? (
             <OutdatedLeagueRosters rosterId={savedId} saved={!save.isPending && currentDraftKey === lastApplied.current} />
           ) : null
         }

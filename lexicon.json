@@ -47,6 +47,10 @@
       "definition": "A league entrant's roster, repriced, validated and frozen at submission into the league event; saved-roster edits never change it, and only a deliberate replacement before reveal or an organizer unseal after it does."
     },
     {
+      "name": "locked roster",
+      "definition": "A saved roster its owner has locked: saves that change its content are refused until the owner unlocks it, while visibility, copying, printing and battle or league use stay available; unlike a sealed roster or frozen army it is the saved list itself, not a copy."
+    },
+    {
       "name": "audience",
       "definition": "Who may watch a player's battles: anyone, friends or nobody. A battle takes the narrowest preference of everyone seated in it; a player with no preference is public."
     },

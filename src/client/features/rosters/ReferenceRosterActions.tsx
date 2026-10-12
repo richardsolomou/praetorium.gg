@@ -105,7 +105,7 @@ export function AddToRoster({
   const choosing = step === 'choose'
   const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: choosing && Boolean(me) })
   const { data: factionIndex } = useQuery({ ...factionIndexQuery(), enabled: choosing })
-  const candidates = me ? (saved.data ?? []) : []
+  const candidates = me ? (saved.data ?? []).filter((roster) => !roster.locked) : []
   const books = [
     ...new Set([...candidates.map((roster) => roster.catalogueId), ...(guestDraft ? [guestDraft.draft.catalogueId] : [])]),
   ].toSorted()

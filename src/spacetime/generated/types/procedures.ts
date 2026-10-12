@@ -51,6 +51,7 @@ import * as SaveRosterProcedure from '../save_roster_procedure'
 import * as SetBattleAudienceProcedure from '../set_battle_audience_procedure'
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
+import * as SetRosterLockedProcedure from '../set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedure'
 import * as ShareBattleProcedure from '../share_battle_procedure'
 import * as SubmitBattleProcedure from '../submit_battle_procedure'
@@ -150,6 +151,8 @@ export type SetPlayerDefaultsArgs = __Infer<typeof SetPlayerDefaultsProcedure.pa
 export type SetPlayerDefaultsResult = __Infer<typeof SetPlayerDefaultsProcedure.returnType>
 export type SetPushEnabledArgs = __Infer<typeof SetPushEnabledProcedure.params>
 export type SetPushEnabledResult = __Infer<typeof SetPushEnabledProcedure.returnType>
+export type SetRosterLockedArgs = __Infer<typeof SetRosterLockedProcedure.params>
+export type SetRosterLockedResult = __Infer<typeof SetRosterLockedProcedure.returnType>
 export type SetRosterVisibilityArgs = __Infer<typeof SetRosterVisibilityProcedure.params>
 export type SetRosterVisibilityResult = __Infer<typeof SetRosterVisibilityProcedure.returnType>
 export type ShareBattleArgs = __Infer<typeof ShareBattleProcedure.params>

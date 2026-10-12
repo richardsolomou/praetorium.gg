@@ -293,6 +293,7 @@ export const Rosters = __t.object('Rosters', {
   updatedAt: __t.u64(),
   automaticName: __t.option(__t.bool()),
   baseRosterId: __t.option(__t.string()),
+  locked: __t.option(__t.bool()),
 })
 export type Rosters = __Infer<typeof Rosters>
 

@@ -21,6 +21,7 @@ const roster = {
   optionalRules: [],
   borrowedDetachmentId: null,
   baseRosterId: null,
+  locked: false,
 } satisfies SavedRoster
 
 describe('roster summary', () => {

@@ -55,7 +55,8 @@ export function RosterPage({
     <RosterEditor
       roster={roster}
       faction={access.faction}
-      editable={editable}
+      editable={editable && !roster.locked}
+      locked={editable && roster.locked}
       print={print}
       battle={battle}
       variants={access.variants}

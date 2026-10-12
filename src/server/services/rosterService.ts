@@ -6,7 +6,9 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RosterReminder } from '../../core/reminders'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
-import { detachmentIds, optionalRulesFrom, readerRosterFromRow, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
+import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
+import { detachmentIds } from '../../core/savedRoster'
+import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
 
 type SavedPrep = {
@@ -44,6 +46,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       optionalRules: optionalRulesFrom(row.optionalRules),
       borrowedDetachmentId: identities.borrowedDetachmentId,
       baseRosterId: row.baseRosterId,
+      locked: row.locked ?? false,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
@@ -104,6 +107,7 @@ export class RosterService {
       now,
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
+    if (saved === 'locked') throw new Response(LOCKED_ROSTER_MESSAGE, { status: 409 })
     const stored = await this.repository.roster(id)
     if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
     return { id, created: saved === 'inserted', updatedAt: stored.updatedAt }
@@ -168,6 +172,14 @@ export class RosterService {
     if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
       throw new Response('you do not own this roster', { status: 403 })
     }
+  }
+
+  async setRosterLocked(userId: string, id: string, locked: boolean) {
+    if (!(await this.repository.setRosterLocked(id, userId, locked, this.clock())))
+      throw new Response('you do not own this roster', { status: 403 })
+    const stored = await this.repository.roster(id)
+    if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
+    return { updatedAt: stored.updatedAt }
   }
 
   async deleteRoster(userId: string, id: string) {
