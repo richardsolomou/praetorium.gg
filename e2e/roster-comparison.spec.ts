@@ -308,6 +308,7 @@ for (const width of [1440, 390]) {
       'Convert rules version',
       'Create variant',
       'Lock roster',
+      'Lend to a friend',
       'Test targets',
       'Copy link',
       'Export text',
