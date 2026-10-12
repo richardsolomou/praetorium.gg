@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.127.0
+
+### Minor Changes
+
+- b849af7: Name units and keep private notes on them in your rosters. Nicknames appear beside the datasheet name in copies, variants, text exports, exchange codes, printed packs and battles; notes stay yours unless you share them with people who can open the roster.
+
 ## 0.126.0
 
 ### Minor Changes
