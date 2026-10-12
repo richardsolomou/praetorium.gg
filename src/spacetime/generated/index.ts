@@ -102,6 +102,7 @@ import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SetBattleAudienceProcedure from './set_battle_audience_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
+import * as SetRosterLockedProcedure from './set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure'
 import * as ShareBattleProcedure from './share_battle_procedure'
 import * as SubmitBattleProcedure from './submit_battle_procedure'
@@ -257,6 +258,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('set_battle_audience', SetBattleAudienceProcedure.params, SetBattleAudienceProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
+  __procedureSchema('set_roster_locked', SetRosterLockedProcedure.params, SetRosterLockedProcedure.returnType),
   __procedureSchema('set_roster_visibility', SetRosterVisibilityProcedure.params, SetRosterVisibilityProcedure.returnType),
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),
   __procedureSchema('submit_battle', SubmitBattleProcedure.params, SubmitBattleProcedure.returnType),

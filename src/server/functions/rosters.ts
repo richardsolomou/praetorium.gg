@@ -27,6 +27,7 @@ import {
   rosterIdSchema,
   rosterIdsSchema,
   rosterInBattleSchema,
+  rosterLockSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
   userSchema,
@@ -291,6 +292,17 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
       await app().service.setRosterVisibility(player.id, data.id, data.visibility)
       await app().telemetry.capture(player.id, 'roster_visibility_updated', { visibility: data.visibility })
       return null
+    }),
+  )
+
+export const setRosterLocked = createServerFn({ method: 'POST' })
+  .validator(rosterLockSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const saved = await app().service.setRosterLocked(player.id, data.id, data.locked)
+      await app().telemetry.capture(player.id, 'roster_lock_updated', { locked: data.locked })
+      return saved
     }),
   )
 

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Copy, Download, EllipsisVertical, Eye, GitBranchPlus, Link2, Lock, Pencil, Printer, Trash2 } from 'lucide-react'
+import { Copy, Download, EllipsisVertical, Eye, EyeOff, GitBranchPlus, Link2, Lock, LockOpen, Pencil, Printer, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
@@ -172,16 +172,27 @@ function RosterActionItems({
       </Item>
       {showPrivacy && roster.visibility !== 'private' ? (
         <Item disabled={actions.access.isPending} onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}>
-          <Lock /> Make private
+          <EyeOff /> Make private
         </Item>
       ) : null}
       <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
         <Download /> Export text
       </Item>
-      <Item onClick={onEdit}>
+      <Item disabled={actions.lock.isPending} onClick={() => actions.lock.mutate({ id: roster.id, locked: !roster.locked })}>
+        {roster.locked ? (
+          <>
+            <LockOpen /> Unlock roster
+          </>
+        ) : (
+          <>
+            <Lock /> Lock roster
+          </>
+        )}
+      </Item>
+      <Item disabled={roster.locked} onClick={onEdit}>
         <Pencil /> Edit setup
       </Item>
-      <Item onClick={onConvert}>
+      <Item disabled={roster.locked} onClick={onConvert}>
         <Pencil /> Convert rules version
       </Item>
       <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>

@@ -272,6 +272,10 @@ export class PraetoriumService {
     return this.rosterService.setRosterVisibility(...args)
   }
 
+  setRosterLocked(...args: Parameters<RosterService['setRosterLocked']>) {
+    return this.rosterService.setRosterLocked(...args)
+  }
+
   deleteRoster(...args: Parameters<RosterService['deleteRoster']>) {
     return this.rosterService.deleteRoster(...args)
   }

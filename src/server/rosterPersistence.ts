@@ -2,6 +2,9 @@ import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, type FormatRuleId, type OptionalRul
 import { picksSchema, savedPrepSchema } from '../contracts/schemas'
 import type { SpacetimeOperator } from './spacetimeOperator'
 import { currentRosterIds } from '../core/retiredCatalogueIds'
+import { detachmentIds } from '../core/savedRoster'
+
+export { detachmentIds }
 
 export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOperator['roster']>>>, includePrep = false) {
   const prep = includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null
@@ -27,6 +30,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     optionalRules: optionalRulesFrom(row.optionalRules),
     borrowedDetachmentId: row.borrowedDetachmentId,
     baseRosterId: row.baseRosterId,
+    locked: row.locked ?? false,
     visibility: row.visibility,
     source: row.source,
   })
@@ -42,11 +46,4 @@ export function waivedRulesFrom(value: string | null): FormatRuleId[] {
   if (!value) return []
   const parsed: unknown = JSON.parse(value)
   return Array.isArray(parsed) ? parsed.filter((id): id is FormatRuleId => FORMAT_RULE_IDS.some((known) => known === id)) : []
-}
-
-export function detachmentIds(value: string | null): string[] {
-  if (!value) return []
-  if (!value.startsWith('[')) return [value]
-  const parsed: unknown = JSON.parse(value)
-  return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
 }

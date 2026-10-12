@@ -143,6 +143,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           }}
         />
         {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
+        {actions.lock.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(actions.lock.error)}
+          </p>
+        ) : null}
 
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">

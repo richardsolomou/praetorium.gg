@@ -1,7 +1,8 @@
 import { requireReviewedRoster, type ReviewedServerSave } from './offline/reviewedRoster'
 import { projectBattles } from './offline/battleFunctions'
 import { cachedRead, cachedPage } from './offline/reads'
-import { hasLocalChanges, localOwner } from './offline/localRuntime'
+import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
+import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { priceSchema, datasheetSchema, combatLoadoutSchema, saveRosterSchema } from '../contracts/schemas'
 import * as server from '../server/functions'
@@ -354,7 +355,10 @@ export async function saveRoster(
       : null,
     reminders: input.prep?.reminders ?? [],
     remindersEnabled: input.prep?.remindersEnabled ?? true,
+    locked: previous?.locked ?? false,
   }
+  const refusal = lockedRosterRefusal(previous, roster)
+  if (refusal) throw new Error(refusal)
   const price = roster.automaticName ? pricedRoster(roster) : null
   if (roster.automaticName) roster.name = price?.label ?? previous?.name ?? ''
   await queueLocal(
@@ -488,6 +492,21 @@ export async function setRosterVisibility(
   if (localOwner()?.id !== owner) throw new Error('The account changed before these edits could be saved.')
   await saveRoster({ data: { ...draftFor(roster.roster), visibility: args.data.visibility } })
   return null
+}
+
+/** Locking is accepted by the server, after this device has sent the roster's saved changes. */
+export async function setRosterLocked(args: Parameters<typeof server.setRosterLocked>[0]): ReturnType<typeof server.setRosterLocked> {
+  const owner = localOwner()?.id
+  const resource = `roster:${args.data.id}`
+  if (localEngine()) {
+    if (!navigator.onLine) throw new Error('Connect to the internet to lock or unlock this roster.')
+    if (await hasLocalChanges(resource)) await syncLocalWork()
+    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
+  }
+  const saved = await server.setRosterLocked(args)
+  const local = await localDocument<LocalRoster | null>(resource)
+  if (local) await rememberDocument(resource, { ...local, locked: args.data.locked, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
+  return saved
 }
 
 export async function savedRosterPrice(args: Parameters<typeof server.savedRosterPrice>[0]): ReturnType<typeof server.savedRosterPrice> {
