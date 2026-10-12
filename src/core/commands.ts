@@ -69,6 +69,19 @@ const missionSelection = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('guards'), guards: z.array(z.object({ objective: missionObjective, unit: missionUnit })).max(20) }),
   z.object({ kind: z.literal('tempting-target'), objective: missionObjective, notHome: z.boolean(), noMansLand: z.boolean() }),
   z.object({ kind: z.literal('beacon'), unit: missionUnit.nullable(), note: z.string().max(200) }),
+  z.object({
+    kind: z.literal('locate-and-deny'),
+    areas: z.array(missionObjective).max(5),
+    outsideZone: z.boolean(),
+    allEligible: z.boolean(),
+  }),
+  z.object({ kind: z.literal('sensor-sweep'), marker: missionObjective.extend({ playerId: id }), controlled: z.boolean() }),
+  z.object({
+    kind: z.literal('consecrate'),
+    consecrations: z.array(z.object({ objective: missionObjective, unit: missionUnit })).max(20),
+    qualified: z.boolean(),
+    notHome: z.boolean(),
+  }),
 ])
 const stratagem = z.object({
   key: id,

@@ -57,7 +57,7 @@ Saved and guest roster Print actions prepare `RosterPrintPack.tsx` from current 
 
 Setup is one page in rules order under `StepRail`, a jump index highlighting the viewed section in blue and marking the next decision in amber. Dim sections while their prerequisites are missing. Keep Fixed/Tactical secondary choices, reserves controls, deployment units, and pre-battle units visible without a Change or Show action. King of the Colosseum shows only Tactical. Only settled format and twist choices may fold to one line with Change. Folding and scroll position are local to the device. The fixed bar lists what is left, shows refusals, and holds Start battle. Render battle controls by side, not seat. Allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Missions and stratagems remain visible together, stacking when the panel is narrow.
 
-Keep recorded mission choices compact beneath the mission name. Show a guard beside its objective once, and retain round, expiry, casualty and manual-tracking information.
+Keep recorded mission choices compact beneath the mission name. Show a guard or consecration beside its objective once, mark a removed operation marker with its round, and retain round, expiry, casualty and manual-tracking information.
 
 Required prompts open one at a time. Minimize preserves local answers and exposes a persistent return control; battle-changing controls remain in place but disabled until parked dialogs are resumed or closed. Undo must preserve answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 

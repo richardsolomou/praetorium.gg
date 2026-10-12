@@ -3,6 +3,7 @@ import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from
 import type { ReferenceDocument, ReferenceSection } from '../contracts/reference'
 import type { RuleDocument, RuleEntry } from '../contracts/rules'
 import { routeSlug } from '../core/slug'
+import type { MissionSelectionKind } from '../core/missionSelections'
 import { compileCanonicalDetachments } from './canonicalCatalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { DATACARDS_ATTRIBUTION } from './datacards'
@@ -255,14 +256,22 @@ function missionReferenceLines(mission: GameReferencePack['missions'][number]): 
   ]
 }
 
+const selectionTracking: Record<MissionSelectionKind, string> = {
+  punishment: 'punishment nominations with recorded table confirmations',
+  guards: 'guards nominations with recorded table confirmations',
+  'tempting-target': 'tempting-target nominations with recorded table confirmations',
+  beacon: 'manual Beacon nomination',
+  'locate-and-deny': 'start-of-battle operation markers with recorded table confirmations and manual Sensor Sweep removals',
+  'sensor-sweep': 'manual Sensor Sweep removals of opposing operation markers',
+  consecrate: 'consecrated objectives with recorded table confirmations',
+}
+
 function missionCardLines(
   card: GameReferencePack['missions'][number]['card'] | GameReferences['secondaries'][number] | null,
 ): (string | null | undefined)[] {
   return [
     card?.text,
-    card?.selection
-      ? `Battle tracking: ${card.selection === 'beacon' ? 'manual Beacon nomination' : `${card.selection} nominations with recorded table confirmations`}.`
-      : null,
+    card?.selection ? `Battle tracking: ${selectionTracking[card.selection]}.` : null,
     ...(card?.awards ?? []).flatMap((award) => [
       `Scoring: ${award.criteria ?? 'Criteria unavailable.'}`,
       `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}${award.cumulative ? ', cumulative' : ''}`,

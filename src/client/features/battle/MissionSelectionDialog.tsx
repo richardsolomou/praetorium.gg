@@ -39,7 +39,9 @@ export function MissionSelectionDialog({
   const noteId = useId()
   const undo = useUndoLatest({ undoable: view.undoable, undoableDraw: view.undoableDraw, send })
   const records = view.players.find((player) => player.id === choice.playerId)?.missionSelections ?? []
-  const latest = records.find((record) => record.cardKey === choice.cardKey && record.occurrence === choice.occurrence)
+  const latest = records.find(
+    (record) => record.cardKey === choice.cardKey && record.occurrence === choice.occurrence && record.selection.kind === choice.kind,
+  )
   const [openedAt] = useState(latest?.seq ?? 0)
   useEffect(() => {
     if (latest && latest.seq > openedAt) onClose?.()
@@ -58,6 +60,12 @@ export function MissionSelectionDialog({
     return saved ? missionUnitChoiceKey(saved) : ''
   })
   const [note, setNote] = useState(latest?.selection.kind === 'beacon' ? latest.selection.note : '')
+  const [areaName, setAreaName] = useState('')
+  const [areas, setAreas] = useState<MissionObjectiveRef[]>([])
+  const [outsideZone, setOutsideZone] = useState(false)
+  const [allEligible, setAllEligible] = useState(false)
+  const [sweptMarker, setSweptMarker] = useState('')
+  const [controlled, setControlled] = useState(false)
   const matchups = isKotcLimit(view.settings.limit)
     ? [KOTC_MATCHUP_ID]
     : terrainMatchupIds(view.players.flatMap((player) => (player.disposition ? [player.disposition] : [])))
@@ -79,6 +87,7 @@ export function MissionSelectionDialog({
               }))
             : []),
         ]
+  const consecrated = new Set(choice.consecrated?.map((candidate) => candidate.key))
   const named = manualName.trim()
   const manual = named ? { key: `manual-${named.toLocaleLowerCase()}`, name: named } : null
   const pickedObjective = objectives.find((candidate) => candidate.key === objective) ?? (!objectives.length ? manual : null)
@@ -98,16 +107,24 @@ export function MissionSelectionDialog({
     selected.every((key) => ref(key))
   )
     selection = { kind: 'punishment', units: selected.flatMap((key) => ref(key) ?? []), fallback, qualified }
-  else if (choice.kind === 'guards') {
-    const available = [...objectives, ...manualObjectives]
+  else if (choice.kind === 'guards' || choice.kind === 'consecrate') {
+    const pairs = [...objectives, ...manualObjectives].flatMap((candidate) =>
+      guards[candidate.key] && ref(guards[candidate.key]!) && !consecrated.has(candidate.key)
+        ? [{ objective: candidate, unit: ref(guards[candidate.key]!)! }]
+        : [],
+    )
     selection = Object.values(guards).some((key) => key && !ref(key))
       ? null
-      : {
-          kind: 'guards',
-          guards: available.flatMap((candidate) =>
-            guards[candidate.key] && ref(guards[candidate.key]!) ? [{ objective: candidate, unit: ref(guards[candidate.key]!)! }] : [],
-          ),
-        }
+      : choice.kind === 'guards'
+        ? { kind: 'guards', guards: pairs }
+        : pairs.length && !(qualified && notHome)
+          ? null
+          : { kind: 'consecrate', consecrations: pairs, qualified, notHome }
+  } else if (choice.kind === 'locate-and-deny' && (!areas.length || outsideZone) && (areas.length === 5 || allEligible))
+    selection = { kind: 'locate-and-deny', areas, outsideZone, allEligible: areas.length < 5 }
+  else if (choice.kind === 'sensor-sweep' && controlled) {
+    const picked = choice.markers?.find((candidate) => JSON.stringify([candidate.playerId, candidate.key]) === sweptMarker)
+    if (picked) selection = { kind: 'sensor-sweep', marker: { playerId: picked.playerId, key: picked.key, name: picked.name }, controlled }
   } else if (choice.kind === 'tempting-target' && pickedObjective && notHome && noMansLand)
     selection = { kind: 'tempting-target', objective: pickedObjective, notHome, noMansLand }
   else if (choice.kind === 'beacon' && ref(beacon)) selection = { kind: 'beacon', unit: ref(beacon), note }
@@ -116,7 +133,18 @@ export function MissionSelectionDialog({
   const chooseUnit = (value: string, onValueChange: (value: string) => void, label: string) => (
     <SearchableSelect
       ariaLabel={label}
-      groups={[{ label: 'Units', items: [...(choice.kind === 'guards' ? [{ value: '', label: 'No guard' }] : []), ...unitOptions] }]}
+      groups={[
+        {
+          label: 'Units',
+          items: [
+            ...(choice.kind === 'guards' ? [{ value: '', label: 'No guard' }] : []),
+            ...(choice.kind === 'consecrate' ? [{ value: '', label: 'Not consecrated' }] : []),
+            ...unitOptions.filter(
+              (unit) => choice.kind !== 'consecrate' || unit.value === value || !Object.values(guards).includes(unit.value),
+            ),
+          ],
+        },
+      ]}
       value={value}
       onValueChange={onValueChange}
       placeholder="Select a unit"
@@ -138,7 +166,9 @@ export function MissionSelectionDialog({
             <DialogDescription>
               {choice.kind === 'beacon'
                 ? 'Manual tracking. Check the card’s timing and eligibility at the table. This records a choice without awarding points.'
-                : 'Record the choice at the table. Scoring still needs your confirmation.'}
+                : choice.kind === 'sensor-sweep'
+                  ? 'Record a completed Sensor Sweep. This removes the chosen operation marker without awarding points.'
+                  : 'Record the choice at the table. Scoring still needs your confirmation.'}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -219,7 +249,7 @@ export function MissionSelectionDialog({
                 ) : null}
               </>
             ) : null}
-            {choice.kind === 'guards' || choice.kind === 'tempting-target' ? (
+            {choice.kind === 'guards' || choice.kind === 'tempting-target' || choice.kind === 'consecrate' ? (
               <>
                 {!objectives.length ? (
                   <label htmlFor={manualId} className="space-y-1 text-sm">
@@ -266,7 +296,11 @@ export function MissionSelectionDialog({
                   </>
                 ) : (
                   <>
-                    <p className="text-sm">Guards are optional. One unit can guard more than one objective.</p>
+                    <p className="text-sm">
+                      {choice.kind === 'guards'
+                        ? 'Guards are optional. One unit can guard more than one objective.'
+                        : 'Consecrating is optional. Each consecration unit can consecrate one objective it is within range of.'}
+                    </p>
                     {!objectives.length ? (
                       <Button
                         variant="outline"
@@ -274,7 +308,8 @@ export function MissionSelectionDialog({
                           pending ||
                           !manual ||
                           manualObjectives.length >= 20 ||
-                          manualObjectives.some((candidate) => candidate.key === manual?.key)
+                          manualObjectives.some((candidate) => candidate.key === manual?.key) ||
+                          consecrated.has(manual.key)
                         }
                         onClick={() => {
                           if (manual) {
@@ -286,18 +321,141 @@ export function MissionSelectionDialog({
                         Add table objective
                       </Button>
                     ) : null}
-                    {[...objectives, ...manualObjectives].map((candidate) => (
-                      <div key={candidate.key} className="space-y-1">
-                        <p className="eyebrow">{candidate.name}</p>
-                        {chooseUnit(
-                          guards[candidate.key] ?? '',
-                          (value) => setGuards((current) => ({ ...current, [candidate.key]: value })),
-                          `Guard for ${candidate.name}`,
-                        )}
-                      </div>
-                    ))}
+                    {[...objectives, ...manualObjectives]
+                      .filter((candidate) => !consecrated.has(candidate.key))
+                      .map((candidate) => (
+                        <div key={candidate.key} className="space-y-1">
+                          <p className="eyebrow">{candidate.name}</p>
+                          {chooseUnit(
+                            guards[candidate.key] ?? '',
+                            (value) => {
+                              setGuards((current) => ({ ...current, [candidate.key]: value }))
+                              setQualified(false)
+                              setNotHome(false)
+                            },
+                            `${choice.kind === 'guards' ? 'Guard' : 'Consecration unit'} for ${candidate.name}`,
+                          )}
+                        </div>
+                      ))}
+                    {choice.consecrated?.length ? (
+                      <p className="text-xs text-faint">
+                        Already consecrated: {choice.consecrated.map((candidate) => candidate.name).join(', ')}
+                      </p>
+                    ) : null}
+                    {choice.kind === 'consecrate' && Object.values(guards).some(Boolean) ? (
+                      <>
+                        <FactSwitch
+                          label="Each chosen unit destroyed a unit since it last consecrated and is within range of its objective"
+                          checked={qualified}
+                          disabled={pending}
+                          onChange={setQualified}
+                        />
+                        <FactSwitch
+                          label="None of these objectives is my home objective"
+                          checked={notHome}
+                          disabled={pending}
+                          onChange={setNotHome}
+                        />
+                      </>
+                    ) : null}
                   </>
                 )}
+              </>
+            ) : null}
+            {choice.kind === 'locate-and-deny' ? (
+              <>
+                <p className="text-sm">Name the five terrain areas outside your deployment zone where you placed operation markers.</p>
+                <label htmlFor={manualId} className="space-y-1 text-sm">
+                  Terrain area at the table
+                  <Input
+                    id={manualId}
+                    aria-label="Terrain area at the table"
+                    maxLength={80}
+                    value={areaName}
+                    disabled={pending || areas.length >= 5}
+                    onChange={(event) => setAreaName(event.target.value)}
+                  />
+                </label>
+                <Button
+                  variant="outline"
+                  disabled={
+                    pending ||
+                    !areaName.trim() ||
+                    areas.length >= 5 ||
+                    areas.some((candidate) => candidate.key === `manual-${areaName.trim().toLocaleLowerCase()}`)
+                  }
+                  onClick={() => {
+                    const name = areaName.trim()
+                    setAreas((current) => [...current, { key: `manual-${name.toLocaleLowerCase()}`, name }])
+                    setAreaName('')
+                    setOutsideZone(false)
+                  }}
+                >
+                  Add terrain area
+                </Button>
+                <p className="eyebrow">{areas.length} of 5 markers</p>
+                {areas.map((candidate) => (
+                  <div key={candidate.key} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 break-words">{candidate.name}</span>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={pending}
+                      aria-label={`Remove ${candidate.name}`}
+                      onClick={() => {
+                        setAreas((current) => current.filter((area) => area.key !== candidate.key))
+                        setAllEligible(false)
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                {areas.length ? (
+                  <FactSwitch
+                    label="Each terrain area is outside my deployment zone"
+                    checked={outsideZone}
+                    disabled={pending}
+                    onChange={setOutsideZone}
+                  />
+                ) : null}
+                {areas.length < 5 ? (
+                  <FactSwitch
+                    label="No other terrain area is outside my deployment zone"
+                    checked={allEligible}
+                    disabled={pending}
+                    onChange={setAllEligible}
+                  />
+                ) : null}
+              </>
+            ) : null}
+            {choice.kind === 'sensor-sweep' ? (
+              <>
+                <SearchableSelect
+                  ariaLabel="Operation marker to remove"
+                  groups={[
+                    {
+                      label: 'Operation markers',
+                      items: (choice.markers ?? []).map((candidate) => ({
+                        value: JSON.stringify([candidate.playerId, candidate.key]),
+                        label: `${view.players.find((player) => player.id === candidate.playerId)?.name ?? 'Army'} · ${candidate.name}`,
+                      })),
+                    },
+                  ]}
+                  value={sweptMarker}
+                  onValueChange={(value) => {
+                    setSweptMarker(value)
+                    setControlled(false)
+                  }}
+                  placeholder="Choose a marker"
+                  disabled={pending}
+                />
+                <FactSwitch
+                  label="The sweeping unit started within range of a central objective and controls it at the end of my turn"
+                  checked={controlled}
+                  disabled={pending}
+                  onChange={setControlled}
+                />
               </>
             ) : null}
             {choice.kind === 'beacon' ? (
