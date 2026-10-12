@@ -1,5 +1,19 @@
 import { Link } from '@tanstack/react-router'
-import { Copy, Download, EllipsisVertical, Eye, EyeOff, GitBranchPlus, Link2, Lock, LockOpen, Pencil, Printer, QrCode, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  Download,
+  EllipsisVertical,
+  Eye,
+  EyeOff,
+  GitBranchPlus,
+  Link2,
+  Lock,
+  LockOpen,
+  Pencil,
+  Printer,
+  QrCode,
+  Trash2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'

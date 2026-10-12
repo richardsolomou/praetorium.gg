@@ -156,105 +156,105 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         ) : null}
 
         <section>
-        <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
-          <span className="mr-auto">Rosters</span>
-          {changedLists ? (
-            <Link to="/data-updates" className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone">
-              {changedLists} {changedLists === 1 ? 'list' : 'lists'} changed by a data update
-            </Link>
-          ) : null}
-          {libraryPending ? (
-            <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
-          ) : libraryError ? (
-            <span className="readout">—</span>
-          ) : (
-            <span className="readout">{shown.length}</span>
-          )}
-        </div>
-        <div className="mt-2 space-y-3">
-          {libraryError ? (
-            <PageState
-              headingLevel={2}
-              eyebrow="Roster library"
-              title="Could not load rosters"
-              explanation="The roster library could not be loaded. Try again."
-              action={
-                <Button
-                  variant="outline"
-                  onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
-                  disabled={savedResult.isFetching || availableResult.isFetching}
-                >
-                  Try again
-                </Button>
-              }
-            />
-          ) : libraryPending ? (
-            <div>
-              <output className="block py-3 text-sm text-dim">Loading your rosters…</output>
-              <RosterLibrarySkeleton />
-            </div>
-          ) : shown.length ? (
-            <>
-              {groups.map(({ head, variants }) => {
-                const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
-                  <RosterRow
-                    key={roster.id}
-                    roster={roster}
-                    layout={layout}
-                    faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
-                    points={pageById.get(roster.id)?.points}
-                    label={pageById.get(roster.id)?.label}
-                    dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
-                    factionLoading={availableResult.isPending}
-                    pointsLoading={pages.pending(index)}
-                    problem={pageById.get(roster.id)?.problem ?? null}
-                    differences={pageById.get(roster.id)?.differences}
-                    showVisibility={roster.visibility !== head.roster.visibility}
-                    actions={actions}
-                    origin={origin}
-                    onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
-                    onConvert={() => setEditing({ rosterId: roster.id, draft: setupOf(roster), mode: 'convert' })}
-                    onDelete={() => setDeleting(roster)}
-                  />
-                )
-                return variants.length ? (
-                  <div key={head.roster.id} data-roster-group className="border border-edge bg-panel">
-                    {row(head, 'base')}
-                    {variants.map((variant) => row(variant, 'variant'))}
-                  </div>
-                ) : (
-                  row(head, 'card')
-                )
-              })}
-              {pageResults.some((result) => result.isError) ? (
-                <Button
-                  variant="outline"
-                  onClick={() => void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))}
-                >
-                  Retry roster points and legality
-                </Button>
-              ) : null}
-              {visible.length < shown.length ? (
-                <Button
-                  variant="outline"
-                  disabled={pageResults.some((result) => !result.isSuccess)}
-                  onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
-                >
-                  Show more rosters
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <PageState
-              headingLevel={2}
-              eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
-              title={saved.length ? 'No rosters match' : 'No rosters yet'}
-              explanation={saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
-              icon={ScrollText}
-            />
-          )}
-        </div>
-      </section>
+          <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
+            <span className="mr-auto">Rosters</span>
+            {changedLists ? (
+              <Link to="/data-updates" className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone">
+                {changedLists} {changedLists === 1 ? 'list' : 'lists'} changed by a data update
+              </Link>
+            ) : null}
+            {libraryPending ? (
+              <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
+            ) : libraryError ? (
+              <span className="readout">—</span>
+            ) : (
+              <span className="readout">{shown.length}</span>
+            )}
+          </div>
+          <div className="mt-2 space-y-3">
+            {libraryError ? (
+              <PageState
+                headingLevel={2}
+                eyebrow="Roster library"
+                title="Could not load rosters"
+                explanation="The roster library could not be loaded. Try again."
+                action={
+                  <Button
+                    variant="outline"
+                    onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
+                    disabled={savedResult.isFetching || availableResult.isFetching}
+                  >
+                    Try again
+                  </Button>
+                }
+              />
+            ) : libraryPending ? (
+              <div>
+                <output className="block py-3 text-sm text-dim">Loading your rosters…</output>
+                <RosterLibrarySkeleton />
+              </div>
+            ) : shown.length ? (
+              <>
+                {groups.map(({ head, variants }) => {
+                  const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
+                    <RosterRow
+                      key={roster.id}
+                      roster={roster}
+                      layout={layout}
+                      faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
+                      points={pageById.get(roster.id)?.points}
+                      label={pageById.get(roster.id)?.label}
+                      dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
+                      factionLoading={availableResult.isPending}
+                      pointsLoading={pages.pending(index)}
+                      problem={pageById.get(roster.id)?.problem ?? null}
+                      differences={pageById.get(roster.id)?.differences}
+                      showVisibility={roster.visibility !== head.roster.visibility}
+                      actions={actions}
+                      origin={origin}
+                      onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+                      onConvert={() => setEditing({ rosterId: roster.id, draft: setupOf(roster), mode: 'convert' })}
+                      onDelete={() => setDeleting(roster)}
+                    />
+                  )
+                  return variants.length ? (
+                    <div key={head.roster.id} data-roster-group className="border border-edge bg-panel">
+                      {row(head, 'base')}
+                      {variants.map((variant) => row(variant, 'variant'))}
+                    </div>
+                  ) : (
+                    row(head, 'card')
+                  )
+                })}
+                {pageResults.some((result) => result.isError) ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))}
+                  >
+                    Retry roster points and legality
+                  </Button>
+                ) : null}
+                {visible.length < shown.length ? (
+                  <Button
+                    variant="outline"
+                    disabled={pageResults.some((result) => !result.isSuccess)}
+                    onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
+                  >
+                    Show more rosters
+                  </Button>
+                ) : null}
+              </>
+            ) : (
+              <PageState
+                headingLevel={2}
+                eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
+                title={saved.length ? 'No rosters match' : 'No rosters yet'}
+                explanation={saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
+                icon={ScrollText}
+              />
+            )}
+          </div>
+        </section>
       </PageContent>
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
