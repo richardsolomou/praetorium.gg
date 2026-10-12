@@ -3,7 +3,7 @@ import type { SimulatorSide } from '../../../contracts/simulatorState'
 import type { RosterPick } from '../../../core/roster'
 import { rosterCombatant } from '../../../shared/rosterCombatRules'
 import { preferenceBook } from '../../../server/combatPreferences.fixtures'
-import { useCombatant } from './useCombatant'
+import { type CombatRoster, useCombatant } from './useCombatant'
 import { useLoadoutOptimizer } from './useLoadoutOptimizer'
 import { optimizeLoadout } from '../../../core/combatLoadouts'
 import { combatMatchup } from '../../../core/combatMatchup'
@@ -97,6 +97,34 @@ function render(side = initial) {
   hooks.effects = []
   const combatant = useCombatant(undefined, side)
   return { ...combatant, settle: () => hooks.effects.forEach((effect) => effect()) }
+}
+function battleRoster(pickIndex: number, units: { models: number; available?: boolean }[]): CombatRoster {
+  return {
+    catalogueId: 'cat',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2000,
+    picks: [{ entryId: 'squad' }, { entryId: 'leader' }],
+    pickIndex,
+    waivedRules: [],
+    borrowedDetachmentId: null,
+    optionalRules: [],
+    battle: {
+      units: units.map(({ models, available = true }, index) => ({
+        available,
+        key: String(index),
+        name: String(index),
+        models,
+        startingModels: 5,
+        damage: 0,
+      })),
+    },
+  }
+}
+function renderBattle(roster: CombatRoster) {
+  hooks.cursor = 0
+  hooks.effects = []
+  return useCombatant(roster)
 }
 beforeEach(() => {
   hooks.slots = []
@@ -287,4 +315,31 @@ it('does not restore a discarded choice when normalization runs after the childâ
   ready.setWeaponPreferences({})
   ready.settle()
   expect(render().weaponPreferences).toEqual({})
+})
+
+it('follows the battle to a surviving unit when the selected unit is destroyed', () => {
+  renderBattle(battleRoster(1, [{ models: 5 }, { models: 1 }]))
+  expect(renderBattle(battleRoster(0, [{ models: 5 }, { models: 0, available: false }])).pickIndex).toBe(0)
+})
+
+it('a live casualty replaces the casualty count set in the simulator', () => {
+  renderBattle(battleRoster(0, [{ models: 5 }, { models: 1 }])).setHealth({ models: 3 })
+  expect(renderBattle(battleRoster(0, [{ models: 4 }, { models: 1 }])).models).toBe(4)
+})
+
+it('keeps the casualty count set in the simulator while the battle is unchanged', () => {
+  renderBattle(battleRoster(0, [{ models: 5 }, { models: 1 }])).setHealth({ models: 3 })
+  expect(renderBattle(battleRoster(0, [{ models: 5 }, { models: 1 }])).models).toBe(3)
+})
+
+it('detaches a leader the battle reports destroyed', () => {
+  const attached = (leader: RosterPick) => ({
+    ...battleRoster(0, [{ models: 5 }, { models: leader.attachedTo === undefined ? 0 : 1 }]),
+    picks: [{ entryId: 'squad' }, leader],
+  })
+  renderBattle(attached({ entryId: 'leader', attachedTo: 0 }))
+  hooks.effects.forEach((effect) => effect())
+  renderBattle(attached({ entryId: 'leader' }))
+  hooks.effects.forEach((effect) => effect())
+  expect(renderBattle(attached({ entryId: 'leader' })).picks.positioned[1]?.attachedTo).toBeUndefined()
 })
