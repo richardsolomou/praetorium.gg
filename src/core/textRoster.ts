@@ -1,5 +1,3 @@
-import { UNIT_NICKNAME_MAX_LENGTH } from './unitNotes'
-
 export type TextRoster = {
   name: string
   faction: string
@@ -19,10 +17,6 @@ export type TextRosterUnit = {
   models?: number | null
   entry?: number
   attachedToEntry?: number
-  nickname?: string
   unread?: string[]
   warlord: boolean
 }
-
-/** A nickname as one bounded line, whether it is being written into text or read back out. */
-export const textNickname = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, UNIT_NICKNAME_MAX_LENGTH) || undefined

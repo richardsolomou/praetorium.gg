@@ -29,7 +29,6 @@ type SavedPrep = {
   secondaries: Secondary[]
   reminders?: RosterReminder[]
   remindersEnabled?: boolean
-  shareNotes?: boolean
 }
 
 /** Two drafts that would save the same row compare equal. */
@@ -57,7 +56,6 @@ export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
       secondaries: prep.secondaries,
       reminders: prep.reminders ?? [],
       remindersEnabled: prep.remindersEnabled ?? true,
-      shareNotes: prep.shareNotes ?? false,
     },
     waivedRules: roster.waivedRules,
     optionalRules: roster.optionalRules ?? [],

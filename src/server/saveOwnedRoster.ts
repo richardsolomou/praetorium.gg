@@ -24,8 +24,7 @@ export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveR
 }
 
 /**
- * A new roster holding everything an owned one does, at the owner's default visibility
- * and with its unit notes unshared.
+ * A new roster holding everything an owned one does, at the owner's default visibility.
  * A variant joins the original's group and is numbered after the group's base; a copy of
  * an automatically named roster is named automatically either way.
  */
@@ -49,7 +48,7 @@ export async function copyOwnedRoster(userId: string, id: string, variant: boole
     picks: roster.picks,
     waivedRules: roster.waivedRules,
     optionalRules: roster.optionalRules,
-    prep: roster.prep && { ...roster.prep, shareNotes: false },
+    prep: roster.prep,
     visibility: rosterVisibility,
     source: roster.source,
   }

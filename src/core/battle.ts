@@ -120,8 +120,7 @@ type BuiltRoster = {
 type SubmittedUnit = {
   key: string
   name: string
-  /** Frozen from the saved pick; the note reaches only its owner's view. */
-  nickname?: string
+  /** Frozen from the saved pick; it reaches only its owner's view. */
   note?: string
   points: number
   models: number

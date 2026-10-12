@@ -1,4 +1,4 @@
-import { textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
+import type { TextRoster, TextRosterUnit } from './textRoster'
 
 const unitHeader = /^(.*?)\s+\(\d[\d,]* Points?\)$/i
 const selection = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
@@ -55,7 +55,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     if (numeric) {
       const field = { models: 'models', 'roster entry': 'entry', 'attached to entry': 'attachedToEntry' } as const
       current[field[numeric[1]!.toLowerCase() as keyof typeof field]] = Number(numeric[2])
-    } else if (/^Nickname:/i.test(name)) current.nickname = textNickname(name.replace(/^Nickname:\s*/i, ''))
+    } else if (/^Nickname:/i.test(name)) (current.unread ??= []).push(trimmed)
     else if (/^Warlord$/i.test(name)) current.warlord = true
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
