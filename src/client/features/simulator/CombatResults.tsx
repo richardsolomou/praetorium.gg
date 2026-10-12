@@ -72,9 +72,11 @@ export function CombatResults({
                 className={`block text-lg ${muted ? 'text-dim' : 'text-bone'}`}
               />
               {uncapped ? (
-                <HoverTooltip title="Uncapped kills" body={UNCAPPED_KILLS_EXPLANATION} className="text-xs text-dim">
-                  avg. kills, uncapped
-                </HoverTooltip>
+                <div className="flex">
+                  <HoverTooltip title="Uncapped kills" body={UNCAPPED_KILLS_EXPLANATION} className="text-left text-xs text-dim">
+                    uncapped kills
+                  </HoverTooltip>
+                </div>
               ) : (
                 <p className="text-xs text-dim">avg. models lost</p>
               )}

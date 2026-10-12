@@ -9,7 +9,7 @@ type Metric = CombatMetric
 const metrics = [
   ['meanDamage', 'Wounds lost'],
   ['meanKills', 'Models lost'],
-  ['uncappedKills', 'Kills, uncapped'],
+  ['uncappedKills', 'Uncapped kills'],
   ['wipe', 'Destruction chance'],
 ] as const
 const phases = [
