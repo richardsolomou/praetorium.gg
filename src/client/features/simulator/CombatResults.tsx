@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Crosshair, Swords } from 'lucide-react'
 import type { CombatResult } from '../../../core/combat'
 import { CombatEstimate } from './CombatEstimate'
+import { CombatValue, formatCombatValue } from './CombatValue'
 
 export function CombatResults({
   ranged,
@@ -56,17 +57,19 @@ export function CombatResults({
           </div>
           <div data-result-numbers className="mt-1 flex flex-wrap items-center gap-3">
             <div className="flex-[1.3]">
-              <p data-combat-wipe className={`readout text-3xl font-semibold leading-none ${muted ? 'text-dim' : 'text-primary'}`}>
-                {combined ? `${(combined.wipe * 100).toFixed(1)}%` : '—'}
-              </p>
+              <CombatValue
+                result={combined}
+                metric="wipe"
+                className={`block text-3xl font-semibold leading-none ${muted ? 'text-dim' : 'text-primary'}`}
+              />
               <p className="mt-1 text-xs text-dim">{!selected ? 'Select two units' : !supported ? 'See Breakdown' : 'chance to destroy'}</p>
             </div>
             <div className="flex-1">
-              <p className={`readout text-lg ${muted ? 'text-dim' : 'text-bone'}`}>{combined?.meanDamage.toFixed(2) ?? '—'}</p>
+              <CombatValue result={combined} metric="meanDamage" className={`block text-lg ${muted ? 'text-dim' : 'text-bone'}`} />
               <p className="text-xs text-dim">avg. wounds lost</p>
             </div>
             <div className="flex-1">
-              <p className={`readout text-lg ${muted ? 'text-dim' : 'text-bone'}`}>{combined?.meanKills.toFixed(2) ?? '—'}</p>
+              <CombatValue result={combined} metric="meanKills" className={`block text-lg ${muted ? 'text-dim' : 'text-bone'}`} />
               <p className="text-xs text-dim">avg. models lost</p>
             </div>
           </div>
@@ -109,21 +112,27 @@ export function CombatResults({
                     <span className="font-normal text-faint">{title === 'Combined' ? 'together' : 'alone'}</span>
                   </h3>
                   <div data-result-numbers className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: 'Wounds lost', value: result?.meanDamage.toFixed(2), distribution: result?.damage },
-                      { label: 'Models lost', value: result?.meanKills.toFixed(2), distribution: result?.kills },
-                      { label: 'Unit destroyed', value: result ? `${(result.wipe * 100).toFixed(1)}%` : undefined },
-                    ].map(({ label, value, distribution }) => (
+                    {(
+                      [
+                        { label: 'Wounds lost', metric: 'meanDamage', distribution: result?.damage },
+                        { label: 'Models lost', metric: 'meanKills', distribution: result?.kills },
+                        { label: 'Unit destroyed', metric: 'wipe', distribution: undefined },
+                      ] as const
+                    ).map(({ label, metric, distribution }) => (
                       <div key={label} className="min-w-0">
-                        {distribution && value ? (
-                          <CombatEstimate label={`${title} · ${label}`} value={value} distribution={distribution} muted={muted} />
+                        {distribution && result ? (
+                          <CombatEstimate
+                            label={`${title} · ${label}`}
+                            value={formatCombatValue(result, metric)}
+                            distribution={distribution}
+                            muted={muted}
+                          />
                         ) : (
-                          <p
-                            data-combat-wipe={label === 'Unit destroyed' ? '' : undefined}
-                            className={`readout flex min-h-8 items-center text-sm ${muted ? 'text-dim' : 'text-primary'}`}
-                          >
-                            {value ?? '—'}
-                          </p>
+                          <CombatValue
+                            result={result}
+                            metric={metric}
+                            className={`flex min-h-8 items-center text-sm ${muted ? 'text-dim' : 'text-primary'}`}
+                          />
                         )}
                       </div>
                     ))}

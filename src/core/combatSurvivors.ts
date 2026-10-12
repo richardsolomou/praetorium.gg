@@ -1,9 +1,34 @@
 import type { Datasheet } from './datasheet'
 import { datasheetProfileKind } from './datasheetStructure'
 import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
+import { combatTarget } from './combatProfiles'
+import type { CombatMember } from './combatUnit'
 
-/** Casualty totals identify the weapons only when every model carries the same loadout. */
-export function combatSurvivors(carriers: readonly CombatCarrier[], models: number): CombatCarrier[] | null {
+export function combatAtHealth<T extends CombatMember>(
+  unit: T,
+  health: { models: number; startingModels: number; damage: number },
+  allocation?: readonly CombatCarrier[],
+) {
+  const original = unit.carriers ?? []
+  const survivors =
+    allocation === undefined
+      ? combatSurvivors(original, health.models, unit.sheet)
+      : validCombatSurvivors(original, allocation, health.models)
+        ? [...allocation]
+        : null
+  return {
+    ...unit,
+    models: health.models,
+    startingModels: health.startingModels,
+    damage: health.damage,
+    sheet: survivors ? combatSurvivorSheet(unit.sheet, original, survivors) : unit.sheet,
+    carriers: survivors ?? [],
+    allocationRequired: unit.allocationRequired || !survivors,
+  }
+}
+
+/** Casualty totals identify loadouts only when weapons and evaluated defences are uniform. */
+export function combatSurvivors(carriers: readonly CombatCarrier[], models: number, sheet?: Datasheet): CombatCarrier[] | null {
   const total = carriers.reduce((sum, carrier) => sum + carrier.models, 0)
   if (models === total) return [...carriers]
   if (models < 1 || models > total || !carriers.length) return null
@@ -12,12 +37,14 @@ export function combatSurvivors(carriers: readonly CombatCarrier[], models: numb
     carrier.weapons.map((weapon) => ({ ...weapon, count: weapon.count / carrier.models })).toSorted((a, b) => a.name.localeCompare(b.name)),
   )
   if (
+    (carriers.some((carrier) => JSON.stringify(carrier.modelProfileIds) !== JSON.stringify(carriers[0]!.modelProfileIds)) &&
+      (!sheet || combatTarget(sheet, total, total, carriers).target?.groups.length !== 1)) ||
     loadouts.some(
       (weapons) => weapons.some((weapon) => !Number.isInteger(weapon.count)) || JSON.stringify(weapons) !== JSON.stringify(loadouts[0]),
     )
   )
     return null
-  return [{ name: carriers[0]!.name, models, weapons: loadouts[0]!.map((weapon) => ({ ...weapon, count: weapon.count * models })) }]
+  return [{ ...carriers[0]!, models, weapons: loadouts[0]!.map((weapon) => ({ ...weapon, count: weapon.count * models })) }]
 }
 
 export function validCombatSurvivors(original: readonly CombatCarrier[], survivors: readonly CombatCarrier[], models: number) {
@@ -31,6 +58,7 @@ export function validCombatSurvivors(original: readonly CombatCarrier[], survivo
         carrier.models >= 0 &&
         carrier.models <= source.models &&
         carrier.unitWide === source.unitWide &&
+        JSON.stringify(carrier.modelProfileIds) === JSON.stringify(source.modelProfileIds) &&
         carrier.weapons.length === source.weapons.length &&
         carrier.weapons.every((weapon, at) => {
           const equipped = source.weapons[at]!

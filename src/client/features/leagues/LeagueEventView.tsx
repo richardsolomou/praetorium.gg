@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { GAME_SIZES } from '../../../core/battle'
 import { leagueRegistrationFull, leagueTableShape, readsAlliedLeagueRoster, type LeagueEntryView } from '../../../core/league'
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
@@ -36,6 +37,7 @@ import {
 } from './leagueEvent'
 import { InvitePanel, NextEventPanel, OrganizerEntrants, OrganizerRevealPanel } from './LeagueOrganizer'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
+import { LeagueCombatDialog } from './LeagueCombatDialog'
 
 type Action =
   | { label: string; icon?: ReactNode; variant?: 'default' | 'outline'; pending?: boolean; onClick: () => void }
@@ -68,6 +70,7 @@ export function LeagueEventView({
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
+  const [simulating, setSimulating] = useState<string | null>(null)
   const join = useMutation({ mutationFn: () => joinLeague({ data: { token, eventToken: league.eventToken } }), onSuccess: refresh })
   const submit = useMutation({
     mutationFn: (rosterId: string) => submitLeagueRoster({ data: { token, eventToken: league.eventToken, rosterId } }),
@@ -149,16 +152,51 @@ export function LeagueEventView({
   const sealWaivers = sealing ? rosterWaivers(sealing) : []
   const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, Boolean(league.revealedAt)), controls?: ReactNode) => (
     <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={detail}>
+      {league.revealedAt &&
+      ownEntry?.status === 'accepted' &&
+      ownEntry.submitted &&
+      entry.status === 'accepted' &&
+      entry.submitted &&
+      entry.userId !== viewerId ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-dim hover:text-primary pointer-coarse:size-11"
+                aria-label={`Simulate against ${label(entry)}`}
+                onClick={() => setSimulating(entry.userId)}
+              />
+            }
+          >
+            <Swords aria-hidden />
+          </TooltipTrigger>
+          <TooltipContent role="tooltip" side="bottom">
+            Simulate
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+      {controls}
       {readsRoster(entry) ? (
         <ViewRosterButton token={token} eventToken={league.eventToken} userId={entry.userId} label={label(entry)} />
       ) : null}
-      {controls}
     </EntrantRow>
   )
   const sides = sideGroups(league)
 
   return (
     <>
+      {simulating && league.revealedAt && ownEntry?.submitted && viewerId ? (
+        <LeagueCombatDialog
+          token={token}
+          eventToken={league.eventToken}
+          viewerId={viewerId}
+          opponentId={simulating}
+          entries={sealedEntrants.map((entry) => ({ userId: entry.userId, label: label(entry) }))}
+          onClose={() => setSimulating(null)}
+        />
+      ) : null}
       <div className="space-y-4">
         <EntryStatusCard status={status} problem={problem} token={token} />
         {isOwner && !league.revealedAt ? <OrganizerRevealPanel league={league} token={token} /> : null}
