@@ -1,4 +1,8 @@
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
+
+/** Values parsed from each file content that something still holds, keyed by that content's hash. */
+const parsedFiles = new Map<string, WeakRef<object>>()
 
 /**
  * Reads a JSON file keeping one copy of each repeated string value.
@@ -6,9 +10,18 @@ import fs from 'node:fs'
  * `JSON.parse` allocates every occurrence of a value separately, and catalogue sources repeat the same ids, scopes and
  * names hundreds of thousands of times, so those copies would dominate a loaded catalogue's heap. Pass the same
  * `strings` to every file of one load so the files share them too.
+ *
+ * Rules versions retain many byte-identical files, so a read returns the value already parsed from the same content
+ * while anything still holds it. Treat the result as read-only.
  */
 export function readSharedJson(file: string, strings = new Map<string, string>()): unknown {
-  return shareStrings(JSON.parse(fs.readFileSync(file, 'utf8')), strings)
+  const content = fs.readFileSync(file, 'utf8')
+  const key = createHash('sha256').update(content).digest('base64')
+  const kept = parsedFiles.get(key)?.deref()
+  if (kept) return kept
+  const value = shareStrings(JSON.parse(content), strings)
+  if (value && typeof value === 'object') parsedFiles.set(key, new WeakRef(value))
+  return value
 }
 
 function shared(value: string, strings: Map<string, string>) {
