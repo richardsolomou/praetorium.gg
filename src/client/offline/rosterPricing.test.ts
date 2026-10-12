@@ -64,6 +64,7 @@ const roster: LocalRoster = {
   updatedAt: 1,
   automaticName: false,
   baseRosterId: null,
+  locked: false,
   prep: null,
   waivedRules: [],
   optionalRules: [],

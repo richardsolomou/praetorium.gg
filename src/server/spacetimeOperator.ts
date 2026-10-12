@@ -27,6 +27,7 @@ const rosterRow = z.strictObject({
   optionalRules: z.string(),
   borrowedDetachmentId: z.string().nullable(),
   baseRosterId: z.string().nullable(),
+  locked: z.boolean().nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES),
   source: z.enum(ROSTER_SOURCES),
   createdAt: z.number().int(),
@@ -516,12 +517,17 @@ export class SpacetimeOperator {
         borrowedDetachmentId: input.borrowedDetachmentId ?? null,
       }),
     ])
-    const outcome = z.enum(['inserted', 'updated', 'forbidden']).parse(await response.json())
+    const outcome = z.enum(['inserted', 'updated', 'forbidden', 'locked']).parse(await response.json())
     return outcome === 'forbidden' ? null : outcome
   }
 
   async setRosterVisibility(id: string, userId: string, visibility: RosterVisibility, now: number) {
     const response = await this.call('set_roster_visibility', [id, userId, visibility, now])
+    return z.boolean().parse(await response.json())
+  }
+
+  async setRosterLocked(id: string, userId: string, locked: boolean, now: number) {
+    const response = await this.call('set_roster_locked', [id, userId, locked, now])
     return z.boolean().parse(await response.json())
   }
 

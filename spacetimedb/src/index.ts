@@ -1,6 +1,7 @@
 import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
+import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { attachedUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
@@ -978,6 +979,7 @@ export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() },
           optionalRules: row.optionalRules,
           borrowedDetachmentId: row.borrowedDetachmentId,
           baseRosterId: row.baseRosterId,
+          locked: row.locked,
           visibility: row.visibility,
           source: row.source,
           createdAt: row.createdAt,
@@ -1052,9 +1054,16 @@ export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.s
   }),
 )
 
+type StoredRoster = NonNullable<ReturnType<Context['db']['rosters']['id']['find']>>
+
+function lockedEdit(current: StoredRoster | null, input: ReturnType<typeof parseRoster>) {
+  return current ? lockedRosterRefusal({ ...storedRosterContent(current), locked: current.locked }, storedRosterContent(input)) : null
+}
+
 function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
   const current = tx.db.rosters.id.find(input.id)
   if (current?.userId !== undefined && current.userId !== input.userId) return 'forbidden'
+  if (lockedEdit(current, input)) return 'locked'
   const fields = {
     name: input.name,
     automaticName: input.automaticName,
@@ -1082,7 +1091,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
   const base = input.baseRosterId ? tx.db.rosters.id.find(input.baseRosterId) : null
   if (input.baseRosterId && base?.userId !== input.userId) return 'forbidden'
   const baseRosterId = base ? (base.baseRosterId ?? base.id) : undefined
-  tx.db.rosters.insert({ id: input.id, userId: input.userId, createdAt: BigInt(input.now), baseRosterId, ...fields })
+  tx.db.rosters.insert({ id: input.id, userId: input.userId, createdAt: BigInt(input.now), baseRosterId, locked: undefined, ...fields })
   touchProduct(tx, input.userId, 'rosters', 'onboarding')
   if (input.visibility !== 'private') touchPublic(tx, 'rosters')
   touchAdmin(tx)
@@ -1120,6 +1129,8 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
       if (receipt.fingerprint !== parsed.fingerprint) throw new SenderError('Operation ID reused for a different edit')
       return productJson({ outcome: 'applied', version: safeNumber(receipt.version), deleted: receipt.deleted })
     }
+    const refusal = parsed.deleted ? null : lockedEdit(current, input)
+    if (refusal) return productJson({ outcome: 'refused', message: refusal })
     if ((current ? safeNumber(current.updatedAt) : null) !== parsed.expectedVersion || (!current && receipt))
       return productJson({
         outcome: 'conflict',
@@ -1132,7 +1143,11 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
         if (current.visibility !== 'private') touchPublic(tx, 'rosters')
         touchAdmin(tx)
       }
-    } else if (saveRosterIn(tx, input) === 'forbidden') return productJson({ outcome: 'refused', message: 'You do not own this roster.' })
+    } else {
+      const saved = saveRosterIn(tx, input)
+      if (saved === 'forbidden') return productJson({ outcome: 'refused', message: 'You do not own this roster.' })
+      if (saved === 'locked') return productJson({ outcome: 'refused', message: LOCKED_ROSTER_MESSAGE })
+    }
     const version = parsed.deleted ? BigInt(input.now) : tx.db.rosters.id.find(input.id)!.updatedAt
     const next = {
       id: input.id,
@@ -1160,6 +1175,21 @@ export const setRosterVisibility = spacetime.procedure(
       tx.db.rosters.id.update({ ...current, visibility, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
       touchProduct(tx, userId, 'rosters')
       if (current.visibility !== 'private' || visibility !== 'private') touchPublic(tx, 'rosters')
+      return true
+    }),
+)
+
+export const setRosterLocked = spacetime.procedure(
+  { id: t.string(), userId: t.string(), locked: t.bool(), now: t.u64() },
+  t.bool(),
+  (ctx, { id, userId, locked, now }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      const current = tx.db.rosters.id.find(id)
+      if (!current || current.userId !== userId) return false
+      tx.db.rosters.id.update({ ...current, locked, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
+      touchProduct(tx, userId, 'rosters')
+      if (current.visibility !== 'private') touchPublic(tx, 'rosters')
       return true
     }),
 )

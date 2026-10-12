@@ -144,6 +144,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           }}
         />
         {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
+        {actions.lock.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(actions.lock.error)}
+          </p>
+        ) : null}
         {actions.exchange.isError ? (
           <p role="alert" className="text-sm text-destructive">
             Could not make an exchange code: {errorMessage(actions.exchange.error)}
