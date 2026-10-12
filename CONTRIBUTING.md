@@ -20,7 +20,7 @@ Before committing, format the touched files and run checks that cover the change
 
 CI runs the complete `just check` and browser suites. `just check` includes formatting, lint, documentation and database checks, a production build, type checking, and tests; run it locally for dependency, build, startup, or broad changes, or when investigating a CI failure. Do not routinely duplicate the complete CI suite locally for a small change. Once a check passes, rerun it only when a subsequent edit affects what it checks or a failure leaves its result uncertain.
 
-For rendered changes, inspect the running preview at the relevant widths and exercise the complete behavior. Repeat on the hosted preview when the change depends on hosted configuration or when local and CI evidence leave a deployment-specific question. After release, verify the deployed revision and health; repeat the feature flow when it depends on production services. Release candidates reuse passing CI only when `scripts/releaseProof.sh` proves the exact tested application tree.
+For rendered changes, inspect the running preview at the relevant widths and exercise the complete behavior. Repeat on the hosted preview when the change depends on hosted configuration or when local and CI evidence leave a deployment-specific question. After release, verify the deployed revision and health; repeat the feature flow when it depends on production services.
 
 Browser tests wait for page elements rather than `networkidle` on live battle pages. Locate unit cards with `data-unit` and roster rows with `data-roster`; scope assertions to the card or row so a menu item cannot satisfy them before the change takes effect.
 
@@ -28,6 +28,6 @@ Browser tests wait for page elements rather than `networkidle` on live battle pa
 
 Use a conventional commit title and the [pull request template](.github/pull_request_template.md). Branches receive a disposable [preview](docs/development/pr-previews.md).
 
-Released application changes need a `pnpm changeset` entry for `praetorium.gg`: `minor` for a new capability, `patch` for a fix, and one imperative sentence describing the player-visible change. Documentation, tests, refactors, and tooling-only changes need no changeset. Merging a changeset to `main` triggers the version update, changelog, tag, and GitHub Release.
+Released application changes need a `pnpm changeset` entry for `praetorium.gg`: `minor` for a new capability, `patch` for a fix, and one imperative sentence describing the player-visible change. Documentation, tests, refactors, and tooling-only changes need no changeset. Merging a changeset to `main` triggers the version update, changelog, tag, and GitHub Release in a release commit on `main`, without a release pull request; [Hosted deployment](docs/deployment.md#delivery) describes it.
 
 Report vulnerabilities through [SECURITY.md](SECURITY.md).
