@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import { createRoster, signUp, waitForRosterSave } from './account'
 import { holdCombatCalculations } from './combat'
+import { productOperator, withAuthSql } from './storage'
 
 async function add(page: Page, name: string) {
   await page.getByLabel('Add a unit').fill(name)
@@ -60,10 +61,29 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(table.getByText('Best target', { exact: true })).not.toHaveCount(0)
   await choose(page, 'Highlight matchups', 'Best attackers per target')
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toHaveValue('10')
+  await dialog.evaluate((element) => {
+    const observation = {
+      loading: false,
+      observer: new MutationObserver(() => {
+        observation.loading ||= element.textContent?.includes('Loading roster units') ?? false
+      }),
+    }
+    observation.observer.observe(element, { childList: true, subtree: true, characterData: true })
+    Object.assign(window, { benchmarkEditObservation: observation })
+  })
   await dialog.getByRole('button', { name: 'More Necron Warriors #2 benchmark models', exact: true }).click()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toHaveValue('11')
   await dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true }).fill('20')
   await dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true }).press('Enter')
+  await page.waitForTimeout(500)
+  expect(
+    await page.evaluate(() => {
+      const observation = (window as unknown as { benchmarkEditObservation: { loading: boolean; observer: MutationObserver } })
+        .benchmarkEditObservation
+      observation.observer.disconnect()
+      return observation.loading
+    }),
+  ).toBe(false)
   await expect(dialog.locator('[data-faction-mark]')).toHaveCount(10)
   await page.screenshot({ path: 'test-results/comparison-target-editor-desktop.png', animations: 'disabled' })
   await page.setViewportSize({ width: 390, height: 844 })
@@ -129,6 +149,45 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
   await expect(page.locator('[data-unit="Terminator Squad"]')).toBeVisible()
   await expect(page.locator('[data-unit="Boyz"]')).toHaveCount(0)
+})
+
+test('long matchup tables keep target headings and attacker names visible while scrolling', async ({ page }) => {
+  const account = await signUp(page, 'Pinned matchup headings')
+  const operator = await productOperator()
+  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
+  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
+    id: string
+  }
+  const id = crypto.randomUUID()
+  await operator.saveRoster({ ...source, id, userId: user.id, name: 'Long comparison', automaticName: false, now: Date.now() })
+  await page.goto(`/rosters/${id}`)
+  await page.getByRole('button', { name: 'Test targets', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
+  await dialog.getByRole('button', { name: 'Run all matchups' }).click()
+  await expect(dialog).toContainText(/matchups · Complete/, { timeout: 120_000 })
+  const grid = dialog.getByRole('region', { name: 'All unit matchups', exact: true })
+  const corner = grid.getByRole('columnheader').first()
+  const target = grid.getByRole('columnheader').nth(1)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await grid.scrollIntoViewIfNeeded()
+    await grid.evaluate((element) => {
+      element.scrollTop = 0
+      element.scrollLeft = 0
+    })
+    const before = (await corner.boundingBox())!
+    const targetBefore = (await target.boundingBox())!
+    await grid.evaluate((element) => {
+      element.scrollTop = 240
+      element.scrollLeft = 160
+    })
+    expect(await grid.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    await expect.poll(async () => Math.abs((await corner.boundingBox())!.y - before.y)).toBeLessThan(2)
+    await expect.poll(async () => Math.abs((await target.boundingBox())!.y - targetBefore.y)).toBeLessThan(2)
+    await expect.poll(async () => Math.abs((await corner.boundingBox())!.x - before.x)).toBeLessThan(2)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: test.info().outputPath(`pinned-matchup-headings-${width}.png`) })
+  }
 })
 
 test('saved rosters compare every pairing, reverse direction, and open isolated adjustments', async ({ page }) => {

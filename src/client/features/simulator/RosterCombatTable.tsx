@@ -85,9 +85,9 @@ export function RosterCombatTable({
         aria-label="All unit matchups"
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users need to scroll the matchup columns.
         tabIndex={0}
-        className="max-w-full overflow-x-auto rounded border border-edge focus-visible:outline-2 focus-visible:outline-primary"
+        className="max-h-[min(32rem,65dvh)] max-w-full overflow-auto rounded border border-edge focus-visible:outline-2 focus-visible:outline-primary"
       >
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-separate border-spacing-0 text-sm">
           <caption className="sr-only">
             {phases.find(([value]) => value === phase)![1]} · {heading}. Attackers in rows; defenders in columns.
           </caption>
@@ -95,7 +95,7 @@ export function RosterCombatTable({
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-10 w-36 min-w-32 border-b border-edge bg-sunken p-2 text-left text-xs text-dim sm:min-w-36"
+                className="sticky top-0 left-0 z-30 w-36 min-w-32 border-b border-edge bg-sunken p-2 text-left text-xs text-dim sm:min-w-36"
               >
                 Attacker / Target
               </th>
@@ -103,7 +103,7 @@ export function RosterCombatTable({
                 <th
                   scope="col"
                   key={`${unit.rosterIndex}:${unit.pickIndex}`}
-                  className="w-28 min-w-28 border-b border-l border-edge bg-sunken p-2 text-left text-xs font-semibold"
+                  className="sticky top-0 z-20 w-28 min-w-28 border-b border-l border-edge bg-sunken p-2 text-left text-xs font-semibold"
                 >
                   {unit.name}
                   <span className="block text-xs font-normal text-faint">{defendingHealth[index]}</span>

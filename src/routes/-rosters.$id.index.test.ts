@@ -5,7 +5,7 @@ import { rosterAccessQuery, rosterBootstrapQuery } from '../client/queries'
 import { Route } from './rosters.$id.index'
 
 vi.mock('../client/features/rosters/RosterPage', () => ({ RosterPage: () => null }))
-const bootstrap = (name: string, updatedAt = 0) =>
+const bootstrap = (name: string, updatedAt = 0, editable = false) =>
   ({
     roster: {
       id: 'army',
@@ -18,7 +18,7 @@ const bootstrap = (name: string, updatedAt = 0) =>
       picks: [],
       visibility: 'private',
     },
-    editable: false,
+    editable,
     variants: [],
     differences: [],
     faction: null,
@@ -87,6 +87,17 @@ it('opens an invalidated saved roster while disconnected', async () => {
   await client.invalidateQueries({ queryKey: ['roster-bootstrap'] })
   try {
     await expect(load(client)).resolves.toMatchObject({ preview: { title: 'Saved army' } })
+  } finally {
+    client.clear()
+  }
+})
+
+it('opens a saved editable roster when its league update check fails', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.setQueryData(rosterBootstrapQuery('army').queryKey, bootstrap('Saved army', 0, true))
+  vi.spyOn(functions, 'outdatedLeagueEntriesForRoster').mockRejectedValue(new TypeError('Load failed'))
+  try {
+    await expect(load(client)).resolves.toMatchObject({ editable: true, preview: { title: 'Saved army' } })
   } finally {
     client.clear()
   }
