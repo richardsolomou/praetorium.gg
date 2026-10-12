@@ -8,7 +8,7 @@ const queryFamilies = {
     'saved-roster-summaries',
     'home-rosters',
     'saved-roster-page',
-    'saved-roster-changed-count',
+    'saved-roster-changed-ids',
     'roster-changes',
     'saved-roster-loadout-datasheets',
     'saved-roster-price',

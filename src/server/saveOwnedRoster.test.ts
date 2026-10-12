@@ -123,3 +123,23 @@ it('copies nothing from a roster the player cannot read', async () => {
   library([], false)
   expect(await copySavedRoster('player', 'base', false)).toBeNull()
 })
+
+it('saves a reviewed conversion as a variant and leaves its name and access to the copy', async () => {
+  library([base])
+  const converted = {
+    ...base,
+    name: 'Ignored',
+    catalogueId: 'codex~marines',
+    picks: [{ entryId: 'captain', models: 1 }],
+    waivedRules: [],
+    optionalRules: [],
+  }
+  await copySavedRoster('player', 'base', true, converted as never)
+  expect(saved()).toMatchObject({
+    name: 'Gladius 2K · 2',
+    visibility: 'private',
+    baseRosterId: 'base',
+    catalogueId: 'codex~marines',
+    picks: converted.picks,
+  })
+})

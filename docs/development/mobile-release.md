@@ -121,7 +121,7 @@ The form must say that the app creates accounts. Provide `https://praetorium.gg/
 
 Set the target audience to 13 and over. The product has no chat, ads, purchases, gambling, matchmaking, or public player discovery. Answer the store questionnaires for the battle terminology and Warhammer 40,000 fantasy-combat references visible in the submitted screenshots. Do not choose a lower violence frequency than the review build shows.
 
-The catalogue and rules sources, licences, and attribution are recorded in `catalogue/README.md`. Keep that file and the in-product attribution available during review. The application is a list builder and live game tracker, not a rules encyclopedia or an official Games Workshop product.
+The catalogue and rules sources, licences, and attribution are recorded in `catalogue/README.md`. Keep that file and the in-product attribution available during review. The application is a list builder and live game tracker, not a source of rules written by this project or an official Games Workshop product.
 
 ## Review access
 

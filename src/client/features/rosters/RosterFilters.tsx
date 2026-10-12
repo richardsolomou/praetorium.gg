@@ -26,10 +26,14 @@ import {
 import { SearchableSelect, type SearchableGroup } from '../../components/SearchableSelect'
 import type { RosterSort } from './rosterSort'
 
+export type RosterUpdateFilter = 'older' | 'changed'
+export const ROSTER_UPDATE_FILTERS: readonly RosterUpdateFilter[] = ['older', 'changed']
+
 export type RosterFilterState = {
   limit?: number
   faction?: string
   visibility?: RosterVisibility
+  updates?: RosterUpdateFilter
   sort: RosterSort
 }
 
@@ -53,6 +57,16 @@ const SHARING_GROUPS: SearchableGroup[] = [
       { label: 'Private', value: 'private' },
       { label: 'Unlisted', value: 'unlisted' },
       { label: 'Public', value: 'public' },
+    ],
+  },
+]
+const UPDATE_GROUPS: SearchableGroup[] = [
+  {
+    label: '',
+    items: [
+      { label: 'Any rules and data', value: 'all' },
+      { label: 'Older rules', value: 'older' },
+      { label: 'Changed by update', value: 'changed' },
     ],
   },
 ]
@@ -104,7 +118,7 @@ export function RosterFilters({
   factionGroups: SearchableGroup[]
   onChange: (next: RosterFilterState) => void
 }) {
-  const active = [value.limit, value.faction, value.visibility].filter((entry) => entry !== undefined).length
+  const active = [value.limit, value.faction, value.visibility, value.updates].filter((entry) => entry !== undefined).length
   const sortLabel = SORT_GROUPS.flatMap((group) => group.items).find((item) => item.value === value.sort)?.label ?? ''
 
   return (
@@ -138,6 +152,12 @@ export function RosterFilters({
               value={value.visibility ?? 'all'}
               groups={SHARING_GROUPS}
               onChange={(chosen) => onChange({ ...value, visibility: chosen === 'all' ? undefined : (chosen as RosterVisibility) })}
+            />
+            <FilterField
+              label="Rules and data"
+              value={value.updates ?? 'all'}
+              groups={UPDATE_GROUPS}
+              onChange={(chosen) => onChange({ ...value, updates: chosen === 'all' ? undefined : (chosen as RosterUpdateFilter) })}
             />
           </DialogBody>
           <DialogFooter>

@@ -5,6 +5,7 @@ import {
   Dices,
   Gavel,
   History,
+  Sparkles,
   House,
   Layers3,
   Medal,
@@ -21,7 +22,7 @@ type MoreLink = {
   description: string
   icon: LucideIcon
   label: string
-  to: '/' | '/leagues' | '/force-dispositions' | '/rules' | '/simulator' | '/leaderboard' | '/data-updates'
+  to: '/' | '/leagues' | '/force-dispositions' | '/rules' | '/simulator' | '/leaderboard' | '/data-updates' | '/whats-new'
 }
 
 const MORE_LINKS: readonly MoreLink[] = [
@@ -32,6 +33,7 @@ const MORE_LINKS: readonly MoreLink[] = [
   { description: 'Game reference', icon: Gavel, label: 'Rules', to: '/rules' },
   { description: 'Damage and kill probabilities', icon: Dices, label: 'Simulator', to: '/simulator' },
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
+  { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' },
 ]
 
 export function NativeMorePage() {

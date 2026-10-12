@@ -49,7 +49,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
     await page
       .locator('main #more-navigation-heading + div a')
       .evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
-  ).toEqual(['/', '/leagues', '/leaderboard', '/force-dispositions', '/rules', '/simulator', '/data-updates'])
+  ).toEqual(['/', '/leagues', '/leaderboard', '/force-dispositions', '/rules', '/simulator', '/data-updates', '/whats-new'])
   await page.screenshot({ path: 'test-results/more-phone.png' })
   await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(1)

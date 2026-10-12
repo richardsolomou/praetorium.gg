@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import { z } from 'zod'
 import { anySignal } from '../abortSignals'
+import { appReleaseNotes } from '../functions'
 
 export const releaseQuery = () =>
   queryOptions({
@@ -15,3 +16,6 @@ export const releaseQuery = () =>
     staleTime: 30_000,
     retry: false,
   })
+
+/** Fixed for a build, so it is read once. */
+export const releaseNotesQuery = () => queryOptions({ queryKey: ['release-notes'], queryFn: () => appReleaseNotes(), staleTime: Infinity })

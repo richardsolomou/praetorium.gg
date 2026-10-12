@@ -85,7 +85,7 @@ export const Route = createFileRoute('/rosters/$id/')({
     seedBootstrap(bootstrap, updatedAt)
     const { editable, price } = bootstrap
     let { roster, faction } = bootstrap
-    if (editable) await context.queryClient.query({ ...outdatedLeagueEntriesQuery(params.id), staleTime: 'static' })
+    if (editable) void context.queryClient.query({ ...outdatedLeagueEntriesQuery(params.id), staleTime: 'static' }).catch(() => {})
     const accessKey = rosterAccessQuery(params.id, deps.battle).queryKey
     const currentAccess =
       context.queryClient.getQueryData<Pick<NonNullable<typeof bootstrap>, 'roster' | 'editable' | 'variants' | 'differences' | 'faction'>>(

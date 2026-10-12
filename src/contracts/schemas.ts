@@ -360,7 +360,10 @@ export const detachmentRulesSchema = z.object({
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
 export const rosterIdSchema = z.object({ id })
-export const copyRosterSchema = z.object({ id, variant: z.boolean() })
+/** `setup` saves a reviewed rules-version conversion as a variant, leaving the original as it was. */
+export const copyRosterSchema = z
+  .object({ id, variant: z.boolean(), setup: saveRosterSchema.optional() })
+  .refine((data) => !data.setup || data.variant, 'Only a variant can take a converted setup.')
 export const rosterIdsSchema = z.object({
   ids: z
     .array(id)

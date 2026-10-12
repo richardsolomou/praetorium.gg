@@ -68,6 +68,8 @@ test('online saves only show sync status when the queue remains pending', async 
         await page.getByLabel('List name').fill(name)
         await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
         if (slow) {
+          await page.waitForTimeout(5_000)
+          await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
           await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
           await page.screenshot({ path: test.info().outputPath(`pending-sync-${width}.png`) })
         } else {
@@ -247,6 +249,13 @@ test('conflicting roster edits stay saved and export before choosing the server 
   await expect(page.getByLabel('List name')).toHaveValue('Plane edit')
   await page.getByRole('button', { name: 'Details', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Saved changes', exact: true })
+  await dialog.getByRole('button', { name: 'Sync now', exact: true }).click()
+  await expect(dialog.getByRole('status')).toHaveText(
+    'Some saved changes need review. Choose how to keep or discard them below before they can sync.',
+  )
+  await page.screenshot({ path: test.info().outputPath('saved-changes-review-desktop.png') })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: test.info().outputPath('saved-changes-review-phone.png') })
   const download = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export saved changes' }).click()
   const file = await download

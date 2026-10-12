@@ -206,6 +206,7 @@ export function RosterCombatComparison({
   })
   const waitingForAccount = !sources && me.isPending
   const benchmarkIndex = !sources && (attackerId === 'benchmarks' || defenderId === 'benchmarks') ? catalogue.data : undefined
+  const waitingForBenchmarks = (attackerId === 'benchmarks' || defenderId === 'benchmarks') && storedTargets?.key !== storageKey
   const savedVersions = sources
     ? undefined
     : JSON.stringify(
@@ -213,7 +214,7 @@ export function RosterCombatComparison({
       )
   useEffect(() => {
     restore()
-  }, [liveKey, attackerId, defenderId, storageKey, waitingForAccount, benchmarkIndex, savedVersions, storedTargets, currentRoster])
+  }, [liveKey, attackerId, defenderId, storageKey, waitingForAccount, benchmarkIndex, savedVersions, waitingForBenchmarks, currentRoster])
   const total = comparison ? comparison.attackers.length * comparison.defenders.length : 0
   const selected =
     pair && comparison

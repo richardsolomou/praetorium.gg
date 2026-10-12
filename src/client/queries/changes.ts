@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import { referenceData } from '../offline/runtime'
-import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedCount } from '../functions'
+import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds } from '../functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
@@ -41,5 +41,5 @@ export const historySearch = (search: Record<string, unknown>): { before?: strin
 export const rosterChangesQuery = (id: string) =>
   queryOptions({ queryKey: ['roster-changes', id], queryFn: () => rosterChanges({ data: { id } }), staleTime: SSR_STALE_TIME })
 
-export const savedRosterChangedCountQuery = () =>
-  queryOptions({ queryKey: ['saved-roster-changed-count'], queryFn: () => savedRosterChangedCount(), staleTime: SSR_STALE_TIME })
+export const savedRosterChangedIdsQuery = () =>
+  queryOptions({ queryKey: ['saved-roster-changed-ids'], queryFn: () => savedRosterChangedIds(), staleTime: SSR_STALE_TIME })

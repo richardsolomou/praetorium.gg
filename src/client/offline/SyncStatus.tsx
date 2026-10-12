@@ -1,4 +1,4 @@
-import { exportNativeWork } from '../nativeBridge'
+import { exportNativeWork, supportsNativeLocalState } from '../nativeBridge'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,8 @@ export function SyncStatus() {
   const [discard, setDiscard] = useState<string | null>(null)
   const [discardProblem, setDiscardProblem] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncChecked, setSyncChecked] = useState(false)
   useEffect(() => {
     if (!me || me.impersonatedBy) return
     let active = true
@@ -106,7 +108,7 @@ export function SyncStatus() {
   useEffect(() => {
     setPendingOwner(null)
     if (!pendingOnline || !owner) return
-    const timer = window.setTimeout(() => setPendingOwner(owner), 1_000)
+    const timer = window.setTimeout(() => setPendingOwner(owner), 10_000)
     return () => window.clearTimeout(timer)
   }, [pendingOnline, owner])
   const exportWork = async () => {
@@ -155,6 +157,25 @@ export function SyncStatus() {
       setBusy(false)
     }
   }
+  const sync = async () => {
+    setSyncing(true)
+    setSyncChecked(false)
+    setProblem(null)
+    try {
+      await syncLocalWork()
+      setSyncChecked(true)
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'Waiting to reconnect.')
+    } finally {
+      setSyncing(false)
+    }
+  }
+  const syncFeedback =
+    syncChecked && !syncing && operations.length
+      ? conflicts.length
+        ? 'Some saved changes need review. Choose how to keep or discard them below before they can sync.'
+        : 'Changes are still waiting to sync. Check your connection and try again.'
+      : null
   if (!me || me.impersonatedBy) return null
   const label = conflicts.length
     ? 'Review saved changes'
@@ -179,11 +200,12 @@ export function SyncStatus() {
             <DialogTitle>Saved changes</DialogTitle>
             <DialogDescription>
               Edits are saved on this device before syncing. Invitations, league admissions, roster sealing and reveals take effect after
-              the server accepts them. Keep this app installed until your changes sync.
+              the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until your
+              changes sync.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            {problem ? <p className="text-sm text-dim">{problem}</p> : null}
+            {problem || syncFeedback ? <output className="block text-sm text-dim">{problem || syncFeedback}</output> : null}
             {!operations.length ? <p className="text-sm text-dim">All changes have synced.</p> : null}
             {groups.map((resource) => {
               const group = operations.filter((operation) => operation.resource === resource)
@@ -229,13 +251,8 @@ export function SyncStatus() {
                 >
                   Export saved changes
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    void syncLocalWork().catch((error) => setProblem(error instanceof Error ? error.message : 'Waiting to reconnect.'))
-                  }
-                >
-                  Sync now
+                <Button variant="outline" disabled={syncing} onClick={() => void sync()}>
+                  {syncing ? 'Syncing…' : 'Sync now'}
                 </Button>
                 <Button variant="ghost" onClick={() => setDiscard('*')}>
                   Discard all saved changes
