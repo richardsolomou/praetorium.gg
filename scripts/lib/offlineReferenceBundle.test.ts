@@ -120,6 +120,22 @@ it('restores repeated prose in reference queries before saving the offline appli
   })
 })
 
+it.each([true, false])('restores shared edition descriptions before validating construction (base: %s)', (base) => {
+  const description =
+    'These rules retain the published Space Marines codex and its original source identifiers for saved armies and offline reference.'
+  const source = { version: 1 as const, revision: 'current', files, datacards: {}, mfm: null, rules: {} }
+  const selected = { ...edition, description }
+  const construction = {
+    ...source,
+    editions: [
+      base ? { base: true as const, version: 1 as const, revision: 'current', edition: selected } : { ...source, edition: selected },
+    ],
+  }
+  const encoded = encodeReferenceBundle({ queries: [{ key: ['rule-section', 'core', 'moving'], data: selected }], search, construction })
+  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
+  expect((decodeReferenceBundle(wire) as { construction: typeof construction }).construction.editions[0]?.edition).toEqual(selected)
+})
+
 it.each([null, 1, 'invalid', { base: false }, { base: true, version: 1, revision: 'current', edition: {} }])(
   'refuses a malformed edition %j without throwing',
   (invalid) => {

@@ -2,7 +2,7 @@
 
 Community data supplies roster construction and reference records. Deterministic evaluation lives in `src/core`; source loading and contextual projection live in `src/server`. [Running locally](running-locally.md#catalogue) owns activation commands; [Game rules](game-rules.md) owns play/scoring semantics.
 
-Offline construction bundles include each rules version's playable catalogues and their complete transitive imports, including the game system. The version 3 download format shares identical runtime data with its base source and repeated prose through a text table. Saved construction data retains those references and reconstructs only the selected rules version on demand. Bound both compressed and expanded data, and retain version 1 and 2 download support. Do not duplicate unrelated armies in each version or raise the bundle size limit to accommodate them. Verify a production build with the release snapshot and exercise versioned roster editing after a cold offline reload.
+Offline construction bundles include each rules version's playable catalogues and their complete transitive imports, including the game system. The version 3 download format shares identical runtime data with its base source and repeated prose through a text table. Restore rules-version metadata before validating the downloaded bundle. Saved construction data retains those references and reconstructs only the selected rules version on demand. Bound both compressed and expanded data, and retain version 1 and 2 download support. Do not duplicate unrelated armies in each version or raise the bundle size limit to accommodate them. Verify a production build with the release snapshot and exercise versioned roster editing after a cold offline reload.
 
 ## Sources and loading
 

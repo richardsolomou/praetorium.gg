@@ -49,7 +49,22 @@ export function decodeReferenceBundle(value: unknown): unknown {
   if (version !== 2 && version !== 3) return value
   if (version === 3 && value && typeof value === 'object' && 'texts' in value) {
     const { texts, construction, ...content } = value as { texts: unknown; construction?: OfflineConstructionData }
-    value = { ...(restoreReferenceText(content, texts) as object), construction: construction ? { ...construction, texts } : undefined }
+    const restored = restoreReferenceText({ content, editions: construction?.editions?.map((source) => source.edition) }, texts) as {
+      content: object
+      editions?: CatalogueEdition[]
+    }
+    value = {
+      ...restored.content,
+      construction: construction
+        ? {
+            ...construction,
+            texts,
+            ...(construction.editions
+              ? { editions: construction.editions.map((source, index) => ({ ...source, edition: restored.editions![index]! })) }
+              : {}),
+          }
+        : undefined,
+    }
   }
   const expanded = { ...(value as OfflineReferenceBundle), version: 1 as const }
   if (!isReferenceBundle(expanded) || !expanded.construction) throw new Error('Invalid shared reference bundle')
