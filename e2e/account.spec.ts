@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { befriend, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {

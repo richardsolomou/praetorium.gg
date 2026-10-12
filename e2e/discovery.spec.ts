@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 
 const pages = [
   { path: '/rosters', title: 'Warhammer 40,000 army builder' },
@@ -167,8 +167,14 @@ test('unknown guides return a real 404', async ({ request }) => {
   expect((await request.get('/guides/not-a-guide')).status()).toBe(404)
 })
 
-for (const path of ['/rules/not-a-document', '/rules/%24documentId', '/rules/%24documentId/', '/rules/not-a-document/not-a-section']) {
-  test(`${path} returns a real rules 404`, async ({ page }, testInfo) => {
+// Titles name each path in words: two titles that differ only by punctuation share one output directory.
+for (const [path, name] of [
+  ['/rules/not-a-document', 'an unknown document'],
+  ['/rules/%24documentId', 'a route placeholder'],
+  ['/rules/%24documentId/', 'a route placeholder with a trailing slash'],
+  ['/rules/not-a-document/not-a-section', 'an unknown section'],
+] as const) {
+  test(`${name} returns a real rules 404`, async ({ page }, testInfo) => {
     const response = await page.goto(path)
     expect(response?.status()).toBe(404)
     await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()

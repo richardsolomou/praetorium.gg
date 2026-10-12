@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { nativeAuthCompletionScript, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../mobile/src/nativeAuth'
 import { signUp, uniqueName } from './account'
 import { baseURL } from './stackEnv'

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import {

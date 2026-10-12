@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { confirmRosterSetup, waitForRosterSave } from './account'
 import { shot, expectNoHorizontalOverflow, openBuilder, add, attach } from './builder.harness'
 

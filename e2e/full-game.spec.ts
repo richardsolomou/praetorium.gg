@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { advance, createRoster, setupBattle, signUp, uniqueName } from './account'
 
 test('two phones complete all five rounds in step', async ({ browser }) => {
@@ -33,6 +33,10 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
   await expect(scoreboard(bob).getByRole('heading')).toContainText(/wins|win|Drawn/)
   const outcome = await scoreboard(alice).getByRole('heading').textContent()
   await expect(scoreboard(bob).getByRole('heading')).toHaveText(outcome ?? '')
+  // A finished battle opens as its replay for the players who sat at it.
+  await expect(scoreboard(alice)).not.toContainText('Result')
+  await expect(alice.getByRole('navigation', { name: 'Battle replay timeline' })).toBeVisible()
+  await expect(alice.getByRole('button', { name: 'Battle options', includeHidden: true })).toHaveCount(0)
   await Promise.all([aliceContext.close(), bobContext.close()])
 })
 
