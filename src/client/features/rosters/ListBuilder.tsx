@@ -46,7 +46,6 @@ import type { Datasheet } from '../../../contracts/catalogue'
 import { copyRoster, exportRoster, saveRoster, setRosterLocked } from '../../functions'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
-  collectionQuery,
   factionIndexQuery,
   factionQuery,
   invalidateSavedRosters,
@@ -59,7 +58,6 @@ import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import type { RosterSetupReview } from './rosterSetupReview'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
-import { useCollectionMutation } from '../../useCollection'
 import { useSettled } from '../../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { GROUPS } from '../../unitGroups'
@@ -270,9 +268,6 @@ export function ListBuilder({
 
   const savedId = initial.id
   const queryClient = useQueryClient()
-  const { data: owned } = useQuery({ ...collectionQuery(), enabled: Boolean(me) && editable && pickerEnabled })
-  const collection = useMemo(() => new Set(owned ?? []), [owned])
-  const { mutate: mutateCollection } = useCollectionMutation()
   useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
   useEffect(() => setDismissedWaivers(readWorkspaceState<string>(workspacePath, WAIVERS_DISMISSED)), [workspacePath])
   useEffect(() => {
@@ -753,10 +748,6 @@ export function ListBuilder({
     },
     [setPreview, setSelected, setShowing],
   )
-  const setUnitOwned = useCallback(
-    (entryId: string, nextOwned: boolean) => mutateCollection({ entryId, owned: nextOwned }),
-    [mutateCollection],
-  )
   const editReminder = useCallback(
     (subject: ReminderSubject, unitName: string) => {
       if (subject.kind !== 'faction' && selected === null) return
@@ -789,7 +780,7 @@ export function ListBuilder({
   )
   const reminderCountsByUnit = useMemo(() => reminderTimingCountsByUnit(reminders), [reminders])
   const { data: attachCandidates } = useQuery({
-    ...unitsQuery(catalogueId, limit, waivedRules),
+    ...unitsQuery(catalogueId, limit, waivedRules, detachmentIds),
     enabled: building && workspaceMeasured && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
@@ -974,6 +965,7 @@ export function ListBuilder({
           <Picker
             enabled={pickerEnabled}
             catalogueId={catalogueId}
+            detachmentIds={detachmentIds}
             onAdd={add}
             onPreview={previewUnit}
             inRoster={held}
@@ -1382,13 +1374,11 @@ export function ListBuilder({
                             : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
                         }
                         selected={selected === index}
-                        owned={collection.has(unit.entryId)}
                         alertCount={editable ? reminderCountsByUnit.get(index) : undefined}
                         onSelect={selectUnit}
                         onRemove={drop}
                         onDuplicate={duplicate}
                         canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
-                        onOwned={me ? setUnitOwned : undefined}
                         onDetach={detach}
                         onAttach={attach}
                         editable={building}

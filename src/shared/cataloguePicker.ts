@@ -9,6 +9,7 @@ import { searchDatasheetEntries } from '../core/datasheetSearch'
 import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
+import { rosterDetachments } from './rosterDetachments'
 import { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
 
 export type { UnitSummary } from '../contracts/catalogue'
@@ -95,7 +96,14 @@ export function unitsIn(
     factionCards,
     battleSize,
     waivedRules = [],
-  }: { restrictions?: FactionRestrictions; factionCards?: boolean; battleSize?: number; waivedRules?: readonly string[] } = {},
+    detachmentIds = [],
+  }: {
+    restrictions?: FactionRestrictions
+    factionCards?: boolean
+    battleSize?: number
+    waivedRules?: readonly string[]
+    detachmentIds?: readonly string[]
+  } = {},
 ): UnitSummary[] {
   const wanted = query.trim().toLowerCase()
   // A faction page lists what its cards list, where it has cards at all.
@@ -107,7 +115,8 @@ export function unitsIn(
   // A waived rule changes which datasheets the book offers and how many of each, so
   // it belongs in the key: sharing one entry across waiver sets served a filtered book
   // to a roster that had turned the filter off.
-  const cacheKey = `${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}`
+  const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
+  const cacheKey = `${JSON.stringify(detachments.chosen.map((option) => option.id))}:${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}`
   const cached = unitSummaryCache.get(loaded)?.get(cacheKey)
   if (cached) return searchUnits(loaded, catalogueId, wanted, cached)
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
@@ -136,6 +145,7 @@ export function unitsIn(
     .filter((unit) => unit.alliedFaction)
     .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
   const size = battleSizeSelection(loaded.index, battleSize ?? null)
+  const roster = [...(size ? [size] : []), ...detachments.selections]
   const summaries = [...primary, ...allies].flatMap((unit) => {
     const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
     const facts = sheet ? { keywords: sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
@@ -149,7 +159,7 @@ export function unitsIn(
         group: unit.group,
         allied: Boolean(unit.alliedFaction),
         alliedFaction: unit.alliedFaction,
-        points: sheet?.points ?? priceOf(loaded, catalogueId, unit.id),
+        points: priceOf(loaded, catalogueId, unit.id, roster),
         limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), formatLimit),
       },
     ]

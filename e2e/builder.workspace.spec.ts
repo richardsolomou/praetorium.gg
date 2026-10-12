@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { savedWork } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import {
@@ -611,13 +612,17 @@ test('deleting a unit keeps the rest of the roster visible while pricing catches
 
 test('collection changes do not reorder roster and reference rows', async ({ page }) => {
   await openBuilder(page)
-  await add(page, 'Necron Warriors')
-  await add(page, 'Immortals')
+  await waitForRosterSave(page, () => add(page, 'Necron Warriors'))
+  await waitForRosterSave(page, () => add(page, 'Immortals'))
 
-  await page.locator('[data-unit="Necron Warriors"]').getByLabel('Unit actions for Necron Warriors').click()
-  const collected = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
-  await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
-  await collected
+  const rosterUrl = page.url()
+  await page.goto('/collection')
+  await page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click()
+  await page.getByPlaceholder('Search datasheets…').fill('Necron Warriors Necrons')
+  await page.getByRole('option', { name: /^Necron Warriors, Necrons/ }).click()
+  await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await page.goto(rosterUrl)
 
   await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
   await page.goto('/factions/necrons/datasheets')

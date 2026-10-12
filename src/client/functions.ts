@@ -58,7 +58,15 @@ export const priceRoster = (args: Parameters<typeof server.priceRoster>[0]) =>
 export const units = (args: Parameters<typeof server.units>[0]) =>
   constructionRead(
     ({ catalogue, rules }) =>
-      pickerUnitsFor(catalogue, rules, args.data.catalogueId, args.data.query ?? '', args.data.battleSize, args.data.waivedRules),
+      pickerUnitsFor(
+        catalogue,
+        rules,
+        args.data.catalogueId,
+        args.data.query ?? '',
+        args.data.battleSize,
+        args.data.waivedRules,
+        args.data.detachmentIds,
+      ),
     (signal) => server.units({ ...args, signal }),
     args.data.catalogueId,
     args.signal,

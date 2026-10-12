@@ -115,6 +115,7 @@ export const units = createServerFn({ method: 'GET' })
         data.query,
         data.battleSize,
         data.waivedRules,
+        data.detachmentIds,
       )
     }),
   )

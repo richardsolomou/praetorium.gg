@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from '../shared/catalogue'
+import { calculateRosterPrice } from '../shared/pricing'
 import { pickerUnitsFor } from '../shared/pickerUnits'
 import { groupOfEntry, unitsIn } from '../shared/cataloguePicker'
 import { ability, bookOf, categories, offered, points, shelfOf, withCards } from './catalogue.fixtures'
@@ -458,6 +459,12 @@ describe('the picker', () => {
     expect(filtered[0]).toBe(all[1])
   })
 
+  it('reuses the unconditional cache for unknown detachment IDs', () => {
+    const book = bookOf({ selectionEntries: [{ id: 'warriors', name: 'Necron Warriors', type: 'unit', costs: points(100) }] })
+    const baseline = unitsIn(book, 'cat', '')
+    expect(unitsIn(book, 'cat', '', { detachmentIds: ['unknown'] })[0]).toBe(baseline[0])
+  })
+
   it('lists what the faction cards list, with apostrophes folded and a plural forgiven', () => {
     const book = bookOf({
       selectionEntries: [
@@ -573,6 +580,85 @@ describe('the picker', () => {
         restrictions: { excludedNames: new Map(), excludedKeywords: new Set(['psyker']) },
       }).map((unit) => unit.name),
     ).toEqual(['Marshal'])
+  })
+
+  it('prices compulsory detachment upgrades and keeps setup caches separate', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          type: 'upgrade',
+          costs: points(10),
+          selectionEntryGroups: [
+            {
+              id: 'detachment-choices',
+              name: 'Detachment',
+              selectionEntries: [
+                { id: 'pantheon', name: 'Pantheon of Woe', type: 'upgrade' },
+                { id: 'other', name: 'Other', type: 'upgrade' },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'ctan',
+          name: "C'tan Shard",
+          type: 'model',
+          costs: points(330),
+          selectionEntries: [
+            {
+              id: 'matrix',
+              name: 'Singularity Matrix',
+              type: 'upgrade',
+              hidden: true,
+              costs: points(45),
+              constraints: [
+                { id: 'matrix-min', type: 'min', value: 0, field: 'selections', scope: 'parent' },
+                { id: 'matrix-max', type: 'max', value: 0, field: 'selections', scope: 'parent' },
+              ],
+              modifierGroups: [
+                {
+                  conditions: [
+                    { type: 'atLeast', value: 1, field: 'selections', scope: 'force', childId: 'pantheon', includeChildSelections: true },
+                  ],
+                  modifiers: [
+                    { type: 'set', field: 'hidden', value: false },
+                    { type: 'set', field: 'matrix-min', value: 1 },
+                    { type: 'set', field: 'matrix-max', value: 1 },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'warrior', name: 'Warrior', type: 'model', costs: points(100) },
+      ],
+    })
+    const prices = (detachmentIds: string[]) =>
+      Object.fromEntries(pickerUnitsFor(book, null, 'cat', '', 2000, [], detachmentIds).map((unit) => [unit.id, unit.points]))
+    const baseline = prices([])
+    const pantheon = prices(['pantheon'])
+    const roster = calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: ['pantheon'], disposition: null, limit: 2000, units: [{ entryId: 'ctan' }] },
+      book,
+      null,
+    )
+    expect({
+      baseline,
+      pantheon,
+      other: prices(['other']),
+      combined: prices(['other', 'pantheon']),
+      restored: prices([]),
+      rosterUnit: roster?.units[0]?.points,
+    }).toEqual({
+      baseline: { ctan: 330, warrior: 100 },
+      pantheon: { ctan: 375, warrior: 100 },
+      other: { ctan: 330, warrior: 100 },
+      combined: { ctan: 375, warrior: 100 },
+      restored: { ctan: 330, warrior: 100 },
+      rosterUnit: 375,
+    })
   })
 
   it('prices the smallest legal version of each datasheet', () => {
