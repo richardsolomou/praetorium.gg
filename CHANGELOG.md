@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.129.0
+
+### Minor Changes
+
+- 7d36375: Set a custom points budget for a roster while its battle size still sets detachment points, enhancement and unit limits.
+
 ## 0.128.1
 
 ### Patch Changes
