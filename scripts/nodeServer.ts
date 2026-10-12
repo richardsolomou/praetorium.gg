@@ -129,6 +129,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   if (!existsSync(authPath) && process.env.AUTH_INITIALIZE_EMPTY === 'true') {
     const migration = fileURLToPath(new URL('../drizzle-auth/0000_curly_gambit.sql', import.meta.url))
     if (process.env.PRAETORIUM_SEED_PREVIEW === 'true') {
+      const started = performance.now()
       const temporary = `${authPath}.${randomUUID()}.seed`
       try {
         await importAuthSqlite(migration, temporary)
@@ -138,6 +139,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
           timeout: 180_000,
         })
         await backupAuthSqlite(temporary, authPath)
+        console.error(`Node startup: preview seed completed in ${Math.round(performance.now() - started)}ms`)
       } finally {
         await Promise.all([temporary, `${temporary}-wal`, `${temporary}-shm`].map((file) => rm(file, { force: true })))
       }
@@ -178,6 +180,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
     )
   }
   const appOrigin = viteOrigin ?? `http://127.0.0.1:${internalPort}`
+  const started = performance.now()
   let ready = false
   for (let attempt = 0; attempt < 120; attempt++) {
     lifecycle.signal.throwIfAborted()
@@ -193,6 +196,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
     await delay(1_000, undefined, { signal: lifecycle.signal })
   }
   if (!ready) throw new Error('Node server did not become healthy')
+  console.error(`Node startup: application readiness completed in ${Math.round(performance.now() - started)}ms`)
   const proxy = httpProxy.createProxyServer({ changeOrigin: false, xfwd: true })
   proxy.on('proxyRes', (proxyResponse, request) => uncacheAssetMiss(request, proxyResponse))
   proxy.on('proxyReqWs', (upstreamRequest, request) => {

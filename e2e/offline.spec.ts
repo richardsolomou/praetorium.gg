@@ -47,7 +47,7 @@ test('saved application pages load same-origin telemetry scripts when connected'
   expect(loaded).toBe(true)
 })
 
-test('the complete reference keeps its existing UI after a cold offline launch', async ({ page, context }) => {
+test('the complete reference keeps its existing UI after a cold offline launch', { tag: '@catalogue' }, async ({ page, context }) => {
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')
   await signUp(page, player)

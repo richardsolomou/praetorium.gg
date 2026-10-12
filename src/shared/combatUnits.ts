@@ -5,8 +5,8 @@ import { factionIndexFor } from './factionReferences'
 import type { LoadedRules } from './rules'
 
 /** Units available to each faction, so one simulator search can pick without first choosing a faction. */
-export function combatUnitsFor(loaded: LoadedCatalogue, rules: LoadedRules | null) {
-  const { factions } = factionIndexFor(loaded, rules)
+export function combatUnitsFor(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueIds?: ReadonlySet<string>) {
+  const { factions } = factionIndexFor(loaded, rules, catalogueIds)
   const shelves = factions.map((book) => ({
     book,
     units: unitsIn(loaded, book.id, '', { restrictions: rules?.factionRestrictions.get(routeSlug(book.displayName)) }),

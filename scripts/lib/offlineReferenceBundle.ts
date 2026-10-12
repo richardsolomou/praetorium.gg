@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { createHash } from 'node:crypto'
-import { gzipSync } from 'node:zlib'
+import { gzipSync, gunzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
 import { readdirSync, readFileSync } from 'node:fs'
 import type { CatalogueFile } from '../../src/core/catalogue'
@@ -20,7 +20,13 @@ import { editionCatalogueId, type CatalogueEdition } from '../../src/core/catalo
 import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { routeSlug } from '../../src/core/slug'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
-import { MAX_OFFLINE_BYTES, MAX_OFFLINE_QUERIES, type OfflineReferenceBundle } from '../../src/contracts/offlineReference'
+import {
+  decodeReferenceBundle,
+  isReferenceBundle,
+  MAX_OFFLINE_BYTES,
+  MAX_OFFLINE_QUERIES,
+  type OfflineReferenceBundle,
+} from '../../src/contracts/offlineReference'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
   if (!edition) return files
@@ -71,6 +77,8 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
   if (json.length > MAX_OFFLINE_BYTES) throw new Error('Offline reference is too large')
   const compressed = gzipSync(json, { level: wire.version === 3 ? 9 : 6 })
   if (compressed.length > 10_000_000) throw new Error(`Compressed reference exceeds the web asset limit (${compressed.length} bytes)`)
+  const decoded = decodeReferenceBundle(JSON.parse(gunzipSync(compressed, { maxOutputLength: MAX_OFFLINE_BYTES }).toString()))
+  if (!isReferenceBundle(decoded)) throw new Error('Invalid offline reference bundle')
   return { revision, compressed }
 }
 

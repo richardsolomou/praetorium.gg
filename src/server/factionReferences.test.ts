@@ -264,3 +264,8 @@ it('does not guess a release for an unmatched faction when points sources have d
   ])
   expect(factionsFor(loaded, null).factions[0]?.rulesName).toBeUndefined()
 })
+
+it('projects no factions when the requested scope is empty', () => {
+  const loaded = bookOf({ name: 'Army', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+  expect(factionsFor(loaded, null, new Set()).factions).toEqual([])
+})
