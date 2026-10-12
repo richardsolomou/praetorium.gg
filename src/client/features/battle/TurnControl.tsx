@@ -66,13 +66,18 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
          */}
         <Button
           variant="default"
-          className={`h-11 min-w-0 flex-1 text-base ${tint(activeSide).fill}`}
+          className={`h-auto min-h-11 min-w-0 flex-1 text-center text-base whitespace-normal ${tint(activeSide).fill}`}
           disabled={pending || Boolean(blockReason)}
           onClick={onAdvance}
         >
           {label}
         </Button>
-        <UndoLatestButton compact className="h-11 shrink-0 px-3" disabled={view.undoable === null || pending} onClick={undo.request} />
+        <UndoLatestButton
+          compact
+          className="h-auto min-h-11 shrink-0 px-3"
+          disabled={view.undoable === null || pending}
+          onClick={undo.request}
+        />
       </div>
       {blockReason ? (
         <p className="border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>

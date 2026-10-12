@@ -120,11 +120,11 @@ export function WeaponProfile({
         </h3>
       ) : null}
       {note}
-      <div className={`${showName ? 'mt-1 ' : ''}grid grid-cols-6 gap-1`}>
+      <div className={`${showName ? 'mt-1 ' : ''}flex flex-wrap gap-1`}>
         {weapon.values
           .filter((value) => datasheetCharacteristicKindOf(value) !== 'keywords')
           .map((value) => (
-            <div key={value.name} className="min-w-0 text-center">
+            <div key={value.name} className="flex-1 text-center">
               <p className="eyebrow">{value.name}</p>
               <p className="readout text-base text-bone">
                 <ProfileValue value={value} />
