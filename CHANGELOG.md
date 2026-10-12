@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.133.5
+
+### Patch Changes
+
+- 3c2bb44: Name each server function on its traces and request metrics.
+
 ## 0.133.4
 
 ### Patch Changes
