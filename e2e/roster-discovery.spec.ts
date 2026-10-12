@@ -27,10 +27,7 @@ async function addNotedUnit(page: Page) {
   )
   const picker = page.getByRole('dialog', { name: 'Add units' })
   if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
-  await page
-    .locator(`[data-unit="${UNIT}"]`)
-    .getByRole('button', { name: UNIT, exact: true })
-    .click()
+  await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
   const fields = page.getByRole('region', { name: 'Note' })
   await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(NOTE), NOTE)
   const back = page.getByRole('button', { name: 'Back to roster' })
