@@ -1,0 +1,117 @@
+import { execFile } from 'node:child_process'
+import { createHash, randomUUID } from 'node:crypto'
+import { access, cp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { promisify } from 'node:util'
+
+const execute = promisify(execFile)
+const inputs = [
+  'src',
+  'scripts',
+  'public',
+  'catalogue',
+  'spacetimedb',
+  'package.json',
+  'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
+  'tsconfig.json',
+  'vite.config.ts',
+  'vite.seed.config.ts',
+]
+const environmentFiles = ['.env', '.env.local', '.env.production', '.env.production.local']
+
+export function browserTestBuildEnvironment(environment: NodeJS.ProcessEnv) {
+  return {
+    ...environment,
+    NODE_ENV: 'production',
+    NITRO_PRESET: 'node-server',
+    LOCAL_TEST_MODE: 'true',
+    PRAETORIUM_LOCAL_DEV: 'true',
+    VITE_POSTHOG_PROJECT_TOKEN: '',
+    VITE_POSTHOG_HOST: '',
+    POSTHOG_UPLOAD_SOURCEMAPS: 'false',
+  }
+}
+
+export async function browserTestBuildFingerprint(worktree: string, catalogue: string, environment: NodeJS.ProcessEnv) {
+  const snapshot = JSON.parse(await readFile(path.join(catalogue, '.snapshot.json'), 'utf8')) as { id?: string }
+  const manifest = await readFile(path.join(catalogue, '.snapshot-manifest.json'))
+  if (snapshot.id !== createHash('sha256').update(manifest).digest('hex'))
+    throw new Error('Browser tests require a verified catalogue snapshot manifest')
+  const { stdout } = await execute('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...inputs], {
+    cwd: worktree,
+    maxBuffer: 8_000_000,
+  })
+  const files = [...new Set([...stdout.split('\0').filter(Boolean), ...environmentFiles])]
+    .filter((file) => !/\.(?:integration\.)?test\.[^.]+$/.test(file))
+    .sort()
+  const hash = createHash('sha256').update(
+    JSON.stringify([
+      process.version,
+      process.platform,
+      process.arch,
+      snapshot.id,
+      Object.entries(browserTestBuildEnvironment(environment))
+        .filter(([key]) => key.startsWith('VITE_'))
+        .sort(([left], [right]) => left.localeCompare(right)),
+    ]),
+  )
+  for (const file of files) {
+    hash.update(file).update('\0')
+    try {
+      const content = await readFile(path.join(worktree, file))
+      hash.update(String(content.length)).update('\0').update(content)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      hash.update('missing')
+    }
+    hash.update('\0')
+  }
+  return hash.digest('hex')
+}
+
+export async function restoreBrowserTestBuild(cache: string, fingerprint: string, output: string) {
+  try {
+    const before = await stat(cache, { bigint: true })
+    if ((await readFile(path.join(cache, 'fingerprint'), 'utf8')) !== fingerprint) return false
+    await mkdir(output, { recursive: true })
+    for (const directory of ['server', 'public']) await cp(path.join(cache, directory), path.join(output, directory), { recursive: true })
+    for (const file of [
+      'server/index.mjs',
+      'server/seed-preview.mjs',
+      'public/offline-app-version.json',
+      'public/offline-reference-version.json',
+    ])
+      await access(path.join(output, file))
+    const after = await stat(cache, { bigint: true })
+    if (
+      before.ino === after.ino &&
+      before.birthtimeNs === after.birthtimeNs &&
+      (await readFile(path.join(cache, 'fingerprint'), 'utf8')) === fingerprint
+    )
+      return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  await rm(output, { recursive: true, force: true })
+  return false
+}
+
+export async function saveBrowserTestBuild(cache: string, fingerprint: string, output: string) {
+  const temporary = `${cache}-${randomUUID()}`
+  try {
+    await mkdir(temporary, { recursive: true })
+    for (const directory of ['server', 'public'])
+      await cp(path.join(output, directory), path.join(temporary, directory), { recursive: true })
+    await writeFile(path.join(temporary, 'fingerprint'), fingerprint)
+    await rm(cache, { recursive: true, force: true })
+    try {
+      await rename(temporary, cache)
+    } catch (error) {
+      // Another completed build may have published its cache while this one was copying.
+      if (!['EEXIST', 'ENOTEMPTY'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+    }
+  } finally {
+    await rm(temporary, { recursive: true, force: true })
+  }
+}
