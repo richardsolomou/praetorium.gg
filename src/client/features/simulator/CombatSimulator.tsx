@@ -71,32 +71,48 @@ export function CombatSimulatorMatchup({
     opened.current = true
     posthog.capture('combat_simulator_opened', { source, ...(reference ? { reference } : {}) })
   }, [source, reference])
-  const first = useCombatant(roster, initial?.sides[0])
-  const second = useCombatant(opponentRoster, initial?.sides[1])
+  const initialFirst = initial?.sides[0]
+  const initialSecond = initial?.sides[1]
+  const first = useCombatant(
+    roster,
+    initialFirst && {
+      ...initialFirst,
+      preferences: initialFirst.preferences ?? (!initial?.swapped ? initial?.matchup?.preferences : undefined),
+    },
+  )
+  const second = useCombatant(
+    opponentRoster,
+    initialSecond && {
+      ...initialSecond,
+      preferences: initialSecond.preferences ?? (initial?.swapped ? initial?.matchup?.preferences : undefined),
+    },
+  )
   const [reversed, setReversed] = useState(initial?.swapped ?? false)
   const [attacker, defender] = reversed ? [second, first] : [first, second]
   const matchupKey = `${reversed}:${attacker.identity}:${defender.identity}`
+  const activeMatchup = useRef(matchupKey)
+  activeMatchup.current = matchupKey
   const [displayKey, setDisplayKey] = useState(matchupKey)
   if (attacker.ready && defender.ready && displayKey !== matchupKey) setDisplayKey(matchupKey)
   const [settings, setSettings] = useState(() => ({ key: matchupKey, value: initial?.matchup }))
-  const { setWeaponPreferences } = attacker
   const reportSettings = useCallback(
     (value: MatchupSettings) => {
-      if (displayKey !== matchupKey) return
-      setWeaponPreferences(value.preferences)
+      if (displayKey !== matchupKey || activeMatchup.current !== matchupKey) return
       setSettings((current) =>
         current.key === matchupKey && JSON.stringify(current.value) === JSON.stringify(value) ? current : { key: matchupKey, value },
       )
     },
-    [matchupKey, displayKey, setWeaponPreferences],
+    [matchupKey, displayKey],
   )
-  const matchup = (settings.key === matchupKey ? settings.value : undefined) ?? {
-    adjustments: {},
+  const matchup = {
+    ...((settings.key === matchupKey ? settings.value : undefined) ?? {
+      adjustments: {},
+      excluded: { ranged: [], melee: [] },
+      allocation: [],
+    }),
     preferences: attacker.weaponPreferences,
-    excluded: { ranged: [], melee: [] },
-    allocation: [],
   }
-  const state = JSON.stringify({ v: 1, sides: [first.shared, second.shared], swapped: reversed, ...(matchup ? { matchup } : {}) })
+  const state = JSON.stringify({ v: 1, sides: [first.shared, second.shared], swapped: reversed, matchup })
   useEffect(() => {
     onChange?.(JSON.parse(state) as SimulatorState)
   }, [state, onChange])
@@ -116,6 +132,9 @@ export function CombatSimulatorMatchup({
       key={displayKey}
       initialSettings={matchup}
       onSettingsChange={reportSettings}
+      preferences={attacker.weaponPreferences}
+      invalidatedPreferences={attacker.invalidatedPreferences}
+      onPreferencesChange={attacker.setWeaponPreferences}
       attacker={attacker.snapshot}
       defender={defender.snapshot}
       pending={!attacker.ready || !defender.ready}
