@@ -13,6 +13,36 @@ const pages = [
   { path: '/guides', title: 'Warhammer 40,000 player guides' },
 ]
 
+for (const width of [390, 1440]) {
+  test(`Terms account requirements match public guest tools at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/terms')
+    const service = page.locator('main section').filter({ has: page.getByRole('heading', { name: 'The service', exact: true }) })
+    await expect(service.locator('p').first()).toContainText('You can use the builder, simulator and public reference without an account.')
+    await expect(service.locator('p').first()).toContainText('Sign in to save rosters to the service or start battles.')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`guest-terms-${width}.png`) })
+
+    await page.goto('/')
+    await page.getByRole('link', { name: 'Try the builder', exact: true }).click()
+    await expect(page).toHaveURL('/rosters')
+    await expect(page.getByRole('heading', { name: 'Build a roster', exact: true })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Faction', exact: true })).toBeVisible()
+
+    await page.goto('/simulator')
+    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toHaveAttribute('aria-busy', 'false')
+
+    await page.goto('/factions/space-marines')
+    await expect(page.getByRole('heading', { level: 1, name: 'Space Marines', exact: true })).toBeVisible()
+
+    await page.goto('/battles')
+    await expect(page.getByRole('button', { name: 'New battle', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Sign in to play', exact: true })).toHaveAttribute('href', '/sign-in?next=%2Fbattles')
+  })
+}
+
 test('public product pages deliver their own metadata and canonical URLs without JavaScript', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ javaScriptEnabled: false })
   const page = await context.newPage()

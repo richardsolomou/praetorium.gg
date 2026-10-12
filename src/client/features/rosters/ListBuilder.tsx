@@ -1054,7 +1054,7 @@ export function ListBuilder({
                   {savedId && !guest ? (
                     <>
                       <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
-                        <GitBranchPlus /> New variant
+                        <GitBranchPlus /> Create variant
                       </DropdownMenuItem>
                       <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
                         <Lock /> Lock roster
