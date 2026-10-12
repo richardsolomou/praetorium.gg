@@ -17,6 +17,8 @@ import {
   priceRoster,
   rosterAccess,
   rosterBootstrap,
+  rosterLoans,
+  rostersLentToMe,
   savedRosterLoadoutDatasheets,
   savedRosterPrice,
   savedRosterSummaries,
@@ -237,6 +239,18 @@ export const sharedRosterQuery = (id: string, battle?: string) =>
     queryFn: () => sharedRoster({ data: { id, ...(battle ? { battle } : {}) } }),
     staleTime: SSR_STALE_TIME,
   })
+/** The friends an owner has lent a roster to. */
+export const rosterLoansQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['roster-loans', id],
+    queryFn: ({ signal }) => rosterLoans({ data: { id }, signal }),
+    staleTime: SSR_STALE_TIME,
+  })
+
+/** Rosters friends have lent the signed-in player. */
+export const rostersLentToMeQuery = () =>
+  queryOptions({ queryKey: ['rosters-lent-to-me'], queryFn: ({ signal }) => rostersLentToMe({ signal }), staleTime: SSR_STALE_TIME })
+
 export const rosterAccessQuery = (id: string, battle?: string) =>
   queryOptions({
     queryKey: ['roster-access', id, battle ?? null],

@@ -30,7 +30,15 @@ import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { factionIndexQuery, gameReferencesQuery, meQuery, savedRosterChangedIdsQuery, savedRosterSummariesQuery } from '../../queries'
+import {
+  factionIndexQuery,
+  gameReferencesQuery,
+  meQuery,
+  rostersLentToMeQuery,
+  savedRosterChangedIdsQuery,
+  savedRosterSummariesQuery,
+} from '../../queries'
+import { LentRosterList } from './LentRosters'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
@@ -60,6 +68,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
+  const lent = useQuery({ ...rostersLentToMeQuery(), enabled: Boolean(me) }).data ?? []
   const { data: references } = useQuery({ ...gameReferencesQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
   const available = availableResult.data
@@ -296,6 +305,17 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             )}
           </div>
         </section>
+        {lent.length ? (
+          <section>
+            <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
+              <span className="mr-auto">Lent to you</span>
+              <span className="readout">{lent.length}</span>
+            </div>
+            <div className="mt-2">
+              <LentRosterList rosters={lent} />
+            </div>
+          </section>
+        ) : null}
       </PageContent>
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>

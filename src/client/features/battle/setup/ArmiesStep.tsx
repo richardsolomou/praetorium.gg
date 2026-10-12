@@ -17,10 +17,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PAINTED_ARMY_POINTS, pointsBudgetOf, type Command } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
-import { savedRosterSummariesQuery } from '../../../queries'
+import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../../queries'
 import type { Army, Side } from '../../../sides'
 import { ArmyIdentity } from '../ArmyIdentity'
 import { RosterChoices } from '../../rosters/RosterChoices'
+import { LentRosterList, type LentRoster } from '../../rosters/LentRosters'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
 import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
@@ -53,6 +54,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
   const [confirming, setConfirming] = useState<SavedRoster | null>(null)
   const rosterQuery = useQuery(savedRosterSummariesQuery())
   const saved = rosterQuery.data ?? []
+  const lentQuery = useQuery(rostersLentToMeQuery())
   const nameDisposition = useDispositionNames()
   const yourSide = sides.find((side) => side.isViewer)
   const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
@@ -63,6 +65,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
   // The chooser prices against the side it was opened for, which an allied pair splits.
   const chooserLimit = view.settings.sizeFromRosters ? null : choosing ? limitFor(sideOf(choosing)) : perArmy
   const eligible = chooserLimit === null ? saved : saved.filter((roster) => roster.limit === chooserLimit)
+  const lent = (lentQuery.data ?? []).filter(({ summary }) => chooserLimit === null || summary.limit === chooserLimit)
   const attach = async (savedRoster: SavedRoster) => {
     if (choosing && (await attachSavedRoster(savedRoster.id, choosing.playerId))) setChoosing(null)
   }
@@ -93,6 +96,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                     <span className="block break-words font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
                     {/* What the army is, named the same way the battle will name it. */}
                     {army.roster ? <ArmyIdentity army={army} list={false} className="mt-0.5" /> : null}
+                    {army.roster?.lentBy ? <span className="mt-0.5 block text-xs text-dim">Lent by {army.roster.lentBy.name}</span> : null}
                     <span className="mt-0.5 block text-xs text-dim">
                       {army.roster?.built
                         ? `${army.unitCount} units · ${army.points ?? 0} of ${pointsBudgetOf(army.roster.built)} points`
@@ -193,6 +197,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         onOpenChange={(open) => !open && setChoosing(null)}
         forArmy={choosing}
         rosters={eligible}
+        lent={lent}
         savedCount={saved.length}
         requiredLimit={chooserLimit}
         selectedId={choosing?.rosterId ?? null}
@@ -246,6 +251,7 @@ function RosterChooser({
   onOpenChange,
   forArmy,
   rosters,
+  lent,
   savedCount,
   requiredLimit,
   selectedId,
@@ -258,6 +264,8 @@ function RosterChooser({
   onOpenChange: (open: boolean) => void
   forArmy: Army | null
   rosters: SavedRoster[]
+  /** Rosters friends have lent this player, which they may field as their own army. */
+  lent: LentRoster[]
   savedCount: number
   requiredLimit: number | null
   /** The list already fielded by this army, matched by id: two lists can share a name. */
@@ -319,6 +327,15 @@ function RosterChooser({
               </div>
             )}
           </div>
+          {lent.length ? (
+            <>
+              <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+                <span>Lent by friends</span>
+                <span className="readout">{lent.length}</span>
+              </p>
+              <LentRosterList rosters={lent} selectedId={selectedId} disabled={pending} onChoose={onChoose} />
+            </>
+          ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </DialogBody>
       </DialogContent>

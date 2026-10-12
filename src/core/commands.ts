@@ -25,6 +25,7 @@ import { UNIT_GROUPS } from './unitGroups'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from './reminders'
 import { MISSION_SELECTION_KINDS } from './missionSelections'
 import { UNIT_NOTE_MAX_LENGTH } from './unitNotes'
+import { PROFILE_NAME_MAX_LENGTH } from './profileName'
 
 const id = z.string().min(1).max(64)
 export const detachmentIdSchema = z.string().min(1).max(128)
@@ -146,6 +147,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       name: z.string().max(ROSTER_NAME_MAX_LENGTH),
       text: z.string().max(ROSTER_MAX_LENGTH),
       id: id.optional(),
+      lentBy: z.object({ id, name: z.string().max(PROFILE_NAME_MAX_LENGTH) }).optional(),
       reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).optional(),
       remindersEnabled: z.boolean().optional(),
       built: z

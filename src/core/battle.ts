@@ -70,6 +70,8 @@ export type Roster = {
   name: string
   text: string
   /** The saved list this came from, when it came from one. */ id?: string
+  /** The friend who lent the saved list, named as they were when it was fielded. */
+  lentBy?: { id: string; name: string }
   /** Player-authored prompts frozen with the army, hidden from the other side. */
   reminders?: RosterReminder[]
   remindersEnabled?: boolean

@@ -102,3 +102,27 @@ it('opens a saved editable roster when its league update check fails', async () 
     client.clear()
   }
 })
+
+it('asks again for a roster the reader could not open before', async () => {
+  const client = new QueryClient()
+  client.setQueryData(rosterBootstrapQuery('army').queryKey, null)
+  const request = vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue(bootstrap('Lent army'))
+  try {
+    await load(client)
+    expect(request).toHaveBeenCalledOnce()
+  } finally {
+    client.clear()
+  }
+})
+
+it('keeps the lender when it seeds the roster a friend lent', async () => {
+  const client = new QueryClient()
+  const lentBy = { id: 'owner', name: 'Owner' }
+  vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue({ ...bootstrap('Lent army'), lentBy } as ReturnType<typeof bootstrap>)
+  try {
+    await load(client)
+    expect(client.getQueryData(rosterAccessQuery('army').queryKey)?.lentBy).toEqual(lentBy)
+  } finally {
+    client.clear()
+  }
+})

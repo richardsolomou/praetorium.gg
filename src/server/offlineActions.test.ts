@@ -8,7 +8,7 @@ vi.mock('./app', () => ({ app: vi.fn() }))
 it('refuses a queued preview league seal before any server write', async () => {
   const submit = vi.fn()
   vi.mocked(app).mockReturnValue({
-    service: { ownRoster: async () => ({ catalogueId: 'codex~cat' }), submitLeagueRoster: submit },
+    service: { usableRoster: async () => ({ roster: { catalogueId: 'codex~cat' }, lentBy: null }), submitLeagueRoster: submit },
     catalogueFor: async () => ({ edition: { status: 'preview' } }),
   } as never)
   const capturedRoster = saveRosterSchema.parse({

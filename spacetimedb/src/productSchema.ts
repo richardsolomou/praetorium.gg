@@ -137,6 +137,17 @@ const rosters = table(
   },
 )
 
+const rosterLoans = table(
+  { name: 'roster_loans' },
+  {
+    key: t.string().primaryKey(),
+    rosterId: t.string().index('btree'),
+    ownerId: t.string(),
+    borrowerId: t.string().index('btree'),
+    lentAt: t.u64(),
+  },
+)
+
 const leagues = table(
   { name: 'leagues' },
   {
@@ -311,6 +322,7 @@ export const productTables = {
   friendInvites,
   commands,
   rosters,
+  rosterLoans,
   leagues,
   leagueEvents,
   leagueEventEntries,

@@ -291,6 +291,26 @@ export class PraetoriumService {
     return this.rosterService.deleteRoster(...args)
   }
 
+  usableRoster(...args: Parameters<RosterService['usableRoster']>) {
+    return this.rosterService.usableRoster(...args)
+  }
+
+  lendRoster(...args: Parameters<RosterService['lendRoster']>) {
+    return this.rosterService.lendRoster(...args)
+  }
+
+  endRosterLoan(...args: Parameters<RosterService['endRosterLoan']>) {
+    return this.rosterService.endRosterLoan(...args)
+  }
+
+  rosterLoans(...args: Parameters<RosterService['rosterLoans']>) {
+    return this.rosterService.rosterLoans(...args)
+  }
+
+  rostersLentTo(...args: Parameters<RosterService['rostersLentTo']>) {
+    return this.rosterService.rostersLentTo(...args)
+  }
+
   collectionProfile(userId: string, viewerId: string | null) {
     return this.repository.collectionProfile(userId, viewerId)
   }
