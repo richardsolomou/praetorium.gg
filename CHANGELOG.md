@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.133.0
+
+### Minor Changes
+
+- 0919d17: Simulate roster loadouts against customizable benchmarks, revealed league rosters, and live battle survivors to identify effective targets, with completed results cached for reuse during the browser session.
+
 ## 0.132.5
 
 ### Patch Changes
