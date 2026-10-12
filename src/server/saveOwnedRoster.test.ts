@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { app } from './app'
-import { copyOwnedRoster } from './saveOwnedRoster'
+import { copySavedRoster } from './saveOwnedRoster'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
@@ -53,13 +53,13 @@ it('copies the selected codex and its equipment without adopting the current def
     picks: [{ entryId: 'captain', catalogueId: 'codex~allies', choices: { weapon: 'spear' } }],
   }
   library([preview])
-  await copyOwnedRoster('player', 'base', false)
+  await copySavedRoster('player', 'base', false)
   expect(saved()).toMatchObject({ catalogueId: preview.catalogueId, picks: preview.picks })
 })
 
 it('duplicates every choice of a roster at the default visibility, outside its group', async () => {
   library([base])
-  await copyOwnedRoster('player', 'base', false)
+  await copySavedRoster('player', 'base', false)
   const { prep, picks, ...setup } = base
   expect(saved()).toEqual({
     ...setup,
@@ -79,29 +79,40 @@ it.each([false, true])('keeps unit notes in a copy (variant: %s)', async (varian
     { entryId: 'intercessors', note: 'Push midfield.' },
   ]
   library([{ ...base, picks }])
-  await copyOwnedRoster('player', 'base', variant)
+  await copySavedRoster('player', 'base', variant)
   expect(saved()?.picks).toEqual(picks)
 })
 
 it('numbers a variant after its base and joins it to the base', async () => {
   library([base, summary('second', 'Gladius 2K · 2')])
-  await copyOwnedRoster('player', 'base', true)
+  await copySavedRoster('player', 'base', true)
   expect(saved()).toMatchObject({ name: 'Gladius 2K · 3', baseRosterId: 'base' })
 })
 
 it('numbers a variant of a variant after the group base rather than the variant', async () => {
   library([base, summary('second', 'Gladius 2K · 2')])
-  await copyOwnedRoster('player', 'second', true)
+  await copySavedRoster('player', 'second', true)
   expect(saved()?.name).toBe('Gladius 2K · 3')
 })
 
 it('names a variant of an automatically named roster automatically', async () => {
   library([{ ...base, name: 'G 2K - Captain', automaticName: true }])
-  await copyOwnedRoster('player', 'base', true)
+  await copySavedRoster('player', 'base', true)
   expect(saved()).toMatchObject({ name: '', automaticName: true })
 })
 
-it('copies nothing from a roster the player does not own', async () => {
+it('makes no variant of a roster the player does not own', async () => {
   library([base], false)
-  expect(await copyOwnedRoster('player', 'base', true)).toBeNull()
+  expect(await copySavedRoster('player', 'base', true)).toBeNull()
+})
+
+it("copies another player's readable roster into the reader's own list, outside any group", async () => {
+  library([{ ...base, baseRosterId: null }], false)
+  await copySavedRoster('player', 'base', false)
+  expect(saved()).toMatchObject({ name: 'Copy of Gladius 2K', baseRosterId: null, visibility: 'private' })
+})
+
+it('copies nothing from a roster the player cannot read', async () => {
+  library([], false)
+  expect(await copySavedRoster('player', 'base', false)).toBeNull()
 })

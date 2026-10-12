@@ -11,10 +11,15 @@ const mocks = vi.hoisted(() => ({
   defaults: vi.fn(),
   queue: vi.fn(),
   setLocked: vi.fn(),
+  access: vi.fn(),
   engines: new Map<string, ReturnType<typeof engine>>(),
 }))
 const client = new QueryClient()
-vi.mock('../../server/functions', () => ({ savedRosterSummaries: mocks.summaries, setRosterLocked: mocks.setLocked }))
+vi.mock('../../server/functions', () => ({
+  savedRosterSummaries: mocks.summaries,
+  setRosterLocked: mocks.setLocked,
+  rosterAccess: mocks.access,
+}))
 vi.mock('./actionFunctions', () => ({ playerDefaults: mocks.defaults }))
 vi.mock('./construction', () => ({ localConstruction: () => null }))
 vi.mock('./localRuntime', () => ({
@@ -25,6 +30,7 @@ vi.mock('./localRuntime', () => ({
   hasLocalChanges: async () => false,
   queueLocal: mocks.queue,
   rememberDocument: vi.fn(),
+  attemptLocalSync: vi.fn(),
 }))
 const roster = {
   ...saveRosterSchema.parse({ name: 'Army', catalogueId: 'cat', detachmentIds: [], disposition: null, limit: 1000, picks: [], prep: null }),
@@ -104,6 +110,23 @@ it('starts a copy of a locked roster unlocked', async () => {
   await holdLocked()
   await copyRoster({ data: { id: 'original', variant: true } })
   expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ baseRosterId: 'original', locked: false })
+})
+
+async function readOthersRoster() {
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.summaries.mockResolvedValue([])
+  mocks.access.mockResolvedValue({ roster: { ...roster, id: 'published', name: 'Their army' }, editable: false })
+}
+
+it("copies another player's readable roster into the reader's own list", async () => {
+  await readOthersRoster()
+  await copyRoster({ data: { id: 'published', variant: false } })
+  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ name: 'Copy of Their army', baseRosterId: null, visibility: 'private' })
+})
+
+it("refuses a variant of another player's roster", async () => {
+  await readOthersRoster()
+  await expect(copyRoster({ data: { id: 'published', variant: true } })).rejects.toThrow('You do not own this roster.')
 })
 
 it('asks for a connection before locking a roster saved on the device', async () => {

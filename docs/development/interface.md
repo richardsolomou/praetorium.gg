@@ -10,8 +10,6 @@ Keep contextual help brief. Player guides combine practical preparation, army ro
 
 ## Application navigation
 
-Public support reporting follows [Support reports](support-reports.md), including explicit publication review and private-context exclusions.
-
 `src/client/features/shell` owns the shared web and native navigation. Phones use a Home/search/account utility bar and bottom application tabs; immersive roster screens omit the utility bar. Native wide layouts use a rail, while the website uses its desktop header. Read `src/styles.css` for the breakpoints and safe-area dimensions rather than duplicating them in components.
 
 `nativeTabs.ts` preserves each section's URL, route state, and scroll position for the browser session. Tapping the current section returns to its top. Home selects no tab. More holds secondary destinations without repeating the dedicated tabs. Scroll-restoration browser tests must first confirm an interactive control and then use player input such as a wheel gesture; `window.scrollTo` does not cancel the restoration retries and can race with them.
@@ -43,9 +41,13 @@ Loadouts group equipment by model and weapon choice. Keep required/default equip
 
 Keep each weapon option's profiles visible before selection so players can compare alternatives, including equipment quantities in bundles. Keep profiles in the bundle's equipment order when selection changes. Do not repeat choice-controlled profiles in a separate equipped section. Match structured equipment names to their own profiles; a single weapon must not match a similarly named dual weapon. Keep fixed equipment outside those choices visible.
 
+Editable roster cards offer Attach to unit on a character and Attach unit on a unit others can join. Each menu groups roster units under In this roster and datasheets under Add a new unit, with their base cost; choosing one adds the unit already attached. Unavailable new units stay listed, disabled, with their reason.
+
 Use the same roster cards for libraries, choosers, editable lists, read-only lists, and frozen battle/league snapshots. A pending price is a loading state, not an empty roster. Frozen snapshots retain their recorded cards and totals without today's legality or data-update warnings. Owners' View mode may retain the picker; other readers receive no mutation controls.
 
 A locked roster shows a Locked chip in library rows and a Locked line with Unlock under the builder header. The builder reads as it does to other readers, without picker, setup, conversion or name editing, and its Roster actions offer Unlock roster, Create variant and Duplicate. Library row menus offer Lock roster or Unlock roster and disable Edit setup and Convert rules version while locked. The datasheet roster chooser omits locked rosters.
+
+Discover armies (`RosterDiscoveryPage.tsx`) draws the library's roster summary with the owner's name and a Duplicate action beneath, a Filter dialog for faction, detachment and rules version kept in the URL, and Show more paging. Its cards state legality instead of visibility. Duplicate opens the reader's new copy; signed-out readers get Sign in to duplicate. The library header and faction pages link to it. Verify the find, duplicate, edit and revocation journey and the empty state in `e2e/roster-discovery.spec.ts` at phone and desktop widths.
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).
 
@@ -58,6 +60,8 @@ Saved and guest roster Print actions prepare `RosterPrintPack.tsx` from current 
 ## Battles and leagues
 
 Setup is one page in rules order under `StepRail`, a jump index highlighting the viewed section in blue and marking the next decision in amber. Dim sections while their prerequisites are missing. Keep Fixed/Tactical secondary choices, reserves controls, deployment units, and pre-battle units visible without a Change or Show action. King of the Colosseum shows only Tactical. Only settled format and twist choices may fold to one line with Change. Folding and scroll position are local to the device. The fixed bar lists what is left, shows refusals, and holds Start battle. Render battle controls by side, not seat. Allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Missions and stratagems remain visible together, stacking when the panel is narrow.
+
+A manually tracked battle replaces each side's mission cards, stratagems and CP gain with primary, secondary and CP steps, and states its limits beside the battle facts. The Battle note field sits above the battle events in both modes.
 
 Keep recorded mission choices compact beneath the mission name. Show a guard or consecration beside its objective once, mark a removed operation marker with its round, and retain round, expiry, casualty and manual-tracking information.
 

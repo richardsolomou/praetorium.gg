@@ -38,9 +38,12 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
   })
 }
 
-/** The saved roster as somebody other than its owner reads it, without unit notes. */
+/**
+ * The saved roster as somebody other than its owner reads it: without unit notes, and with no
+ * variant base, which can be a list the reader may not open.
+ */
 export function readerRosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOperator['roster']>>>) {
-  const roster = rosterFromRow(row)
+  const roster = { ...rosterFromRow(row), baseRosterId: null }
   return { ...roster, picks: withoutUnitNotes(roster.picks) }
 }
 

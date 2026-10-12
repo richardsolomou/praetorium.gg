@@ -260,6 +260,10 @@ export class PraetoriumService {
     return this.rosterService.publicRosters(...args)
   }
 
+  discoverRosters(...args: Parameters<RosterService['discoverRosters']>) {
+    return this.rosterService.discoverRosters(...args)
+  }
+
   rosterAccess(...args: Parameters<RosterService['rosterAccess']>) {
     return this.rosterService.rosterAccess(...args)
   }
@@ -697,7 +701,8 @@ export class PraetoriumService {
   }
 
   async createBattle(userId: string, input?: string | CreateBattleInput) {
-    const settings = typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null }
+    const settings =
+      typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null, manual: false }
     const { allyIds, opponentIds, invited } = newBattleSeats(input)
     // One query for everyone named rather than one apiece, and both reads at once:
     // who exists and who may be invited are independent questions.
@@ -732,12 +737,13 @@ export class PraetoriumService {
       initialCommand: {
         kind: 'configure-battle',
         limit: settings.limit,
-        missionPackId: settings.missionPackId,
+        missionPackId: settings.manual ? null : settings.missionPackId,
         terrainLayoutId: null,
         twistId: null,
         teamBattle: invited.length >= 2,
         playerCount: (invited.length + 1) as 2 | 3 | 4,
         clockLimitMinutes: null,
+        ...(settings.manual ? { manual: true } : {}),
       },
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
     })

@@ -245,7 +245,7 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page).toHaveURL('/factions')
   await page.goBack()
-  await expect(page).toHaveURL('/support?page=support')
+  await expect(page).toHaveURL('/support')
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
 })
 
@@ -819,8 +819,10 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('button', { name: 'Create editable roster' }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
-  await expect(dialog).toContainText('You and seated players through a battle using this list')
+  await expect(dialog.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText(
+    'Public — listed on your profile and for anyone to find',
+  )
+  await expect(dialog).toContainText('Listed on your profile and for anyone to find')
   await expect(dialog.getByLabel('Tags')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/create-roster-dialog.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })

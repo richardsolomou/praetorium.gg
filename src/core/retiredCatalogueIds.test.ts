@@ -6,6 +6,8 @@ import {
   currentEntryId,
   currentRosterIds,
   picksForRulesVersion,
+  savedCatalogueIds,
+  savedDetachmentIds,
 } from './retiredCatalogueIds'
 
 const ultramarines = { retired: 'a603-5039-f08d-e841', current: '4029-9237-e8db-af55' }
@@ -134,5 +136,21 @@ describe('retired catalogue ids', () => {
       picks: [{ entryId: '3c0a-10a9-8f84-26a3', models: 5, spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }],
     }
     expect(currentRosterIds(currentRosterIds(roster))).toEqual(roster)
+  })
+
+  it('finds a saved book that reads as the current book it was replaced by', () => {
+    expect(savedCatalogueIds([ultramarines.current])).toContain(ultramarines.retired)
+  })
+
+  it('finds no other book for an ID nothing replaced', () => {
+    expect(savedCatalogueIds(['necrons'])).toEqual(['necrons'])
+  })
+
+  it('finds a saved detachment that reads as the current detachment it was replaced by', () => {
+    expect(savedDetachmentIds([gladius.current])).toContain(gladius.retired)
+  })
+
+  it('finds no other detachment for an ID nothing replaced', () => {
+    expect(savedDetachmentIds(['awakened'])).toEqual(['awakened'])
   })
 })

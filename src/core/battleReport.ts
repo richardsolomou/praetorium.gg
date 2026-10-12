@@ -118,7 +118,7 @@ function describe(
       // The twist is named by its pack's own id, which this file has no way to read
       // back into a name — `src/core` holds no game data. The log records that one is
       // in play; the battle facts name it from the pack.
-      return `${who} sets a ${command.limit}-point battle${command.twistId ? ' with a mission twist' : ''}`
+      return `${who} sets a ${command.limit}-point battle${command.twistId ? ' with a mission twist' : ''}${command.manual ? ', tracked manually' : ''}`
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'set-setup-step':
@@ -170,6 +170,7 @@ function describe(
       return command.painted ? `${who} marks ${whose} army battle ready` : `${who} removes the battle ready bonus from ${whose} army`
     case 'begin-battle': {
       const first = named.get(command.firstPlayerId) ?? 'someone'
+      if (after.settings.manual) return `The battle begins, ${first} taking the first turn`
       return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${first} taking the first turn; both sides gain 1 CP`
     }
     case 'advance': {
@@ -177,15 +178,14 @@ function describe(
         return targetId === by ? 'The last round ends' : `${who} ends the last round${forTarget}`
       }
       const next = named.get(after.activePlayerId ?? '') ?? 'the other player'
+      const grant = after.settings.manual ? '' : '; both sides gain 1 CP'
       if (after.round !== before.round) {
         return targetId === by
-          ? `Round ${after.round} begins; both sides gain 1 CP`
-          : `${who} ends the turn${forTarget}; round ${after.round} begins and both sides gain 1 CP`
+          ? `Round ${after.round} begins${grant}`
+          : `${who} ends the turn${forTarget}; round ${after.round} begins${after.settings.manual ? '' : ' and both sides gain 1 CP'}`
       }
       if (after.activePlayerId !== before.active) {
-        return targetId === by
-          ? `The turn passes to ${next}; both sides gain 1 CP`
-          : `${who} passes ${whose} turn to ${next}; both sides gain 1 CP`
+        return targetId === by ? `The turn passes to ${next}${grant}` : `${who} passes ${whose} turn to ${next}${grant}`
       }
       return `${who} ends the ${before.phase} phase${forTarget}`
     }
@@ -211,7 +211,9 @@ function describe(
       return `${who} uses ${targetId === by ? '' : `${whose} `}${stratagem?.name ?? 'New Orders'} for ${command.cp ?? stratagem?.cp ?? 1} CP, discarding ${discarded} and drawing ${drawn}`
     }
     case 'score':
-      return `${who} scores ${command.delta} ${command.category}${forTarget}`
+      return command.delta > 0
+        ? `${who} scores ${command.delta} ${command.category}${forTarget}`
+        : `${who} removes ${Math.abs(command.delta)} ${command.category}${forTarget}`
     case 'score-settlement': {
       const scores = command.scores.map((score) => {
         if (score.category === 'primary') return `${score.delta} primary VP`
@@ -312,6 +314,8 @@ function describe(
     }
     case 'reopen-battle':
       return `${who} reopens the battle`
+    case 'add-note':
+      return `${who} notes: ${command.text.trim()}`
     case 'undo':
       return null
     default: {

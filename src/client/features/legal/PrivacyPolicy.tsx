@@ -29,12 +29,6 @@ export function PrivacyPolicy() {
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
-          Public support reports contain only the title, description, report type and reference, page category, app version, optional rules
-          version and text attachment you review and agree to publish. We keep a private account-to-report reference so you can follow its
-          public GitHub status and replies. Deleting your account removes that private reference, but does not remove a published issue or
-          copies of it. Use privacy@praetorium.gg for private account, privacy and deletion requests.
-        </p>
-        <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
           cookie remembers the order you sort your rosters in on that device.
         </p>
@@ -55,8 +49,8 @@ export function PrivacyPolicy() {
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
           session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or
-          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account,
-          security, administration and support-report surfaces are not recorded. Only signed-in visitors get an identified profile.
+          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security
+          and administration screens are not recorded. Only signed-in visitors get an identified profile.
         </p>
       </LegalSection>
 
@@ -73,14 +67,14 @@ export function PrivacyPolicy() {
         <LegalLinks>
           <li>Players seated in a battle see that battle's record, including its frozen copies of the armies played.</li>
           <li>
-            Saved rosters start private unless you choose another default or access level. An unlisted roster can be read by anyone holding
-            its link; a public roster is also listed on your profile. Private access requires ownership or a seat in the named battle where
-            the roster was attached.
+            Saved rosters start public unless you choose another default or access level. An unlisted roster can be read by anyone holding
+            its link; a public roster is also listed on your profile and in Discover armies, where any player can duplicate it into their
+            own rosters. Private access requires ownership or a seat in the named battle where the roster was attached.
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
-            Your collection is private unless you turn on Show collection on profile. That publishes its datasheets and model counts;
-            turning it off hides them again.
+            Your collection's datasheets and model counts are shown on your profile by default. Turn off Show collection on profile in your
+            account settings to hide them; turning it back on shows them again.
           </li>
           <li>
             Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can

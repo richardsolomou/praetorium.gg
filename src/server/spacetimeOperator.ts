@@ -1,5 +1,4 @@
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
-import type { SupportStoreCommand } from '../core/supportReport'
 import { z } from 'zod'
 import { collectionProfileSchema } from '../contracts/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
@@ -7,6 +6,7 @@ import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Re
 import { commandSchema } from '../core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
+import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
@@ -224,10 +224,6 @@ export class SpacetimeOperator {
   async health() {
     const response = await this.call('operator_health', [])
     return z.literal(true).parse(await response.json())
-  }
-
-  async supportReportCommand(userId: string, command: SupportStoreCommand) {
-    return this.read('support_report_command', [userId, JSON.stringify(command)])
   }
 
   async deleteUserData(userId: string) {
@@ -482,6 +478,12 @@ export class SpacetimeOperator {
 
   async publicRostersByUser(userId: string, limit: number) {
     return this.readRosters(userId, true, limit)
+  }
+
+  async discoverRosters(query: RosterDiscoveryQuery) {
+    return z
+      .strictObject({ rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE), nextCursor: rosterDiscoveryCursorSchema.nullable() })
+      .parse(await this.read('discover_rosters', [JSON.stringify(query)]))
   }
 
   /** The base first, then its variants in the order they were made. */

@@ -2,7 +2,13 @@ import { expect, it } from 'vitest'
 import { type Command, reduceBattle } from '../core/battle'
 import { ALICE, BOB, PLAYERS, builtRoster, log } from '../core/battle.fixtures'
 import type { MissionAward } from '../core/scoring'
-import { hydrateAuthoritativeAwards, scoringCapError, withAuthoritativeAwards } from './battleRules'
+import {
+  hydrateAuthoritativeAwards,
+  resolvedMissionForSide,
+  scoringCapError,
+  setupReferenceError,
+  withAuthoritativeAwards,
+} from './battleRules'
 import type { LoadedRules } from './rules'
 
 const award: MissionAward = {
@@ -174,4 +180,54 @@ it('hydrates old awards without silently adding selection capability', () => {
   battle.players[1]!.primaryCard = { key: 'mission', name: 'Old mission' }
   hydrateAuthoritativeAwards(battle, selectionRules)
   expect(battle.players[1]!.primaryCard).toEqual({ key: 'mission', name: 'Verified mission', awards: [award], selection: undefined })
+})
+
+const manualBattle = (started = true) =>
+  reduceBattle(
+    PLAYERS,
+    log(
+      [
+        ALICE,
+        {
+          kind: 'configure-battle',
+          limit: 2000,
+          missionPackId: null,
+          terrainLayoutId: null,
+          twistId: null,
+          clockLimitMinutes: null,
+          manual: true,
+        },
+      ],
+      [ALICE, builtRoster('First', [])],
+      [BOB, builtRoster('Second', [])],
+      ...(started ? [[ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }] as [string, Command]] : []),
+    ),
+  )
+
+it('does not cap points in a manually tracked battle', () => {
+  const value = manualBattle()
+  value.players[0]!.primaryByRound[0] = 15
+  expect(scoringCapError(value, ALICE, { kind: 'score', category: 'primary', delta: 5 }, rules)).toBeNull()
+})
+
+it('caps the same points in a guided battle', () => {
+  const value = state()
+  value.round = 1
+  value.players[1]!.primaryByRound[0] = 15
+  expect(scoringCapError(value, BOB, { kind: 'score', category: 'primary', delta: 5 }, rules)?.code).toBe('score-cap-round')
+})
+
+it('resolves no primary mission for a manually tracked battle', () => {
+  expect(resolvedMissionForSide(manualBattle(), rules as unknown as LoadedRules, 0)).toBeNull()
+})
+
+it('starts a manually tracked battle without a battlefield or mission cards', () => {
+  const loaded = { ...rules, deployments: [], terrainLayouts: [], primaries: [], secondaries: [] } as unknown as LoadedRules
+  expect(setupReferenceError(manualBattle(false), loaded)).toBeNull()
+})
+
+it('still asks a guided battle for its battlefield', () => {
+  const loaded = { ...rules, deployments: [], terrainLayouts: [], primaries: [], secondaries: [] } as unknown as LoadedRules
+  const guided = reduceBattle(PLAYERS, log([ALICE, builtRoster('First', [])], [BOB, builtRoster('Second', [])]))
+  expect(setupReferenceError(guided, loaded)?.code).toBe('missing-deployment')
 })

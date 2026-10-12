@@ -55,6 +55,7 @@ describe('battle creation input', () => {
       opponentId: 'bob',
       missionPackId: null,
       casual: false,
+      manual: false,
     })
   })
 

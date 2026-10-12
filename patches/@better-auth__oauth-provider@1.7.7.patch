@@ -1,7 +1,7 @@
-diff --git a/dist/introspect-njKASm3q.mjs b/dist/introspect-njKASm3q.mjs
-index c8d635e57ca4cd3fe8f7cbfd5c769d61b7e96874..a2410615366a3adc004bbdc80cbb8b01138f298a 100644
---- a/dist/introspect-njKASm3q.mjs
-+++ b/dist/introspect-njKASm3q.mjs
+diff --git a/dist/introspect-CNR06Oy3.mjs b/dist/introspect-CNR06Oy3.mjs
+index e633e0e33a23a0c41537d099585ddb4138a6b5fa..c8710c77288de092e7e1d5078ab15787cfd7bacb 100644
+--- a/dist/introspect-CNR06Oy3.mjs
++++ b/dist/introspect-CNR06Oy3.mjs
 @@ -845,7 +845,7 @@ async function seedResources(ctx, opts) {
  				});
  			} catch (err) {

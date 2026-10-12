@@ -152,7 +152,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                  * where the army is chosen. Anyone at the table may set it for any seat,
                  * because one device often stands in for all of them.
                  */}
-                {army.roster ? (
+                {army.roster && !view.settings.manual ? (
                   <div className="flex items-center justify-between gap-2 border-t border-edge pt-2 text-xs">
                     <span className={army.painted ? 'text-achieved' : 'text-dim'}>
                       {army.painted ? 'Battle ready' : 'Not battle ready'}
@@ -176,13 +176,15 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
              * than beside each list — an allied pair fields one army between them, and
              * an unpainted half costs the whole side the bonus.
              */}
-            <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
-              {side.paintedPoints
-                ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
-                : side.armies.length > 1
-                  ? `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`
-                  : 'No battle ready bonus'}
-            </p>
+            {view.settings.manual ? null : (
+              <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
+                {side.paintedPoints
+                  ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
+                  : side.armies.length > 1
+                    ? `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`
+                    : 'No battle ready bonus'}
+              </p>
+            )}
           </SetupSidePanel>
         ))}
       </div>

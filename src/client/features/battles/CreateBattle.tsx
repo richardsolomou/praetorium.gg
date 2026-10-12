@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from '../../components/Dialog'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
+import { MANUAL_TRACKING_LIMITS } from '../battle/manualTracking'
 import type { SearchableGroup } from '../../components/SearchableSelect'
 
 /** How each shape seats the table, which is the whole question this dialog asks. */
@@ -67,6 +68,7 @@ export function CreateBattle() {
   const [allyId, setAllyId] = useState<string | null>(null)
   const [shape, setShape] = useState<TableShape>('1v1')
   const [soloPairRole, setSoloPairRole] = useState<SoloPairRole>('solo')
+  const [tracking, setTracking] = useState<'guided' | 'manual'>('guided')
   const [leagueMatches, setLeagueMatches] = useState<Awaited<ReturnType<typeof leagueBattleOptions>>>([])
   const seats = seatsFor(shape, soloPairRole)
   const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
@@ -74,7 +76,7 @@ export function CreateBattle() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
-    onMutate: (casual: boolean) => posthog.capture('battle_creation_submitted', { format: shape, casual }),
+    onMutate: (casual: boolean) => posthog.capture('battle_creation_submitted', { format: shape, casual, manual: tracking === 'manual' }),
     onError: () => posthog.capture('battle_creation_failed', { format: shape, reason: 'request' }),
     mutationFn: async (casual: boolean) => {
       const players = seatedPlayers(seats, seatedIn)
@@ -93,8 +95,9 @@ export function CreateBattle() {
           data: {
             ...playerData,
             limit: null,
-            missionPackId: references?.packs[0]?.id ?? null,
+            missionPackId: tracking === 'manual' ? null : (references?.packs[0]?.id ?? null),
             casual,
+            manual: tracking === 'manual',
           },
         })
       } catch (error) {
@@ -217,6 +220,22 @@ export function CreateBattle() {
                   }}
                 />
               ) : null}
+              <div>
+                <Choice
+                  label="Tracking"
+                  value={tracking}
+                  options={[
+                    { value: 'guided', name: 'Guided', detail: 'Mission cards, scoring prompts and caps' },
+                    { value: 'manual', name: 'Manual', detail: 'Keep score yourself' },
+                  ]}
+                  columns={2}
+                  onChange={(next) => {
+                    changeIntent()
+                    setTracking(next)
+                  }}
+                />
+                {tracking === 'manual' ? <p className="mt-1.5 text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
+              </div>
               {opponentQuery.isPending ? (
                 <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
               ) : opponentQuery.error ? null : (

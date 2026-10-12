@@ -1,5 +1,6 @@
 import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
+import { savedWork } from './storage'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
@@ -25,6 +26,15 @@ export async function signUp(page: Page, name: string) {
     .first()
     .waitFor({ state: 'attached' })
   return { email, password }
+}
+
+/** Chooses the visibility new rosters, copies and imports start with, and waits until it leaves the device. */
+export async function chooseRosterDefault(page: Page, name: 'Private' | 'Unlisted' | 'Public') {
+  await page.goto('/profile')
+  const choice = page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: new RegExp(`^${name}`) })
+  await choice.click()
+  await expect(choice).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
 }
 
 export function uniqueName(base: string) {

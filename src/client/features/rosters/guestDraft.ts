@@ -68,7 +68,7 @@ function draftId() {
     .replace(/=+$/, '')
 }
 
-/** A new list from a visitor's setup. It is private, as every list starts. */
+/** A new list from a visitor's setup. It stays private in this browser; claiming it applies the player's default visibility. */
 export function newGuestDraft(setup: RosterSetup): GuestDraft {
   return { version: VERSION, id: draftId(), draft: { ...setup, visibility: 'private', picks: [], prep: null, source: 'editable' } }
 }

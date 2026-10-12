@@ -28,6 +28,7 @@ import { commandSchema, detachmentIdSchema, rosterPickSchema } from '../core/com
 import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
+import { rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
 import { isPlayerDefaults } from '../core/playerDefaults'
 import {
   LEAGUE_ADMISSIONS,
@@ -171,6 +172,7 @@ export const createBattleSchema = z
       .optional(),
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
+    manual: z.boolean().default(false),
   })
   .refine(
     (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 3,
@@ -365,6 +367,7 @@ export const rosterIdsSchema = z.object({
     .max(ROSTER_LIBRARY_BATCH_SIZE)
     .refine((ids) => new Set(ids).size === ids.length),
 })
+export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({ before: rosterDiscoveryCursorSchema.nullable().default(null) })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
 

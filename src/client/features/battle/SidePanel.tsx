@@ -10,6 +10,7 @@ import { ArmyRoster } from './ArmyRoster'
 import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
 import { tint } from './battleTints'
+import { ManualScore } from './ManualScore'
 
 type Props = {
   view: BattleView
@@ -107,62 +108,68 @@ export const SidePanel = memo(function SidePanel({
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
-        <div className="min-w-0">
-          <p className="eyebrow">Victory points</p>
-          <p data-stat="vp" className="figure text-4xl leading-none font-bold">
-            {side.total}
-          </p>
-          {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
-          {bonus ? <p className="mt-1 text-3xs text-achieved">Battle ready included</p> : null}
-        </div>
-        <div className="min-w-0">
-          <p className="eyebrow">Command points</p>
-          <p data-stat="cp" className={`figure text-4xl leading-none font-bold ${colours.text}`}>
-            {side.cp}
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="readout text-3xs text-faint">
-              {side.cpGained} gained · {side.cpSpent} used
-            </span>
-            {actionable ? (
-              <Button
-                variant="secondary"
-                size="xs"
-                disabled={pending || !side.canGainCp}
-                title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
-                aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
-                onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
+      {view.settings.manual ? (
+        <ManualScore side={side} actionable={actionable} pending={pending} send={send} />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
+            <div className="min-w-0">
+              <p className="eyebrow">Victory points</p>
+              <p data-stat="vp" className="figure text-4xl leading-none font-bold">
+                {side.total}
+              </p>
+              {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
+              {bonus ? <p className="mt-1 text-3xs text-achieved">Battle ready included</p> : null}
+            </div>
+            <div className="min-w-0">
+              <p className="eyebrow">Command points</p>
+              <p data-stat="cp" className={`figure text-4xl leading-none font-bold ${colours.text}`}>
+                {side.cp}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="readout text-3xs text-faint">
+                  {side.cpGained} gained · {side.cpSpent} used
+                </span>
+                {actionable ? (
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    disabled={pending || !side.canGainCp}
+                    title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
+                    aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
+                    onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
+                  >
+                    {side.canGainCp ? '+1 CP' : 'CP gain used'}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2">
+            <div data-missions className="min-w-0 space-y-3">
+              <PrimaryMission {...cards} />
+              <SecondaryMissions {...cards} />
+            </div>
+            {side.stratagems.length ? (
+              <div
+                data-stratagems
+                className="min-w-0 border-t border-edge pt-2.5 md:border-0 md:pt-0 lg:border-t lg:pt-2.5 xl:border-0 xl:pt-0"
               >
-                {side.canGainCp ? '+1 CP' : 'CP gain used'}
-              </Button>
+                <Stratagems
+                  side={side}
+                  phase={view.phase}
+                  coreKeys={coreKeys}
+                  actionable={actionable}
+                  pending={pending}
+                  send={send}
+                  writtenFor={(key) => writtenFor(side, key)}
+                />
+              </div>
             ) : null}
           </div>
-        </div>
-      </div>
-
-      <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2">
-        <div data-missions className="min-w-0 space-y-3">
-          <PrimaryMission {...cards} />
-          <SecondaryMissions {...cards} />
-        </div>
-        {side.stratagems.length ? (
-          <div
-            data-stratagems
-            className="min-w-0 border-t border-edge pt-2.5 md:border-0 md:pt-0 lg:border-t lg:pt-2.5 xl:border-0 xl:pt-0"
-          >
-            <Stratagems
-              side={side}
-              phase={view.phase}
-              coreKeys={coreKeys}
-              actionable={actionable}
-              pending={pending}
-              send={send}
-              writtenFor={(key) => writtenFor(side, key)}
-            />
-          </div>
-        ) : null}
-      </div>
+        </>
+      )}
     </section>
   )
 })

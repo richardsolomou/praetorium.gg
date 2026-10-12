@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { ScrollText } from 'lucide-react'
+import { Compass, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -124,6 +124,9 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         description="Build, import, organize, and share the armies you bring to battle."
         actions={
           <>
+            <Button variant="outline" size="lg" render={<Link to="/rosters/discover" />}>
+              <Compass /> Discover armies
+            </Button>
             <RosterImport />
             <CreateRoster factionOptions={available?.factions ?? []} />
           </>

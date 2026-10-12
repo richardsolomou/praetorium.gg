@@ -16,6 +16,7 @@ import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
 import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator_procedure'
+import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user_procedure'
@@ -55,7 +56,6 @@ import * as SetRosterLockedProcedure from '../set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedure'
 import * as ShareBattleProcedure from '../share_battle_procedure'
 import * as SubmitBattleProcedure from '../submit_battle_procedure'
-import * as SupportReportCommandProcedure from '../support_report_command_procedure'
 import * as SyncProductProcedure from '../sync_product_procedure'
 import * as SyncReceiptProcedure from '../sync_receipt_procedure'
 import * as SyncRosterProcedure from '../sync_roster_procedure'
@@ -81,6 +81,8 @@ export type CreateBattleArgs = __Infer<typeof CreateBattleProcedure.params>
 export type CreateBattleResult = __Infer<typeof CreateBattleProcedure.returnType>
 export type DeleteBattleForOperatorArgs = __Infer<typeof DeleteBattleForOperatorProcedure.params>
 export type DeleteBattleForOperatorResult = __Infer<typeof DeleteBattleForOperatorProcedure.returnType>
+export type DiscoverRostersArgs = __Infer<typeof DiscoverRostersProcedure.params>
+export type DiscoverRostersResult = __Infer<typeof DiscoverRostersProcedure.returnType>
 export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
 export type FavouriteDatasheetsByUserResult = __Infer<typeof FavouriteDatasheetsByUserProcedure.returnType>
 export type FavouriteDetachmentsByUserArgs = __Infer<typeof FavouriteDetachmentsByUserProcedure.params>
@@ -159,8 +161,6 @@ export type ShareBattleArgs = __Infer<typeof ShareBattleProcedure.params>
 export type ShareBattleResult = __Infer<typeof ShareBattleProcedure.returnType>
 export type SubmitBattleArgs = __Infer<typeof SubmitBattleProcedure.params>
 export type SubmitBattleResult = __Infer<typeof SubmitBattleProcedure.returnType>
-export type SupportReportCommandArgs = __Infer<typeof SupportReportCommandProcedure.params>
-export type SupportReportCommandResult = __Infer<typeof SupportReportCommandProcedure.returnType>
 export type SyncProductArgs = __Infer<typeof SyncProductProcedure.params>
 export type SyncProductResult = __Infer<typeof SyncProductProcedure.returnType>
 export type SyncReceiptArgs = __Infer<typeof SyncReceiptProcedure.params>

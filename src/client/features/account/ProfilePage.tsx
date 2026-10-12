@@ -11,6 +11,7 @@ import { PROFILE_NAME_MAX_LENGTH } from '../../../authConfig'
 import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
 import { BattleSharing } from './BattleSharing'
+import { CollectionSharing } from './CollectionSharing'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -206,6 +207,7 @@ function ProfileForm({
           privacy={
             <>
               <BattleSharing />
+              <CollectionSharing userId={me.id} />
               <PlayerDefaultsSettings />
             </>
           }

@@ -125,7 +125,7 @@ const rosters = table(
     waivedRules: t.string(),
     optionalRules: t.string(),
     borrowedDetachmentId: t.option(t.string()),
-    visibility: t.string(),
+    visibility: t.string().index('btree'),
     source: t.string(),
     createdAt: t.u64(),
     updatedAt: t.u64(),
@@ -198,20 +198,6 @@ const collectionStock = table(
     key: t.string().primaryKey(),
     userId: t.string().index('btree'),
     lot: t.string(),
-  },
-)
-
-const supportReports = table(
-  { name: 'support_reports' },
-  {
-    reference: t.string().primaryKey(),
-    userId: t.string().index('btree'),
-    title: t.string(),
-    body: t.string(),
-    createdAt: t.u64(),
-    checkedAt: t.u64(),
-    delivery: t.string(),
-    issueNumber: t.option(t.u32()),
   },
 )
 
@@ -310,7 +296,6 @@ const syncReceipts = table(
 )
 
 export const productTables = {
-  supportReports,
   syncReceipts,
   rosterSync,
   userOnboarding,
