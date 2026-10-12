@@ -1,6 +1,6 @@
 # Pull request previews
 
-Pull requests except automated release candidates receive disposable Dokploy previews at `pr-<number>.praetorium.gg`. The PR's status comment links readiness and failures. Ready means `/api/health` reports the expected commit, not merely that a container started.
+Pull requests receive disposable Dokploy previews at `pr-<number>.praetorium.gg`. The PR's status comment links readiness and failures. Ready means `/api/health` reports the expected commit, not merely that a container started.
 
 `.github/workflows/dokploy-preview-image.yml` builds a digest-pinned image without deployment credentials. The trusted `dokploy-preview-deploy.yml` job and `scripts/dokployPreview.ts` deploy its module and isolated data. Fork artifacts require maintainer approval before trusted deployment.
 
