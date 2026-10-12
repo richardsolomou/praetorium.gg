@@ -82,11 +82,18 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         {faction.edition ? (
           <details className="mt-4 border border-edge bg-panel px-3 py-2">
             <summary className="rubric cursor-pointer">Rules history</summary>
+            <p className="mt-2 text-sm text-dim">
+              These dates record status changes in Praetorium; publisher release and effective dates can differ.
+            </p>
             <ol className="mt-2 space-y-1 text-sm text-dim">
               {faction.edition.releases.map((release) => (
                 <li key={release.at}>
                   {date(release.at)} ·{' '}
-                  {release.status === 'preview' ? 'Preview published' : release.status === 'released' ? 'Officially released' : 'Archived'}
+                  {release.status === 'preview'
+                    ? 'Preview recorded'
+                    : release.status === 'released'
+                      ? 'Release recorded'
+                      : 'Archive recorded'}
                 </li>
               ))}
             </ol>

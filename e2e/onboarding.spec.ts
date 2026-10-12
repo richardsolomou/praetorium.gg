@@ -90,7 +90,7 @@ for (const width of [1440, 390]) {
       await expect(prompt(page)).toContainText('Share, print, or make a variant')
       const original = page.url()
       await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-      await page.getByRole('menuitem', { name: 'New variant', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Create variant', exact: true }).click()
       await expect(page).not.toHaveURL(original)
       await expect(page.getByRole('button', { name: 'Variant 2 of 2' })).toBeVisible()
     }

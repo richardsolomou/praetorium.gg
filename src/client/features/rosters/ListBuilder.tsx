@@ -1009,7 +1009,7 @@ export function ListBuilder({
                   </DropdownMenuItem>
                   {savedId && !guest ? (
                     <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
-                      <GitBranchPlus /> New variant
+                      <GitBranchPlus /> Create variant
                     </DropdownMenuItem>
                   ) : null}
                   {visibility !== 'private' ? (
