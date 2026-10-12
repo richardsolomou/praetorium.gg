@@ -19,6 +19,7 @@ import { sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
 import { Report, type ReportPlayer } from './Report'
+import { TeamsBattlePoints } from './TeamsBattlePoints'
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './MissionCards'
@@ -92,6 +93,7 @@ export function Spectator({
   const report = frame?.report ?? currentReport
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const table = useMemo(() => sides(view, missions), [missions, view])
+  const finalTable = useMemo(() => sides(currentView, currentMissions), [currentMissions, currentView])
   const { data: me } = useQuery(meQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(gameReferencesQuery())
@@ -184,6 +186,12 @@ export function Spectator({
             {currentView.status === 'finished' ? (
               <div className="border-t border-edge pt-3">
                 <TurnTimes clock={clock} sides={table} />
+              </div>
+            ) : null}
+            {/* Scored from the final result, so scrubbing the replay back does not change it. */}
+            {currentView.status === 'finished' ? (
+              <div className="border-t border-edge pt-3">
+                <TeamsBattlePoints view={currentView} sides={finalTable} />
               </div>
             ) : null}
             <div className="border-t border-edge pt-3">

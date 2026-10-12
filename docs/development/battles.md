@@ -76,6 +76,8 @@ The clock derives elapsed time from every logged timestamp, including undone act
 
 Standings derive finished guided, non-practice results and OpenSkill ratings from bounded logs in finish order. Allies share their side's result; concessions override score and draws remain ties. Faction records rate player/faction pairs against overall opposition. Sorting uses the displayed rounded rating. Revision changes invalidate caches across replicas after finish, reopen, deletion, or visibility changes; report the actual window covered when a count limit truncates it.
 
+A finished battle offers the Teams Event Companion's 20–0 battle points (section 14) beside each player's victory points behind a reader's switch, kept in local storage. `src/core/teamsBattlePoints.ts` converts the final folded score, so corrections apply and replay scrubbing does not; conceded and team battles show why they have none. Results, standings and ratings never use battle points, and team match points need a teams event, which battles do not model.
+
 Public/friends feeds order by start time; the player's own games order by activity. Exclude the viewer's own battles on the server so pagination remains full. Failed refreshes retain prior pages; reject missing response pages before caching.
 
 ## Realtime updates

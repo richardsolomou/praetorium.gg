@@ -100,6 +100,12 @@ for (const width of [390, 1440]) {
     await expect(page.getByText('Battle replay')).toBeVisible()
     const facts = page.locator('dl').filter({ hasText: 'Tracking' }).first()
     await expect(facts).toContainText('Manual')
+    const teams = page.locator('[data-teams-battle-points]')
+    await teams.getByRole('switch', { name: 'Teams event scoring' }).click()
+    await expect(teams.locator('dl')).toHaveText(`${host}5 VP10 BP${PRACTICE_OPPONENT}6 VP10 BP`)
+    await page.reload()
+    await expect(teams.locator('dl')).toHaveText(`${host}5 VP10 BP${PRACTICE_OPPONENT}6 VP10 BP`)
+    await expect(scoreboard(page)).toContainText(`${PRACTICE_OPPONENT} wins`)
     await noOverflow(page, width)
     await page.screenshot({ path: `test-results/manual-battle-finished-${width}.png`, fullPage: true })
 
