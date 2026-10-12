@@ -2,10 +2,10 @@ import { expect, test } from '@playwright/test'
 import { retryUntilVisible } from './account'
 
 const factions = [
-  { name: 'Blood Angels', slug: 'blood-angels', versions: 2 },
-  { name: 'Dark Angels', slug: 'dark-angels', versions: 4 },
-  { name: 'Salamanders', slug: 'salamanders', versions: 3 },
-  { name: 'Space Marines', slug: 'space-marines', versions: 1 },
+  { name: 'Blood Angels', slug: 'blood-angels', versions: 3 },
+  { name: 'Dark Angels', slug: 'dark-angels', versions: 5 },
+  { name: 'Salamanders', slug: 'salamanders', versions: 4 },
+  { name: 'Space Marines', slug: 'space-marines', versions: 2 },
 ]
 
 for (const width of [390, 1440]) {
@@ -35,7 +35,7 @@ for (const width of [390, 1440]) {
       await page.goto('/factions')
       const row = page.locator(`[data-faction="${faction.name}"]`).first()
       const link = row.getByRole('link', { name: faction.name, exact: true })
-      await expect(link).toHaveAttribute('href', `/factions/${faction.slug}/rules/space-marines-codex-2026-10-03`)
+      await expect(link).toHaveAttribute('href', `/factions/${faction.slug}/rules/space-marines-codex-2026-10-12`)
       if (faction.versions > 1) {
         await retryUntilVisible(page.getByRole('menu'), () =>
           row.getByRole('button', { name: `Rules versions for ${faction.name}` }).click(),
@@ -53,18 +53,18 @@ for (const width of [390, 1440]) {
             .evaluate((chip) => chip.parentElement?.firstElementChild === chip),
         ).toBe(true)
         if (faction.name === 'Dark Angels') await page.screenshot({ path: `test-results/rules-status-menu-${width}.png` })
-        await expect(items.first()).toHaveText('Current Space Marines codex · 3 Oct 2026')
+        await expect(items.first()).toHaveText('Current Space Marines codex · 12 Oct 2026')
         await expect(page.getByRole('menu')).not.toContainText('Previous rules')
         await page.keyboard.press('Escape')
       } else {
         await expect(row.getByRole('button', { name: `Rules versions for ${faction.name}` })).toHaveCount(0)
       }
       await link.click()
-      await expect(page).toHaveURL(new RegExp(`/factions/${faction.slug}/rules/space-marines-codex-2026-10-03$`))
+      await expect(page).toHaveURL(new RegExp(`/factions/${faction.slug}/rules/space-marines-codex-2026-10-12$`))
       await expect(page.getByRole('heading', { level: 1, name: faction.name, exact: true })).toBeVisible()
       await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
       if (faction.versions > 1) {
-        await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current Space Marines codex · 3 Oct 2026')
+        await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current Space Marines codex · 12 Oct 2026')
         await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).click())
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveText('Current')
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
@@ -89,7 +89,7 @@ for (const width of [390, 1440]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: `test-results/dated-faction-rules-${width}.png`, fullPage: true })
     await page.goto('/factions/dark-angels/rules/470a-6daa-9014-12df')
-    await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/space-marines-codex-2026-10-03$/)
+    await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/space-marines-codex-2026-10-12$/)
     await page.goto('/factions/dark-angels/rules/legacy-marine-old')
     await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/mfm-1-4-2026-09-02$/)
     await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Archived MFM 1.4 · 2 Sep 2026')
