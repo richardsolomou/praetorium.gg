@@ -121,6 +121,14 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             <span className="font-bold uppercase">Data updates</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />
           </Link>
+          <Link
+            to="/rosters/discover"
+            search={{ faction: faction.slug }}
+            className="mt-2 flex items-center justify-between border border-edge bg-panel px-3 py-3 hover:bg-raised"
+          >
+            <span className="font-bold uppercase">Public armies</span>
+            <ChevronRight className="size-4 text-dim" aria-hidden />
+          </Link>
         </section>
         {faction.armyRules.length ? (
           <section data-onboarding="faction-army-rules" className="mt-6">

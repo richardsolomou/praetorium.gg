@@ -96,4 +96,26 @@ describe('roster summary', () => {
 
     expect(markup).not.toContain('switched off')
   })
+
+  describe('for somebody deciding whether to copy it', () => {
+    const published = { ...roster, visibility: 'public' as const }
+    const markup = (props: { points?: number | null; problem?: 'not-legal' | null }) =>
+      renderToStaticMarkup(createElement(RosterSummary, { roster: published, showLegality: true, ...props }))
+
+    it('says a priced roster without a problem is legal', () => {
+      expect(markup({ points: 1_985 })).toContain('Legal')
+    })
+
+    it('says why a roster cannot be fielded', () => {
+      expect(markup({ points: 1_985, problem: 'not-legal' })).toContain('Not legal')
+    })
+
+    it('calls an unpriced roster neither legal nor illegal', () => {
+      expect(markup({ points: null })).not.toMatch(/Legal|Not legal/)
+    })
+
+    it('leaves out who can read the roster', () => {
+      expect(markup({ points: 1_985 })).not.toContain('Public')
+    })
+  })
 })

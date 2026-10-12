@@ -9,7 +9,7 @@ export const VISIBILITY_NAME: Record<RosterVisibility, string> = {
 export const VISIBILITY_REACH: Record<RosterVisibility, string> = {
   private: 'You and seated players through a battle using this list',
   unlisted: 'Anyone with the link',
-  public: 'Listed on your profile',
+  public: 'Listed on your profile and for anyone to find',
 }
 
 export const VISIBILITY_DETAIL = Object.fromEntries(

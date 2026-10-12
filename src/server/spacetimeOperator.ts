@@ -7,6 +7,7 @@ import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Re
 import { commandSchema } from '../core/commands'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
+import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
@@ -482,6 +483,12 @@ export class SpacetimeOperator {
 
   async publicRostersByUser(userId: string, limit: number) {
     return this.readRosters(userId, true, limit)
+  }
+
+  async discoverRosters(query: RosterDiscoveryQuery) {
+    return z
+      .strictObject({ rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE), nextCursor: rosterDiscoveryCursorSchema.nullable() })
+      .parse(await this.read('discover_rosters', [JSON.stringify(query)]))
   }
 
   /** The base first, then its variants in the order they were made. */

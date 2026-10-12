@@ -76,6 +76,28 @@ export const currentDetachmentId = (id: string, catalogueId = '') =>
   catalogueEditionId(catalogueId)
     ? (retainedFor(catalogueId)?.aliases.detachments[id]?.id ?? id)
     : migrationDetachments.reduce((current, map) => map.get(current)?.id ?? current, detachments.get(id)?.id ?? id)
+/**
+ * These IDs and every retired one `currentCatalogueId` replaces with one of them. A roster that
+ * `currentRosterIds` moves to a retained rules version by its contents is not found here.
+ */
+export function savedCatalogueIds(current: readonly string[]) {
+  const wanted = new Set(current)
+  const saved = new Set(current)
+  for (const id of [...catalogues.keys(), ...migrationCatalogues.flatMap((map) => [...map.keys()])])
+    if (wanted.has(currentCatalogueId(id))) saved.add(id)
+  return [...saved]
+}
+
+/** Every saved detachment ID that `currentRosterIds` can read as one of these, the IDs themselves included. */
+export function savedDetachmentIds(current: readonly string[]) {
+  const wanted = new Set(current)
+  const saved = new Set(current)
+  for (const id of [...detachments.keys(), ...migrationDetachments.flatMap((map) => [...map.keys()])])
+    if (wanted.has(currentDetachmentId(id))) saved.add(id)
+  for (const rule of retainedRules)
+    for (const [id, replacement] of Object.entries(rule.aliases.detachments)) if (wanted.has(replacement.id)) saved.add(id)
+  return [...saved]
+}
 export const currentEntryId = (id: string, catalogueId = '') =>
   catalogueEditionId(catalogueId)
     ? id
