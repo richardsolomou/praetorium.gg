@@ -27,8 +27,11 @@ import {
   type UnitState,
   validate,
   atBattleEnd,
+  type BattleMoment,
+  missedMoments,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
+import { withoutUnitNotes } from './unitNotes'
 import {
   consecratedObjectives,
   isManualSelection,
@@ -66,7 +69,8 @@ export type MissionChoiceView = MissionSelectionPrompt & {
  * answer, and it is easier to hold to when it has a file of its own.
  *
  * Cards, lists and points are public to both players. Only an unrevealed Secret
- * Mission and the deck state that would identify it are held back here.
+ * Mission and the deck state that would identify it are held back here, along with
+ * each player's personal reminders and unit notes.
  */
 
 /**
@@ -190,6 +194,8 @@ export type BattleView = {
   leagueEventToken: string | null
   advancePrompt: string | null
   secretMissionActionPlayerId: PlayerId | null
+  /** The earlier moments a missed action may still be recorded for, oldest first; absent from older servers. */
+  missedMoments?: BattleMoment[]
   /** The latest active command any seated player may take back. */
   undoable: number | null
   /** Whether taking back that command returns missions from this turn to the deck. */
@@ -308,7 +314,7 @@ export function battleView(
           total: (resources.primaryByRound[round] ?? 0) + (resources.secondaryByRound[round] ?? 0),
         })),
         roster: viewRoster(player.roster, player.units, player.id === viewerId),
-        units: player.units,
+        units: player.id === viewerId ? player.units : withoutUnitNotes(player.units),
         unitCount: units.total,
         standing: units.standing,
         deployed: units.deployed,
@@ -370,6 +376,7 @@ export function battleView(
     leagueEventToken: state.leagueEventToken,
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
+    missedMoments: missedMoments(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw:
       state.undoable?.kind === 'draw-secondary' || state.undoable?.kind === 'draw-secondaries' || state.undoable?.kind === 'use-new-orders',
@@ -400,8 +407,8 @@ function viewRoster(roster: Roster | null, units: readonly UnitState[], own: boo
       }
     : {}
   if (!roster.built) return { ...visible, ...privateFields }
-  const { units: _frozen, ...built } = roster.built
-  return { ...visible, ...privateFields, built }
+  const { units: _frozen, picks, ...built } = roster.built
+  return { ...visible, ...privateFields, built: { ...built, ...(picks ? { picks: own ? picks : withoutUnitNotes(picks) } : {}) } }
 }
 
 function secretMissionActionPlayerId(state: BattleState): PlayerId | null {

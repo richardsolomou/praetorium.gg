@@ -1,6 +1,51 @@
 import { describe, expect, it } from 'vitest'
 import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
-import { commandSchema } from './commands'
+import { commandSchema, rosterPickSchema } from './commands'
+import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
+
+describe('roster pick schema', () => {
+  const pick = (fields: { nickname?: string; note?: string }) => rosterPickSchema.safeParse({ entryId: 'intercessors', ...fields }).success
+
+  it('accepts a nickname at its length limit', () => {
+    expect(pick({ nickname: 'n'.repeat(UNIT_NICKNAME_MAX_LENGTH) })).toBe(true)
+  })
+
+  it('refuses a nickname over its length limit', () => {
+    expect(pick({ nickname: 'n'.repeat(UNIT_NICKNAME_MAX_LENGTH + 1) })).toBe(false)
+  })
+
+  it('accepts a note at its length limit', () => {
+    expect(pick({ note: 'n'.repeat(UNIT_NOTE_MAX_LENGTH) })).toBe(true)
+  })
+
+  it('refuses a note over its length limit', () => {
+    expect(pick({ note: 'n'.repeat(UNIT_NOTE_MAX_LENGTH + 1) })).toBe(false)
+  })
+
+  it('keeps frozen unit nicknames and notes in an attached roster', () => {
+    const command = {
+      kind: 'attach-roster',
+      roster: {
+        name: 'Army',
+        text: 'Alpha · Intercessor Squad — 80',
+        built: {
+          catalogueId: 'marines',
+          revision: 'revision',
+          limit: 2000,
+          detachment: null,
+          disposition: null,
+          units: [{ key: '0-intercessors', name: 'Intercessor Squad', nickname: 'Alpha', note: 'Hold home.', points: 80, models: 5 }],
+        },
+      },
+    }
+    expect(commandSchema.parse(JSON.parse(JSON.stringify(command)))).toEqual(command)
+  })
+
+  it('keeps a nickname and note through stored JSON', () => {
+    const annotated = { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' }
+    expect(rosterPickSchema.parse(JSON.parse(JSON.stringify(annotated)))).toEqual(annotated)
+  })
+})
 
 describe('command schema', () => {
   it('round trips automatic format configuration through stored JSON', () => {

@@ -28,6 +28,8 @@ type Props = {
   timerPaused: boolean
   players: readonly { id: string; name: string; isViewer: boolean; automated: boolean }[]
   onActionRemindersChange: (enabled: boolean) => void
+  /** Absent when no earlier phase can take a missed action. */
+  onRecordMissed?: () => void
   /** Shared by the table, unlike the reminders, so it is a command rather than a preference. */
   onTimerPausedChange: (paused: boolean) => void
   onConcede: (playerId: string) => void
@@ -47,6 +49,7 @@ export function BattleMenu({
   timerPaused,
   players,
   onActionRemindersChange,
+  onRecordMissed,
   onTimerPausedChange,
   onConcede,
   onDelete,
@@ -75,6 +78,7 @@ export function BattleMenu({
           <DropdownMenuCheckboxItem checked={actionRemindersEnabled} onCheckedChange={onActionRemindersChange}>
             Action reminders
           </DropdownMenuCheckboxItem>
+          {onRecordMissed ? <DropdownMenuItem onClick={onRecordMissed}>Record a missed action</DropdownMenuItem> : null}
           <DropdownMenuItem onClick={() => onTimerPausedChange(!timerPaused)}>
             {timerPaused ? 'Resume timer' : 'Pause timer'}
           </DropdownMenuItem>

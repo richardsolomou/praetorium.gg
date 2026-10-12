@@ -12,6 +12,7 @@ import {
 import { detachmentIdSchema, rosterPickSchema } from './commands'
 import { currentRosterIds } from './retiredCatalogueIds'
 import type { RosterPick } from './roster'
+import { withoutUnitNotes } from './unitNotes'
 
 /** Format 2 adds a custom points budget, so a code without one stays format 1 and older apps still read it. */
 export const ROSTER_EXCHANGE_VERSION = 2
@@ -43,7 +44,7 @@ const payloadSchema = z.object({
 })
 const exchangeSchema = payloadSchema.refine((payload) => !pointsBudgetError(payload.limit, payload.pointsBudget))
 
-/** A roster's contents and rules identity; owner, visibility, preparation and reminders are never part of it. */
+/** A roster's contents, unit nicknames and rules identity; owner, visibility, preparation, reminders and unit notes are never part of it. */
 export type RosterExchange = z.infer<typeof payloadSchema>
 
 export type RosterExchangeProblem = 'malformed' | 'oversized' | 'unsupported-version'
@@ -88,7 +89,7 @@ export async function encodeRosterExchange(roster: {
     points: roster.points ?? null,
     waivedRules: roster.waivedRules ?? [],
     optionalRules: roster.optionalRules ?? [],
-    picks: roster.picks,
+    picks: withoutUnitNotes(roster.picks),
   })
   const compressed = await transform(new TextEncoder().encode(JSON.stringify(payload)), new CompressionStream('deflate-raw'))
   return `${PREFIX}${pointsBudget === null ? 1 : ROSTER_EXCHANGE_BUDGET_VERSION}.${toBase64Url(compressed)}`

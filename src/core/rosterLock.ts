@@ -2,7 +2,7 @@ import { detachmentIds } from './savedRoster'
 
 export const LOCKED_ROSTER_MESSAGE = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
 
-/** Everything a save can change on a roster apart from who can read it. */
+/** Everything a save can change on a roster apart from who can read it, which includes sharing unit notes. */
 export type RosterContent = {
   name: string
   automaticName: boolean
@@ -62,7 +62,8 @@ export function lockedRosterRefusal(current: (RosterContent & { locked?: boolean
 }
 
 function comparable(content: RosterContent) {
-  const prep = content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
+  const { shareNotes: _shareNotes, ...prep } =
+    content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
   return canonical({
     name: content.automaticName ? '' : content.name,
     automaticName: content.automaticName,

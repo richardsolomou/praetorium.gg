@@ -6,7 +6,7 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RosterReminder } from '../../core/reminders'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
-import { optionalRulesFrom, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
+import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
 import { detachmentIds } from '../../core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
@@ -154,9 +154,9 @@ export class RosterService {
     if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
     // Named rather than "anything but private", so a value added later is refused
     // until somebody decides it should not be.
-    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: rosterFromRow(row), editable: false }
+    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
     if (!userId || !token) return null
-    return (await this.fieldedIn(token, userId, id)) ? { roster: rosterFromRow(row), editable: false } : null
+    return (await this.fieldedIn(token, userId, id)) ? { roster: readerRosterFromRow(row), editable: false } : null
   }
 
   async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {

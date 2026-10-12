@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { datasheetProfilesByKind } from '../../../core/datasheetStructure'
 import type { RosterPick } from '../../../core/roster'
+import { nicknamedUnit } from '../../../core/unitNotes'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
@@ -14,6 +15,7 @@ import { UnitProfile } from '../../components/DatasheetProfiles'
 import { primaryUnitProfile } from '../../datasheet'
 import { Loadout } from './builder/Loadout'
 import { ProfileRules } from './ProfileRules'
+import { normalisePicks } from './rosterPicks'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -34,6 +36,8 @@ export type RosterPrintInput = {
 
 export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; onClose: () => void }) {
   const client = useQueryClient()
+  const picks = useMemo(() => normalisePicks(input.picks), [input.picks])
+  const title = (unit: { key: number; name: string }) => nicknamedUnit(unit.name, input.picks[unit.key]?.nickname)
   const printed = useRef(false)
   const { data, isError, refetch } = useQuery({
     queryKey: ['roster-print-pack', input],
@@ -67,7 +71,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           input.price.units.slice(start, start + 3).map(async (unit) => {
             const pick = input.picks[unit.key]
             const sheets = await client.query({
-              ...loadoutDatasheetsQuery(pick?.catalogueId ?? input.catalogueId, unit.entryId, input.detachmentIds, input.picks, unit.key),
+              ...loadoutDatasheetsQuery(pick?.catalogueId ?? input.catalogueId, unit.entryId, input.detachmentIds, picks, unit.key),
               staleTime: 0,
             })
             if (!sheets?.selected || !sheets.available) throw new Error(`The reference for ${unit.name} is unavailable.`)
@@ -85,7 +89,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           input.detachmentIds,
           input.price.disposition ?? null,
           input.limit,
-          input.picks,
+          picks,
           input.waivedRules,
           input.borrowedDetachmentId,
           input.optionalRules,
@@ -219,7 +223,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   {[host, ...joined]
                     .map(
                       (unit) =>
-                        `${unit.name} (${models(unit.size.models)}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
+                        `${title(unit)} (${models(unit.size.models)}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
                     )
                     .join(' + ')}
                 </a>
@@ -230,18 +234,23 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         {data.groups.map(({ host, joined }, index) => (
           <section className="pack-unit" id={`pack-unit-${host.key}`} key={host.key} data-print-unit={host.name}>
             <h2>
-              Unit {index + 1}: {host.name}
-              {joined.length ? ` + ${joined.map((unit) => unit.name).join(' + ')}` : ''}
+              Unit {index + 1}: {title(host)}
+              {joined.length ? ` + ${joined.map(title).join(' + ')}` : ''}
             </h2>
             {[host, ...joined].map((unit) => (
               <div key={unit.key} data-print-datasheet={unit.name}>
                 <h3>
-                  {unit.name} · {models(unit.size.models)} · {unit.points} pts
+                  {title(unit)} · {models(unit.size.models)} · {unit.points} pts
                   {unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ' · Warlord' : ''}
                 </h3>
+                {input.picks[unit.key]?.note ? (
+                  <p className="ph-no-capture whitespace-pre-line" data-print-note>
+                    Note: {input.picks[unit.key]?.note}
+                  </p>
+                ) : null}
                 {unit !== host ? (
                   <p>
-                    {unit.attachment?.kind === 'leader' ? 'Leading' : 'Supporting'} {host.name} (Unit {index + 1})
+                    {unit.attachment?.kind === 'leader' ? 'Leading' : 'Supporting'} {title(host)} (Unit {index + 1})
                   </p>
                 ) : null}
                 <p>
@@ -252,7 +261,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                     catalogueId={input.picks[unit.key]?.catalogueId ?? input.catalogueId}
                     unit={unit}
                     detachmentIds={input.detachmentIds}
-                    picks={input.picks}
+                    picks={picks}
                     pickIndex={unit.key}
                     editable={false}
                     embedded

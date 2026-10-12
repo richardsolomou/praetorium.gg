@@ -22,6 +22,8 @@ Persist commands, not a second score, phase, round, mission, or casualty state. 
 
 Undo appends a command naming the latest active action. It preserves history and may rewind across turns. Scoring settlement, tactical draws, and discard/CP actions are each atomic undo targets. Start and shared prompt bookkeeping are outside the undo chain. Every required prompt keeps Undo available when rewinding reopens it.
 
+A missed action names the earlier moment it belongs to (`missed`: round, phase and a player on the side taking that turn) on `use-stratagem`, a positive `adjust-cp` or `score-settlement`. The log keeps recording order, so the entry's position, actor and timestamp say who recorded it and when, while the fold books its CP, usage and score ledgers against the named moment. `missedMoments` limits that moment to an earlier phase of the current or previous battle round. Reports append “recorded late for …”, replay shows the entry at its recorded position, and undo treats it like any other action. Battle options → Record a missed action (`MissedActionDialog.tsx`) offers it and shows the domain's refusal.
+
 Any seated player can operate either side's shared actions. Preserve the actor in the log and the affected side/player separately; omitted player IDs retain their historical meaning. Roster selection and ownership checks still apply. A seated player can record a concession for a non-automated player. Only the creator can delete a battle; reopening and reset preserve its history.
 
 ## Seating and setup
@@ -43,6 +45,8 @@ Battle summary faction lookup includes exact historical catalogue IDs even when 
 One wound state drives models, current-model damage, and destruction. `wound-unit`, `damage-unit`, and `set-unit` must agree and remain undoable. Freeze wounds only when the datasheet has one supported uniform value; mixed or older units remain model-only rather than guessing.
 
 Personal roster reminders are owner-only. Strip them from opponent, spectator, shared, and revealed-event reads. Their dismissals are bounded local state, not commands or shared prompts; destroyed-unit reminders stop until the unit is restored unless the player enables “Show while unit is destroyed”. First-round-only triggers match round 1, and “Any phase” matches each named phase boundary. Round reminders use either side’s turn: start before the first turn’s Command phase prompts, and end at the end of the second turn before passing to the next round.
+
+Frozen unit notes are owner-only in the same reads: `battleView`, `visibleBattleLog`, and `leagueRoster` remove them through `src/core/unitNotes.ts`. Frozen nicknames stay visible to every reader of the army.
 
 Starting Strategic Reserves use one allowance per side, shared by allies. Deep Strike changes ingress, not membership in that allowance. Source-backed exemptions and post-deployment redeployments are separate. Check formations and battle start against frozen facts; incomplete source facts must not invent restrictions. `unitFormationRefusal` is the formation authority for `validate` and the setup controls, which disable each move it refuses and show its reason beside the control.
 

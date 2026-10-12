@@ -11,6 +11,7 @@ import {
   sideDisposition,
   sideCaptain,
   scoringTarget,
+  pointsRound,
   FIXED_SECONDARIES,
   isKotcLimit,
   refuse,
@@ -202,7 +203,7 @@ export function scoringCapError(
   if (!mission) return null
   // The round the points land in, which for a settlement of a turn already ended is
   // the round that turn was in rather than the one now being played.
-  const round = command.kind === 'score-settlement' ? (command.round ?? state.round) : state.round
+  const round = command.kind === 'score-settlement' ? pointsRound(state, command) : state.round
   const named = round === state.round ? 'this round’s' : `battle round ${round}’s`
   // A fixed card carries a ceiling of its own for the whole battle, which the per-round
   // and per-battle secondary caps do not cover: a card paying per model destroyed would

@@ -75,8 +75,9 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
             }}
           />
           <p className="my-3 text-xs text-dim">
-            Includes model counts, equipment, enhancements, Warlord, attachments, setup and rules-version identity for import here.
-            Preparation, rule waivers and optional rules are omitted. Check the event's submission requirements before sending.
+            Includes unit nicknames, model counts, equipment, enhancements, Warlord, attachments, setup and rules-version identity for
+            import here. Unit notes, preparation, rule waivers and optional rules are omitted. Nickname lines are Praetorium’s own, so other
+            apps may report them as unread; check the event's submission requirements before sending.
           </p>
           {exported?.omittedUnitCount ? (
             <p role="alert" className="mb-3 text-sm text-destructive">

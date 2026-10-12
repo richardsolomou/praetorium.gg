@@ -23,6 +23,7 @@ import {
 import { UNIT_GROUPS } from './unitGroups'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from './reminders'
 import { MISSION_SELECTION_KINDS } from './missionSelections'
+import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 
 const id = z.string().min(1).max(64)
 export const detachmentIdSchema = z.string().min(1).max(128)
@@ -34,8 +35,11 @@ export const rosterPickSchema = z.object({
   spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
   toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
   attachedTo: z.number().int().min(0).max(99).optional(),
+  nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
+  note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
 })
 const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
+const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()
 const award = z.object({
   vp: z.number().int().min(0).max(100),
   per: z.string().max(200).nullable(),
@@ -166,6 +170,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
               z.object({
                 key: id,
                 name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+                nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
+                note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
                 points: z.number().int().min(0).max(10_000),
                 models: z.number().int().min(0).max(100),
                 wounds: z.number().int().min(1).max(100).optional(),
@@ -228,6 +234,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     key: id,
     cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
     playerId: id.optional(),
+    missed,
   }),
   z.object({
     kind: z.literal('use-new-orders'),
@@ -260,6 +267,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       .max(SCORE_SETTLEMENT_MAX),
     round: z.number().int().min(1).max(BATTLE_ROUNDS).optional(),
     playerId: id.optional(),
+    missed,
   }),
   z.object({
     kind: z.literal('set-secondary-status'),
@@ -279,7 +287,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('select-secret'), secondary, playerId: id.optional() }),
   z.object({ kind: z.literal('reveal-secret'), playerId: id.optional() }),
   z.object({ kind: z.literal('begin-battle'), firstPlayerId: id, attackerId: id.optional() }),
-  z.object({ kind: z.literal('adjust-cp'), delta: z.number().int(), playerId: id.optional() }),
+  z.object({ kind: z.literal('adjust-cp'), delta: z.number().int(), playerId: id.optional(), missed }),
   z.object({
     kind: z.literal('resolve-tactical-hand'),
     keys: z.array(id).optional(),

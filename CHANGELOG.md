@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.128.0
+
+### Minor Changes
+
+- 51a7f9b: Record a missed stratagem, command point or score for an earlier phase. It keeps that phase's limits and is marked as recorded late in battle events and replay.
+
+## 0.127.0
+
+### Minor Changes
+
+- b849af7: Name units and keep private notes on them in your rosters. Nicknames appear beside the datasheet name in copies, variants, text exports, exchange codes, printed packs and battles; notes stay yours unless you share them with people who can open the roster.
+
 ## 0.126.0
 
 ### Minor Changes
