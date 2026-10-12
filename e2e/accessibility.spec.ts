@@ -1,6 +1,14 @@
-import { expect, test } from '@playwright/test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, setupStep, signUp } from './account'
+import { expect, test, type Page } from '@playwright/test'
+import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, setupStep, signUp, startBattle } from './account'
 import { chooseCombatUnit } from './combat'
+
+// Controls transition their font size, so measuring before the transitions finish reads the old layout.
+async function doubleText(page: Page) {
+  await page.addStyleTag({ content: 'html { font-size: 200% }' })
+  await page.waitForFunction(() =>
+    document.getAnimations().every((animation) => !(animation instanceof CSSTransition) || animation.playState !== 'running'),
+  )
+}
 
 test('opening a battle is operable from the keyboard', async ({ page }) => {
   await signUp(page, 'Alice')
@@ -49,6 +57,25 @@ test('rendered controls do not reuse ids', async ({ page }) => {
   expect(duplicates).toEqual([])
 })
 
+test('keeps the header controls on screen at double text size', async ({ page }) => {
+  await page.goto('/battles')
+  await page.waitForLoadState('networkidle')
+  await doubleText(page)
+  const header = page.locator('[data-web-app-chrome]')
+  const outside = await header.evaluate((element) =>
+    ['[aria-label="Open primary navigation"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some((selector) => {
+      const bounds = element.querySelector(selector)!.getBoundingClientRect()
+      return bounds.width === 0 || bounds.right > innerWidth
+    }),
+  )
+  expect(outside).toBe(false)
+  await page.screenshot({ path: test.info().outputPath('header-double-text.png') })
+  await header.getByRole('button', { name: 'Open primary navigation' }).click()
+  await header.getByRole('button', { name: 'Reference' }).click()
+  await page.getByRole('menuitem', { name: 'Missions' }).click()
+  await expect(page).toHaveURL(/\/missions/)
+})
+
 test.describe('a touch device', () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
 
@@ -71,7 +98,7 @@ test.describe('a touch device', () => {
   test('keeps unit picker rows and application tabs inside their bounds at double text size', async ({ page }) => {
     await signUp(page, 'Large text')
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await page.addStyleTag({ content: 'html { font-size: 200% }' })
+    await doubleText(page)
     await page.getByLabel('Add a unit').fill('Immortals')
     const row = page.locator('[data-picker-unit="Immortals"]')
     const overlaps = await row.evaluate((element) => {
@@ -110,7 +137,7 @@ test.describe('a touch device', () => {
     await createBattle(page, { practice: true })
     await attachRoster(page, roster)
     await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
-    await page.addStyleTag({ content: 'html { font-size: 200% }' })
+    await doubleText(page)
     await setupStep(page, 'Reserves')
     const reserves = page.getByRole('region', { name: 'Reserves', exact: true })
     await expect(reserves).toContainText('reserve points')
@@ -128,7 +155,7 @@ test.describe('a touch device', () => {
     await page.getByLabel('Add a unit').fill('Immortals')
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
     await page.keyboard.press('Escape')
-    await page.addStyleTag({ content: 'html { font-size: 200% }' })
+    await doubleText(page)
     await page
       .locator('[data-unit="Immortals"]')
       .getByRole('button', { name: /^Immortals/ })
@@ -143,10 +170,106 @@ test.describe('a touch device', () => {
   test('chooses simulator units at double text size', async ({ page }) => {
     await page.goto('/simulator')
     await page.waitForLoadState('networkidle')
-    await page.addStyleTag({ content: 'html { font-size: 200% }' })
+    await doubleText(page)
     await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
     await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
     await page.screenshot({ path: test.info().outputPath('simulator-double-text.png') })
+  })
+
+  test('keeps the battle scoreboard and phase control readable at double text size', async ({ page }) => {
+    await signUp(page, 'Large text battle')
+    const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+    await createBattle(page, { practice: true })
+    await attachRoster(page, roster)
+    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await startBattle(page)
+    await doubleText(page)
+    const end = page.getByRole('button', { name: 'End the command phase' })
+    await expect(end).toBeVisible()
+    const unreadable = await page.locator('[data-scoreboard]').evaluate((board) => {
+      const title = board.querySelector('h1')!.getBoundingClientRect()
+      const covered = [...board.querySelectorAll('.figure')].some((figure) => {
+        const bounds = figure.getBoundingClientRect()
+        return bounds.left < title.right && title.left < bounds.right && bounds.top < title.bottom && title.top < bounds.bottom
+      })
+      const button = [...document.querySelectorAll('[data-turn-control] button')].find(
+        (candidate) => candidate.textContent === 'End the command phase',
+      )!
+      return { covered, clipped: button.scrollWidth > button.clientWidth }
+    })
+    expect(unreadable).toEqual({ covered: false, clipped: false })
+    await page.screenshot({ path: test.info().outputPath('battle-double-text.png') })
+  })
+
+  test('keeps weapon profile headings apart at double text size', async ({ page }) => {
+    await page.goto('/simulator')
+    await page.waitForLoadState('networkidle')
+    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+    await doubleText(page)
+    const labels = page.locator('p.eyebrow', { hasText: /^Range$/ }).filter({ visible: true })
+    await expect(labels.first()).toBeVisible()
+    const overlapping = await labels.evaluateAll((ranges) =>
+      ranges.some((range) => {
+        const cells = [...range.parentElement!.parentElement!.children].map((cell) => {
+          const text = document.createRange()
+          text.selectNodeContents(cell.querySelector('p')!)
+          return text.getBoundingClientRect()
+        })
+        return cells.some((cell, at) => {
+          const next = cells[at + 1]
+          return next !== undefined && cell.right > next.left && cell.top < next.bottom && next.top < cell.bottom
+        })
+      }),
+    )
+    expect(overlapping).toBe(false)
+    await labels
+      .first()
+      .locator('xpath=../../..')
+      .screenshot({ path: test.info().outputPath('weapon-double-text.png') })
+  })
+
+  test('keeps simulator result figures apart at double text size', async ({ page }) => {
+    await page.goto('/simulator')
+    await page.waitForLoadState('networkidle')
+    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+    const summary = page.locator('[data-results-summary]')
+    await expect(summary.locator('[data-combat-wipe]').first()).toContainText('%')
+    await doubleText(page)
+    await summary.locator('summary').click()
+    const overlapping = await summary.evaluate((element) =>
+      [...element.querySelectorAll('[data-result-numbers]')].some((row) => {
+        const figures = [...row.children].map((child) => {
+          const text = document.createRange()
+          text.selectNodeContents(child)
+          return text.getBoundingClientRect()
+        })
+        return figures.some((figure, at) =>
+          figures
+            .slice(at + 1)
+            .some(
+              (other) => figure.left < other.right && other.left < figure.right && figure.top < other.bottom && other.top < figure.bottom,
+            ),
+        )
+      }),
+    )
+    expect(overlapping).toBe(false)
+    await summary.screenshot({ path: test.info().outputPath('simulator-results-double-text.png') })
+  })
+
+  test('keeps the account menu on screen at double text size', async ({ page }) => {
+    await page.goto('/battles')
+    await page.waitForLoadState('networkidle')
+    await doubleText(page)
+    await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu' }).click()
+    const menu = page.getByRole('menu')
+    await expect(menu.getByRole('menuitem', { name: 'Sign in' })).toBeVisible()
+    const outside = await menu.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      return bounds.left < 0 || bounds.right > innerWidth
+    })
+    expect(outside).toBe(false)
+    await page.screenshot({ path: test.info().outputPath('account-menu-double-text.png') })
   })
 })

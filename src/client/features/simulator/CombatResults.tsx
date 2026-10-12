@@ -54,18 +54,18 @@ export function CombatResults({
             <h2 className="rubric text-xs text-dim">Shooting + melee</h2>
             {selected && updating && !failed ? <output className="text-xs text-dim">Updating…</output> : null}
           </div>
-          <div data-result-numbers className="mt-1 grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
-            <div className="min-w-0">
+          <div data-result-numbers className="mt-1 flex flex-wrap items-center gap-3">
+            <div className="flex-[1.3]">
               <p data-combat-wipe className={`readout text-3xl font-semibold leading-none ${muted ? 'text-dim' : 'text-primary'}`}>
                 {combined ? `${(combined.wipe * 100).toFixed(1)}%` : '—'}
               </p>
               <p className="mt-1 text-xs text-dim">{!selected ? 'Select two units' : !supported ? 'See Breakdown' : 'chance to destroy'}</p>
             </div>
-            <div className="min-w-0">
+            <div className="flex-1">
               <p className={`readout text-lg ${muted ? 'text-dim' : 'text-bone'}`}>{combined?.meanDamage.toFixed(2) ?? '—'}</p>
               <p className="text-xs text-dim">avg. wounds lost</p>
             </div>
-            <div className="min-w-0">
+            <div className="flex-1">
               <p className={`readout text-lg ${muted ? 'text-dim' : 'text-bone'}`}>{combined?.meanKills.toFixed(2) ?? '—'}</p>
               <p className="text-xs text-dim">avg. models lost</p>
             </div>
@@ -75,13 +75,13 @@ export function CombatResults({
           <summary className="cursor-pointer px-3 py-1.5 text-xs text-info outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4">
             Breakdown
           </summary>
-          <div className="max-h-[45dvh] overflow-y-auto overscroll-contain border-t border-edge p-3 sm:p-4">
+          <div className="@container max-h-[45dvh] overflow-y-auto overscroll-contain border-t border-edge p-3 sm:p-4">
             <p className="mb-3 text-xs text-dim">
               Each phase alone starts at the target’s current health. Together, melee attacks what survives shooting.
             </p>
             <div className="space-y-2">
-              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 px-2 text-xs text-dim">
-                <span />
+              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 px-2 text-xs text-dim @max-[13rem]:grid-cols-1">
+                <span className="@max-[13rem]:hidden" />
                 <div className="grid grid-cols-3 gap-2">
                   <span>Wounds</span>
                   <span>Models</span>
@@ -99,7 +99,7 @@ export function CombatResults({
                   key={title}
                   aria-label={title === 'Combined' ? 'Combined distributions' : `${title} estimate`}
                   aria-busy={updating && !failed}
-                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border border-edge bg-sunken px-2 py-1"
+                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border border-edge bg-sunken px-2 py-1 @max-[13rem]:grid-cols-1"
                 >
                   <h3 className="text-xs font-semibold">
                     <span className="flex items-center gap-1">
