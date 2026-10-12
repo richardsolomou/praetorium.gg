@@ -126,7 +126,10 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
               <li key={unit.key}>
                 <p>
                   {!next ? 'Removed' : illegal ? 'Illegal' : !savedUnit ? 'Needs review' : 'Preserved'}: {unit.name} · {unit.size.models}{' '}
-                  {unit.size.models === 1 ? 'model' : 'models'}
+                  {unit.size.models === 1 ? 'model' : 'models'} ·{' '}
+                  <span className="readout">
+                    {savedUnit && savedUnit.points !== unit.points ? `${unit.points} → ${savedUnit.points}` : unit.points} pts
+                  </span>
                 </p>
                 {specials.length ? <p>Preserved choices: {specials.join(', ')}</p> : null}
                 {removed.length ? <p className="text-discarded">Removed choices: {removed.join(', ')}</p> : null}
