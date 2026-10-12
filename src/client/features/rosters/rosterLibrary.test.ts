@@ -42,6 +42,7 @@ const source = saveRosterSchema.parse({
   detachmentIds: ['first'],
   disposition: 'priority-assets',
   limit: 2000,
+  pointsBudget: null,
   picks: [],
   prep: null,
   waivedRules: [],
@@ -54,6 +55,7 @@ const setup: RosterSetup = {
   detachmentIds: source.detachmentIds,
   disposition: source.disposition,
   limit: source.limit,
+  pointsBudget: null,
   visibility: source.visibility,
   waivedRules: source.waivedRules ?? [],
   optionalRules: source.optionalRules ?? [],
@@ -72,11 +74,8 @@ it.each([0, 1, 3])('retains %i units and their choices when library setup switch
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
 
-it('keeps unit nicknames and notes when library setup switches rules version', async () => {
-  const picks = [
-    { entryId: 'guard', nickname: 'Shield of Dawn', note: 'Screen the left objective.' },
-    { entryId: 'guard', nickname: 'Shield of Dusk' },
-  ]
+it('keeps unit notes when library setup switches rules version', async () => {
+  const picks = [{ entryId: 'guard', note: 'Screen the left objective.' }, { entryId: 'guard' }]
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
 
@@ -99,7 +98,7 @@ it('converts the existing roster ID with its preparation and source intact', asy
     ...source,
     catalogueId: 'preview~custodes',
     picks: [{ entryId: 'guard' }],
-    prep: { ...prep, shareNotes: false },
+    prep,
     source: 'editable',
   })
 })

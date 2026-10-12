@@ -57,6 +57,7 @@ describe('BattleBase text import', () => {
       detachment: 'Cursed Legion',
       disposition: 'Purge the Foe',
       limit: 1000,
+      sizeName: 'Incursion',
       units: [
         {
           name: 'Lokhust Lord',

@@ -5,7 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { GAME_SIZES, isKotcLimit, rosterBattleFormat } from '../../../../core/battle'
+import {
+  battlePointsBudget,
+  battleSizeLabel,
+  GAME_SIZES,
+  isKotcLimit,
+  pointsBudgetsAgree,
+  rosterBattleFormat,
+} from '../../../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { deploymentFor } from '../../../battleSummary'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
@@ -72,6 +79,7 @@ const SECTION_IDS = [
 type SectionId = (typeof SECTION_IDS)[number]
 /** A manually tracked battle needs only the armies and who goes first. */
 const MANUAL_SECTION_IDS: readonly SectionId[] = ['armies', 'first-turn']
+const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each side. Allies split the points evenly.'
 
 /**
  * Setting the table on one page, in the order the rules set it.
@@ -119,6 +127,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
   const missingCards = table.filter((side) => !missionCardsReady(side))
   const kotc = isKotcLimit(view.settings.limit)
+  const pointsBudget = battlePointsBudget(view)
   /*
    * Every seated device writes the cards the armies settle as soon as they are in. A
    * shared answer pressed in that moment would race those writes and come back stale,
@@ -127,9 +136,12 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   const recording = ready && missingCards.some((side) => !fixedHandShort(side))
   const busy = pending || recording
 
+  const budgetsDiffer = ready && !pointsBudgetsAgree(view)
   const sizeProblem =
     view.settings.limit !== null
-      ? null
+      ? budgetsDiffer
+        ? BUDGET_MISMATCH
+        : null
       : !ready
         ? null
         : view.settings.sizeFromRosters
@@ -137,7 +149,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
             ? 'Choose a battle size for text-only armies.'
             : format.problem === 'unsupported'
               ? 'These roster formats do not make a supported battle size. Choose another format; allies split the points evenly.'
-              : 'Choose matching roster formats for each side. Allies split the points evenly.'
+              : format.problem === 'budget-mismatch'
+                ? BUDGET_MISMATCH
+                : 'Choose matching roster formats for each side. Allies split the points evenly.'
           : 'Choose a battle size to continue.'
 
   /**
@@ -148,6 +162,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
     ...owed.map((army) => (army.isViewer ? 'Your army' : `${army.playerName}’s army`)),
     ...awaited.map((army) => `${army.playerName}’s army`),
     ...(ready && view.settings.limit === null ? ['Battle size'] : []),
+    ...(view.settings.limit !== null && budgetsDiffer ? ['Points budget'] : []),
     ...(manual
       ? []
       : [
@@ -162,7 +177,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   ]
 
   const complete: Record<SectionId, boolean> = {
-    armies: view.settings.limit !== null && ready,
+    armies: view.settings.limit !== null && ready && !budgetsDiffer,
     mission: Boolean(mission) && !undecided.length,
     battlefield: Boolean(view.deploymentId),
     defender: Boolean(view.attackerId),
@@ -194,7 +209,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   const stepFor: Record<SectionId, RailStep> = {
     armies: {
       name: 'Armies',
-      detail: `${view.settings.limit === null ? 'Choose armies' : `${view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
+      detail: `${view.settings.limit === null ? 'Choose armies' : `${pointsBudget ?? view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
       complete: complete.armies,
     },
     mission: { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: complete.mission },
@@ -284,7 +299,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   const sizeName =
     view.settings.limit === null
       ? 'Determined by your rosters'
-      : `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit} points`
+      : pointsBudget === null
+        ? `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit} points`
+        : battleSizeLabel(view.settings.limit, pointsBudget)
   // The size and pack fold away once there is nothing to settle in them.
   const formatOpen = isOpen('armies') || !sizeFixed || (!manual && (!chosenPack || (references?.packs.length ?? 0) > 1))
 

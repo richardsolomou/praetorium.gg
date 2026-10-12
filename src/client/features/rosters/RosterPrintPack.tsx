@@ -5,9 +5,8 @@ import { attachedUnitList } from '../../../core/attachedUnits'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { datasheetProfilesByKind } from '../../../core/datasheetStructure'
 import type { RosterPick } from '../../../core/roster'
-import { nicknamedUnit } from '../../../core/unitNotes'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
-import { pickedOptionalRules, waivedFormatRules } from '../../../core/battle'
+import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
 import type { priceRoster } from '../../functions'
 import { RuleText } from '../../components/RuleText'
@@ -26,6 +25,7 @@ export type RosterPrintInput = {
   catalogueId: string
   detachmentIds: string[]
   limit: number
+  pointsBudget: number | null
   picks: RosterPick[]
   price: Price
   waivedRules: FormatRuleId[]
@@ -36,7 +36,6 @@ export type RosterPrintInput = {
 export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; onClose: () => void }) {
   const client = useQueryClient()
   const picks = useMemo(() => normalisePicks(input.picks), [input.picks])
-  const title = (unit: { key: number; name: string }) => nicknamedUnit(unit.name, input.picks[unit.key]?.nickname)
   const printed = useRef(false)
   const { data, isError, refetch } = useQuery({
     queryKey: ['roster-print-pack', input],
@@ -165,7 +164,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           <p>Battle reference pack</p>
           <h1>{input.name || 'Army list'}</h1>
           <p>
-            {data.faction.displayName} · {input.price.points}/{input.limit} points · {data.groups.length}{' '}
+            {data.faction.displayName} · {input.price.points}/{pointsBudgetOf(input)} points · {data.groups.length}{' '}
             {data.groups.length === 1 ? 'unit' : 'units'} · {models(input.price.units.reduce((count, unit) => count + unit.size.models, 0))}
           </p>
           <p>Rules version: {rulesVersionLabel({ ...data.faction, edition: input.price.edition ?? data.faction.edition })}</p>
@@ -187,9 +186,9 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             records the army at printing time; reference data can change.
           </p>
           {input.price.errors.length ? <p>Resolve roster validation messages before playing this list.</p> : null}
-          {input.price.points > input.limit ? <p>Over the points limit.</p> : null}
+          {input.price.points > pointsBudgetOf(input) ? <p>Over the points limit.</p> : null}
           {input.price.unhandled.length ? <p>Some restrictions could not be checked. Read the source rules before playing.</p> : null}
-          {waivedFormatRules(input.limit, input.waivedRules).map((rule) => (
+          {waivedFormatRules(input.limit, input.waivedRules, input.pointsBudget).map((rule) => (
             <p key={rule.id}>Waived rule: {rule.label}</p>
           ))}
           {pickedOptionalRules(input.limit, input.optionalRules).map((rule) => (
@@ -222,7 +221,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   {[host, ...joined]
                     .map(
                       (unit) =>
-                        `${title(unit)} (${models(unit.size.models)}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
+                        `${unit.name} (${models(unit.size.models)}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
                     )
                     .join(' + ')}
                 </a>
@@ -233,13 +232,13 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         {data.groups.map(({ host, joined }, index) => (
           <section className="pack-unit" id={`pack-unit-${host.key}`} key={host.key} data-print-unit={host.name}>
             <h2>
-              Unit {index + 1}: {title(host)}
-              {joined.length ? ` + ${joined.map(title).join(' + ')}` : ''}
+              Unit {index + 1}: {host.name}
+              {joined.length ? ` + ${joined.map((unit) => unit.name).join(' + ')}` : ''}
             </h2>
             {[host, ...joined].map((unit) => (
               <div key={unit.key} data-print-datasheet={unit.name}>
                 <h3>
-                  {title(unit)} · {models(unit.size.models)} · {unit.points} pts
+                  {unit.name} · {models(unit.size.models)} · {unit.points} pts
                   {unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ' · Warlord' : ''}
                 </h3>
                 {input.picks[unit.key]?.note ? (
@@ -249,7 +248,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                 ) : null}
                 {unit !== host ? (
                   <p>
-                    {unit.attachment?.kind === 'leader' ? 'Leading' : 'Supporting'} {title(host)} (Unit {index + 1})
+                    {unit.attachment?.kind === 'leader' ? 'Leading' : 'Supporting'} {host.name} (Unit {index + 1})
                   </p>
                 ) : null}
                 <p>

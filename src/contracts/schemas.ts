@@ -7,12 +7,16 @@ import { MAX_COLLECTION_MODELS } from '../core/collection'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import { PUSH_PLATFORMS, pushTokenSchema } from '../core/notifications'
 import {
+  customPointsBudget,
   FORMAT_RULE_IDS,
   GAME_SIZES,
   isKotcLimit,
   OPTIONAL_RULE_IDS,
   MAX_DETACHMENTS,
   PHASES,
+  POINTS_BUDGET_MAX,
+  POINTS_BUDGET_MIN,
+  pointsBudgetError,
   ROSTER_NAME_MAX_LENGTH,
   SECONDARIES_MAX,
   STRATAGEM_CP_MAX,
@@ -24,6 +28,7 @@ import { commandSchema, detachmentIdSchema, rosterPickSchema } from '../core/com
 import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
+import { rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
 import { isPlayerDefaults } from '../core/playerDefaults'
 import {
   LEAGUE_ADMISSIONS,
@@ -44,6 +49,17 @@ const token = id
 const catalogueId = id.transform(currentCatalogueId)
 const slug = z.string().min(1).max(160)
 const rosterLimit = z.number().int().min(0).max(10_000)
+/**
+ * A custom points budget beside the battle size. Absent is not the same as null: a client
+ * built before budgets existed omits it, and its save keeps whatever budget is stored.
+ */
+const pointsBudget = z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable().optional()
+function validatePointsBudget(value: { limit: number; pointsBudget?: number | null }, context: z.RefinementCtx) {
+  const message = pointsBudgetError(value.limit, value.pointsBudget)
+  if (message) context.addIssue({ code: 'custom', path: ['pointsBudget'], message })
+}
+const withStandardBudget = <T extends { limit: number; pointsBudget?: number | null }>(value: T): T =>
+  value.pointsBudget === undefined ? value : { ...value, pointsBudget: customPointsBudget(value.limit, value.pointsBudget) }
 const battlesCursor = z.object({ at: z.number().int().min(0), id })
 
 export const tokenSchema = z.object({ token })
@@ -309,8 +325,6 @@ const prepSchema = z.object({
   secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
   reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).default([]),
   remindersEnabled: z.boolean().default(true),
-  /** Whether people who can read the saved roster also read its unit notes. */
-  shareNotes: z.boolean().default(false),
 })
 
 export const saveRosterSchema = z
@@ -323,6 +337,7 @@ export const saveRosterSchema = z
     disposition: id.nullable(),
     borrowedDetachmentId: detachmentIdSchema.nullable().default(null),
     limit: rosterLimit,
+    pointsBudget,
     picks: z.array(rosterPickSchema).max(100),
     waivedRules,
     optionalRules,
@@ -330,7 +345,8 @@ export const saveRosterSchema = z
     visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
     source: z.enum(ROSTER_SOURCES).default('editable'),
   })
-  .overwrite(currentRosterIds)
+  .superRefine(validatePointsBudget)
+  .overwrite((value) => withStandardBudget(currentRosterIds(value)))
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(200_000) })
@@ -351,6 +367,7 @@ export const rosterIdsSchema = z.object({
     .max(ROSTER_LIBRARY_BATCH_SIZE)
     .refine((ids) => new Set(ids).size === ids.length),
 })
+export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({ before: rosterDiscoveryCursorSchema.nullable().default(null) })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
 
@@ -390,7 +407,10 @@ export const priceSchema = z
 export type PriceInput = z.infer<typeof priceSchema>
 
 /** Exports whatever the builder is showing, so it works before a list is attached. */
-export const exportRosterSchema = priceSchema.extend({ name: z.string().trim().min(1).max(120) })
+export const exportRosterSchema = priceSchema
+  .safeExtend({ name: z.string().trim().min(1).max(120), pointsBudget })
+  .superRefine(validatePointsBudget)
+  .overwrite(withStandardBudget)
 export type ExportRosterInput = z.infer<typeof exportRosterSchema>
 
 export const collectionPublishedSchema = z.object({ published: z.boolean() })

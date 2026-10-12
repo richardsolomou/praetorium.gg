@@ -361,18 +361,14 @@ export async function saveRoster(
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
     borrowedDetachmentId: input.borrowedDetachmentId ?? null,
+    pointsBudget: input.pointsBudget === undefined ? (previous?.pointsBudget ?? null) : input.pointsBudget,
     optionalRules: input.optionalRules ?? [],
     waivedRules: input.waivedRules ?? [],
     baseRosterId: previous?.baseRosterId ?? (input as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
     visibility: input.visibility ?? 'private',
     source: input.source ?? 'editable',
     prep: input.prep
-      ? {
-          ...input.prep,
-          reminders: input.prep.reminders ?? [],
-          remindersEnabled: input.prep.remindersEnabled ?? true,
-          shareNotes: input.prep.shareNotes ?? false,
-        }
+      ? { ...input.prep, reminders: input.prep.reminders ?? [], remindersEnabled: input.prep.remindersEnabled ?? true }
       : null,
     reminders: input.prep?.reminders ?? [],
     remindersEnabled: input.prep?.remindersEnabled ?? true,
@@ -406,7 +402,8 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
   const owner = localOwner()?.id
   if (!localEngine()) return server.copyRoster(args)
   const access = await rosterAccess({ data: { id: args.data.id } })
-  if (!access?.editable) throw new Error('You do not own this roster.')
+  if (!access) throw new Error('That roster could not be loaded.')
+  if (args.data.variant && !access.editable) throw new Error('You do not own this roster.')
   const roster = access.roster
   const summaries = await savedRosterSummaries()
   const baseId = roster.baseRosterId ?? roster.id
@@ -420,14 +417,7 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
         )
       : `Copy of ${roster.name}`.slice(0, 80)
   const { rosterVisibility } = await playerDefaults()
-  const input = {
-    ...draftFor(roster),
-    id: undefined,
-    name,
-    visibility: rosterVisibility,
-    prep: roster.prep && { ...roster.prep, shareNotes: false },
-    baseRosterId: args.data.variant ? baseId : null,
-  }
+  const input = { ...draftFor(roster), id: undefined, name, visibility: rosterVisibility, baseRosterId: args.data.variant ? baseId : null }
   if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
   const result = await saveRoster({ data: input })
   return { id: result.id }
@@ -659,7 +649,7 @@ async function assessedRoster(roster: LocalRoster, owner: string, signal?: Abort
       const price = await server.priceRoster({ data: savedRosterPriceInput(roster), signal: requestSignal })
       return {
         points: price?.points ?? null,
-        problem: price ? (rosterUseProblem(price, roster.limit, roster.waivedRules)?.kind ?? null) : null,
+        problem: price ? (rosterUseProblem(price, roster)?.kind ?? null) : null,
         label: roster.name || price?.label || '',
       }
     },

@@ -13,8 +13,10 @@ import { type FormatRule, waivedFormatRules } from '../../core/battle'
  * be loud in the place it is chosen and silent in the place it is faced, and so the
  * four places that name a restriction all name it the same way.
  */
-export function rosterWaivers(roster: { limit: number; waivedRules?: readonly string[] | null } | null | undefined): FormatRule[] {
-  return roster ? waivedFormatRules(roster.limit, roster.waivedRules ?? []) : []
+export function rosterWaivers(
+  roster: { limit: number; pointsBudget?: number | null; waivedRules?: readonly string[] | null } | null | undefined,
+): FormatRule[] {
+  return roster ? waivedFormatRules(roster.limit, roster.waivedRules ?? [], roster.pointsBudget) : []
 }
 
 /** The waived restrictions as one readable list, for a sentence that names them. */

@@ -70,7 +70,7 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
-import { UnitAnnotations } from './builder/UnitAnnotations'
+import { UnitNote } from './builder/UnitNote'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
@@ -97,13 +97,7 @@ import type { CombatRoster } from '../simulator/useCombatant'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
-  prep: {
-    stratagems: Stratagem[]
-    secondaries: Secondary[]
-    reminders?: RosterReminder[]
-    remindersEnabled?: boolean
-    shareNotes?: boolean
-  }
+  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
   initial: {
     id: string
     name: string
@@ -112,6 +106,7 @@ type Props = {
     detachmentIds: string[]
     disposition: string | null
     limit: number
+    pointsBudget?: number | null
     picks: RosterPick[]
     waivedRules: FormatRuleId[]
     optionalRules?: OptionalRuleId[]
@@ -207,6 +202,7 @@ export function ListBuilder({
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
   const { picks, setPicks, resetPicks, positioned, annotated, held, allocateKey } = usePicks(initial.picks)
   const [limit, setLimit] = useState(initial.limit)
+  const [pointsBudget, setPointsBudget] = useState<number | null>(initial.pointsBudget ?? null)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
   const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
@@ -215,7 +211,6 @@ export function ListBuilder({
   const [name, setName] = useState(initial.automaticName ? '' : initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
-  const [shareNotes, setShareNotes] = useState(prep.shareNotes ?? false)
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
@@ -307,8 +302,8 @@ export function ListBuilder({
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true, shareNotes }),
-    [savedPrep, reminders, shareNotes],
+    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true }),
+    [savedPrep, reminders],
   )
   const draft: RosterDraft = {
     id: savedId || undefined,
@@ -317,6 +312,7 @@ export function ListBuilder({
     detachmentIds,
     disposition,
     limit,
+    pointsBudget,
     picks: annotated,
     prep: storedPrep,
     waivedRules,
@@ -367,6 +363,7 @@ export function ListBuilder({
     setCatalogueId(initial.catalogueId)
     resetPicks(initial.picks)
     setLimit(initial.limit)
+    setPointsBudget(initial.pointsBudget ?? null)
     setDetachmentIds(initial.detachmentIds)
     setDisposition(initial.disposition)
     setWaivedRules(initial.waivedRules)
@@ -376,7 +373,6 @@ export function ListBuilder({
     setVisibility(initial.visibility)
     setSavedPrep(prep)
     setReminders(prep.reminders ?? [])
-    setShareNotes(prep.shareNotes ?? false)
   }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   useEffect(() => {
     if (!editable || !catalogueId) return
@@ -396,6 +392,7 @@ export function ListBuilder({
     disposition,
     editable,
     limit,
+    pointsBudget,
     settledListName,
     settledPicks,
     storedPrep,
@@ -411,6 +408,7 @@ export function ListBuilder({
           detachmentIds,
           disposition,
           limit,
+          pointsBudget,
           name: shownName || 'Roster',
           units: withoutUnitNotes(annotated),
           waivedRules,
@@ -429,6 +427,7 @@ export function ListBuilder({
         disposition,
         borrowedDetachmentId,
         limit,
+        pointsBudget,
         points: priced?.points ?? null,
         waivedRules,
         optionalRules,
@@ -448,8 +447,9 @@ export function ListBuilder({
           detachmentIds,
           disposition,
           limit,
+          pointsBudget,
           picks: annotated,
-          prep: { ...storedPrep, shareNotes: false },
+          prep: storedPrep,
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
@@ -553,6 +553,7 @@ export function ListBuilder({
       catalogueId,
       detachmentIds,
       limit,
+      pointsBudget,
       picks: annotated,
       price: priced,
       waivedRules,
@@ -568,6 +569,7 @@ export function ListBuilder({
     guest,
     limit,
     optionalRules,
+    pointsBudget,
     annotated,
     priceLoading,
     pricePending,
@@ -773,6 +775,7 @@ export function ListBuilder({
       detachmentIds,
       disposition,
       limit,
+      pointsBudget,
       waivedRules,
       optionalRules,
       borrowedDetachmentId,
@@ -804,6 +807,7 @@ export function ListBuilder({
     setDetachmentIds(setup.detachmentIds)
     setDisposition(setup.disposition)
     setLimit(setup.limit)
+    setPointsBudget(setup.pointsBudget)
     setWaivedRules(setup.waivedRules)
     setOptionalRules(setup.optionalRules)
     setBorrowedDetachmentId(setup.borrowedDetachmentId)
@@ -858,7 +862,8 @@ export function ListBuilder({
   }
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
-  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > limit : Boolean(priced && priced.points > limit))
+  const budget = pointsBudget ?? limit
+  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
@@ -911,7 +916,7 @@ export function ListBuilder({
           })),
         }
       : selectedUnit
-  const waivers = waivedFormatRules(limit, waivedRules)
+  const waivers = waivedFormatRules(limit, waivedRules, pointsBudget)
   /*
    * Dismissing says "I know", not "never tell me": the key is the set of waived
    * restrictions, so switching another one off says something the player has not
@@ -945,8 +950,9 @@ export function ListBuilder({
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
-            room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
+            room={priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null}
             battleSize={limit}
+            pointsBudget={pointsBudget}
             waivedRules={waivedRules}
             onWaiveToggle={toggleWaivedRule}
             query={pickerQuery}
@@ -979,12 +985,7 @@ export function ListBuilder({
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
         building && selected !== null && selectedPick ? (
-          <UnitAnnotations
-            nickname={selectedPick.nickname}
-            note={selectedPick.note}
-            onChange={(field, value) => edit.annotate(selected, field, value)}
-            shareNotes={guest ? undefined : { shared: shareNotes, onChange: setShareNotes }}
-          />
+          <UnitNote note={selectedPick.note} onChange={(value) => edit.annotate(selected, value)} />
         ) : undefined
       }
       reference={
@@ -1048,6 +1049,7 @@ export function ListBuilder({
         edition={snapshotEdition}
         factionLoading={factionLoading}
         limit={limit}
+        pointsBudget={pointsBudget}
         unitCount={fieldedUnitCount}
         detachments={
           frozen
@@ -1331,7 +1333,6 @@ export function ListBuilder({
                       <UnitCard
                         key={unit.entryId + index}
                         unit={unit}
-                        nickname={frozen.units[index]?.nickname}
                         note={frozen.units[index]?.note}
                         joined={joined}
                         selected={selected === index}
@@ -1342,7 +1343,6 @@ export function ListBuilder({
                       <BuilderUnitCard
                         key={picks[index]?.key ?? unit.entryId}
                         unit={unit}
-                        nickname={picks[index]?.nickname}
                         note={picks[index]?.note}
                         index={index}
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
@@ -1544,7 +1544,7 @@ export function ListBuilder({
         over={over}
         illegal={illegal}
         points={points}
-        limit={limit}
+        limit={budget}
         hasUnits={Boolean(cards.length)}
         editable={editable}
         canAddUnits={Boolean(faction)}

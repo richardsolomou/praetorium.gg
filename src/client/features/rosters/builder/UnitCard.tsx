@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../../../core/attach'
-import { nicknamedUnit } from '../../../../core/unitNotes'
 import { FactionLabel, type FactionPresentation } from '../../../components/FactionMark'
 
 type BuiltUnit = {
@@ -30,8 +29,6 @@ type Joined = { label: string; name: string; action?: string; onAct?: () => void
 
 type Props = {
   unit: BuiltUnit
-  /** The player's name for the unit, shown above the datasheet name. */
-  nickname?: string
   /** Only present for readers allowed to see it. */
   note?: string
   alliedFaction?: FactionPresentation
@@ -64,7 +61,6 @@ type Editing = {
  */
 export function UnitCard({
   unit,
-  nickname,
   note,
   alliedFaction,
   selected,
@@ -99,7 +95,7 @@ export function UnitCard({
           data-print-hide
           onClick={onSelect}
           aria-pressed={selected}
-          aria-label={nicknamedUnit(unit.name, nickname)}
+          aria-label={unit.name}
         />
       ) : null}
       <div className="flow-root px-2.5 py-2">
@@ -121,10 +117,9 @@ export function UnitCard({
         <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
             <span className="rubric block leading-tight text-bone">
-              {nickname ?? unit.name}
+              {unit.name}
               {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
             </span>
-            {nickname ? <span className="mt-0.5 block text-xs text-dim">{unit.name}</span> : null}
             {alliedFaction ? (
               <span className="eyebrow mt-1 flex items-center gap-1 text-info">
                 Allied unit · <FactionLabel faction={alliedFaction} />

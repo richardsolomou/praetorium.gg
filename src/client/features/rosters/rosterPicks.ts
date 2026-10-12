@@ -14,7 +14,7 @@ export type KeyedPick = RosterPick & { key: number }
  * Written out field by field rather than spread, because the shape is also the
  * pricing cache key: a route prefetching a saved list and the builder editing it
  * have to produce the same object or the page refetches what it was just given.
- * Nicknames and notes change nothing a price reads, so typing one must not reprice.
+ * Notes change nothing a price reads, so typing one must not reprice.
  */
 export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
   picks.map(({ entryId, catalogueId, models, choices, spreads, toggles, attachedTo }) => ({
@@ -27,9 +27,9 @@ export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
     attachedTo,
   }))
 
-/** The construction shape with the player's nickname and note, as a saved row keeps it. */
+/** The construction shape with the player's note, as a saved row keeps it. */
 export const annotatedPicks = (picks: readonly RosterPick[]): RosterPick[] =>
-  normalisePicks(picks).map((pick, at) => ({ ...pick, nickname: picks[at]?.nickname, note: picks[at]?.note }))
+  normalisePicks(picks).map((pick, at) => ({ ...pick, note: picks[at]?.note }))
 
 /** Session keys resolved to the positions a saved list counts in. */
 const withPositions = (picks: readonly KeyedPick[]): RosterPick[] =>

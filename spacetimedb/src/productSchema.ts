@@ -125,13 +125,14 @@ const rosters = table(
     waivedRules: t.string(),
     optionalRules: t.string(),
     borrowedDetachmentId: t.option(t.string()),
-    visibility: t.string(),
+    visibility: t.string().index('btree'),
     source: t.string(),
     createdAt: t.u64(),
     updatedAt: t.u64(),
     automaticName: t.option(t.bool()).default(undefined),
     baseRosterId: t.option(t.string()).default(undefined),
     locked: t.option(t.bool()).default(undefined),
+    pointsBudget: t.option(t.u32()).default(undefined),
   },
 )
 

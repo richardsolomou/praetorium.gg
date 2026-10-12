@@ -260,6 +260,10 @@ export class PraetoriumService {
     return this.rosterService.publicRosters(...args)
   }
 
+  discoverRosters(...args: Parameters<RosterService['discoverRosters']>) {
+    return this.rosterService.discoverRosters(...args)
+  }
+
   rosterAccess(...args: Parameters<RosterService['rosterAccess']>) {
     return this.rosterService.rosterAccess(...args)
   }

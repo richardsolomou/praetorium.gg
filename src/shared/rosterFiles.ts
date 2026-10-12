@@ -9,10 +9,10 @@ import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
-import { textNickname, type TextRoster, type TextRosterUnit } from '../core/textRoster'
+import type { TextRoster, TextRosterUnit } from '../core/textRoster'
 import { toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
-import { GAME_SIZES } from '../core/battle'
+import { allowsPointsBudget, customPointsBudget, GAME_SIZES, pointsBudgetError } from '../core/battle'
 import { factionDisplayName } from './factionNames'
 import {
   attachmentReason,
@@ -158,6 +158,7 @@ export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCat
     disposition: exchange.disposition,
     borrowedDetachmentId: exchange.borrowedDetachmentId,
     limit: exchange.limit,
+    pointsBudget: exchange.pointsBudget ?? null,
     waivedRules: exchange.waivedRules,
     optionalRules: exchange.optionalRules,
     units,
@@ -240,12 +241,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     ])
   }
 
-  const limit = GAME_SIZES.some((size) => size.limit === parsed.limit) ? parsed.limit : null
-  if (parsed.limit !== null && limit === null)
-    unknown.push({
-      name: `${parsed.limit} point battle size`,
-      reason: 'this battle size is not supported; choose a supported size in setup',
-    })
+  const { limit, pointsBudget } = importedBattleSize(parsed, unknown)
   if (parsed.disposition?.includes(','))
     unknown.push({ name: parsed.disposition, reason: 'more than one force disposition was stated; choose one in setup' })
 
@@ -256,6 +252,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     detachmentIds,
     disposition: parsed.disposition && !parsed.disposition.includes(',') ? slug(parsed.disposition) : null,
     limit,
+    pointsBudget,
     units,
     unknown,
     unplaced: [...unplaced].map(([at, choices]) => ({
@@ -263,6 +260,32 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
       choices: [...choices].map(([name, reason]) => ({ name, reason })),
     })),
   }
+}
+
+/**
+ * The battle size a text states, and a custom points budget when it names a size beside other points.
+ *
+ * Points alone only ever choose a size whose total they equal, so an unnamed number is
+ * never guessed into a format.
+ */
+function importedBattleSize(parsed: TextRoster, unknown: UnmatchedName[]): { limit: number | null; pointsBudget: number | null } {
+  if (parsed.limit === null) return { limit: null, pointsBudget: null }
+  const named = GAME_SIZES.find((size) => normalized(size.name) === normalized(parsed.sizeName ?? ''))
+  if (named && allowsPointsBudget(named.limit)) {
+    const error = pointsBudgetError(named.limit, parsed.limit)
+    if (!error) return { limit: named.limit, pointsBudget: customPointsBudget(named.limit, parsed.limit) }
+    unknown.push({
+      name: `${named.name} at ${parsed.limit} points`,
+      reason: `${error} It is imported at the standard ${named.limit} points.`,
+    })
+    return { limit: named.limit, pointsBudget: null }
+  }
+  if (GAME_SIZES.some((size) => size.limit === parsed.limit)) return { limit: parsed.limit, pointsBudget: null }
+  unknown.push({
+    name: `${parsed.limit} point battle size`,
+    reason: 'this battle size is not supported; choose a supported size in setup',
+  })
+  return { limit: null, pointsBudget: null }
 }
 
 function note(found: Map<number, Map<string, string>>, unit: number, choices: readonly UnplacedChoice[]) {
@@ -390,7 +413,6 @@ function textRosterPick(
     ),
     toggles,
     attachedTo: undefined as number | undefined,
-    ...(unit.nickname ? { nickname: unit.nickname } : {}),
   }
 
   const unplaced = [...stated.keys()]
@@ -507,10 +529,10 @@ export function exportRosterFile(
     dispositions: dispositionNames,
     size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
     limit: data.limit,
+    ...(data.pointsBudget ? { pointsBudget: data.pointsBudget } : {}),
     points: priced.points,
     units: priced.units.map((unit) => ({
       ...unit,
-      nickname: textNickname(data.units[unit.key]?.nickname ?? ''),
       models: unit.size.models,
       entry: unit.key + 1,
       attachedToEntry: data.units[unit.key]?.attachedTo !== undefined ? data.units[unit.key]!.attachedTo! + 1 : undefined,

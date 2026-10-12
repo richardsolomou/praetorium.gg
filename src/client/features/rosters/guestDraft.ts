@@ -47,6 +47,7 @@ export const EMPTY_SETUP: RosterSetup = {
   detachmentIds: [],
   disposition: null,
   limit: DEFAULT_GAME_LIMIT,
+  pointsBudget: null,
   waivedRules: [],
   optionalRules: [],
   borrowedDetachmentId: null,

@@ -45,6 +45,7 @@ export function BattleRosterSnapshot({ roster, print }: { roster: Roster; print?
           detachmentIds: built.detachmentIds ?? [],
           disposition: built.disposition,
           limit: built.limit,
+          pointsBudget: built.pointsBudget ?? null,
           picks: built.picks ?? [],
           waivedRules: built.waivedRules ?? [],
           visibility: 'private',
@@ -70,6 +71,7 @@ export function BattleRosterSnapshot({ roster, print }: { roster: Roster; print?
           factionLoading={Boolean(built) && factionResult.isLoading}
           points={built ? total(built) : undefined}
           limit={built?.limit}
+          pointsBudget={built?.pointsBudget}
           detachments={detachments(built)}
           disposition={built?.disposition}
           waivers={rosterWaivers(built)}

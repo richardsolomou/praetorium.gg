@@ -16,6 +16,7 @@ type SavedRoster = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: readonly RosterPick[]
   waivedRules: FormatRuleId[]
   optionalRules?: OptionalRuleId[]
@@ -29,7 +30,6 @@ type SavedPrep = {
   secondaries: Secondary[]
   reminders?: RosterReminder[]
   remindersEnabled?: boolean
-  shareNotes?: boolean
 }
 
 /** Two drafts that would save the same row compare equal. */
@@ -51,13 +51,13 @@ export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
     limit: roster.limit,
+    pointsBudget: roster.pointsBudget ?? null,
     picks: annotatedPicks(roster.picks),
     prep: {
       stratagems: prep.stratagems,
       secondaries: prep.secondaries,
       reminders: prep.reminders ?? [],
       remindersEnabled: prep.remindersEnabled ?? true,
-      shareNotes: prep.shareNotes ?? false,
     },
     waivedRules: roster.waivedRules,
     optionalRules: roster.optionalRules ?? [],

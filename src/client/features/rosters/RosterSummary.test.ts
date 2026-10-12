@@ -12,6 +12,7 @@ const roster = {
   detachmentIds: ['awakened-dynasty'],
   disposition: null,
   limit: 2_000,
+  pointsBudget: null,
   createdAt: 0,
   updatedAt: 0,
   unitCount: 0,
@@ -45,6 +46,12 @@ describe('roster summary', () => {
     expect(markup).toContain('1985/2000')
     expect(markup).toContain('Private')
     expect(markup).not.toContain('switched off')
+  })
+
+  it('shows a custom points budget beside the battle size whose limits still apply', () => {
+    const markup = renderToStaticMarkup(createElement(RosterSummary, { roster: { ...roster, pointsBudget: 1_500 }, points: 1_485 }))
+
+    expect([markup.includes('1485/1500'), markup.includes('Strike Force · 1500-point budget')]).toEqual([true, true])
   })
 
   it('shows the selected force disposition beside the detachment', () => {
@@ -88,5 +95,27 @@ describe('roster summary', () => {
     )
 
     expect(markup).not.toContain('switched off')
+  })
+
+  describe('for somebody deciding whether to copy it', () => {
+    const published = { ...roster, visibility: 'public' as const }
+    const markup = (props: { points?: number | null; problem?: 'not-legal' | null }) =>
+      renderToStaticMarkup(createElement(RosterSummary, { roster: published, showLegality: true, ...props }))
+
+    it('says a priced roster without a problem is legal', () => {
+      expect(markup({ points: 1_985 })).toContain('Legal')
+    })
+
+    it('says why a roster cannot be fielded', () => {
+      expect(markup({ points: 1_985, problem: 'not-legal' })).toContain('Not legal')
+    })
+
+    it('calls an unpriced roster neither legal nor illegal', () => {
+      expect(markup({ points: null })).not.toMatch(/Legal|Not legal/)
+    })
+
+    it('leaves out who can read the roster', () => {
+      expect(markup({ points: 1_985 })).not.toContain('Public')
+    })
   })
 })

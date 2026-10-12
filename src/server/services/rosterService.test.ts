@@ -76,7 +76,7 @@ it('retains the original Marine codex for a library summary saved against it', a
 describe('unit notes on a shared roster', () => {
   const picks = JSON.stringify([
     { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
-    { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
+    { entryId: 'intercessors', note: 'Push midfield.' },
   ])
   const prep = (shareNotes?: boolean) =>
     JSON.stringify({ stratagems: [], secondaries: [], ...(shareNotes === undefined ? {} : { shareNotes }) })
@@ -84,10 +84,6 @@ describe('unit notes on a shared roster', () => {
     const service = new RosterService({ roster: vi.fn().mockResolvedValue({ ...row, ...saved }) } as unknown as RepositoryPort, () => 0)
     return (await service.rosterAccess('roster-1', readerId))?.roster.picks
   }
-
-  it('shows another reader of a public roster the nicknames', async () => {
-    expect((await read({ picks, prep: prep(), visibility: 'public' }, 'user-2'))?.map((pick) => pick.nickname)).toEqual(['Alpha', 'Bravo'])
-  })
 
   it('keeps notes from another reader of a public roster', async () => {
     expect((await read({ picks, prep: prep(), visibility: 'public' }, 'user-2'))?.map((pick) => pick.note)).toEqual([undefined, undefined])
@@ -97,10 +93,10 @@ describe('unit notes on a shared roster', () => {
     expect((await read({ picks, prep: null, visibility: 'unlisted' }, 'user-2'))?.map((pick) => pick.note)).toEqual([undefined, undefined])
   })
 
-  it('shows another reader the notes once the owner shares them', async () => {
+  it('keeps notes from another reader of a roster saved while its notes were shared', async () => {
     expect((await read({ picks, prep: prep(true), visibility: 'unlisted' }, 'user-2'))?.map((pick) => pick.note)).toEqual([
-      'Hold home.',
-      'Push midfield.',
+      undefined,
+      undefined,
     ])
   })
 
@@ -109,6 +105,10 @@ describe('unit notes on a shared roster', () => {
       'Hold home.',
       'Push midfield.',
     ])
+  })
+
+  it('leaves out a unit nickname saved before nicknames were removed', async () => {
+    expect((await read({ picks, prep: prep(), visibility: 'private' }, 'user-1'))?.[0]).not.toHaveProperty('nickname')
   })
 })
 const edit = {
@@ -156,4 +156,65 @@ it('reads a library row saved before locking existed as unlocked', async () => {
     () => 0,
   )
   expect((await service.savedRosterSummaries('user-1'))[0]?.locked).toBe(false)
+})
+
+describe('public roster discovery', () => {
+  const picks = JSON.stringify([{ entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' }])
+  const prep = JSON.stringify({
+    stratagems: [],
+    secondaries: [],
+    shareNotes: true,
+    reminders: [
+      {
+        key: 'r',
+        ability: 'Oath',
+        description: 'Pick a target.',
+        timings: [{ moment: 'phase-start', phase: 'command', turn: 'your-turn' }],
+      },
+    ],
+  })
+  const listed = { ...row, visibility: 'public' as const, picks, prep, baseRosterId: 'unlisted-base' }
+  const discover = async (rows: (typeof listed)[], names = new Map([['user-1', { id: 'user-1', name: 'Owner' }]])) => {
+    const discoverRosters = vi.fn().mockResolvedValue({ rows, nextCursor: { at: 2, id: 'roster-1' } })
+    const namesByIds = vi.fn().mockResolvedValue(names)
+    const service = new RosterService({ discoverRosters, namesByIds } as unknown as RepositoryPort, () => 0)
+    return service.discoverRosters({ catalogueIds: null, detachmentIds: null, before: null, limit: 24 })
+  }
+
+  it('names the owner of a discovered roster', async () => {
+    expect((await discover([listed])).rosters.map((entry) => entry.owner.name)).toEqual(['Owner'])
+  })
+
+  it('leaves out a roster whose owner has no account', async () => {
+    expect((await discover([listed], new Map())).rosters).toEqual([])
+  })
+
+  it('keeps the next page cursor when a roster is left out', async () => {
+    expect((await discover([listed], new Map())).nextCursor).toEqual({ at: 2, id: 'roster-1' })
+  })
+
+  it('keeps unit notes and reminders out of a discovered roster summary', async () => {
+    const [entry] = (await discover([listed])).rosters
+    expect(JSON.stringify(entry!.summary)).not.toMatch(/Hold home|Pick a target/)
+  })
+
+  it('keeps the variant base out of a discovered roster summary', async () => {
+    expect((await discover([listed])).rosters[0]!.summary.baseRosterId).toBeNull()
+  })
+
+  it('keeps the variant base out of a public profile roster', async () => {
+    const publicRostersByUser = vi.fn().mockResolvedValue([listed])
+    const service = new RosterService({ publicRostersByUser } as unknown as RepositoryPort, () => 0)
+    expect((await service.publicRosters('user-1')).summaries[0]!.baseRosterId).toBeNull()
+  })
+
+  it('keeps the variant base from another reader of a public roster', async () => {
+    const service = new RosterService({ roster: vi.fn().mockResolvedValue(listed) } as unknown as RepositoryPort, () => 0)
+    expect((await service.rosterAccess('roster-1', 'user-2'))?.roster.baseRosterId).toBeNull()
+  })
+
+  it('shows the owner their own variant base', async () => {
+    const service = new RosterService({ roster: vi.fn().mockResolvedValue(listed) } as unknown as RepositoryPort, () => 0)
+    expect((await service.rosterAccess('roster-1', 'user-1'))?.roster.baseRosterId).toBe('unlisted-base')
+  })
 })

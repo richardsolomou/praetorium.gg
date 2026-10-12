@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Command } from '../../../core/battle'
+import { battleSizeText, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { ReportEntry } from '../../../core/battleReport'
 import type { ReplayPoint } from '../../../core/battleReplay'
@@ -176,7 +176,7 @@ export function Spectator({
                   <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
                 </>
               )}
-              <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
+              <Fact label="Battle size" value={battleSizeText(view) ?? 'Legacy format'} />
             </dl>
             {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
             {currentView.status === 'finished' ? null : <SpectatorInvite view={currentView} className="border-t border-edge pt-3" />}

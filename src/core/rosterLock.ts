@@ -2,7 +2,7 @@ import { detachmentIds } from './savedRoster'
 
 export const LOCKED_ROSTER_MESSAGE = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
 
-/** Everything a save can change on a roster apart from who can read it, which includes sharing unit notes. */
+/** Everything a save can change on a roster apart from who can read it. */
 export type RosterContent = {
   name: string
   automaticName: boolean
@@ -10,6 +10,7 @@ export type RosterContent = {
   detachmentIds: readonly string[]
   disposition: string | null | undefined
   limit: number
+  pointsBudget?: number | null
   picks: unknown
   prep: unknown
   waivedRules?: readonly string[]
@@ -25,6 +26,7 @@ export function storedRosterContent(row: {
   detachmentId?: string | null
   disposition?: string | null
   limit: number
+  pointsBudget?: number | null
   picks: string
   prep?: string | null
   waivedRules: string
@@ -38,6 +40,7 @@ export function storedRosterContent(row: {
     detachmentIds: detachmentIds(row.detachmentId),
     disposition: row.disposition,
     limit: row.limit,
+    pointsBudget: row.pointsBudget ?? null,
     picks: JSON.parse(row.picks),
     prep: row.prep ? JSON.parse(row.prep) : null,
     waivedRules: JSON.parse(row.waivedRules) as string[],
@@ -58,6 +61,13 @@ export function lockedRosterRefusal(current: (RosterContent & { locked?: boolean
   return comparable(current) === comparable(next) ? null : LOCKED_ROSTER_MESSAGE
 }
 
+/** Rows saved while unit nicknames and shared notes existed still carry them, and a save no longer sends either. */
+const withoutRetiredPick = (pick: unknown) => {
+  if (!pick || typeof pick !== 'object') return pick
+  const { nickname: _nickname, ...rest } = pick as Record<string, unknown>
+  return rest
+}
+
 function comparable(content: RosterContent) {
   const { shareNotes: _shareNotes, ...prep } =
     content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
@@ -68,7 +78,8 @@ function comparable(content: RosterContent) {
     detachmentIds: content.detachmentIds,
     disposition: content.disposition ?? null,
     limit: content.limit,
-    picks: content.picks,
+    pointsBudget: content.pointsBudget ?? null,
+    picks: Array.isArray(content.picks) ? content.picks.map(withoutRetiredPick) : content.picks,
     prep: {
       ...prep,
       stratagems: prep.stratagems ?? [],

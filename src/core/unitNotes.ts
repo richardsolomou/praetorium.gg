@@ -1,18 +1,8 @@
 import type { Roster } from './battle'
 
-export const UNIT_NICKNAME_MAX_LENGTH = 40
 export const UNIT_NOTE_MAX_LENGTH = 500
 
-/** A nickname never replaces the datasheet name, so a reader can still tell what the unit is. */
-export const nicknamedUnit = (name: string, nickname?: string) => (nickname ? `${nickname} · ${name}` : name)
-
-/**
- * The same units or picks with their owner's notes taken out.
- *
- * A nickname identifies a unit to everyone reading the army; a note is the owner's
- * own preparation, so every read by somebody else goes through this unless the owner
- * shared the roster's notes.
- */
+/** The same units or picks with their owner's notes taken out, for every read by somebody else. */
 export function withoutUnitNotes<T extends { note?: string }>(items: readonly T[]): T[] {
   return items.map((item) => {
     if (item.note === undefined) return item
