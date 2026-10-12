@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.132.2
+
+### Patch Changes
+
+- 73d5fe3: Include compulsory detachment upgrades in Add units prices.
+- 73d5fe3: Remove collection actions from roster unit menus.
+
 ## 0.132.1
 
 ### Patch Changes
