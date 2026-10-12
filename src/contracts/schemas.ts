@@ -172,6 +172,7 @@ export const createBattleSchema = z
       .optional(),
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
+    manual: z.boolean().default(false),
   })
   .refine(
     (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 3,
