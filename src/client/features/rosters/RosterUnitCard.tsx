@@ -17,15 +17,12 @@ type BuilderUnitCardProps = {
   canHost: AttachChoice[]
   alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
   selected: boolean
-  owned: boolean
   editable: boolean
   alertCount?: number
   onSelect: (index: number) => void
   onRemove: (index: number) => void
   onDuplicate: (index: number) => void
   canDuplicate?: boolean
-  /** Absent for a visitor, whose collection has no account to live in. */
-  onOwned?: (entryId: string, owned: boolean) => void
   onDetach: (index: number) => void
   onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
 }
@@ -39,14 +36,12 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   canHost,
   alliedFaction,
   selected,
-  owned,
   editable,
   alertCount,
   onSelect,
   onRemove,
   onDuplicate,
   canDuplicate,
-  onOwned,
   onDetach,
   onAttach,
 }: BuilderUnitCardProps) {
@@ -60,8 +55,6 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onRemove={() => onRemove(index)}
       onDuplicate={() => onDuplicate(index)}
       canDuplicate={canDuplicate}
-      owned={owned}
-      onOwned={onOwned ? () => onOwned(unit.entryId, !owned) : undefined}
       joined={joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) }))}
       canJoin={canJoin}
       onJoin={(choice) => onAttach(index, 'join', choice)}

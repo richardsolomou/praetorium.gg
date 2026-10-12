@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { savedWork } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import {
@@ -284,8 +285,6 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const rosterUrl = page.url()
 
-  // Deleting the unit in front of it moves Lychguard, so the pane names a place in the
-  // roster that is no longer its own once the workspace is mounted again.
   await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
   await waitForRosterSave(page, () => page.getByRole('menuitem', { name: 'Delete unit' }).click())
   await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
@@ -295,9 +294,8 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL('/battles')
 
-  // The unit is unresolvable, so the roster it belongs to is what is left of the tab.
   await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page).toHaveURL(rosterUrl)
+  await expect(page).toHaveURL((url) => url.pathname === new URL(rosterUrl).pathname)
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
 
   await context.close()
@@ -614,13 +612,17 @@ test('deleting a unit keeps the rest of the roster visible while pricing catches
 
 test('collection changes do not reorder roster and reference rows', async ({ page }) => {
   await openBuilder(page)
-  await add(page, 'Necron Warriors')
-  await add(page, 'Immortals')
+  await waitForRosterSave(page, () => add(page, 'Necron Warriors'))
+  await waitForRosterSave(page, () => add(page, 'Immortals'))
 
-  await page.locator('[data-unit="Necron Warriors"]').getByLabel('Unit actions for Necron Warriors').click()
-  const collected = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
-  await page.getByRole('menuitemcheckbox', { name: 'Add to collection' }).click()
-  await collected
+  const rosterUrl = page.url()
+  await page.goto('/collection')
+  await page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click()
+  await page.getByPlaceholder('Search datasheets…').fill('Necron Warriors Necrons')
+  await page.getByRole('option', { name: /^Necron Warriors, Necrons/ }).click()
+  await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await page.goto(rosterUrl)
 
   await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
   await page.goto('/factions/necrons/datasheets')

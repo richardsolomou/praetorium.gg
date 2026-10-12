@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-const catalogueId = 'current-rosters~e0af-67df-9d63-8fb7'
+const catalogueId = 'marine-main~e0af-67df-9d63-8fb7'
 const focused = '343b-32b8-38b5-83fa'
 const focusedName = '➤ Smite - Focused Witchfire'
 const witchfireName = '➤ Smite - Witchfire'

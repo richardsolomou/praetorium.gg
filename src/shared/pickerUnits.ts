@@ -47,10 +47,11 @@ export function pickerUnitsFor(
   query: string,
   battleSize?: number,
   waivedRules: readonly string[] = [],
+  detachmentIds: readonly string[] = [],
 ): PickerUnit[] {
   const names = rules?.factionNames
   const restrictions = pickerRestrictions(loaded, rules, catalogueId)
-  return unitsIn(loaded, catalogueId, query, { restrictions, battleSize, waivedRules }).map((unit) => ({
+  return unitsIn(loaded, catalogueId, query, { restrictions, battleSize, waivedRules, detachmentIds }).map((unit) => ({
     ...unit,
     ...pickerAttachments(loaded, catalogueId, unit.id),
     alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
