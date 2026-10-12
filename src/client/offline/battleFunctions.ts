@@ -319,12 +319,13 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const command = commandSchema.parse({
     kind: 'configure-battle',
     limit: input.limit ?? null,
-    missionPackId: input.missionPackId,
+    missionPackId: input.manual ? null : input.missionPackId,
     terrainLayoutId: null,
     twistId: null,
     teamBattle: invited.length >= 2,
     playerCount: invited.length + 1,
     clockLimitMinutes: null,
+    ...(input.manual ? { manual: true } : {}),
   })
   const workspace: BattleWorkspace = {
     battle: { id: identifiers.battleId, token: identifiers.battleToken, createdAt: now },

@@ -56,6 +56,8 @@ import { BattleMinimizeContext } from './BattlePromptDialog'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT, storedOnboardingFocus, type OnboardingFocus } from '../onboarding/onboarding'
 import { Fact } from '../../components/Fact'
 import { BattlefieldFact } from './BattlefieldFact'
+import { BattleNote } from './BattleNote'
+import { MANUAL_TRACKING_LIMITS } from './manualTracking'
 
 type Props = {
   view: BattleView
@@ -685,10 +687,16 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
 
             <section className={`space-y-3 rounded-lg border border-edge bg-panel p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
-                <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-                <BattlefieldFact view={view} deployment={deployment} objectives />
-                <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
+                {view.settings.manual ? (
+                  <Fact label="Tracking" value="Manual" />
+                ) : (
+                  <>
+                    <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
+                    <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
+                    <BattlefieldFact view={view} deployment={deployment} objectives />
+                    <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
+                  </>
+                )}
                 <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
                 <Fact label="Format" value={formatName(table)} />
                 {/*
@@ -705,6 +713,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                   </div>
                 ) : null}
               </dl>
+              {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
 
               <div data-onboarding="battle-live-report" className="border-t border-edge pt-3">
                 <div className="flex items-center justify-between gap-3">
@@ -716,13 +725,16 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     timerPaused={clock.paused}
                     onTimerPausedChange={(paused) => sendAction({ kind: paused ? 'pause-clock' : 'resume-clock' })}
                     players={view.players}
-                    onActionRemindersChange={updateActionReminders}
+                    onActionRemindersChange={view.settings.manual ? undefined : updateActionReminders}
                     onRecordMissed={missedMoments.length ? () => setRecordingMissed(true) : undefined}
                     onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
                     onDelete={() => {
                       if (!promptMinimized) remove.mutate()
                     }}
                   />
+                </div>
+                <div className="mt-3">
+                  <BattleNote pending={pending || promptMinimized} send={sendAction} />
                 </div>
                 <Report token={view.token} open players={reportPlayers} />
               </div>

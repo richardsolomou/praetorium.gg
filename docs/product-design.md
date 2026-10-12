@@ -4,7 +4,7 @@ Praetorium uses a compact, dark interface. The roster builder is dense; the batt
 
 ## Scope
 
-Praetorium covers catalogue-backed lists, combat comparisons, friend and practice battles, league registration with sealed rosters, and a public rules reference drawn from community data. The home page shows relevant games and lists, public activity, and the leaderboard. Players control who may watch their battles.
+Praetorium covers catalogue-backed lists, combat comparisons, friend and practice battles tracked with mission guidance or by hand, league registration with sealed rosters, and a public rules reference drawn from community data. The home page shows relevant games and lists, public activity, and the leaderboard. Players control who may watch their battles.
 
 It does not include pairings, brackets, locations, chat, matchmaking, rules this project wrote itself, or model positions.
 
@@ -20,7 +20,7 @@ A player's profile is public, but its battle record and leaderboard place includ
 
 The owner sees monthly win rates by detachment, primary mission, and battle size on their profile. These are the player's results from the same visible finished battles as their service record; a draw counts as half a win.
 
-The leaderboard counts finished public battles over the last 90 days. A row is a player, ranked by a rating that weighs who they beat, with allies rated as one side. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, games of every table shape count together, and a battle with a practice opponent in it counts for nobody.
+The leaderboard counts finished public battles over the last 90 days. A row is a player, ranked by a rating that weighs who they beat, with allies rated as one side. Beside the overall table there is one per faction anybody has played, ranking the players who fielded it rather than giving the faction a record of its own. A concession is a loss whatever the score said, allies share their side's points, games of every table shape count together, and a battle with a practice opponent in it counts for nobody. A manually tracked battle counts in each player's record, labelled as manual, but not on the leaderboard: its score never passed through a mission's scoring rules.
 
 ## Publication and retained copies
 
@@ -38,7 +38,7 @@ Sharing a private roster from the library first makes it unlisted; the action st
 | Sealed league roster                            | Accepted assigned allies before reveal; event readers after reveal                                                                 | Saved edits or deletion do not rewrite it; replacement, unsealing, league deletion, or account deletion removes the relevant sealed copy |
 | Battle screen, replay, event feed, and metadata | Seated players or readers permitted by the narrowest-seat audience                                                                 | Audience changes apply to historical and live reads; deletion removes the record                                                         |
 | Profile                                         | Public name and image; an optionally published collection; battle records limited to games the reader may watch                    | Audience changes narrow its record; account deletion removes the profile                                                                 |
-| Leaderboard                                     | Finished public, non-practice battles from the bounded 90-day window                                                               | Audience changes, reopening, and deletion invalidate derived rankings                                                                    |
+| Leaderboard                                     | Finished public, guided, non-practice battles from the bounded 90-day window                                                       | Audience changes, reopening, and deletion invalidate derived rankings                                                                    |
 
 Deleting a league removes its events and sealed rosters while battles keep their independent command-log copies. Account deletion removes the player's saved rosters, friendships, event entries, organized leagues, and every battle they played, including shared games. Copies a reader has downloaded or captured cannot be recalled. Revocable player-content preview images use `no-store`; public rules reference images may remain cached.
 

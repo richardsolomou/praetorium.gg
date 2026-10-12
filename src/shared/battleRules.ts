@@ -74,6 +74,7 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
 }
 
 export function resolvedMissionForSide(state: BattleState, rules: BattleReadRules, side: number) {
+  if (state.settings.manual) return null
   const ownDisposition = sideDisposition(state, side)
   const opposingSide = state.players.find((player) => player.side !== side)?.side
   const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
@@ -81,6 +82,7 @@ export function resolvedMissionForSide(state: BattleState, rules: BattleReadRule
 }
 
 export function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: LoadedRules): Refusal | null {
+  if (state.settings.manual) return null
   // A matchup is between the two sides, so it is read off each side's captain. Taking
   // the first two seats instead held while side 0 was always one player, and put a 2v1
   // whose pair opened the battle into a matchup between its own allies.
@@ -177,7 +179,7 @@ export function scoringCapError(
   rules: Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>,
 ): Refusal | null {
   const target = scoringTarget(state, by, command)
-  if (!target) return null
+  if (!target || state.settings.manual) return null
   if (command.kind === 'score-settlement' && command.scores.some((score) => score.category === 'primary' && score.final)) {
     const invalid = commandRefusal(state, by, command)
     if (invalid) return invalid

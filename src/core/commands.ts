@@ -5,6 +5,7 @@ import {
   type Command,
   DETACHMENTS_MAX,
   FORMAT_RULE_IDS,
+  NOTE_MAX_LENGTH,
   ROSTER_MAX_LENGTH,
   ROSTER_NAME_MAX_LENGTH,
   SCORE_SETTLEMENT_MAX,
@@ -126,6 +127,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     teamBattle: z.boolean().optional(),
     playerCount: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
     clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
+    manual: z.boolean().optional(),
   }),
   z.object({ kind: z.literal('reset-setup') }),
   z.object({ kind: z.literal('detach-roster'), playerId: id.optional() }),
@@ -305,6 +307,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     concededBy: id.optional(),
   }),
   z.object({ kind: z.literal('reopen-battle') }),
+  z.object({ kind: z.literal('add-note'), text: z.string().max(NOTE_MAX_LENGTH) }),
   z.object({ kind: z.literal('undo'), target: z.number().int().positive() }),
 ])
 
