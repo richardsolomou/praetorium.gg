@@ -1,5 +1,5 @@
-import { BellRing, Boxes, Copy, EllipsisVertical, X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { BellRing, Boxes, Copy, EllipsisVertical, Plus, X } from 'lucide-react'
+import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ContextMenu, ContextMenuCheckboxItem, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
@@ -7,11 +7,13 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../../../core/attach'
-import { nicknamedUnit } from '../../../../core/unitNotes'
 import { FactionLabel, type FactionPresentation } from '../../../components/FactionMark'
 
 type BuiltUnit = {
@@ -25,13 +27,16 @@ type BuiltUnit = {
   upgrades: string[]
 }
 
+/** A unit already in the roster to attach, or a datasheet to add as a new unit and attach in the same edit. */
+export type AttachChoice =
+  | { kind: 'roster'; key: number; name: string }
+  | { kind: 'new'; entryId: string; name: string; points: number | null; reason: string | null }
+
 /** Who this unit is joined to, in whichever direction the card is showing. */
 type Joined = { label: string; name: string; action?: string; onAct?: () => void }
 
 type Props = {
   unit: BuiltUnit
-  /** The player's name for the unit, shown above the datasheet name. */
-  nickname?: string
   /** Only present for readers allowed to see it. */
   note?: string
   alliedFaction?: FactionPresentation
@@ -53,9 +58,12 @@ type Editing = {
   canDuplicate: boolean
   owned: boolean
   onOwned: () => void
-  /** Units in the roster this one may join, when it may join any. */
-  canJoin: { key: number; name: string }[]
-  onJoin: (key: number) => void
+  /** Units this one may join. */
+  canJoin: AttachChoice[]
+  onJoin: (choice: AttachChoice) => void
+  /** Units that may join this one. */
+  canHost: AttachChoice[]
+  onHost: (choice: AttachChoice) => void
 }
 
 /**
@@ -64,7 +72,6 @@ type Editing = {
  */
 export function UnitCard({
   unit,
-  nickname,
   note,
   alliedFaction,
   selected,
@@ -77,6 +84,8 @@ export function UnitCard({
   joined = NONE,
   canJoin = NONE,
   onJoin = noop,
+  canHost = NONE,
+  onHost = noop,
   status,
   alertCount = 0,
   editable = true,
@@ -99,7 +108,7 @@ export function UnitCard({
           data-print-hide
           onClick={onSelect}
           aria-pressed={selected}
-          aria-label={nicknamedUnit(unit.name, nickname)}
+          aria-label={unit.name}
         />
       ) : null}
       <div className="flow-root px-2.5 py-2">
@@ -121,10 +130,9 @@ export function UnitCard({
         <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
             <span className="rubric block leading-tight text-bone">
-              {nickname ?? unit.name}
+              {unit.name}
               {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
             </span>
-            {nickname ? <span className="mt-0.5 block text-xs text-dim">{unit.name}</span> : null}
             {alliedFaction ? (
               <span className="eyebrow mt-1 flex items-center gap-1 text-info">
                 Allied unit · <FactionLabel faction={alliedFaction} />
@@ -189,30 +197,17 @@ export function UnitCard({
       ))}
 
       {editable && canJoin.length ? (
-        <div data-print-hide className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  className="!px-1 text-2xs tracking-label text-azure uppercase hover:bg-transparent hover:text-bone"
-                  data-onboarding="unit-attachment"
-                  aria-label={`Attach ${unit.name} to unit`}
-                />
-              }
-            >
-              Attach to unit
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className={MENU}>
-              {canJoin.map((target) => (
-                <DropdownMenuItem key={target.key} className={ITEM} onClick={() => onJoin(target.key)}>
-                  {target.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <AttachMenu
+          label="Attach to unit"
+          ariaLabel={`Attach ${unit.name} to unit`}
+          onboarding="unit-attachment"
+          choices={canJoin}
+          onChoose={onJoin}
+        />
+      ) : null}
+
+      {editable && canHost.length ? (
+        <AttachMenu label="Attach unit" ariaLabel={`Attach a unit to ${unit.name}`} choices={canHost} onChoose={onHost} />
       ) : null}
 
       {/* A wider gap than the rows above it: two counters side by side put one's `+` next to the other's `-`. */}
@@ -249,6 +244,84 @@ const NONE: never[] = []
 const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
 const MENU = 'w-44'
 const ITEM = 'text-xs font-semibold uppercase'
+
+function AttachMenu({
+  label,
+  ariaLabel,
+  onboarding,
+  choices,
+  onChoose,
+}: {
+  label: string
+  ariaLabel: string
+  onboarding?: string
+  choices: AttachChoice[]
+  onChoose: (choice: AttachChoice) => void
+}) {
+  const id = useId()
+  const roster = choices.filter((choice) => choice.kind === 'roster')
+  const added = choices.filter((choice) => choice.kind === 'new')
+  return (
+    <div data-print-hide className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="xs"
+              className="!px-1 text-2xs tracking-label text-azure uppercase hover:bg-transparent hover:text-bone"
+              data-onboarding={onboarding}
+              aria-label={ariaLabel}
+            />
+          }
+        >
+          {label}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-72 max-w-[calc(100vw-1rem)]">
+          {roster.length ? (
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="eyebrow text-faint">In this roster</DropdownMenuLabel>
+              {roster.map((choice) => (
+                <DropdownMenuItem key={choice.key} className={ITEM} onClick={() => onChoose(choice)}>
+                  {choice.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          ) : null}
+          {roster.length && added.length ? <DropdownMenuSeparator /> : null}
+          {added.length ? (
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="eyebrow text-faint">Add a new unit</DropdownMenuLabel>
+              {added.map((choice) => (
+                <DropdownMenuItem
+                  key={choice.entryId}
+                  aria-label={`Add new ${choice.name} and attach`}
+                  aria-describedby={choice.reason ? `${id}-${choice.entryId}` : undefined}
+                  disabled={Boolean(choice.reason)}
+                  className="items-start data-disabled:opacity-100"
+                  onClick={() => onChoose(choice)}
+                >
+                  <Plus className={`mt-0.5 size-3.5 ${choice.reason ? 'text-faint' : 'text-info'}`} aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className={`block ${ITEM} ${choice.reason ? 'text-faint' : ''}`}>{choice.name}</span>
+                    {choice.reason ? (
+                      <span id={`${id}-${choice.entryId}`} className="mt-0.5 block text-2xs text-discarded">
+                        {choice.reason}
+                      </span>
+                    ) : null}
+                  </span>
+                  {choice.points === null ? null : (
+                    <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{choice.points} pts</span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
 
 function UnitAlertMarker({ count, unitName }: { count: number; unitName: string }) {
   const summary = `${count} ${count === 1 ? 'alert' : 'alerts'} set for ${unitName}`

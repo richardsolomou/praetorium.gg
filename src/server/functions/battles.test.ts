@@ -33,7 +33,7 @@ it.each([
 ])('counts the named players after battle creation for %j', async (players, count) => {
   await invokeCreate({ data: createBattleSchema.parse({ ...players, limit: 2000, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'battle_created', { practice: false, limit: 2000, player_count: count, casual: true }],
+    ['actor', 'battle_created', { practice: false, limit: 2000, player_count: count, casual: true, manual: false }],
   ])
 })
 
@@ -74,5 +74,12 @@ it('records the refusal code but not its message for a refused command', async (
 
 it('reports no preset size for an automatically configured battle', async () => {
   await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', limit: null, casual: true }) })
-  expect(mocks.capture.mock.calls).toEqual([['actor', 'battle_created', { practice: false, limit: null, player_count: 2, casual: true }]])
+  expect(mocks.capture.mock.calls).toEqual([
+    ['actor', 'battle_created', { practice: false, limit: null, player_count: 2, casual: true, manual: false }],
+  ])
+})
+
+it('reports a manually tracked battle', async () => {
+  await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', casual: true, manual: true }) })
+  expect(mocks.capture.mock.calls[0]?.[2]).toMatchObject({ manual: true })
 })

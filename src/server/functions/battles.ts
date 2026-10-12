@@ -169,6 +169,7 @@ export const createBattle = createServerFn({ method: 'POST' })
         limit: data.limit,
         player_count: 1 + (data.allyId ? 1 : 0) + (data.opponentIds?.length ?? (data.opponentId ? 1 : 0)),
         casual: data.casual,
+        manual: data.manual,
       })
       return result
     }),

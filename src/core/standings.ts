@@ -22,6 +22,7 @@ export type StandingBattle = {
   factions: readonly (StandingFaction | null)[]
   result: { concededBy: string | null } | null
   lastActivity: number
+  settings?: { manual?: boolean }
 }
 
 export type Standing = {
@@ -70,10 +71,12 @@ export function sideScore(battle: StandingBattle, side: number) {
   return battle.sides.reduce((total, seat, index) => (seat === side ? total + (battle.scores[index] ?? 0) : total), 0)
 }
 
-/** Exclude practice battles entirely, including the human side; all table shapes count together. */
+/** Exclude practice and manually tracked battles entirely, including the human side; all table shapes count together. */
 function counted(battles: readonly StandingBattle[], exclude: readonly string[]) {
   const excluded = new Set(exclude)
-  return battles.filter((battle) => battle.status === 'finished' && !battle.playerIds.some((id) => excluded.has(id)))
+  return battles.filter(
+    (battle) => battle.status === 'finished' && !battle.settings?.manual && !battle.playerIds.some((id) => excluded.has(id)),
+  )
 }
 
 /** A newcomer's conservative estimate is zero; this shows it as 1000, and one win between newcomers as about +70. */

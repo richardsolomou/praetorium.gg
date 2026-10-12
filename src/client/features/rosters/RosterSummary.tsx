@@ -1,4 +1,4 @@
-import { GAME_SIZES } from '../../../core/battle'
+import { battleSizeLabel, pointsBudgetOf } from '../../../core/battle'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { useDateFormatting } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -56,12 +56,15 @@ export function RosterSummary({
   problem = null,
   differences = null,
   showLock = true,
+  showLegality = false,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
   points?: number | null
   /** The lock is the owner's; a reader of their profile is not told about it. */
   showLock?: boolean
+  /** Somebody deciding whether to copy a list is told whether it can be fielded, not who can read it. */
+  showLegality?: boolean
   /** What an unnamed list is called, folded from its units. Absent until the totals land. */
   label?: string
   /** A variant drawn without its base above it, such as when a filter leaves the base out, says what it varies. */
@@ -73,7 +76,6 @@ export function RosterSummary({
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
-  const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
   const waivers = rosterWaivers(roster)
 
   return (
@@ -86,6 +88,8 @@ export function RosterSummary({
         pointsLoading={pointsLoading}
         problem={problem}
         visibilityInDetails
+        showVisibility={!showLegality}
+        legal={showLegality && points != null && !problem}
         className={`col-start-2 row-start-1 sm:self-center ${differences ? 'sm:row-span-4' : 'sm:row-span-3'}`}
       />
       <span data-slot="roster-chips" className="col-span-2 flex flex-wrap gap-1 *:whitespace-nowrap sm:col-span-1">
@@ -102,8 +106,8 @@ export function RosterSummary({
         {showLock && roster.locked ? <LockedChip /> : null}
       </span>
       <span className="col-span-2 block text-xs text-dim sm:col-span-1">
-        11th edition · {size?.name ?? `${roster.limit} points`} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'} ·{' '}
-        <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>updated {date(roster.updatedAt)}
+        11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'}{' '}
+        · {showLegality ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}updated {date(roster.updatedAt)}
       </span>
       {differences ? (
         <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1">
@@ -136,6 +140,7 @@ function RosterStanding({
   compact = false,
   showVisibility = true,
   visibilityInDetails = false,
+  legal = false,
   className = '',
 }: {
   roster: SavedRoster
@@ -144,6 +149,7 @@ function RosterStanding({
   problem: RosterProblem | null
   compact?: boolean
   showVisibility?: boolean
+  legal?: boolean
   /** A phone reads the visibility in the details line instead, so the points take one line. */
   visibilityInDetails?: boolean
   className?: string
@@ -156,9 +162,10 @@ function RosterStanding({
         <Skeleton className={`ml-auto w-20 ${compact ? 'h-4' : 'h-5'}`} />
       ) : (
         <span className={`readout block font-bold ${compact ? 'text-sm' : 'text-lg'}`}>
-          {points ?? '—'}/{roster.limit}
+          {points ?? '—'}/{pointsBudgetOf(roster)}
         </span>
       )}
+      {legal ? <span className="block text-xs whitespace-nowrap text-dim">Legal</span> : null}
       {problem || showVisibility ? (
         <span className={`text-xs whitespace-nowrap text-dim ${problem || !visibilityInDetails ? 'block' : 'hidden sm:block'}`}>
           {problem ? <span className="font-semibold text-destructive">{PROBLEM_LABEL[problem]}</span> : null}

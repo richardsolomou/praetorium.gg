@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Copy,
@@ -53,6 +53,7 @@ import {
   meQuery,
   playerDefaultsQuery,
   priceQuery,
+  unitsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -70,9 +71,9 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
-import { UnitAnnotations } from './builder/UnitAnnotations'
+import { UnitNote } from './builder/UnitNote'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
-import { canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
+import { type AttachLink, canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
@@ -80,7 +81,8 @@ import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
-import { BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
@@ -97,13 +99,7 @@ import type { CombatRoster } from '../simulator/useCombatant'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
-  prep: {
-    stratagems: Stratagem[]
-    secondaries: Secondary[]
-    reminders?: RosterReminder[]
-    remindersEnabled?: boolean
-    shareNotes?: boolean
-  }
+  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
   initial: {
     id: string
     name: string
@@ -112,6 +108,7 @@ type Props = {
     detachmentIds: string[]
     disposition: string | null
     limit: number
+    pointsBudget?: number | null
     picks: RosterPick[]
     waivedRules: FormatRuleId[]
     optionalRules?: OptionalRuleId[]
@@ -207,6 +204,7 @@ export function ListBuilder({
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
   const { picks, setPicks, resetPicks, positioned, annotated, held, allocateKey } = usePicks(initial.picks)
   const [limit, setLimit] = useState(initial.limit)
+  const [pointsBudget, setPointsBudget] = useState<number | null>(initial.pointsBudget ?? null)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
   const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
@@ -215,7 +213,6 @@ export function ListBuilder({
   const [name, setName] = useState(initial.automaticName ? '' : initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
   const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
-  const [shareNotes, setShareNotes] = useState(prep.shareNotes ?? false)
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
@@ -307,8 +304,8 @@ export function ListBuilder({
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true, shareNotes }),
-    [savedPrep, reminders, shareNotes],
+    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true }),
+    [savedPrep, reminders],
   )
   const draft: RosterDraft = {
     id: savedId || undefined,
@@ -317,6 +314,7 @@ export function ListBuilder({
     detachmentIds,
     disposition,
     limit,
+    pointsBudget,
     picks: annotated,
     prep: storedPrep,
     waivedRules,
@@ -367,6 +365,7 @@ export function ListBuilder({
     setCatalogueId(initial.catalogueId)
     resetPicks(initial.picks)
     setLimit(initial.limit)
+    setPointsBudget(initial.pointsBudget ?? null)
     setDetachmentIds(initial.detachmentIds)
     setDisposition(initial.disposition)
     setWaivedRules(initial.waivedRules)
@@ -376,7 +375,6 @@ export function ListBuilder({
     setVisibility(initial.visibility)
     setSavedPrep(prep)
     setReminders(prep.reminders ?? [])
-    setShareNotes(prep.shareNotes ?? false)
   }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   useEffect(() => {
     if (!editable || !catalogueId) return
@@ -396,6 +394,7 @@ export function ListBuilder({
     disposition,
     editable,
     limit,
+    pointsBudget,
     settledListName,
     settledPicks,
     storedPrep,
@@ -411,6 +410,7 @@ export function ListBuilder({
           detachmentIds,
           disposition,
           limit,
+          pointsBudget,
           name: shownName || 'Roster',
           units: withoutUnitNotes(annotated),
           waivedRules,
@@ -429,6 +429,7 @@ export function ListBuilder({
         disposition,
         borrowedDetachmentId,
         limit,
+        pointsBudget,
         points: priced?.points ?? null,
         waivedRules,
         optionalRules,
@@ -448,8 +449,9 @@ export function ListBuilder({
           detachmentIds,
           disposition,
           limit,
+          pointsBudget,
           picks: annotated,
-          prep: { ...storedPrep, shareNotes: false },
+          prep: storedPrep,
           waivedRules,
           optionalRules,
           borrowedDetachmentId,
@@ -553,6 +555,7 @@ export function ListBuilder({
       catalogueId,
       detachmentIds,
       limit,
+      pointsBudget,
       picks: annotated,
       price: priced,
       waivedRules,
@@ -568,6 +571,7 @@ export function ListBuilder({
     guest,
     limit,
     optionalRules,
+    pointsBudget,
     annotated,
     priceLoading,
     pricePending,
@@ -642,13 +646,13 @@ export function ListBuilder({
     [setSelected],
   )
   const [requestRefusal, setRequestRefusal] = useState<string | null>(null)
-  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[] }[]>([])
-  const add = (entryId: string) => {
+  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[]; link?: AttachLink }[]>([])
+  const add = (entryId: string, link?: AttachLink) => {
     setRequestRefusal(null)
     setQueuedAdds((current) => {
       const queued = current.filter((entry) => entry.entryId === entryId).length
       if (picks.length + current.length >= 100 || !canAddCopy(entryId, (held[entryId] ?? 0) + queued, unitLimits)) return current
-      return [...current, { entryId, context: priceRequest.queryKey }]
+      return [...current, { entryId, context: priceRequest.queryKey, ...(link ? { link } : {}) }]
     })
   }
   useEffect(() => {
@@ -666,8 +670,9 @@ export function ListBuilder({
       setRequestRefusal(outcome.message)
       return
     }
-    editor.current.add(next.entryId)
+    editor.current.add(next.entryId, next.link)
     reporting.current = { event: 'roster_unit_added' }
+    if (next.link) posthog.capture('roster_attachment_updated', { attached: true })
   }, [editable, held, priceFailed, priceLoading, pricePending, priceRequest.queryKey, queuedAdds, unitLimits])
   const requestHandled = useRef(false)
   const requestedHeld = requested ? (held[requested.entryId] ?? 0) : 0
@@ -717,6 +722,25 @@ export function ListBuilder({
   useLayoutEffect(() => {
     selection.current = { picks, updateLoadoutHistory, workspacePath }
   }, [picks, updateLoadoutHistory, workspacePath])
+  const adding = useRef(add)
+  useLayoutEffect(() => {
+    adding.current = add
+  })
+  const detach = useCallback((index: number) => join(index, undefined), [join])
+  const attach = useCallback(
+    (index: number, direction: AttachDirection, choice: AttachChoice) => {
+      const { picks: currentPicks } = selection.current
+      const key = currentPicks[index]?.key
+      if (key === undefined) return
+      if (choice.kind === 'new') adding.current(choice.entryId, direction === 'join' ? { joinedBy: key } : { joins: key })
+      else if (direction === 'join') join(index, choice.key)
+      else {
+        const joiner = currentPicks.findIndex((pick) => pick.key === choice.key)
+        join(joiner, key)
+      }
+    },
+    [join],
+  )
   const selectUnit = useCallback(
     (index: number) => {
       setPreview(null)
@@ -764,7 +788,16 @@ export function ListBuilder({
     [editReminder, reminders, selected],
   )
   const reminderCountsByUnit = useMemo(() => reminderTimingCountsByUnit(reminders), [reminders])
-  const cardRelationships = useCardRelationships(picks, units)
+  const { data: attachCandidates } = useQuery({
+    ...unitsQuery(catalogueId, limit, waivedRules),
+    enabled: building && workspaceMeasured && Boolean(catalogueId),
+    placeholderData: keepPreviousData,
+  })
+  const attachDiscovery = useMemo(
+    () => (attachCandidates ? { candidates: attachCandidates, held, limits: unitLimits } : null),
+    [attachCandidates, held, unitLimits],
+  )
+  const cardRelationships = useCardRelationships(picks, units, attachDiscovery)
   const openSetup = () => {
     setSetupMode('edit')
     setSetupDraft({
@@ -773,6 +806,7 @@ export function ListBuilder({
       detachmentIds,
       disposition,
       limit,
+      pointsBudget,
       waivedRules,
       optionalRules,
       borrowedDetachmentId,
@@ -804,6 +838,7 @@ export function ListBuilder({
     setDetachmentIds(setup.detachmentIds)
     setDisposition(setup.disposition)
     setLimit(setup.limit)
+    setPointsBudget(setup.pointsBudget)
     setWaivedRules(setup.waivedRules)
     setOptionalRules(setup.optionalRules)
     setBorrowedDetachmentId(setup.borrowedDetachmentId)
@@ -858,7 +893,8 @@ export function ListBuilder({
   }
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
-  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > limit : Boolean(priced && priced.points > limit))
+  const budget = pointsBudget ?? limit
+  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
@@ -911,7 +947,7 @@ export function ListBuilder({
           })),
         }
       : selectedUnit
-  const waivers = waivedFormatRules(limit, waivedRules)
+  const waivers = waivedFormatRules(limit, waivedRules, pointsBudget)
   /*
    * Dismissing says "I know", not "never tell me": the key is the set of waived
    * restrictions, so switching another one off says something the player has not
@@ -936,17 +972,15 @@ export function ListBuilder({
         {limitFailure}
         <div className="min-h-0 flex-1">
           <Picker
-            key={`${catalogueId}:${detachmentIds.join(',')}:${limit}`}
-            picks={picks}
-            rosterUnits={units}
             enabled={pickerEnabled}
             catalogueId={catalogueId}
             onAdd={add}
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
-            room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
+            room={priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null}
             battleSize={limit}
+            pointsBudget={pointsBudget}
             waivedRules={waivedRules}
             onWaiveToggle={toggleWaivedRule}
             query={pickerQuery}
@@ -979,12 +1013,7 @@ export function ListBuilder({
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
         building && selected !== null && selectedPick ? (
-          <UnitAnnotations
-            nickname={selectedPick.nickname}
-            note={selectedPick.note}
-            onChange={(field, value) => edit.annotate(selected, field, value)}
-            shareNotes={guest ? undefined : { shared: shareNotes, onChange: setShareNotes }}
-          />
+          <UnitNote note={selectedPick.note} onChange={(value) => edit.annotate(selected, value)} />
         ) : undefined
       }
       reference={
@@ -1048,6 +1077,7 @@ export function ListBuilder({
         edition={snapshotEdition}
         factionLoading={factionLoading}
         limit={limit}
+        pointsBudget={pointsBudget}
         unitCount={fieldedUnitCount}
         detachments={
           frozen
@@ -1331,7 +1361,6 @@ export function ListBuilder({
                       <UnitCard
                         key={unit.entryId + index}
                         unit={unit}
-                        nickname={frozen.units[index]?.nickname}
                         note={frozen.units[index]?.note}
                         joined={joined}
                         selected={selected === index}
@@ -1342,11 +1371,11 @@ export function ListBuilder({
                       <BuilderUnitCard
                         key={picks[index]?.key ?? unit.entryId}
                         unit={unit}
-                        nickname={picks[index]?.nickname}
                         note={picks[index]?.note}
                         index={index}
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
                         canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
+                        canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
                         alliedFaction={
                           picks[index]?.catalogueId === catalogueId
                             ? undefined
@@ -1360,7 +1389,8 @@ export function ListBuilder({
                         onDuplicate={duplicate}
                         canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
                         onOwned={me ? setUnitOwned : undefined}
-                        onJoin={join}
+                        onDetach={detach}
+                        onAttach={attach}
                         editable={building}
                       />
                     ),
@@ -1544,7 +1574,7 @@ export function ListBuilder({
         over={over}
         illegal={illegal}
         points={points}
-        limit={limit}
+        limit={budget}
         hasUnits={Boolean(cards.length)}
         editable={editable}
         canAddUnits={Boolean(faction)}

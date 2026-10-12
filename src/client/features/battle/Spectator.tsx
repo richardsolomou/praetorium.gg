@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Command } from '../../../core/battle'
+import { battleSizeText, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { ReportEntry } from '../../../core/battleReport'
 import type { ReplayPoint } from '../../../core/battleReplay'
@@ -27,6 +27,8 @@ import { TurnTimes } from './TurnTimes'
 import { tint } from './battleTints'
 import { Fact } from '../../components/Fact'
 import { BattlefieldFact } from './BattlefieldFact'
+import { ManualScore } from './ManualScore'
+import { MANUAL_TRACKING_LIMITS } from './manualTracking'
 import { SpectatorInvite } from './SpectatorInvite'
 
 type Props = {
@@ -165,11 +167,18 @@ export function Spectator({
 
           <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-              <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-              <BattlefieldFact view={view} deployment={deployment} />
-              <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
-              <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
+              {view.settings.manual ? (
+                <Fact label="Tracking" value="Manual" />
+              ) : (
+                <>
+                  <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
+                  <BattlefieldFact view={view} deployment={deployment} />
+                  <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
+                </>
+              )}
+              <Fact label="Battle size" value={battleSizeText(view) ?? 'Legacy format'} />
             </dl>
+            {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
             {currentView.status === 'finished' ? null : <SpectatorInvite view={currentView} className="border-t border-edge pt-3" />}
             {/* A review of the whole game, so it waits for the game to end rather than crowding a live one. */}
             {currentView.status === 'finished' ? (
@@ -341,12 +350,18 @@ function SpectatorSide({
           </div>
         ))}
       </div>
-      <dl className="grid grid-cols-2 gap-2 border-y border-edge py-2">
-        <Fact label="Victory points" value={`${side.total}`} />
-        <Fact label="Command points" value={`${side.cp}`} />
-      </dl>
-      <PrimaryMission {...cardProps} />
-      <SecondaryMissions {...cardProps} />
+      {view.settings.manual ? (
+        <ManualScore side={side} actionable={false} pending={false} send={ignoreCommand} />
+      ) : (
+        <>
+          <dl className="grid grid-cols-2 gap-2 border-y border-edge py-2">
+            <Fact label="Victory points" value={`${side.total}`} />
+            <Fact label="Command points" value={`${side.cp}`} />
+          </dl>
+          <PrimaryMission {...cardProps} />
+          <SecondaryMissions {...cardProps} />
+        </>
+      )}
       {side.stratagems.some((stratagem) => stratagem.uses > 0) ? (
         <div>
           <p className="eyebrow">Stratagems used</p>

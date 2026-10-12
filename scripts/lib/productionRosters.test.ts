@@ -18,6 +18,7 @@ const roster: ProductionRosterSnapshot['rosters'][number] = {
   detachmentIds: ['detachment'],
   disposition: null,
   limit: 2000,
+  pointsBudget: null,
   picks: [
     {
       entryId: 'retired-unit',
@@ -51,6 +52,7 @@ const sqlRow = [
   some(JSON.stringify(roster.detachmentIds)),
   none,
   roster.limit,
+  none,
   JSON.stringify(roster.picks),
   '[]',
   '[]',
@@ -163,7 +165,7 @@ it('only submits the fixed read query and refuses redirects', async () => {
     '/v1/database/production/sql',
     'POST',
     'error',
-    'SELECT id, catalogueId, detachmentId, disposition, limit, picks, waivedRules, optionalRules, borrowedDetachmentId, baseRosterId, source, createdAt, updatedAt FROM rosters',
+    'SELECT id, catalogueId, detachmentId, disposition, limit, pointsBudget, picks, waivedRules, optionalRules, borrowedDetachmentId, baseRosterId, source, createdAt, updatedAt FROM rosters',
   ])
 })
 
@@ -181,7 +183,7 @@ it('does not include upstream error bodies that might contain credentials', asyn
 
 it('rejects malformed saved selections instead of silently dropping them', async () => {
   const row = [...sqlRow]
-  row[5] = '[{"entryId":"unit","models":-1}]'
+  row[6] = '[{"entryId":"unit","models":-1}]'
   await expect(fetchProductionRosters(source, async () => Response.json([{ rows: [row] }]))).rejects.toThrow()
 })
 

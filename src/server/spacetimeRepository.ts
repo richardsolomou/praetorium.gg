@@ -576,6 +576,10 @@ export class SpacetimeRepository {
     return this.product.publicRostersByUser(...args)
   }
 
+  discoverRosters(...args: Parameters<SpacetimeOperator['discoverRosters']>) {
+    return this.product.discoverRosters(...args)
+  }
+
   rosterSummariesByUser(...args: Parameters<SpacetimeOperator['rosterSummariesByUser']>): Promise<RosterSummary[]> {
     return this.product.rosterSummariesByUser(...args)
   }

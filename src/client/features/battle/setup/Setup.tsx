@@ -5,7 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { GAME_SIZES, isKotcLimit, rosterBattleFormat } from '../../../../core/battle'
+import {
+  battlePointsBudget,
+  battleSizeLabel,
+  GAME_SIZES,
+  isKotcLimit,
+  pointsBudgetsAgree,
+  rosterBattleFormat,
+} from '../../../../core/battle'
 import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { deploymentFor } from '../../../battleSummary'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
@@ -28,6 +35,8 @@ import { StepRail, type RailStep } from './StepRail'
 import { MissionDetailsDialog, type MissionDetails } from '../MissionCards'
 import { CARD_NAME, tint } from '../battleTints'
 import { TableStrip } from './TableStrip'
+import { Choice } from '../../../components/Choice'
+import { MANUAL_TRACKING_LIMITS } from '../manualTracking'
 
 type Props = {
   view: BattleView
@@ -68,6 +77,9 @@ const SECTION_IDS = [
   'pre-battle',
 ] as const
 type SectionId = (typeof SECTION_IDS)[number]
+/** A manually tracked battle needs only the armies and who goes first. */
+const MANUAL_SECTION_IDS: readonly SectionId[] = ['armies', 'first-turn']
+const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each side. Allies split the points evenly.'
 
 /**
  * Setting the table on one page, in the order the rules set it.
@@ -78,6 +90,8 @@ type SectionId = (typeof SECTION_IDS)[number]
  */
 export function Setup({ view, mission, missions, send: sendCommand, attachSavedRoster, pending, problem }: Props) {
   const table = foldSides(view, missions)
+  const manual = view.settings.manual === true
+  const sectionIds = manual ? MANUAL_SECTION_IDS : SECTION_IDS
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const nameDisposition = useDispositionNames()
@@ -113,6 +127,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
   const missingCards = table.filter((side) => !missionCardsReady(side))
   const kotc = isKotcLimit(view.settings.limit)
+  const pointsBudget = battlePointsBudget(view)
   /*
    * Every seated device writes the cards the armies settle as soon as they are in. A
    * shared answer pressed in that moment would race those writes and come back stale,
@@ -121,9 +136,12 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   const recording = ready && missingCards.some((side) => !fixedHandShort(side))
   const busy = pending || recording
 
+  const budgetsDiffer = ready && !pointsBudgetsAgree(view)
   const sizeProblem =
     view.settings.limit !== null
-      ? null
+      ? budgetsDiffer
+        ? BUDGET_MISMATCH
+        : null
       : !ready
         ? null
         : view.settings.sizeFromRosters
@@ -131,7 +149,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
             ? 'Choose a battle size for text-only armies.'
             : format.problem === 'unsupported'
               ? 'These roster formats do not make a supported battle size. Choose another format; allies split the points evenly.'
-              : 'Choose matching roster formats for each side. Allies split the points evenly.'
+              : format.problem === 'budget-mismatch'
+                ? BUDGET_MISMATCH
+                : 'Choose matching roster formats for each side. Allies split the points evenly.'
           : 'Choose a battle size to continue.'
 
   /**
@@ -142,15 +162,22 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
     ...owed.map((army) => (army.isViewer ? 'Your army' : `${army.playerName}’s army`)),
     ...awaited.map((army) => `${army.playerName}’s army`),
     ...(ready && view.settings.limit === null ? ['Battle size'] : []),
-    ...(undecided.length ? ['Force Disposition'] : []),
-    ...(view.deploymentId ? [] : ['Battlefield']),
-    ...(view.attackerId ? [] : ['Defender']),
-    ...(ready ? [...new Set(missingCards.map((side) => (fixedHandShort(side) ? `${sideName(side)} secondaries` : 'Mission cards')))] : []),
+    ...(view.settings.limit !== null && budgetsDiffer ? ['Points budget'] : []),
+    ...(manual
+      ? []
+      : [
+          ...(undecided.length ? ['Force Disposition'] : []),
+          ...(view.deploymentId ? [] : ['Battlefield']),
+          ...(view.attackerId ? [] : ['Defender']),
+          ...(ready
+            ? [...new Set(missingCards.map((side) => (fixedHandShort(side) ? `${sideName(side)} secondaries` : 'Mission cards')))]
+            : []),
+        ]),
     ...(view.firstPlayerId ? [] : ['First turn']),
   ]
 
   const complete: Record<SectionId, boolean> = {
-    armies: view.settings.limit !== null && ready,
+    armies: view.settings.limit !== null && ready && !budgetsDiffer,
     mission: Boolean(mission) && !undecided.length,
     battlefield: Boolean(view.deploymentId),
     defender: Boolean(view.attackerId),
@@ -161,8 +188,10 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
     'pre-battle': false,
   }
   // The section the table owes next, which every device derives the same way.
-  const decisions: SectionId[] = ['armies', 'mission', 'battlefield', 'defender', 'secondaries', 'first-turn']
-  const next = decisions.find((id) => !complete[id]) ?? 'pre-battle'
+  const decisions: SectionId[] = manual
+    ? ['armies', 'first-turn']
+    : ['armies', 'mission', 'battlefield', 'defender', 'secondaries', 'first-turn']
+  const next = decisions.find((id) => !complete[id]) ?? sectionIds.at(-1)!
 
   useEffect(() => {
     if (ready) advanceOnboarding('battle', 'battle-setup-armies', 'battle-setup-mission')
@@ -177,29 +206,34 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
     if (view.firstPlayerId) advanceOnboarding('battle', 'battle-setup-first', 'battle-setup-begin')
   }, [view.firstPlayerId])
 
-  const steps: RailStep[] = [
-    {
+  const stepFor: Record<SectionId, RailStep> = {
+    armies: {
       name: 'Armies',
-      detail: `${view.settings.limit === null ? 'Choose armies' : `${view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
+      detail: `${view.settings.limit === null ? 'Choose armies' : `${pointsBudget ?? view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
       complete: complete.armies,
     },
-    { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: complete.mission },
-    {
+    mission: { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: complete.mission },
+    battlefield: {
       name: 'Battlefield',
       detail: deployment?.name ?? (view.deploymentId ? 'Layout chosen' : 'Choose a layout'),
       complete: complete.battlefield,
     },
-    { name: 'Defender', detail: defender ? sideName(defender) : 'Roll off for it', complete: complete.defender },
-    { name: 'Secondaries', detail: yours?.secondaryMode === 'fixed' ? 'Fixed' : 'Tactical', complete: complete.secondaries },
-    { name: 'Reserves', detail: youHaveAnArmy ? 'Where units start' : 'Choose an army first', complete: complete.reserves },
-    { name: 'Deploy', detail: defender ? `${sideName(defender)} first` : 'After the defender', complete: complete.deploy },
-    { name: 'First turn', detail: firstSide ? sideName(firstSide) : 'After deployment', complete: complete['first-turn'] },
-    {
+    defender: { name: 'Defender', detail: defender ? sideName(defender) : 'Roll off for it', complete: complete.defender },
+    secondaries: { name: 'Secondaries', detail: yours?.secondaryMode === 'fixed' ? 'Fixed' : 'Tactical', complete: complete.secondaries },
+    reserves: { name: 'Reserves', detail: youHaveAnArmy ? 'Where units start' : 'Choose an army first', complete: complete.reserves },
+    deploy: { name: 'Deploy', detail: defender ? `${sideName(defender)} first` : 'After the defender', complete: complete.deploy },
+    'first-turn': {
+      name: 'First turn',
+      detail: firstSide ? sideName(firstSide) : manual ? 'Roll off for it' : 'After deployment',
+      complete: complete['first-turn'],
+    },
+    'pre-battle': {
       name: 'Pre-battle rules',
       detail: firstSide ? `${sideName(firstSide)} first` : 'After the first turn',
       complete: complete['pre-battle'],
     },
-  ]
+  }
+  const steps = sectionIds.map((id) => stepFor[id])
   const [at, setAt] = useState(0)
   const indexBar = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -210,11 +244,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
       const margin = first ? Number.parseFloat(getComputedStyle(first).scrollMarginTop) : 0
       const top = Math.max(indexBar.current?.getBoundingClientRect().bottom ?? 0, margin) + 1
       let viewed = 0
-      SECTION_IDS.forEach((id, index) => {
+      sectionIds.forEach((id, index) => {
         const section = document.getElementById(`setup-${id}`)
         if (section && section.getBoundingClientRect().top <= top) viewed = index
       })
-      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) viewed = SECTION_IDS.length - 1
+      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) viewed = sectionIds.length - 1
       setAt(viewed)
     }
     const schedule = () => {
@@ -232,7 +266,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
       window.removeEventListener('resize', schedule)
       cancelAnimationFrame(frame)
     }
-  }, [])
+  }, [sectionIds])
 
   // A twist belongs to the pack that prints it, so changing the pack drops it above.
   const chosenPack = references?.packs.find((pack) => pack.id === view.settings.missionPackId)
@@ -257,6 +291,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
       teamBattle: view.settings.teamBattle,
       playerCount: view.settings.playerCount,
       clockLimitMinutes: null,
+      ...(manual ? { manual: true } : {}),
       ...settings,
     })
 
@@ -264,9 +299,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   const sizeName =
     view.settings.limit === null
       ? 'Determined by your rosters'
-      : `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit} points`
+      : pointsBudget === null
+        ? `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit} points`
+        : battleSizeLabel(view.settings.limit, pointsBudget)
   // The size and pack fold away once there is nothing to settle in them.
-  const formatOpen = isOpen('armies') || !sizeFixed || !chosenPack || (references?.packs.length ?? 0) > 1
+  const formatOpen = isOpen('armies') || !sizeFixed || (!manual && (!chosenPack || (references?.packs.length ?? 0) > 1))
 
   return (
     <main className="flex w-full flex-col pb-28">
@@ -278,8 +315,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         <StepRail
           steps={steps}
           at={at}
-          next={SECTION_IDS.indexOf(next)}
-          onGo={(step) => document.getElementById(`setup-${SECTION_IDS[step]}`)?.scrollIntoView({ block: 'start' })}
+          next={sectionIds.indexOf(next)}
+          onGo={(step) => document.getElementById(`setup-${sectionIds[step]}`)?.scrollIntoView({ block: 'start' })}
         />
       </div>
 
@@ -288,6 +325,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         <header className="space-y-1 text-center">
           <h1 className="text-lg text-balance sm:text-xl">Set up the battle</h1>
           <p className="text-sm text-dim">In the order the rules play it. Anyone at the table can answer for either side.</p>
+          {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
         </header>
 
         <SetupSection
@@ -335,7 +373,28 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
                     </>
                   )}
                 </div>
-                {references?.packs.length ? (
+                {view.leagueToken ? null : (
+                  <div className="sm:col-span-2">
+                    <Choice
+                      label="Tracking"
+                      value={manual ? 'manual' : 'guided'}
+                      options={[
+                        { value: 'guided', name: 'Guided', detail: 'Mission cards, scoring prompts and caps' },
+                        { value: 'manual', name: 'Manual', detail: 'Keep score yourself' },
+                      ]}
+                      columns={2}
+                      disabled={busy}
+                      onChange={(tracking) =>
+                        configure(
+                          tracking === 'manual'
+                            ? { manual: true, missionPackId: null, twistId: null, terrainLayoutId: null }
+                            : { manual: false, missionPackId: references?.packs[0]?.id ?? null },
+                        )
+                      }
+                    />
+                  </div>
+                )}
+                {references?.packs.length && !manual ? (
                   <fieldset>
                     <legend className="eyebrow">Mission pack</legend>
                     <div className="mt-1 grid gap-2">
@@ -361,11 +420,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
                 summary={
                   <>
                     <span className="font-bold uppercase">{sizeName}</span>
-                    <span className="text-dim"> · {chosenPack?.name}</span>
+                    <span className="text-dim"> · {manual ? 'Manual tracking' : chosenPack?.name}</span>
                   </>
                 }
                 action="Change"
-                actionLabel="Change battle size and mission pack"
+                actionLabel={manual ? 'Change battle size and tracking' : 'Change battle size and mission pack'}
                 onAction={() => toggle('armies')}
               />
             )}
@@ -373,6 +432,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         </SetupSection>
 
         <SetupSection
+          skipped={manual}
           id="mission"
           locked={!youHaveAnArmy}
           number={2}
@@ -452,6 +512,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         </SetupSection>
 
         <SetupSection
+          skipped={manual}
           id="battlefield"
           locked={!ready || (!kotc && !complete.mission)}
           number={3}
@@ -480,6 +541,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         </SetupSection>
 
         <SetupSection
+          skipped={manual}
           id="defender"
           locked={!complete.armies}
           number={4}
@@ -496,6 +558,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         </SetupSection>
 
         <SetupSection
+          skipped={manual}
           id="secondaries"
           locked={!ready}
           number={5}
@@ -512,6 +575,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         </SetupSection>
 
         <SetupSection
+          skipped={manual}
           id="reserves"
           locked={!youHaveAnArmy}
           number={6}
@@ -525,6 +589,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
         </SetupSection>
 
         <SetupSection
+          skipped={manual}
           id="deploy"
           number={7}
           name="Deploy"
@@ -537,19 +602,29 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
         <SetupSection
           id="first-turn"
-          locked={!view.deploymentId || !view.attackerId}
-          number={8}
+          locked={manual ? !complete.armies : !view.deploymentId || !view.attackerId}
+          number={manual ? 2 : 8}
           name="First turn"
           complete={complete['first-turn']}
-          needed={Boolean(view.deploymentId && view.attackerId) && !view.firstPlayerId}
-          hint="Once both armies are deployed, roll off. The winner takes the first turn."
+          needed={(manual ? complete.armies : Boolean(view.deploymentId && view.attackerId)) && !view.firstPlayerId}
+          hint={
+            manual
+              ? 'Roll off. The winner takes the first turn.'
+              : 'Once both armies are deployed, roll off. The winner takes the first turn.'
+          }
         >
-          {view.deploymentId ? (
-            <FirstTurnStep sides={table} first={firstSide?.index ?? null} disabled={busy || !view.attackerId} send={send} />
+          {manual || view.deploymentId ? (
+            <FirstTurnStep
+              sides={table}
+              first={firstSide?.index ?? null}
+              disabled={busy || (manual ? !complete.armies : !view.attackerId)}
+              send={send}
+            />
           ) : null}
         </SetupSection>
 
         <SetupSection
+          skipped={manual}
           id="pre-battle"
           locked={!firstSide}
           number={9}
@@ -594,6 +669,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
 
 /** One section of the page: a numbered heading, what it asks or is waiting on, and its controls. */
 function SetupSection({
+  skipped = false,
   id,
   number,
   name,
@@ -604,6 +680,8 @@ function SetupSection({
   onboarding,
   children,
 }: {
+  /** Absent from a battle that does not play this section, such as a manually tracked one. */
+  skipped?: boolean
   id: SectionId
   number: number
   name: string
@@ -615,6 +693,7 @@ function SetupSection({
   onboarding?: 'battle-setup-deploy'
   children: ReactNode
 }) {
+  if (skipped) return null
   return (
     <section
       id={`setup-${id}`}

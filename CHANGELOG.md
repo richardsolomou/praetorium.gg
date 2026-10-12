@@ -1,5 +1,23 @@
 # praetorium
 
+## 0.130.0
+
+### Minor Changes
+
+- b64427a: Discover armies other players made public, filter them by faction, detachment and rules version, see who built each one and whether it is legal, and duplicate one into your rosters to edit. Making a roster private or unlisted takes it out of the list straight away.
+
+## 0.129.1
+
+### Patch Changes
+
+- f885102: Remove unit nicknames and keep unit notes private to their owner.
+
+## 0.129.0
+
+### Minor Changes
+
+- 7d36375: Set a custom points budget for a roster while its battle size still sets detachment points, enhancement and unit limits.
+
 ## 0.128.1
 
 ### Patch Changes

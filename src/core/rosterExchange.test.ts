@@ -49,17 +49,14 @@ describe('roster exchange codes', () => {
     expect(await decodeRosterExchange(await encodeRosterExchange(roster))).toEqual(roster)
   })
 
-  it('carries unit nicknames and leaves unit notes behind', async () => {
-    const annotated = {
-      ...roster,
-      picks: roster.picks.map((pick, at) => ({ ...pick, nickname: `Unit ${at + 1}`, note: 'Private plan' })),
-    }
-    const decoded = await decodeRosterExchange(await encodeRosterExchange(annotated))
-    expect(decoded.picks.map((pick) => [pick.nickname, pick.note])).toEqual([
-      ['Unit 1', undefined],
-      ['Unit 2', undefined],
-      ['Unit 3', undefined],
-    ])
+  it('leaves unit notes behind', async () => {
+    const annotated = { ...roster, picks: roster.picks.map((pick) => ({ ...pick, note: 'Private plan' })) }
+    expect(await decodeRosterExchange(await encodeRosterExchange(annotated))).toEqual(roster)
+  })
+
+  it('reads a code carrying unit nicknames from before they were removed, without them', async () => {
+    const legacy = { ...roster, picks: roster.picks.map((pick, at) => ({ ...pick, nickname: `Unit ${at + 1}` })) }
+    expect(await decodeRosterExchange(await codeFor(JSON.stringify(legacy)))).toEqual(roster)
   })
 
   it('encodes the same roster to the same code', async () => {
@@ -91,7 +88,32 @@ describe('roster exchange codes', () => {
 
   it('refuses a newer format version', async () => {
     const code = await encodeRosterExchange(roster)
-    expect(await problemOf(code.replace(/^PR1\./, 'PR2.'))).toBe('unsupported-version')
+    expect(await problemOf(code.replace(/^PR1\./, 'PR3.'))).toBe('unsupported-version')
+  })
+
+  it('keeps a roster without a custom points budget in format 1, which older apps read', async () => {
+    expect((await encodeRosterExchange(roster)).startsWith('PR1.')).toBe(true)
+  })
+
+  it('writes a custom points budget in format 2, which older apps refuse rather than drop', async () => {
+    expect((await encodeRosterExchange({ ...roster, pointsBudget: 1500 })).startsWith('PR2.')).toBe(true)
+  })
+
+  it('round-trips a custom points budget beside the battle size', async () => {
+    const decoded = await decodeRosterExchange(await encodeRosterExchange({ ...roster, pointsBudget: 1500 }))
+    expect([decoded.limit, decoded.pointsBudget]).toEqual([2000, 1500])
+  })
+
+  it('writes a budget equal to the battle size as no custom budget', async () => {
+    expect(await encodeRosterExchange({ ...roster, pointsBudget: 2000 })).toBe(await encodeRosterExchange(roster))
+  })
+
+  it('refuses a custom points budget below the minimum as damaged', async () => {
+    expect(await problemOf(await codeFor(JSON.stringify({ ...roster, pointsBudget: 499 }), 2))).toBe('malformed')
+  })
+
+  it('refuses a custom points budget on a battle size with a fixed total as damaged', async () => {
+    expect(await problemOf(await codeFor(JSON.stringify({ ...roster, limit: 600, pointsBudget: 750 }), 2))).toBe('malformed')
   })
 
   it('names the format version it cannot read', async () => {

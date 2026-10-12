@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Command, reduceBattle, rosterBattleFormat, validate } from './battle'
+import { battlePointsBudget, battleSizeText, type Command, reduceBattle, rosterBattleFormat, validate } from './battle'
 import { ALICE, BOB, CAROL, builtRoster, log, roster } from './battle.fixtures'
 
 const configure = (limit: number | null = null): Extract<Command, { kind: 'configure-battle' }> => ({
@@ -11,10 +11,14 @@ const configure = (limit: number | null = null): Extract<Command, { kind: 'confi
   clockLimitMinutes: null,
 })
 
-const army = (limit: number, playerId?: string): Command => {
+const army = (limit: number, playerId?: string, pointsBudget?: number): Command => {
   const command = builtRoster('Army', ['Unit'])
   if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('Expected a built roster')
-  return { ...command, playerId, roster: { ...command.roster, built: { ...command.roster.built, limit } } }
+  return {
+    ...command,
+    playerId,
+    roster: { ...command.roster, built: { ...command.roster.built, limit, ...(pointsBudget ? { pointsBudget } : {}) } },
+  }
 }
 
 describe('battle size from saved rosters', () => {
@@ -145,5 +149,41 @@ describe('battle size from saved rosters', () => {
   it('keeps explicit sizes fixed when a player changes their army', () => {
     const state = reduceBattle([ALICE, BOB], log([ALICE, configure(2000)], [ALICE, army(2000)], [BOB, army(2000)]))
     expect(validate(state, ALICE, army(1000))).toBe('that roster does not match the battle size')
+  })
+
+  it('keeps the battle size from the formats when both armies agree on a custom points budget', () => {
+    const state = reduceBattle(
+      [ALICE, BOB],
+      log([ALICE, configure()], [ALICE, army(2000, undefined, 1500)], [BOB, army(2000, undefined, 1500)]),
+    )
+    expect([state.settings.limit, battlePointsBudget(state)]).toEqual([2000, 1500])
+  })
+
+  it('names the agreed custom points budget beside the battle size', () => {
+    const state = reduceBattle(
+      [ALICE, BOB],
+      log([ALICE, configure()], [ALICE, army(2000, undefined, 1500)], [BOB, army(2000, undefined, 1500)]),
+    )
+    expect(battleSizeText(state)).toBe('Strike Force · 1500-point budget')
+  })
+
+  it('asks players to align armies of one battle size with different points budgets', () => {
+    const state = reduceBattle([ALICE, BOB], log([ALICE, configure()], [ALICE, army(2000, undefined, 1500)], [BOB, army(2000)]))
+    expect([state.settings.limit, rosterBattleFormat(state).problem]).toEqual([null, 'budget-mismatch'])
+  })
+
+  it('refuses to start a battle of an explicit size whose armies bring different points budgets', () => {
+    const state = reduceBattle([ALICE, BOB], log([ALICE, configure(2000)], [ALICE, army(2000, undefined, 2500)], [BOB, army(2000)]))
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('choose matching points budgets for each side')
+  })
+
+  it('splits an agreed custom side budget between allies', () => {
+    const command = { ...configure(), teamBattle: true, playerCount: 3 } as Command
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL],
+      log([ALICE, command], [ALICE, army(2000, undefined, 1500)], [BOB, army(1000, undefined, 750)], [CAROL, army(1000, undefined, 750)]),
+      [0, 1, 1],
+    )
+    expect([state.settings.limit, battlePointsBudget(state)]).toEqual([2000, 1500])
   })
 })

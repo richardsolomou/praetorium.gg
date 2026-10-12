@@ -18,7 +18,7 @@ export async function localRosterAssessment(roster: LocalRoster, owner: string) 
   const assessed = calculateRosterAssessment(input, local.catalogue, local.rules)
   const data: Assessment = {
     points: assessed?.points ?? null,
-    problem: assessed ? (rosterUseProblem(assessed, roster.limit, roster.waivedRules)?.kind ?? null) : null,
+    problem: assessed ? (rosterUseProblem(assessed, roster)?.kind ?? null) : null,
     label: roster.name || calculateRosterTotals(input, local.catalogue, local.rules)?.label || '',
   }
   if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value!)

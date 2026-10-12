@@ -26,7 +26,9 @@ export function RosterChooser({
   onChoose: (roster: SavedRoster) => void
 }) {
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: open })
-  const rosters = (rosterQuery.data ?? []).filter((roster) => requiredLimit === null || roster.limit === requiredLimit)
+  const rosters = (rosterQuery.data ?? []).filter(
+    (roster) => roster.pointsBudget === null && (requiredLimit === null || roster.limit === requiredLimit),
+  )
   // Picking a list and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   useEffect(() => {

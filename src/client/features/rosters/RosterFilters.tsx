@@ -121,19 +121,19 @@ export function RosterFilters({
             <DialogDescription>Narrow the library to the lists you want to see.</DialogDescription>
           </DialogHeader>
           <DialogBody className="gap-3">
-            <Field
+            <FilterField
               label="Battle size"
               value={value.limit ? String(value.limit) : 'all'}
               groups={BATTLE_SIZE_GROUPS}
               onChange={(chosen) => onChange({ ...value, limit: chosen === 'all' ? undefined : Number(chosen) })}
             />
-            <Field
+            <FilterField
               label="Faction"
               value={value.faction ?? 'all'}
               groups={[{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]}
               onChange={(chosen) => onChange({ ...value, faction: chosen === 'all' ? undefined : chosen })}
             />
-            <Field
+            <FilterField
               label="Sharing"
               value={value.visibility ?? 'all'}
               groups={SHARING_GROUPS}
@@ -173,21 +173,31 @@ export function RosterFilters({
   )
 }
 
-function Field({
+export function FilterField({
   label,
   value,
   groups,
   onChange,
+  disabled = false,
 }: {
   label: string
   value: string
   groups: SearchableGroup[]
   onChange: (value: string) => void
+  disabled?: boolean
 }) {
   return (
     <div>
       <Label className="eyebrow block">{label}</Label>
-      <SearchableSelect ariaLabel={label} groups={groups} value={value} onValueChange={onChange} placeholder={label} className="mt-1" />
+      <SearchableSelect
+        ariaLabel={label}
+        groups={groups}
+        value={value}
+        onValueChange={onChange}
+        placeholder={label}
+        disabled={disabled}
+        className="mt-1"
+      />
     </div>
   )
 }

@@ -40,6 +40,9 @@ export function unitLimitMessage(entryId: string, held: number, limits: Readonly
     : `Limit reached: ${held} of ${limit} permitted copies in the roster.`
 }
 
+/** The roster unit a newly added unit joins, or the one that joins it. */
+export type AttachLink = { joins: number } | { joinedBy: number }
+
 export type RequestedUnit = { kind: 'pending' } | { kind: 'add' } | { kind: 'refused'; reason: 'limit' | 'not_offered'; message: string }
 
 /** A unit asked for from outside the builder waits for the roster's own limits, then gets the picker's answer. */
@@ -59,7 +62,7 @@ export function requestedUnit(entryId: string, held: number, limits: ReadonlyMap
  * key is the only thing that tells two of them apart while they are being moved
  * around. Everything the picks are sent to counts positions instead, which is what
  * `positioned` is for — the price and the datasheet — and `annotated` adds the
- * nicknames and notes a saved row keeps.
+ * notes a saved row keeps.
  */
 export function usePicks(initial: readonly RosterPick[]) {
   const [picks, setPicks] = useState<KeyedPick[]>(() => initial.map((pick, key) => ({ ...pick, key })))
@@ -108,14 +111,27 @@ export function pickEditor(
   }
 
   return {
-    add: (entryId: string) =>
-      insert((current) => {
-        return context.limits && canAddCopy(entryId, current.filter((pick) => pick.entryId === entryId).length, context.limits)
-          ? { pick: { entryId, catalogueId: context.catalogueId } }
-          : null
-      }),
+    /** A linked unit is added already joined to, or joined by, the unit it was chosen for. */
+    add: (entryId: string, link?: AttachLink) => {
+      const key = allocateKey()
+      setPicks((current) => {
+        if (!context.limits || !canAddCopy(entryId, current.filter((pick) => pick.entryId === entryId).length, context.limits))
+          return current
+        const partner = link && ('joins' in link ? link.joins : link.joinedBy)
+        if (partner !== undefined && !current.some((pick) => pick.key === partner)) return current
+        const added: KeyedPick = {
+          entryId,
+          catalogueId: context.catalogueId,
+          key,
+          ...(link && 'joins' in link ? { attachedTo: link.joins } : {}),
+        }
+        const rest =
+          link && 'joinedBy' in link ? current.map((pick) => (pick.key === link.joinedBy ? { ...pick, attachedTo: key } : pick)) : current
+        return [...rest, added]
+      })
+    },
 
-    /** A copy takes the loadout; the nickname and note name the unit it was copied from. */
+    /** A copy takes the loadout; the note belongs to the unit it was copied from. */
     duplicate: (index: number) =>
       insert((current) => {
         const pick = current[index]
@@ -125,7 +141,7 @@ export function pickEditor(
           !canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
         )
           return null
-        const { nickname: _nickname, note: _note, ...copy } = pick
+        const { note: _note, ...copy } = pick
         return { pick: copy, after: index }
       }),
 
@@ -203,10 +219,10 @@ export function pickEditor(
     join: (index: number, targetKey: number | undefined) => editAt(index, (pick) => ({ ...pick, attachedTo: targetKey })),
 
     /** An emptied field is removed rather than saved blank. */
-    annotate: (index: number, field: 'nickname' | 'note', value: string) =>
+    annotate: (index: number, note: string) =>
       editAt(index, (pick) => {
-        const { [field]: _previous, ...rest } = pick
-        return value.trim() ? { ...rest, [field]: value } : rest
+        const { note: _previous, ...rest } = pick
+        return note.trim() ? { ...rest, note } : rest
       }),
 
     /** A new faction is a new list: nothing picked from the old book still applies. */

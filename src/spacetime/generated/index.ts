@@ -67,6 +67,7 @@ import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as CollectionByUserProcedure from './collection_by_user_procedure'
 import * as CreateBattleProcedure from './create_battle_procedure'
 import * as DeleteBattleForOperatorProcedure from './delete_battle_for_operator_procedure'
+import * as DiscoverRostersProcedure from './discover_rosters_procedure'
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_procedure'
@@ -211,6 +212,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('collection_by_user', CollectionByUserProcedure.params, CollectionByUserProcedure.returnType),
   __procedureSchema('create_battle', CreateBattleProcedure.params, CreateBattleProcedure.returnType),
   __procedureSchema('delete_battle_for_operator', DeleteBattleForOperatorProcedure.params, DeleteBattleForOperatorProcedure.returnType),
+  __procedureSchema('discover_rosters', DiscoverRostersProcedure.params, DiscoverRostersProcedure.returnType),
   __procedureSchema(
     'favourite_datasheets_by_user',
     FavouriteDatasheetsByUserProcedure.params,

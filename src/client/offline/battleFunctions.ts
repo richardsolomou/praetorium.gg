@@ -175,7 +175,7 @@ export async function submit(
     if (!selected) throw new Error('Download this army’s rules before attaching it offline.')
     const { catalogue } = selected
     const priced = calculateRosterPrice(savedRosterPriceInput(capturedRoster), catalogue, selected.rules)
-    const problem = priced && rosterUseError(priced, capturedRoster.limit, capturedRoster.waivedRules)
+    const problem = priced && rosterUseError(priced, capturedRoster)
     if (!priced || problem) throw new Error(problem || 'Army data is unavailable.')
     const roster = rosterSnapshot(
       capturedRoster,
@@ -319,12 +319,13 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const command = commandSchema.parse({
     kind: 'configure-battle',
     limit: input.limit ?? null,
-    missionPackId: input.missionPackId,
+    missionPackId: input.manual ? null : input.missionPackId,
     terrainLayoutId: null,
     twistId: null,
     teamBattle: invited.length >= 2,
     playerCount: invited.length + 1,
     clockLimitMinutes: null,
+    ...(input.manual ? { manual: true } : {}),
   })
   const workspace: BattleWorkspace = {
     battle: { id: identifiers.battleId, token: identifiers.battleToken, createdAt: now },

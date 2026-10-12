@@ -20,7 +20,7 @@ const roster = (picks: RosterPick[]) => ({
 })
 
 const picks: RosterPick[] = [
-  { entryId: 'overlord', choices: { enhancement: 'circlet' }, toggles: { warlord: 1 }, nickname: 'The Phaeron' },
+  { entryId: 'overlord', choices: { enhancement: 'circlet' }, toggles: { warlord: 1 } },
   { entryId: 'warriors', models: 20, spreads: { weapons: { gauss: 15, reaper: 5 } }, note: 'Hold the centre.' },
   { entryId: 'cryptek', attachedTo: 1 },
 ]
@@ -56,23 +56,29 @@ it('sees picks the builder rewrote while loading as a draft to save', () => {
   expect(draftKey(untouched(dangling))).not.toBe(draftKey(savedDraft(roster(dangling), prep)))
 })
 
-it('sees a renamed unit as a draft to save', () => {
-  const renamed = {
+it('sees a rewritten note as a draft to save', () => {
+  const rewritten = {
     ...untouched(picks),
-    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, nickname: key === 0 ? 'Szarekh' : pick.nickname }))),
+    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, note: key === 0 ? 'Lead from the front.' : pick.note }))),
   }
 
-  expect(draftKey(renamed)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
+  expect(draftKey(rewritten)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
 })
 
-it('prices the same picks whatever their nicknames and notes say', () => {
-  const plain = picks.map(({ nickname: _nickname, note: _note, ...pick }, key) => ({ ...pick, key }))
+it('leaves out a unit nickname stored before nicknames were removed', () => {
+  const legacy = [{ entryId: 'overlord', nickname: 'The Phaeron' } as RosterPick]
+
+  expect(savedDraft(roster(legacy), prep).picks[0]).not.toHaveProperty('nickname')
+})
+
+it('prices the same picks whatever their notes say', () => {
+  const plain = picks.map(({ note: _note, ...pick }, key) => ({ ...pick, key }))
 
   expect(positionedPicks(picks.map((pick, key) => ({ ...pick, key })))).toEqual(positionedPicks(plain))
 })
 
 it('sees a list with no prep stored as the empty prep the builder sends', () => {
-  const sent = { ...untouched(picks), prep: { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true, shareNotes: false } }
+  const sent = { ...untouched(picks), prep: { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true } }
 
   expect(draftKey(sent)).toBe(draftKey(savedDraft(roster(picks), prep)))
 })

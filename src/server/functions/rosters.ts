@@ -12,8 +12,10 @@ import { exportRosterFile } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
 import { rosterTelemetryProperties } from '../rosterTelemetry'
 import { isRosterExchangeCode } from '../../core/rosterExchange'
+import { ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
+import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
 import { variantDifferences } from '../rosterDifferences'
-import { copyOwnedRoster, saveOwnedRoster } from '../saveOwnedRoster'
+import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   copyRosterSchema,
@@ -21,6 +23,7 @@ import {
   importRosterSchema,
   priceSchema,
   rosterIdSchema,
+  rosterDiscoverySchema,
   rosterIdsSchema,
   rosterInBattleSchema,
   rosterLockSchema,
@@ -96,6 +99,35 @@ export const playerRosters = createServerFn({ method: 'GET' })
         label: values[index]?.label ?? '',
       }))
       return { rosters: summaries, totals }
+    }),
+  )
+
+/**
+ * Public rosters anyone can find, most recently saved first, with their owner's name and
+ * whether the current data can field them. A rare page can come back short, when a saved
+ * ID read against current data falls outside the filter; its cursor still continues.
+ */
+export const discoverRosters = createServerFn({ method: 'GET' })
+  .validator(rosterDiscoverySchema)
+  .handler(({ data: { before, ...filter } }) =>
+    rpc(async () => {
+      const instance = app()
+      const factions = (await instance.factionIndexFor())?.factions ?? []
+      const scope = discoveryScope(filter, factions)
+      if (!scope) return { rosters: [], nextCursor: null }
+      const page = await instance.service.discoverRosters({ ...scope, before, limit: ROSTER_DISCOVERY_PAGE_SIZE })
+      const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+      const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
+      const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))
+      return {
+        rosters: shown.map(({ summary, owner }, index) => ({
+          roster: summary,
+          owner,
+          points: assessments[index]!.points,
+          problem: assessments[index]!.verdict.problem,
+        })),
+        nextCursor: page.nextCursor,
+      }
     }),
   )
 
@@ -262,7 +294,7 @@ export const copyRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const copied = await copyOwnedRoster(player.id, data.id, data.variant)
+      const copied = await copySavedRoster(player.id, data.id, data.variant)
       if (!copied) throw new Response('roster not found', { status: 404 })
       await captureRosterCreated(player.id, copied.data, { variant: data.variant })
       return { id: copied.id }

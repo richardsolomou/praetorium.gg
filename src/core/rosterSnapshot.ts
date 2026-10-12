@@ -1,9 +1,8 @@
 import type { Attachment } from './attach'
 import { attachmentRows } from './attachmentRows'
-import { type FormatRuleId, type Roster, strategicReserveLimit } from './battle'
+import { customPointsBudget, type FormatRuleId, pointsBudgetOf, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
-import { nicknamedUnit } from './unitNotes'
 import type { UnitGroup } from './unitGroups'
 import { type CatalogueEdition, editionLabel } from './catalogueEdition'
 
@@ -14,6 +13,7 @@ type SavedRoster = {
   detachmentIds: readonly string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: readonly RosterPick[]
   waivedRules: readonly FormatRuleId[]
   reminders?: readonly RosterReminder[]
@@ -69,6 +69,7 @@ export function rosterSnapshot(
     }),
   )
   const detailsByEntry = new Map(details.map((entry) => [entry.entryId, entry]))
+  const pointsBudget = customPointsBudget(saved.limit, saved.pointsBudget)
   return {
     // A list nobody named is fielded under the label it had when it was fielded. The
     // log and the seat then keep saying that, whatever the library later folds.
@@ -88,23 +89,21 @@ export function rosterSnapshot(
     }),
     remindersEnabled: saved.remindersEnabled ?? true,
     text: [
-      `${priced.points} / ${saved.limit} pts`,
+      `${priced.points} / ${pointsBudgetOf(saved)} pts`,
       ...(priced.edition ? [`Codex: ${editionLabel(priced.edition)}`] : []),
       ...priced.detachments.map(
         (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
       ),
       '',
-      ...priced.units.map(
-        (unit) =>
-          `${nicknamedUnit(unit.name, saved.picks[unit.key]?.nickname)}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`,
-      ),
+      ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
     ].join('\n'),
     built: {
       catalogueId: saved.catalogueId,
       ...(priced.edition ? { edition: { ...priced.edition } } : {}),
       revision: priced.revision,
       limit: saved.limit,
-      ...(priced.strategicReserveFactsComplete ? { strategicReserveLimit: strategicReserveLimit(saved.limit) } : {}),
+      ...(pointsBudget === null ? {} : { pointsBudget }),
+      ...(priced.strategicReserveFactsComplete ? { strategicReserveLimit: strategicReserveLimit(pointsBudgetOf(saved)) } : {}),
       detachment: priced.detachment,
       detachments: [...priced.detachments],
       detachmentPointBudget: priced.detachmentPointBudget,
@@ -117,12 +116,11 @@ export function rosterSnapshot(
       picks: saved.picks.map((pick) => ({ ...pick })),
       units: priced.units.map((unit, index) => {
         const detail = detailsByEntry.get(unit.entryId)
-        const { nickname, note } = saved.picks[unit.key] ?? {}
+        const note = saved.picks[unit.key]?.note
         return {
           key: `${index}-${unit.entryId}`,
           entryId: unit.entryId,
           name: unit.name,
-          ...(nickname ? { nickname } : {}),
           ...(note ? { note } : {}),
           points: unit.points,
           models: unit.size.models,
