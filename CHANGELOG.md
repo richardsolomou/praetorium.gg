@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.132.4
+
+### Patch Changes
+
+- a3fe269: Reduce catalogue preparation for versioned references and simulator searches.
+
 ## 0.132.3
 
 ### Patch Changes
