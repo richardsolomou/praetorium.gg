@@ -9,6 +9,12 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
+import {
+  browserTestBuildEnvironment,
+  browserTestBuildFingerprint,
+  restoreBrowserTestBuild,
+  saveBrowserTestBuild,
+} from './lib/browserTestBuild.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
 const worktree = await realpath(process.cwd())
@@ -163,7 +169,8 @@ async function configure(value: Credentials) {
 }
 
 async function main() {
-  const started = performance.now()
+  const startedAt = performance.now()
+  const timings: Record<string, number | boolean> = {}
   if (testMode) {
     if (path.dirname(root) !== '/tmp' || !/^praetorium-(e2e|native-auth-ios)-[a-zA-Z0-9-]+$/.test(path.basename(root))) {
       throw new Error('Tests require a fresh Praetorium directory directly under /tmp')
@@ -236,6 +243,7 @@ async function main() {
   await symlink(path.join(worktree, 'spacetimedb/node_modules'), path.join(moduleRoot, 'spacetimedb/node_modules'), 'dir')
   await run(cli, ['build', '-p', path.join(moduleRoot, 'spacetimedb')])
   await configure(value)
+  timings.productSetupSeconds = (performance.now() - startedAt) / 1_000
   Object.assign(environment, {
     APP_URL: publicUrl,
     AUTH_SECRET: value.authSecret,
@@ -254,20 +262,25 @@ async function main() {
     PORT: String(app.port),
     LOCAL_APP_PORT: String(app.port),
     NODE_INTERNAL_PORT: String(internal.port),
-    // Browser tests would otherwise report to whichever PostHog project the worktree's .env names.
     ...(testMode
       ? {
           AUTH_RATE_LIMIT: 'off',
-          NODE_ENV: 'production',
-          NITRO_PRESET: 'node-server',
           CATALOGUE_UPDATE_MODE: 'off',
-          VITE_POSTHOG_PROJECT_TOKEN: '',
-          VITE_POSTHOG_HOST: '',
         }
       : { NODE_ENV: 'development' }),
   })
-  if (testMode) await run('pnpm', ['build'])
-  else {
+  const buildStartedAt = performance.now()
+  if (testMode) {
+    Object.assign(environment, browserTestBuildEnvironment(environment))
+    const cache = path.join(worktree, 'data-dev/e2e-build')
+    const fingerprint = await browserTestBuildFingerprint(worktree, catalogueDirectory, environment)
+    const cached = environment.LOCAL_BUILD_CACHE !== 'off' && (await restoreBrowserTestBuild(cache, fingerprint, buildDir))
+    if (!cached) await run('pnpm', ['build'])
+    if ((await browserTestBuildFingerprint(worktree, catalogueDirectory, environment)) !== fingerprint)
+      throw new Error('Browser-test build inputs changed during startup; rerun the tests')
+    if (!cached && environment.LOCAL_BUILD_CACHE !== 'off') await saveBrowserTestBuild(cache, fingerprint, buildDir)
+    timings.webBuildCached = cached
+  } else {
     console.log('Preparing the local seed bundle; application pages will use Vite live reload')
     await run('pnpm', ['exec', 'vite', 'build', '--config', 'vite.seed.config.ts'])
     if (existsSync(path.join(catalogueDirectory, 'revision.json'))) {
@@ -277,10 +290,11 @@ async function main() {
     }
     environment.LOCAL_VITE_ORIGIN = `http://127.0.0.1:${internal.port}`
   }
+  timings.webBuildSeconds = (performance.now() - buildStartedAt) / 1_000
+  const runtimeStartedAt = performance.now()
   await app.release()
   if (testMode) await internal.release()
   const web = start(process.execPath, ['scripts/nodeServer.ts'], true)
-  const webStarted = performance.now()
   if (!testMode) {
     const seedDeadline = Date.now() + 240_000
     while (!existsSync(environment.AUTH_SQLITE_PATH!)) {
@@ -297,11 +311,16 @@ async function main() {
     )
   }
   await waitFor(`${appUrl}/api/health`, (response) => response.ok)
-  console.error(`Local startup: web readiness completed in ${Math.round(performance.now() - webStarted)}ms`)
+  timings.runtimeSeconds = (performance.now() - runtimeStartedAt) / 1_000
+  timings.totalSeconds = (performance.now() - startedAt) / 1_000
+  if (testMode) {
+    console.error(`Browser-test startup: ${JSON.stringify(timings)}`)
+    if (environment.LOCAL_STARTUP_REPORT) await writeFile(environment.LOCAL_STARTUP_REPORT, JSON.stringify(timings))
+  }
   preview.ready = true
   await writePreview()
   console.log(`Local Praetorium (${testMode ? 'production browser test' : 'Vite development'}) is ready at ${appUrl}`)
-  console.error(`Local startup: total ${Math.round(performance.now() - started)}ms`)
+  console.error(`Local startup: total ${Math.round(performance.now() - startedAt)}ms`)
   if (web.exitCode !== null) throw new Error('Web server exited during startup')
   await new Promise<void>((resolve) => {
     if (abort.signal.aborted) resolve()
