@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.129.1
+
+### Patch Changes
+
+- f885102: Remove unit nicknames and keep unit notes private to their owner.
+
 ## 0.129.0
 
 ### Minor Changes
