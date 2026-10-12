@@ -1,12 +1,5 @@
 import { expect, test } from './test'
-import { confirmRosterSetup,
-  chooseRosterDefault,
-  createRoster,
-  retryUntilVisible,
-  signUp,
-  uniqueName,
-  waitForRosterSave,
-} from './account'
+import { confirmRosterSetup, chooseRosterDefault, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 
 test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
   await signUp(page, uniqueName('Search roster'))
