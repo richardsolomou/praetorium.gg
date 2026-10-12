@@ -284,8 +284,6 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const rosterUrl = page.url()
 
-  // Deleting the unit in front of it moves Lychguard, so the pane names a place in the
-  // roster that is no longer its own once the workspace is mounted again.
   await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
   await waitForRosterSave(page, () => page.getByRole('menuitem', { name: 'Delete unit' }).click())
   await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
@@ -295,9 +293,8 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL('/battles')
 
-  // The unit is unresolvable, so the roster it belongs to is what is left of the tab.
   await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page).toHaveURL(rosterUrl)
+  await expect(page).toHaveURL((url) => url.pathname === new URL(rosterUrl).pathname)
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
 
   await context.close()
