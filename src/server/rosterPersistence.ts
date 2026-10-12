@@ -32,6 +32,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     optionalRules: optionalRulesFrom(row.optionalRules),
     borrowedDetachmentId: row.borrowedDetachmentId,
     baseRosterId: row.baseRosterId,
+    copiedFromRosterId: row.copiedFromRosterId ?? null,
     locked: row.locked ?? false,
     visibility: row.visibility,
     source: row.source,

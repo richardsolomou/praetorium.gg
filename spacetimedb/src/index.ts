@@ -931,6 +931,7 @@ function parseRoster(payload: string) {
     optionalRules: string('optionalRules', 10_000),
     borrowedDetachmentId: nullable('borrowedDetachmentId', 128),
     baseRosterId: row.baseRosterId === undefined ? null : nullable('baseRosterId', 128),
+    copiedFromRosterId: row.copiedFromRosterId === undefined ? null : nullable('copiedFromRosterId', 128),
     visibility,
     source,
     now,
@@ -1121,7 +1122,16 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
   const base = input.baseRosterId ? tx.db.rosters.id.find(input.baseRosterId) : null
   if (input.baseRosterId && base?.userId !== input.userId) return 'forbidden'
   const baseRosterId = base ? (base.baseRosterId ?? base.id) : undefined
-  tx.db.rosters.insert({ id: input.id, userId: input.userId, createdAt: BigInt(input.now), baseRosterId, locked: undefined, ...fields })
+  tx.db.rosters.insert({
+    id: input.id,
+    userId: input.userId,
+    createdAt: BigInt(input.now),
+    baseRosterId,
+    // Where a copy came from, recorded once; readers resolve it through their own access.
+    copiedFromRosterId: input.copiedFromRosterId ?? undefined,
+    locked: undefined,
+    ...fields,
+  })
   touchProduct(tx, input.userId, 'rosters', 'onboarding')
   if (input.visibility !== 'private') touchPublic(tx, 'rosters')
   touchAdmin(tx)

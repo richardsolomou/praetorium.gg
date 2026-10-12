@@ -67,10 +67,17 @@ it('duplicates every choice of a roster at the default visibility, outside its g
     name: 'Copy of Gladius 2K',
     automaticName: false,
     baseRosterId: null,
+    copiedFromRosterId: 'base',
     picks,
     prep,
     visibility: 'private',
   })
+})
+
+it('records no copy source on a variant, which already names its base', async () => {
+  library([base])
+  await copySavedRoster('player', 'base', true)
+  expect(saved()).toMatchObject({ baseRosterId: 'base', copiedFromRosterId: null })
 })
 
 it.each([false, true])('keeps unit notes in a copy (variant: %s)', async (variant) => {

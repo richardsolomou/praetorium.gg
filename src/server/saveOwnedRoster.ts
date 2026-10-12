@@ -5,7 +5,12 @@ import { app } from './app'
 import { calculateRosterTotals } from '../shared/pricing'
 import type { saveRosterSchema } from '../contracts/schemas'
 
-export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveRosterSchema>, baseRosterId: string | null = null) {
+export async function saveOwnedRoster(
+  userId: string,
+  data: z.infer<typeof saveRosterSchema>,
+  baseRosterId: string | null = null,
+  copiedFromRosterId: string | null = null,
+) {
   const instance = app()
   const automaticName = !data.name
   const totals = automaticName
@@ -20,6 +25,7 @@ export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveR
     name: data.name || totals?.label || '',
     automaticName,
     baseRosterId,
+    copiedFromRosterId,
   })
 }
 
@@ -54,7 +60,7 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
     visibility: rosterVisibility,
     source: roster.source,
   }
-  return { ...(await saveOwnedRoster(userId, data, variant ? roster.id : null)), data }
+  return { ...(await saveOwnedRoster(userId, data, variant ? roster.id : null, variant ? null : roster.id)), data }
 }
 
 async function variantNameFor(userId: string, roster: { id: string; name: string; automaticName: boolean; baseRosterId: string | null }) {

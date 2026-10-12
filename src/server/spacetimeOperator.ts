@@ -29,13 +29,14 @@ const rosterRow = z.strictObject({
   borrowedDetachmentId: z.string().nullable(),
   baseRosterId: z.string().nullable(),
   locked: z.boolean().nullable(),
+  copiedFromRosterId: z.string().nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES),
   source: z.enum(ROSTER_SOURCES),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
 })
 
-const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true }).extend({
+const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true, copiedFromRosterId: true }).extend({
   unitCount: z.number().int().nonnegative(),
 })
 const collectionRow = z.strictObject({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
@@ -171,6 +172,7 @@ type SaveRosterInput = {
   optionalRules?: string
   borrowedDetachmentId?: string | null
   baseRosterId?: string | null
+  copiedFromRosterId?: string | null
   visibility: RosterVisibility
   source: RosterSource
   now: number
