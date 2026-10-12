@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.134.0
+
+### Minor Changes
+
+- 6d7064e: Lend a saved roster to a friend, who can view it and field it in their own battles without editing it.
+
+### Patch Changes
+
+- 6d7064e: Open a roster you were just given access to without a stale "Nothing here" page.
+
 ## 0.133.9
 
 ### Patch Changes
