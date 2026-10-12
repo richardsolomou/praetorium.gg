@@ -72,7 +72,6 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     for (const name of ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_SPONSORS_TOKEN']) {
       if (environment[name]) entries[name] = required(environment, name)
     }
-    if (environment.SUPPORT_GITHUB_TOKEN) entries.SUPPORT_GITHUB_TOKEN = required(environment, 'SUPPORT_GITHUB_TOKEN')
     // Only production's pages belong in search results.
     if (environment.INDEXNOW_KEY) entries.INDEXNOW_KEY = required(environment, 'INDEXNOW_KEY')
   }
