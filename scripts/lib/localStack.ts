@@ -43,21 +43,23 @@ export function startLocalChild(command: string, args: string[], environment: No
   return spawn(command, args, { env: environment, stdio: 'inherit', detached: process.platform !== 'win32' })
 }
 
-function signalChild(child: ChildProcess, signal: NodeJS.Signals) {
-  if (!child.pid) return
+/** Whether the signal reached a live member of the child's process group. */
+function signalChild(child: ChildProcess, signal: NodeJS.Signals | 0) {
+  if (!child.pid) return false
   try {
-    if (process.platform === 'win32') child.kill(signal)
-    else process.kill(-child.pid, signal)
+    if (process.platform === 'win32') return child.kill(signal)
+    process.kill(-child.pid, signal)
+    return true
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ESRCH') return
+    if (code === 'ESRCH') return false
     if (code === 'EPERM' && process.platform === 'darwin' && (child.exitCode !== null || child.signalCode !== null)) {
       const groups = execFileSync('ps', ['-axo', 'pgid=,stat='], { encoding: 'utf8' })
       const live = groups.split('\n').some((line) => {
         const [group, state] = line.trim().split(/\s+/)
         return Number(group) === child.pid && !state?.startsWith('Z')
       })
-      if (!live) return
+      if (!live) return false
     }
     throw new Error(`Could not send ${signal} to local child ${child.pid}.`, { cause: error })
   }
@@ -83,5 +85,11 @@ export async function stopLocalChildren(children: readonly ChildProcess[]) {
   }
   for (const child of children) signalChild(child, 'SIGKILL')
   await exited
+  // A grandchild outlives the exit of the child that started it and keeps its ports until it is gone too.
+  const deadline = Date.now() + 5_000
+  while (children.some((child) => signalChild(child, 0))) {
+    if (Date.now() > deadline) throw new Error('Local children survived SIGKILL')
+    await delay(20)
+  }
   for (const child of children) stoppedChildren.add(child)
 }

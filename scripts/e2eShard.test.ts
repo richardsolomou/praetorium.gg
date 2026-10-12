@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { recordedDurations, shardTitles, testTitles } from './e2eShard'
+import { medianDurations, recordedDurations, shardTitles, testTitles } from './e2eShard'
 
 const report = (results: { status: string; duration: number }[]) => ({
   suites: [
@@ -22,6 +22,12 @@ it('records a passing test in seconds', () => {
 
 it('records nothing for a test that timed out', () => {
   expect(recordedDurations(report([{ status: 'timedOut', duration: 120_000 }]))).toEqual({})
+})
+
+it('weighs a test by its median across runs', () => {
+  const runs = [10_000, 30_000, 12_000].map((duration) => report([{ status: 'passed', duration }]))
+
+  expect(medianDurations(runs)['battle.spec.ts › opens a battle']).toBe(12)
 })
 
 it('keeps the two longest tests on different runners', () => {

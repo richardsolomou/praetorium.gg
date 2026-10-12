@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, test, type Locator } from './test'
 
 test('the full replay preloads before scrubbing', async ({ page }) => {
   let replayRequests = 0

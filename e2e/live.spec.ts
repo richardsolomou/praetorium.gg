@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 
 test('a battle stays in step across two devices', async ({ browser }) => {

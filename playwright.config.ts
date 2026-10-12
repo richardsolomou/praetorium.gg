@@ -47,7 +47,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${readyPort}/ready`,
     reuseExistingServer: false,
     gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
-    // Allow the build, three-minute preview seed and six-minute Node readiness budget to finish.
+    // Allow the build and seed before the local runner's ten-minute health deadline.
     timeout: 900_000,
   },
 })

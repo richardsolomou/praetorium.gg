@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { createBattle, createRoster, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
 import { productSql, withAuthSql } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'

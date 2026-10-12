@@ -1,19 +1,5 @@
-import { expect, test } from '@playwright/test'
-import {
-  confirmRosterSetup,
-  advance,
-  attachRoster,
-  createBattle,
-  createRoster,
-  PRACTICE_OPPONENT,
-  recordFirstTurn,
-  retryUntilVisible,
-  setupStep,
-  signUp,
-  takeTheTurn,
-  uniqueName,
-  waitForRosterSave,
-} from './account'
+import { expect, test } from './test'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 
 test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
   await signUp(page, uniqueName('Search roster'))
@@ -39,34 +25,6 @@ test('roster visibility controls search indexing and public URL variants', async
   await page.goto(`${path}?print=true`)
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(path, page.url()).href)
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0)
-})
-
-test('a practice battle played out opens as its replay', async ({ page }) => {
-  test.setTimeout(240_000)
-  const player = uniqueName('Practice')
-  await signUp(page, player)
-  const firstRoster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
-  await createBattle(page, { practice: true })
-  await attachRoster(page, firstRoster)
-  await attachRoster(page, firstRoster, { forPlayer: PRACTICE_OPPONENT })
-  await setupStep(page, 'Battlefield')
-  await page.getByRole('button', { name: 'Select layout A: Tipping Point' }).click()
-  await expect(page.getByRole('button', { name: 'Selected layout A: Tipping Point' })).toBeVisible()
-  await recordFirstTurn(page)
-  await page.getByRole('button', { name: 'Start battle' }).click()
-  await takeTheTurn(page)
-  await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
-
-  // The round count follows the mission pack, so this runs the battle out rather than
-  // assuming how many phases that is.
-  const result = page.getByRole('heading', { name: /Drawn at|win/ })
-  for (let step = 0; step < 80 && !(await result.isVisible().catch(() => false)); step++) await advance(page)
-  await expect(result).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Battle scoreboard' })).not.toContainText('Result')
-  await expect(page.getByRole('navigation', { name: 'Battle replay timeline' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Battle options' })).toHaveCount(0)
 })
 
 test('a private roster can be shared and made private again', async ({ browser }) => {

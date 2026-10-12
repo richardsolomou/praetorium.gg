@@ -1,5 +1,5 @@
 import { chooseCombatUnit, closeCombatBreakdown, openCombatBreakdown, openCombatControls, holdCombatCalculations } from './combat'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './test'
 import { chooseUnit as chooseCatalogueUnit, retryUntilVisible } from './account'
 
 async function choose(page: Page, control: string, name: string) {

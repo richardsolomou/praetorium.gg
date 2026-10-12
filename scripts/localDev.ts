@@ -87,8 +87,10 @@ async function run(command: string, args: string[]) {
   if (code !== 0) throw new Error(`${command} exited with status ${code}`)
 }
 
-async function waitFor(url: string, ready: (response: Response) => boolean, attempts = 360) {
-  for (let attempt = 0; attempt < attempts; attempt++) {
+// A persistent child's exit aborts the wait sooner; a loaded CI runner can spend minutes warming the catalogue.
+async function waitFor(url: string, ready: (response: Response) => boolean, timeout = 600_000) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
     abort.signal.throwIfAborted()
     try {
       const response = await fetch(url, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(1_000)]) })
@@ -289,7 +291,7 @@ async function main() {
       { ...environment, PORT: undefined, NODE_INTERNAL_PORT: undefined },
     )
   }
-  await waitFor(`${appUrl}/api/health`, (response) => response.ok, 1_080)
+  await waitFor(`${appUrl}/api/health`, (response) => response.ok)
   preview.ready = true
   await writePreview()
   console.log(`Local Praetorium (${testMode ? 'production browser test' : 'Vite development'}) is ready at ${appUrl}`)

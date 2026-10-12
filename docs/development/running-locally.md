@@ -31,7 +31,9 @@ Default data/build output lives in `data-dev/hosted/` and survives restart. Star
 
 Keep the browser runner's startup deadline longer than the build, preview seed and Node readiness budgets combined. The local health wait must allow both seeding and catalogue warmup to finish; a rules snapshot can add retained versions without changing the database schema.
 
-`just e2e-install` installs Chromium; `just e2e-trace` records traces. Configuration and worker/retry/shard counts live in the Playwright config and CI. Prefer automatic allocation; explicit `PLAYWRIGHT_*` overrides require fresh data under the expected `/tmp` prefix. `just e2e-durations <run id>` refreshes shard timings.
+`just e2e-install` installs Chromium; `just e2e-trace` records traces. Configuration and worker/retry/shard counts live in the Playwright config and CI. Prefer automatic allocation; explicit `PLAYWRIGHT_*` overrides require fresh data under the expected `/tmp` prefix. `just e2e-durations <run id>...` refreshes shard timings from the median of several complete CI runs.
+
+A spec that opens another browser context with `browser.newContext()` imports `test` from `e2e/test.ts`, which closes those contexts when the test ends. Playwright closes only the contexts its fixtures create; a left-open player keeps polling and downloading for the rest of the worker's tests. Test titles must differ after punctuation is removed, because Playwright derives each test's output directory from its title.
 
 [Native authentication](mobile.md#check-it) owns its separate stack and exclusive simulator reservation.
 

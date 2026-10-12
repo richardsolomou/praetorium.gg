@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import { join } from 'node:path'
-import { devices, expect, type Page, test } from '@playwright/test'
+import { devices, expect, type Page, test } from './test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import { confirmRosterSetup, createRoster, retryUntilVisible, signUp } from './account'
 import { catalogue } from './stackEnv'
@@ -235,8 +235,9 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
   await expect(page).not.toHaveURL(/\/sign-in/)
 
-  await page.getByRole('button', { name: `Account menu for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  const signOut = page.getByRole('menuitem', { name: 'Sign out' })
+  await retryUntilVisible(signOut, () => page.getByRole('button', { name: `Account menu for ${name}` }).click())
+  await signOut.click()
   await page.goto('/support')
   await page.goto('/sign-in?next=%2Ffactions')
   await page.waitForLoadState('networkidle')

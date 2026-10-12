@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { normalizeRuleReference } from '../core/ruleReference'
+import { readSharedJson } from './sharedJson'
 import { joinKey, titleCase } from '../shared/rulesSource'
 import {
   type RuleCard,
@@ -24,7 +25,7 @@ import {
 } from '../shared/datacards'
 export * from '../shared/datacards'
 const NO_SECTIONS: SectionProse = () => new Map()
-export function loadDatacards(directory: string, sections: SectionProse = NO_SECTIONS): LoadedDatacards {
+export function loadDatacards(directory: string, sections: SectionProse = NO_SECTIONS, strings?: Map<string, string>): LoadedDatacards {
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
   const enhancements = new Map<string, Set<string>>()
@@ -53,7 +54,7 @@ export function loadDatacards(directory: string, sections: SectionProse = NO_SEC
   const files = fs
     .readdirSync(directory)
     .filter((entry) => entry.endsWith('.json'))
-    .map((fileName) => JSON.parse(fs.readFileSync(path.join(directory, fileName), 'utf8')) as DatacardsFaction)
+    .map((fileName) => readSharedJson(path.join(directory, fileName), strings) as DatacardsFaction)
     .filter(
       (parsed): parsed is DatacardsFaction & { name: string } =>
         typeof parsed.name === 'string' && Array.isArray(parsed.datasheets) && Array.isArray(parsed.detachments),
