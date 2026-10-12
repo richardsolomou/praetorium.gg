@@ -1525,9 +1525,8 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     .getByRole('alertdialog', { name: 'Discard saved changes?' })
     .getByRole('button', { name: 'Discard changes', exact: true })
     .click()
-  await expect(savedChanges).toContainText('All changes have synced.')
+  await expect(savedChanges).toBeHidden()
   await owner.unrouteAll({ behavior: 'wait' })
-  await savedChanges.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(team(1).locator('[data-person]')).toHaveCount(2)
 
   await expect(owner.getByRole('heading', { name: 'Ready to reveal' })).toBeVisible()
