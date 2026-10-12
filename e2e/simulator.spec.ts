@@ -28,10 +28,10 @@ for (const width of [1440, 390]) {
     const melee = page.getByRole('region', { name: 'Melee results' })
     const loadout = page.getByRole('dialog')
     await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
-    const claws = 'Assault Terminator w/ Twin Lightning Claws'
+    const hammers = 'Assault Terminator w/ Thunder Hammer & Storm Shield'
     for (let selected = 1; selected <= 2; selected++) {
-      await loadout.getByRole('button', { name: `More ${claws}`, exact: true }).click()
-      await expect(loadout.getByLabel(`${claws} count`, { exact: true })).toHaveText(String(selected))
+      await loadout.getByRole('button', { name: `More ${hammers}`, exact: true }).click()
+      await expect(loadout.getByLabel(`${hammers} count`, { exact: true })).toHaveText(String(selected))
     }
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-thunder-hammers-${width}.png` })
