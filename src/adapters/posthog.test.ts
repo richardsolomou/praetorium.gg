@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { deploymentHost, serverEventContext } from './posthog'
+import { deploymentHost, deploymentResource, serverEventContext } from './posthog'
 
 const event = (properties?: Record<string, unknown>) => ({ distinctId: 'player', event: 'roster_created', properties })
 
@@ -28,4 +28,12 @@ it('labels a server event that has no properties', () => {
 
 it('leaves an event unlabelled when the deployment is unknown', () => {
   expect(serverEventContext(undefined)(event({ outcome: 'appended' }))?.properties).toEqual({ outcome: 'appended' })
+})
+
+it('labels spans, logs, and metrics with the deployment host', () => {
+  expect(deploymentResource('pr-722.praetorium.gg')).toEqual({ host: 'pr-722.praetorium.gg' })
+})
+
+it('adds no resource label when the deployment is unknown', () => {
+  expect(deploymentResource(undefined)).toBeUndefined()
 })
