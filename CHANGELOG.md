@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.133.7
+
+### Patch Changes
+
+- a3d0e2a: Serve repeated datasheet and faction list reads from memory until army data changes.
+- aa60179: Refresh feeds once per burst of battle changes instead of on every move.
+
 ## 0.133.6
 
 ### Patch Changes
