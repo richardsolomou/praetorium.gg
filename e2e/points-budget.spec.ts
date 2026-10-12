@@ -60,7 +60,7 @@ for (const width of [1440, 390]) {
     await setup.getByRole('button', { name: 'Cancel', exact: true }).click()
 
     let review = await setBudget(page, '1000')
-    await expect(review).toContainText('Strike Force → Strike Force')
+    await expect(review.getByRole('region', { name: 'Setup changes' })).not.toContainText('Battle size')
     await expect(review).toContainText('2000 → 1000')
     await expect(review).toContainText('Over budget by')
     await expect(review).not.toContainText('Removed:')

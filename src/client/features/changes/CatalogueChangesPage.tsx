@@ -10,6 +10,8 @@ import { useDateFormatting } from '../../dates'
 import { catalogueChangeLogQuery } from '../../queries'
 import { useOpenHashTarget } from './hashTarget'
 import { changesLabel, UpdateChanges } from './UpdateChanges'
+import { UpdateFactionLabel } from './UpdateFactionLabel'
+import { UpdatesNavigation } from './UpdatesNavigation'
 
 /**
  * Every army data update, or every one that reached a faction, newest first, a page at a time.
@@ -30,11 +32,13 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
         title={faction ? `${faction.name} data updates` : 'Data updates'}
         description={
           faction
-            ? `${faction.name} points, datasheets and detachments that changed each time the army data was updated, newest first.`
-            : 'Points, datasheets and detachments that changed each time the army data was updated, newest first.'
+            ? `Track changes to ${faction.name} points, datasheets and detachments.`
+            : 'Follow points changes, new datasheets and detachment updates across every army.'
         }
-      />
-      <PageContent className="space-y-6">
+      >
+        <UpdatesNavigation current="data" />
+      </PageHeader>
+      <PageContent className="space-y-4 sm:pt-6">
         {faction ? (
           <Link to="/data-updates" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
             <ChevronLeft className="size-3.5" /> All data updates
@@ -108,29 +112,47 @@ function PageLink({
  */
 function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
   const { date, time } = useDateFormatting()
-  const when = `${date(update.recordedAt)} ${time(update.recordedAt)}`
   return (
-    <details id={update.anchor} open={update.open} className="group scroll-mt-16">
-      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-        <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2 group-hover:border-edge-strong">
-          <h2 className="rubric readout flex items-center gap-1.5 text-bone">
-            <ChevronRight className="size-4 shrink-0 self-center text-dim transition-transform group-open:rotate-90" aria-hidden />
-            {when}
+    <details id={update.anchor} open={update.open} className="group scroll-mt-16 border border-edge bg-panel open:border-edge-strong">
+      <summary className="cursor-pointer list-none p-4 hover:bg-raised/40 sm:p-5 [&::-webkit-details-marker]:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="flex min-w-0 items-center gap-3 text-lg text-bone sm:text-xl">
+            <span className="grid size-8 shrink-0 place-items-center border border-edge-strong text-dim group-open:border-parchment/30 group-open:text-parchment">
+              <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
+            </span>
+            <time dateTime={new Date(update.recordedAt).toISOString()}>
+              <span className="block">{date(update.recordedAt)}</span>{' '}
+              <span className="readout mt-0.5 block text-xs font-sans font-normal text-dim">{time(update.recordedAt)}</span>
+            </time>
           </h2>
-          <p className="rubric readout">{changesLabel(update.total)}</p>
+          <p className="chip border-info/25 bg-info/5 px-2 py-1 text-info">{changesLabel(update.total)}</p>
         </div>
         {named ? (
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 border border-edge bg-panel px-3 py-2.5 text-sm">
-            {update.factions.map((faction) => (
-              <a key={faction.anchor} href={`#${faction.anchor}`} className="text-parchment hover:text-bone">
-                {faction.faction} <span className="readout text-dim">{faction.count}</span>
-              </a>
-            ))}
-            {update.more ? <span className="text-dim">+{update.more} more</span> : null}
+          <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            {update.factions.map((faction) => {
+              const linked = update.changes.factions.find((entry) => entry.anchor === faction.anchor)
+              return (
+                <a
+                  key={faction.anchor}
+                  href={`#${faction.anchor}`}
+                  aria-label={`${faction.faction}, ${changesLabel(faction.count)}`}
+                  className="flex min-w-0 items-start justify-between gap-3 border border-edge bg-sunken/40 p-3 hover:border-info/50 hover:bg-raised"
+                >
+                  <span
+                    className="mt-0.5 h-4 w-0.5 shrink-0"
+                    aria-hidden
+                    style={{ backgroundColor: factionColour(linked?.slug ?? '', faction.faction.split(' · ')[0]) }}
+                  />
+                  <UpdateFactionLabel name={faction.faction} />
+                  <span className="readout ml-auto shrink-0 text-xs text-dim">{faction.count}</span>
+                </a>
+              )
+            })}
+            {update.more ? <span className="self-center px-3 text-xs text-dim">+{update.more} more armies</span> : null}
           </div>
         ) : null}
       </summary>
-      <div className="mt-3">
+      <div className="border-t border-edge bg-sunken/30 p-4 sm:p-5">
         <UpdateChanges update={update.changes} />
       </div>
     </details>

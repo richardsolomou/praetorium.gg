@@ -23,7 +23,7 @@ afterEach(async () => {
   }
 })
 
-async function fixture(healthy = true) {
+async function fixture(healthy = true, healthDelay = 0) {
   const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-node-handoff-'))
   const publicPort = await reserveLocalPort()
   const internalPort = await reserveLocalPort()
@@ -33,6 +33,7 @@ async function fixture(healthy = true) {
     `
     import { serve } from ${JSON.stringify(srvx)};
     let terminated = false;
+    let healthRequests = 0;
     process.on('SIGTERM', () => { terminated = true });
     serve({ port: Number(process.env.NITRO_PORT), hostname: '127.0.0.1', fetch: async request => {
       if (new URL(request.url).pathname === '/slow') {
@@ -42,6 +43,7 @@ async function fixture(healthy = true) {
       }
       if (new URL(request.url).pathname === '/crash') process.exit(17);
       console.log('health requested');
+      if (healthRequests++ === 0) await new Promise(resolve => setTimeout(resolve, ${healthDelay}));
       return new Response('health', {status: ${healthy ? 200 : 503}});
     } });
   `,
@@ -80,8 +82,28 @@ async function fixture(healthy = true) {
       ])
     }
   }
-  return { child, waitFor, origin: `http://127.0.0.1:${publicPort.port}`, objects: localObjectStore(path.join(directory, 'objects')) }
+  return {
+    child,
+    waitFor,
+    healthRequests: () => [...output.matchAll(/health requested/g)].length,
+    origin: `http://127.0.0.1:${publicPort.port}`,
+    objects: localObjectStore(path.join(directory, 'objects')),
+  }
 }
+
+it('waits for a warming health request instead of cancelling it and starting another', async () => {
+  const { waitFor, healthRequests } = await fixture(true, 2_500)
+  await waitFor('Node server ready')
+  expect(healthRequests()).toBe(1)
+}, 10_000)
+
+it('cancels a pending readiness request when shutdown begins', async () => {
+  const { child, waitFor } = await fixture(true, 60_000)
+  await waitFor('health requested')
+  const exited = once(child, 'close')
+  child.kill('SIGTERM')
+  expect((await exited)[0]).toBe(0)
+}, 10_000)
 
 it('completes an HTTP request and exits cleanly after SIGTERM with Nitro’s real signal handler', async () => {
   const { child, waitFor, origin } = await fixture()

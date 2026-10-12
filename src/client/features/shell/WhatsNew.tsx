@@ -7,6 +7,7 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { releaseNotesQuery, releaseQuery } from '../../queries'
 import { newerRelease } from './releaseUpdate'
 import { markReleaseSeen, seenRelease, unseenChanges } from './seenRelease'
+import { UpdatesNavigation } from '../changes/UpdatesNavigation'
 
 /**
  * Says once what changed since this browser last acknowledged a release, without blocking anything.
@@ -64,26 +65,36 @@ export function WhatsNewPage() {
       <PageHeader
         eyebrow="Application"
         title="What's new"
-        description={
-          <>
-            Changes to the Praetorium app, newest first. Points and datasheet changes are listed under{' '}
-            <Link to="/data-updates" className="text-info hover:text-parchment">
-              Data updates
-            </Link>
-            .
-          </>
-        }
-      />
-      <PageContent className="space-y-6">
+        description="The latest improvements to army building, battle tracking and the rest of Praetorium."
+      >
+        <UpdatesNavigation current="app" />
+      </PageHeader>
+      <PageContent className="space-y-4 sm:pt-6">
         {(notes ?? []).map((note) => (
-          <section key={note.version} aria-labelledby={`release-${note.version}`}>
-            <h2 id={`release-${note.version}`} className="rubric border-b border-edge pb-2">
-              Version <span className="readout">{note.version}</span>
-              {note.version === version ? <span className="ml-2 text-xs text-dim normal-case">This version</span> : null}
-            </h2>
-            <ul className="mt-3 list-disc space-y-1.5 pl-5 font-rules text-sm text-dim">
+          <section
+            key={note.version}
+            aria-labelledby={`release-${note.version}`}
+            className={`grid overflow-hidden border bg-panel sm:grid-cols-[10rem_minmax(0,1fr)] ${note.version === version ? 'border-parchment/40' : 'border-edge'}`}
+          >
+            <div
+              className={`border-b p-4 sm:border-r sm:border-b-0 ${note.version === version ? 'border-parchment/20 bg-parchment/5' : 'border-edge bg-raised/40'}`}
+            >
+              <h2
+                id={`release-${note.version}`}
+                className="flex flex-wrap items-center justify-between gap-3 text-sm font-sans font-normal normal-case sm:block"
+              >
+                <span className="block">
+                  <span className="eyebrow">Version</span> <span className="figure mt-1 block text-2xl text-bone">{note.version}</span>
+                </span>{' '}
+                {note.version === version ? <span className="chip border-parchment/30 text-parchment sm:mt-3">This version</span> : null}
+              </h2>
+            </div>
+            <ul className="divide-y divide-edge px-4 py-1 sm:px-5">
               {note.changes.map((change) => (
-                <li key={change}>{change}</li>
+                <li key={change} className="flex items-start gap-3 py-3 text-sm leading-relaxed text-bone">
+                  <span aria-hidden className={`mt-2 size-1.5 shrink-0 ${note.version === version ? 'bg-parchment' : 'bg-faint'}`} />
+                  <span>{change}</span>
+                </li>
               ))}
             </ul>
           </section>

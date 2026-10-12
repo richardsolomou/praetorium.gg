@@ -794,7 +794,7 @@ export function RosterSetupDialog({
           <DialogContent size="md">
             <DialogHeader>
               <DialogTitle className="text-2xl">{review ? 'Review roster changes' : title}</DialogTitle>
-              <DialogDescription>{description}</DialogDescription>
+              <DialogDescription>{review ? 'Check the changes before saving.' : description}</DialogDescription>
             </DialogHeader>
             <DialogBody>
               {review ? (

@@ -53,6 +53,8 @@ Discover armies (`RosterDiscoveryPage.tsx`) draws the library's roster summary w
 
 Library variants remain grouped with their base and show concise differences from the saved base. Filters and tabs that represent destinations live in the URL. Variant navigation stays disabled while edits are unsaved. The library's legality and changed-list counts use the domain decisions in [Catalogue data](catalogue-data.md#data-updates).
 
+Roster setup and conversion reviews lead with the resulting points and legality problems, then show changed settings, detachments and units. Use red for removals and invalid choices, amber for changes and unresolved checks, and green for additions and a clear legality result; pair color with a short label. Collapse unchanged units behind one count, with their details available on expansion. Verify builder and library confirmation, cancellation, reload and phone layout in `e2e/roster-setup-review.spec.ts`, and guest confirmation and reload in `e2e/guest-roster.spec.ts`.
+
 Reference datasheet and detachment pages enter the builder through `ReferenceRosterActions.tsx`. The rosters offered for a datasheet are those whose book's picker lists it; the builder adds the requested unit under that roster's own limits and reports a refusal in its header. A visitor draft uses the same builder. A cookie hints its layout for SSR without storing the list. Another tab's edit or claim replaces the open copy. Storage failure keeps the open builder usable and warns about reload loss. Claiming the draft after sign-in follows the saved flow. Save keeps the roster context on the authentication page and allows returning to the draft. If storage rejects the latest draft, keep the player in the builder rather than navigating into authentication and losing it.
 
 Name the next missing setup choice beside the disabled roster action. Offer a first-unit action in an empty editable list only when the picker is concealed; the permanent desktop sidebar already supplies that action. Paired roster-footer actions use the same height, with larger touch targets on phones. Printed rosters must unfold scrolling ancestors, retain points and legality/draft warnings, and hide editing controls. Inspect a long list under print media, including its last card.
@@ -76,6 +78,8 @@ The army window uses independently expandable loadouts in its scroll flow, with 
 League entrants and organizers share one event page. Its next-action card and progress use the same state decision. Organizer controls sit beside the entries or settings they affect; reveal uses the domain checklist. Sealing requires choosing a list and confirming it by name. Touch controls meet a 44-pixel target. [Leagues](leagues.md) owns access, sealing, and reveal rules.
 
 ## Other surfaces
+
+What's new and Data updates share the Updates navigation. Release panels pair their version with the recorded changes and highlight the installed version. Data-update panels retain native disclosures, faction fragment links and pagination; separate army names from their rules-version detail without changing the full accessible label. Additions are green, removals red and points changes amber. Verify both pages at phone and desktop widths in `e2e/update-pages.spec.ts`, alongside the release-notice and data-anchor journeys.
 
 Import new guide illustrations from client source with `?no-inline` so Vite emits hashed assets that deployment publishes before changing replicas.
 

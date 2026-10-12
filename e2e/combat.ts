@@ -13,11 +13,11 @@ export function isCombatCalculationRequest(request: Request) {
 }
 
 export async function holdCombatCalculations(page: Page) {
-  const waiting: (() => void)[] = []
+  const waiting = Promise.withResolvers<void>()
   const hold = async (route: Route) => {
     if (!isCombatCalculationRequest(route.request())) return route.continue()
     await page.evaluate(() => window.PraetoriumCombatGate?.pending.push(() => {}))
-    await new Promise<void>((resolve) => waiting.push(resolve))
+    await waiting.promise
     try {
       await route.continue()
     } catch (error) {
@@ -46,8 +46,8 @@ export async function holdCombatCalculations(page: Page) {
   return {
     waitForStart: () => expect.poll(() => page.evaluate(() => window.PraetoriumCombatGate?.pending.length ?? 0)).toBeGreaterThan(0),
     release: async () => {
+      waiting.resolve()
       await page.unroute('**/_serverFn/**', hold)
-      for (const resume of waiting.splice(0)) resume()
       await page.evaluate(() => window.PraetoriumCombatGate?.release())
     },
   }
