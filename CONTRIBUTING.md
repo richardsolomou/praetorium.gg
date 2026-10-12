@@ -16,7 +16,7 @@ just dev
 
 ## Check a change
 
-Before committing, format the touched files and run checks that cover the changed behavior and its callers. For a small application change, run lint, type checking, the relevant unit or integration tests, and the affected browser specs. Use `just test-unit <test-file>` for unit tests, `just test-integration <test-file>` for database and service boundaries, and `just e2e <spec-file>` for browser flows. Documentation-only changes need formatting and Markdown lint. Run `just points` after points or roster-legality changes.
+Before committing, format the touched files and run checks that cover the changed behavior and its callers. For a small application change, run lint, type checking, the relevant unit or integration tests, and the complete affected browser scenarios, including reloads and restored state. Use `just test-unit <test-file>` for unit tests, `just test-integration <test-file>` for database and service boundaries, and `just e2e <spec-file>` for browser flows. [Running locally](docs/development/running-locally.md#browser-tests) covers failure artifacts, repeated test-only debugging, build reuse, and startup timings. Documentation-only changes need formatting and Markdown lint. Run `just points` after points or roster-legality changes.
 
 CI runs the complete `just check` and browser suites. `just check` includes formatting, lint, documentation and database checks, a production build, type checking, and tests; run it locally for dependency, build, startup, or broad changes, or when investigating a CI failure. Do not routinely duplicate the complete CI suite locally for a small change. Once a check passes, rerun it only when a subsequent edit affects what it checks or a failure leaves its result uncertain.
 

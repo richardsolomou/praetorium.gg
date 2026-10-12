@@ -15,7 +15,7 @@
     "lint:fix": "oxlint --type-aware --fix .",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
-    "docs:lint": "markdownlint-cli2 '**/*.md' '#**/node_modules' '#.output' '#catalogue-data' '#mobile/ios/**' '#mobile/.simulator-derived/**' '#CHANGELOG.md'",
+    "docs:lint": "markdownlint-cli2 '**/*.md' '#**/node_modules' '#.output' '#catalogue-data' '#mobile/ios/**' '#mobile/.simulator-derived/**' '#CHANGELOG.md' '#test-results*/**' '#playwright-report/**'",
     "architecture:check": "tsx scripts/checkImportBoundaries.ts",
     "check": "pnpm format:check && pnpm lint && pnpm docs:lint && pnpm changesets:check && pnpm architecture:check && pnpm auth:db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test",
     "test": "vitest run && python3 -B -m unittest discover -s scripts -p 'test_*.py'",

@@ -50,6 +50,14 @@ jobs:
       - run: pnpm catalogue:sync
       - name: Require the terrain geometry
         run: pnpm catalogue:terrain
+      - name: Fingerprint the browser-test build
+        id: browser-build
+        run: echo "key=$(pnpm exec tsx scripts/browserTestBuildKey.ts)" >> "$GITHUB_OUTPUT"
+      - name: Restore the browser-test build
+        uses: actions/cache@v6
+        with:
+          path: data-dev/e2e-build
+          key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
       - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
         id: spacetime
         with:
@@ -59,6 +67,7 @@ jobs:
         env:
           E2E_SHARD: ${{ matrix.runner }}
           SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
+          PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
           set -euo pipefail
           PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
@@ -67,6 +76,13 @@ jobs:
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
             pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
+      - name: Report browser-test startup
+        if: success() || failure()
+        run: |
+          if test -f "e2e-startup-${{ matrix.runner }}.json"; then
+            echo 'Browser-test startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
+            cat "e2e-startup-${{ matrix.runner }}.json" >> "$GITHUB_STEP_SUMMARY"
+          fi
       # `just e2e-durations <run id>` rebalances the runners from these reports.
       - if: success() || failure()
         uses: actions/upload-artifact@v7
