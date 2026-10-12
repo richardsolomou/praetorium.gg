@@ -194,32 +194,32 @@ export const savedRosterPage = createServerFn({ method: 'GET' })
     }),
   )
 
-/** The full-library banner settles after the visible rows without monopolising the server. */
-export const savedRosterChangedCount = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
+/** The lists a data update changed since they were saved; the full-library banner settles after the visible rows without monopolising the server. */
+export const savedRosterChangedIds = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async (): Promise<string[]> => {
     const id = await currentUserId()
-    if (!id) return 0
+    if (!id) return []
     const instance = app()
     const history = (await instance.catalogueHistoryFor()) ?? []
-    if (!history.length) return 0
+    if (!history.length) return []
     const saved = await instance.service.savedRosters(id)
-    if (!saved.length) return 0
+    if (!saved.length) return []
     const sets = historySince(history, Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
-    if (!sets.length) return 0
+    if (!sets.length) return []
     const latestChangeAt = sets.at(-1)!.recordedAt
-    let changed = 0
+    const changed: string[] = []
     for (let index = 0; index < saved.length; index += CHANGED_COUNT_BATCH_SIZE) {
       const batch = saved.slice(index, index + CHANGED_COUNT_BATCH_SIZE)
       const uncertain: typeof batch = []
       for (const roster of batch) {
         if (roster.updatedAt >= latestChangeAt) continue
         const result = rosterChangeWithoutPricing(roster, sets)
-        if (result === 'changed') changed++
+        if (result === 'changed') changed.push(roster.id)
         else if (result === 'needs-price') uncertain.push(roster)
       }
       if (uncertain.length) {
         const verdicts = await cachedRosterVerdictsFor(uncertain)
-        changed += uncertain.filter((roster, at) => rosterStatus(roster, verdicts[at]!, sets).changes > 0).length
+        changed.push(...uncertain.filter((roster, at) => rosterStatus(roster, verdicts[at]!, sets).changes > 0).map((roster) => roster.id))
       }
       await new Promise<void>((resolve) => setTimeout(resolve, 0))
     }
@@ -294,7 +294,7 @@ export const copyRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const copied = await copySavedRoster(player.id, data.id, data.variant)
+      const copied = await copySavedRoster(player.id, data.id, data.variant, data.setup)
       if (!copied) throw new Response('roster not found', { status: 404 })
       await captureRosterCreated(player.id, copied.data, { variant: data.variant })
       return { id: copied.id }

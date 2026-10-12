@@ -4,7 +4,7 @@ import { invalidateAdminProductQueries, invalidateProductQueries, invalidatePubl
 
 it('refreshes the home roster shelf and saved lists after a roster signal without reloading catalogue data', async () => {
   const client = new QueryClient()
-  for (const key of ['home-rosters', 'saved-roster-summaries', 'saved-roster-changed-count', 'faction-index']) {
+  for (const key of ['home-rosters', 'saved-roster-summaries', 'saved-roster-changed-ids', 'faction-index']) {
     client.setQueryData([key], {})
   }
   client.setQueryData(['saved-roster-page', ['roster-1']], {})
@@ -15,7 +15,7 @@ it('refreshes the home roster shelf and saved lists after a roster signal withou
     client.getQueryState(['home-rosters'])?.isInvalidated,
     client.getQueryState(['saved-roster-summaries'])?.isInvalidated,
     client.getQueryState(['saved-roster-page', ['roster-1']])?.isInvalidated,
-    client.getQueryState(['saved-roster-changed-count'])?.isInvalidated,
+    client.getQueryState(['saved-roster-changed-ids'])?.isInvalidated,
     client.getQueryState(['faction-index'])?.isInvalidated,
   ]).toEqual([true, true, true, true, false])
 })

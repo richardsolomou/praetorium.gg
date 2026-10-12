@@ -24,13 +24,13 @@ import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { SignInRequired } from '../../components/SignInRequired'
 import { factionSelectGroups } from './builder/factions'
-import { RosterFilters } from './RosterFilters'
+import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { factionIndexQuery, gameReferencesQuery, meQuery, savedRosterChangedCountQuery, savedRosterSummariesQuery } from '../../queries'
+import { factionIndexQuery, gameReferencesQuery, meQuery, savedRosterChangedIdsQuery, savedRosterSummariesQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
@@ -38,7 +38,7 @@ import { variantCards, variantGroups } from '../../../core/rosterVariants'
 import { useRosterPages } from './rosterPages'
 import { errorMessage } from '../../queryClient'
 
-export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility }
+export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility; updates?: RosterUpdateFilter }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
 type EditingSession = { rosterId: string; draft: RosterSetup; mode?: 'edit' | 'convert' }
 
@@ -47,7 +47,13 @@ const EDITING_STATE = 'roster-setup'
 
 export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearch; sort: RosterSort }) {
   const [selectedSort, setSelectedSort] = useState(sort)
-  const pageKey = JSON.stringify([search.limit ?? null, search.faction ?? null, search.visibility ?? null, selectedSort])
+  const pageKey = JSON.stringify([
+    search.limit ?? null,
+    search.faction ?? null,
+    search.visibility ?? null,
+    search.updates ?? null,
+    selectedSort,
+  ])
   const [page, setPage] = useState({ key: pageKey, visibleCount: ROSTER_LIBRARY_BATCH_SIZE })
   const visibleCount = page.key === pageKey ? page.visibleCount : ROSTER_LIBRARY_BATCH_SIZE
   useEffect(() => setSelectedSort(sort), [sort])
@@ -66,17 +72,30 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     ...group,
     items: group.items.map((faction) => ({ ...faction, value: factionSlugById.get(faction.value) ?? faction.value })),
   }))
+  // Walking every list is slow, so it waits for the visible rows unless the filter asks for it.
+  const [rowsSettled, setRowsSettled] = useState(false)
+  const changedResult = useQuery({
+    ...savedRosterChangedIdsQuery(),
+    enabled: Boolean(me && savedResult.isSuccess && (rowsSettled || search.updates === 'changed')),
+  })
+  const changedIds = new Set(changedResult.data ?? [])
+  const olderRules = (roster: SavedRoster) => Boolean(currentRulesFor(roster.catalogueId, available?.factions ?? []))
   const shown = sortRosters(
     saved.filter(
       (roster) =>
         (search.limit === undefined || roster.limit === search.limit) &&
         (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
-        (search.visibility === undefined || roster.visibility === search.visibility),
+        (search.visibility === undefined || roster.visibility === search.visibility) &&
+        (search.updates !== 'older' || olderRules(roster)) &&
+        (search.updates !== 'changed' || changedIds.has(roster.id)),
     ),
     selectedSort,
   )
-  const libraryPending = savedResult.isPending || (Boolean(search.faction) && availableResult.isPending)
-  const libraryError = savedResult.isError || (Boolean(search.faction) && availableResult.isError)
+  const needsFactions = Boolean(search.faction || search.updates === 'older')
+  const libraryPending =
+    savedResult.isPending || (needsFactions && availableResult.isPending) || (search.updates === 'changed' && changedResult.isPending)
+  const libraryError =
+    savedResult.isError || (needsFactions && availableResult.isError) || (search.updates === 'changed' && changedResult.isError)
   const visible = variantGroups(shown).slice(0, visibleCount)
   const groups = variantCards(visible)
   const pages = useRosterPages(
@@ -84,12 +103,10 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     Boolean(me && savedResult.isSuccess),
   )
   const pageResults = pages.results
-  const changedCountResult = useQuery({
-    ...savedRosterChangedCountQuery(),
-    enabled: Boolean(me && savedResult.isSuccess && pageResults.every((result) => result.isSuccess)),
-  })
+  if (!rowsSettled && savedResult.isSuccess && pageResults.every((result) => result.isSuccess)) setRowsSettled(true)
   const pageById = pages.byId
-  const changedLists = changedCountResult.data ?? 0
+  const changedLists = changedIds.size
+  const olderLists = available ? saved.filter(olderRules).length : 0
 
   const origin = useOrigin()
   const actions = useRosterActions(origin)
@@ -115,7 +132,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     visibility: roster.visibility,
   })
 
-  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to build and save army lists." />
+  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to see the army lists saved to your account." />
 
   return (
     <main className="w-full">
@@ -144,7 +161,12 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
               keepRosterSort(chosen)
               void router.invalidate({ filter: (match) => match.routeId === '/rosters/' })
             }
-            if (filters.limit !== search.limit || filters.faction !== search.faction || filters.visibility !== search.visibility)
+            if (
+              filters.limit !== search.limit ||
+              filters.faction !== search.faction ||
+              filters.visibility !== search.visibility ||
+              filters.updates !== search.updates
+            )
               void navigate({ to: '/rosters', search: filters })
           }}
         />
@@ -163,8 +185,21 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
             <span className="mr-auto">Rosters</span>
-            {changedLists ? (
-              <Link to="/data-updates" className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone">
+            {olderLists && search.updates !== 'older' ? (
+              <Link
+                to="/rosters"
+                search={{ updates: 'older' }}
+                className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone"
+              >
+                {olderLists} {olderLists === 1 ? 'list uses' : 'lists use'} older rules
+              </Link>
+            ) : null}
+            {changedLists && search.updates !== 'changed' ? (
+              <Link
+                to="/rosters"
+                search={{ updates: 'changed' }}
+                className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone"
+              >
                 {changedLists} {changedLists === 1 ? 'list' : 'lists'} changed by a data update
               </Link>
             ) : null}
@@ -214,10 +249,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                       pointsLoading={pages.pending(index)}
                       problem={pageById.get(roster.id)?.problem ?? null}
                       differences={pageById.get(roster.id)?.differences}
-                      updates={{
-                        olderRules: Boolean(currentRulesFor(roster.catalogueId, available?.factions ?? [])),
-                        changes: pageById.get(roster.id)?.changes ?? 0,
-                      }}
+                      updates={{ olderRules: olderRules(roster), changes: pageById.get(roster.id)?.changes ?? 0 }}
                       showVisibility={roster.visibility !== head.roster.visibility}
                       actions={actions}
                       origin={origin}
@@ -307,11 +339,13 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           reviewSource={editing.id}
           pending={actions.update.isPending}
           saveError={actions.update.isError ? errorMessage(actions.update.error) : undefined}
-          onSave={async (_setup, review) => {
+          canKeepOriginal
+          onSave={async (_setup, review, options) => {
             if (!review) throw new Error('Review the roster before saving changes.')
-            await actions.update.mutateAsync(review)
+            const id = options?.keepOriginal ? (await actions.convertAsVariant.mutateAsync(review)).id : editing.id
+            if (!options?.keepOriginal) await actions.update.mutateAsync(review)
             setEditing(null)
-            if (session?.mode === 'convert') void navigate({ to: '/rosters/$id', params: { id: editing.id } })
+            if (session?.mode === 'convert') void navigate({ to: '/rosters/$id', params: { id } })
           }}
         />
       ) : null}

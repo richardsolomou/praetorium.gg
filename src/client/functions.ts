@@ -4,6 +4,7 @@ import { cachedRead, cachedPage } from './offline/reads'
 import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
 import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
+import { convertedSetup } from '../core/rosterSetup'
 import { priceSchema, datasheetSchema, combatLoadoutSchema, saveRosterSchema } from '../contracts/schemas'
 import * as server from '../server/functions'
 import { syncRoster } from '../server/functions/offline'
@@ -425,7 +426,14 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
         )
       : `Copy of ${roster.name}`.slice(0, 80)
   const { rosterVisibility } = await playerDefaults()
-  const input = { ...draftFor(roster), id: undefined, name, visibility: rosterVisibility, baseRosterId: args.data.variant ? baseId : null }
+  const input = {
+    ...draftFor(roster),
+    ...(args.data.setup ? convertedSetup(args.data.setup) : {}),
+    id: undefined,
+    name,
+    visibility: rosterVisibility,
+    baseRosterId: args.data.variant ? baseId : null,
+  }
   if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
   const result = await saveRoster({ data: input })
   return { id: result.id }
@@ -856,7 +864,7 @@ export async function rosterChanges(args: Parameters<typeof server.rosterChanges
     return []
   return cachedRead(['roster-changes', args.data.id], () => server.rosterChanges(args))
 }
-export const savedRosterChangedCount = () => cachedRead(['saved-roster-changed-count'], () => server.savedRosterChangedCount())
+export const savedRosterChangedIds = () => cachedRead(['saved-roster-changed-ids'], () => server.savedRosterChangedIds())
 
 export const combatUnits = () => {
   const saved = referenceData()?.queries.find((entry) => entry.key[0] === 'combat-units')?.data as

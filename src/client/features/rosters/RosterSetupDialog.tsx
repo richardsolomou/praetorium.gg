@@ -8,6 +8,7 @@ import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
+import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Input } from '@/components/ui/input'
@@ -110,7 +111,9 @@ type Props = {
    */
   namePlaceholder?: string
   reviewSource?: RosterDraft | string
-  onSave: (value: RosterSetup, review?: SetupReview) => void | Promise<void>
+  onSave: (value: RosterSetup, review?: SetupReview, options?: { keepOriginal: boolean }) => void | Promise<void>
+  /** A conversion of a saved roster can leave it as it was and save the result as a variant instead. */
+  canKeepOriginal?: boolean
   pending?: boolean
   saveError?: string
   /** A visitor's list, which stays private until an account saves it and so offers no access to choose. */
@@ -155,10 +158,13 @@ export function RosterSetupDialog({
   saveError,
   guest = false,
   inline = false,
+  canKeepOriginal = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
   const [budgetText, setBudgetText] = useState(value.pointsBudget == null ? '' : String(value.pointsBudget))
   const [review, setReview] = useState<SetupReview | null>(null)
+  const [keepOriginal, setKeepOriginal] = useState(false)
+  const keepOriginalId = useId()
   const reviewing = useMutation({ mutationFn: (setup: RosterSetup) => reviewRosterSetup(reviewSource!, setup), onSuccess: setReview })
   const confirming = useMutation({
     mutationFn: async () => {
@@ -174,6 +180,7 @@ export function RosterSetupDialog({
           visibility: review.candidate.visibility ?? 'private',
         },
         review,
+        { keepOriginal: canKeepOriginal && mode === 'convert' && keepOriginal },
       )
     },
   })
@@ -789,7 +796,31 @@ export function RosterSetupDialog({
               <DialogTitle className="text-2xl">{review ? 'Review roster changes' : title}</DialogTitle>
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
-            <DialogBody>{review ? <SetupConsequences review={review} guest={guest} /> : fields}</DialogBody>
+            <DialogBody>
+              {review ? (
+                <>
+                  <SetupConsequences review={review} guest={guest} />
+                  {canKeepOriginal && mode === 'convert' ? (
+                    <label htmlFor={keepOriginalId} className="mt-5 flex items-start justify-between gap-3 border-t border-edge pt-4">
+                      <span>
+                        <span className="block text-sm font-semibold">Keep the original</span>
+                        <span className="block text-xs text-dim">
+                          Leave this roster on its current rules and save the converted roster as a variant.
+                        </span>
+                      </span>
+                      <Switch
+                        id={keepOriginalId}
+                        checked={keepOriginal}
+                        disabled={confirming.isPending}
+                        onCheckedChange={setKeepOriginal}
+                      />
+                    </label>
+                  ) : null}
+                </>
+              ) : (
+                fields
+              )}
+            </DialogBody>
             <DialogFooter>{actions}</DialogFooter>
           </DialogContent>
         </Dialog>

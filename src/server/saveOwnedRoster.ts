@@ -3,7 +3,8 @@ import { ROSTER_NAME_MAX_LENGTH } from '../core/battle'
 import { variantName } from '../core/rosterVariants'
 import { app } from './app'
 import { calculateRosterTotals } from '../shared/pricing'
-import type { saveRosterSchema } from '../contracts/schemas'
+import { saveRosterSchema } from '../contracts/schemas'
+import { convertedSetup } from '../core/rosterSetup'
 
 export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveRosterSchema>, baseRosterId: string | null = null) {
   const instance = app()
@@ -28,8 +29,9 @@ export async function saveOwnedRoster(userId: string, data: z.infer<typeof saveR
  * default visibility. Nothing is written to the source.
  * Only an owned roster has variants: a variant joins the original's group and is numbered
  * after the group's base; a copy of an automatically named roster is named automatically.
+ * A reviewed conversion's setup replaces the copied one.
  */
-export async function copySavedRoster(userId: string, id: string, variant: boolean) {
+export async function copySavedRoster(userId: string, id: string, variant: boolean, setup?: z.infer<typeof saveRosterSchema>) {
   const instance = app()
   const access = await instance.service.rosterAccess(id, userId)
   if (!access || (variant && !access.editable)) return null
@@ -54,7 +56,8 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
     visibility: rosterVisibility,
     source: roster.source,
   }
-  return { ...(await saveOwnedRoster(userId, data, variant ? roster.id : null)), data }
+  const saved = setup ? saveRosterSchema.parse({ ...data, ...convertedSetup(setup) }) : data
+  return { ...(await saveOwnedRoster(userId, saved, variant ? roster.id : null)), data: saved }
 }
 
 async function variantNameFor(userId: string, roster: { id: string; name: string; automaticName: boolean; baseRosterId: string | null }) {

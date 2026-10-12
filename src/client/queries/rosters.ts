@@ -24,7 +24,7 @@ import {
   sharedRoster,
   units,
 } from '../functions'
-import { savedRosterChangedCountQuery } from './changes'
+import { savedRosterChangedIdsQuery } from './changes'
 import { SSR_STALE_TIME } from './shared'
 import { rosterPriceKey } from './rosterPriceKey'
 
@@ -225,7 +225,7 @@ export function invalidateSavedRosters(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: homeRostersQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: ['saved-roster-page'] }),
-    queryClient.invalidateQueries({ queryKey: savedRosterChangedCountQuery().queryKey }),
+    queryClient.invalidateQueries({ queryKey: savedRosterChangedIdsQuery().queryKey }),
     queryClient.invalidateQueries({ queryKey: ['roster-changes'] }),
     queryClient.invalidateQueries({ queryKey: ['outdated-league-entries'] }),
   ])
