@@ -144,7 +144,7 @@ export const Picker = memo(function Picker({
               pressed={active.has(filter.id)}
               onToggle={() => onFilterToggle(filter.id)}
               unavailable={
-                (filter.id === 'owned' && !collection.size) || (filter.id === 'favourite' && !favourites.size)
+                (filter.id === 'owned' && (!enabled || !collection.size)) || (filter.id === 'favourite' && (!enabled || !favourites.size))
                   ? EMPTY_FILTER[filter.id]
                   : undefined
               }

@@ -157,6 +157,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await page.goto(rosterUrl)
+  await page.getByLabel('Add a unit').fill('Lychguard')
   await expect(ownedFilter).not.toHaveAttribute('aria-disabled')
   await ownedFilter.click()
   await expect(lychguard).toBeVisible()
