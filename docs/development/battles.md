@@ -82,7 +82,7 @@ Public/friends feeds order by start time; the player's own games order by activi
 
 ## Realtime updates
 
-Subscriptions carry IDs/sequences or bounded revision counters, never product state. Refetch through permission-checked reads and skip a redundant refresh when the screen already holds the sequence. Use internal battle IDs, not share tokens. User, shared, and admin revisions have separate access boundaries.
+Subscriptions carry IDs/sequences or bounded revision counters, never product state. Product and public signals refresh a scope at once, then at most once per ten seconds however many arrive (`coalescedBy` in `src/client/productSignals.ts`): every command in any battle moves the public battles signal. Standings and rankings follow only the public standings signal, which moves when a battle finishes. Feeds poll every 20 seconds only on a page without realtime refresh. The public feed holds each reader's page for five seconds on the server, so a burst of refetches after one signal reads the database once. Refetch through permission-checked reads and skip a redundant refresh when the screen already holds the sequence. Use internal battle IDs, not share tokens. User, shared, and admin revisions have separate access boundaries.
 
 Signed-in tokens are deployment-bound; guests receive restricted native identities and no private rows. Browser connections use the page origin's `/spacetime/` proxy. A failed subscription must fall back to active-query polling, even if the transport itself is connected.
 

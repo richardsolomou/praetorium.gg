@@ -23,16 +23,8 @@ const queryFamilies = {
   onboarding: ['onboarding'],
   settings: ['battle-audience', 'notification-settings', 'player-defaults', 'public-battles', 'friend-battles'],
   leagues: ['leagues', 'league', 'league-roster', 'league-battles', 'opponents'],
-  battles: [
-    'battles',
-    'public-battles',
-    'friend-battles',
-    'shared-battles',
-    'player-profile',
-    'player-rankings',
-    'standings',
-    'league-battles',
-  ],
+  // Standings and rankings change only when a battle finishes, which the public standings signal reports.
+  battles: ['battles', 'public-battles', 'friend-battles', 'shared-battles', 'player-profile', 'league-battles'],
 } as const
 
 const publicQueryFamilies = {
@@ -65,4 +57,36 @@ export function invalidatePublicProductQueries(queryClient: QueryClient, scope?:
 export function invalidateAdminProductQueries(queryClient: QueryClient, scope?: string) {
   if (scope !== undefined && scope !== 'admin-users') return Promise.resolve()
   return queryClient.invalidateQueries({ queryKey: ['admin'] })
+}
+
+/**
+ * Runs an invalidation at once, then at most once more per window for the same scope however many signals arrive.
+ *
+ * Every command in any public battle moves the public battles signal, so an open tab would otherwise refetch the
+ * feed on each one.
+ */
+export function coalescedBy(windowMs: number, run: (scope?: string) => void) {
+  const windows = new Map<string, { pending: boolean; timer: ReturnType<typeof setTimeout> }>()
+  const open = (key: string, scope?: string) => {
+    run(scope)
+    const entry = {
+      pending: false,
+      timer: setTimeout(() => {
+        windows.delete(key)
+        if (entry.pending) open(key, scope)
+      }, windowMs),
+    }
+    windows.set(key, entry)
+  }
+  const coalesced = (scope?: string) => {
+    const key = scope ?? ''
+    const held = windows.get(key)
+    if (held) held.pending = true
+    else open(key, scope)
+  }
+  coalesced.cancel = () => {
+    for (const { timer } of windows.values()) clearTimeout(timer)
+    windows.clear()
+  }
+  return coalesced
 }

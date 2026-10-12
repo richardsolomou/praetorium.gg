@@ -18,6 +18,7 @@ import { rosterCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
+import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
 import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
@@ -149,11 +150,13 @@ export const factionDatasheets = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const loaded = await app().catalogueFor(data.catalogueId)
-      if (!loaded) return []
-      return unitsIn(loaded, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
-        isReferenceDatasheet(loaded, data.catalogueId, unit.id),
-      )
+      return memoUntilSnapshotChanges('faction-datasheets', data, async () => {
+        const loaded = await app().catalogueFor(data.catalogueId)
+        if (!loaded) return []
+        return unitsIn(loaded, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
+          isReferenceDatasheet(loaded, data.catalogueId, unit.id),
+        )
+      })
     }),
   )
 
@@ -275,10 +278,12 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       cacheUntilSnapshotChanges()
-      const catalogue = await app().catalogueFor(data.catalogueId)
-      const rules = await app().rulesFor(data.catalogueId)
-      const canonical = await app().canonicalCatalogueFor(data.catalogueId)
-      return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data)
+      return memoUntilSnapshotChanges('datasheet-by-slug', data, async () => {
+        const catalogue = await app().catalogueFor(data.catalogueId)
+        const rules = await app().rulesFor(data.catalogueId)
+        const canonical = await app().canonicalCatalogueFor(data.catalogueId)
+        return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data)
+      })
     }),
   )
 

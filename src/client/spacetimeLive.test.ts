@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react', () => ({
   useEffect: (effect: () => void | (() => void)) => mocks.effects.push(effect),
   useCallback: (callback: unknown) => callback,
+  useMemo: (factory: () => unknown) => factory(),
   useState: () => [false, vi.fn()],
 }))
 vi.mock('@tanstack/react-query', () => ({
