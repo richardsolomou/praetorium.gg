@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.133.6
+
+### Patch Changes
+
+- e7504a0: Speed up unit and roster simulations with cached server calculations and reusable offline workers.
+
 ## 0.133.5
 
 ### Patch Changes
