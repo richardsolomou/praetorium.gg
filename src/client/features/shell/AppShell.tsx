@@ -61,15 +61,15 @@ function PrimaryNavigation({ path }: { path: string }) {
   }, [open])
 
   const linkClass =
-    'eyebrow flex min-h-11 items-center gap-1.5 border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info min-[860px]:min-h-0 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:px-0'
+    'eyebrow flex min-h-11 items-center gap-1.5 border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info @min-[46.75rem]:min-h-0 @min-[46.75rem]:border-0 @min-[46.75rem]:bg-transparent @min-[46.75rem]:px-0'
 
   return (
-    <div ref={root} className="min-[860px]:contents">
+    <div ref={root} className="@min-[46.75rem]:contents">
       <Button
         ref={trigger}
         variant="ghost"
         size="icon-sm"
-        className="text-dim hover:bg-raised hover:text-info min-[860px]:hidden"
+        className="text-dim hover:bg-raised hover:text-info @min-[46.75rem]:hidden"
         aria-label={open ? 'Close primary navigation' : 'Open primary navigation'}
         aria-controls="primary-navigation"
         aria-expanded={open}
@@ -79,13 +79,13 @@ function PrimaryNavigation({ path }: { path: string }) {
       </Button>
       <nav
         id="primary-navigation"
-        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg min-[860px]:static min-[860px]:flex min-[860px]:items-center min-[860px]:gap-3 min-[1000px]:gap-4 min-[860px]:border-0 min-[860px]:bg-transparent min-[860px]:p-0 min-[860px]:shadow-none`}
+        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg @min-[46.75rem]:static @min-[46.75rem]:flex @min-[46.75rem]:items-center @min-[46.75rem]:gap-3 @min-[55.55rem]:gap-4 @min-[46.75rem]:border-0 @min-[46.75rem]:bg-transparent @min-[46.75rem]:p-0 @min-[46.75rem]:shadow-none`}
         aria-label="Primary"
       >
         <Link
           to="/rosters"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
         >
           <ScrollText aria-hidden className="size-4 shrink-0 text-info" />
           Rosters
@@ -93,7 +93,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         <Link
           to="/battles"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
         >
           <Swords aria-hidden className="size-4 shrink-0 text-info" />
           Battles
@@ -101,7 +101,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         <Link
           to="/leagues"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
         >
           <Trophy aria-hidden className="size-4 shrink-0 text-info" />
           Leagues
@@ -110,7 +110,7 @@ function PrimaryNavigation({ path }: { path: string }) {
           to="/leaderboard"
           search={{ faction: undefined }}
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
         >
           <Medal aria-hidden className="size-4 shrink-0 text-info" />
           Leaderboard
@@ -118,7 +118,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         <Link
           to="/simulator"
           className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment min-[860px]:bg-transparent' }}
+          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
         >
           <Dices aria-hidden className="size-4 shrink-0 text-info" />
           Simulator
@@ -187,14 +187,14 @@ export function AppShell() {
                * measure. Nothing here is centred on the page's behalf.
                */}
               <div data-native-app-frame className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-                <header data-web-app-chrome className="sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-                  <div className="flex h-12 items-center gap-2 px-2 sm:px-4 min-[860px]:gap-3 min-[1000px]:gap-5">
+                <header data-web-app-chrome className="@container sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
+                  <div className="flex h-12 items-center gap-2 px-2 sm:px-4 @min-[46.75rem]:gap-3 @min-[55.55rem]:gap-5">
                     <Link
                       to="/"
                       className="group flex shrink-0 items-center gap-1.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-info"
                     >
                       <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
-                      <span className="min-[860px]:hidden min-[1100px]:inline">Praetorium</span>
+                      <span className="@min-[46.75rem]:hidden @min-[61.11rem]:inline">Praetorium</span>
                     </Link>
                     <PrimaryNavigation path={path} />
                     <GlobalSearch />

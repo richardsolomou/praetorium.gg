@@ -679,6 +679,13 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   border-radius: 0;
 }
 
+/* Layered so a menu's own width utilities still win; enlarged text must not push a menu past the screen. */
+@layer components {
+  [data-slot='dropdown-menu-content'] {
+    max-width: var(--available-width);
+  }
+}
+
 /* A disabled primary action drops its green; faded green on slate reads as a smudge, not as unavailable. */
 [data-slot='button'].bg-primary:is(:disabled, [data-disabled]) {
   border-color: var(--color-edge-strong);

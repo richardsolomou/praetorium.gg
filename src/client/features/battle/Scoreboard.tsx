@@ -25,7 +25,7 @@ export function Scoreboard({ view, clock, sides, outcome }: Props) {
       data-onboarding="battle-live-score"
       data-scoreboard
       aria-label="Battle scoreboard"
-      className="sticky top-12 z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"
+      className="@container sticky top-12 z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"
     >
       {/*
        * A finished battle gives the whole strip to its result on a phone. Each side's
@@ -36,7 +36,9 @@ export function Scoreboard({ view, clock, sides, outcome }: Props) {
        */}
       <div
         className={`mx-auto grid min-h-14 w-full max-sm:min-h-22 items-center gap-3 sm:gap-6 ${finished ? 'max-sm:grid-cols-1' : ''} ${
-          sides.length > 1 ? 'max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'max-w-3xl grid-cols-[minmax(0,1fr)_auto]'
+          sides.length > 1
+            ? 'max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @max-[16rem]:grid-cols-2'
+            : 'max-w-3xl grid-cols-[minmax(0,1fr)_auto] @max-[16rem]:grid-cols-1'
         }`}
       >
         {sides.map((side, position) => (
@@ -52,7 +54,9 @@ export function Scoreboard({ view, clock, sides, outcome }: Props) {
             className={finished ? 'max-sm:hidden' : ''}
           />
         ))}
-        <div className={`order-2 text-center ${finished ? 'min-w-32 sm:min-w-44' : 'min-w-28'}`}>
+        <div
+          className={`order-2 text-center @max-[16rem]:order-first @max-[16rem]:col-span-full ${finished ? 'min-w-32 sm:min-w-44' : 'min-w-28'}`}
+        >
           {finished ? (
             <Result view={view} sides={sides} outcome={outcome} />
           ) : (
@@ -150,11 +154,15 @@ function SideScore({
             </span>
           ))}
         </p>
-        <p className={`readout mt-0.5 flex items-baseline gap-1.5 ${end ? 'justify-end' : ''}`}>
-          <span className="figure text-2xl leading-none font-bold sm:text-3xl">{side.total}</span>
-          <span className="text-3xs text-dim uppercase">vp</span>
-          <span className={`figure ml-1 text-base leading-none font-bold ${colours.text}`}>{side.cp}</span>
-          <span className="text-3xs text-dim uppercase">cp</span>
+        <p className={`readout mt-0.5 flex flex-wrap items-baseline gap-1.5 ${end ? 'justify-end' : ''}`}>
+          <span className="flex items-baseline gap-1.5">
+            <span className="figure text-2xl leading-none font-bold sm:text-3xl">{side.total}</span>
+            <span className="text-3xs text-dim uppercase">vp</span>
+          </span>
+          <span className="ml-1 flex items-baseline gap-1.5">
+            <span className={`figure text-base leading-none font-bold ${colours.text}`}>{side.cp}</span>
+            <span className="text-3xs text-dim uppercase">cp</span>
+          </span>
         </p>
         <div className={`mt-1 flex gap-0.5 ${end ? 'flex-row-reverse' : ''}`} aria-hidden>
           {side.rounds.map((entry) => (
