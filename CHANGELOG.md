@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.132.1
+
+### Patch Changes
+
+- 63eca38: Update current Space Marines rules to the merged BSData codex and retain the earlier rules for saved rosters.
+
 ## 0.132.0
 
 ### Minor Changes
