@@ -29,9 +29,9 @@ async function addNotedUnit(page: Page) {
   if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
   await page
     .locator(`[data-unit="${UNIT}"]`)
-    .getByRole('button', { name: new RegExp(`^(?:.+ · )?${UNIT}$`) })
+    .getByRole('button', { name: UNIT, exact: true })
     .click()
-  const fields = page.getByRole('region', { name: 'Nickname and note' })
+  const fields = page.getByRole('region', { name: 'Note' })
   await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(NOTE), NOTE)
   const back = page.getByRole('button', { name: 'Back to roster' })
   if (await back.isVisible()) await back.click()
