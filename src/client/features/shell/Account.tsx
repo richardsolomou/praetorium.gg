@@ -62,6 +62,7 @@ function useAccountControls() {
 
 function AccountMenuItems() {
   const path = useLocation({ select: (location) => location.pathname })
+  const href = useLocation({ select: (location) => location.href })
   const { me, onboarding, signOut } = useAccountControls()
   const onboardingResolved = onboarding ? resolvedOnboardingTasks(onboarding).size : 0
   const showOnboarding = onboarding && !onboardingComplete(onboarding)
@@ -124,7 +125,7 @@ function AccountMenuItems() {
           </DropdownMenuItem>
         </>
       ) : (
-        <DropdownMenuItem render={<Link to="/sign-in" search={{ next: undefined }} />}>
+        <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path === '/sign-in' ? undefined : href }} />}>
           <LogIn /> Sign in
         </DropdownMenuItem>
       )}

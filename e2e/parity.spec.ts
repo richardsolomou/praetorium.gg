@@ -140,7 +140,7 @@ test('a private roster can be shared and made private again', async ({ browser }
     for (const menu of ['context', 'overflow']) {
       if (menu === 'context') await row.click({ button: 'right' })
       else await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-      const sharing = page.getByRole('menuitem', { name: /^Make unlisted and share/ })
+      const sharing = page.getByRole('menuitem', { name: /^Make unlisted and copy link/ })
       await expect(sharing).toContainText('Anyone with the link can read this roster.')
       await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
       expect(
@@ -155,7 +155,7 @@ test('a private roster can be shared and made private again', async ({ browser }
     }
   }
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-  await page.getByRole('menuitem', { name: /^Make unlisted and share/ }).click()
+  await page.getByRole('menuitem', { name: /^Make unlisted and copy link/ }).click()
   await expect(row.getByText('Unlisted').filter({ visible: true })).toBeVisible()
   // Polled, because the link is copied only once the visibility change comes back.
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
@@ -163,11 +163,15 @@ test('a private roster can be shared and made private again', async ({ browser }
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(sharedUrl)
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Copy link' })).toBeVisible()
+  await page.keyboard.press('Escape')
   await page.evaluate(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
     window.ReactNativeWebView = {
       postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
     }
+    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
   })
   await page.getByRole('button', { name: 'Roster actions' }).click()
   const rosterShare = page.getByRole('menuitem', { name: 'Share link' })
@@ -231,6 +235,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
     window.ReactNativeWebView = {
       postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
     }
+    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
   })
 
   let releaseSave: () => void = () => undefined

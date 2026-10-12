@@ -14,6 +14,7 @@ import { acceptFriend, rejectFriend, removeFriend, requestFriend } from '../../f
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../../core/playerSearch'
 import { errorMessage } from '../../queryClient'
 import type { OnboardingTarget } from '../onboarding/onboarding'
+import { useNativeShare } from '../../nativeBridge'
 import { InviteQr, SHARED_LABEL, useFriendInvite } from './friendInvite'
 
 type Person = { id: string; name: string; image?: string | null }
@@ -150,6 +151,7 @@ export function FriendsPage() {
 
 function InviteFriend() {
   const invite = useFriendInvite()
+  const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
 
   return (
     <section className="border border-edge bg-panel p-4">
@@ -165,7 +167,7 @@ function InviteFriend() {
             <>
               <Button variant="outline" disabled={invite.busy} onClick={() => void invite.share()}>
                 {invite.feedback ? <Check /> : <Link2 />}
-                {invite.feedback ? SHARED_LABEL[invite.feedback] : 'Share invite'}
+                {invite.feedback ? SHARED_LABEL[invite.feedback] : shareLabel}
               </Button>
               <InviteQr url={invite.url} disabled={invite.busy} />
               <Button variant="ghost" disabled={invite.busy} onClick={() => void invite.shareNew()}>

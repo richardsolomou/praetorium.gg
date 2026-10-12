@@ -4,7 +4,7 @@ Praetorium uses a compact, dark interface. [Product design](../product-design.md
 
 ## Voice and copy
 
-Write for a player building an army or playing Warhammer 40,000. Name the game task, outcome, and next action. Keep implementation terms in technical documentation. Deletion warnings name what will be lost. Marketing leads with player benefits; retain licensing, attribution, and operational detail where readers need them. Avoid unsupported competitor comparisons.
+Write for a player building an army or playing Warhammer 40,000. Name the game task, outcome, and next action. Keep implementation terms in technical documentation. Deletion warnings name what will be lost. Name an action by what it does on the current device: Copy when it writes to the clipboard, Share only when `useNativeShare` reports the system share sheet. Marketing leads with player benefits; retain licensing, attribution, and operational detail where readers need them. Avoid unsupported competitor comparisons.
 
 Keep contextual help brief. Player guides combine practical preparation, army roles and scoring advice with app walkthroughs. Give each guide a visual overview and compact reading sections rather than an unbroken essay. Use labelled decision diagrams or cropped app screenshots; illustrative positions do not define terrain or deployment rules. Keep learning guidance in player guides; do not add standalone simulator examples, tracker-help panels or finished-game score breakdowns. Practice uses the ordinary New battle dialog; do not add a separate practice action. Show a roster limit count once, beside a short state label; retain explanations for unavailable units.
 
@@ -112,7 +112,7 @@ Run `just e2e offline-work.spec.ts offline.spec.ts app-cache.spec.ts` after chan
 
 Selector options name the choice and its detail explicitly; interactive rules badges must not change the option's accessible name. Assert selected values separately from decorative trigger text. Exercise both grouped and virtualized selectors when changing their contents.
 
-Inspect affected surfaces at desktop and phone widths before the relevant browser flow. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard/touch access, and loading geometry. Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
+Inspect affected surfaces at desktop and phone widths before the relevant browser flow. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard/touch access, and loading geometry. Rows that pair a name with controls must survive doubled text at phone width: give the name a minimum width and let the control group wrap below it rather than overflow, as `e2e/accessibility.spec.ts` checks. Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
 
 Read multiple elements' geometry in one browser evaluation so a moving layout cannot change between measurements.
 

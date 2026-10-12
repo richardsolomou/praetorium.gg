@@ -349,11 +349,11 @@ const PickerRow = memo(function PickerRow({
     <div
       data-onboarding="picker-unit"
       data-picker-unit={unit.name}
-      className="flex items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
+      className="flex flex-wrap items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
     >
       <button
         type="button"
-        className="flex min-w-0 flex-1 items-center gap-1.5 text-left hover:text-info"
+        className="flex min-w-12 flex-1 items-center gap-1.5 text-left hover:text-info"
         aria-label={`View ${unit.name} datasheet`}
         onClick={() => onPreview(unit.id, unit.name)}
       >
@@ -378,7 +378,7 @@ const PickerRow = memo(function PickerRow({
           ) : null}
         </span>
       </button>
-      <span className="ml-auto flex shrink-0 items-center gap-1.5">
+      <span className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
         {onFavourite ? (
           <Toggle
             variant="default"
