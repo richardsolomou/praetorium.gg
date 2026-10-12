@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.125.0
+
+### Minor Changes
+
+- a1db385: Share a roster as an exchange code or QR code that another player can review and import as their own copy.
+
 ## 0.124.2
 
 ### Patch Changes
