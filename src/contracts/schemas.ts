@@ -349,6 +349,7 @@ export const rosterIdsSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length),
 })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
+export const rosterLockSchema = z.object({ id, locked: z.boolean() })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const collectionModelsSchema = z.object({ entryId: id, models: z.number().int().min(1).max(MAX_COLLECTION_MODELS) })

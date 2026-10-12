@@ -41,6 +41,7 @@ export function PlayerRosters({
                 points={totals.get(roster.id)?.points}
                 label={totals.get(roster.id)?.label}
                 factionLoading={factionsLoading}
+                showLock={false}
               />
             </Link>
           </article>

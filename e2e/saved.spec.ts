@@ -197,7 +197,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
 
   await page.goto('/rosters')
   await page.getByRole('button', { name: 'Actions for Dynasty 2k' }).click()
-  await page.getByRole('menuitem', { name: 'New variant' }).click()
+  await page.getByRole('menuitem', { name: 'Create variant' }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   const variantMenu = page.getByRole('button', { name: 'Variant 2 of 2' })
@@ -244,7 +244,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await page.getByRole('link', { name: /Dynasty 2k · 2/ }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
   await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'New variant' }).click()
+  await page.getByRole('menuitem', { name: 'Create variant' }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 3')
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   await page.getByRole('button', { name: 'Roster actions' }).click()
@@ -319,7 +319,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   })
   await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'New variant' }).click()
+  await page.getByRole('menuitem', { name: 'Create variant' }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
   await waitForRosterSave(page, async () => {
     const picker = page.getByLabel('Add a unit')

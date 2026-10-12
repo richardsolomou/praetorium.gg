@@ -5,8 +5,9 @@ export function Terms() {
     <LegalPage title="Terms of service" updated="12 October 2026">
       <LegalSection title="The service">
         <p>
-          Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. Using
-          it requires an account. These terms cover that service.
+          Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. You
+          can use the builder, simulator and public reference without an account. Sign in to save rosters to the service or start battles.
+          These terms cover that service.
         </p>
         <p>By creating an account you agree to these terms. If you do not agree, do not use the service.</p>
       </LegalSection>

@@ -592,6 +592,10 @@ export class SpacetimeRepository {
     return this.product.setRosterVisibility(...args)
   }
 
+  setRosterLocked(...args: Parameters<SpacetimeOperator['setRosterLocked']>) {
+    return this.product.setRosterLocked(...args)
+  }
+
   collectionProfile(...args: Parameters<SpacetimeOperator['collectionProfile']>) {
     return this.product.collectionProfile(...args)
   }
