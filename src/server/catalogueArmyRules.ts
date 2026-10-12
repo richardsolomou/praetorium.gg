@@ -4,6 +4,7 @@ import type { CatalogueFile } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type FactionContent, type LoadedDatacards } from './datacards'
 import { joinKey } from '../shared/rulesSource'
+import { readSharedJson } from './sharedJson'
 
 export function missingArmyRulesFromCatalogue(directory: string, datacards: LoadedDatacards) {
   const found = new Map<string, { name: string; description: string }[]>()
@@ -15,7 +16,7 @@ export function missingArmyRulesFromCatalogue(directory: string, datacards: Load
       .at(-1)
       ?.replace(/ Library$| \(11e\)$/g, '') ?? ''
   const catalogues = files.flatMap((file) => {
-    const parsed = JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8')) as CatalogueFile
+    const parsed = readSharedJson(path.join(directory, file)) as CatalogueFile
     return parsed.catalogue ? [{ name: leafOf(file.slice(0, -5)), catalogue: parsed.catalogue }] : []
   })
   const contents = new Map<string, Pick<FactionContent, 'name' | 'armyRules' | 'factionAbilityNames'>>(

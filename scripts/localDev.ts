@@ -83,6 +83,7 @@ function start(command: string, args: string[], persistent = false, childEnviron
 }
 
 async function run(command: string, args: string[]) {
+  const started = performance.now()
   const child = start(command, args)
   const code = await new Promise<number>((resolve, reject) => {
     child.once('error', reject)
@@ -91,6 +92,7 @@ async function run(command: string, args: string[]) {
   children.splice(children.indexOf(child), 1)
   abort.signal.throwIfAborted()
   if (code !== 0) throw new Error(`${command} exited with status ${code}`)
+  console.error(`Local startup: ${command} ${args.join(' ')} completed in ${Math.round(performance.now() - started)}ms`)
 }
 
 // A persistent child's exit aborts the wait sooner; a loaded CI runner can spend minutes warming the catalogue.
@@ -263,6 +265,7 @@ async function main() {
     ...(testMode
       ? {
           AUTH_RATE_LIMIT: 'off',
+          CATALOGUE_UPDATE_MODE: 'off',
         }
       : { NODE_ENV: 'development' }),
   })
@@ -311,12 +314,13 @@ async function main() {
   timings.runtimeSeconds = (performance.now() - runtimeStartedAt) / 1_000
   timings.totalSeconds = (performance.now() - startedAt) / 1_000
   if (testMode) {
-    console.log(`Browser-test startup: ${JSON.stringify(timings)}`)
+    console.error(`Browser-test startup: ${JSON.stringify(timings)}`)
     if (environment.LOCAL_STARTUP_REPORT) await writeFile(environment.LOCAL_STARTUP_REPORT, JSON.stringify(timings))
   }
   preview.ready = true
   await writePreview()
   console.log(`Local Praetorium (${testMode ? 'production browser test' : 'Vite development'}) is ready at ${appUrl}`)
+  console.error(`Local startup: total ${Math.round(performance.now() - startedAt)}ms`)
   if (web.exitCode !== null) throw new Error('Web server exited during startup')
   await new Promise<void>((resolve) => {
     if (abort.signal.aborted) resolve()

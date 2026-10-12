@@ -125,83 +125,89 @@ function cacheFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined
   return fresh
 }
 
-export function factionIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+export function factionIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, catalogueIds?: ReadonlySet<string>) {
+  if (catalogueIds) return buildFactionIndex(loaded, rules, catalogueIds)
   const cache = cacheFor(loaded, rules)
   cache.index ??= buildFactionIndex(loaded, rules)
   return cache.index
 }
 
-export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, catalogueIds?: ReadonlySet<string>) {
+  if (catalogueIds) return buildFactions(loaded, rules, catalogueIds)
   const cache = cacheFor(loaded, rules)
   cache.full ??= buildFactions(loaded, rules)
   return cache.full
 }
 
-function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+function buildFactionIndex(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, catalogueIds?: ReadonlySet<string>) {
   return {
     revision: loaded.index.revision,
-    factions: loaded.factions.map((faction) => factionSummary(loaded, rules, faction).summary),
+    factions: loaded.factions
+      .filter((faction) => !catalogueIds || catalogueIds.has(faction.id))
+      .map((faction) => factionSummary(loaded, rules, faction).summary),
   }
 }
 
-function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined) {
+function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, catalogueIds?: ReadonlySet<string>) {
   return {
     revision: loaded.index.revision,
-    factions: loaded.factions.map((faction) => {
-      const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
-      const content = factionContentOf(loaded, faction.name)
-      const rulesId = rulesFaction(rules, routeSlug(faction.name))
-      return {
-        ...summary,
-        armyRules: [
-          ...(content?.armyRules.length
-            ? content.armyRules
-            : rules?.factionRules?.get(routeSlug(summary.displayName))
-              ? [rules.factionRules.get(routeSlug(summary.displayName))!]
-              : []),
-          ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
-        ],
-        referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
-        detachments: detachments.map((detachment) => {
-          const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
-          const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
-          const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
-          return {
-            id: detachment.id,
-            slug: routeSlug(detachment.name),
-            name: detachment.name,
-            referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
-            points: detachmentPoints(loaded, faction.id, detachment.id, reference),
-            disposition: detachment.disposition,
-            dispositions: reference
-              ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id }))
-              : detachment.disposition
-                ? [{ id: detachment.disposition, name: rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition }]
-                : [],
-            reference: reference
-              ? {
-                  ...reference,
-                  points: detachmentPoints(loaded, faction.id, detachment.id, reference),
-                  enhancements: new Set([
-                    ...(detail?.enhancements.map((enhancement) => enhancement.name) ?? []),
-                    ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
-                      ?.enhancements?.filter((entry) => !/\(upgrade\)\s*$/i.test(entry.name))
-                      .map((entry) => entry.name) ?? []),
-                    ...forced.map((entry) => entry.name),
-                  ]).size,
-                  upgrades: new Set([
-                    ...(detail?.upgrades.map((upgrade) => upgrade.name) ?? []),
-                    ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
-                      ?.enhancements?.filter((entry) => /\(upgrade\)\s*$/i.test(entry.name))
-                      .map((entry) => entry.name) ?? []),
-                  ]).size,
-                  dispositions: reference.dispositions.map((disposition) => rules?.dispositions?.get(disposition) ?? disposition),
-                }
-              : null,
-          }
-        }),
-      }
-    }),
+    factions: loaded.factions
+      .filter((faction) => !catalogueIds || catalogueIds.has(faction.id))
+      .map((faction) => {
+        const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
+        const content = factionContentOf(loaded, faction.name)
+        const rulesId = rulesFaction(rules, routeSlug(faction.name))
+        return {
+          ...summary,
+          armyRules: [
+            ...(content?.armyRules.length
+              ? content.armyRules
+              : rules?.factionRules?.get(routeSlug(summary.displayName))
+                ? [rules.factionRules.get(routeSlug(summary.displayName))!]
+                : []),
+            ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
+          ],
+          referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
+          detachments: detachments.map((detachment) => {
+            const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
+            const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
+            const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
+            return {
+              id: detachment.id,
+              slug: routeSlug(detachment.name),
+              name: detachment.name,
+              referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
+              points: detachmentPoints(loaded, faction.id, detachment.id, reference),
+              disposition: detachment.disposition,
+              dispositions: reference
+                ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id }))
+                : detachment.disposition
+                  ? [{ id: detachment.disposition, name: rules?.dispositions?.get(detachment.disposition) ?? detachment.disposition }]
+                  : [],
+              reference: reference
+                ? {
+                    ...reference,
+                    points: detachmentPoints(loaded, faction.id, detachment.id, reference),
+                    enhancements: new Set([
+                      ...(detail?.enhancements.map((enhancement) => enhancement.name) ?? []),
+                      ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
+                        ?.enhancements?.filter((entry) => !/\(upgrade\)\s*$/i.test(entry.name))
+                        .map((entry) => entry.name) ?? []),
+                      ...forced.map((entry) => entry.name),
+                    ]).size,
+                    upgrades: new Set([
+                      ...(detail?.upgrades.map((upgrade) => upgrade.name) ?? []),
+                      ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
+                        ?.enhancements?.filter((entry) => /\(upgrade\)\s*$/i.test(entry.name))
+                        .map((entry) => entry.name) ?? []),
+                    ]).size,
+                    dispositions: reference.dispositions.map((disposition) => rules?.dispositions?.get(disposition) ?? disposition),
+                  }
+                : null,
+            }
+          }),
+        }
+      }),
   }
 }
 

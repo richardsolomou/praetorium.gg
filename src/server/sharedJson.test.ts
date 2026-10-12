@@ -37,3 +37,9 @@ it('collects each distinct string once across files read together', () => {
   readSharedJson(write('two.json', '["parent","self"]'), strings)
   expect([...strings.keys()].toSorted()).toEqual(['parent', 'selections', 'self'])
 })
+
+it('returns the value already parsed from identical content in another file', () => {
+  const text = '{"catalogue":{"id":"book","sharedSelectionEntries":[{"id":"unit"}]}}'
+  const kept = readSharedJson(write('current.json', text))
+  expect(readSharedJson(write('retained.json', text))).toBe(kept)
+})

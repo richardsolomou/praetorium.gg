@@ -240,6 +240,12 @@ for (const width of [1440, 390, 900]) {
     await army.getByRole('button', { name: 'Close', exact: true }).click()
     if (width === 1440) {
       await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
+      await expect(damage).toHaveText(/^\d+\.\d+$/)
+      await openCombatControls(simulator)
+      await simulator.getByRole('tab', { name: /^Shooting/ }).click()
+      const cover = simulator.getByRole('button', { name: 'Cover (−1 BS)', exact: true })
+      await cover.click()
+      await expect(cover).toHaveAttribute('aria-pressed', 'true')
       const referee = await page.context().newPage()
       await referee.goto(page.url())
       await referee
@@ -249,6 +255,7 @@ for (const width of [1440, 390, 900]) {
       const otherSquad = referee.locator('[data-army-roster] [data-unit="Intercessor Squad"]')
       await otherSquad.getByRole('button', { name: 'Remove a model from Intercessor Squad' }).click()
       await expect(simulator.getByLabel('Attacker models', { exact: true })).toHaveText('3')
+      await expect(cover).toHaveAttribute('aria-pressed', 'true')
       await otherSquad.getByRole('button', { name: 'Return a model to Intercessor Squad' }).click()
       await expect(simulator.getByLabel('Attacker models', { exact: true })).toHaveText('4')
       await referee.close()

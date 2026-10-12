@@ -364,3 +364,20 @@ describe('global mission search', () => {
     ])
   })
 })
+
+it('scopes catalogue search without contaminating the complete cached index', () => {
+  const loaded = shelfOf(
+    { id: 'first', name: 'First', selectionEntries: [{ id: 'one', name: 'One', type: 'unit' }] },
+    { id: 'second', name: 'Second', selectionEntries: [{ id: 'two', name: 'Two', type: 'unit' }] },
+  )
+  compiledGlobalSearchIndex(loaded, null, new Set(['second']))
+  expect(compiledGlobalSearchIndex(loaded, null).factions.map(({ result }) => result.label)).toEqual(['First', 'Second'])
+})
+
+it('searches only the requested factions', () => {
+  const loaded = shelfOf(
+    { id: 'first', name: 'First', selectionEntries: [{ id: 'one', name: 'One', type: 'unit' }] },
+    { id: 'second', name: 'Second', selectionEntries: [{ id: 'two', name: 'Two', type: 'unit' }] },
+  )
+  expect(compiledGlobalSearchIndex(loaded, null, new Set(['second'])).factions.map(({ result }) => result.label)).toEqual(['Second'])
+})

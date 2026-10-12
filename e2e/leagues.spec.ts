@@ -59,17 +59,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
     })
     const editor = await ownerContext.newPage()
     await editor.goto(savedUrl)
-    await expect(editor.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-    const saved = ownerContext.waitForEvent('response', {
-      predicate: (response) => {
-        const request = response.request()
-        const body = request.postData()
-        return response.ok() && request.method() === 'POST' && Boolean(body?.includes(name) && body.includes('"picks"'))
-      },
-    })
-    await editor.getByLabel('List name').fill(name)
-    await saved
-    await expect(editor.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+    await waitForRosterSave(editor, () => editor.getByLabel('List name').fill(name), name)
     await editor.close()
     await owner.bringToFront()
     expect(

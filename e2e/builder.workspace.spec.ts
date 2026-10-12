@@ -234,7 +234,7 @@ test('a mobile web unit screen keeps the tab bar beside it', async ({ browser })
   await context.close()
 })
 
-test('the roster tab comes back to the unit it was left on', async ({ browser }) => {
+test('the roster tab comes back to the unit it was left on', { tag: '@catalogue' }, async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
     content: `window.ReactNativeWebView = { postMessage: () => {} };
@@ -301,7 +301,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await context.close()
 })
 
-test('native roster details use pane history without adding a route back action', async ({ page }) => {
+test('native roster details use pane history without adding a route back action', { tag: '@catalogue' }, async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
   await add(page, 'Lychguard')

@@ -139,3 +139,18 @@ it('keeps simulator choices and global search aligned for imported and distinct 
     ],
   })
 })
+
+it('keeps scoped simulator units identical without losing their imported ownership', () => {
+  const loaded = shelfOf(
+    { id: 'parent', name: 'Parent', selectionEntries: [{ id: 'shared', name: 'Shared Unit', type: 'unit', costs: points(80) }] },
+    {
+      id: 'child',
+      name: 'Child',
+      selectionEntries: [{ id: 'own', name: 'Own Unit', type: 'unit', costs: points(90) }],
+      catalogueLinks: [{ targetId: 'parent', importRootEntries: true }],
+    },
+  )
+  expect(combatUnitsFor(loaded, null, new Set(['child']))).toEqual([
+    { catalogueId: 'child', name: 'Child', units: [{ id: 'own', slug: 'own-unit', name: 'Own Unit', points: 90 }] },
+  ])
+})

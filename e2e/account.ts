@@ -91,7 +91,8 @@ export async function waitForRosterSave(page: Page, action: () => Promise<unknow
   // response belongs to this action, otherwise a fast setup save can satisfy the
   // waiter for a later name or unit change.
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-  const saved = page.waitForResponse((response) => {
+  // Whichever tab holds the sync lease sends the save, so listen across the whole context.
+  const saved = page.context().waitForEvent('response', (response) => {
     const postData = response.request().postData()
     return (
       response.ok() &&
