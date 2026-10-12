@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.132.3
+
+### Patch Changes
+
+- 85ec736: Stop refreshing saved account data on a timer while a tab stays open.
+- 85ec736: Report server memory, CPU and garbage collection metrics each minute.
+- 85ec736: Reduce server memory by sharing identical catalogue files across rules versions.
+
 ## 0.132.2
 
 ### Patch Changes
