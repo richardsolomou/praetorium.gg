@@ -1,11 +1,22 @@
 import { z } from 'zod'
-import { FORMAT_RULE_IDS, MAX_DETACHMENTS, OPTIONAL_RULE_IDS, ROSTER_NAME_MAX_LENGTH } from './battle'
+import {
+  customPointsBudget,
+  FORMAT_RULE_IDS,
+  MAX_DETACHMENTS,
+  OPTIONAL_RULE_IDS,
+  POINTS_BUDGET_MAX,
+  POINTS_BUDGET_MIN,
+  pointsBudgetError,
+  ROSTER_NAME_MAX_LENGTH,
+} from './battle'
 import { detachmentIdSchema, rosterPickSchema } from './commands'
 import { currentRosterIds } from './retiredCatalogueIds'
 import type { RosterPick } from './roster'
 import { withoutUnitNotes } from './unitNotes'
 
-export const ROSTER_EXCHANGE_VERSION = 1
+/** Format 2 adds a custom points budget, so a code without one stays format 1 and older apps still read it. */
+export const ROSTER_EXCHANGE_VERSION = 2
+const ROSTER_EXCHANGE_BUDGET_VERSION = 2
 /** Longer codes are refused before decompression; QR codes hold far less. */
 export const ROSTER_EXCHANGE_MAX_CODE_LENGTH = 12_000
 /** Longer links make QR codes too dense for a phone camera to read from another screen. */
@@ -24,12 +35,14 @@ const payloadSchema = z.object({
   disposition: id.nullable(),
   borrowedDetachmentId: detachmentIdSchema.nullable(),
   limit: z.number().int().min(0).max(10_000),
+  pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).optional(),
   /** What the sender's copy priced at, shown beside today's price rather than trusted. */
   points: z.number().int().min(0).max(100_000).nullable(),
   waivedRules: z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length),
   optionalRules: z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length),
   picks: z.array(rosterPickSchema).max(MAX_PICKS),
 })
+const exchangeSchema = payloadSchema.refine((payload) => !pointsBudgetError(payload.limit, payload.pointsBudget))
 
 /** A roster's contents, unit nicknames and rules identity; owner, visibility, preparation, reminders and unit notes are never part of it. */
 export type RosterExchange = z.infer<typeof payloadSchema>
@@ -58,25 +71,28 @@ export async function encodeRosterExchange(roster: {
   disposition: string | null
   borrowedDetachmentId?: string | null
   limit: number
+  pointsBudget?: number | null
   points?: number | null
   waivedRules?: readonly string[]
   optionalRules?: readonly string[]
   picks: readonly RosterPick[]
 }) {
-  const payload = payloadSchema.parse({
+  const pointsBudget = customPointsBudget(roster.limit, roster.pointsBudget)
+  const payload = exchangeSchema.parse({
     name: roster.name,
     catalogueId: roster.catalogueId,
     detachmentIds: roster.detachmentIds,
     disposition: roster.disposition,
     borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
     limit: roster.limit,
+    ...(pointsBudget === null ? {} : { pointsBudget }),
     points: roster.points ?? null,
     waivedRules: roster.waivedRules ?? [],
     optionalRules: roster.optionalRules ?? [],
     picks: withoutUnitNotes(roster.picks),
   })
   const compressed = await transform(new TextEncoder().encode(JSON.stringify(payload)), new CompressionStream('deflate-raw'))
-  return `${PREFIX}${ROSTER_EXCHANGE_VERSION}.${toBase64Url(compressed)}`
+  return `${PREFIX}${pointsBudget === null ? 1 : ROSTER_EXCHANGE_BUDGET_VERSION}.${toBase64Url(compressed)}`
 }
 
 /** The import page link a QR code carries; the fragment keeps the roster out of server logs. */
@@ -95,7 +111,7 @@ export async function decodeRosterExchange(text: string): Promise<RosterExchange
   const match = CODE.exec(trimmed)
   if (!match) throw malformed()
   const version = Number(match[1])
-  if (version !== ROSTER_EXCHANGE_VERSION)
+  if (version < 1 || version > ROSTER_EXCHANGE_VERSION)
     throw new RosterExchangeError(
       'unsupported-version',
       version > ROSTER_EXCHANGE_VERSION
@@ -122,7 +138,7 @@ export async function decodeRosterExchange(text: string): Promise<RosterExchange
       'oversized',
       `This exchange code holds ${raw.picks.length} entries; a roster can contain at most ${MAX_PICKS}.`,
     )
-  const parsed = payloadSchema.safeParse(raw)
+  const parsed = exchangeSchema.safeParse(raw)
   if (!parsed.success) throw malformed()
   return currentRosterIds(parsed.data)
 }

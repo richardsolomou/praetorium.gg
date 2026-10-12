@@ -152,9 +152,11 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
             }
         }
         if (!replay && command.kind === 'attach-roster' && command.roster.built) {
-          const draft = data.capturedRoster
-          if (!draft || draft.id !== command.roster.id || !(await instance.service.ownRoster(player.id, draft.id)))
-            return { outcome: 'refused' as const, message: 'You do not own the captured roster.' }
+          const captured = data.capturedRoster
+          const owned = captured && captured.id === command.roster.id ? await instance.service.ownRoster(player.id, captured.id) : null
+          if (!captured || !owned) return { outcome: 'refused' as const, message: 'You do not own the captured roster.' }
+          // A device that predates custom budgets captured none; the saved roster's own budget applies.
+          const draft = { ...captured, pointsBudget: captured.pointsBudget === undefined ? owned.pointsBudget : captured.pointsBudget }
           const catalogue = await instance.catalogueFor(draft.catalogueId)
           const rosterRules = await instance.rulesFor(draft.catalogueId)
           if (!catalogue || !rosterRules || catalogue.index.revision !== command.roster.built.revision)
@@ -163,7 +165,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
               message: 'Army data changed while you were offline. Your played roster is saved on this device; review it before syncing.',
             }
           const priced = calculateRosterPrice({ ...draft, units: draft.picks }, catalogue, rosterRules)
-          const problem = priced && rosterUseError(priced, draft.limit, draft.waivedRules)
+          const problem = priced && rosterUseError(priced, draft)
           if (!priced || problem) return { outcome: 'refused' as const, message: problem || 'Army data is unavailable.' }
           command = {
             ...command,

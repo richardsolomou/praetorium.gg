@@ -11,6 +11,7 @@ import { importRoster, saveRoster } from '../../functions'
 import { errorMessage } from '../../queryClient'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
+import { battleSizeLabel } from '../../../core/battle'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 type Matched<T> = T extends { catalogueId: string | null; source: string | null }
@@ -22,12 +23,14 @@ const matched = (imported: Imported): imported is MatchedImport => Boolean(impor
 
 /** The roster setup an import carries; text exports leave out rule waivers and allied detachments. */
 export function importedSetup(imported: MatchedImport, defaultLimit: number) {
+  const stated = 'limit' in imported && imported.limit ? imported.limit : null
   return {
     name: imported.name,
     catalogueId: imported.catalogueId,
     detachmentIds: imported.detachmentIds,
     disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
-    limit: 'limit' in imported && imported.limit ? imported.limit : defaultLimit,
+    limit: stated ?? defaultLimit,
+    pointsBudget: stated !== null && 'pointsBudget' in imported ? imported.pointsBudget : null,
     waivedRules: 'waivedRules' in imported ? imported.waivedRules : [],
     optionalRules: 'optionalRules' in imported ? imported.optionalRules : [],
     borrowedDetachmentId: 'borrowedDetachmentId' in imported ? imported.borrowedDetachmentId : null,
@@ -190,6 +193,9 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
                   at selected rules: {review.currentPoints === null ? 'pricing unavailable' : `${review.currentPoints} points`}. Saving uses
                   the selected rules' prices.
                 </p>
+                {'limit' in review && review.limit ? (
+                  <p className="text-xs text-dim">Battle size: {battleSizeLabel(review.limit, review.pointsBudget)}.</p>
+                ) : null}
                 {fromCode ? (
                   <p className="text-xs text-dim">
                     The exchange code carries units, model counts, equipment, attachments, Warlord, enhancements, setup and rules version.
