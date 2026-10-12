@@ -140,12 +140,13 @@ async function accessToRoster(data: { id: string; battle?: string }) {
   const userId = await currentUserId()
   const access = await app().service.rosterAccess(data.id, userId, data.battle ?? null)
   if (!access) return null
-  if (!access.editable || !userId) return { ...access, variants: [], differences: null }
+  const copiedFrom = await app().service.copySource(access.roster.copiedFromRosterId, userId)
+  if (!access.editable || !userId) return { ...access, variants: [], differences: null, copiedFrom }
   const [variants, differences] = await Promise.all([
     app().service.rosterGroup(userId, access.roster),
     variantDifferences(userId, [access.roster]),
   ])
-  return { ...access, variants, differences: differences.get(access.roster.id) ?? null }
+  return { ...access, variants, differences: differences.get(access.roster.id) ?? null, copiedFrom }
 }
 
 async function accessibleRoster(data: { id: string; battle?: string }) {

@@ -85,6 +85,8 @@ export class RosterService {
       borrowedDetachmentId?: string | null
       /** Only read when the roster is created; a variant keeps its group for life. */
       baseRosterId?: string | null
+      /** Only read when the roster is created: the roster this one was duplicated from. */
+      copiedFromRosterId?: string | null
       visibility: RosterVisibility
       source: RosterSource
     },
@@ -110,6 +112,7 @@ export class RosterService {
       optionalRules: JSON.stringify(roster.optionalRules ?? []),
       borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
       baseRosterId: roster.baseRosterId ?? null,
+      copiedFromRosterId: roster.copiedFromRosterId ?? null,
       now,
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
@@ -173,6 +176,14 @@ export class RosterService {
     if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
     if (!userId || !token) return null
     return (await this.fieldedIn(token, userId, id)) ? { roster: readerRosterFromRow(row), editable: false } : null
+  }
+
+  /** The roster a copy was made from, named only while this reader may still open it. */
+  async copySource(id: string | null, userId: string | null) {
+    if (!id || !(await this.rosterAccess(id, userId))) return null
+    const row = await this.repository.roster(id)
+    const owner = row ? (await this.repository.namesByIds([row.userId])).get(row.userId) : undefined
+    return row && owner ? { id, name: row.name, ownerId: row.userId, ownerName: owner.name } : null
   }
 
   async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {

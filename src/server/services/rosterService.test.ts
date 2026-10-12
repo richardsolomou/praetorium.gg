@@ -218,3 +218,33 @@ describe('public roster discovery', () => {
     expect((await service.rosterAccess('roster-1', 'user-1'))?.roster.baseRosterId).toBe('unlisted-base')
   })
 })
+
+describe('the roster a copy came from', () => {
+  const source = (visibility: 'private' | 'unlisted' | 'public') => {
+    const roster = vi.fn().mockResolvedValue({ ...row, id: 'source', name: 'Original army', prep: null, visibility })
+    const namesByIds = vi.fn().mockResolvedValue(new Map([['user-1', { id: 'user-1', name: 'Original owner' }]]))
+    return new RosterService({ roster, namesByIds } as unknown as RepositoryPort, () => 0)
+  }
+
+  it('names a public source and its owner for another reader', async () => {
+    expect(await source('public').copySource('source', 'user-2')).toEqual({
+      id: 'source',
+      name: 'Original army',
+      ownerId: 'user-1',
+      ownerName: 'Original owner',
+    })
+  })
+
+  it('names nothing once the source is private to another reader', async () => {
+    expect(await source('private').copySource('source', 'user-2')).toBeNull()
+  })
+
+  it('names a private source to its own owner', async () => {
+    expect((await source('private').copySource('source', 'user-1'))?.name).toBe('Original army')
+  })
+
+  it('names nothing when the source was deleted', async () => {
+    const service = new RosterService({ roster: vi.fn().mockResolvedValue(undefined) } as unknown as RepositoryPort, () => 0)
+    expect(await service.copySource('source', 'user-2')).toBeNull()
+  })
+})

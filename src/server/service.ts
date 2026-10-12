@@ -268,6 +268,10 @@ export class PraetoriumService {
     return this.rosterService.rosterAccess(...args)
   }
 
+  copySource(...args: Parameters<RosterService['copySource']>) {
+    return this.rosterService.copySource(...args)
+  }
+
   sharedRoster(...args: Parameters<RosterService['sharedRoster']>) {
     return this.rosterService.sharedRoster(...args)
   }

@@ -85,11 +85,22 @@ for (const [width, label] of [
     await expectNoHorizontalOverflow(reader.locator('main'))
     await shot(reader.locator('main'), `test-results/roster-discovery-${label}.png`)
 
+    if (width === 1440) {
+      await reader.goto(`/rosters/${sourceId}`)
+      await reader.getByRole('button', { name: 'Test targets' }).click()
+      const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
+      await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
+      await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+      expect(await product.roster(sourceId)).toEqual(source)
+      await reader.goBack()
+    }
     await card.getByRole('button', { name: `Duplicate ${armyName}` }).click()
     await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname) && !url.pathname.endsWith('/discover'))
     const copyId = rosterId(reader)
     expect(copyId).not.toBe(sourceId)
     await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${armyName}`)
+    await expect(reader.locator('[data-roster-copied-from]')).toHaveText(`Copied from ${armyName} by ${ownerName}`)
+    expect((await product.roster(copyId))?.copiedFromRosterId).toBe(sourceId)
     await waitForRosterSave(reader, () => reader.getByLabel('List name').fill('Edited copy'), 'Edited copy')
     await expect.poll(async () => (await product.roster(copyId))?.name).toBe('Edited copy')
     expect((await product.roster(copyId))?.picks).not.toContain(NOTE)
@@ -102,6 +113,9 @@ for (const [width, label] of [
     await reader.reload()
     await expect(reader.getByRole('heading', { name: 'Armies', exact: true })).toBeVisible()
     await expect(card).toHaveCount(0)
+    await reader.goto(`/rosters/${copyId}`)
+    await expect(reader.getByLabel('List name')).toHaveValue('Edited copy')
+    await expect(reader.locator('[data-roster-copied-from]')).toHaveCount(0)
   })
 }
 

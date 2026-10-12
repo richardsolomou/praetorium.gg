@@ -32,6 +32,7 @@ type Props = {
   frozen?: FrozenRoster
   variants?: ListBuilderProps['variants']
   differences?: ListBuilderProps['differences']
+  copiedFrom?: ListBuilderProps['copiedFrom']
   requested?: ListBuilderProps['requested']
 }
 
@@ -49,6 +50,7 @@ export function RosterEditor({
   frozen,
   variants,
   differences,
+  copiedFrom,
   requested,
 }: Props) {
   return (
@@ -67,6 +69,7 @@ export function RosterEditor({
         frozen={frozen}
         variants={variants}
         differences={differences}
+        copiedFrom={copiedFrom}
         requested={requested}
       />
     </main>

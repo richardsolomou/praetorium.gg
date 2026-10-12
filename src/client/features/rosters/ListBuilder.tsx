@@ -133,6 +133,8 @@ type Props = {
   variants?: readonly RosterVariant[]
   /** How this variant's saved row differs from its base's. */
   differences?: NamedRosterDifferences | null
+  /** The readable roster this one was duplicated from. */
+  copiedFrom?: { id: string; name: string; ownerId: string; ownerName: string } | null
   editable?: boolean
   /** The owner's own lock: the list reads as it does to anyone else, while unlocking and copying stay on offer. */
   locked?: boolean
@@ -189,6 +191,7 @@ export function ListBuilder({
   frozen,
   variants = NO_VARIANTS,
   differences = null,
+  copiedFrom = null,
   editable = true,
   locked = false,
   print = false,
@@ -439,25 +442,28 @@ export function ListBuilder({
     onSuccess: (code) => setExchangeCode(code),
   })
 
+  // A saved list is copied on the server, which records where the copy came from; a fielded army is copied as shown.
   const duplicateRoster = useMutation({
     mutationFn: async () =>
-      saveRoster({
-        data: {
-          name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
-          catalogueId,
-          detachmentIds,
-          disposition,
-          limit,
-          pointsBudget,
-          picks: annotated,
-          prep: storedPrep,
-          waivedRules,
-          optionalRules,
-          borrowedDetachmentId,
-          visibility: (await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })).rosterVisibility,
-          source: initial.source,
-        },
-      }),
+      savedId && !battle
+        ? copyRoster({ data: { id: savedId, variant: false } })
+        : saveRoster({
+            data: {
+              name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
+              catalogueId,
+              detachmentIds,
+              disposition,
+              limit,
+              pointsBudget,
+              picks: annotated,
+              prep: storedPrep,
+              waivedRules,
+              optionalRules,
+              borrowedDetachmentId,
+              visibility: (await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })).rosterVisibility,
+              source: initial.source,
+            },
+          }),
     onSuccess: async ({ id }) => {
       posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), shared: true })
       await invalidateSavedRosters(queryClient)
@@ -1084,6 +1090,13 @@ export function ListBuilder({
     })
   }
 
+  // Simulation never changes the roster, so a reader can try a list they cannot edit.
+  const testTargets = !frozen ? (
+    <Button variant="outline" size="sm" disabled={!positioned.length || pricePending || priceLoading} onClick={() => openCombat(0, true)}>
+      <Swords aria-hidden /> Test targets
+    </Button>
+  ) : null
+
   return (
     <RosterShell saving={saving} saveError={save.isError}>
       <RosterHeader
@@ -1111,16 +1124,7 @@ export function ListBuilder({
         actions={
           editable ? (
             <>
-              {!frozen ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!positioned.length || pricePending || priceLoading}
-                  onClick={() => openCombat(0, true)}
-                >
-                  <Swords aria-hidden /> Test targets
-                </Button>
-              ) : null}
+              {testTargets}
               {variantMenu}
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -1202,6 +1206,7 @@ export function ListBuilder({
             </>
           ) : (
             <>
+              {testTargets}
               {locked ? variantMenu : null}
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
@@ -1296,6 +1301,18 @@ export function ListBuilder({
           <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-discarded">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />
             The unit was not added. {requestRefusal}
+          </p>
+        ) : null}
+        {copiedFrom ? (
+          <p data-roster-copied-from className="mt-1 text-xs text-dim">
+            Copied from{' '}
+            <Link to="/rosters/$id" params={{ id: copiedFrom.id }} className="text-info hover:text-parchment">
+              {copiedFrom.name}
+            </Link>{' '}
+            by{' '}
+            <Link to="/users/$userId" params={{ userId: copiedFrom.ownerId }} className="text-info hover:text-parchment">
+              {copiedFrom.ownerName}
+            </Link>
           </p>
         ) : null}
         {savedId && !frozen ? <RosterDataChanges rosterId={savedId} /> : null}
@@ -1544,7 +1561,7 @@ export function ListBuilder({
                     <span className="chip normal-case">{modelCount(frozenSelected.models)}</span>
                   </span>
                 ) : null}
-                {editable && !frozen && !preview && selected !== null ? (
+                {!frozen && !preview && selected !== null ? (
                   <Tooltip>
                     <TooltipTrigger
                       render={

@@ -228,6 +228,7 @@ function accessFor(roster: LocalRoster, state?: LocalState) {
     faction: factionFor(roster.catalogueId) ?? cached?.faction ?? null,
     variants: variants.length ? variants : (cached?.variants ?? []),
     differences,
+    copiedFrom: cached?.copiedFrom ?? null,
   }
 }
 
@@ -360,7 +361,8 @@ export async function saveRoster(
     ...saveRosterSchema.parse(args.data),
     id: args.data.id ?? crypto.randomUUID(),
     baseRosterId: (args.data as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
-  } as RosterInput & { id: string; baseRosterId: string | null }
+    copiedFromRosterId: (args.data as RosterInput & { copiedFromRosterId?: string | null }).copiedFromRosterId ?? null,
+  } as RosterInput & { id: string; baseRosterId: string | null; copiedFromRosterId: string | null }
   const previous = await localDocument<LocalRoster | null>(`roster:${input.id}`)
   if (previous === null) throw new Error('This roster was deleted. Save it as a new roster.')
   const now = Math.max(Date.now(), (previous?.updatedAt ?? 0) + 1)
@@ -374,6 +376,8 @@ export async function saveRoster(
     optionalRules: input.optionalRules ?? [],
     waivedRules: input.waivedRules ?? [],
     baseRosterId: previous?.baseRosterId ?? (input as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
+    copiedFromRosterId:
+      previous?.copiedFromRosterId ?? (input as RosterInput & { copiedFromRosterId?: string | null }).copiedFromRosterId ?? null,
     visibility: input.visibility ?? 'private',
     source: input.source ?? 'editable',
     prep: input.prep
@@ -433,6 +437,7 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
     name,
     visibility: rosterVisibility,
     baseRosterId: args.data.variant ? baseId : null,
+    copiedFromRosterId: args.data.variant ? null : roster.id,
   }
   if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
   const result = await saveRoster({ data: input })

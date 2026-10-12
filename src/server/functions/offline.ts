@@ -33,7 +33,11 @@ export const syncRoster = createServerFn({ method: 'POST' })
       operationId: z.uuid(),
       expectedVersion: z.number().int().nonnegative().nullable(),
       deleted: z.boolean().default(false),
-      roster: saveRosterSchema.safeExtend({ id: z.string().min(1).max(64), baseRosterId: z.string().min(1).max(64).nullable().optional() }),
+      roster: saveRosterSchema.safeExtend({
+        id: z.string().min(1).max(64),
+        baseRosterId: z.string().min(1).max(64).nullable().optional(),
+        copiedFromRosterId: z.string().min(1).max(64).nullable().optional(),
+      }),
     }),
   )
   .handler(({ data }) =>
@@ -63,6 +67,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
         waivedRules: JSON.stringify(data.roster.waivedRules),
         optionalRules: JSON.stringify(data.roster.optionalRules),
         baseRosterId: data.roster.baseRosterId ?? null,
+        copiedFromRosterId: data.roster.copiedFromRosterId ?? null,
         now: Date.now(),
       }
       return instance.service.syncRoster({
