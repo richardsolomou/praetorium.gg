@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.133.3
+
+### Patch Changes
+
+- 0c2f450: Show which roster a copy came from while its source stays readable.
+- 0c2f450: Simulate any roster you can read, including other players' public armies.
+
 ## 0.133.2
 
 ### Patch Changes
