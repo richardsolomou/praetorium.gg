@@ -190,7 +190,7 @@ function RosterActionItems({
         <Pencil /> Convert rules version
       </Item>
       <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>
-        <GitBranchPlus /> New variant
+        <GitBranchPlus /> Create variant
       </Item>
       <Item disabled={actions.duplicate.isPending} onClick={() => actions.duplicate.mutate(roster)}>
         <Copy /> Duplicate
