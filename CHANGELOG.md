@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.133.8
+
+### Patch Changes
+
+- 6333ccd: Highlight roster changes and legality problems while collapsing unchanged units in setup reviews.
+- 070dfae: Let startup health checks wait for catalogue warmup without repeatedly cancelling requests.
+- 6333ccd: Make app releases and army data updates easier to browse with clearer panels, shared navigation and highlighted changes.
+
 ## 0.133.7
 
 ### Patch Changes
