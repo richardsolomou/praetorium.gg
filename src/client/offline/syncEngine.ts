@@ -29,17 +29,39 @@ export function discardLocalResource(state: LocalState, resource: string): Local
   return { ...state, documents, operations }
 }
 
+const holderLock = (holder: string) => `praetorium-sync:${holder}`
+
+/** A window holds its lock until it closes or stops, so a lease whose lock nobody holds was abandoned mid-sync. */
+async function leaseAbandoned(holder: string) {
+  if (!globalThis.navigator?.locks) return false
+  const { held = [] } = await navigator.locks.query()
+  return !held.some((lock) => lock.name === holderLock(holder))
+}
+
 export class SyncEngine {
   private running: Promise<void> | undefined
   private stopped = false
   lastError: unknown = null
   private readonly holder = crypto.randomUUID()
+  private releaseHolder: () => void = () => {}
+  private readonly holding: Promise<void>
 
   constructor(
     readonly storage: LocalStateStorage,
     private readonly execute: (operation: LocalOperation, state: LocalState) => Promise<SyncAnswer>,
     private readonly changed: (state: LocalState) => void,
-  ) {}
+  ) {
+    this.holding = new Promise((granted) => {
+      if (!globalThis.navigator?.locks) return granted()
+      void navigator.locks.request(holderLock(this.holder), () => {
+        granted()
+        if (this.stopped) return
+        return new Promise<void>((release) => {
+          this.releaseHolder = release
+        })
+      })
+    })
+  }
 
   async enqueue(
     operation: LocalOperation,
@@ -91,6 +113,7 @@ export class SyncEngine {
 
   stop() {
     this.stopped = true
+    this.releaseHolder()
   }
 
   private async drain() {
@@ -108,14 +131,17 @@ export class SyncEngine {
       )
       if (!operation) return
       attempted.add(operation.id)
+      await this.holding
+      const lease = state.syncLease
+      const abandoned = lease && lease.holder !== this.holder && (await leaseAbandoned(lease.holder)) ? lease : undefined
       let claimed = false
       const marked = await this.storage.change((current) => {
-        if (
-          current.epoch !== state.epoch ||
-          current.owner !== state.owner ||
-          (current.syncLease && current.syncLease.holder !== this.holder && current.syncLease.expiresAt > Date.now())
-        )
-          return current
+        const held =
+          current.syncLease &&
+          current.syncLease.holder !== this.holder &&
+          current.syncLease.expiresAt > Date.now() &&
+          !(current.syncLease.holder === abandoned?.holder && current.syncLease.expiresAt === abandoned.expiresAt)
+        if (current.epoch !== state.epoch || current.owner !== state.owner || held) return current
         if (!current.operations.some((candidate) => candidate.id === operation.id)) return current
         claimed = true
         return {

@@ -235,6 +235,43 @@ it('recovers a sync lease left by a terminated window', async () => {
   ).sync()
   expect((await storage.read()).operations).toEqual([])
 })
+it('recovers an unexpired sync lease left by a window that closed mid-sync', async () => {
+  const initial = emptyLocalState('player')
+  initial.operations = [operation()]
+  initial.syncLease = { holder: crypto.randomUUID(), expiresAt: Date.now() + 60_000 }
+  const storage = memory(initial)
+  await new SyncEngine(
+    storage,
+    async () => ({ outcome: 'applied', data: 'saved' }),
+    () => {},
+  ).sync()
+  expect((await storage.read()).operations).toEqual([])
+})
+it('lets another window send saved work once the window sending it stops', async () => {
+  const storage = memory()
+  let started!: () => void
+  const ready = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  const stopped = new SyncEngine(
+    storage,
+    async () => {
+      started()
+      return new Promise<never>(() => {})
+    },
+    () => {},
+  )
+  await stopped.enqueue(operation())
+  void stopped.sync()
+  await ready
+  stopped.stop()
+  await new SyncEngine(
+    storage,
+    async () => ({ outcome: 'applied', data: 'saved' }),
+    () => {},
+  ).sync()
+  expect((await storage.read()).operations).toEqual([])
+})
 it('refuses a concurrent local battle append without replacing the saved history', async () => {
   const storage = memory()
   const engine = new SyncEngine(
