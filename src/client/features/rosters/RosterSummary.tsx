@@ -57,6 +57,7 @@ export function RosterSummary({
   differences = null,
   showLock = true,
   showLegality = false,
+  updates,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
@@ -73,6 +74,7 @@ export function RosterSummary({
   factionLoading?: boolean
   pointsLoading?: boolean
   problem?: RosterProblem | null
+  updates?: RosterUpdates
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
@@ -104,6 +106,7 @@ export function RosterSummary({
         ) : null}
         <WaiverChip rules={waivers} />
         {showLock && roster.locked ? <LockedChip /> : null}
+        <RosterUpdateChips updates={updates} />
       </span>
       <span className="col-span-2 block text-xs text-dim sm:col-span-1">
         11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'}{' '}
@@ -119,6 +122,18 @@ export function RosterSummary({
         </span>
       ) : null}
     </span>
+  )
+}
+
+/** Whether newer rules or a data update since the last save affect this list; the builder explains both. */
+export type RosterUpdates = { olderRules: boolean; changes: number }
+
+function RosterUpdateChips({ updates }: { updates?: RosterUpdates }) {
+  return (
+    <>
+      {updates?.olderRules ? <span className="chip shrink-0 text-discarded">Older rules</span> : null}
+      {updates?.changes ? <span className="chip shrink-0 text-discarded">Changed by update</span> : null}
+    </>
   )
 }
 
@@ -191,6 +206,7 @@ export function RosterVariantSummary({
   problem = null,
   differences,
   showVisibility,
+  updates,
 }: {
   roster: SavedRoster
   faction?: RosterSummaryFaction
@@ -202,6 +218,7 @@ export function RosterVariantSummary({
   differences?: NamedRosterDifferences | null
   /** Only when it differs from the base's, which the card already shows. */
   showVisibility: boolean
+  updates?: RosterUpdates
 }) {
   return (
     // A phone gives the chips their own line beneath the name and points; a wider screen keeps the row to one.
@@ -210,6 +227,7 @@ export function RosterVariantSummary({
       <span className="min-w-0 truncate text-sm font-bold uppercase sm:max-w-64">{rosterTitle(roster, faction, label)}</span>
       <span className="col-span-2 col-start-2 row-start-2 flex min-h-[1.125rem] min-w-0 items-center gap-1.5 sm:col-span-1 sm:col-start-3 sm:row-start-1">
         {roster.locked ? <LockedChip /> : null}
+        <RosterUpdateChips updates={updates} />
         {differences ? (
           <RosterDifferenceChips differences={differences} setup={variantSetup(roster, faction, dispositionName)} />
         ) : pointsLoading ? (

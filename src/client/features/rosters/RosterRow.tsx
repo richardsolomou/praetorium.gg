@@ -21,7 +21,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { useNativeShare } from '../../nativeBridge'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
-import { type RosterProblem, RosterSummary, type RosterSummaryFaction, RosterVariantSummary, rosterTitle } from './RosterSummary'
+import {
+  type RosterProblem,
+  RosterSummary,
+  type RosterSummaryFaction,
+  type RosterUpdates,
+  RosterVariantSummary,
+  rosterTitle,
+} from './RosterSummary'
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
@@ -54,6 +61,7 @@ export function RosterRow({
   pointsLoading,
   problem,
   differences,
+  updates,
   showVisibility = true,
 }: {
   roster: SavedRoster
@@ -77,6 +85,7 @@ export function RosterRow({
   pointsLoading?: boolean
   /** Why the current army data says this list cannot be fielded, judged beside the totals. */
   problem?: RosterProblem | null
+  updates?: RosterUpdates
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
@@ -110,6 +119,7 @@ export function RosterRow({
               problem={problem}
               differences={differences}
               showVisibility={showVisibility}
+              updates={updates}
             />
           ) : (
             <RosterSummary
@@ -122,6 +132,7 @@ export function RosterRow({
               pointsLoading={pointsLoading}
               problem={problem}
               differences={differences}
+              updates={updates}
             />
           )}
         </Link>
