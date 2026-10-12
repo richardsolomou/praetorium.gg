@@ -43,6 +43,7 @@ type Props = {
   limits: ReadonlyMap<string, number | null>
   room: number | null
   battleSize: number
+  pointsBudget: number | null
   /** Which of the battle size's restrictions the roster has switched off. */
   waivedRules: readonly FormatRuleId[]
   onWaiveToggle: (rule: FormatRuleId) => void
@@ -87,6 +88,7 @@ export const Picker = memo(function Picker({
   limits,
   room,
   battleSize,
+  pointsBudget,
   waivedRules,
   onWaiveToggle,
   query,
@@ -137,7 +139,7 @@ export const Picker = memo(function Picker({
       }),
     [found, active, room, inRoster, collection, favourites, limits],
   )
-  const rules = formatRules(battleSize)
+  const rules = formatRules(battleSize, pointsBudget)
   const waived = rules.filter((rule) => !enforces(waivedRules, rule.id))
   const alliedFactions = useMemo(() => [...new Set(shown.flatMap((unit) => (unit.alliedFaction ? [unit.alliedFaction] : [])))], [shown])
   const sections = [

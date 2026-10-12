@@ -16,6 +16,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     detachmentIds: detachmentIds(row.detachmentId),
     disposition: row.disposition,
     limit: row.limit,
+    pointsBudget: row.pointsBudget ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     picks: picksSchema.parse(JSON.parse(row.picks)),

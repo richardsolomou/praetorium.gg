@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PAINTED_ARMY_POINTS, type Command } from '../../../../core/battle'
+import { PAINTED_ARMY_POINTS, pointsBudgetOf, type Command } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
 import { savedRosterSummariesQuery } from '../../../queries'
@@ -95,7 +95,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                     {army.roster ? <ArmyIdentity army={army} list={false} className="mt-0.5" /> : null}
                     <span className="mt-0.5 block text-xs text-dim">
                       {army.roster?.built
-                        ? `${army.unitCount} units · ${army.points ?? 0} of ${army.roster.built.limit} points`
+                        ? `${army.unitCount} units · ${army.points ?? 0} of ${pointsBudgetOf(army.roster.built)} points`
                         : army.roster
                           ? 'Imported army'
                           : army.automated

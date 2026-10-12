@@ -10,6 +10,7 @@ type Roster = {
   detachmentIds: string[]
   disposition: string | null
   limit: number
+  pointsBudget?: number | null
   picks: ListBuilderProps['initial']['picks']
   waivedRules: ListBuilderProps['initial']['waivedRules']
   prep?: ListBuilderProps['prep'] | null

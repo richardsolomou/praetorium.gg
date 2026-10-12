@@ -17,7 +17,8 @@ export function fromNewRecruitText(input: string): TextRoster | null {
   const disposition = metadata(lines, 'FORCE DISPOSITION')
   const points = metadata(lines, 'TOTAL ARMY POINTS')?.match(/([\d,]+)\s*pts?/i)?.[1]
   const total = points ? Number(points.replaceAll(',', '')) : null
-  const explicitLimit = metadata(lines, 'BATTLE SIZE')?.match(/^([\d,]+)pts$/i)?.[1]
+  const battleSize = metadata(lines, 'BATTLE SIZE')?.match(/^([\d,]+)pts(?:\s+\((.+)\))?$/i)
+  const explicitLimit = battleSize?.[1]
   const limit = explicitLimit
     ? Number(explicitLimit.replaceAll(',', ''))
     : total === null
@@ -101,6 +102,7 @@ export function fromNewRecruitText(input: string): TextRoster | null {
     detachment: detachment === 'No detachment' ? null : detachment,
     disposition,
     limit,
+    ...(battleSize?.[2] ? { sizeName: battleSize[2] } : {}),
     units,
   }
 }
@@ -153,7 +155,7 @@ export function toCompactText(roster: GwTextRoster, version: string) {
     `+ FACTION KEYWORD: ${roster.faction}`,
     `+ DETACHMENT: ${roster.detachments.map((detachment) => detachment.name).join(' and ') || 'No detachment'}`,
     ...(roster.dispositions.length ? [`+ FORCE DISPOSITION: ${roster.dispositions.join(', ')}`] : []),
-    `+ BATTLE SIZE: ${roster.limit}pts`,
+    `+ BATTLE SIZE: ${roster.pointsBudget ?? roster.limit}pts${roster.pointsBudget === undefined ? '' : ` (${roster.size})`}`,
     `+ TOTAL ARMY POINTS: ${roster.points}pts`,
     '+++++++++++++++++++++++++++++++++++++++++++++++',
   ]

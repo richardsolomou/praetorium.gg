@@ -29,7 +29,7 @@ import {
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
 import { type Side, type SideMission, sides } from '../../sides'
-import type { Command } from '../../../core/battle'
+import { battleSizeText, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
@@ -676,7 +676,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
                 <BattlefieldFact view={view} deployment={deployment} objectives />
                 <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
-                <Fact label="Battle size" value={view.settings.limit ? `${view.settings.limit} points` : 'Legacy format'} />
+                <Fact label="Battle size" value={battleSizeText(view) ?? 'Legacy format'} />
                 <Fact label="Format" value={formatName(table)} />
                 {/*
                  * A twist changes one rule for the whole battle, so it is not enough to

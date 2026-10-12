@@ -104,6 +104,7 @@ type Props = {
     detachmentIds: string[]
     disposition: string | null
     limit: number
+    pointsBudget?: number | null
     picks: RosterPick[]
     waivedRules: FormatRuleId[]
     optionalRules?: OptionalRuleId[]
@@ -199,6 +200,7 @@ export function ListBuilder({
   const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
   const { picks, setPicks, resetPicks, positioned, held, allocateKey } = usePicks(initial.picks)
   const [limit, setLimit] = useState(initial.limit)
+  const [pointsBudget, setPointsBudget] = useState<number | null>(initial.pointsBudget ?? null)
   const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
   const [disposition, setDisposition] = useState<string | null>(initial.disposition)
   const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
@@ -308,6 +310,7 @@ export function ListBuilder({
     detachmentIds,
     disposition,
     limit,
+    pointsBudget,
     picks: positioned,
     prep: storedPrep,
     waivedRules,
@@ -358,6 +361,7 @@ export function ListBuilder({
     setCatalogueId(initial.catalogueId)
     resetPicks(initial.picks)
     setLimit(initial.limit)
+    setPointsBudget(initial.pointsBudget ?? null)
     setDetachmentIds(initial.detachmentIds)
     setDisposition(initial.disposition)
     setWaivedRules(initial.waivedRules)
@@ -386,6 +390,7 @@ export function ListBuilder({
     disposition,
     editable,
     limit,
+    pointsBudget,
     settledListName,
     settledPicks,
     storedPrep,
@@ -396,7 +401,7 @@ export function ListBuilder({
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: { catalogueId, detachmentIds, disposition, limit, name: shownName || 'Roster', units: positioned, waivedRules },
+        data: { catalogueId, detachmentIds, disposition, limit, pointsBudget, name: shownName || 'Roster', units: positioned, waivedRules },
       }),
     onSuccess: (exported) => setExportText(exported),
   })
@@ -411,6 +416,7 @@ export function ListBuilder({
         disposition,
         borrowedDetachmentId,
         limit,
+        pointsBudget,
         points: priced?.points ?? null,
         waivedRules,
         optionalRules,
@@ -430,6 +436,7 @@ export function ListBuilder({
           detachmentIds,
           disposition,
           limit,
+          pointsBudget,
           picks: positioned,
           prep: storedPrep,
           waivedRules,
@@ -535,6 +542,7 @@ export function ListBuilder({
       catalogueId,
       detachmentIds,
       limit,
+      pointsBudget,
       picks: positioned,
       price: priced,
       waivedRules,
@@ -550,6 +558,7 @@ export function ListBuilder({
     guest,
     limit,
     optionalRules,
+    pointsBudget,
     positioned,
     priceLoading,
     pricePending,
@@ -753,6 +762,7 @@ export function ListBuilder({
       detachmentIds,
       disposition,
       limit,
+      pointsBudget,
       waivedRules,
       optionalRules,
       borrowedDetachmentId,
@@ -784,6 +794,7 @@ export function ListBuilder({
     setDetachmentIds(setup.detachmentIds)
     setDisposition(setup.disposition)
     setLimit(setup.limit)
+    setPointsBudget(setup.pointsBudget)
     setWaivedRules(setup.waivedRules)
     setOptionalRules(setup.optionalRules)
     setBorrowedDetachmentId(setup.borrowedDetachmentId)
@@ -838,7 +849,8 @@ export function ListBuilder({
   }
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
-  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > limit : Boolean(priced && priced.points > limit))
+  const budget = pointsBudget ?? limit
+  const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
@@ -891,7 +903,7 @@ export function ListBuilder({
           })),
         }
       : selectedUnit
-  const waivers = waivedFormatRules(limit, waivedRules)
+  const waivers = waivedFormatRules(limit, waivedRules, pointsBudget)
   /*
    * Dismissing says "I know", not "never tell me": the key is the set of waived
    * restrictions, so switching another one off says something the player has not
@@ -925,8 +937,9 @@ export function ListBuilder({
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
-            room={priced && enforces(waivedRules, 'points-limit') ? limit - priced.points : null}
+            room={priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null}
             battleSize={limit}
+            pointsBudget={pointsBudget}
             waivedRules={waivedRules}
             onWaiveToggle={toggleWaivedRule}
             query={pickerQuery}
@@ -1018,6 +1031,7 @@ export function ListBuilder({
         edition={snapshotEdition}
         factionLoading={factionLoading}
         limit={limit}
+        pointsBudget={pointsBudget}
         unitCount={fieldedUnitCount}
         detachments={
           frozen
@@ -1510,7 +1524,7 @@ export function ListBuilder({
         over={over}
         illegal={illegal}
         points={points}
-        limit={limit}
+        limit={budget}
         hasUnits={Boolean(cards.length)}
         editable={editable}
         canAddUnits={Boolean(faction)}

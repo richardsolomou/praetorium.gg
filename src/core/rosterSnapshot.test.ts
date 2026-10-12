@@ -366,3 +366,38 @@ it('fields a list nobody named under the label it had when it was fielded', () =
   )
   expect(snapshot.name).toBe("HL 1K - C'tan & Hexmark")
 })
+
+it('freezes a custom points budget and halves it for the strategic reserve limit', () => {
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      pointsBudget: 1_500,
+      waivedRules: [],
+      picks: [],
+    },
+    {
+      points: 0,
+      revision: 'revision',
+      strategicReserveFactsComplete: true,
+      label: 'Army',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: 3,
+      disposition: null,
+      units: [],
+    },
+    [],
+  )
+
+  expect([roster.built?.limit, roster.built?.pointsBudget, roster.built?.strategicReserveLimit, roster.text.split('\n')[0]]).toEqual([
+    2_000,
+    1_500,
+    750,
+    '0 / 1500 pts',
+  ])
+})

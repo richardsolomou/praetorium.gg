@@ -27,6 +27,7 @@ const setup = {
   detachmentIds: ['first'],
   disposition: null,
   limit: 1000,
+  pointsBudget: null,
   waivedRules: [],
   optionalRules: [],
   borrowedDetachmentId: null,

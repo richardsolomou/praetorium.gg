@@ -834,8 +834,38 @@ describe('Praetorium roster import', () => {
   })
 
   it('does not guess a supported battle size for an explicitly unsupported size', () => {
-    const text = (setup + footer).replace('2,000 Points', '2,500 Points')
+    const text = (setup + footer).replace('Strike Force (2,000 Points)', 'Battle (2,500 Points)')
     expect(importRosterFile({ file: text }, loaded)).toMatchObject({ limit: null, unknown: [{ name: '2500 point battle size' }] })
+  })
+
+  it('reads a named battle size at its own points as no custom budget', () => {
+    expect(importRosterFile({ file: setup + footer }, loaded)).toMatchObject({ limit: 2000, pointsBudget: null })
+  })
+
+  it('reads a named battle size beside other points as that size with a custom points budget', () => {
+    const text = (setup + footer).replace('Strike Force (2,000 Points)', 'Strike Force (1,500 Points)')
+    expect(importRosterFile({ file: text }, loaded)).toMatchObject({ limit: 2000, pointsBudget: 1500, unknown: [] })
+  })
+
+  it('reports a custom points budget below the minimum and keeps the named size', () => {
+    const text = (setup + footer).replace('Strike Force (2,000 Points)', 'Strike Force (400 Points)')
+    expect(importRosterFile({ file: text }, loaded)).toMatchObject({
+      limit: 2000,
+      pointsBudget: null,
+      unknown: [
+        { name: 'Strike Force at 400 points', reason: 'Choose between 500 and 10,000 points. It is imported at the standard 2000 points.' },
+      ],
+    })
+  })
+
+  it.each(['text', 'compactText'] as const)('round-trips a custom points budget through the %s export', (layout) => {
+    const exported = exportRosterFile(
+      { catalogueId: 'necrons', detachmentIds: [], disposition: null, limit: 2000, pointsBudget: 1500, name: 'Budget force', units: [] },
+      loaded,
+      { points: 0, disposition: null, detachments: [], units: [] },
+      [],
+    )
+    expect(importRosterFile({ file: exported[layout] }, loaded)).toMatchObject({ limit: 2000, pointsBudget: 1500 })
   })
 
   it('reports an explicit zero model count instead of silently using the minimum squad size', () => {
@@ -1025,6 +1055,13 @@ describe('roster exchange import', () => {
       unplaced: [],
       sourceUnitCount: 3,
       reportedPoints: 135,
+    })
+  })
+
+  it('carries a custom points budget beside the battle size', () => {
+    expect(importRosterExchange({ ...exchange, pointsBudget: 1500 }, loaded, null, 'Xenos - Necrons')).toMatchObject({
+      limit: exchange.limit,
+      pointsBudget: 1500,
     })
   })
 

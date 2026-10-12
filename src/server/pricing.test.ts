@@ -19,6 +19,7 @@ import {
   uniqueNames,
 } from '../shared/pricing'
 import { descriptionKey } from './datacards'
+import { rosterUseProblem } from '../core/rosterLegality'
 import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
@@ -199,6 +200,45 @@ describe('the enhancements an army may hold', () => {
 
   it('is four in a Strike Force army', () => {
     expect([errorsFor(4, 2_000), errorsFor(5, 2_000)]).toEqual([[], ['allow at most 4 in an army, has 5']])
+  })
+})
+
+describe('a custom points budget beside the battle size', () => {
+  const lord = (id: string) => ({
+    id,
+    name: `Lord ${id}`,
+    type: 'model' as const,
+    costs: pointsCost(300),
+    selectionEntries: [
+      {
+        id: `${id}-relic`,
+        name: 'Relic',
+        type: 'upgrade' as const,
+        costs: enhancement(),
+        constraints: [{ id: `${id}-relic-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+      },
+    ],
+  })
+  const loaded = bookOf({ selectionEntries: ['a', 'b', 'c', 'd'].map(lord) })
+  const roster = { limit: 2_000, pointsBudget: 1_000 }
+  const priced = calculateRosterPrice(
+    {
+      catalogueId: 'cat',
+      detachmentIds: [],
+      disposition: null,
+      limit: roster.limit,
+      units: ['a', 'b', 'c', 'd'].map((entryId) => ({ entryId })),
+    },
+    loaded,
+    rulesWithout,
+  )!
+
+  it('keeps the battle size’s enhancement limit when the budget is a smaller size’s total', () => {
+    expect(priced.errors).toEqual([])
+  })
+
+  it('judges the points against the budget rather than the battle size', () => {
+    expect([priced.points, rosterUseProblem(priced, roster)?.kind]).toEqual([1_200, 'over-limit'])
   })
 })
 

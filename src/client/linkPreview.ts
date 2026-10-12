@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
+import { battleSizeText } from '../core/battle'
 import type { BattleView } from '../core/battleView'
 import type { Datasheet } from '../contracts/catalogue'
 import type { RosterVisibility } from '../core/savedRoster'
@@ -157,7 +158,7 @@ export function battlePreview(view: BattleView, factionName: (catalogueId: strin
       : view.status === 'finished'
         ? battleOutcome(table, view)
         : null
-  const size = view.settings.limit ? `${view.settings.limit} points` : null
+  const size = battleSizeText(view)
   const cardSides = table.map((side) => ({
     score: view.status === 'setup' ? null : side.total,
     armies: side.armies.map((army) => ({

@@ -18,6 +18,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   const sizeLine = setup.find((line) => /\([\d,]+ Points?\)$/i.test(line))
   if (!/Exported with (?:BattleBase|Praetorium\.gg)/i.test(input) && (!titleMatch || !faction || !sizeLine || firstSection < 0)) return null
   const detachmentLine = setup.find((line) => /\(\d+ Detachment Points?\)$/i.test(line)) ?? (setup[1] !== sizeLine ? setup[1] : undefined)
+  const size = sizeLine?.match(/^(.*?)\s*\(([\d,]+) Points?\)$/i)
   const dispositionLine = setup.find((line) => /^Force Dispositions?:/i.test(line))
   const units: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null
@@ -67,7 +68,8 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     faction,
     detachment: detachmentLine && detachmentLine !== 'No detachment' ? detachmentLine.replace(/\s+\(\d+ Detachment Points?\)$/i, '') : null,
     disposition: dispositionLine?.replace(/^Force Dispositions?:\s*/i, '') ?? null,
-    limit: sizeLine ? Number(sizeLine.match(/\(([\d,]+) Points?\)$/i)?.[1]?.replaceAll(',', '')) : null,
+    limit: size ? Number(size[2]!.replaceAll(',', '')) : null,
+    ...(size?.[1] ? { sizeName: size[1] } : {}),
     units,
     ...(unread.length ? { unread } : {}),
   }

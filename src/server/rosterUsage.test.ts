@@ -23,39 +23,44 @@ const priced = {
 }
 
 it('allows roster validation warnings', () => {
-  expect(rosterUseError(priced, 2_000)).toBeNull()
+  expect(rosterUseError(priced, { limit: 2_000 })).toBeNull()
 })
 
 it('rejects catalogue legality errors', () => {
-  expect(rosterUseError({ ...priced, errors: [{ entryName: 'Captain', message: 'allows at most 1, has 2' }] }, 2_000)).toBe(
+  expect(rosterUseError({ ...priced, errors: [{ entryName: 'Captain', message: 'allows at most 1, has 2' }] }, { limit: 2_000 })).toBe(
     'Captain: allows at most 1, has 2',
   )
 })
 
 it('rejects rosters over their points limit', () => {
-  expect(rosterUseError({ ...priced, points: 2_005 }, 2_000)).toBe('roster has 2005 points, over its 2000-point limit')
+  expect(rosterUseError({ ...priced, points: 2_005 }, { limit: 2_000 })).toBe('roster has 2005 points, over its 2000-point limit')
 })
 
 it('allows an over-points roster that waived the points limit', () => {
-  expect(rosterUseError({ ...priced, points: 2_005 }, 2_000, ['points-limit'])).toBeNull()
+  expect(rosterUseError({ ...priced, points: 2_005 }, { limit: 2_000, waivedRules: ['points-limit'] })).toBeNull()
 })
 
 it('still rejects other legality errors when the points limit is waived', () => {
-  expect(rosterUseError({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, 2_000, ['points-limit'])).toBe(
-    'Too many detachment points.',
-  )
+  expect(
+    rosterUseError(
+      { ...priced, points: 2_005, detachmentError: 'Too many detachment points.' },
+      { limit: 2_000, waivedRules: ['points-limit'] },
+    ),
+  ).toBe('Too many detachment points.')
 })
 
 it('names a list over its points limit as over the limit, before any other problem', () => {
-  expect(rosterUseProblem({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, 2_000)?.kind).toBe('over-limit')
+  expect(rosterUseProblem({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, { limit: 2_000 })?.kind).toBe(
+    'over-limit',
+  )
 })
 
 it('names a list within its limit that breaks a rule as not legal', () => {
-  expect(rosterUseProblem({ ...priced, detachmentError: 'Too many detachment points.' }, 2_000)?.kind).toBe('not-legal')
+  expect(rosterUseProblem({ ...priced, detachmentError: 'Too many detachment points.' }, { limit: 2_000 })?.kind).toBe('not-legal')
 })
 
 it('rejects rosters without a valid force disposition', () => {
-  expect(rosterUseError({ ...priced, dispositionError: 'Pick a disposition.' }, 2_000)).toBe('Pick a disposition.')
+  expect(rosterUseError({ ...priced, dispositionError: 'Pick a disposition.' }, { limit: 2_000 })).toBe('Pick a disposition.')
 })
 
 it('rejects a saved roster with an obsolete detachment when it is used', async () => {
@@ -129,4 +134,14 @@ it('snapshots an over-points saved roster when its points limit is waived', asyn
     points: '1080 / 1000 pts',
     waivedRules: ['points-limit'],
   })
+})
+
+it('rejects a roster over its custom points budget though within its battle size', () => {
+  expect(rosterUseError({ ...priced, points: 1_505 }, { limit: 2_000, pointsBudget: 1_500 })).toBe(
+    'roster has 1505 points, over its 1500-point limit',
+  )
+})
+
+it('allows a roster over its battle size within a larger custom budget', () => {
+  expect(rosterUseError({ ...priced, points: 2_400 }, { limit: 2_000, pointsBudget: 2_500 })).toBeNull()
 })
