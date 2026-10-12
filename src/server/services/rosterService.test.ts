@@ -76,7 +76,7 @@ it('retains the original Marine codex for a library summary saved against it', a
 describe('unit notes on a shared roster', () => {
   const picks = JSON.stringify([
     { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
-    { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
+    { entryId: 'intercessors', note: 'Push midfield.' },
   ])
   const prep = (shareNotes?: boolean) =>
     JSON.stringify({ stratagems: [], secondaries: [], ...(shareNotes === undefined ? {} : { shareNotes }) })
@@ -84,10 +84,6 @@ describe('unit notes on a shared roster', () => {
     const service = new RosterService({ roster: vi.fn().mockResolvedValue({ ...row, ...saved }) } as unknown as RepositoryPort, () => 0)
     return (await service.rosterAccess('roster-1', readerId))?.roster.picks
   }
-
-  it('shows another reader of a public roster the nicknames', async () => {
-    expect((await read({ picks, prep: prep(), visibility: 'public' }, 'user-2'))?.map((pick) => pick.nickname)).toEqual(['Alpha', 'Bravo'])
-  })
 
   it('keeps notes from another reader of a public roster', async () => {
     expect((await read({ picks, prep: prep(), visibility: 'public' }, 'user-2'))?.map((pick) => pick.note)).toEqual([undefined, undefined])
@@ -97,10 +93,10 @@ describe('unit notes on a shared roster', () => {
     expect((await read({ picks, prep: null, visibility: 'unlisted' }, 'user-2'))?.map((pick) => pick.note)).toEqual([undefined, undefined])
   })
 
-  it('shows another reader the notes once the owner shares them', async () => {
+  it('keeps notes from another reader of a roster saved while its notes were shared', async () => {
     expect((await read({ picks, prep: prep(true), visibility: 'unlisted' }, 'user-2'))?.map((pick) => pick.note)).toEqual([
-      'Hold home.',
-      'Push midfield.',
+      undefined,
+      undefined,
     ])
   })
 
@@ -109,6 +105,10 @@ describe('unit notes on a shared roster', () => {
       'Hold home.',
       'Push midfield.',
     ])
+  })
+
+  it('leaves out a unit nickname saved before nicknames were removed', async () => {
+    expect((await read({ picks, prep: prep(), visibility: 'private' }, 'user-1'))?.[0]).not.toHaveProperty('nickname')
   })
 })
 const edit = {

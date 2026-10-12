@@ -324,8 +324,6 @@ const prepSchema = z.object({
   secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
   reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).default([]),
   remindersEnabled: z.boolean().default(true),
-  /** Whether people who can read the saved roster also read its unit notes. */
-  shareNotes: z.boolean().default(false),
 })
 
 export const saveRosterSchema = z

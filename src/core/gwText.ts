@@ -10,7 +10,6 @@ export type GwTextRoster = {
   points: number
   units: {
     name: string
-    nickname?: string
     models?: number
     entry?: number
     attachedToEntry?: number
@@ -52,7 +51,6 @@ export function toGwText(roster: GwTextRoster, version: string): string {
     lines.push('', headings[group])
     for (const unit of units) {
       lines.push('', `${unit.name} (${unit.points.toLocaleString('en-GB')} Points)`)
-      if (unit.nickname) lines.push(`    • Nickname: ${unit.nickname}`)
       for (const relation of unit.joined) lines.push(`    • ${relation.label}: ${relation.name}`)
       if (unit.warlord) lines.push('    • Warlord')
       for (const item of unit.wargear) lines.push(`    • ${item.count}x ${item.name}`)
