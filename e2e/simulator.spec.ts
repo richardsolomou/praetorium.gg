@@ -167,7 +167,7 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   const resultsSummary = page.getByLabel('Results summary')
   await expect(resultsSummary).toBeVisible()
   await expect(page.locator('[data-result-numbers]')).toHaveCount(4)
-  expect(await resultsSummary.evaluate((element) => getComputedStyle(element).position)).toBe('fixed')
+  expect(await resultsSummary.evaluate((element) => getComputedStyle(element).position)).toBe('sticky')
   await expect(shootingDamage).toHaveText(/^\d+\.\d{2}$/)
   await expect(meleeDamage).toHaveText(/^\d+\.\d{2}$/)
   await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
