@@ -22,6 +22,14 @@ const squad = (weapons: Record<string, number>, models = 5): CombatCarrier[] => 
 ]
 
 describe('loadout datasheets', () => {
+  it('namespaces defensive model identities alongside an attached member’s loadout', () => {
+    expect(
+      namespaceLoadoutSpace(
+        { carriers: [{ name: 'Leader', models: 1, modelProfileIds: ['leader-model'], weapons: [] }], weapons: [], choices: [] },
+        'attached:1:',
+      ).carriers[0]?.modelProfileIds,
+    ).toEqual(['attached:1:leader-model'])
+  })
   const profile = (name: string): Datasheet['profiles'][number] => ({ id: name, name, type: 'Ranged Weapons', values: [] })
   const sheet = { name: 'Squad', profiles: [{ id: 'unit', name: 'Squad', type: 'Unit', values: [] }], keywords: [] } as unknown as Datasheet
   it('counts each weapon profile from the models that carry it', () => {

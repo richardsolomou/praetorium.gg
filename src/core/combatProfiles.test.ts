@@ -205,6 +205,23 @@ describe('combat profiles', () => {
     })
     return data
   }
+  it('uses authoritative model profile identities when equipment changes the carrier’s name', () => {
+    expect(
+      combatTarget(mixed(), 2, 2, [
+        { name: 'Model with equipment', modelProfileIds: ['model'], models: 1, weapons: [] },
+        { name: 'Leader with equipment', modelProfileIds: ['leader'], models: 1, weapons: [] },
+      ]).target?.groups.map((group) => [group.models, group.wounds]),
+    ).toEqual([
+      [1, 2],
+      [1, 3],
+    ])
+  })
+  it('refuses an ambiguous defensive profile identity', () => {
+    expect(combatTarget(mixed(), 1, 1, [{ name: 'Model', modelProfileIds: ['model', 'leader'], models: 1, weapons: [] }]).target).toBeNull()
+  })
+  it('does not fall back to a matching name when the authoritative model identity is missing', () => {
+    expect(combatTarget(mixed(), 1, 1, [{ name: 'Model', modelProfileIds: ['missing'], models: 1, weapons: [] }]).target).toBeNull()
+  })
   it('splits mixed defences into allocation groups counted from the carriers', () => {
     expect(
       combatTarget(mixed(), 5, 5, [

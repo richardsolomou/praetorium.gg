@@ -41,6 +41,30 @@ const index = buildIndex(
 )
 
 describe('combat weapon ownership', () => {
+  it('retains linked model profile identities separately from equipment-bearing selection names', () => {
+    const data = buildIndex(
+      [
+        {
+          catalogue: {
+            id: 'profiles',
+            name: 'Profiles',
+            costTypes: [{ id: 'pts', name: 'pts' }],
+            sharedProfiles: [{ id: 'shield', name: 'Trooper with shield', typeName: 'Unit' }],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Trooper with hammer and shield',
+                type: 'model',
+                infoLinks: [{ id: 'stats', targetId: 'shield', type: 'profile' }],
+              },
+            ],
+          },
+        },
+      ],
+      'test',
+    )
+    expect(combatCarriers({ id: 'trooper' }, data)[0]?.modelProfileIds).toEqual(['shield'])
+  })
   it('keeps specialists separate and respects pooled and per-model counts', () => {
     expect(
       combatCarriers(

@@ -7,18 +7,17 @@ import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './
 import { wargearKey, wargearOf, type Wargear } from './wargear'
 
 export type CombatEquipment = Wargear & { profileIds?: string[] }
-export type CombatCarrier = { name: string; models: number; weapons: CombatEquipment[]; unitWide?: boolean }
+export type CombatCarrier = { name: string; models: number; weapons: CombatEquipment[]; modelProfileIds?: string[]; unitWide?: boolean }
 
 export const referenceOnlyWeapon = (name: string) => /\(ref\.?\s*only\)/i.test(name)
 
 export const combatEquipmentMatches = (piece: CombatEquipment, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
   piece.profileIds ? piece.profileIds.includes(profile.id) : wargearKey(piece.name, true) === wargearKey(profile.name, true)
 
-function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
+function definitionProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
   const found = new Map<string, Profile>()
   const add = (profile: Profile) => {
-    const kind = datasheetProfileKind(profile.typeName ?? '')
-    if ((kind === 'ranged-weapon' || kind === 'melee-weapon') && !referenceOnlyWeapon(profile.name ?? '')) found.set(profile.id, profile)
+    found.set(profile.id, profile)
   }
   for (const source of new Set([definition, resolve(definition, index)])) {
     source.profiles?.forEach(add)
@@ -28,6 +27,13 @@ function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[
     }
   }
   return [...found.values()]
+}
+
+function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
+  return definitionProfiles(definition, index).filter((profile) => {
+    const kind = datasheetProfileKind(profile.typeName ?? '')
+    return (kind === 'ranged-weapon' || kind === 'melee-weapon') && !referenceOnlyWeapon(profile.name ?? '')
+  })
 }
 
 function profileEquipment(profiles: readonly Profile[], count: number, name?: string): CombatEquipment[] {
@@ -67,6 +73,10 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
     const target = definition && resolve(definition, index)
     if (target?.type === 'model') {
       const models = node.count ?? 1
+      const modelProfileIds = definitionProfiles(definition!, index)
+        .filter((profile) => datasheetProfileKind(profile.typeName ?? '') === 'unit')
+        .map((profile) => profile.id)
+      const identity = modelProfileIds.length ? { modelProfileIds } : {}
       const mixed = (node.selections ?? []).filter((child) => {
         const group = index.definitions.get(child.id)
         return group && isCollectiveGroup(group, index) && (child.selections ?? []).filter((entry) => (entry.count ?? 1) > 0).length > 1
@@ -86,6 +96,7 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
           const count = entry.count ?? 1
           found.push({
             name: target.name ?? node.id,
+            ...identity,
             models: count,
             weapons: [
               ...sharedWeapons.map((weapon) => ({ ...weapon, count: (weapon.count / models) * count })),
@@ -93,7 +104,7 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
             ],
           })
         }
-      else found.push({ name: target.name ?? node.id, models, weapons: equippedWeapons(node, index, models) })
+      else found.push({ name: target.name ?? node.id, ...identity, models, weapons: equippedWeapons(node, index, models) })
       return
     }
     node.selections?.forEach((child) => visit(child, [...path, child.id]))

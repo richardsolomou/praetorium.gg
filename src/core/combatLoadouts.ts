@@ -22,6 +22,7 @@ export function namespaceLoadoutSpace(space: LoadoutSpace, prefix: string): Load
   const carriers = (entries: CombatCarrier[]) =>
     entries.map((carrier) => ({
       ...carrier,
+      ...(carrier.modelProfileIds ? { modelProfileIds: carrier.modelProfileIds.map((id) => `${prefix}${id}`) } : {}),
       weapons: carrier.weapons.map((weapon) => ({
         ...weapon,
         ...(weapon.profileIds ? { profileIds: weapon.profileIds.map((id) => `${prefix}${id}`) } : {}),

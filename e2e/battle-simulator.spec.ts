@@ -1,4 +1,4 @@
-import { openCombatBreakdown, openCombatControls } from './combat'
+import { holdCombatCalculations, openCombatBreakdown, openCombatControls } from './combat'
 import { expect, test, type Locator } from './test'
 import {
   attachRoster,
@@ -17,6 +17,107 @@ async function estimate(simulator: Locator, phase: 'Shooting' | 'Melee') {
   await openCombatBreakdown(simulator)
   return simulator.getByRole('region', { name: `${phase} estimate`, includeHidden: true })
 }
+
+test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
+  page,
+}) => {
+  await signUp(page, 'Live planner')
+  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Planner Marines' })
+  for (const name of ['Intercessor Squad', 'Terminator Squad', 'Rhino']) {
+    await page.getByLabel('Add a unit').fill(name)
+    await waitForRosterSave(page, () =>
+      page
+        .getByRole('button', { name: `Add ${name}`, exact: true })
+        .first()
+        .click(),
+    )
+  }
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+  const panels = [0, 1].map((side) => page.locator(`[data-panel="player"][data-side="${side}"]`))
+  for (const [side, panel] of panels.entries()) {
+    await panel.getByRole('button', { name: `Open ${roster}`, exact: true }).click()
+    const army = page.locator('[data-army-roster]')
+    const squad = army.locator('[data-unit="Intercessor Squad"]')
+    for (let lost = 0; lost < side + 1; lost++) {
+      await squad.getByRole('button', { name: 'Remove a model from Intercessor Squad', exact: true }).click()
+      await expect(squad.locator('[data-count="models"]')).toHaveText(`${4 - lost}/5`)
+    }
+    await squad.getByRole('button', { name: 'Take a wound off Intercessor Squad', exact: true }).click()
+    await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
+    await army.locator('[data-unit="Rhino"]').getByRole('button', { name: 'Mark Rhino lost', exact: true }).click()
+    await expect(army.getByRole('button', { name: 'Mark Rhino lost', exact: true })).toHaveCount(0)
+    await army.getByRole('button', { name: 'Close', exact: true }).click()
+  }
+  await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
+  const planner = page.getByRole('dialog', { name: 'Combat simulator', exact: true }).first()
+  await planner.getByRole('button', { name: 'Rosters', exact: true }).click()
+  await expect(planner).toContainText('4 / 4 matchups · Complete')
+  const table = planner.getByRole('table')
+  await expect(table).not.toContainText('Rhino')
+  await expect(table.getByRole('columnheader').filter({ hasText: 'Intercessor Squad' })).toContainText('3 models · 5 wounds')
+  await expect(table.getByRole('rowheader').filter({ hasText: 'Intercessor Squad' })).toContainText('4 models · 7 wounds')
+  const cell = table.getByRole('button', { name: /^Intercessor Squad #1 against Intercessor Squad #1:/ })
+  const baseline = await cell.locator('.readout').textContent()
+  await cell.click()
+  const detail = page.getByRole('dialog', { name: 'Combat simulator', exact: true }).last()
+  await expect(detail.getByLabel('Attacker models', { exact: true })).toHaveText('4')
+  await expect(detail.getByLabel('Defender models', { exact: true })).toHaveText('3')
+  await expect(detail.getByLabel('Defender remaining wounds', { exact: true })).toHaveText('1')
+  await expect((await estimate(detail, 'Shooting')).locator('.readout').first()).toHaveText(baseline!)
+  await expect(detail.getByRole('button', { name: /^Optimize/ })).toHaveCount(0)
+  await detail.getByRole('button', { name: 'More defender remaining wounds', exact: true }).click()
+  await detail.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(cell.locator('.readout')).toHaveText(baseline!)
+  await page.screenshot({ path: 'test-results/battle-matchup-planner-desktop.png', animations: 'disabled' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(async () => (await planner.boundingBox())?.width).toBe(390)
+  expect(await planner.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+  await page.screenshot({ path: 'test-results/battle-matchup-planner-phone.png', animations: 'disabled' })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await planner.getByRole('button', { name: 'Close', exact: true }).click()
+  await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
+  await expect((await estimate(planner, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  const cachedGate = await holdCombatCalculations(page)
+  await planner.getByRole('button', { name: 'Rosters', exact: true }).click()
+  await expect(planner).toContainText('4 / 4 matchups · Complete · Cached')
+  expect(await page.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
+  await cachedGate.release()
+  await page.screenshot({ path: 'test-results/battle-matchup-cached-desktop.png', animations: 'disabled' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/battle-matchup-cached-phone.png', animations: 'disabled' })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const referee = await page.context().newPage()
+  await referee.goto(page.url())
+  const otherPanels = [0, 1].map((side) => referee.locator(`[data-panel="player"][data-side="${side}"]`))
+  await otherPanels[0].getByRole('button', { name: `Open ${roster}`, exact: true }).click()
+  const otherArmy = referee.locator('[data-army-roster]')
+  const otherSquad = otherArmy.locator('[data-unit="Intercessor Squad"]')
+  await otherSquad.getByRole('button', { name: 'Remove a model from Intercessor Squad', exact: true }).click()
+  await expect(otherSquad.locator('[data-count="models"]')).toHaveText('3/5')
+  await expect(table.getByRole('rowheader').filter({ hasText: 'Intercessor Squad' })).toContainText('3 models · 6 wounds')
+  await expect(planner).toContainText('4 / 4 matchups · Complete')
+  await expect(cell.locator('.readout')).not.toHaveText(baseline!)
+  await otherArmy.getByRole('button', { name: 'Close', exact: true }).click()
+  await otherPanels[1].getByRole('button', { name: `Open ${roster}`, exact: true }).click()
+  await expect(otherSquad.locator('[data-count="wounds"]')).toHaveText('1/2')
+  await otherSquad.getByRole('button', { name: 'Return a model to Intercessor Squad', exact: true }).click()
+  await expect(otherSquad.locator('[data-count="models"]')).toHaveText('4/5')
+  await expect(table.getByRole('columnheader').filter({ hasText: 'Intercessor Squad' })).toContainText('4 models · 8 wounds')
+  await otherSquad.getByRole('button', { name: 'Take a wound off Intercessor Squad', exact: true }).click()
+  await expect(table.getByRole('columnheader').filter({ hasText: 'Intercessor Squad' })).toContainText('4 models · 7 wounds')
+  await expect(planner).toContainText('4 / 4 matchups · Complete')
+  await otherArmy.locator('[data-unit="Terminator Squad"]').getByRole('button', { name: 'Mark Terminator Squad lost', exact: true }).click()
+  await expect(planner).toContainText('2 / 2 matchups · Complete')
+  await expect(table.getByRole('columnheader').filter({ hasText: 'Terminator Squad' })).toHaveCount(0)
+  await otherArmy.getByRole('button', { name: 'Close', exact: true }).click()
+  await referee.close()
+  await planner.getByRole('button', { name: 'Close', exact: true }).click()
+  await panels[1].getByRole('button', { name: `Open ${roster}`, exact: true }).click()
+  await expect(page.locator('[data-army-roster] [data-unit="Intercessor Squad"] [data-count="wounds"]')).toHaveText('1/2')
+})
 
 test('unit-level equipment remains an explicit survivor choice after a casualty', async ({ page }) => {
   await signUp(page, 'Equipment')

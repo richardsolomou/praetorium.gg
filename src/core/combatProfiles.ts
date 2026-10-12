@@ -48,9 +48,17 @@ export function combatTarget(
     const counts = defences.map(() => 0)
     for (const carrier of carriers) {
       if (carrier.unitWide) continue
-      const index = defences.findIndex((defence) => normalized(defence.name) === normalized(carrier.name))
-      if (index < 0) return refuse(`${carrier.name} could not be matched to a model profile.`)
-      counts[index]! += carrier.models
+      const matching = defences.flatMap((defence, index) =>
+        (
+          carrier.modelProfileIds
+            ? carrier.modelProfileIds.includes(profiles[index]!.id)
+            : normalized(defence.name) === normalized(carrier.name)
+        )
+          ? [index]
+          : [],
+      )
+      if (matching.length !== 1) return refuse(`${carrier.name} could not be matched to a model profile.`)
+      counts[matching[0]!]! += carrier.models
     }
     if (counts.reduce((total, count) => total + count, 0) !== models) return refuse("Choose the defender's surviving models.")
     counted = defences.map((defence, index) => ({ defence, models: counts[index]! }))

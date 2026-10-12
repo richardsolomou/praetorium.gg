@@ -1,21 +1,52 @@
 import { useState } from 'react'
 import type { BattleView } from '../../../core/battleView'
-import { Choice } from './CombatControls'
+import { Choice, SimulationMode } from './CombatControls'
 import { CombatSimulatorMatchup } from './CombatSimulator'
 import { CombatDialog } from './RosterCombatDialog'
 import { battleCombatRoster } from './battleCombatRoster'
+import { RosterCombatComparison, type RosterCombatSource } from './RosterCombatComparison'
 
 export type BattleCombatSelection = { playerId: string; unitKey?: string }
+type Props = { view: BattleView; selection: BattleCombatSelection; onClose: () => void }
 
-export function BattleCombatDialog({
-  view,
-  selection,
-  onClose,
-}: {
-  view: BattleView
-  selection: BattleCombatSelection
-  onClose: () => void
-}) {
+export function BattleCombatDialog(props: Props) {
+  const [rosters, setRosters] = useState(false)
+  return (
+    <CombatDialog battle wide={rosters} onClose={props.onClose}>
+      <SimulationMode rosters={rosters} onChange={setRosters} className="p-3" />
+      {rosters ? <BattleMatchupPlanner {...props} /> : <BattleUnitCombatDialog {...props} />}
+    </CombatDialog>
+  )
+}
+
+function BattleMatchupPlanner({ view, selection }: Props) {
+  const armies = view.players
+    .filter((player) => player.roster?.built?.picks?.length)
+    .map((player) => ({ player, roster: battleCombatRoster(player) }))
+  const first = armies.find(({ player }) => player.id === selection.playerId)
+  const second = armies.find(({ player, roster }) => player.side !== first?.player.side && roster)
+  const sources: RosterCombatSource[] = armies.map(({ player, roster }) => ({
+    id: player.id,
+    label: player.name,
+    catalogueId: player.roster!.built!.catalogueId,
+    load: async () => {
+      if (!roster) throw new Error(`${player.name} has no surviving units on the battlefield.`)
+      return [roster]
+    },
+  }))
+  const liveKey = JSON.stringify(armies.map(({ player, roster }) => [player.id, player.side, roster]))
+  return (
+    <RosterCombatComparison
+      sources={sources}
+      initialAttacker={first?.player.id}
+      initialDefender={second?.player.id}
+      liveKey={liveKey}
+      sessionKey={`battle:${view.token}:${view.viewerId}:${selection.playerId}`}
+    />
+  )
+}
+
+function BattleUnitCombatDialog({ view, selection }: Props) {
   const initialPlayer = view.players.find((player) => player.id === selection.playerId)
   const armies = view.players.flatMap((player) => {
     const roster = battleCombatRoster(player)
@@ -31,7 +62,7 @@ export function BattleCombatDialog({
   const selectedIndex = first?.roster.battle?.units.findIndex((unit) => unit.available && unit.key === selection.unitKey) ?? -1
   const roster = first ? { ...first.roster, pickIndex: selectedIndex < 0 ? first.roster.pickIndex : selectedIndex } : undefined
   return (
-    <CombatDialog battle onClose={onClose}>
+    <>
       {first && second ? (
         <CombatSimulatorMatchup
           source="battle"
@@ -71,6 +102,6 @@ export function BattleCombatDialog({
       ) : (
         <p className="p-4 text-sm text-dim">Both armies need a surviving unit on the battlefield with a saved loadout.</p>
       )}
-    </CombatDialog>
+    </>
   )
 }
