@@ -7,6 +7,7 @@ import { catalogueReferencePolicySchema, datacardExclusions } from '../core/cata
 import { loadDatacards } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { loadMfm } from './mfm'
+import { readSharedJson } from './sharedJson'
 import { type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
 export * from '../shared/catalogueIndex'
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
@@ -20,16 +21,17 @@ export function loadCatalogue(directory = catalogueDirectory(), edition?: Catalo
   const revision: Record<string, string> = JSON.parse(fs.readFileSync(revisionFile, 'utf8'))
   if (!revision.definitions) return null
 
+  const strings = new Map<string, string>()
   const files = fs
     .readdirSync(definitions)
     .filter((name) => name.endsWith('.json'))
-    .map((name): CatalogueFile => JSON.parse(fs.readFileSync(path.join(definitions, name), 'utf8')))
+    .map((name) => readSharedJson(path.join(definitions, name), strings) as CatalogueFile)
   if (!files.length) return null
 
   const selectedFiles = edition ? editionCatalogueFiles(files, edition) : files
   const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }))
   // The cards name sections they do not describe, and the catalogue is where those words are.
-  const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index))
+  const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index), strings)
   const policyFile = path.join(directory, 'reference-policy.json')
   const policy = fs.existsSync(policyFile) ? catalogueReferencePolicySchema.parse(JSON.parse(fs.readFileSync(policyFile, 'utf8'))) : null
   return {

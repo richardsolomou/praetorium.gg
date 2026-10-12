@@ -4,6 +4,7 @@ import { routeSlug } from '../core/slug'
 import type { RuleBlock, RuleDocument, RuleEntry, RuleFact, RuleIndex, RuleReference, RuleSection } from '../contracts/rules'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { english } from './missionPacks'
+import { readSharedJson } from './sharedJson'
 
 export type {
   RuleBlock,
@@ -51,7 +52,7 @@ export function loadRuleDocuments(datacardsDirectory: string): RuleDocument[] {
 }
 
 function readDocument(file: string): RuleDocument[] {
-  const parsed: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const parsed = readSharedJson(file)
   if (!parsed || typeof parsed !== 'object') return []
   const document = parsed as Record<string, unknown>
   const title = english(document.name)
