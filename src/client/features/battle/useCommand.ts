@@ -12,7 +12,7 @@ import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 
 type SubmittedCommand = Command | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
-export type SendCommand = (command: Command, options?: { background?: boolean }) => void
+export type SendCommand = (command: Command, options?: { background?: boolean; complete?: (appended: boolean) => void }) => void
 type QueuedCommand = { command: SubmittedCommand; basedOn: number; background?: boolean; complete?: (appended: boolean) => void }
 
 function explain(result: SubmitResult, setup: boolean) {
@@ -117,9 +117,9 @@ export function useCommand(token: string, seq: number) {
     }
   }, [queryClient, token])
 
-  const send = useCallback(
-    (command: Command, options?: { background?: boolean }) => {
-      queued.current.push({ command, basedOn: seq, background: options?.background })
+  const send: SendCommand = useCallback(
+    (command, options) => {
+      queued.current.push({ command, basedOn: seq, background: options?.background, complete: options?.complete })
       if (!options?.background) setPending(true)
       void drain()
     },

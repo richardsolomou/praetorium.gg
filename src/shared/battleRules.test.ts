@@ -100,6 +100,40 @@ it('does not subtract later final awards from an earlier round settlement', () =
   ).toBe('score-cap-round')
 })
 
+it('caps a missed score against the round it belongs to', () => {
+  const value = state()
+  value.players[1]!.primaryByRound[3] = 15
+  expect(
+    scoringCapError(
+      value,
+      ALICE,
+      {
+        kind: 'score-settlement',
+        playerId: BOB,
+        scores: [{ category: 'primary', delta: 1 }],
+        missed: { round: 4, phase: 'end', turn: BOB },
+      },
+      rules,
+    )?.message,
+  ).toBe('that would score past battle round 4’s 15 VP cap for primary mission')
+})
+
+it('does not cap a missed score by the round being played', () => {
+  expect(
+    scoringCapError(
+      state(),
+      ALICE,
+      {
+        kind: 'score-settlement',
+        playerId: BOB,
+        scores: [{ category: 'primary', delta: 1 }],
+        missed: { round: 4, phase: 'end', turn: BOB },
+      },
+      rules,
+    ),
+  ).toBeNull()
+})
+
 const selectionRules = {
   ...rules,
   missions: new Map(),
