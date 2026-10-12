@@ -166,7 +166,7 @@ export function AppShell() {
     () => guestHint,
   )
   const guestBuilder = (path === '/rosters' || path === '/rosters/') && guestDraft
-  const immersive = guestBuilder || /^\/rosters\/(?:new|import|[^/]+(?:\/edit)?)$/.test(path)
+  const immersive = guestBuilder || /^\/rosters\/(?:new|import|(?!discover$)[^/]+(?:\/edit)?)$/.test(path)
   const { data: me } = useQuery(meQuery())
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))

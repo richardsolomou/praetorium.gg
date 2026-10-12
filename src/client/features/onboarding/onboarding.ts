@@ -1464,7 +1464,7 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (/^\/battles\/[^/]+\/?$/.test(pathname)) return 'battle'
   if (pathname === '/friends') return 'friends'
   if (pathname === '/rosters' || pathname === '/rosters/') return 'rosters'
-  if (/^\/rosters\/[^/]+\/?$/.test(pathname)) return 'roster'
+  if (/^\/rosters\/(?!discover\/?$)[^/]+\/?$/.test(pathname)) return 'roster'
   if (pathname === '/battles' || pathname === '/battles/') return 'battles'
   if (pathname === '/leagues' || pathname === '/leagues/') return 'leagues'
   if (/^\/leagues\/[^/]+\/?$/.test(pathname)) return 'league'

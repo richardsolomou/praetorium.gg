@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test'
 import { confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator } from './storage'
+import { productOperator, withAuthSql } from './storage'
 
 const UNIT = 'Immortals'
 const NOTE = 'Discovery note stays with the owner'
@@ -117,3 +117,45 @@ test('a faction page leads to its public armies, and a filter none match explain
   await page.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL(/\/rosters\/discover$/)
 })
+
+for (const [width, label] of [
+  [390, 'phone'],
+  [1440, 'desktop'],
+] as const) {
+  test(`a long list of public armies scrolls to Show more (${label})`, async ({ browser }) => {
+    const page = await (await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } })).newPage()
+    const account = await signUp(page, uniqueName('Prolific publisher'))
+    const { id: userId } = (await withAuthSql((database) =>
+      database.prepare('SELECT id FROM user WHERE email = ?').get(account.email),
+    )) as { id: string }
+    const product = await productOperator()
+    const source = (await product.roster('preview-necrons-cursed-skyshroud'))!
+    const prefix = uniqueName('Scrolled army')
+    for (let index = 0; index < 25; index += 1) {
+      await product.saveRoster({
+        ...source,
+        id: crypto.randomUUID(),
+        userId,
+        name: `${prefix} ${index}`,
+        automaticName: false,
+        visibility: 'public',
+        now: Date.now(),
+      })
+    }
+
+    await page.goto('/rosters/discover')
+    const more = page.getByRole('button', { name: 'Show more armies' })
+    await expect(more).toBeAttached()
+    await page.mouse.move(width / 2, 400)
+    await expect(async () => {
+      await page.mouse.wheel(0, 20_000)
+      await expect(more).toBeInViewport({ timeout: 1_000 })
+    }).toPass({ timeout: 10_000 })
+    await page.screenshot({ path: `test-results/roster-discovery-scrolled-${label}.png` })
+    const seeded = page.locator(`[data-discovered-roster^="${prefix} "]`)
+    await expect(async () => {
+      await more.click({ timeout: 1_000 })
+      await expect(seeded).toHaveCount(25, { timeout: 2_000 })
+    }).toPass({ timeout: 15_000 })
+  })
+}
