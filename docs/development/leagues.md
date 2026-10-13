@@ -18,6 +18,8 @@ Deleting a league deletes its events and snapshots. Existing battles keep their 
 
 The owner may name up to `LEAGUE_ADMIN_MAX` admins from their friends. `isLeagueOrganizer` gives admins every organizer operation, including starting the next event, editing settings, admitting or adding players, assigning sizes and teams, revealing, and unsealing. Only the owner deletes the league or changes its admins. An admin adds their own friends, plays as themselves when they start an event, and receives join requests with the owner. Removing an admin, or deleting their account, ends their access at once; the league stays with its owner.
 
+Saved league responses and queued drafts can predate admins. Migrate missing `admins` and `adminIds` to empty arrays when parsing application snapshots and local work, before restoring or projecting query data. Keep components on the current shape instead of adding per-screen compatibility fallbacks. Server authorization still uses current membership. Exercise restoration and roster replacement through `e2e/leagues.spec.ts`.
+
 ## Visibility and entry
 
 Public leagues are listed; private leagues are discoverable by their opaque link. Joining and submission require an account. Past participants retain access to their private league.

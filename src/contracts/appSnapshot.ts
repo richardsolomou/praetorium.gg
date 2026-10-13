@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { migrateSavedLeague } from './savedLeagues'
 
 export const MAX_APP_SNAPSHOT_BYTES = 10_000_000
 export const MAX_APP_SNAPSHOT_QUERIES = 500
@@ -84,5 +85,10 @@ export function parseAppSnapshot(value: unknown): AppSnapshot | null {
     )
   )
     return null
+  for (const query of snapshot.queries) {
+    if (query.key[0] === 'league' && query.key[2] !== 'results') query.data = migrateSavedLeague(query.data)
+    if (query.key[0] === 'leagues' && Array.isArray(query.data))
+      query.data = query.data.map((league) => migrateSavedLeague(league, 'adminIds'))
+  }
   return snapshot
 }

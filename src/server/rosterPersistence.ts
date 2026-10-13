@@ -12,7 +12,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
   return currentRosterIds({
     id: row.id,
     name: row.name,
-    automaticName: row.automaticName ?? !row.name,
+    automaticName: row.automaticName,
     catalogueId: row.catalogueId,
     detachmentIds: detachmentIds(row.detachmentId),
     disposition: row.disposition,
@@ -33,7 +33,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     borrowedDetachmentId: row.borrowedDetachmentId,
     baseRosterId: row.baseRosterId,
     copiedFromRosterId: row.copiedFromRosterId ?? null,
-    locked: row.locked ?? false,
+    locked: row.locked,
     visibility: row.visibility,
     source: row.source,
   })

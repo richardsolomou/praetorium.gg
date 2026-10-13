@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
-import { MAX_LOCAL_STATE_BYTES, type LocalState } from '../../contracts/localState'
+import { emptyLocalState, MAX_LOCAL_STATE_BYTES, type LocalState } from '../../contracts/localState'
 const disk = vi.hoisted(() => new Map<string, unknown>())
 vi.mock('idb-keyval', () => ({
   createStore: () => ({}),
@@ -36,9 +36,72 @@ afterEach(() => {
   native.writes = 0
   vi.unstubAllGlobals()
 })
+it.each(['browser', 'native'])('migrates queued leagues read from %s storage and saves the upgraded document', async (surface) => {
+  const legacy: LocalState = {
+    ...emptyLocalState(owner),
+    epoch: 'saved',
+    revision: 7,
+    operations: [{ id: crypto.randomUUID(), resource: 'league:league', kind: 'createLeague', input: {}, createdAt: 1, status: 'pending' }],
+    documents: {
+      'league:league': { data: { token: 'league', entries: [] }, serverVersion: null },
+      'league:deleted': { data: null, serverVersion: null },
+      'roster:roster': { data: 'Saved army', serverVersion: 1 },
+    },
+  }
+  const saved = { epoch: 'generation', state: legacy }
+  disk.set(`work:${owner}`, saved)
+  native.disk.set(owner, saved)
+  native.enabled = surface === 'native'
+  const storage = localStateStorage(owner)
+  await storage.read()
+  await storage.change((state) => ({ ...state }))
+  expect(await localStateStorage(owner).read()).toEqual({
+    ...legacy,
+    revision: 8,
+    documents: { ...legacy.documents, 'league:league': { data: { token: 'league', entries: [], admins: [] }, serverVersion: null } },
+  })
+})
 it('returns the same empty account generation until its first write', async () => {
   const storage = localStateStorage(owner)
   expect((await storage.read()).epoch).toBe((await storage.read()).epoch)
+})
+it.each(['browser', 'native'])('upgrades retired roster fields in %s storage while preserving pending receipt inputs', async (surface) => {
+  const roster = {
+    name: 'List',
+    locked: true,
+    picks: [{ entryId: 'unit', nickname: 'Leader', note: 'Hold home' }],
+    prep: { shareNotes: true, remindersEnabled: false },
+  }
+  const operation = {
+    id: crypto.randomUUID(),
+    resource: 'roster:list',
+    kind: 'saveRoster',
+    input: roster,
+    attempted: true,
+    createdAt: 1,
+    status: 'pending' as const,
+  }
+  const legacy: LocalState = {
+    ...emptyLocalState(owner),
+    epoch: 'saved',
+    operations: [operation],
+    documents: { 'roster:list': { data: roster, serverVersion: 7 } },
+  }
+  const saved = { epoch: 'generation', state: legacy }
+  disk.set(`work:${owner}`, saved)
+  native.disk.set(owner, saved)
+  native.enabled = surface === 'native'
+  await localStateStorage(owner).change((state) => ({ ...state }))
+  expect(await localStateStorage(owner).read()).toEqual({
+    ...legacy,
+    revision: 1,
+    documents: {
+      'roster:list': {
+        data: { ...roster, picks: [{ entryId: 'unit', note: 'Hold home' }], prep: { remindersEnabled: false } },
+        serverVersion: 7,
+      },
+    },
+  })
 })
 it('keeps a previously saved document when a replacement exceeds the byte limit', async () => {
   const storage = localStateStorage(owner)

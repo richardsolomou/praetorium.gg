@@ -1,6 +1,7 @@
 import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server'
-import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
+import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
+import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { attachedUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
@@ -932,6 +933,33 @@ function productJson(value: unknown) {
   })
 }
 
+export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const { table: entity, keys } = z
+      .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
+      .parse(input)
+    let changed = 0
+    for (const key of keys) {
+      if (entity === 'rosters') {
+        const row = tx.db.rosters.id.find(key)
+        if (!row) continue
+        const migrated = migrateStoredRoster(row)
+        if (productJson(migrated) === productJson(row)) continue
+        tx.db.rosters.id.update(migrated)
+        touchProduct(tx, row.userId, 'rosters')
+        changed++
+      } else {
+        const row = tx.db.collection.key.find(key)
+        if (!row || !migrateCollectionHeart(tx, row)) continue
+        touchProduct(tx, row.userId, 'collection', 'favourites')
+        changed++
+      }
+    }
+    return productJson({ changed })
+  }),
+)
+
 function parseRoster(payload: string) {
   let parsed: unknown
   try {
@@ -966,7 +994,7 @@ function parseRoster(payload: string) {
   ) {
     throw new SenderError('Invalid roster')
   }
-  return {
+  return migrateStoredRoster({
     id: string('id', 128, 1),
     userId: string('userId', 128, 1),
     name: string('name', 80),
@@ -988,7 +1016,7 @@ function parseRoster(payload: string) {
     visibility,
     source,
     now,
-  }
+  })
 }
 
 export const rosterById = spacetime.procedure({ id: t.string() }, t.string(), (ctx, { id }) =>
@@ -1135,9 +1163,9 @@ function savedPointsBudget(current: StoredRoster | null, input: ReturnType<typeo
 }
 
 function lockedEdit(current: StoredRoster | null, input: ReturnType<typeof parseRoster>) {
-  return current
+  return current?.locked
     ? lockedRosterRefusal(
-        { ...storedRosterContent(current), locked: current.locked },
+        { ...storedRosterContent(migrateStoredRoster(current)), locked: current.locked },
         storedRosterContent({ ...input, pointsBudget: savedPointsBudget(current, input) }),
       )
     : null
@@ -1183,7 +1211,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     baseRosterId,
     // Where a copy came from, recorded once; readers resolve it through their own access.
     copiedFromRosterId: input.copiedFromRosterId ?? undefined,
-    locked: undefined,
+    locked: false,
     ...fields,
   })
   touchProduct(tx, input.userId, 'rosters', 'onboarding')
@@ -1828,11 +1856,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
       const current = {
         name: saved.name,
         catalogueId: saved.catalogueId,
-        detachmentIds: saved.detachmentId
-          ? saved.detachmentId.startsWith('[')
-            ? (JSON.parse(saved.detachmentId) as string[])
-            : [saved.detachmentId]
-          : [],
+        detachmentIds: detachmentIds(saved.detachmentId),
         disposition: saved.disposition ?? null,
         limit: saved.limit,
         picks: rosterPickSchema.array().parse(JSON.parse(saved.picks)),
@@ -2307,18 +2331,17 @@ function updateOnboardingIn(tx: Context, args: unknown[]) {
   return productJson(onboardingData(tx, input.userId))
 }
 
-/**
- * Datasheet hearts were once stored as collection rows without a model count. Every
- * path that reads or changes a player's collection or datasheet favourites first moves
- * those rows to favourites, so a collection only ever holds counted models.
- */
+function migrateCollectionHeart(ctx: Context, row: { key: string; userId: string; entryId: string; at: bigint; models?: number }) {
+  if (row.models !== undefined) return false
+  const key = JSON.stringify([row.userId, row.entryId])
+  if (!ctx.db.favouriteDatasheets.key.find(key))
+    ctx.db.favouriteDatasheets.insert({ key, userId: row.userId, entryId: row.entryId, at: row.at })
+  ctx.db.collection.key.delete(row.key)
+  return true
+}
+
 function moveHeartsToFavourites(ctx: Context, userId: string) {
-  const hearts = Array.from(ctx.db.collection.userId.filter(userId)).filter((row) => row.models === undefined)
-  for (const row of hearts) {
-    const key = JSON.stringify([userId, row.entryId])
-    if (!ctx.db.favouriteDatasheets.key.find(key)) ctx.db.favouriteDatasheets.insert({ key, userId, entryId: row.entryId, at: row.at })
-    ctx.db.collection.key.delete(row.key)
-  }
+  const hearts = Array.from(ctx.db.collection.userId.filter(userId)).filter((row) => migrateCollectionHeart(ctx, row))
   if (hearts.length) touchProduct(ctx, userId, 'collection', 'favourites')
 }
 

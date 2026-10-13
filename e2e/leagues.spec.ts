@@ -708,6 +708,60 @@ test('only a changed roster in an open league event offers replacement', async (
   await join(page)
   await sealOwnRoster(page, 'Original league list')
 
+  const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
+  await page.goto(`/leagues/${leagueToken}`)
+  await expect(page.getByRole('heading', { name: 'Your list is sealed' })).toBeVisible()
+  const settings = await openEventSettings(page)
+  await settings.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.goto('/robots.txt')
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (token) =>
+          new Promise<boolean>((resolve, reject) => {
+            const opened = indexedDB.open('praetorium-app', 1)
+            opened.onerror = () => reject(opened.error)
+            opened.onsuccess = () => {
+              const database = opened.result
+              const transaction = database.transaction('state', 'readwrite')
+              const store = transaction.objectStore('state')
+              const request = store.get('snapshot')
+              let found = false
+              request.onsuccess = () => {
+                const saved = request.result
+                for (const query of saved?.snapshot?.queries ?? []) {
+                  if (query.key[0] === 'league' && query.key[1] === token && query.data?.entries) {
+                    delete query.data.admins
+                    if (query.key[2] === 'current') found = true
+                  }
+                  if (query.key[0] === 'leagues') for (const league of query.data) delete league.adminIds
+                }
+                if (found) store.put(saved, 'snapshot')
+              }
+              transaction.oncomplete = () => {
+                database.close()
+                resolve(found)
+              }
+              transaction.onerror = () => {
+                database.close()
+                reject(transaction.error)
+              }
+            }
+          }),
+        leagueToken,
+      ),
+    )
+    .toBe(true)
+  await page.route('**/_serverFn/**', (route) => (route.request().method() === 'GET' ? route.abort('failed') : route.continue()))
+  await page.goto('/')
+  await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Leagues', exact: true }).click()
+  await page.locator(`[data-league="${leagueToken}"]`).getByRole('link').click()
+  await expect(page.getByRole('heading', { name: 'Your list is sealed' })).toBeVisible()
+  const restoredSettings = await openEventSettings(page)
+  await restoredSettings.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.screenshot({ path: 'test-results/league-restored-before-admins.png', fullPage: true })
+  await page.unrouteAll({ behavior: 'wait' })
+
   const editorResponse = await page.request.get(rosterUrl)
   expect(await editorResponse.text()).not.toContain('League roster out of date')
   await page.goto(rosterUrl)

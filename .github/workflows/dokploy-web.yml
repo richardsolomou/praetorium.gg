@@ -180,6 +180,9 @@ jobs:
             "${headers[@]}" \
             --request PUT --data-binary @"$RUNNER_TEMP/product.js" \
             "$module_url$query"
+      - name: Migrate saved product data before updating web replicas
+        if: ${{ !inputs.skip-product-publish }}
+        run: node --import tsx scripts/migrateProductData.ts "$TARGET"
       - name: Configure the selected web service
         run: node scripts/configureDokployNode.ts configure "$TARGET"
       # Compared with the sitemap after the deploy, so only pages it added or re-dated reach IndexNow.

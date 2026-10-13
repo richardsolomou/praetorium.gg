@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent, type RosterContent } from './rosterLock'
+import { migrateSavedRoster, migrateStoredRoster } from './savedRosterMigrations'
 
 const saved: RosterContent = {
   name: 'Tournament list',
@@ -53,12 +54,20 @@ describe('a save to a locked roster', () => {
 
   it('applies unchanged to a row saved with a unit nickname', () => {
     expect(
-      lockedRosterRefusal({ ...locked, picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, nickname: 'Szarekh' }] }, saved),
+      lockedRosterRefusal(
+        migrateSavedRoster({
+          ...locked,
+          picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, nickname: 'Szarekh' }],
+        }) as typeof locked,
+        saved,
+      ),
     ).toBeNull()
   })
 
   it('applies unchanged to a row saved with shared unit notes', () => {
-    expect(lockedRosterRefusal({ ...locked, prep: { ...(saved.prep as object), shareNotes: true } }, saved)).toBeNull()
+    expect(
+      lockedRosterRefusal(migrateSavedRoster({ ...locked, prep: { ...(saved.prep as object), shareNotes: true } }) as typeof locked, saved),
+    ).toBeNull()
   })
 
   it('treats absent preparation as the empty defaults', () => {
@@ -99,13 +108,17 @@ describe('the content of a stored row', () => {
   }
 
   it('reads a legacy single detachment and an unnamed row as automatically named', () => {
-    expect(storedRosterContent(row)).toMatchObject({ automaticName: true, detachmentIds: ['awakened-dynasty'], optionalRules: [] })
+    expect(storedRosterContent(migrateStoredRoster(row))).toMatchObject({
+      automaticName: true,
+      detachmentIds: ['awakened-dynasty'],
+      optionalRules: [],
+    })
   })
 
   it('compares equal to the same roster arriving from a client', () => {
     expect(
       lockedRosterRefusal(
-        { ...storedRosterContent(row), locked: true },
+        { ...storedRosterContent(migrateStoredRoster(row)), locked: true },
         {
           ...saved,
           name: '',

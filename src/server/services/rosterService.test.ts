@@ -149,10 +149,10 @@ it('refuses to lock a roster somebody else owns', async () => {
   expect(refusal instanceof Response && refusal.status).toBe(403)
 })
 
-it('reads a library row saved before locking existed as unlocked', async () => {
+it('reads a migrated library row as unlocked', async () => {
   const { picks: _picks, prep: _prep, tags: _tags, userId: _userId, ...fields } = row
   const service = new RosterService(
-    { rosterSummariesByUser: vi.fn().mockResolvedValue([{ ...fields, locked: null, unitCount: 0 }]) } as unknown as RepositoryPort,
+    { rosterSummariesByUser: vi.fn().mockResolvedValue([{ ...fields, locked: false, unitCount: 0 }]) } as unknown as RepositoryPort,
     () => 0,
   )
   expect((await service.savedRosterSummaries('user-1'))[0]?.locked).toBe(false)

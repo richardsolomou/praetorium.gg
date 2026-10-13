@@ -38,7 +38,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
     return {
       id: row.id,
       name: row.name,
-      automaticName: row.automaticName ?? !row.name,
+      automaticName: row.automaticName,
       catalogueId: identities.catalogueId,
       detachmentIds: identities.detachmentIds,
       disposition: row.disposition,
@@ -48,7 +48,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       optionalRules: optionalRulesFrom(row.optionalRules),
       borrowedDetachmentId: identities.borrowedDetachmentId,
       baseRosterId: row.baseRosterId,
-      locked: row.locked ?? false,
+      locked: row.locked,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
@@ -135,8 +135,7 @@ export class RosterService {
 
   /** Every list in an owned roster's variant group, the base first. */
   async rosterGroup(userId: string, roster: { id: string; baseRosterId: string | null }) {
-    const rows = await this.repository.rosterGroupByUser(userId, roster.baseRosterId ?? roster.id)
-    return rows.map((row) => ({ ...row, automaticName: row.automaticName ?? !row.name }))
+    return this.repository.rosterGroupByUser(userId, roster.baseRosterId ?? roster.id)
   }
 
   async savedRosterSummaries(userId: string) {

@@ -21,7 +21,7 @@ export type RosterContent = {
 /** The content of a stored row, whose structured fields are JSON. */
 export function storedRosterContent(row: {
   name: string
-  automaticName?: boolean | null
+  automaticName: boolean
   catalogueId: string
   detachmentId?: string | null
   disposition?: string | null
@@ -35,7 +35,7 @@ export function storedRosterContent(row: {
 }): RosterContent {
   return {
     name: row.name,
-    automaticName: row.automaticName ?? !row.name,
+    automaticName: row.automaticName,
     catalogueId: row.catalogueId,
     detachmentIds: detachmentIds(row.detachmentId),
     disposition: row.disposition,
@@ -61,16 +61,8 @@ export function lockedRosterRefusal(current: (RosterContent & { locked?: boolean
   return comparable(current) === comparable(next) ? null : LOCKED_ROSTER_MESSAGE
 }
 
-/** Rows saved while unit nicknames and shared notes existed still carry them, and a save no longer sends either. */
-const withoutRetiredPick = (pick: unknown) => {
-  if (!pick || typeof pick !== 'object') return pick
-  const { nickname: _nickname, ...rest } = pick as Record<string, unknown>
-  return rest
-}
-
 function comparable(content: RosterContent) {
-  const { shareNotes: _shareNotes, ...prep } =
-    content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
+  const prep = content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
   return canonical({
     name: content.automaticName ? '' : content.name,
     automaticName: content.automaticName,
@@ -79,7 +71,7 @@ function comparable(content: RosterContent) {
     disposition: content.disposition ?? null,
     limit: content.limit,
     pointsBudget: content.pointsBudget ?? null,
-    picks: Array.isArray(content.picks) ? content.picks.map(withoutRetiredPick) : content.picks,
+    picks: content.picks,
     prep: {
       ...prep,
       stratagems: prep.stratagems ?? [],
