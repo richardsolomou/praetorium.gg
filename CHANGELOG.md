@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.136.3
+
+### Patch Changes
+
+- 6b8962b: Reduce server memory use and prepare catalogue references before deployment.
+
 ## 0.136.2
 
 ### Patch Changes
