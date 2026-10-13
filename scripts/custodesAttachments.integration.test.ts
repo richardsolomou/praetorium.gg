@@ -1,8 +1,7 @@
-import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { attachmentErrors, attachmentOf } from '../src/core/attach'
 import { nameOf } from '../src/core/catalogue'
 import { loadCatalogue, type LoadedCatalogue } from '../src/server/catalogueIndex'
@@ -10,15 +9,15 @@ import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { datasheetIn } from '../src/shared/catalogue'
 
 const source = path.join(process.env.CATALOGUE_DIR ?? 'catalogue-data', 'editions', 'custodes-11e')
-const patches = path.resolve('.catalogue-authoring/catalogue/patches/editions/custodes-11e')
 const guards = ['Custodian Guard Sodality', 'Sentinel Guard Sodality', 'Custodian Wardens']
 const terminators = [
   'Allarus Custodians',
   'Aquilon Terminators with Solarite Power Gauntlets',
   'Aquilon Terminators with Solarite Power Talons',
 ]
-const anathemaPsykana =
-  'ANATHEMA PSYKANA units carry this ability: they can join your army although they lack the ADEPTUS CUSTODES faction keyword.\nUnless a rule says otherwise, while you muster your army:\n- ANATHEMA PSYKANA cannot be the army faction you select.\n- An ANATHEMA PSYKANA model cannot be selected as your WARLORD.'
+// The rule wording lives on the preview fork branch; the digest pins it without copying it here.
+const anathemaPsykana = 'b4bb5c2717920f4ba1a3b9c806931629d594874b97bbed315898bc8143a7df4f'
+const digest = (text: string | null | undefined) => text && createHash('sha256').update(text).digest('hex')
 const attachments = [
   { name: 'Trajann Valoris', kind: 'leader', targets: [...guards, ...terminators] },
   { name: 'Shield-Captain', kind: 'leader', targets: guards },
@@ -29,7 +28,6 @@ const attachments = [
 ] as const
 
 describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
-  let directory: string
   let loaded: LoadedCatalogue
   let catalogueId: string
   const unit = (name: string) =>
@@ -38,33 +36,12 @@ describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
       .find((entry) => nameOf(entry, loaded.index.definitions) === name)!
 
   beforeAll(() => {
-    directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-custodes-attachments-'))
-    fs.cpSync(source, directory, { recursive: true })
-    execFileSync('git', ['init', '--quiet', directory])
-    for (const sourceName of ['definitions', 'datacards']) {
-      const folder = path.join(patches, sourceName)
-      for (const name of fs
-        .readdirSync(folder)
-        .filter((filename) => filename.endsWith('.patch'))
-        .sort()) {
-        const patch = path.join(folder, name)
-        try {
-          execFileSync('git', ['apply', '--check', patch], { cwd: directory, stdio: 'pipe' })
-          execFileSync('git', ['apply', patch], { cwd: directory, stdio: 'pipe' })
-        } catch {
-          // Published snapshots may already contain this exact correction.
-          execFileSync('git', ['apply', '--reverse', '--check', patch], { cwd: directory, stdio: 'pipe' })
-        }
-      }
-    }
-    const edition = readCatalogueComposition(path.resolve('.catalogue-authoring/catalogue'))!.editions.find(
+    const edition = readCatalogueComposition(path.resolve('catalogue'))!.editions.find(
       ({ edition: candidate }) => candidate.id === 'custodes-11e',
     )!.edition
-    loaded = loadCatalogue(directory, edition)!
+    loaded = loadCatalogue(source, edition)!
     catalogueId = `custodes-11e~${edition.catalogueIds[0]}`
   })
-
-  afterAll(() => fs.rmSync(directory, { recursive: true, force: true }))
 
   it.each([
     ['Trajann Valoris', '40mm'],
@@ -102,16 +79,20 @@ describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
     'shows the Anathema Psykana inclusion and muster restrictions on %s',
     (name) => {
       expect(
-        datasheetIn(loaded, catalogueId, unit(name).id)!.abilities.find((ability) => ability.name === 'Anathema Psykana')?.description,
+        digest(
+          datasheetIn(loaded, catalogueId, unit(name).id)!.abilities.find((ability) => ability.name === 'Anathema Psykana')?.description,
+        ),
       ).toBe(anathemaPsykana)
     },
   )
 
   it('includes Anathema Psykana in the preview army rules', () => {
     expect(
-      [...loaded.factionContents.values()]
-        .find((content) => content.name === 'Adeptus Custodes')!
-        .armyRules.find((rule) => rule.name === 'Anathema Psykana')?.description,
+      digest(
+        [...loaded.factionContents.values()]
+          .find((content) => content.name === 'Adeptus Custodes')!
+          .armyRules.find((rule) => rule.name === 'Anathema Psykana')?.description,
+      ),
     ).toBe(anathemaPsykana)
   })
 

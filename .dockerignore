@@ -10,5 +10,4 @@ data-dev
 mobile/ios
 mobile/android
 mobile/.simulator-derived
-.catalogue-authoring
 .catalogue-objects

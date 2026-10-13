@@ -22,7 +22,7 @@ Anyone can watch public battles and see the leaderboard. Players can control who
 
 Praetorium does not provide matchmaking, chat, tournament pairings, or rules written by this project. An account is required to play or to keep a list, though not to watch a public battle, read the leaderboard, or try the roster builder.
 
-This repository contains source pins and authored correction patches, but no fetched upstream catalogues, copied rules prose, or generated snapshots. The service uses verified snapshots from the configured community sources.
+This repository contains source pins and authored correction patches in `catalogue/`, but no fetched upstream catalogues, copied rules prose, or generated snapshots. The service uses verified snapshots from the configured community sources.
 
 ## Use
 
@@ -40,7 +40,7 @@ See [Contributing](CONTRIBUTING.md) to run the app and its checks, [Architecture
 
 ## Data and trademarks
 
-Catalogue definitions come from [BSData](https://github.com/BSData/wh40k-11e). Rules and mission data come from [Game Datacards](https://github.com/game-datacards/datasources). See [the catalogue repository](https://github.com/richardsolomou/praetorium-catalogue) for all sources.
+Catalogue definitions come from [BSData](https://github.com/BSData/wh40k-11e). Rules and mission data come from [Game Datacards](https://github.com/game-datacards/datasources). See [`catalogue/sources.json`](catalogue/sources.json) for all sources.
 
 Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not endorsed by Games Workshop.
 

@@ -288,6 +288,7 @@ jobs:
           set -euo pipefail
           git checkout --quiet --force '${{ steps.comparison.outputs.sha }}'
           pnpm install --frozen-lockfile
+          if jq -e '.scripts["catalogue:authoring"]' package.json > /dev/null; then pnpm catalogue:authoring; fi
           rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
           pnpm catalogue:descriptions
           pnpm catalogue:points | tee base-points.txt
@@ -390,7 +391,8 @@ jobs:
         with:
           ref: ${{ matrix.sha }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm catalogue:authoring
+      # Revisions from before catalogue/ moved into this repository install it from the archived catalogue repository.
+      - run: if jq -e '.scripts["catalogue:authoring"]' package.json > /dev/null; then pnpm catalogue:authoring; fi
       - uses: actions/download-artifact@v8
         with:
           name: coverage-catalogue
@@ -426,7 +428,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm catalogue:authoring
       - uses: actions/download-artifact@v8
         with:
           name: coverage-catalogue
@@ -441,17 +442,8 @@ jobs:
           jq -s 'add' base-0.json base-1.json > base.json
           jq -s 'add' head-0.json head-1.json > head.json
           accepted=()
-          authoring_pin() {
-            if git cat-file -e "$1:catalogue.json" 2>/dev/null; then
-              git show "$1:catalogue.json" | jq -cS '.authoring'
-            else
-              git show "$1:catalogue/authoring.json" | jq -cS '.'
-            fi
-          }
-          base_authoring="$(authoring_pin "$BASE_SHA")"
-          head_authoring="$(authoring_pin "$HEAD_SHA")"
-          if [[ "$base_authoring" != "$head_authoring" ]]; then
-            accepted=(--accept .catalogue-authoring/catalogue/accepted-coverage-losses.json)
+          if [[ "$(git rev-parse -q --verify "$BASE_SHA:catalogue" || true)" != "$(git rev-parse "$HEAD_SHA:catalogue")" ]]; then
+            accepted=(--accept catalogue/accepted-coverage-losses.json)
           fi
           pnpm catalogue:coverage:compare base.json head.json "${accepted[@]}" | tee coverage.txt
       - name: Require no lost coverage

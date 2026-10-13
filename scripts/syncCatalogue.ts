@@ -20,7 +20,7 @@ import { catalogueCacheRoot } from './lib/catalogueCache'
 import { materializeCatalogue } from './lib/catalogueMaterialize'
 
 const root = path.join(import.meta.dirname, '..')
-const sourcesFile = path.join(root, '.catalogue-authoring', 'catalogue', 'sources.json')
+const sourcesFile = path.join(root, 'catalogue', 'sources.json')
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
 const readSources = () => catalogueSourcesSchema.parse(JSON.parse(fs.readFileSync(sourcesFile, 'utf8')))
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
@@ -58,7 +58,7 @@ async function resolve(config: CatalogueSourceConfig): Promise<CatalogueSourceCo
 const argument = process.argv[2]
 if (argument === '--check') {
   readSources()
-  readCatalogueComposition(path.join(root, '.catalogue-authoring', 'catalogue'))
+  readCatalogueComposition(path.join(root, 'catalogue'))
   console.log('catalogue source definitions are well formed')
 } else if (argument === '--supplemental') {
   if (!fs.existsSync(path.join(dataDirectory, 'revision.json'))) throw new Error('materialize the pinned catalogue sources first')
@@ -92,7 +92,7 @@ if (argument === '--check') {
         : ''
     console.log(`${name}: ${old} -> ${source.revision}${url}`)
   }
-  const composition = readCatalogueComposition(path.join(root, '.catalogue-authoring', 'catalogue'))
+  const composition = readCatalogueComposition(path.join(root, 'catalogue'))
   const selectedSources = [
     ...(composition?.overlays ?? []).map((source, index) => ({ name: `overlay ${index + 1} (${source.source})`, source })),
     ...(composition?.editions ?? []).flatMap(({ edition, sources, overlays }) => [
@@ -111,7 +111,7 @@ if (argument === '--check') {
   const output = process.env.CATALOGUE_DIR ?? path.join(root, '.output', 'catalogue-data')
   await materializeCatalogue(output, readSources(), {
     report: console.log,
-    composition: readCatalogueComposition(path.join(root, '.catalogue-authoring', 'catalogue')),
+    composition: readCatalogueComposition(path.join(root, 'catalogue')),
   })
   console.log(output)
 } else if (argument === undefined || argument === '--latest') {

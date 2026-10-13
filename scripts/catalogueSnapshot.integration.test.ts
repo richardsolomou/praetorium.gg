@@ -86,7 +86,7 @@ it('repeats the same release ID for the same sources and authoring commit', () =
   expect(packCatalogueSnapshot(source, archive, pointer, undefined, 'a'.repeat(40))).toEqual(first)
 })
 
-it('keeps current compatibility authoring pinned when adopting an older source release', () => {
+it('pins an older source release in the application lock', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-authoring-pin-'))
   roots.push(root)
   const source = completeCatalogue(root)
@@ -99,11 +99,7 @@ it('keeps current compatibility authoring pinned when adopting an older source r
   fs.copyFileSync(path.join(import.meta.dirname, 'catalogueSnapshot.ts'), path.join(application, 'scripts/catalogueSnapshot.ts'))
   fs.symlinkSync(path.join(import.meta.dirname, 'lib'), path.join(application, 'scripts/lib'))
   fs.symlinkSync(path.join(import.meta.dirname, '../src'), path.join(application, 'src'))
-  const authoring = { repository: 'richardsolomou/praetorium-catalogue', revision: 'b'.repeat(40) }
-  fs.writeFileSync(
-    path.join(application, 'catalogue.json'),
-    JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../catalogue.json'), 'utf8')), authoring }),
-  )
+  fs.copyFileSync(path.join(import.meta.dirname, '../catalogue.json'), path.join(application, 'catalogue.json'))
   const preload = path.join(root, 'fetch.mjs')
   fs.writeFileSync(
     preload,
@@ -126,7 +122,6 @@ globalThis.fetch = async (url) => new Response(fs.readFileSync(String(url).endsW
   )
 
   expect(JSON.parse(fs.readFileSync(path.join(application, 'catalogue.json'), 'utf8')).pointer.id).toBe(release.id)
-  expect(JSON.parse(fs.readFileSync(path.join(application, 'catalogue.json'), 'utf8')).authoring).toEqual(authoring)
 })
 
 it('rejects a release descriptor that substitutes a different authoring commit', () => {
@@ -144,7 +139,12 @@ it('packs and verifies a complete catalogue', () => {
   roots.push(root)
   const catalogue = completeCatalogue(root)
   const archive = path.join(root, 'snapshot.zip')
-  const environment = { ...process.env, CATALOGUE_DIR: catalogue, CATALOGUE_SNAPSHOT_FILE: archive }
+  const environment = {
+    ...process.env,
+    CATALOGUE_DIR: catalogue,
+    CATALOGUE_SNAPSHOT_FILE: archive,
+    CATALOGUE_AUTHORING_REVISION: 'a'.repeat(40),
+  }
 
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], { env: environment })
   expect(snapshotEntries(fs.readFileSync(archive))['catalogue/canonical/catalogue.json']).toBeDefined()
@@ -325,6 +325,7 @@ it.each(['definitions', 'datacards'] as const)('does not compile or pack a canon
       CATALOGUE_SNAPSHOT_FILE: archiveFile,
       CATALOGUE_SNAPSHOT_POINTER_FILE: pointerFile,
       CATALOGUE_DISABLED_SOURCES: source,
+      CATALOGUE_AUTHORING_REVISION: 'a'.repeat(40),
     },
   })
 
@@ -440,7 +441,7 @@ it('uses the GitHub mirror when R2 cannot find the pinned archive', async () => 
   await fetchSnapshot(installed, 'https://r2.example.test', pointer)
   expect(requests).toEqual([
     `https://r2.example.test/snapshots/${pointer.id}.zip`,
-    `https://github.com/richardsolomou/praetorium-catalogue/releases/download/catalogue-${pointer.id}/snapshot.zip`,
+    `https://github.com/richardsolomou/praetorium.gg/releases/download/catalogue-${pointer.id}/snapshot.zip`,
   ])
   expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
 })

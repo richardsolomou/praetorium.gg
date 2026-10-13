@@ -1,8 +1,7 @@
-import lock from '../../catalogue.json' with { type: 'json' }
 import { fetchWithRetry } from './fetch'
 
 export const catalogueReleaseUrl = (id: string, file: string) =>
-  `https://github.com/${lock.authoring.repository}/releases/download/catalogue-${id}/${file}`
+  `https://github.com/richardsolomou/praetorium.gg/releases/download/catalogue-${id}/${file}`
 
 export async function fetchCatalogueArtifact(primary: string, mirror: string) {
   let response: Response

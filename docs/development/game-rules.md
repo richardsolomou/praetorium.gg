@@ -10,7 +10,7 @@ Faction-scoped cards supply stratagem cost, phase, turn, and usage restrictions.
 
 Detachment references retain unambiguous stratagem cards with verified identity, cost, and prose even when their timing cannot be represented. Reference counts include these cards; executable battle pools require supported phase and turn fields. Never infer missing timing to make a reference card playable.
 
-Source stratagem corrections belong in the catalogue repository’s `catalogue/patches/datacards/`. Corrections needed by existing snapshots and battles also pass through `src/core/stratagemCorrections.ts` when reading source cards and folding saved preparation. Cover timing, opponent-turn refusal, usage limit, and unchanged saved log; match only the verified source card ID and erroneous fields.
+Source stratagem corrections belong in `catalogue/patches/datacards/`. Corrections needed by existing snapshots and battles also pass through `src/core/stratagemCorrections.ts` when reading source cards and folding saved preparation. Cover timing, opponent-turn refusal, usage limit, and unchanged saved log; match only the verified source card ID and erroneous fields.
 
 `set-prep` records the side's complete cards/stratagem pool and server-verified payouts/timing atomically. Allies pool detachments, while core stratagems appear once. Primary ownership derives from ordered force dispositions and the selected mission pack; a selected pack cannot fall through to another. Tactical decks are authoritative, and text-only rosters cannot invent faction/detachment cards.
 
