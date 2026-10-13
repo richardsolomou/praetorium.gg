@@ -18,7 +18,8 @@ ARG GITHUB_SHA
 ARG POSTHOG_UPLOAD_SOURCEMAPS=false
 ARG POSTHOG_CLI_HOST
 ARG POSTHOG_CLI_PROJECT_ID
-RUN --mount=type=secret,id=posthog_api_key,env=POSTHOG_CLI_API_KEY \
+RUN --mount=type=cache,target=/root/.cache/praetorium/runtime \
+    --mount=type=secret,id=posthog_api_key,env=POSTHOG_CLI_API_KEY \
     set -eu; \
     if [ "$POSTHOG_UPLOAD_SOURCEMAPS" = true ]; then \
       : "${POSTHOG_CLI_API_KEY:?PostHog source-map upload credential is required}" \
