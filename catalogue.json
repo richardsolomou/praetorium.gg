@@ -1,5 +1,9 @@
 {
   "format": "praetorium.catalogue-lock.v1",
+  "authoring": {
+    "repository": "richardsolomou/praetorium-catalogue",
+    "revision": "e561386265908ac997e9ef8dde74897ba9d93d83"
+  },
   "pointer": {
     "format": "praetorium.catalogue-pointer.v1",
     "id": "398b47248de8e5cc9594c81b49a5a81e8ab65c74bfb81be69180bef028edf895",

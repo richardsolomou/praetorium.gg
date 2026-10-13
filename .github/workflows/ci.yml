@@ -126,7 +126,7 @@ jobs:
         run: |
           set -euo pipefail
           base_sha="$BASE_SHA"
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue/lock.json; then
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json catalogue/lock.json; then
             base_sha="$(git rev-parse "$HEAD_SHA^")"
           fi
           echo "sha=$base_sha" >> "$GITHUB_OUTPUT"
@@ -191,7 +191,7 @@ jobs:
         run: |
           set -euo pipefail
           base_sha="$(git rev-parse "$GITHUB_SHA^1")"
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue/lock.json; then
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json catalogue/lock.json; then
             base_sha="$(git rev-parse "$HEAD_SHA^")"
           fi
           {
@@ -295,7 +295,16 @@ jobs:
           jq -s 'add' base-0.json base-1.json > base.json
           jq -s 'add' head-0.json head-1.json > head.json
           accepted=()
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue/authoring.json; then
+          authoring_pin() {
+            if git cat-file -e "$1:catalogue.json" 2>/dev/null; then
+              git show "$1:catalogue.json" | jq -cS '.authoring'
+            else
+              git show "$1:catalogue/authoring.json" | jq -cS '.'
+            fi
+          }
+          base_authoring="$(authoring_pin "$BASE_SHA")"
+          head_authoring="$(authoring_pin "$HEAD_SHA")"
+          if [[ "$base_authoring" != "$head_authoring" ]]; then
             accepted=(--accept .catalogue-authoring/catalogue/accepted-coverage-losses.json)
           fi
           pnpm catalogue:coverage:compare base.json head.json "${accepted[@]}" | tee coverage.txt

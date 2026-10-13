@@ -2,8 +2,9 @@ import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import pin from '../catalogue/authoring.json' with { type: 'json' }
+import lock from '../catalogue.json' with { type: 'json' }
 
+const pin = lock.authoring
 const root = path.resolve(import.meta.dirname, '..')
 const output = path.join(root, '.catalogue-authoring')
 const override = process.env.CATALOGUE_AUTHORING_DIR

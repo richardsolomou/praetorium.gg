@@ -95,13 +95,15 @@ it('keeps current compatibility authoring pinned when adopting an older source r
   const release = packCatalogueSnapshot(source, archive, pointer, undefined, 'a'.repeat(40))
   const application = path.join(root, 'application')
   fs.mkdirSync(path.join(application, 'scripts'), { recursive: true })
-  fs.mkdirSync(path.join(application, 'catalogue'))
   fs.writeFileSync(path.join(application, 'package.json'), '{"type":"module"}')
   fs.copyFileSync(path.join(import.meta.dirname, 'catalogueSnapshot.ts'), path.join(application, 'scripts/catalogueSnapshot.ts'))
   fs.symlinkSync(path.join(import.meta.dirname, 'lib'), path.join(application, 'scripts/lib'))
   fs.symlinkSync(path.join(import.meta.dirname, '../src'), path.join(application, 'src'))
-  const authoring = JSON.stringify({ repository: 'richardsolomou/praetorium-catalogue', revision: 'b'.repeat(40) })
-  fs.writeFileSync(path.join(application, 'catalogue/authoring.json'), authoring)
+  const authoring = { repository: 'richardsolomou/praetorium-catalogue', revision: 'b'.repeat(40) }
+  fs.writeFileSync(
+    path.join(application, 'catalogue.json'),
+    JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../catalogue.json'), 'utf8')), authoring }),
+  )
   const preload = path.join(root, 'fetch.mjs')
   fs.writeFileSync(
     preload,
@@ -123,8 +125,8 @@ globalThis.fetch = async (url) => new Response(fs.readFileSync(String(url).endsW
     { env: { ...process.env, CATALOGUE_BASE_URL: 'https://catalogue.test', TEST_ARCHIVE: archive, TEST_POINTER: pointer } },
   )
 
-  expect(JSON.parse(fs.readFileSync(path.join(application, 'catalogue/lock.json'), 'utf8')).pointer.id).toBe(release.id)
-  expect(fs.readFileSync(path.join(application, 'catalogue/authoring.json'), 'utf8')).toBe(authoring)
+  expect(JSON.parse(fs.readFileSync(path.join(application, 'catalogue.json'), 'utf8')).pointer.id).toBe(release.id)
+  expect(JSON.parse(fs.readFileSync(path.join(application, 'catalogue.json'), 'utf8')).authoring).toEqual(authoring)
 })
 
 it('rejects a release descriptor that substitutes a different authoring commit', () => {
