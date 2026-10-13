@@ -256,18 +256,19 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
   const chooser = forPlayer
     ? page.getByRole('button', { name: new RegExp(`^(Choose|Change) roster for ${forPlayer}$`) })
     : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
+  const seat = page.getByRole('region', { name: 'Armies' }).locator('article').filter({ has: chooser }).first()
+  const attached = seat.getByText(name, { exact: true }).first()
   const dialog = page.getByRole('dialog', { name: /roster$/ })
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (!(await dialog.isVisible())) await chooser.click()
-    await dialog.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) }).click()
-    // A stale shared setup redraws and keeps the chooser open for the player to retry.
-    await expect(dialog)
-      .toBeHidden({ timeout: 1_000 })
-      .catch(() => {})
-    if (await dialog.isHidden()) break
-  }
+  const choice = dialog.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
+  // Every choice stays disabled until the server answers, which can outlast a short wait on a
+  // loaded runner; a stale shared setup redraws and leaves the chooser open to press again.
+  await expect(async () => {
+    if (await attached.isVisible()) return
+    if (!(await dialog.isVisible())) await chooser.click({ timeout: 1_000 })
+    await choice.click({ timeout: 5_000 })
+    await expect(attached).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole('region', { name: 'Armies' }).getByText(name, { exact: true }).first()).toBeVisible()
 }
 
 export async function chooseBattlefield(page: Page) {
