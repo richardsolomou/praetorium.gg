@@ -1,7 +1,7 @@
 import type { AdminUserPage } from '../admin'
 import type { BattlesCursor } from '../contracts/battles'
 import { parseRosterSnapshot } from '../core/commands'
-import { requiredLeagueRosterLimit, type LeagueAdmission, type LeagueVisibility } from '../core/league'
+import { leagueArmy, requiredLeagueRosterLimit, type LeagueAdmission, type LeagueVisibility } from '../core/league'
 import type { TableShape } from '../core/tableShape'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
@@ -283,10 +283,17 @@ export class SpacetimeRepository {
     return this.product.leagueCommand({ op: 'delete', token, ownerId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
 
+  setLeagueAdmins(token: string, ownerId: string, userIds: readonly string[], now: number) {
+    return this.product.leagueCommand(
+      { op: 'set-admins', token, ownerId, userIds, now },
+      z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'not-friends'])]),
+    )
+  }
+
   async leaguesVisibleTo(userId: string | null, limit = 100) {
     const rows = await this.product.leaguesVisibleTo(userId, Math.min(Math.max(limit, 1), 100))
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.league.ownerId))
-    return rows.map(({ league, event, personal, joined, accepted, occupied, ownEntry }) => {
+    return rows.map(({ league, event, personal, adminIds, joined, accepted, occupied, ownEntry }) => {
       const owner = owners.get(league.ownerId)
       if (!owner) throw new Error(`League owner ${league.ownerId} is missing from auth database`)
       return {
@@ -294,6 +301,7 @@ export class SpacetimeRepository {
         ownerName: owner.name,
         ownerImage: owner.image,
         personal,
+        adminIds,
         eventToken: event.token,
         eventNumber: event.number,
         format: event.format,
@@ -303,7 +311,12 @@ export class SpacetimeRepository {
         currentEntrantCount: joined,
         occupiedCount: occupied,
         ownEntry: ownEntry
-          ? { status: ownEntry.status, submitted: ownEntry.rosterSnapshot !== null, rosterName: ownEntry.rosterName }
+          ? {
+              status: ownEntry.status,
+              submitted: ownEntry.rosterSnapshot !== null,
+              rosterName: ownEntry.rosterName,
+              requiredLimit: requiredLeagueRosterLimit(event.format, event.rosterLimit, ownEntry.requiredLimit, ownEntry.teamId),
+            }
           : null,
       }
     })
@@ -331,6 +344,16 @@ export class SpacetimeRepository {
     }))
   }
 
+  /** A revealed list at a glance; a snapshot that no longer parses shows as sealed without a summary. */
+  private revealedArmy(snapshot: string | null) {
+    if (!snapshot) return null
+    try {
+      return leagueArmy(parseRosterSnapshot(snapshot))
+    } catch {
+      return null
+    }
+  }
+
   private frozenRosterLimit(snapshot: string | null) {
     if (!snapshot) return null
     try {
@@ -343,20 +366,31 @@ export class SpacetimeRepository {
   async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
     const record = await this.product.leagueByToken(token, eventToken)
     if (!record) return undefined
-    const { league, selected, latest, events, entries, eventCount, latestEntryCount, latestAcceptedCount } = record
-    const profiles = await this.accounts.profilesByIds([league.ownerId, ...entries.map((entry) => entry.userId)])
+    const { league, selected, latest, events, entries, adminIds, eventCount, latestEntryCount, latestAcceptedCount } = record
+    const profiles = await this.accounts.profilesByIds([
+      league.ownerId,
+      ...adminIds,
+      ...entries.map((entry) => entry.userId),
+      ...(selected.revealedBy ? [selected.revealedBy] : []),
+    ])
+    const revealed = selected.revealedAt !== null
     const owner = profiles.get(league.ownerId)
     if (!owner) throw new Error(`League owner ${league.ownerId} is missing from auth database`)
     return {
       ...league,
       ownerName: owner.name,
       ownerImage: owner.image,
+      admins: adminIds.flatMap((id) => {
+        const admin = profiles.get(id)
+        return admin ? [{ id, name: admin.name, image: admin.image }] : []
+      }),
       eventToken: selected.token,
       eventNumber: selected.number,
       eventCreatedAt: selected.createdAt,
       format: selected.format,
       rosterLimit: selected.rosterLimit,
       revealedAt: selected.revealedAt,
+      revealedByName: selected.revealedBy ? (profiles.get(selected.revealedBy)?.name ?? null) : null,
       eventCount,
       currentEventFormat: latest.format,
       currentEventRevealedAt: latest.revealedAt,
@@ -374,10 +408,12 @@ export class SpacetimeRepository {
           status: entry.status,
           joinedAt: entry.joinedAt,
           submitted: entry.rosterSnapshot !== null,
-          rosterName: viewerId === entry.userId ? entry.rosterName : null,
+          rosterName: revealed || viewerId === entry.userId ? entry.rosterName : null,
+          army: revealed ? this.revealedArmy(entry.rosterSnapshot) : null,
+          sealedAt: revealed ? entry.submittedAt : null,
           teamId: entry.teamId,
           requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, entry.requiredLimit, entry.teamId),
-          sealedLimit: selected.format === null && selected.revealedAt !== null ? this.frozenRosterLimit(entry.rosterSnapshot) : null,
+          sealedLimit: selected.format === null && revealed ? this.frozenRosterLimit(entry.rosterSnapshot) : null,
         }
       }),
     }
@@ -387,7 +423,7 @@ export class SpacetimeRepository {
     return this.product.leagueCommand(
       { op: 'join', token, userId, now, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
       z.union([
-        z.object({ status: z.literal('pending'), ownerId: z.string() }),
+        z.object({ status: z.literal('pending'), organizerIds: z.array(z.string()) }),
         z.enum(['pending', 'accepted', 'rejected', 'missing', 'closed', 'full']),
       ]),
     )
@@ -455,7 +491,12 @@ export class SpacetimeRepository {
     return this.product.leagueCommand(
       { ...input, op: 'submit', ownerId: input.userId, eventToken: input.eventToken ?? '', rosterLimit: input.rosterLimit ?? null },
       z.union([
-        z.object({ outcome: z.literal('sealed'), format: z.enum(['1v1', '2v1', '2v2']).nullable(), requiredLimit: z.number().nullable() }),
+        z.object({
+          outcome: z.literal('sealed'),
+          format: z.enum(['1v1', '2v1', '2v2']).nullable(),
+          requiredLimit: z.number().nullable(),
+          revealedIds: z.array(z.string()).nullable(),
+        }),
         z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit']) }),
         z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(['1v1', '2v1', '2v2']).nullable() }),
       ]),

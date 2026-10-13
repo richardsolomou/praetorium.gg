@@ -1,7 +1,7 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Check, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,15 +13,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { GAME_SIZES } from '../../../core/battle'
 import { leagueRegistrationFull, leagueTableShape, readsAlliedLeagueRoster, type LeagueEntryView } from '../../../core/league'
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
-import { battlesQuery, gameReferencesQuery, leagueBattlesFrom, leagueBattlesQuery } from '../../queries'
+import { battlesQuery, gameReferencesQuery, leagueBattlesFrom, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { BattleShelf } from '../battles/BattleShelf'
+import { HomeFeed } from '../home/HomeFeed'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
 import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, sideGroups, ViewRosterButton } from './LeagueEntrants'
@@ -29,19 +28,23 @@ import {
   doublesTeams,
   entryProgress,
   formatNames,
+  namesPhrase,
   soloOrAllied,
   useLeagueRefresh,
   type EntryStage,
   type EntryStep,
   type League,
 } from './leagueEvent'
-import { InvitePanel, NextEventPanel, OrganizerEntrants, OrganizerRevealPanel } from './LeagueOrganizer'
+import { InvitePanel, NextEventPanel, OrganizerEntrants } from './LeagueOrganizer'
+import { LeagueArmies, type ArmyGroup } from './LeagueArmies'
+import { LeagueReadiness } from './LeagueReadiness'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
+import { LeagueResults } from './LeagueResults'
 
 type Action =
   | { label: string; icon?: ReactNode; variant?: 'default' | 'outline'; pending?: boolean; onClick: () => void }
-  | { label: string; to: 'sign-in' }
+  | { label: string; to: '/sign-in' | '/leagues' }
 
 type Status = { title: string; detail?: string; tone?: 'sealed' | 'waiting' | 'closed'; action?: Action; steps?: EntryStep[] }
 
@@ -49,14 +52,14 @@ export function LeagueEventView({
   league,
   token,
   viewerId,
-  isOwner,
+  isOrganizer,
   startBattle,
   chooseRoster,
 }: {
   league: League
   token: string
   viewerId: string | null
-  isOwner: boolean
+  isOrganizer: boolean
   startBattle?: boolean
   chooseRoster?: boolean
 }) {
@@ -67,11 +70,20 @@ export function LeagueEventView({
     ...leagueBattlesQuery(token, league.eventToken),
     enabled: Boolean(league.revealedAt),
   })
+  const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: Boolean(league.revealedAt) })
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
   const [simulating, setSimulating] = useState<string | null>(null)
-  const join = useMutation({ mutationFn: () => joinLeague({ data: { token, eventToken: league.eventToken } }), onSuccess: refresh })
+  // A join can wait in the offline queue, so the chooser opens once the league shows the entry, not on the reply.
+  const [chooseOnEntry, setChooseOnEntry] = useState(false)
+  const join = useMutation({
+    mutationFn: () => joinLeague({ data: { token, eventToken: league.eventToken } }),
+    onSuccess: async () => {
+      setChooseOnEntry(true)
+      await refresh()
+    },
+  })
   const submit = useMutation({
     mutationFn: (rosterId: string) => submitLeagueRoster({ data: { token, eventToken: league.eventToken, rosterId } }),
     onSuccess: async () => {
@@ -106,6 +118,14 @@ export function LeagueEventView({
 
   const eventBattles = leagueBattlesFrom(battleHistory.data)
   const ownEntry = viewerId ? league.entries.find((entry) => entry.userId === viewerId) : undefined
+  const entryStatusNow = ownEntry?.status
+  // A duel needs nothing from the organizer before a list, so a new entrant's next step opens straight away.
+  const duel = league.format !== '2v1' && league.format !== '2v2'
+  useEffect(() => {
+    if (!chooseOnEntry || entryStatusNow !== 'accepted') return
+    setChooseOnEntry(false)
+    if (duel && !league.revealedAt) setChoosing(true)
+  }, [chooseOnEntry, entryStatusNow, duel, league.revealedAt])
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const sealedEntrants = accepted.filter((entry) => entry.submitted)
   const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
@@ -124,23 +144,40 @@ export function LeagueEventView({
             entry.sealedLimit === ownEntry.sealedLimit,
         )
       : sealedEntrants
-  // Reveal opens every sealed list; before it, an ally reads the list they will field beside.
+  // Before the reveal, an ally reads the list they will field beside.
+  const revealed = Boolean(league.revealedAt)
   const readsRoster = (entry: LeagueEntryView) =>
-    entry.submitted && (Boolean(league.revealedAt) || readsAlliedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry))
+    entry.submitted && readsAlliedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry)
   const allies =
     ownEntry && !league.revealedAt
       ? accepted.filter((entry) => readsAlliedLeagueRoster(league.format, league.rosterLimit, entry, ownEntry))
       : []
+  const met = new Set(results?.met.flatMap(([one, other]) => (one === viewerId ? [other] : other === viewerId ? [one] : [])))
+  const opponents = oneOnOneEntrants.filter((entry) => entry.userId !== viewerId)
+  const yetToPlay = opponents.filter((entry) => !met.has(entry.userId)).map(label)
+  // A duel entrant hears who is left to play; a blank line holds its height while results load, so the page does not jump.
+  const playDetail =
+    battleFormat !== '1v1' || !ownEntry?.submitted || !league.revealedAt
+      ? undefined
+      : !opponents.length
+        ? 'Nobody else is playing in this event.'
+        : !results
+          ? '\u00a0'
+          : yetToPlay.length
+            ? `Still to play: ${namesPhrase(yetToPlay)}.`
+            : 'You have played everyone. Rematches count too.'
   const registrationFull = leagueRegistrationFull(league, accepted.length, league.occupiedCount)
   const latest = league.events[0]?.token === league.eventToken
   const status = entryStatus({
     league,
     ownEntry,
     signedIn: viewerId !== null,
-    isOwner,
+    isOrganizer,
     registrationFull,
     ownSideSealed,
     allies: allies.map(label),
+    playDetail,
+    alone: battleFormat === '1v1' && !opponents.length,
     latest,
     join: () => join.mutate(),
     joining: join.isPending,
@@ -150,44 +187,93 @@ export function LeagueEventView({
   })
   const problem = join.error ?? (league.format === '2v1' || league.format === '2v2' ? null : battle.error)
   const sealWaivers = sealing ? rosterWaivers(sealing) : []
-  const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, Boolean(league.revealedAt)), controls?: ReactNode) => (
+  // Before the reveal a row offers only an ally's list; once the lists are out, the cards carry every one.
+  const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, revealed), controls?: ReactNode) => (
     <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={detail}>
-      {league.revealedAt &&
-      ownEntry?.status === 'accepted' &&
-      ownEntry.submitted &&
-      entry.status === 'accepted' &&
-      entry.submitted &&
-      entry.userId !== viewerId ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-dim hover:text-primary pointer-coarse:size-11"
-                aria-label={`Simulate against ${label(entry)}`}
-                onClick={() => setSimulating(entry.userId)}
-              />
-            }
-          >
-            <Swords aria-hidden />
-          </TooltipTrigger>
-          <TooltipContent role="tooltip" side="bottom">
-            Simulate
-          </TooltipContent>
-        </Tooltip>
-      ) : null}
       {controls}
-      {readsRoster(entry) ? (
+      {!revealed && readsRoster(entry) ? (
         <ViewRosterButton token={token} eventToken={league.eventToken} userId={entry.userId} label={label(entry)} />
       ) : null}
     </EntrantRow>
   )
   const sides = sideGroups(league)
+  // The revealed lists split by side or team the way the entrant list does, so a pairing reads the same before and after.
+  const armyGroups: ArmyGroup[] =
+    league.format === '2v1'
+      ? (['solo', 'allied', 'unsized'] as const).flatMap((side) => {
+          const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
+          return members.length ? [{ key: side, ...sides[side], entries: members }] : []
+        })
+      : league.format === '2v2'
+        ? [
+            ...teams.map((team, index) => ({
+              key: `team-${index + 1}`,
+              title: `Team ${index + 1}`,
+              detail: formatNames(team.members.map(label)),
+              entries: team.members,
+            })),
+            ...(accepted.some((entry) => !entry.teamId)
+              ? [{ key: 'unpaired', title: 'Waiting for a teammate', entries: accepted.filter((entry) => !entry.teamId) }]
+              : []),
+          ]
+        : [{ key: 'all', entries: accepted }]
+  // Once the lists are out, each player shows with their list, so the entrant list has nothing left to say.
+  const entrants = revealed ? null : isOrganizer ? (
+    <OrganizerEntrants league={league} token={token} row={row} />
+  ) : (
+    <section>
+      <SectionHeading title="Entrants" count={accepted.length} />
+      {!accepted.length ? (
+        <div className="border border-edge bg-panel px-5 py-9 text-center">
+          <UserPlus className="mx-auto size-7 text-faint" />
+          <p className="mt-3 font-bold uppercase">No entrants yet</p>
+          <p className="mt-1 text-sm text-dim">Players show up here once they’re in.</p>
+        </div>
+      ) : league.format === '2v1' ? (
+        <div className="space-y-4">
+          {(['solo', 'allied', 'unsized'] as const).map((side) => {
+            const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
+            if (!members.length) return null
+            return (
+              <EntrantGroup key={side} group={side} title={sides[side].title} detail={sides[side].detail}>
+                <EntrantList>{members.map((entry) => row(entry))}</EntrantList>
+              </EntrantGroup>
+            )
+          })}
+        </div>
+      ) : league.format === '2v2' ? (
+        <div className="space-y-4">
+          {teams.map((team, index) => (
+            <EntrantGroup
+              key={team.id}
+              group={`team-${index + 1}`}
+              title={`Team ${index + 1}`}
+              detail={formatNames(team.members.map(label))}
+            >
+              <EntrantList>{team.members.map((entry) => row(entry))}</EntrantList>
+            </EntrantGroup>
+          ))}
+          {accepted.some((entry) => !entry.teamId) ? (
+            <EntrantGroup group="unpaired" title="Waiting for a teammate">
+              <EntrantList>{accepted.filter((entry) => !entry.teamId).map((entry) => row(entry))}</EntrantList>
+            </EntrantGroup>
+          ) : null}
+        </div>
+      ) : (
+        <EntrantList>{accepted.map((entry) => row(entry))}</EntrantList>
+      )}
+    </section>
+  )
+  const aside = isOrganizer ? (
+    <aside className="space-y-3">
+      {latest && !revealed ? <InvitePanel league={league} /> : null}
+      {latest && revealed ? <NextEventPanel league={league} /> : null}
+    </aside>
+  ) : null
 
   return (
     <>
-      {simulating && league.revealedAt && ownEntry?.submitted && viewerId ? (
+      {simulating && revealed && ownEntry?.submitted && viewerId ? (
         <LeagueCombatDialog
           token={token}
           eventToken={league.eventToken}
@@ -197,65 +283,33 @@ export function LeagueEventView({
           onClose={() => setSimulating(null)}
         />
       ) : null}
-      <div className="space-y-4">
-        <EntryStatusCard status={status} problem={problem} token={token} />
-        {isOwner && !league.revealedAt ? <OrganizerRevealPanel league={league} token={token} /> : null}
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="min-w-0 space-y-6">
-          {isOwner ? (
-            <OrganizerEntrants league={league} token={token} row={row} />
-          ) : (
-            <section>
-              <SectionHeading title="Entrants" count={accepted.length} />
-              {!accepted.length ? (
-                <div className="border border-edge bg-panel px-5 py-9 text-center">
-                  <UserPlus className="mx-auto size-7 text-faint" />
-                  <p className="mt-3 font-bold uppercase">No entrants yet</p>
-                  <p className="mt-1 text-sm text-dim">Players show up here once they’re in.</p>
-                </div>
-              ) : league.format === '2v1' ? (
-                <div className="space-y-4">
-                  {(['solo', 'allied', 'unsized'] as const).map((side) => {
-                    const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
-                    if (!members.length) return null
-                    return (
-                      <EntrantGroup key={side} group={side} title={sides[side].title} detail={sides[side].detail}>
-                        <EntrantList>{members.map((entry) => row(entry))}</EntrantList>
-                      </EntrantGroup>
-                    )
-                  })}
-                </div>
-              ) : league.format === '2v2' ? (
-                <div className="space-y-4">
-                  {teams.map((team, index) => (
-                    <EntrantGroup
-                      key={team.id}
-                      group={`team-${index + 1}`}
-                      title={`Team ${index + 1}`}
-                      detail={formatNames(team.members.map(label))}
-                    >
-                      <EntrantList>{team.members.map((entry) => row(entry))}</EntrantList>
-                    </EntrantGroup>
-                  ))}
-                  {accepted.some((entry) => !entry.teamId) ? (
-                    <EntrantGroup group="unpaired" title="Waiting for a teammate">
-                      <EntrantList>{accepted.filter((entry) => !entry.teamId).map((entry) => row(entry))}</EntrantList>
-                    </EntrantGroup>
-                  ) : null}
-                </div>
-              ) : (
-                <EntrantList>{accepted.map((entry) => row(entry))}</EntrantList>
-              )}
-            </section>
-          )}
-
-          {league.revealedAt ? (
+      {/* The reader's own next step leads the side column, and a phone, where it comes first. */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
+        <div className="lg:col-start-2 lg:row-start-1">
+          <EntryStatusCard status={status} problem={problem} token={token} />
+        </div>
+        <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          {!revealed && (isOrganizer || accepted.length) ? (
+            <LeagueReadiness league={league} token={token} viewerId={viewerId} isOrganizer={isOrganizer} label={label} />
+          ) : null}
+          {revealed ? (
+            <LeagueArmies
+              token={token}
+              eventToken={league.eventToken}
+              groups={armyGroups}
+              viewerId={viewerId}
+              revealedBy={league.revealedByName}
+              label={label}
+              canUnseal={isOrganizer}
+              onSimulate={ownEntry?.status === 'accepted' && ownEntry.submitted ? setSimulating : null}
+            />
+          ) : null}
+          {revealed ? (
             <section>
               {eventBattles.length ? (
                 <>
-                  <BattleShelf title="Battles" battles={eventBattles} />
+                  {/* One line a game, as the home page lists games to glance at; the full table is a click away. */}
+                  <HomeFeed title="Battles" battles={eventBattles} />
                   {battleHistory.hasNextPage ? (
                     <Button
                       className="mt-2"
@@ -276,46 +330,18 @@ export function LeagueEventView({
                   <div className="border border-edge bg-panel px-5 py-7 text-center">
                     <Swords className="mx-auto size-7 text-faint" />
                     <p className="mt-3 font-bold uppercase">No battles yet</p>
-                    <p className="mt-1 text-sm text-dim">Battles from this event show up here.</p>
+                    <p className="mt-1 text-sm text-dim">Battles started from this page show up here.</p>
                   </div>
                 </>
               )}
             </section>
           ) : null}
+          {results?.rows.some((result) => result.played) ? (
+            <LeagueResults rows={results.rows} partial={results.partial} entries={accepted} label={label} />
+          ) : null}
+          {entrants}
         </div>
-
-        {isOwner ? (
-          <aside className="space-y-3">
-            {latest && !league.revealedAt ? <InvitePanel league={league} /> : null}
-            {latest && league.revealedAt ? <NextEventPanel league={league} /> : null}
-          </aside>
-        ) : (
-          <aside className="h-fit border border-edge bg-panel p-4 text-sm">
-            <h2 className="rubric">How it works</h2>
-            <ol className="mt-3 space-y-2 text-dim">
-              <li>
-                <span className="font-semibold text-bone">Seal</span> a list. Later edits to it don’t change the sealed copy.
-              </li>
-              {league.format === '2v1' ? (
-                <li>
-                  <span className="font-semibold text-bone">Solo</span> plays alone; <span className="font-semibold text-bone">allied</span>{' '}
-                  plays beside another ally, who can see your list.
-                </li>
-              ) : null}
-              {league.format === '2v2' ? (
-                <li>
-                  <span className="font-semibold text-bone">Teams</span> of two share one Warlord and can see each other’s lists.
-                </li>
-              ) : null}
-              <li>
-                <span className="font-semibold text-bone">Reveal</span> opens every list at once.
-              </li>
-              <li>
-                <span className="font-semibold text-bone">Play</span> from here once the lists are out.
-              </li>
-            </ol>
-          </aside>
-        )}
+        <div className="lg:col-start-2">{aside}</div>
       </div>
 
       <RosterChooser
@@ -430,10 +456,12 @@ function entryStatus({
   league,
   ownEntry,
   signedIn,
-  isOwner,
+  isOrganizer,
   registrationFull,
   ownSideSealed,
   allies,
+  playDetail,
+  alone,
   latest,
   join,
   joining,
@@ -444,10 +472,14 @@ function entryStatus({
   league: League
   ownEntry: LeagueEntryView | undefined
   signedIn: boolean
-  isOwner: boolean
+  isOrganizer: boolean
   registrationFull: boolean
   ownSideSealed: boolean
   allies: string[]
+  /** Who a duel entrant has left to play, once the lists are out. */
+  playDetail: string | undefined
+  /** A duel with nobody else in it, where there is no battle to start. */
+  alone: boolean
   latest: boolean
   join: () => void
   joining: boolean
@@ -461,26 +493,34 @@ function entryStatus({
     ? `Only ${allies.length > 2 ? `${allies.length} allies` : formatNames(allies)} can see it before the reveal.`
     : 'Hidden until the reveal.'
   if (!ownEntry || ownEntry.status !== 'accepted') {
-    if (revealed) return { title: 'Rosters are revealed', detail: 'Battles from this event appear below.', tone: 'closed' }
-    if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: 'sign-in' }, steps: steps('join') }
+    if (revealed && isOrganizer)
+      return { title: 'The lists are out', detail: 'You run this league without a list of your own.', tone: 'closed' }
+    if (revealed)
+      return {
+        title: 'The lists are out',
+        detail: `Everyone here sealed a list in secret, the lists opened together, and now they play each other. ${league.ownerName} runs it.`,
+        tone: 'closed',
+        action: signedIn ? { label: 'Start your own league', to: '/leagues' } : undefined,
+      }
+    if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: '/sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
       return { title: 'Waiting for approval', detail: `${league.ownerName} will let you in.`, tone: 'waiting', steps: steps('join') }
     const rejoin = ownEntry?.status === 'rejected'
-    if (registrationFull) return { title: rejoin ? 'You are not in this event' : 'This event is full', tone: 'closed' }
-    if (isOwner && !rejoin)
+    if (registrationFull) return { title: rejoin ? 'You are not in this league' : 'This league is full', tone: 'closed' }
+    if (isOrganizer && !rejoin)
       return {
         title: 'You are not playing',
-        detail: 'You run this event without a list of your own.',
+        detail: 'You run this league without a list of your own.',
         action: { label: 'Join as a player', icon: <UserPlus />, variant: 'outline', pending: joining, onClick: join },
       }
     return {
-      title: rejoin ? 'You are not in this event' : 'Join this event',
+      title: rejoin ? 'You are not in this league' : 'Join this league',
       detail: rejoin
         ? 'Your request was turned down.'
         : league.admission === 'approval'
           ? `${league.ownerName} approves each player.`
           : undefined,
-      action: { label: rejoin ? 'Request to join again' : 'Join event', icon: <UserPlus />, pending: joining, onClick: join },
+      action: { label: rejoin ? 'Request to join again' : 'Join league', icon: <UserPlus />, pending: joining, onClick: join },
       steps: steps('join'),
     }
   }
@@ -488,7 +528,7 @@ function entryStatus({
     const doubles = league.format === '2v2'
     return {
       title: doubles ? 'Waiting for a teammate' : 'Waiting for your size',
-      detail: isOwner
+      detail: isOrganizer
         ? doubles
           ? 'Pair yourself with a teammate below.'
           : 'Give yourself a solo or allied size below.'
@@ -509,7 +549,7 @@ function entryStatus({
     }
   if (!revealed)
     return {
-      title: `${ownEntry.rosterName ?? 'Your list'} is sealed`,
+      title: 'Your list is sealed',
       detail: hidden,
       tone: 'sealed',
       action: { label: 'Swap list', variant: 'outline', onClick: choose },
@@ -518,40 +558,49 @@ function entryStatus({
   if (!ownSideSealed)
     return { title: 'Waiting for your teammate', detail: 'They are sealing another list.', tone: 'waiting', steps: steps('seal') }
   return {
-    title: latest ? 'Rosters are out' : 'Rosters are revealed',
-    action: { label: startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
+    title: latest ? 'The lists are out' : 'The lists are revealed',
+    detail: playDetail,
+    action: alone
+      ? undefined
+      : { label: startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
     steps: steps('play'),
   }
 }
 
 function EntryStatusCard({ status, problem, token }: { status: Status; problem: Error | null; token: string }) {
   const { action } = status
+  const current = status.steps?.findIndex((step) => step.state === 'current') ?? -1
   return (
     <section
       data-onboarding="league-status"
       data-entry-status
       aria-labelledby="league-entry-status"
-      className={`border bg-panel p-4 sm:p-5 ${status.tone === 'sealed' ? 'border-achieved/50' : 'border-edge'}`}
+      className={`border bg-panel ${status.tone === 'sealed' ? 'border-achieved/50' : 'border-edge'}`}
     >
-      {status.steps ? <EntryProgress steps={status.steps} /> : null}
-      <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-3 ${status.steps ? 'mt-4' : ''}`}>
-        <div className="min-w-0 flex-1 basis-72">
+      <div className="space-y-3 p-4 sm:p-5">
+        {status.steps && current >= 0 ? (
+          <p className="eyebrow text-dim">
+            Step {current + 1} of {status.steps.length}
+          </p>
+        ) : null}
+        <div className="min-w-0">
           <h2
             id="league-entry-status"
-            className={`flex items-center gap-2 text-xl font-bold uppercase ${status.tone === 'sealed' ? 'text-achieved' : ''}`}
+            className={`flex items-center gap-2 text-xl leading-tight font-bold uppercase ${status.tone === 'sealed' ? 'text-achieved' : ''}`}
           >
             {status.tone === 'sealed' ? <ShieldCheck className="size-5 shrink-0" aria-hidden /> : null}
             <span className="min-w-0 break-words">{status.title}</span>
           </h2>
-          {status.detail ? <p className="mt-1 max-w-2xl text-sm text-dim">{status.detail}</p> : null}
+          {status.detail ? <p className="mt-1.5 text-sm text-dim">{status.detail}</p> : null}
         </div>
         {action ? (
           'to' in action ? (
             <Button
               size="lg"
-              className="max-sm:w-full pointer-coarse:h-11"
+              className="w-full pointer-coarse:h-11"
               nativeButton={false}
-              render={<Link to="/sign-in" search={{ next: `/leagues/${token}` }} />}
+              variant={action.to === '/leagues' ? 'outline' : 'default'}
+              render={action.to === '/sign-in' ? <Link to="/sign-in" search={{ next: `/leagues/${token}` }} /> : <Link to="/leagues" />}
             >
               {action.label}
             </Button>
@@ -559,7 +608,7 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
             <Button
               size="lg"
               variant={action.variant ?? 'default'}
-              className="max-sm:w-full pointer-coarse:h-11"
+              className="w-full pointer-coarse:h-11"
               disabled={action.pending}
               onClick={action.onClick}
             >
@@ -567,40 +616,44 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
             </Button>
           )
         ) : null}
+        {problem ? (
+          <p role="alert" className="text-sm text-destructive">
+            {errorMessage(problem)}
+          </p>
+        ) : null}
       </div>
-      {problem ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
-          {errorMessage(problem)}
-        </p>
-      ) : null}
+      {status.steps ? <EntryProgress steps={status.steps} /> : null}
     </section>
   )
 }
 
+/** The path through an event as a checklist beneath the card: what is done, what is now, and what is left. */
 function EntryProgress({ steps }: { steps: EntryStep[] }) {
   return (
-    <ol
-      aria-label="Your progress"
-      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs font-semibold tracking-label uppercase"
-    >
+    <ol aria-label="Your progress" className="border-t border-edge bg-sunken/60 px-4 py-3 text-sm sm:px-5">
       {steps.map((step, index) => (
         <li
           key={step.label}
           aria-current={step.state === 'current' ? 'step' : undefined}
-          className={`flex items-center gap-1.5 ${step.state === 'done' ? 'text-achieved' : step.state === 'current' ? 'text-parchment' : 'text-faint'}`}
+          className={`relative flex min-h-8 items-center gap-3 ${step.state === 'done' ? 'text-dim' : step.state === 'current' ? 'font-semibold text-bone' : 'text-faint'}`}
         >
-          {index ? <span aria-hidden className="h-px w-2 bg-edge-strong sm:w-5" /> : null}
+          {index < steps.length - 1 ? (
+            <span
+              aria-hidden
+              className={`absolute top-[calc(50%+0.5rem)] left-2 h-[calc(100%-1rem)] w-px ${step.state === 'done' ? 'bg-achieved/50' : 'bg-edge'}`}
+            />
+          ) : null}
           <span
             aria-hidden
-            className={`flex size-5 items-center justify-center rounded-full border text-3xs ${step.state === 'done' ? 'border-achieved bg-achieved/15' : step.state === 'current' ? 'border-parchment bg-parchment/15' : 'border-edge-strong'}`}
+            className={`relative flex size-4 shrink-0 items-center justify-center rounded-full ${step.state === 'done' ? 'bg-achieved text-panel' : step.state === 'current' ? 'border-2 border-parchment bg-panel' : 'border border-edge-strong bg-panel'}`}
           >
-            {step.state === 'done' ? <Check className="size-3" strokeWidth={3} /> : index + 1}
+            {step.state === 'done' ? <Check className="size-3" strokeWidth={3.5} /> : null}
           </span>
-          {/* A phone keeps only the step being taken in words; the numbered marks still show how far along it is. */}
-          <span className={step.state === 'current' ? undefined : 'max-sm:sr-only'}>
+          <span className="min-w-0 flex-1">
             {step.label}
             {step.state === 'done' ? <span className="sr-only"> (done)</span> : null}
           </span>
+          {step.state === 'current' ? <span className="text-2xs font-semibold tracking-label text-parchment uppercase">Now</span> : null}
         </li>
       ))}
     </ol>

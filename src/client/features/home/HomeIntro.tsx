@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { BookOpen, ChevronRight, Crosshair, ListChecks, Map as MapIcon, Shield } from 'lucide-react'
+import { BookOpen, Calculator, ChevronRight, ListChecks, Map as MapIcon, Shield } from 'lucide-react'
 
 /** The builder, said the way its reader can use it: a visitor keeps a list by signing up, a player already does. */
 const builder = (signedIn: boolean) => ({
@@ -12,7 +12,7 @@ const builder = (signedIn: boolean) => ({
 
 const TOOLS = [
   {
-    icon: Crosshair,
+    icon: Calculator,
     title: 'Simulate a fight',
     text: 'Shooting and melee odds for any matchup.',
     link: '/simulator' as const,

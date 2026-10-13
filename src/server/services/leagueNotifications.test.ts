@@ -8,15 +8,18 @@ function service(repository: Partial<RepositoryPort>) {
 }
 
 describe('league notifications', () => {
-  it('notifies the organizer only for a new pending request', async () => {
-    const joinLeague = vi.fn().mockResolvedValueOnce({ status: 'pending', ownerId: 'owner' }).mockResolvedValueOnce('pending')
+  it('notifies every organizer only for a new pending request', async () => {
+    const joinLeague = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 'pending', organizerIds: ['owner', 'admin'] })
+      .mockResolvedValueOnce('pending')
     const { league, notify } = service({ joinLeague })
 
     expect(await league.joinLeague('league', 'player', 'event')).toBe('pending')
     await league.joinLeague('league', 'player', 'event')
 
     expect(notify).toHaveBeenCalledExactlyOnceWith([
-      { kind: 'league-entry-requested', actorId: 'player', recipientIds: ['owner'], leagueToken: 'league', eventToken: 'event' },
+      { kind: 'league-entry-requested', actorId: 'player', recipientIds: ['owner', 'admin'], leagueToken: 'league', eventToken: 'event' },
     ])
   })
 

@@ -1,11 +1,24 @@
 import { Link } from '@tanstack/react-router'
-import { Bell, ChevronRight, ClipboardPaste, Code, Crosshair, Heart, Layers3, LockKeyhole, RotateCcw, Swords, Users } from 'lucide-react'
+import {
+  Bell,
+  Calculator,
+  ChevronRight,
+  ClipboardPaste,
+  Code,
+  Crosshair,
+  Heart,
+  Layers3,
+  LockKeyhole,
+  RotateCcw,
+  Swords,
+  Users,
+} from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { SOURCE, SPONSOR } from '../../projectLinks'
 
 const FEATURES = [
   {
-    icon: Crosshair,
+    icon: Calculator,
     title: 'Combat simulator',
     text: 'Compare loadouts and see shooting and melee odds before committing.',
   },

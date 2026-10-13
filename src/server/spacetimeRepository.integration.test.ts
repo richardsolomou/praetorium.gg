@@ -27,6 +27,7 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
   const battleToken = randomUUID()
   const leagueId = randomUUID()
   const leagueToken = randomUUID()
+  const fullLeagueToken = randomUUID()
   const leagueBattleId = randomUUID()
   try {
     const now = new Date()
@@ -60,6 +61,10 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
     expect(await repository.joinLeague(leagueToken, randomUUID(), now.getTime(), 128)).toBe('full')
     expect((await repository.leagueByToken(leagueToken, creatorId))?.entries.map((entry) => entry.name)).toEqual(['Creator', 'Opponent'])
     expect((await repository.leaguesVisibleTo(creatorId)).find((entry) => entry.token === leagueToken)?.entrantCount).toBe(2)
+    // Without a limit the organizer reveals; the self-revealing league below fills its places.
+    const details = { name: 'Test league', description: '', visibility: 'private', admission: 'automatic', playerLimit: null } as const
+    expect(await repository.updateLeague(leagueToken, creatorId, details)).toEqual({ admitted: [], ruleChanged: false })
+    const seals: { userId: string; rosterId: string; snapshot: string }[] = []
     for (const [userId, name] of [
       [creatorId, 'Creator'],
       [opponentId, 'Opponent'],
@@ -110,7 +115,7 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
           snapshot,
           now: now.getTime(),
         }),
-      ).toEqual({ outcome: 'sealed', format: '1v1', requiredLimit: 2_000 })
+      ).toEqual({ outcome: 'sealed', format: '1v1', requiredLimit: 2_000, revealedIds: null })
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([])
       await operator.saveRoster({ ...savedInput, name: `${name} changed in the same millisecond` })
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toHaveLength(1)
@@ -129,12 +134,36 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toHaveLength(1)
       await operator.saveRoster({ ...savedInput, now: now.getTime() + 4 })
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([])
+      seals.push({ userId, rosterId, snapshot })
       expect(await repository.outdatedLeagueEntriesForRoster(userId === creatorId ? opponentId : creatorId, rosterId)).toEqual([])
     }
-    expect(await repository.revealLeague(leagueToken, creatorId, now.getTime())).toEqual({
+    // Anyone playing may open a ready league; somebody outside it may not.
+    expect(await repository.revealLeague(leagueToken, randomUUID(), now.getTime())).toEqual({ outcome: 'not-ready' })
+    expect(await repository.revealLeague(leagueToken, opponentId, now.getTime())).toEqual({
       outcome: 'revealed',
       entrantIds: [creatorId, opponentId],
     })
+    // Admins come from the owner's friends, run the league beside them, and cannot remove it or choose other admins.
+    expect(await repository.setLeagueAdmins(leagueToken, creatorId, [opponentId], now.getTime())).toBe('not-friends')
+    await repository.acceptFriend(creatorId, opponentId, now.getTime())
+    expect(await repository.setLeagueAdmins(leagueToken, creatorId, [opponentId], now.getTime())).toEqual({ added: [opponentId] })
+    expect(await repository.setLeagueAdmins(leagueToken, opponentId, [], now.getTime())).toBe('forbidden')
+    expect(await repository.deleteLeague(leagueToken, opponentId)).toBe('forbidden')
+    expect(await repository.updateLeague(leagueToken, opponentId, { ...details, name: 'Renamed by an admin' })).toEqual({
+      admitted: [],
+      ruleChanged: false,
+    })
+    expect((await repository.leaguesVisibleTo(opponentId)).find((entry) => entry.token === leagueToken)?.adminIds).toEqual([opponentId])
+    const revealed = await repository.leagueByToken(leagueToken, null)
+    expect([revealed?.name, revealed?.admins.map((admin) => admin.name), revealed?.revealedByName]).toEqual([
+      'Renamed by an admin',
+      ['Opponent'],
+      'Opponent',
+    ])
+    expect(revealed?.entries.map((entry) => [entry.army?.name, entry.army?.points])).toEqual([
+      ['Creator', 80],
+      ['Opponent', 80],
+    ])
     const creatorRosterId = (await operator.leagueByToken(leagueToken))!.entries.find((entry) => entry.userId === creatorId)!.rosterId!
     expect(await repository.outdatedLeagueEntriesForRoster(creatorId, creatorRosterId)).toEqual([])
     expect((await repository.leagueBattleCandidates(creatorId, [creatorId, opponentId])).map((row) => row.token)).toEqual([leagueToken])
@@ -169,6 +198,34 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
         () => ({ allyIds: [], opponentIds: [opponentId], initialCommands: [], result: 'created' }),
       ),
     ).toBeUndefined()
+
+    await repository.createLeague({
+      id: randomUUID(),
+      token: fullLeagueToken,
+      ownerId: creatorId,
+      ...details,
+      playerLimit: 2,
+      format: '1v1',
+      rosterLimit: 2_000,
+      now: now.getTime(),
+    })
+    for (const seal of seals) await repository.joinLeague(fullLeagueToken, seal.userId, now.getTime(), 128)
+    const revealedBy = []
+    for (const seal of seals) {
+      const result = await repository.submitLeagueRoster({
+        token: fullLeagueToken,
+        userId: seal.userId,
+        rosterId: seal.rosterId,
+        rosterName: 'Sealed',
+        rosterLimit: 2_000,
+        rosterUpdatedAt: (await repository.roster(seal.rosterId))!.updatedAt,
+        snapshot: seal.snapshot,
+        now: now.getTime(),
+      })
+      revealedBy.push(result.outcome === 'sealed' ? (result.revealedIds?.toSorted() ?? null) : result.outcome)
+    }
+    // The last list into a full league opens every list without the organizer.
+    expect(revealedBy).toEqual([null, [creatorId, opponentId].toSorted()])
   } finally {
     await operator.deleteUserData(opponentId)
     await operator.deleteBattle(battleId, creatorId)

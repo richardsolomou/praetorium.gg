@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
+  Calculator,
   Copy,
   Crown,
   HandHelping,
@@ -15,7 +16,6 @@ import {
   Printer,
   QrCode,
   SlidersHorizontal,
-  Swords,
   TriangleAlert,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -95,6 +95,7 @@ import { RosterRulesNotice } from './RosterRulesNotice'
 import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
+import { DueLeagueRosters } from './DueLeagueRosters'
 import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
@@ -1113,7 +1114,7 @@ export function ListBuilder({
 
   const testTargets = !frozen ? (
     <DropdownMenuItem disabled={!positioned.length || pricePending || priceLoading} onClick={() => openCombat(0, true)}>
-      <Swords /> Test targets
+      <Calculator /> Test targets
     </DropdownMenuItem>
   ) : null
 
@@ -1623,7 +1624,7 @@ export function ListBuilder({
                         />
                       }
                     >
-                      <Swords aria-hidden />
+                      <Calculator aria-hidden />
                     </TooltipTrigger>
                     <TooltipContent role="tooltip" side="bottom">
                       Simulate combat
@@ -1683,7 +1684,14 @@ export function ListBuilder({
         onDismissWaivers={() => dismissWaivers(waiverKey)}
         leagueWarning={
           (editable || locked) && savedId && me ? (
-            <OutdatedLeagueRosters rosterId={savedId} saved={!save.isPending && currentDraftKey === lastApplied.current} />
+            <>
+              <OutdatedLeagueRosters rosterId={savedId} saved={!save.isPending && currentDraftKey === lastApplied.current} />
+              <DueLeagueRosters
+                limit={limit}
+                pointsBudget={pointsBudget}
+                saved={!save.isPending && currentDraftKey === lastApplied.current}
+              />
+            </>
           ) : null
         }
       />

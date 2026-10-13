@@ -10,10 +10,11 @@ import { EMPTY_SETUP } from './guestDraft'
 import { useNewRoster } from './newRoster'
 import { RosterSetupDialog, type RosterSetupFactionOption } from './RosterSetupDialog'
 
-export function CreateRoster({ factionOptions }: { factionOptions: RosterSetupFactionOption[] }) {
+/** `limit` starts the new list at a size the reader is filtering by, such as the one a league asked for. */
+export function CreateRoster({ factionOptions, limit }: { factionOptions: RosterSetupFactionOption[]; limit?: number }) {
   const [open, setOpen] = useState(false)
   const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery(playerDefaultsQuery())
-  const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: defaults.battleSize }
+  const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: limit ?? defaults.battleSize }
   const create = useNewRoster()
 
   return (

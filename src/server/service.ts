@@ -42,6 +42,7 @@ import {
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
 import { type Standing, type StandingFaction, standings } from '../core/standings'
+import { leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission } from './rules'
@@ -116,6 +117,8 @@ const PUBLIC_FEED_HELD_PAGES = 200
 const DAY_MS = 24 * 60 * 60 * 1000
 const STANDINGS_WINDOW_MS = 90 * DAY_MS
 const STANDINGS_BATTLE_LIMIT = 500
+/** The battle feed's largest page; an event with more battles than this shows a partial table. */
+const LEAGUE_RESULTS_BATTLE_LIMIT = 500
 const STANDINGS_HOLD_MS = 60_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
@@ -176,6 +179,10 @@ export class PraetoriumService {
 
   deleteLeague(...args: Parameters<LeagueService['deleteLeague']>) {
     return this.leagueService.deleteLeague(...args)
+  }
+
+  setLeagueAdmins(...args: Parameters<LeagueService['setLeagueAdmins']>) {
+    return this.leagueService.setLeagueAdmins(...args)
   }
 
   leagues(...args: Parameters<LeagueService['leagues']>) {
@@ -707,6 +714,31 @@ export class PraetoriumService {
       viewerId,
     })
     return { battles: this.battleSummaries(await this.watchable(histories, viewerId), viewerId, rules, factions), nextCursor }
+  }
+
+  /**
+   * A revealed event's results table and who has met whom, from the battles this reader may watch.
+   * A private battle stays out of everybody else's table, as it stays out of their battle list.
+   */
+  async leagueResults(
+    leagueToken: string,
+    eventToken: string,
+    rules?: BattleMissionRules | null,
+    factions?: readonly BattleFaction[],
+    viewerId: string | null = null,
+  ) {
+    const league = await this.league(leagueToken, viewerId, eventToken)
+    if (!league?.revealedAt) return null
+    const { battles, nextCursor } = await this.leagueBattles(
+      leagueToken,
+      eventToken,
+      { limit: LEAGUE_RESULTS_BATTLE_LIMIT },
+      rules,
+      factions,
+      viewerId,
+    )
+    const entrantIds = league.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
+    return { ...leagueResults(entrantIds, battles), partial: nextCursor !== null }
   }
 
   private battleSummaries(

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
+  Calculator,
   Boxes,
   NotebookPen,
-  Dices,
   Gavel,
   History,
   Sparkles,
@@ -32,7 +32,7 @@ const MORE_LINKS: readonly MoreLink[] = [
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
   { description: 'Primary mission matchups', icon: Layers3, label: 'Dispositions', to: '/force-dispositions' },
   { description: 'Game reference', icon: Gavel, label: 'Rules', to: '/rules' },
-  { description: 'Damage and kill probabilities', icon: Dices, label: 'Simulator', to: '/simulator' },
+  { description: 'Damage and kill probabilities', icon: Calculator, label: 'Simulator', to: '/simulator' },
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
   { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' },
 ]

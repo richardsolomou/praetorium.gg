@@ -34,6 +34,7 @@ import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
+  LEAGUE_ADMIN_MAX,
   LEAGUE_MEMBER_MAX,
   LEAGUE_MEMBER_MIN,
   LEAGUE_NAME_MAX_LENGTH,
@@ -139,6 +140,8 @@ export const assignLeagueTeamSchema = z.object({
 })
 export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
 export const leagueBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
+export const leagueResultsSchema = z.object({ token, eventToken: token })
+export const setLeagueAdminsSchema = z.object({ token, userIds: z.array(id).max(LEAGUE_ADMIN_MAX) })
 export const createLeagueBattleSchema = z.object({
   token,
   eventToken: token.optional(),

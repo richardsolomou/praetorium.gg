@@ -155,7 +155,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
               <Compass /> Discover armies
             </Button>
             <RosterImport />
-            <CreateRoster factionOptions={available?.factions ?? []} />
+            <CreateRoster factionOptions={available?.factions ?? []} limit={search.limit} />
           </>
         }
       />
@@ -322,9 +322,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the saved roster. Frozen copies in battles and league events are kept.
-            </AlertDialogDescription>
+            <AlertDialogDescription>This removes the saved roster. Frozen copies in battles and leagues are kept.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

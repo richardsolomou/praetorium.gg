@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Eye, LockKeyhole, Users } from 'lucide-react'
-import { leagueRegistrationFull, leagueRosterSplit } from '../../../core/league'
-import { TABLE_SHAPE_LABELS } from '../../../core/tableShape'
+import { isLeagueOrganizer } from '../../../core/league'
 import { leaguesQuery, meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { CreateLeague } from './CreateLeague'
-import { LeagueCardActions } from './LeagueActions'
+import { LEAGUE_CARD, LeagueCardActions } from './LeagueActions'
+import { leagueFormat, leaguePhase, leaguePlayers } from './leagueEvent'
 
 export function LeagueIndex() {
   const { data: me } = useQuery(meQuery())
@@ -21,7 +21,7 @@ export function LeagueIndex() {
       <PageHeader
         eyebrow="Organized play"
         title="Leagues"
-        description="Collect sealed rosters for a league, tournament, or private event, then reveal every accepted list together."
+        description="Everyone seals a list in secret, the lists open together, then you play each other and the results build up."
         actions={me ? <CreateLeague /> : null}
       />
       <PageContent className="space-y-6">
@@ -32,9 +32,7 @@ export function LeagueIndex() {
             headingLevel={2}
             eyebrow="Organized play"
             title="No leagues yet"
-            explanation={
-              me ? 'Create the first event and share its registration link.' : 'Public leagues will appear here. Sign in to create one.'
-            }
+            explanation={me ? 'Create one and send the link to your group.' : 'Public leagues will appear here. Sign in to create one.'}
             icon={Users}
           />
         ) : null}
@@ -60,75 +58,60 @@ function LeagueShelf({
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {leagues.map((league) => {
+          const organizer = isLeagueOrganizer(league, league.adminIds, viewerId)
+          // One status: the reader's own place when they have one, otherwise where the league stands.
+          const status = league.ownEntry
+            ? ownEntryStatus(league.ownEntry, Boolean(league.revealedAt))
+            : leaguePhase(league, league.entrantCount, league.occupiedCount)
+          const format = leagueFormat(league)
           const card = (
-            <Link to="/leagues/$token" params={{ token: league.token }} className="block min-w-0 flex-1 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate text-lg font-bold uppercase">{league.name}</h3>
-                  {league.description ? (
-                    <p className="mt-1 line-clamp-2 text-sm text-dim">{league.description}</p>
+            <Link to="/leagues/$token" params={{ token: league.token }} className="flex min-w-0 flex-1 flex-col">
+              <div className={`flex-1 p-4 ${organizer ? 'pr-12' : ''}`}>
+                <p className="flex items-center gap-2 text-xs text-dim">
+                  {league.visibility === 'private' ? (
+                    <LockKeyhole className="size-3.5 shrink-0" aria-label="Private" />
                   ) : (
-                    <p className="mt-1 flex min-w-0 items-center gap-1 text-sm text-dim">
-                      <span className="shrink-0">Organized by</span>
-                      <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-5 text-3xs" />
-                      <span className="truncate">{league.ownerName}</span>
-                    </p>
+                    <Eye className="size-3.5 shrink-0 text-info" aria-label="Public" />
                   )}
-                </div>
-                {league.visibility === 'private' ? (
-                  <span className="flex shrink-0 items-center gap-1 text-xs text-dim">
-                    <LockKeyhole className="size-4" /> Private
-                  </span>
+                  <span className="truncate tracking-label uppercase">{format ?? 'Any format'}</span>
+                </p>
+                <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{league.name}</h3>
+                {league.description ? (
+                  <p className="mt-1 line-clamp-2 text-sm text-dim">{league.description}</p>
                 ) : (
-                  <span className="flex shrink-0 items-center gap-1 text-xs text-info">
-                    <Eye className="size-4" /> Public
-                  </span>
+                  <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
+                    <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-5 text-3xs" />
+                    <span className="truncate">Organized by {league.ownerName}</span>
+                  </p>
                 )}
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-dim">
-                <span className="chip">
-                  {league.entrantCount}
-                  {league.playerLimit ? ` / ${league.playerLimit}` : ''} accepted
+              <div className="flex min-w-0 items-center gap-3 border-t border-edge bg-sunken/60 px-4 py-2.5 text-sm">
+                <span className={`flex min-w-0 items-center gap-2 font-semibold ${status.tint}`}>
+                  <span aria-hidden className="size-2 shrink-0 rounded-full bg-current" />
+                  <span className="truncate">{status.label}</span>
                 </span>
-                <span className="chip">
-                  {league.revealedAt
-                    ? 'Rosters revealed'
-                    : leagueRegistrationFull(league, league.entrantCount, league.occupiedCount)
-                      ? 'Registration full'
-                      : 'Registration open'}
+                <span className="ml-auto shrink-0 text-xs text-dim">
+                  {[leaguePlayers(league, league.entrantCount), league.eventNumber > 1 ? `Event ${league.eventNumber}` : null]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
-                {league.eventNumber > 1 ? <span className="chip text-info">{league.eventNumber} events</span> : null}
-                {league.format && league.rosterLimit ? (
-                  <span className="chip">
-                    {TABLE_SHAPE_LABELS[league.format].name} ·{' '}
-                    {leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}
-                  </span>
-                ) : null}
-                {league.ownerId === viewerId ? <span className="chip text-parchment">You organize</span> : null}
-                {league.ownEntry ? (
-                  <span className="chip text-parchment">{ownEntryLabel(league.ownEntry, Boolean(league.revealedAt))}</span>
-                ) : null}
               </div>
             </Link>
           )
-          if (league.ownerId !== viewerId) {
+          if (!organizer) {
             return (
-              <article
-                key={league.id}
-                data-league={league.token}
-                className="min-w-0 border border-edge bg-panel hover:border-info hover:bg-raised"
-              >
+              <article key={league.id} data-league={league.token} className={LEAGUE_CARD}>
                 {card}
               </article>
             )
           }
           return (
-            <LeagueCardActions key={league.id} league={league}>
+            <LeagueCardActions key={league.id} league={league} canDelete={league.ownerId === viewerId}>
               {(menu) => (
-                <div className="flex min-w-0 items-start">
+                <>
                   {card}
-                  <div className="p-2">{menu}</div>
-                </div>
+                  <div className="absolute top-2 right-2">{menu}</div>
+                </>
               )}
             </LeagueCardActions>
           )
@@ -138,10 +121,11 @@ function LeagueShelf({
   )
 }
 
-/** Where the reader's own entry stands, in the words the event page uses for it. */
-function ownEntryLabel(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {
-  if (entry.status === 'pending') return 'Waiting for approval'
-  if (entry.status === 'rejected') return 'Not in this event'
-  if (entry.submitted) return revealed ? 'You play · list revealed' : 'You play · list sealed'
-  return revealed ? 'You play · no list' : 'You play · seal a list'
+/** Where the reader's own entry stands, tinted by whether it needs them: amber to act, green once done. */
+function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {
+  if (entry.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
+  if (entry.status === 'rejected') return { label: 'Not in this league', tint: 'text-faint' }
+  if (entry.submitted)
+    return revealed ? { label: 'Lists revealed', tint: 'text-achieved' } : { label: 'Your list is sealed', tint: 'text-achieved' }
+  return revealed ? { label: 'No list', tint: 'text-faint' } : { label: 'Seal your list', tint: 'text-discarded' }
 }

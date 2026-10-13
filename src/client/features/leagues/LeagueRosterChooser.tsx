@@ -61,15 +61,15 @@ export function RosterChooser({
             <div className="border border-edge bg-panel p-5 text-center">
               <p className="text-sm text-dim">
                 {requiredLimit === null
-                  ? 'Build or import a list first.'
-                  : `Build or import a ${requiredLimit.toLocaleString()}-point list first.`}
+                  ? 'Build or import a list first. Once it is saved, the builder links back here to seal it.'
+                  : `Build or import a ${requiredLimit.toLocaleString()}-point list. Once it is saved, the builder links back here to seal it.`}
               </p>
               <Button
                 className="mt-3"
                 nativeButton={false}
                 render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
               >
-                Go to rosters
+                {requiredLimit === null ? 'Go to rosters' : `Build a ${requiredLimit.toLocaleString()}-point list`}
               </Button>
             </div>
           )}

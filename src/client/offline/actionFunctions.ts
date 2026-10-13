@@ -55,6 +55,7 @@ export const listLeagues = async (): ReturnType<typeof server.listLeagues> => {
     byToken.set(draft.token, {
       ...draft,
       personal: true,
+      adminIds: draft.admins.map((admin) => admin.id),
       format: draft.currentEventFormat,
       entrantCount: draft.currentAcceptedCount,
       ownEntry: null,
@@ -250,12 +251,14 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
     ownerId: me.id,
     ownerName: me.name,
     ownerImage: me.image,
+    admins: [],
     recurring: true,
     createdAt: now,
     eventToken: identifiers.eventToken,
     eventNumber: 1,
     eventCreatedAt: now,
     revealedAt: null,
+    revealedByName: null,
     eventCount: 1,
     currentEventFormat: input.format,
     currentEventRevealedAt: null,
@@ -264,7 +267,15 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
     occupiedCount: 0,
     entries: [],
     events: [
-      { token: identifiers.eventToken, number: 1, format: input.format, rosterLimit: input.rosterLimit, createdAt: now, revealedAt: null },
+      {
+        token: identifiers.eventToken,
+        number: 1,
+        format: input.format,
+        rosterLimit: input.rosterLimit,
+        createdAt: now,
+        revealedAt: null,
+        revealedBy: null,
+      },
     ],
   }
   await defer('createLeague', input, `league:${identifiers.leagueToken}`, draft, identifiers)
@@ -285,6 +296,7 @@ export async function createLeagueEvent(args: Parameters<typeof server.createLea
     rosterLimit: input.rosterLimit,
     createdAt: now,
     revealedAt: null,
+    revealedBy: null,
   }
   await defer(
     'createLeagueEvent',
@@ -304,6 +316,7 @@ export async function createLeagueEvent(args: Parameters<typeof server.createLea
       occupiedCount: 0,
       entries: [],
       revealedAt: null,
+      revealedByName: null,
       events: [...league.events, event],
     },
     identifiers,

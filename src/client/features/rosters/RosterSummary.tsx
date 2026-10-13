@@ -12,6 +12,16 @@ import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
 
+/**
+ * What a roster card reads of a list. A saved list carries all of it; a frozen copy, such as a
+ * sealed league list, has no visibility or lock of its own to show.
+ */
+export type RosterCardFacts = Pick<
+  SavedRoster,
+  'name' | 'detachmentIds' | 'disposition' | 'limit' | 'pointsBudget' | 'unitCount' | 'updatedAt' | 'waivedRules'
+> &
+  Partial<Pick<SavedRoster, 'visibility' | 'locked'>>
+
 export type RosterSummaryFaction = FactionPresentation & { edition?: CatalogueEdition | null; detachments: { id: string; name: string }[] }
 export type RosterProblem = 'over-limit' | 'not-legal'
 
@@ -24,7 +34,7 @@ export const PROBLEM_LABEL: Record<RosterProblem, string> = { 'over-limit': 'Ove
  * that is still waiting says what its setup alone can — the same fold, with less to
  * fold. Exported because the row's menu and its heading must agree.
  */
-export function rosterTitle(roster: SavedRoster, faction?: RosterSummaryFaction, label?: string) {
+export function rosterTitle(roster: RosterCardFacts, faction?: RosterSummaryFaction, label?: string) {
   if (roster.name) return roster.name
   if (label) return label
   return rosterLabel({
@@ -34,12 +44,12 @@ export function rosterTitle(roster: SavedRoster, faction?: RosterSummaryFaction,
   })
 }
 
-const detachmentNames = (roster: SavedRoster, faction?: RosterSummaryFaction) =>
+const detachmentNames = (roster: RosterCardFacts, faction?: RosterSummaryFaction) =>
   roster.detachmentIds
     .map((id) => faction?.detachments.find((entry) => entry.id === id)?.name)
     .filter((name): name is string => Boolean(name))
 
-const variantSetup = (roster: SavedRoster, faction?: RosterSummaryFaction, dispositionName?: string): VariantSetup => ({
+const variantSetup = (roster: RosterCardFacts, faction?: RosterSummaryFaction, dispositionName?: string): VariantSetup => ({
   factionName: faction?.displayName,
   detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
   disposition: roster.disposition && dispositionName ? { id: roster.disposition, name: dispositionName } : null,
@@ -58,8 +68,9 @@ export function RosterSummary({
   showLock = true,
   showLegality = false,
   updates,
+  dateLabel = 'updated',
 }: {
-  roster: SavedRoster
+  roster: RosterCardFacts
   faction?: RosterSummaryFaction
   points?: number | null
   /** The lock is the owner's; a reader of their profile is not told about it. */
@@ -75,6 +86,8 @@ export function RosterSummary({
   pointsLoading?: boolean
   problem?: RosterProblem | null
   updates?: RosterUpdates
+  /** What the date in the details line marks; a sealed copy names when it was sealed. */
+  dateLabel?: string
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
@@ -110,7 +123,8 @@ export function RosterSummary({
       </span>
       <span className="col-span-2 block text-xs text-dim sm:col-span-1">
         11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'}{' '}
-        · {showLegality ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}updated {date(roster.updatedAt)}
+        · {showLegality || !roster.visibility ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}
+        {dateLabel} {date(roster.updatedAt)}
       </span>
       {differences ? (
         <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1">
@@ -158,7 +172,7 @@ function RosterStanding({
   legal = false,
   className = '',
 }: {
-  roster: SavedRoster
+  roster: RosterCardFacts
   points?: number | null
   pointsLoading: boolean
   problem: RosterProblem | null
@@ -170,6 +184,7 @@ function RosterStanding({
   className?: string
 }) {
   const wideOnly = visibilityInDetails ? 'hidden sm:inline' : ''
+  const visibility = showVisibility ? roster.visibility : undefined
   return (
     // Wide enough for a warning beside the visibility, so one arriving late moves nothing; a phone's variant row cannot spare it.
     <span className={`ml-auto shrink-0 text-right ${compact ? 'sm:min-w-28' : 'min-w-28'} ${className}`}>
@@ -181,11 +196,11 @@ function RosterStanding({
         </span>
       )}
       {legal ? <span className="block text-xs whitespace-nowrap text-dim">Legal</span> : null}
-      {problem || showVisibility ? (
+      {problem || visibility ? (
         <span className={`text-xs whitespace-nowrap text-dim ${problem || !visibilityInDetails ? 'block' : 'hidden sm:block'}`}>
           {problem ? <span className="font-semibold text-destructive">{PROBLEM_LABEL[problem]}</span> : null}
-          {problem && showVisibility ? <span className={wideOnly}> · </span> : null}
-          {showVisibility ? <span className={wideOnly}>{VISIBILITY_NAME[roster.visibility]}</span> : null}
+          {problem && visibility ? <span className={wideOnly}> · </span> : null}
+          {visibility ? <span className={wideOnly}>{VISIBILITY_NAME[visibility]}</span> : null}
         </span>
       ) : null}
     </span>
@@ -208,7 +223,7 @@ export function RosterVariantSummary({
   showVisibility,
   updates,
 }: {
-  roster: SavedRoster
+  roster: RosterCardFacts
   faction?: RosterSummaryFaction
   points?: number | null
   label?: string

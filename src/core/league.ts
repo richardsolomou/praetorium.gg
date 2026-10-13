@@ -107,27 +107,21 @@ export type LeagueRevealEntry = {
  *
  * The reveal command refuses unless every check is done, and the organizer reads the same checks as a
  * list. The command still inspects the sealed rosters themselves, so a done list can meet a Warlord refusal.
+ * A player limit caps entry; it does not hold the reveal back.
  */
 export type LeagueRevealCheck =
-  | { step: 'places'; done: boolean; accepted: number; required: number | null }
+  | { step: 'places'; done: boolean; accepted: number }
   | { step: 'requests'; done: boolean; waiting: string[] }
   | { step: 'sizes'; done: boolean; waiting: string[]; solo: number; allied: number }
   | { step: 'teams'; done: boolean; waiting: string[] }
   | { step: 'lists'; done: boolean; waiting: string[] }
 
 export function leagueRevealChecklist(
-  event: { format: TableShape | null; rosterLimit: number | null; playerLimit: number | null },
+  event: { format: TableShape | null; rosterLimit: number | null },
   entries: readonly LeagueRevealEntry[],
 ): LeagueRevealCheck[] {
   const accepted = entries.filter((entry) => entry.status === 'accepted')
-  const checks: LeagueRevealCheck[] = [
-    {
-      step: 'places',
-      done: accepted.length > 0 && (event.playerLimit === null || accepted.length === event.playerLimit),
-      accepted: accepted.length,
-      required: event.playerLimit,
-    },
-  ]
+  const checks: LeagueRevealCheck[] = [{ step: 'places', done: accepted.length > 0, accepted: accepted.length }]
   if (event.format === '2v2') {
     const pending = entries.filter((entry) => entry.status === 'pending').map((entry) => entry.userId)
     checks.push({ step: 'requests', done: pending.length === 0, waiting: pending })
@@ -148,8 +142,30 @@ export function leagueRevealChecklist(
   return checks
 }
 
-export function visibleLeagueEntries(entries: readonly LeagueEntryView[], ownerId: string, viewerId: string | null) {
-  return entries.filter((entry) => entry.status === 'accepted' || viewerId === ownerId || entry.userId === viewerId)
+/** The most admins one league can have beside its owner. */
+export const LEAGUE_ADMIN_MAX = 16
+
+/** Whether someone runs this league: its owner, or an admin the owner chose. */
+export function isLeagueOrganizer(league: { ownerId: string }, adminIds: readonly string[], userId: string | null) {
+  return userId !== null && (userId === league.ownerId || adminIds.includes(userId))
+}
+
+/** Who may open a ready event's lists: the organizer, or anyone playing in it, so a group need not wait for one person. */
+export function mayRevealLeague(isOwner: boolean, entry: { status: LeagueEntryStatus } | null) {
+  return isOwner || entry?.status === 'accepted'
+}
+
+/** Whether sealing this list opens every list without the organizer: a full event whose reveal checks all pass. */
+export function leagueRevealsItself(
+  event: { format: TableShape | null; rosterLimit: number | null; playerLimit: number | null },
+  entries: readonly LeagueRevealEntry[],
+) {
+  const accepted = entries.filter((entry) => entry.status === 'accepted').length
+  return event.playerLimit !== null && accepted === event.playerLimit && leagueRevealChecklist(event, entries).every((check) => check.done)
+}
+
+export function visibleLeagueEntries<T extends LeagueEntryView>(entries: readonly T[], organizer: boolean, viewerId: string | null) {
+  return entries.filter((entry) => entry.status === 'accepted' || organizer || entry.userId === viewerId)
 }
 
 export function matchesSealedLeagueRoster(
@@ -213,4 +229,50 @@ export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {
     count: selected.length,
     eligible: selected.every((unit) => unit.warlordEligible ?? (legacy || unit.group === 'character' || unit.group === 'epic-hero')),
   }
+}
+
+/** What a roster card shows of a revealed list. */
+export type LeagueArmy = {
+  name: string
+  catalogueId: string | null
+  /** Each detachment's id with the name it was sealed under, so a card names it without today's catalogue. */
+  detachments: { id: string; name: string }[]
+  disposition: string | null
+  pointsBudget: number | null
+  waivedRules: FormatRuleId[]
+  points: number | null
+  limit: number | null
+  unitCount: number
+}
+
+export function leagueArmy(roster: Roster): LeagueArmy {
+  const built = roster.built
+  if (!built)
+    return {
+      name: roster.name,
+      catalogueId: null,
+      detachments: [],
+      disposition: null,
+      pointsBudget: null,
+      waivedRules: [],
+      points: null,
+      limit: null,
+      unitCount: 0,
+    }
+  return {
+    name: roster.name,
+    catalogueId: built.catalogueId,
+    detachments: sealedDetachments(built),
+    disposition: built.disposition,
+    pointsBudget: built.pointsBudget ?? null,
+    waivedRules: built.waivedRules ?? [],
+    points: built.units.reduce((total, unit) => total + unit.points, 0),
+    limit: built.limit,
+    unitCount: built.units.length,
+  }
+}
+
+function sealedDetachments(built: NonNullable<Roster['built']>) {
+  const names = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
+  return (built.detachmentIds ?? []).map((id, index) => ({ id, name: names[index] ?? id }))
 }
