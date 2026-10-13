@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import { browserTestBuildFingerprint, restoreBrowserTestBuild, saveBrowserTestBuild } from './browserTestBuild'
+import { browserTestBuildFingerprint, ensureBrowserTestBuild, restoreBrowserTestBuild, saveBrowserTestBuild } from './browserTestBuild'
 
 const execute = promisify(execFile)
 let directory: string
@@ -109,6 +109,26 @@ it('restores compiled files into a fresh run without copying database state', as
 it('rejects a build from different inputs', async () => {
   await saveBrowserTestBuild(path.join(directory, 'cache'), 'old', await build())
   expect(await restoreBrowserTestBuild(path.join(directory, 'cache'), 'current', path.join(directory, 'run'))).toBe(false)
+})
+
+it('builds once and restores for the next stack', async () => {
+  let builds = 0
+  const output = path.join(directory, 'build')
+  const cache = path.join(directory, 'cache')
+  const snapshotDirectory = path.join(directory, 'snapshot')
+  const compile = async () => {
+    builds += 1
+    await build()
+  }
+  const first = await ensureBrowserTestBuild(directory, snapshotDirectory, {}, output, cache, compile)
+  await rm(output, { recursive: true, force: true })
+  const second = await ensureBrowserTestBuild(directory, snapshotDirectory, {}, output, cache, compile)
+  expect({ builds, first: first.cached, second: second.cached, same: first.fingerprint === second.fingerprint }).toEqual({
+    builds: 1,
+    first: false,
+    second: true,
+    same: true,
+  })
 })
 
 it('builds normally when no compiled cache exists', async () => {
