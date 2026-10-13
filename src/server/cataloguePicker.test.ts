@@ -126,7 +126,7 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', 'cryptek').map((unit) => unit.name)).toEqual(['Cryptek Conclave', 'Technomancer'])
   })
 
-  it('indexes unit ability prose while excluding hidden fields and conditional shared groups', () => {
+  it('does not index hidden fields, conditional shared groups or ability prose', () => {
     const book = bookOf({
       categoryEntries: [{ id: 'marker', name: 'Secret marker', hidden: true }],
       sharedInfoGroups: [{ id: 'conditional', name: 'Conditional', profiles: [ability('null-aegis', 'Null Aegis')] }],
@@ -159,9 +159,7 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', 'secret')).toEqual([])
     expect(unitsIn(book, 'cat', 'hidden gun')).toEqual([])
     expect(unitsIn(book, 'cat', 'null aegis')).toEqual([])
-    expect(unitsIn(book, 'cat', 'destroyed').map((unit) => unit.matchReasons)).toEqual([
-      [{ kind: 'ability', value: 'Rites of Reanimation' }],
-    ])
+    expect(unitsIn(book, 'cat', 'destroyed')).toEqual([])
   })
 
   it('indexes a hidden link’s rendered profile, and not an ability the unit only has when taken', () => {

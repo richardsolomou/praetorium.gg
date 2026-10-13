@@ -83,5 +83,8 @@ export function offlineDatasheets(catalogueId: string, query: string) {
   const units = saved.queries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(['faction-datasheets', catalogueId, '']))
     ?.data as UnitSummary[] | undefined
   const fields = new Map(saved.search.datasheets.map((entry) => [entry.result.id, entry.fields]))
-  return searchDatasheetEntries(units ?? [], query, (unit) => fields.get(`datasheet:${catalogueId}:${unit.id}`) ?? null)
+  return searchDatasheetEntries(units ?? [], query, (unit) => {
+    const entry = fields.get(`datasheet:${catalogueId}:${unit.id}`)
+    return entry ? { ...entry, abilityDescriptions: undefined } : null
+  })
 }

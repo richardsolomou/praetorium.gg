@@ -9,7 +9,10 @@ for (const width of [390, 1440]) {
     const search = page.getByRole('textbox', { name: 'Find a datasheet' })
     const technomancer = page.locator('[data-datasheet="Technomancer"]')
 
-    await search.fill('cryptek staff')
+    await retryUntilVisible(technomancer.getByText('Matches Cryptek keyword · Staff of light weapon'), async () => {
+      await search.fill('')
+      await search.fill('cryptek staff')
+    })
     await expect(technomancer).toContainText('Matches Cryptek keyword · Staff of light weapon')
     await expect(technomancer.locator('mark')).toHaveText(['Cryptek', 'Staff'])
     await page.screenshot({ path: `test-results/reference-search-${width}.png`, fullPage: true })

@@ -63,7 +63,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
     for (const entryId of datasheetsOf(loaded.index, faction.id)) {
       const entry = loaded.index.definitions.get(entryId)
       if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
-      const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId)
+      const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId, { includeAbilityDescriptions: true })
       if (!fields) continue
       const name = nameOf(entry, loaded.index.definitions)
       datasheets.push({
