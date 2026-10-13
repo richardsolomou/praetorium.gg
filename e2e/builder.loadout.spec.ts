@@ -748,6 +748,23 @@ test('Cadian Shock Troops can take their full special weapon allowance', async (
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Astra Militarum', /Combined Arms/)
   await add(page, 'Cadian Shock Troops')
+  await page.locator('[data-unit="Cadian Shock Troops"]').getByRole('button', { name: 'Cadian Shock Troops', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
+  await expect(loadout.getByLabel('Meltagun count')).toHaveText('1')
+  await expect(loadout.getByLabel('Plasma gun count')).toHaveText('1')
+
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'More models in Cadian Shock Troops' }).click())
+  // The 20-model composition keeps the weapons chosen at 10 models.
+  await expect(loadout.getByLabel('Meltagun count')).toHaveText('1')
+  await expect(loadout.getByLabel('Plasma gun count')).toHaveText('1')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
+  await expect(loadout.getByLabel('Meltagun count')).toHaveText('2')
+  await expect(loadout.getByLabel('Plasma gun count')).toHaveText('2')
+
   // The book keeps its datasheets in a library, and what it borrows from another book is there beside its own.
   await page.getByLabel('Add a unit').fill('Leman Russ Commander')
   await page.getByRole('button', { name: 'View Leman Russ Commander datasheet' }).click()
@@ -758,21 +775,6 @@ test('Cadian Shock Troops can take their full special weapon allowance', async (
   await page.getByRole('button', { name: 'Add Callidus Assassin', exact: true }).click()
   await expect(page.locator('[data-unit="Callidus Assassin"]')).toBeVisible()
   await expect(page.getByText('Within the points limit')).toBeAttached()
-  await page.locator('[data-unit="Cadian Shock Troops"]').getByRole('button', { name: 'Cadian Shock Troops', exact: true }).click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
-  await expect(loadout.getByLabel('Meltagun count')).toHaveText('1')
-  await expect(loadout.getByLabel('Plasma gun count')).toHaveText('1')
-
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'More models in Cadian Shock Troops' }).click())
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
-  await expect(loadout.getByLabel('Meltagun count')).toHaveText('2')
-  await expect(loadout.getByLabel('Plasma gun count')).toHaveText('2')
 })
 
 test('a selected multi-weapon option is not repeated in the equipped summary', async ({ page }) => {

@@ -218,15 +218,16 @@ function modelCompositionSizes(entryId: string, selection: Selection, index: Cat
   return []
 }
 
-/** Carry equipment between fixed compositions only when its catalogue names and types match uniquely. */
+/**
+ * Carry equipment between fixed compositions only when its catalogue names and types match uniquely.
+ * A container named for its composition's size ("9 Shock Troopers" beside "18 Shock Troopers") is
+ * followed when exactly one container of its type leads on to the rest of the saved path.
+ */
 function compositionRequest(
   selection: Selection,
   key: string,
   index: CatalogueIndex,
 ): { key: string; options: Map<string, string> } | null {
-  const path: string[] = []
-  let parent = index.definitions.get(selection.id)
-  let changed = false
   const equivalent = (id: string, options: readonly Option[]) => {
     const source = index.definitions.get(id)
     if (!source) return undefined
@@ -237,8 +238,16 @@ function compositionRequest(
     })
     return options.find((option) => option.id === id) ?? (matches.length === 1 ? matches[0] : undefined)
   }
-  for (const id of key.split('/')) {
+  const ids = key.split('/')
+  const walk = (
+    parent: Definition | undefined,
+    at: number,
+    path: string[],
+    changed: boolean,
+  ): { path: string[]; parent: Definition } | null => {
     if (!parent) return null
+    if (at === ids.length) return { path, parent }
+    const id = ids[at]!
     const target = resolve(parent, index)
     const options = childrenOf(target, index)
     const composition =
@@ -254,12 +263,18 @@ function compositionRequest(
         : changed
           ? equivalent(id, options)
           : options.find((option) => option.id === id)
-    if (!next) return null
-    changed ||= next.id !== id
-    path.push(next.id)
-    parent = next.definition
+    if (next) return walk(next.definition, at + 1, [...path, next.id], changed || next.id !== id)
+    const source = index.definitions.get(id)
+    if (!changed || !source || at === ids.length - 1) return null
+    const type = resolve(source, index).type
+    const routes = options
+      .filter((option) => resolve(option.definition, index).type === type)
+      .flatMap((option) => walk(option.definition, at + 1, [...path, option.id], true) ?? [])
+    return routes.length === 1 ? routes[0]! : null
   }
-  if (!parent) return null
+  const found = walk(index.definitions.get(selection.id), 0, [], false)
+  if (!found) return null
+  const { path, parent } = found
   const original = index.definitions.get(key.split('/').at(-1) ?? '')
   if (!original) return null
   const destination = childrenOf(resolve(parent, index), index)

@@ -105,6 +105,12 @@ describe('consecutive counter presses', () => {
     expect(picks[0]?.spreads).not.toHaveProperty('composition/two/weapons')
     expect(picks[0]?.choices).not.toHaveProperty('composition')
   })
+  it('saves the shown counts a press leaves alone when the group has no saved spread yet', () => {
+    const { edit, pick } = harness()
+    edit.spread(0, 'weapons', (counts) => ({ carbine: (counts.carbine ?? 0) + 1 }))
+    expect(pick()?.spreads?.weapons).toEqual({ blaster: 3, carbine: 1 })
+  })
+
   it('applies each spread press to the counts the pick already holds', () => {
     const { edit, pick } = harness()
     const moveToCarbine = (counts: Record<string, number>) => ({

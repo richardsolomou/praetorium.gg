@@ -192,12 +192,13 @@ export function pickEditor(
       editAt(index, (pick) => {
         const unit = context.units[index]
         const served = unit?.choices.find((choice) => choice.key === key)?.options ?? []
-        const counts = update({ ...Object.fromEntries(served.map((option) => [option.id, option.count])), ...pick.spreads?.[key] })
+        const current = { ...Object.fromEntries(served.map((option) => [option.id, option.count])), ...pick.spreads?.[key] }
+        const counts = update(current)
         if (!counts) return pick
         return {
           ...pick,
           models: pick.models ?? unit?.size.models,
-          spreads: { ...pick.spreads, [key]: { ...pick.spreads?.[key], ...counts } },
+          spreads: { ...pick.spreads, [key]: { ...current, ...counts } },
         }
       }),
 
