@@ -18,8 +18,6 @@ import { canonicalCataloguePath, editionCanonicalCataloguesPath, writeCanonicalC
 import { writeEditionCanonicalCatalogues } from '../src/server/catalogueEditions'
 import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSources'
 import { disabledCatalogueSources } from '../src/server/catalogueSources'
-import { writeCatalogueRuntime } from './lib/catalogueRuntime'
-import { packCatalogueRuntime } from './lib/catalogueRuntimeDistribution'
 import releaseLock from '../catalogue.json' with { type: 'json' }
 
 const root = path.join(import.meta.dirname, '..')
@@ -43,12 +41,6 @@ if (command === 'pack') {
   if (!/^[a-f0-9]{40}$/.test(authoringRevision)) throw new Error('Catalogue authoring revision must be a full Git SHA')
   const packed = packCatalogueSnapshot(directory, archive, pointer, process.env.CATALOGUE_OBJECTS_DIR, authoringRevision)
   console.log(`${packed.id} ${archive}`)
-} else if (command === 'runtime') {
-  const output = path.join(path.dirname(archive), 'catalogue-runtime')
-  writeCatalogueRuntime(directory, output)
-  const runtime = packCatalogueRuntime(directory, output, path.join(path.dirname(archive), 'runtime.zip'))
-  const published = JSON.parse(fs.readFileSync(pointer, 'utf8'))
-  fs.writeFileSync(pointer, `${JSON.stringify({ ...published, runtime }, null, 2)}\n`)
 } else if (command === 'verify') {
   verifySnapshotArchive(archive, pointer)
 } else if (command === 'fetch') {
@@ -76,5 +68,5 @@ if (command === 'pack') {
     fs.rmSync(work, { recursive: true, force: true })
   }
 } else {
-  throw new Error('expected pack, runtime, verify, fetch, download, install, or lock')
+  throw new Error('expected pack, verify, fetch, download, install, or lock')
 }
