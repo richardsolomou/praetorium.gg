@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.140.0
+
+### Minor Changes
+
+- c0f2b27: Let an allied side in battle setup play any Force Disposition either list's detachments offer, not only the ones the lists chose.
+- c0f2b27: Pair the allies in a 2v1 league so each pair plays together, and start a battle by choosing one side of the table.
+- c0f2b27: Choose an allied pair's Force Disposition in a 2v1 or doubles league before the lists are revealed, from every card either list's detachments offer; league battles then play it without asking again.
+
 ## 0.139.1
 
 ### Patch Changes
