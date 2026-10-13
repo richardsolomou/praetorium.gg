@@ -44,13 +44,13 @@ for (const width of [390, 1440]) {
     await page.screenshot({ path: `test-results/retained-roster-${width}.png`, fullPage: true })
     await notice.getByRole('button', { name: 'Convert rules version' }).click()
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-    await expect(page.getByRole('option').first()).toHaveText('Current Space Marines codex · 13 Oct 2026')
-    await page.getByRole('option', { name: 'Space Marines codex · 13 Oct 2026 · Current', exact: true }).click()
+    await expect(page.getByRole('option').first()).toHaveText('Current Space Marines points · 13 Oct 2026')
+    await page.getByRole('option', { name: 'Space Marines points · 13 Oct 2026 · Current', exact: true }).click()
     await expect(dialog.getByRole('button', { name: 'Convert roster', exact: true })).toBeEnabled()
-    await waitForRosterSave(page, () => confirmRosterSetup(dialog), 'marine-2026-10-13~')
+    await waitForRosterSave(page, () => confirmRosterSetup(dialog), 'marine-points-1013~')
     await page.reload()
     await expect(notice).toHaveCount(0)
-    expect((await operator.roster(id))?.catalogueId).toBe('marine-2026-10-13~470a-6daa-9014-12df')
+    expect((await operator.roster(id))?.catalogueId).toBe('marine-points-1013~470a-6daa-9014-12df')
     await expect(
       page.getByText('Scout Squad: a saved choice is no longer available; reselect this unit’s options', { exact: true }),
     ).toBeVisible()
@@ -122,7 +122,7 @@ test('library and builder point a roster on earlier released rules at the curren
       .then(() => id)
   }
   const earlier = await save('Earlier Scouts', 'current-rosters~470a-6daa-9014-12df')
-  await save('Current Scouts', 'marine-2026-10-13~470a-6daa-9014-12df')
+  await save('Current Scouts', 'marine-points-1013~470a-6daa-9014-12df')
   await page.goto('/rosters')
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('Older rules')
   await expect(page.locator('[data-roster="Current Scouts"]')).toContainText('11th edition')
@@ -134,12 +134,12 @@ test('library and builder point a roster on earlier released rules at the curren
   await page.goto(`/rosters/${earlier}`)
   const notice = page.locator('[data-roster-rules-notice]')
   await expect(notice).toContainText(
-    'This roster uses Space Marines codex · 3 Oct 2026. Space Marines codex · 13 Oct 2026 is the current rules version.',
+    'This roster uses Space Marines codex · 3 Oct 2026. Space Marines points · 13 Oct 2026 is the current rules version.',
   )
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
   await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
   await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'Space Marines codex · 13 Oct 2026 · Current', exact: true }).click()
+  await page.getByRole('option', { name: 'Space Marines points · 13 Oct 2026 · Current', exact: true }).click()
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(review.getByLabel('Roster change preview')).toContainText(/Scout Squad · 5 models · [\d →]+ pts/)
@@ -148,14 +148,14 @@ test('library and builder point a roster on earlier released rules at the curren
   await page.goto(`/rosters/${earlier}`)
   await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
   await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'Space Marines codex · 13 Oct 2026 · Current', exact: true }).click()
+  await page.getByRole('option', { name: 'Space Marines points · 13 Oct 2026 · Current', exact: true }).click()
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   await review.getByRole('switch', { name: /Keep the original/ }).click()
   await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
   await expect(page).not.toHaveURL(new RegExp(earlier))
   const variant = new URL(page.url()).pathname.split('/').at(-1)!
   expect((await operator.roster(earlier))?.catalogueId).toBe('current-rosters~470a-6daa-9014-12df')
-  expect(await operator.roster(variant)).toMatchObject({ catalogueId: 'marine-2026-10-13~470a-6daa-9014-12df', baseRosterId: earlier })
+  expect(await operator.roster(variant)).toMatchObject({ catalogueId: 'marine-points-1013~470a-6daa-9014-12df', baseRosterId: earlier })
   await expect(notice).toHaveCount(0)
   await page.goto('/rosters')
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('Older rules')

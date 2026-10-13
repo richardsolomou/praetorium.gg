@@ -2,7 +2,113 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import { loadMfm, mfmAttribution, mfmCostRows, type MfmIndex } from './mfm'
+import { loadMfm, mfmAttribution, mfmCostRows, mfmPrice, type MfmIndex, type MfmUnit } from './mfm'
+
+const sizedUnit: MfmUnit = {
+  name: 'Squad',
+  pricing: [
+    {
+      range: '[1,2]',
+      costs: [
+        { models: 3, points: 100 },
+        { models: 6, points: 215 },
+      ],
+    },
+    {
+      range: '[3,)',
+      costs: [
+        { models: 3, points: 130 },
+        { models: 6, points: 245 },
+      ],
+    },
+  ],
+}
+
+it.each([
+  [3, 1, 100],
+  [4, 1, 215],
+  [5, 2, 215],
+  [6, 2, 215],
+  [3, 3, 130],
+  [4, 3, 245],
+  [5, 3, 245],
+  [6, 3, 245],
+  [2, 1, null],
+  [7, 1, null],
+  [4, 0, null],
+])('prices %i models in copy %i at %s points', (models, copy, expected) => {
+  expect(mfmPrice(sizedUnit, models, copy)).toBe(expected)
+})
+
+it('does not infer intermediate sizes for a per-model price table', () => {
+  expect(
+    mfmPrice(
+      {
+        name: 'Squad',
+        pricing: [
+          {
+            range: '[1,)',
+            costs: [
+              { models: 1, points: 40 },
+              { models: 2, points: 80 },
+              { models: 4, points: 160 },
+            ],
+          },
+        ],
+      },
+      3,
+      1,
+    ),
+  ).toBeNull()
+})
+
+it('refuses conflicting prices for the same model count', () => {
+  expect(
+    mfmPrice(
+      {
+        name: 'Squad',
+        pricing: [
+          {
+            range: '[1,)',
+            costs: [
+              { models: 3, points: 100 },
+              { models: 6, points: 215 },
+              { models: 6, points: 220 },
+            ],
+          },
+        ],
+      },
+      6,
+      1,
+    ),
+  ).toBeNull()
+})
+
+it('prices intermediate squads independently of row order and add-on models', () => {
+  expect(
+    mfmPrice(
+      {
+        name: 'Squad',
+        pricing: [
+          {
+            range: '[1,)',
+            costs: [
+              { models: 6, points: 215 },
+              { models: 1, points: 10, addon: true },
+              { models: 3, points: 100 },
+            ],
+          },
+        ],
+      },
+      4,
+      1,
+    ),
+  ).toBe(215)
+})
+
+it('refuses overlapping requisition tiers', () => {
+  expect(mfmPrice({ ...sizedUnit, pricing: [sizedUnit.pricing[0]!, sizedUnit.pricing[0]!] }, 4, 1)).toBeNull()
+})
 
 it.each([
   ['[1,1]', 'Your 1st Unit Costs'],

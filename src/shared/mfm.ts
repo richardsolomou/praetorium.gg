@@ -108,8 +108,10 @@ export function mfmCopyLabel(range: string) {
 export function mfmPrice(unit: MfmUnit, models: number, copy: number): number | null {
   const tiers = unit.pricing.filter((tier) => copyRange(tier.range, copy))
   if (tiers.length !== 1) return null
-  const prices = tiers[0]!.costs.filter((cost) => !cost.addon && cost.models === models)
-  return prices.length === 1 ? prices[0]!.points : null
+  const costs = tiers[0]!.costs.filter((cost) => !cost.addon).toSorted((left, right) => left.models - right.models)
+  const prices = costs.filter((cost) => cost.models === models)
+  if (prices.length) return prices.length === 1 ? prices[0]!.points : null
+  return costs.length === 2 && models > costs[0]!.models && models < costs[1]!.models ? costs[1]!.points : null
 }
 export function mfmFirstCopyRows(unit: MfmUnit) {
   const tier = unit.pricing.find((candidate) => copyRange(candidate.range, 1))

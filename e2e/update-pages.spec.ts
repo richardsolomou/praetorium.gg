@@ -33,6 +33,7 @@ for (const width of [1440, 390]) {
     await expectNoHorizontalOverflow(page.locator('main'))
     await page.screenshot({ path: test.info().outputPath(`data-update-open-${width}.png`) })
     await page.reload()
+    await page.waitForLoadState('networkidle')
     await expect(page.locator(`[id="${anchor}"]`)).toHaveAttribute('open', '')
     await expect(page.locator(`[id="${target}"]`)).toBeVisible()
     await page.getByRole('link', { name: 'Older updates', exact: true }).click()

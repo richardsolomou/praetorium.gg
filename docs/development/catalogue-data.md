@@ -25,7 +25,7 @@ Rule references recognize both `Twin Linked` and `Twin-linked` as the same weapo
 
 `src/server/sync.ts` owns bounded downloads and extraction; `catalogueSnapshot.ts` owns archive packing/verification; `scripts/lib/catalogueMaterialize.ts` owns pinned source assembly. Stage complete output and replace it only after every source, correction, revision, hash, and required-content check succeeds. Do not replace an activated shared-cache symlink. Retry transient transport failures, not checksum or schema failures.
 
-`pnpm catalogue:materialize` writes `.output/catalogue-data/` or explicit `CATALOGUE_DIR`; single-source output supports patch verification. Publication verifies the uploaded archive before changing `current.json`. Hosted images retain their packaged snapshot until deployment; publication alone does not update live rules. Health waits for catalogue/search preparation. An instance without data can still serve battles and pasted rosters.
+`pnpm catalogue:materialize` writes `.output/catalogue-data/` or explicit `CATALOGUE_DIR`; single-source output supports patch verification. Publication verifies the uploaded archive before changing `current.json`. Hosted images retain their packaged snapshot until deployment; publication alone does not update live rules. Keep candidate snapshots used by builds or previews under ignored `data-dev/`, outside `.output/`, which the production build clears. Health waits for catalogue/search preparation. An instance without data can still serve battles and pasted rosters.
 
 Battlemaster materialization fetches detail and Chapter Approved lite data for every layout. Verify layout identity, slot, deployment, instance order, position, and rotation before joining objective codes. New lite files require publishing and pinning a new verified snapshot before deployment; older snapshots retain deployment-objective fallback.
 
@@ -55,6 +55,8 @@ pnpm catalogue:upstream
 ```
 
 A divergent tracking branch must be investigated rather than reset. Syncing the fork does not move the application’s pinned commits or publish a snapshot. Source changes to released versions require retaining their effective source pins and adding a new current version through the verified publisher.
+
+The points source tracks the [Praetorium MFM fork](https://github.com/richardsolomou/wh40k-11e-mfm). Verify each candidate against a fresh full official scrape, retain the scraper’s validation and changelog, and pin its exact commit in the catalogue repository. Keep executable definitions tracking the BSData rules fork; do not duplicate MFM prices there solely to refresh application pricing. Preserve released versions’ effective points pins and publish a new current rules version when adopting changed prices.
 
 Correction contents contribute to source revisions; edition revisions also contribute to the combined faction-cache revision. A correction-only publication must invalidate saved-roster pricing, totals, and legality caches.
 
@@ -127,7 +129,7 @@ Every configured rules version's complete catalogue, datacards, and rules stay l
 | Wargear prices                                                      | MFM only for matching executable options or source-backed pieces; remaining costs stay evaluated |
 | Terrain geometry                                                    | Pinned Battlemaster detail and lite objectives; source-pinned label corrections                  |
 
-Do not treat one source as globally authoritative. Replacement profile/ability joins must be unambiguous and preserve selected equipment/context. Conditional price rows require their actual model count and requisition context. Reference copy tiers retain source labels; unlabeled ranges follow the existing MFM wording, such as “Your 1st To 3rd Units Cost” and “Your 4th + Unit Costs”. Apply the same fallback when reading packaged canonical records, without rebuilding the catalogue for a label correction. Check sibling reference pages before choosing fallback wording for source omissions. Conflicts, missing joins, unsupported labels, and fallbacks remain visible in provenance and `issues`; unknown semantic mappings require a reviewed mapping and test.
+Do not treat one source as globally authoritative. Replacement profile/ability joins must be unambiguous and preserve selected equipment/context. Conditional price rows require their actual model count and requisition context. For a two-row MFM starting-strength table, intermediate model counts pay the upper row, as required by the publisher’s [Starting Strength guidance](https://mfm.warhammer-community.com/en). Keep exact matching for per-model tables and refuse counts outside the printed limits. Reference copy tiers retain source labels; unlabeled ranges follow the existing MFM wording, such as “Your 1st To 3rd Units Cost” and “Your 4th + Unit Costs”. Apply the same fallback when reading packaged canonical records, without rebuilding the catalogue for a label correction. Check sibling reference pages before choosing fallback wording for source omissions. Conflicts, missing joins, unsupported labels, and fallbacks remain visible in provenance and `issues`; unknown semantic mappings require a reviewed mapping and test.
 
 ```sh
 pnpm catalogue:compile
