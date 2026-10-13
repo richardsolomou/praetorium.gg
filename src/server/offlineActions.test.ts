@@ -2,32 +2,29 @@ import { expect, it, vi } from 'vitest'
 import { app } from './app'
 import { offlineActions } from './offlineActions'
 import { saveRosterSchema } from '../contracts/schemas'
+import { leagueRosterFixture } from './leagueRoster.fixtures'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
-it('refuses a queued preview league seal before any server write', async () => {
+it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league seal with frozen rules metadata', async (status) => {
+  const { saved, catalogue, rules, edition } = leagueRosterFixture(status)
   const submit = vi.fn()
   vi.mocked(app).mockReturnValue({
-    service: { usableRoster: async () => ({ roster: { catalogueId: 'codex~cat' }, lentBy: null }), submitLeagueRoster: submit },
-    catalogueFor: async () => ({ edition: { status: 'preview' } }),
+    service: { usableRoster: async () => ({ roster: saved, lentBy: null }), submitLeagueRoster: submit },
+    catalogueFor: async () => catalogue,
+    rulesFor: async () => rules,
   } as never)
-  const capturedRoster = saveRosterSchema.parse({
-    name: 'Army',
-    catalogueId: 'codex~cat',
-    detachmentIds: [],
-    disposition: null,
-    limit: 1000,
-    picks: [],
-    prep: null,
+  await offlineActions.submitLeagueRoster('player', {
+    token: 'league',
+    rosterId: saved.id,
+    capturedRoster: saveRosterSchema.parse(saved),
+    catalogueRevision: catalogue.index.revision,
   })
-  const message = await offlineActions
-    .submitLeagueRoster('player', {
-      token: 'league',
-      rosterId: 'roster',
-      capturedRoster,
-      catalogueRevision: 'revision',
-    })
-    .catch((response: Response) => response.text())
-  expect(message).toBe('preview rules cannot be submitted to a league')
-  expect(submit).not.toHaveBeenCalled()
+  expect(submit).toHaveBeenCalledWith(
+    'league',
+    'player',
+    saved,
+    expect.objectContaining({ built: expect.objectContaining({ edition }) }),
+    undefined,
+  )
 })

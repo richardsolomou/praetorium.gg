@@ -3,7 +3,6 @@ import {
   catalogueEditionSchema,
   editionCatalogueFiles,
   picksForCatalogueEdition,
-  leagueEditionError,
   editionLabel,
   rulesVersionLabel,
 } from './catalogueEdition'
@@ -98,13 +97,6 @@ it('shares source entries that name no book with the original files', () => {
   const entry = { id: 'spear', name: 'Spear', profiles: [{ id: 'spear-profile', name: 'Spear' }] }
   const files: CatalogueFile[] = [{ catalogue: { id: 'custodes', name: 'Custodes', sharedSelectionEntries: [entry] } }]
   expect(editionCatalogueFiles(files, catalogueEditionSchema.parse(preview))[0]!.catalogue?.sharedSelectionEntries?.[0]).toBe(entry)
-})
-
-it.each(['released', 'retired'] as const)('allows %s codexes in leagues', (status) => {
-  expect(leagueEditionError({ status })).toBeNull()
-})
-it('rejects preview codexes in leagues', () => {
-  expect(leagueEditionError({ status: 'preview' })).toBe('preview rules cannot be submitted to a league')
 })
 
 it.each([
