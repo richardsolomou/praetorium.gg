@@ -20,7 +20,7 @@
     },
     {
       "name": "correction patch",
-      "definition": "An authored source correction in catalogue/patches/, minimal and source-pinned with verified provenance, applied during materialization; a stale one fails the build and leaves the previous output intact."
+      "definition": "An authored source correction in the catalogue repository’s catalogue/patches/, minimal and source-pinned with verified provenance, applied during materialization; a stale one fails the build and leaves the previous output intact."
     },
     {
       "name": "roster",

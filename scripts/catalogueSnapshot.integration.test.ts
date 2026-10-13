@@ -14,9 +14,19 @@ import {
   fetchCurrentSnapshot,
   fetchSnapshot,
   installedSnapshot,
+  installSnapshotArchive,
   packCatalogueSnapshot,
   verifyInstalledSnapshot,
 } from '../src/server/catalogueSnapshot'
+
+function snapshotEntries(bytes: Uint8Array) {
+  const entries = unzipSync(bytes)
+  const manifest = JSON.parse(Buffer.from(entries['manifest.json']!).toString('utf8')) as { format: string; files: Record<string, string> }
+  if (manifest.format === 'praetorium.catalogue.v4') {
+    for (const [name, hash] of Object.entries(manifest.files)) entries[`catalogue/${name}`] = entries[`objects/${hash}`]!
+  }
+  return entries
+}
 
 const roots: string[] = []
 const originalFetch = globalThis.fetch
@@ -55,6 +65,27 @@ function completeCatalogue(root: string) {
   return catalogue
 }
 
+it('assigns distinct immutable release IDs to identical sources from different authoring commits', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-authoring-release-'))
+  roots.push(root)
+  const source = completeCatalogue(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = path.join(root, 'pointer.json')
+  const first = packCatalogueSnapshot(source, archive, pointer, undefined, 'a'.repeat(40))
+  const second = packCatalogueSnapshot(source, archive, pointer, undefined, 'b'.repeat(40))
+  expect(second.id).not.toBe(first.id)
+})
+
+it('repeats the same release ID for the same sources and authoring commit', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-authoring-repeat-'))
+  roots.push(root)
+  const source = completeCatalogue(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = path.join(root, 'pointer.json')
+  const first = packCatalogueSnapshot(source, archive, pointer, undefined, 'a'.repeat(40))
+  expect(packCatalogueSnapshot(source, archive, pointer, undefined, 'a'.repeat(40))).toEqual(first)
+})
+
 it('packs and verifies a complete catalogue', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
@@ -63,7 +94,7 @@ it('packs and verifies a complete catalogue', () => {
   const environment = { ...process.env, CATALOGUE_DIR: catalogue, CATALOGUE_SNAPSHOT_FILE: archive }
 
   execFileSync('pnpm', ['catalogue:snapshot', 'pack'], { env: environment })
-  expect(unzipSync(fs.readFileSync(archive))['catalogue/canonical/catalogue.json']).toBeDefined()
+  expect(snapshotEntries(fs.readFileSync(archive))['catalogue/canonical/catalogue.json']).toBeDefined()
   expect(() => execFileSync('pnpm', ['catalogue:snapshot', 'verify'], { env: environment })).not.toThrow()
 })
 
@@ -82,7 +113,7 @@ it('attributes retained source data to its authored original repository', () => 
   )
   const archive = path.join(root, 'snapshot.zip')
   packCatalogueSnapshot(directory, archive, path.join(root, 'pointer.json'))
-  const provenance = JSON.parse(new TextDecoder().decode(unzipSync(fs.readFileSync(archive))['catalogue/provenance.json']))
+  const provenance = JSON.parse(new TextDecoder().decode(snapshotEntries(fs.readFileSync(archive))['catalogue/provenance.json']))
   expect(provenance.sources.find((source: { name: string }) => source.name === 'definitions').origin).toBe(
     'https://github.com/original/rules',
   )
@@ -116,14 +147,14 @@ it('rejects a changed file in an installed snapshot', () => {
   const pointerFile = path.join(root, 'pointer.json')
   const pointer = packCatalogueSnapshot(source, archive, pointerFile)
   const destination = path.join(root, 'installed')
-  for (const [name, bytes] of Object.entries(unzipSync(fs.readFileSync(archive)))) {
+  for (const [name, bytes] of Object.entries(snapshotEntries(fs.readFileSync(archive)))) {
     if (!name.startsWith('catalogue/')) continue
     const file = path.join(destination, name.slice('catalogue/'.length))
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(file, bytes)
   }
   fs.writeFileSync(path.join(destination, '.snapshot.json'), JSON.stringify(pointer))
-  fs.writeFileSync(path.join(destination, '.snapshot-manifest.json'), unzipSync(fs.readFileSync(archive))['manifest.json']!)
+  fs.writeFileSync(path.join(destination, '.snapshot-manifest.json'), snapshotEntries(fs.readFileSync(archive))['manifest.json']!)
   expect(verifyInstalledSnapshot(destination).id).toBe(installedSnapshot(destination)?.id)
   fs.writeFileSync(path.join(destination, 'definitions', 'test.json'), '{"catalogue":false}\n')
   expect(() => verifyInstalledSnapshot(destination)).toThrow('catalogue snapshot has an invalid definitions/test.json')
@@ -201,7 +232,7 @@ it('records provenance and omits unused files from a packed snapshot', () => {
 
   packCatalogueSnapshot(catalogue, archiveFile, pointerFile)
 
-  const entries = unzipSync(fs.readFileSync(archiveFile))
+  const entries = snapshotEntries(fs.readFileSync(archiveFile))
   expect(entries['catalogue/provenance.json']).toBeDefined()
   expect(entries['catalogue/definitions/README.md']).toBeUndefined()
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
@@ -219,7 +250,7 @@ it('packs the data-update history and hashes it in the manifest', () => {
 
   packCatalogueSnapshot(catalogue, archiveFile, pointerFile)
 
-  const entries = unzipSync(fs.readFileSync(archiveFile))
+  const entries = snapshotEntries(fs.readFileSync(archiveFile))
   const manifest = JSON.parse(new TextDecoder().decode(entries['manifest.json'])) as { files: Record<string, string> }
   expect(manifest.files['changes/history.json']).toBe(createHash('sha256').update(history).digest('hex'))
 })
@@ -245,7 +276,7 @@ it.each(['definitions', 'datacards'] as const)('does not compile or pack a canon
   })
 
   expect(fs.existsSync(path.join(catalogue, 'canonical', 'catalogue.json'))).toBe(false)
-  expect(unzipSync(fs.readFileSync(archiveFile))['catalogue/canonical/catalogue.json']).toBeUndefined()
+  expect(snapshotEntries(fs.readFileSync(archiveFile))['catalogue/canonical/catalogue.json']).toBeUndefined()
 })
 
 it('refuses a revoked snapshot before installing it', async () => {
@@ -303,4 +334,175 @@ it('refuses a latest snapshot when the withdrawal policy is invalid', async () =
   await expect(fetchCurrentSnapshot(path.join(root, 'catalogue'), 'https://example.test')).rejects.toThrow(
     /catalogue revocations are invalid/,
   )
+})
+
+it('stores duplicate content once and shares its installed disk blocks', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-dedup-'))
+  roots.push(root)
+  const source = completeCatalogue(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(source, archive, path.join(root, 'pointer.json'))
+  const entries = unzipSync(fs.readFileSync(archive))
+  const duplicateHash = createHash('sha256').update('{"catalogue":true}\n').digest('hex')
+  expect(Object.keys(entries).filter((name) => name === `objects/${duplicateHash}`)).toHaveLength(1)
+  const installed = path.join(root, 'installed')
+  installSnapshotArchive(installed, archive, pointer, null)
+  expect(fs.statSync(path.join(installed, 'points/test.json')).ino).toBe(fs.statSync(path.join(installed, 'datacards/test.json')).ino)
+  expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
+})
+
+it('preserves a ZIP header spanning input chunks', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-stream-chunks-'))
+  roots.push(root)
+  const source = completeCatalogue(root)
+  const content = Buffer.alloc(65536 - 102 - 10, ' ')
+  content[0] = 34
+  content[content.length - 1] = 34
+  fs.writeFileSync(path.join(source, 'datacards/padding.json'), content)
+  fs.writeFileSync(path.join(source, 'datacards/suffix.json'), JSON.stringify(' '.repeat(70000)))
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(source, archive, path.join(root, 'pointer.json'))
+  const entries = unzipSync(fs.readFileSync(archive))
+  const first = `objects/${createHash('sha256').update(content).digest('hex')}`
+  const ordered = { [first]: entries[first]!, ...entries }
+  const bytes = zipSync(ordered, { level: 0 })
+  fs.writeFileSync(archive, bytes)
+  const installed = path.join(root, 'installed')
+  installSnapshotArchive(installed, archive, { ...pointer, archiveSha256: createHash('sha256').update(bytes).digest('hex') }, null)
+  expect(fs.readFileSync(path.join(installed, 'datacards/padding.json'))).toEqual(content)
+})
+
+it('uses the GitHub mirror when R2 cannot find the pinned archive', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-mirror-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
+  const requests: string[] = []
+  globalThis.fetch = async (input) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    requests.push(url)
+    return url.startsWith('https://github.com/') ? new Response(fs.readFileSync(archive)) : new Response('', { status: 404 })
+  }
+  const installed = path.join(root, 'installed')
+  await fetchSnapshot(installed, 'https://r2.example.test', pointer)
+  expect(requests).toEqual([
+    `https://r2.example.test/snapshots/${pointer.id}.zip`,
+    `https://github.com/richardsolomou/praetorium-catalogue/releases/download/catalogue-${pointer.id}/snapshot.zip`,
+  ])
+  expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
+})
+
+it('does not hide checksum failures by trying a different mirror', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-corrupt-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
+  const requests: string[] = []
+  globalThis.fetch = async (input) => {
+    requests.push(input instanceof Request ? input.url : input.toString())
+    return new Response(fs.readFileSync(archive))
+  }
+  await expect(
+    fetchSnapshot(path.join(root, 'installed'), 'https://r2.example.test', { ...pointer, archiveSha256: '0'.repeat(64) }),
+  ).rejects.toThrow('checksum')
+  expect(requests).toHaveLength(1)
+})
+
+it('leaves an installed snapshot intact when a replacement is corrupt', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-replace-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
+  const installed = path.join(root, 'installed')
+  installSnapshotArchive(installed, archive, pointer, null)
+  globalThis.fetch = async () => new Response(fs.readFileSync(archive))
+  await expect(fetchSnapshot(installed, 'https://r2.example.test', { ...pointer, id: '0'.repeat(64) })).rejects.toThrow('manifest')
+  expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
+})
+
+it('rejects traversal paths even when the manifest and archive hashes match', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-path-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
+  const entries = unzipSync(fs.readFileSync(archive))
+  const manifest = JSON.parse(Buffer.from(entries['manifest.json']!).toString('utf8'))
+  manifest.files['../escape.json'] = manifest.files['points/test.json']
+  entries['manifest.json'] = Buffer.from(JSON.stringify(manifest))
+  const changed = zipSync(entries)
+  fs.writeFileSync(archive, changed)
+  expect(() =>
+    installSnapshotArchive(
+      path.join(root, 'installed'),
+      archive,
+      {
+        ...pointer,
+        id: createHash('sha256').update(entries['manifest.json']!).digest('hex'),
+        archiveSha256: createHash('sha256').update(changed).digest('hex'),
+      },
+      null,
+    ),
+  ).toThrow('unsafe')
+})
+
+it('downloads only missing content when another snapshot is installed', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-incremental-'))
+  roots.push(root)
+  const source = completeCatalogue(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointerFile = path.join(root, 'pointer.json')
+  const prior = packCatalogueSnapshot(source, archive, pointerFile)
+  const installed = path.join(root, 'installed')
+  installSnapshotArchive(installed, archive, prior, null)
+  fs.writeFileSync(path.join(source, 'points/test.json'), '{"changed":true}')
+  const objects = path.join(root, 'objects')
+  const next = packCatalogueSnapshot(source, archive, pointerFile, objects)
+  const requests: string[] = []
+  globalThis.fetch = async (input) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    requests.push(url)
+    const file = url.endsWith('.json') ? path.join(objects, 'manifest.json') : path.join(objects, url.split('/').at(-1)!)
+    return new Response(fs.readFileSync(file))
+  }
+  await fetchSnapshot(installed, 'https://r2.example.test', next)
+  expect(requests.filter((url) => url.endsWith('.gz'))).toHaveLength(1)
+  expect(verifyInstalledSnapshot(installed)).toEqual(next)
+})
+
+it('falls back to an archive when the object pool is unavailable', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-pool-fallback-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
+  fs.mkdirSync(path.join(root, '.catalogue-objects'))
+  globalThis.fetch = async (input) =>
+    (input instanceof Request ? input.url : input.toString()).endsWith('.zip')
+      ? new Response(fs.readFileSync(archive))
+      : new Response('', { status: 404 })
+  const installed = path.join(root, 'installed')
+  await fetchSnapshot(installed, 'https://r2.example.test', pointer)
+  expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
+})
+
+it('keeps the old snapshot when a downloaded shared object has the wrong hash', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-pool-corrupt-'))
+  roots.push(root)
+  const source = completeCatalogue(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointerFile = path.join(root, 'pointer.json')
+  const prior = packCatalogueSnapshot(source, archive, pointerFile)
+  const installed = path.join(root, 'installed')
+  installSnapshotArchive(installed, archive, prior, null)
+  fs.writeFileSync(path.join(source, 'points/test.json'), '{"changed":true}')
+  const objects = path.join(root, 'objects')
+  const next = packCatalogueSnapshot(source, archive, pointerFile, objects)
+  const wrong = fs.readFileSync(path.join(objects, createHash('sha256').update('{"catalogue":true}\n').digest('hex') + '.gz'))
+  globalThis.fetch = async (input) =>
+    new Response(
+      (input instanceof Request ? input.url : input.toString()).endsWith('.json')
+        ? fs.readFileSync(path.join(objects, 'manifest.json'))
+        : wrong,
+    )
+  await expect(fetchSnapshot(installed, 'https://r2.example.test', next)).rejects.toThrow('object checksum')
+  expect(verifyInstalledSnapshot(installed)).toEqual(prior)
 })
