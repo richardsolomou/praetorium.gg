@@ -582,6 +582,17 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     -webkit-text-size-adjust: 100%;
   }
 
+  /* A reading size chosen on this device; print keeps its own measure. */
+  @media screen {
+    html[data-text-size='large'] {
+      font-size: 20px;
+    }
+
+    html[data-text-size='larger'] {
+      font-size: 22px;
+    }
+  }
+
   ::selection {
     background-color: color-mix(in srgb, var(--color-parchment) 32%, transparent);
     color: var(--color-bone);
