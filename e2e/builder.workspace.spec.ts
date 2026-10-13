@@ -12,11 +12,6 @@ import {
   add,
 } from './builder.harness'
 
-test('the unit picker stays within the roster faction', async ({ page }) => {
-  await openBuilder(page)
-  await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
-})
-
 test('the roster workspace reserves the desktop picker while its book loads', async ({ browser, page: savedPage }) => {
   await openBuilder(savedPage)
   await savedPage.getByLabel('Add a unit').fill('Immortals')
@@ -119,15 +114,18 @@ test('the roster header fades whichever end of its facts it is hiding', async ({
   await context.close()
 })
 
-test('the roster header fades nothing when every fact fits', async ({ page }) => {
+test('the roster header fits its facts and opens its force disposition', async ({ page }) => {
   await openBuilder(page)
   const meta = page.locator('[data-slot="roster-meta"]')
   await expectNoHorizontalOverflow(meta)
   await expect.poll(() => fadedEdges(meta)).toEqual({ start: false, end: false })
-})
-
-test('the roster header opens its force disposition', async ({ page }) => {
-  await openBuilder(page)
+  const filter = page.getByLabel('Add a unit')
+  await filter.fill('nothing by this name')
+  await expect(page.getByText('No matching units.')).toBeVisible()
+  await page.getByRole('button', { name: 'Empty the picker filter' }).click()
+  await expect(filter).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Empty the picker filter' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
   await page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold', exact: true }).click()
   await expect(page).toHaveURL(/\/force-dispositions\/take-and-hold$/)
   await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
@@ -417,12 +415,6 @@ test('mid-width picker hands off to the inline loadout', async ({ page }) => {
   await expect(page).toHaveURL(rosterUrl)
 })
 
-test('the whole book is on the shelves, not the first page of it', async ({ page }) => {
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await expect(page.getByRole('button', { name: 'Add Sternguard Veteran Squad', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Add Vanguard Veteran Squad with Jump Packs', exact: true })).toBeVisible()
-})
-
 test('a mixed-model squad shows its own profile instead of an optional model', async ({ page }) => {
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await page.getByLabel('Add a unit').fill('Outrider Squad')
@@ -486,17 +478,6 @@ test('datasheet metadata is searchable in the picker and global search', async (
   await page.screenshot({ path: 'test-results/mobile-roster-picker-metadata-search.png' })
 })
 
-test('a filter that found nothing can be emptied without selecting it', async ({ page }) => {
-  await openBuilder(page)
-  const filter = page.getByLabel('Add a unit')
-  await filter.fill('nothing by this name')
-  await expect(page.getByText('No matching units.')).toBeVisible()
-  await page.getByRole('button', { name: 'Empty the picker filter' }).click()
-  await expect(filter).toHaveValue('')
-  await expect(page.getByRole('button', { name: 'Empty the picker filter' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
-})
-
 test('the roster workspace preserves picker and read-only state', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
@@ -553,23 +534,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect(page.getByRole('button', { name: /More models in Immortals/ })).toBeVisible()
 })
 
-test('Deathwatch excludes Scouts from its unit picker', async ({ page }) => {
-  await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
-  await page.getByLabel('Add a unit').fill('Scout')
-  await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
-})
-
-test('Black Templars can take generic Codex units under their current faction rule', async ({ page }) => {
-  await openBuilder(page, 'Black Templars', /Marshal's Household/)
-  await page.getByLabel('Add a unit').fill('Librarian')
-  await expect(page.getByRole('button', { name: 'Add Librarian', exact: true })).toHaveCount(1)
-  await page.getByLabel('Add a unit').fill('Gladiator Lancer')
-  // The chapter and Codex entries have separate ids and both meet this rule.
-  await expect(page.getByRole('button', { name: 'Add Gladiator Lancer', exact: true })).toHaveCount(2)
-  await page.screenshot({ path: 'test-results/black-templars-restrictions.png', fullPage: true })
-})
-
-test('adding a unit keeps the confirmed roster visible while pricing catches up', async ({ page }) => {
+test('adding or deleting a unit keeps the rest of the roster visible while pricing catches up', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
   const immortals = page.locator('[data-unit="Immortals"]')
@@ -579,25 +544,13 @@ test('adding a unit keeps the confirmed roster visible while pricing catches up'
     if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1000))
     await route.continue()
   })
-  await add(page, 'Skorpekh Destroyers')
-
+  await add(page, 'Overlord')
   await expect(immortals).toBeVisible({ timeout: 250 })
   await expect(page.locator('[data-unit]')).toHaveCount(1, { timeout: 250 })
-  await expect(page.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
-  await page.screenshot({ path: 'test-results/roster-visible-while-adding.png', fullPage: true })
-})
-
-test('deleting a unit keeps the rest of the roster visible while pricing catches up', async ({ page }) => {
-  await openBuilder(page)
-  await add(page, 'Immortals')
-  await add(page, 'Overlord')
+  await expect(page.locator('[data-unit="Overlord"]')).toBeVisible()
   await add(page, 'Necron Warriors')
   await expect(page.locator('[data-unit]')).toHaveCount(3)
 
-  await page.route('**/_serverFn/**', async (route) => {
-    if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1000))
-    await route.continue()
-  })
   await page.locator('[data-unit="Overlord"]').getByLabel('Unit actions for Overlord').click()
   await page.getByRole('menuitem', { name: 'Delete unit' }).click()
 

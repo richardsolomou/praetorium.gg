@@ -568,6 +568,9 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
 test('a free swap shows on the roster card as well as the loadout', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
+  // Deathwatch excludes Scouts from its unit picker.
+  await page.getByLabel('Add a unit').fill('Scout')
+  await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)
   await add(page, 'Decimus Kill Team')
   await page
     .getByRole('button', { name: /^Decimus Kill Team/ })
