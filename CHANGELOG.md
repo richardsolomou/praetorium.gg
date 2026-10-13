@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.136.0
+
+### Minor Changes
+
+- b818909: Choose a larger text size on your profile; it applies on this device straight away and on every page load.
+
 ## 0.135.1
 
 ### Patch Changes
