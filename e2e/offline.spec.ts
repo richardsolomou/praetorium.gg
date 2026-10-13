@@ -137,6 +137,8 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(offline.locator('main details').first()).toHaveAttribute('open', '')
   await offline.screenshot({ path: test.info().outputPath('offline-rules-desktop.png') })
   await offline.getByRole('button', { name: 'Search Praetorium', exact: true }).first().click()
+  await offline.getByPlaceholder('Search everything…').fill('gain 1cp')
+  await expect(offline.getByRole('option', { name: /Imotekh the Stormlord/ }).first()).toBeVisible()
   await offline.getByPlaceholder('Search everything…').fill('Immortals')
   await offline.getByRole('option').filter({ hasText: 'Immortals' }).first().click()
   await expect(offline.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()

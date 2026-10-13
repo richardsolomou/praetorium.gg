@@ -10,19 +10,9 @@ import type { GlobalSearchResult } from '../../functions'
 import { globalSearchQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'
-import { matchingPages } from './globalSearchPages'
+import { globalSearchGroups, matchingPages, SEARCH_RESULT_BATCH_SIZE } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
-
-const groups: GlobalSearchResult['group'][] = [
-  'Pages',
-  'Factions',
-  'Datasheets',
-  'Detachments',
-  'Missions',
-  'Rules',
-  'Your rosters',
-  'Your battles',
-]
+import { SearchResultDetail } from './SearchResultDetail'
 
 type GlobalSearchContextValue = {
   open: () => void
@@ -35,6 +25,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(SEARCH_RESULT_BATCH_SIZE)
   const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
   const trimmed = query.trim()
   const settled = useSettled(trimmed, 75)
@@ -107,11 +98,18 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
         className="top-1/2 max-w-xl -translate-y-1/2 rounded-none!"
       >
         <Command shouldFilter={false}>
-          <CommandInput value={query} onValueChange={setQuery} placeholder="Search everything…" />
+          <CommandInput
+            value={query}
+            onValueChange={(value) => {
+              setQuery(value)
+              setVisibleCount(SEARCH_RESULT_BATCH_SIZE)
+            }}
+            placeholder="Search everything…"
+          />
           <CommandList className="h-[min(60vh,30rem)] max-h-none">
             {trimmed.length >= 2 && isFetching ? <output className="sr-only">Searching</output> : null}
             {trimmed.length >= 2 && trimmed === settled && !isFetching ? <CommandEmpty>No results found.</CommandEmpty> : null}
-            {groups.map((group) => {
+            {globalSearchGroups.map((group) => {
               const items = results.filter((result) => result.group === group)
               if (!items.length) return null
               return (
@@ -119,7 +117,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
                   key={group}
                   heading={group === 'Datasheets' && items.every((result) => result.fuzzy) ? 'Close matches' : group}
                 >
-                  {items.map((result) => (
+                  {items.slice(0, visibleCount).map((result) => (
                     <CommandItem
                       key={result.id}
                       value={`${result.label} ${result.detail}`}
@@ -129,11 +127,16 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
                       <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold uppercase">{result.label}</span>
-                        <span className="result-detail block truncate text-xs text-dim">{result.detail}</span>
+                        <SearchResultDetail result={result} />
                         <DatasheetMatchReasons query={trimmed} reasons={result.matchReasons} />
                       </span>
                     </CommandItem>
                   ))}
+                  {items.length > visibleCount ? (
+                    <CommandItem value={`more:${group}`} onSelect={() => setVisibleCount((count) => count + SEARCH_RESULT_BATCH_SIZE)}>
+                      Show more {group.toLowerCase()}
+                    </CommandItem>
+                  ) : null}
                 </CommandGroup>
               )
             })}

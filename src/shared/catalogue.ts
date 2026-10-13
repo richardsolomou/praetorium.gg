@@ -196,8 +196,12 @@ export const abilityNamesIn = (loaded: LoadedCatalogue, catalogueId: string, ent
   ...new Set(walkRecord(loaded, catalogueId, entryId)?.abilities.map((ability) => ability.name) ?? []),
 ]
 
-/** Rules prose stays out of the search index so common phrases do not overwhelm useful results. */
-export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatasheetSearchFields | null {
+export function datasheetSearchFieldsIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  { includeAbilityDescriptions = false } = {},
+): DatasheetSearchFields | null {
   const walked = walkRecord(loaded, catalogueId, entryId)
   if (!walked) return null
   const weapons = walked.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
@@ -205,6 +209,13 @@ export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: st
     name: walked.name,
     keywords: walked.keywords,
     abilities: [...new Set(walked.abilities.filter((ability) => ability.kind !== 'rule').map((ability) => ability.name))],
+    abilityDescriptions: includeAbilityDescriptions
+      ? walked.abilities.flatMap((ability) =>
+          (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
+            ? [{ name: ability.name, description: ability.description }]
+            : [],
+        )
+      : undefined,
     weapons: dedupeWeapons(weapons.map((weapon) => weapon.name)),
     weaponKeywords: [
       ...new Set(

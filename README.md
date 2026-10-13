@@ -30,6 +30,8 @@ This repository contains source pins and authored correction patches, but no fet
 
 The public reference is available without an account: [faction datasheets](https://praetorium.gg/factions), [missions](https://praetorium.gg/missions), and [rules](https://praetorium.gg/rules). Each page reads the service's verified community data snapshot.
 
+To search Praetorium from your browser's address bar, add Praetorium as a custom search engine with the URL `https://praetorium.gg/search?q=%s`. Choose a shortcut such as `p`, then use it followed by a unit name. The [search page](https://praetorium.gg/search) finds the same results as global autocomplete.
+
 The source is open so anyone can inspect the product and contribute to it. [Contributing](CONTRIBUTING.md) covers running a local development copy.
 
 ## Development

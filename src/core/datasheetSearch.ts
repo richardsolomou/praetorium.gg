@@ -18,6 +18,7 @@ export type DatasheetSearchFields = {
   name: string
   keywords: string[]
   abilities: string[]
+  abilityDescriptions?: { name: string; description: string }[]
   weapons: string[]
   weaponKeywords: string[]
   wargear: string[]
@@ -62,16 +63,23 @@ export function matchDatasheet(query: string, fields: DatasheetSearchFields): Da
   const wanted = [...new Set(wordsIn(query))]
   if (!wanted.length) return { score: 0, reasons: [] }
 
-  const name = fieldMatch(wanted, fields.name)
-  if (name?.complete) return { score: name.quality, reasons: [] }
+  const nameMatch = fieldMatch(wanted, fields.name)
+  if (nameMatch?.complete) return { score: nameMatch.quality, reasons: [] }
 
-  const metadata = METADATA.flatMap(({ field, kind, weight }) =>
-    fields[field].flatMap((value) => {
-      const match = fieldMatch(wanted, value)
-      return match ? [{ ...match, reason: { kind, value }, weight }] : []
+  const descriptions = (fields.abilityDescriptions ?? []).map(({ name, description }) => ({ name, text: `${name} ${description}` }))
+  const metadata: MetadataMatch[] = [
+    ...METADATA.flatMap(({ field, kind, weight }) =>
+      fields[field].flatMap((value) => {
+        const match = fieldMatch(wanted, value)
+        return match ? [{ ...match, reason: { kind, value }, weight }] : []
+      }),
+    ),
+    ...descriptions.flatMap(({ name, text }) => {
+      const match = fieldMatch(wanted, text)
+      return match ? [{ ...match, reason: { kind: 'ability' as const, value: name }, weight: 250 }] : []
     }),
-  )
-  const searchable = [fields.name, ...METADATA.flatMap(({ field }) => fields[field])]
+  ]
+  const searchable = [fields.name, ...METADATA.flatMap(({ field }) => fields[field]), ...descriptions.map(({ text }) => text)]
   if (!wanted.every((word) => searchable.some((value) => wordsIn(value).some((candidate) => wordMatches(word, candidate))))) return null
 
   const ranked = metadata.toSorted(
@@ -84,8 +92,8 @@ export function matchDatasheet(query: string, fields: DatasheetSearchFields): Da
   const best = ranked[0]
   if (!best) return null
   return {
-    score: best.weight + (wanted.length - best.coverage) * 10 + best.quality,
-    reasons: selectReasons(wanted, name?.matchingWords ?? [], ranked),
+    score: best.weight + (best.complete ? 0 : 1_000) + (wanted.length - best.coverage) * 10 + best.quality,
+    reasons: selectReasons(wanted, nameMatch?.matchingWords ?? [], ranked),
   }
 }
 
@@ -166,7 +174,8 @@ function fieldMatch(wanted: readonly string[], value: string) {
   return { complete: coverage === wanted.length, coverage, matchingWords, quality }
 }
 
-const wordMatches = (wanted: string, candidate: string) => candidate.includes(wanted)
+const wordMatches = (wanted: string, candidate: string) =>
+  /^\d+$/.test(wanted) ? candidate === wanted : wanted === 'gain' ? candidate.startsWith(wanted) : candidate.includes(wanted)
 
 const wordsIn = (value: string) => normalize(value).split(' ').filter(Boolean)
 
@@ -176,5 +185,6 @@ const normalize = (value: string) =>
     .replaceAll(/\p{M}/gu, '')
     .replaceAll(/[‘’ʼ]/g, "'")
     .toLocaleLowerCase()
+    .replaceAll(/\b(\d+)\s*(?:cp|command points?)\b/g, '$1 cp')
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()

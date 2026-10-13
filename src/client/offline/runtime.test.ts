@@ -116,6 +116,13 @@ it('finds a downloaded datasheet by keyword with the same match reasons as onlin
   ])
 })
 
+it.each(['PraetoriumOffline', 'PraetoriumReferenceCache'])('keeps ability prose out of the faction filter with %s', (key) => {
+  const reference = structuredClone(saved)
+  reference.search.datasheets[0]!.fields.abilityDescriptions = [{ name: 'Support', description: 'Support Necron Warriors.' }]
+  vi.stubGlobal('window', { [key]: reference })
+  expect(offlineDatasheets('necrons', 'Warriors')?.map((unit) => unit.name)).toEqual(['Necron Warriors'])
+})
+
 it('runs saved search in an already open hosted page after connectivity is lost', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   onlineManager.setOnline(false)
