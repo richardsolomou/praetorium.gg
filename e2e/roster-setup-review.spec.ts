@@ -1,6 +1,6 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from '@playwright/test'
-import { confirmRosterSetup, signUp, uniqueName, waitForRosterSave } from './account'
+import { confirmRosterSetup, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
@@ -23,9 +23,10 @@ async function savedArmy(page: Page) {
   })
   await page.goto(`/rosters/${id}`)
   await expect(page.getByLabel('List name')).toHaveValue('Reviewed army')
-  await page.getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'Select Mark of the Nekrosor', exact: true }).click())
+  const enhancement = loadout.getByRole('button', { name: 'Select Mark of the Nekrosor', exact: true })
+  await retryUntilVisible(enhancement, () => page.getByRole('button', { name: 'Skorpekh Lord', exact: true }).click())
+  await waitForRosterSave(page, () => enhancement.click())
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toContainText('Mark of the Nekrosor')
   const back = page.getByRole('button', { name: 'Back to roster', exact: true })
   if (await back.isVisible()) await back.click()
@@ -140,8 +141,12 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
   await expect(review).toContainText('Removed choices: Mark of the Nekrosor')
   const second = await context.newPage()
   await second.goto(`/rosters/${id}`)
-  await second.getByLabel('List name').fill('Concurrent edit')
-  await expect.poll(async () => (await operator.roster(id))!.name).toBe('Concurrent edit')
+  // Hydration puts back the saved name over one typed before it, so the name is typed until it saves.
+  const concurrentName = second.getByLabel('List name')
+  await expect(async () => {
+    if ((await concurrentName.inputValue()) !== 'Concurrent edit') await concurrentName.fill('Concurrent edit')
+    await expect.poll(async () => (await operator.roster(id))!.name, { timeout: 2_000 }).toBe('Concurrent edit')
+  }).toPass({ timeout: 15_000 })
   await review.getByRole('button', { name: 'Confirm changes' }).click()
   await expect(review.getByRole('alert')).toContainText('changed after your review')
   expect((await operator.roster(id))!.name).toBe('Concurrent edit')

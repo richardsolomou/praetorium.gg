@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from './test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp } from './account'
+import { confirmRosterSetup, createRoster, followLink, retryUntilVisible, signUp } from './account'
 import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -567,7 +567,7 @@ for (const [path, name, menu] of [
 
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
-  await page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }).click()
+  await followLink(page.getByRole('link', { name: 'Sign in to add Necrons to favourites' }), '/sign-in?next=%2Ffactions')
   await expect(page).toHaveURL('/sign-in?next=%2Ffactions')
 })
 
@@ -1210,6 +1210,11 @@ test('a tab never opened before starts at its top', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const page = await context.newPage()
   await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  // The router scrolls to the top once it hydrates, which would undo an earlier scroll.
+  const search = page.getByPlaceholder('Search everything…')
+  await retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
+  await page.keyboard.press('Escape')
+  await expect(search).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(844 * 2)
   await page.mouse.move(195, 300)
   await page.mouse.wheel(0, 600)

@@ -83,8 +83,8 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   expect(await readFile(await download.path(), 'utf8')).toBe(compact)
   for (const exportedText of [readable, compact]) {
     await page.goto('/rosters')
-    await page.getByRole('button', { name: 'Import roster', exact: true }).click()
     const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
+    await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
     await review.getByLabel('Roster text').fill(exportedText)
     await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
     await expect(review).toContainText('2 of 2 matched entries')

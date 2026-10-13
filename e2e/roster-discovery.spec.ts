@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, test } from './test'
 import { confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, withAuthSql } from './storage'
@@ -77,6 +77,8 @@ for (const [width, label] of [
     await reader.goto('/rosters/discover')
     await filterTo(reader, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
     await expect(reader).toHaveURL(/faction=necrons/)
+    // Other tests publish Necrons armies meanwhile, and only these filters keep this one on the first page.
+    const filtered = reader.url()
     const card = reader.locator(`[data-discovered-roster="${armyName}"]`)
     await expect(card).toContainText(`By ${ownerName}`)
     await expect(card).toContainText('Awakened Dynasty')
@@ -107,7 +109,7 @@ for (const [width, label] of [
     expect((await product.roster(copyId))?.picks).not.toContain(NOTE)
     expect(await product.roster(sourceId)).toEqual(source)
 
-    await reader.goto('/rosters/discover?faction=necrons&rules=current')
+    await reader.goto(filtered)
     await expect(card).toBeVisible()
     await setAccess(owner, 'Private', 'private')
     await expect(card).toHaveCount(0)

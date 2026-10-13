@@ -609,7 +609,8 @@ export function ListBuilder({
     workspacePath,
   ])
   useEffect(() => {
-    if (!print || automaticPrint.current || (!frozen && (!priced || pricePending || priceLoading))) return
+    // Until the faction loads, a list that is not frozen draws a placeholder instead of its cards.
+    if (!print || automaticPrint.current || (!frozen && (!faction || !priced || pricePending || priceLoading))) return
     if (!frozenReference) {
       automaticPrint.current = true
       preparePrint()
@@ -624,7 +625,7 @@ export function ListBuilder({
     return () => {
       cancelled = true
     }
-  }, [frozen, frozenReference, preparePrint, priceLoading, pricePending, priced, print])
+  }, [faction, frozen, frozenReference, preparePrint, priceLoading, pricePending, priced, print])
   const shareRoster = async () => {
     setShareProblem(null)
     try {

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import type { LocalState } from '../src/contracts/localState'
 import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { NATIVE_LOCAL_STATE_SCRIPT } from './native.harness'
