@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { evaluate } from './evaluate'
 import { defaultSelection, withChoice } from './expand'
-import { buildUnit } from './roster'
+import { buildUnit, resolveUnitChoice } from './roster'
 import { unitChoices } from './unitChoices'
 import { modelKindsOf } from './modelKinds'
 import { withUnitSpread } from './unitSpread'
@@ -20,7 +20,7 @@ const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 
 const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
 describe('fixed squad sizes', () => {
-  const armedSquad = (sizes: number[]) =>
+  const armedSquad = (sizes: number[], bodies = (_count: number) => 'Bodies') =>
     indexOf({
       sharedSelectionEntries: [
         {
@@ -44,7 +44,7 @@ describe('fixed squad sizes', () => {
                 selectionEntries: [
                   {
                     id: `bodies-${count}`,
-                    name: 'Bodies',
+                    name: bodies(count),
                     type: 'model',
                     collective: true,
                     constraints: [
@@ -95,6 +95,16 @@ describe('fixed squad sizes', () => {
       result: evaluate([built.selection], index),
       axes: built.choices.find((choice) => choice.name === 'Weapons')?.options.find((option) => option.name === 'axe')?.count,
     }).toMatchObject({ models: large, result: { points: large * 90, errors: [] }, axes: large })
+  })
+
+  it('carries saved weapons through a container named for its composition size', () => {
+    const index = armedSquad([2, 3], (count) => `${count} Bodies`)
+    const saved = 'composition/size-2/bodies-2/weapons-2'
+    const built = buildUnit('squad', index, 3, undefined, { spreads: { [saved]: { 'spear-2': 0, 'axe-2': 2 } } })!
+    expect({
+      resolved: resolveUnitChoice(built.selection, saved, 'axe-2', index),
+      axes: built.choices.find((choice) => choice.name === 'Weapons')?.options.find((option) => option.name === 'axe')?.count,
+    }).toEqual({ resolved: { key: 'composition/size-3/bodies-3/weapons-3', optionId: 'axe-3' }, axes: 3 })
   })
 
   it('shrinks a saved split loadout and allows its weapons to change again', () => {

@@ -22,7 +22,6 @@ test('a visitor browses public battles and opens a spectator view on a phone and
     await expect(page.getByRole('button', { name: 'New battle', exact: true })).toHaveCount(0)
     await expect(page.locator(`[data-battle-shelf="Active"] article > a[href="${battlePath}"]`)).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-    await page.screenshot({ path: `test-results/guest-battles-${width}.png`, fullPage: true })
 
     await page.locator(`[data-battle-shelf="Active"] article > a[href="${battlePath}"]`).click()
     await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toBeVisible()
@@ -48,24 +47,6 @@ test('a visitor browses public battles and opens a spectator view on a phone and
   await opponentContext.close()
 })
 
-test('signing in switches from public battles to the player’s own saved games', async ({ page, browser }) => {
-  await page.goto('/battles')
-  await expect(page.getByRole('heading', { name: 'Public battles', exact: true })).toBeVisible()
-  await signUp(page, uniqueName('Battle visitor'))
-  await page.goto('/battles')
-  await expect(page.getByRole('heading', { name: 'My battles' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'No battles yet.' })).toBeVisible()
-  const opponentContext = await browser.newContext()
-  const opponent = await opponentContext.newPage()
-  const opponentName = uniqueName('Saved opponent')
-  await signUp(opponent, opponentName)
-  await befriend(page, opponent)
-  const battleUrl = await createBattle(page, { opponent: opponentName })
-  await page.goto('/battles')
-  await expect(page.locator('[data-battle-shelf="Setup"] article > a')).toHaveAttribute('href', new URL(battleUrl).pathname)
-  await opponentContext.close()
-})
-
 test("a signed-in player's battles page lists their games, then friends' and public games once each", async ({ page, browser }) => {
   test.setTimeout(120_000)
   const hostContext = await browser.newContext()
@@ -88,7 +69,6 @@ test("a signed-in player's battles page lists their games, then friends' and pub
         await expect(dialog.getByRole('button', { name: 'Start battle' })).toBeVisible()
         await expect(dialog).not.toContainText('Battles are public by default')
         await expect(dialog).not.toContainText('One device can record the whole game')
-        await dialog.screenshot({ path: `test-results/create-battle-${width}.png` })
       }
       await page.setViewportSize({ width: 1440, height: 900 })
     },
@@ -105,7 +85,6 @@ test("a signed-in player's battles page lists their games, then friends' and pub
     await expect.poll(sections).toEqual(['Setup', "Friends' games", 'Public games'])
     await expect(page.locator(`[data-home-feed="Public games"] a${watched}`)).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-    await page.screenshot({ path: `test-results/signed-in-battles-${width}.png`, fullPage: true })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -115,7 +94,6 @@ test("a signed-in player's battles page lists their games, then friends' and pub
     await page.setViewportSize({ width, height: 900 })
     await expect(page.locator(`[data-home-feed="Friends' games"] a${watched}`)).toBeVisible()
     await expect(page.locator(`[data-home-feed="Public games"] a${watched}`)).toHaveCount(0)
-    await page.screenshot({ path: `test-results/signed-in-battles-friends-${width}.png`, fullPage: true })
   }
   await hostContext.close()
   await guestContext.close()

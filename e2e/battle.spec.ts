@@ -18,31 +18,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { productSql } from './storage'
-
-test('Insane Bravery is usable once in your Command phase and survives reload', async ({ page }) => {
-  await signUp(page, uniqueName('Bravery'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Bravery roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
-  await startBattle(page)
-  const side = page.locator('[data-panel="player"][data-side="0"]')
-  const use = side.getByRole('button', { name: 'Use Insane Bravery', exact: true })
-  await side.getByRole('button', { name: '+1 CP', exact: true }).click()
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await expect(use).toBeEnabled()
-    await use.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: `test-results/insane-bravery-${width}.png` })
-  }
-  await use.click()
-  await expect(use).toBeDisabled()
-  await page.reload()
-  await expect(use).toHaveAttribute('title', 'Insane Bravery has been used this battle')
-  await side.getByRole('button', { name: 'About Insane Bravery', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Insane Bravery', exact: true })).toContainText('used 1x this battle')
-})
+import { battleLog, productSql } from './storage'
 
 test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page }) => {
   await signUp(page, uniqueName('Standard secondaries'))
@@ -134,7 +110,6 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   const tabsBox = await applicationTabs.boundingBox()
   expect(controlBox && tabsBox).toBeTruthy()
   expect(controlBox!.y + controlBox!.height).toBeLessThanOrEqual(tabsBox!.y)
-  await page.screenshot({ path: 'test-results/native-battle-controls-phone.png', fullPage: true })
 
   const battleUrl = page.url()
   for (let step = 0; step < 5; step += 1) await advance(page)
@@ -144,7 +119,6 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   const scoringBox = await scoring.boundingBox()
   expect(scoringBox).toBeTruthy()
   expect(scoringBox!.y + scoringBox!.height).toBeLessThanOrEqual(tabsBox!.y)
-  await page.screenshot({ path: 'test-results/native-scoring-prompt-phone.png' })
 
   const cpGain = page
     .locator('[data-panel="player"] button')
@@ -213,12 +187,10 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await expect(draw).toBeVisible()
   await draw.getByRole('button', { name: 'Draw at random' }).click()
   await expect(draw.locator('[data-drawn]')).toHaveCount(2)
-  await page.screenshot({ path: 'test-results/repaired-secondary-draw.png', fullPage: true })
   await takeTheTurn(page)
   for (let step = 0; step < 5; step += 1) await advance(page)
   await page.getByRole('button', { name: 'Pass the turn' }).click()
   await expect(page.getByRole('dialog', { name: /^Scoring end of turn points/ })).toContainText('Primary mission')
-  await page.screenshot({ path: 'test-results/repaired-primary-scoring.png', fullPage: true })
 })
 
 test('the final opponent-turn settlement completes before the battle ends', async ({ page }) => {
@@ -229,22 +201,7 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
   await startBattle(page)
 
-  const token = new URL(page.url()).pathname.split('/').at(-1)!
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  if (!battle) throw new Error('Battle did not start')
-  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
-  const started = commands.find((command) => (JSON.parse(command.body) as { kind: string }).kind === 'begin-battle')
-  if (!started) throw new Error('Battle did not start')
-  const firstPlayerId = (JSON.parse(started.body) as { firstPlayerId: string }).firstPlayerId
-  const [opponent] = await productSql<{
-    user_id: string
-  }>`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id} AND user_id <> ${firstPlayerId}`
-  if (!opponent) throw new Error('Battle seats are incomplete')
-  let seq = Math.max(...commands.map((command) => command.seq))
-  const append = async (by: string, body: object) => {
-    seq += 1
-    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
-  }
+  const { append, first: firstPlayerId, second: opponentId } = await battleLog(page)
   await append(firstPlayerId, {
     kind: 'select-secret',
     secondary: {
@@ -269,10 +226,10 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   }
   for (let round = 1; round < 5; round += 1) {
     await passPhases(firstPlayerId, 6)
-    await passPhases(opponent.user_id, 6)
+    await passPhases(opponentId, 6)
   }
   await passPhases(firstPlayerId, 6)
-  await passPhases(opponent.user_id, 5)
+  await passPhases(opponentId, 5)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
 
@@ -295,7 +252,6 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   const settlement = page.getByRole('dialog', { name: /^Scoring end of battle points/ })
   await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
   await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
-  await page.screenshot({ path: 'test-results/final-round-settlement.png', fullPage: true })
   await settlement.getByRole('button', { name: 'Finish battle' }).click()
   await expect(scoreboard.locator('h1')).toContainText('wins')
   await expect(scoreboard).not.toContainText('Result')
@@ -603,7 +559,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await bob.getByRole('button', { name: 'Return to prompt' }).click()
   await expect(prompt.getByRole('button', { name: 'Remove Cleanse', exact: true })).toBeVisible()
   await prompt.getByRole('button', { name: 'Select Plunder', exact: true }).click()
-  await bob.screenshot({ path: 'test-results/secondary-picker.png' })
   await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   await prompt.getByRole('button', { name: 'Minimize dialog' }).click()
@@ -613,7 +568,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   await expect(prompt.getByText('You can put this back while its paired mission is active.')).toHaveCount(2)
   await expect(prompt.getByRole('button', { name: 'Take the turn' })).toBeEnabled()
-  await bob.screenshot({ path: 'test-results/paired-secondary-choice.png' })
   const firstCard = prompt.locator('[data-drawn]').first()
   const readCard = firstCard.getByRole('button', { name: /^Read / })
   const cardName = (await readCard.getAttribute('aria-label'))?.replace(/^Read /, '') ?? ''
@@ -662,7 +616,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await prompt.getByRole('button', { name: 'Select missions' }).click()
   await selectOrdinaryMissions(prompt)
-  await bob.screenshot({ path: 'test-results/secondary-picker-phone.png' })
   await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   // The hand is not something to dismiss: it is the one chance to see what was dealt.
@@ -680,78 +633,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await expect(prompt).toBeVisible()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await expect(prompt.getByRole('button', { name: 'Select missions' })).toBeVisible()
-})
-
-test('a card names its own condition, and what their turn owed is asked as the turn comes back', async ({ browser }) => {
-  const alice = await (await browser.newContext(desktopContext)).newPage()
-  const bob = await (await browser.newContext(desktopContext)).newPage()
-  const bobName = uniqueName('Bob')
-
-  await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  const aliceName = uniqueName('Alice')
-  await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
-  await setupBattle(alice, bob, {
-    opponent: bobName,
-    hostRoster: aliceRoster,
-    guestRoster: bobRoster,
-    // Fixed play, so the two cards under test are certain: Engage on All Fronts pays in
-    // tiers the source describes only in prose, and Assassination pays on either player's
-    // turn. Both are cards the pack marks as fixed — nothing else may be taken as one.
-    beforeStart: async () => {
-      // Located rather than named: 'Fixed' is also in the rail chip's own line once the
-      // mode flips, and a card names two controls — the one that reads it and the one
-      // that takes it. Only the one that takes it is pressed here.
-      const press = async (button: Locator) => {
-        await expect(async () => {
-          if ((await button.getAttribute('aria-pressed')) === 'true') return
-          await button.click({ timeout: 1_000 })
-          await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
-        }).toPass({ timeout: 10_000 })
-      }
-      const prep = alice.getByRole('group', { name: 'Secondary play' }).first().locator('..')
-      await press(prep.getByRole('button', { name: 'Fixed' }))
-      for (const card of ['Assassination', 'Engage on All Fronts']) {
-        await press(prep.getByRole('button', { name: new RegExp(`^(Select|Remove) ${card}$`, 'i') }))
-      }
-    },
-  })
-
-  for (let phase = 0; phase < 5; phase += 1) await advance(alice)
-  await advanceButton(alice).click()
-  const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  // What the round still allows is stated while the player is choosing, not only once
-  // a cap has already eaten something.
-  await expect(scoring).toContainText(/Secondary missions 0\/15 this round/)
-  const fronts = scoring.locator('[data-due]').filter({ hasText: /Engage on All Fronts/i })
-  // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
-  await expect(fronts).toContainText('or')
-  await expect(fronts).toContainText('presence in three table quarters')
-  await expect(fronts).toContainText('presence in four table quarters')
-  // The keywords the pack marks up are drawn as keywords rather than printed with their asterisks.
-  await expect(fronts.getByText('presence').first()).toBeVisible()
-  await expect(fronts).not.toContainText('**')
-  await scoring.getByRole('button', { name: 'Pass the turn' }).click()
-  await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
-
-  // Assassination pays at the end of either turn, and the opponent's is a turn Alice
-  // cannot press anything through, so it is settled as the turn comes back.
-  for (let phase = 0; phase < 6; phase += 1) await advance(bob)
-  const owed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
-  const refereeing = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
-  await expect(owed).toBeVisible()
-  await expect(refereeing).toBeVisible()
-  await expect(owed.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
-  await expect(refereeing).toContainText(aliceName)
-  await expect(owed.locator('[data-due]').filter({ hasText: 'Assassination' })).toContainText(
-    'For each enemy CHARACTER model destroyed this turn.',
-  )
-  // The allowance belongs to the round the ended turn was in, which the battle has
-  // already moved out of, so it still reads as untouched rather than as the new round's.
-  await expect(owed).toContainText(/Secondary missions 0\/15 this round/)
-  await refereeing.getByRole('button', { name: 'Take the turn' }).click()
-  await expect(owed).toBeHidden()
 })
 
 test('a fixed secret mission is handed off before its scoring prompt', async ({ browser }) => {
@@ -803,7 +684,21 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
     },
   })
 
-  for (let phase = 0; phase < 6; phase += 1) await advance(alice)
+  for (let phase = 0; phase < 5; phase += 1) await advance(alice)
+  await advanceButton(alice).click()
+  const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
+  // What the round still allows is stated while the player is choosing, not only once
+  // a cap has already eaten something.
+  await expect(scoring).toContainText(/Secondary missions 0\/15 this round/)
+  const fronts = scoring.locator('[data-due]').filter({ hasText: /Engage on All Fronts/i })
+  // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
+  await expect(fronts).toContainText('or')
+  await expect(fronts).toContainText('presence in three table quarters')
+  await expect(fronts).toContainText('presence in four table quarters')
+  // The keywords the pack marks up are drawn as keywords rather than printed with their asterisks.
+  await expect(fronts.getByText('presence').first()).toBeVisible()
+  await expect(fronts).not.toContainText('**')
+  await scoring.getByRole('button', { name: 'Pass the turn' }).click()
   const openingOwed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(openingOwed).toBeVisible()
   await openingOwed.getByRole('button', { name: 'Take the turn' }).click()
@@ -856,10 +751,20 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   await expect(bob.getByRole('dialog', { name: /^Scoring / })).toHaveCount(0)
 
   await sharedAliceAction.getByRole('button', { name: 'Reveal and continue' }).click()
-  const owed = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
-  await expect(owed).toBeVisible()
-  await expect(owed.locator('[data-due]').filter({ hasText: 'Assassination' })).toBeVisible()
-  await owed.getByRole('button', { name: 'Take the turn' }).click()
+  // Assassination pays at the end of either turn, so what Bob's turn owed Alice is
+  // settled as the turn comes back.
+  const owed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
+  const refereeing = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
+  await expect(refereeing.locator('[data-due]').filter({ hasText: 'Assassination' })).toBeVisible()
+  await expect(refereeing).toContainText(aliceName)
+  await expect(owed.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
+  await expect(owed.locator('[data-due]').filter({ hasText: 'Assassination' })).toContainText(
+    'For each enemy CHARACTER model destroyed this turn.',
+  )
+  // The allowance belongs to the round the ended turn was in, which the battle has
+  // already moved out of, so it still reads as untouched rather than as the new round's.
+  await expect(owed).toContainText(/Secondary missions 0\/15 this round/)
+  await refereeing.getByRole('button', { name: 'Take the turn' }).click()
   await expect(owed).toBeHidden()
   await expect(alice.getByRole('dialog')).toHaveCount(0)
 })

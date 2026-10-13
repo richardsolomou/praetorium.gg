@@ -32,7 +32,7 @@ import { type Side, type SideMission, sides } from '../../sides'
 import { battleSizeText, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
-import { remindersDueAt, reminderTimingLabel, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
+import { remindersDueAt, reminderTimingLabel, roundReminderMoment, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
 import { setNativeWatchBattle, useNativeWatchBattleAvailability } from '../../nativeBridge'
 import { watchBattle } from './watchBattle'
 import { BattleMenu } from './BattleMenu'
@@ -558,14 +558,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     if (!dismissalsReady || view.status !== 'playing' || reminderPrompt || !reminderTurn) return
     const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
     const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
-    const roundMoment: ReminderTiming | null =
-      firstSide === undefined || !active
-        ? null
-        : view.phase === 'command' && active.index === firstSide
-          ? { moment: 'round-start', phase: null, turn: 'either' }
-          : view.phase === 'end' && active.index !== firstSide
-            ? { moment: 'round-end', phase: null, turn: 'either' }
-            : null
+    const roundMoment = firstSide === undefined || !active ? null : roundReminderMoment(view.phase, active.index, firstSide)
     const roundReminders = roundMoment ? remindersAt([roundMoment], context) : []
     if (roundMoment && roundReminders.length) {
       enqueueReminderPrompt({ reminders: roundReminders, moment: reminderTimingLabel(roundMoment), confirmLabel: 'Dismiss', context })

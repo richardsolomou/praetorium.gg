@@ -4,11 +4,14 @@ import { currentPick, currentDetachmentId, currentRosterIds } from '../src/core/
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
 import { loadCatalogue } from '../src/server/catalogueIndex'
+import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { buildUnit } from '../src/core/roster'
 import { unavailableRosterSelections } from '../src/core/rosterSelections'
 import type { RosterPick } from '../src/core/roster'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
+let loadedCatalogue: LoadedCatalogue | undefined
+const catalogue = () => (loadedCatalogue ??= loadCatalogue(directory)!)
 const picks: RosterPick[] = [
   { entryId: '3c0a-10a9-8f84-26a3', choices: { 'd0cd-b8dc-82e-5eb8/34be-35f8-9966-c99f/fe9c-f9ed-2182-bd33': '3372-7d35-b60e-24a9' } },
   {
@@ -23,7 +26,7 @@ const picks: RosterPick[] = [
 ]
 
 it.skipIf(!fs.existsSync(directory))('builds every migrated loadout against the pinned source, where the old paths fail', () => {
-  const loaded = loadCatalogue(directory)!
+  const loaded = catalogue()
   const unavailable = (pick: RosterPick) => {
     const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices)
     return unavailableRosterSelections([pick], unit ? [{ ...unit, key: 0 }] : [])
@@ -36,7 +39,7 @@ it.skipIf(!fs.existsSync(directory))('builds every migrated loadout against the 
 })
 
 it.skipIf(!fs.existsSync(directory))('equips migrated optional Land Raider weapons instead of silently restoring defaults', () => {
-  const loaded = loadCatalogue(directory)!
+  const loaded = catalogue()
   const pick = currentPick({
     entryId: '2b9d-9c13-9277-d157',
     spreads: { '785c-4575-4fc1-fe2a': { 'fda7-4dfc-d586-8c51': 1, 'aa40-6725-eb70-f48f': 1, '478f-f6a0-3bd4-0853': 1 } },
@@ -52,7 +55,7 @@ it.skipIf(!fs.existsSync(directory))('equips migrated optional Land Raider weapo
 })
 
 it.skipIf(!fs.existsSync(directory))('resolves each migrated detachment wrapper to its current faction option', () => {
-  const loaded = loadCatalogue(directory)!
+  const loaded = catalogue()
   const mappings = [
     ['4029-9237-e8db-af55', 'profile-detachment-option-a603-5039-f08d-e841-79a8-da59-2007-87b0', 'Gauntlet Task Force'],
     ['470a-6daa-9014-12df', 'profile-detachment-option-470a-6daa-9014-12df-1074-ee64-b992-ce44', 'Ironstorm Spearhead'],
@@ -107,7 +110,7 @@ it.skipIf(!fs.existsSync(directory))(
       ] as RosterPick[],
     }
     const migrated = currentRosterIds(roster)
-    const loaded = loadCatalogue(directory)!
+    const loaded = catalogue()
     const versions = catalogueEditionLoaders(
       directory,
       () => loaded,
@@ -129,11 +132,7 @@ it.skipIf(!fs.existsSync(directory))(
 it.skipIf(!fs.existsSync(directory))(
   'retains archived profile prices instead of joining a different datacard revision',
   () => {
-    const versions = catalogueEditionLoaders(
-      directory,
-      () => loadCatalogue(directory),
-      () => null,
-    )
+    const versions = catalogueEditionLoaders(directory, catalogue, () => null)
     const catalogueId = 'legacy-profiles~a603-5039-f08d-e841'
     const loaded = versions.catalogueFor(catalogueId)!
     const input = savedRosterPriceInput({

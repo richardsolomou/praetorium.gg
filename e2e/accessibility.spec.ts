@@ -32,7 +32,6 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
-  await page.screenshot({ path: 'test-results/new-battle-dialog.png', fullPage: true })
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
 })
@@ -69,7 +68,6 @@ test('keeps the header controls on screen at double text size', async ({ page })
     }),
   )
   expect(outside).toBe(false)
-  await page.screenshot({ path: test.info().outputPath('header-double-text.png') })
   await header.getByRole('button', { name: 'Open primary navigation' }).click()
   await header.getByRole('button', { name: 'Reference' }).click()
   await page.getByRole('menuitem', { name: 'Missions' }).click()
@@ -95,7 +93,7 @@ test.describe('a touch device', () => {
     expect(Math.min(...sizes)).toBeGreaterThanOrEqual(16)
   })
 
-  test('keeps unit picker rows and application tabs inside their bounds at double text size', async ({ page }) => {
+  test('keeps unit picker rows, loadout controls and application tabs inside their bounds at double text size', async ({ page }) => {
     await signUp(page, 'Large text')
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     await doubleText(page)
@@ -113,7 +111,6 @@ test.describe('a touch device', () => {
       )
     })
     expect(overlaps).toBe(false)
-    await page.screenshot({ path: test.info().outputPath('picker-double-text.png') })
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
 
@@ -128,11 +125,19 @@ test.describe('a touch device', () => {
       }),
     )
     expect(clipped).toBe(false)
-    await tabs.screenshot({ path: test.info().outputPath('tabs-double-text.png') })
+
+    await page
+      .locator('[data-unit="Immortals"]')
+      .getByRole('button', { name: /^Immortals/ })
+      .click()
+    const more = page.getByRole('button', { name: 'More models in Immortals', exact: true })
+    expect(await more.evaluate((button) => button.getBoundingClientRect().right <= innerWidth)).toBe(true)
+    await more.click()
+    await expect(page.getByLabel('Immortals models')).toHaveText('6')
   })
 
-  test('keeps battle reserve counts inside their section at double text size', async ({ page }) => {
-    await signUp(page, 'Large text reserves')
+  test('keeps reserve counts, the battle scoreboard and phase control readable at double text size', async ({ page }) => {
+    await signUp(page, 'Large text battle')
     const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     await createBattle(page, { practice: true })
     await attachRoster(page, roster)
@@ -146,45 +151,7 @@ test.describe('a touch device', () => {
       return [...section.querySelectorAll('.chip')].some((chip) => chip.getBoundingClientRect().right > bounds.right + 1)
     })
     expect(outside).toBe(false)
-    await reserves.screenshot({ path: test.info().outputPath('reserves-double-text.png') })
-  })
-
-  test('keeps the loadout model count controls on screen at double text size', async ({ page }) => {
-    await signUp(page, 'Large text loadout')
-    await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await page.getByLabel('Add a unit').fill('Immortals')
-    await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
-    await page.keyboard.press('Escape')
-    await doubleText(page)
-    await page
-      .locator('[data-unit="Immortals"]')
-      .getByRole('button', { name: /^Immortals/ })
-      .click()
-    const more = page.getByRole('button', { name: 'More models in Immortals', exact: true })
-    expect(await more.evaluate((button) => button.getBoundingClientRect().right <= innerWidth)).toBe(true)
-    await more.click()
-    await expect(page.getByLabel('Immortals models')).toHaveText('6')
-    await page.screenshot({ path: test.info().outputPath('loadout-double-text.png') })
-  })
-
-  test('chooses simulator units at double text size', async ({ page }) => {
-    await page.goto('/simulator')
-    await page.waitForLoadState('networkidle')
-    await doubleText(page)
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
-    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-    await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
-    await page.screenshot({ path: test.info().outputPath('simulator-double-text.png') })
-  })
-
-  test('keeps the battle scoreboard and phase control readable at double text size', async ({ page }) => {
-    await signUp(page, 'Large text battle')
-    const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
     await startBattle(page)
-    await doubleText(page)
     const end = page.getByRole('button', { name: 'End the command phase' })
     await expect(end).toBeVisible()
     const unreadable = await page.locator('[data-scoreboard]').evaluate((board) => {
@@ -199,17 +166,16 @@ test.describe('a touch device', () => {
       return { covered, clipped: button.scrollWidth > button.clientWidth }
     })
     expect(unreadable).toEqual({ covered: false, clipped: false })
-    await page.screenshot({ path: test.info().outputPath('battle-double-text.png') })
   })
 
-  test('keeps weapon profile headings apart at double text size', async ({ page }) => {
+  test('keeps simulator units, weapon headings and result figures apart at double text size', async ({ page }) => {
     await page.goto('/simulator')
     await page.waitForLoadState('networkidle')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
     await doubleText(page)
+    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
     const labels = page.locator('p.eyebrow', { hasText: /^Range$/ }).filter({ visible: true })
     await expect(labels.first()).toBeVisible()
-    const overlapping = await labels.evaluateAll((ranges) =>
+    const headingsOverlap = await labels.evaluateAll((ranges) =>
       ranges.some((range) => {
         const cells = [...range.parentElement!.parentElement!.children].map((cell) => {
           const text = document.createRange()
@@ -222,23 +188,13 @@ test.describe('a touch device', () => {
         })
       }),
     )
-    expect(overlapping).toBe(false)
-    await labels
-      .first()
-      .locator('xpath=../../..')
-      .screenshot({ path: test.info().outputPath('weapon-double-text.png') })
-  })
-
-  test('keeps simulator result figures apart at double text size', async ({ page }) => {
-    await page.goto('/simulator')
-    await page.waitForLoadState('networkidle')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+    expect(headingsOverlap).toBe(false)
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+    await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
     const summary = page.locator('[data-results-summary]')
     await expect(summary.locator('[data-combat-wipe]').first()).toContainText('%')
-    await doubleText(page)
     await summary.locator('summary').click()
-    const overlapping = await summary.evaluate((element) =>
+    const figuresOverlap = await summary.evaluate((element) =>
       [...element.querySelectorAll('[data-result-numbers]')].some((row) => {
         const figures = [...row.children].map((child) => {
           const text = document.createRange()
@@ -254,8 +210,7 @@ test.describe('a touch device', () => {
         )
       }),
     )
-    expect(overlapping).toBe(false)
-    await summary.screenshot({ path: test.info().outputPath('simulator-results-double-text.png') })
+    expect(figuresOverlap).toBe(false)
   })
 
   test('keeps the account menu on screen at double text size', async ({ page }) => {
@@ -270,6 +225,5 @@ test.describe('a touch device', () => {
       return bounds.left < 0 || bounds.right > innerWidth
     })
     expect(outside).toBe(false)
-    await page.screenshot({ path: test.info().outputPath('account-menu-double-text.png') })
   })
 })

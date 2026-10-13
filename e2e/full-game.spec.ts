@@ -1,7 +1,8 @@
 import { expect, test, type Page } from './test'
 import { advance, createRoster, setupBattle, signUp, uniqueName } from './account'
+import { battleLog } from './storage'
 
-test('two phones complete all five rounds in step', async ({ browser }) => {
+test('two phones finish a five-round battle in step', async ({ browser }) => {
   test.setTimeout(300_000)
   const aliceContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const bobContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
@@ -16,17 +17,26 @@ test('two phones complete all five rounds in step', async ({ browser }) => {
   const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
-  for (let round = 1; round <= 5; round += 1) {
+  const playRound = async (round: number) => {
     await expect(scoreboard(alice).getByText(`${aliceName}’s turn`, { exact: true })).toBeVisible()
     await playTurn(alice)
     await expect(alice.locator('[data-side-score="0"] .bg-side-a')).toHaveCount(round)
     await expect(alice.locator('[data-side-score="1"] .bg-side-b')).toHaveCount(round - 1)
     await expect(scoreboard(bob).getByText(`${bobName}’s turn`, { exact: true })).toBeVisible()
     await playTurn(bob)
-    if (round < 5) {
-      await expect(alice.locator('[data-stat="round"]')).toHaveText(String(round + 1))
-    }
   }
+  await playRound(1)
+  await expect(alice.locator('[data-stat="round"]')).toHaveText('2')
+  // Rounds 2 to 4 repeat round 1's prompts, so seed their turns and play the last round live.
+  const log = await battleLog(alice)
+  for (let turn = 0; turn < 6; turn += 1) {
+    const by = turn % 2 ? log.second : log.first
+    await log.append(by, { kind: 'settle-opponent-turn' })
+    for (let phase = 0; phase < 6; phase += 1) await log.append(by, { kind: 'advance' })
+  }
+  await Promise.all([alice.reload(), bob.reload()])
+  await expect(alice.locator('[data-stat="round"]')).toHaveText('5')
+  await playRound(5)
 
   // The scoreboard swaps the round for the outcome, and both phones read the same one.
   await expect(scoreboard(alice).getByRole('heading')).toContainText(/wins|win|Drawn/)

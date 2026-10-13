@@ -8,6 +8,7 @@ import {
   remindersDueAt,
   reminderTimingLabel,
   reminderTimingSchema,
+  roundReminderMoment,
   suggestReminderTimings,
   suggestReminderWhileDestroyed,
 } from './reminders'
@@ -212,6 +213,18 @@ describe('round reminder timings', () => {
     expect(reminderDue({ moment: 'round-end', phase: null, turn: 'either' }, { moment: 'round-end', phase: null, turn: 'either' })).toBe(
       true,
     )
+  })
+
+  it.each([
+    ['command', 0, 0, 'round-start'],
+    ['command', 1, 0, null],
+    ['end', 1, 0, 'round-end'],
+    ['end', 0, 0, null],
+    ['command', 1, 1, 'round-start'],
+    ['end', 0, 1, 'round-end'],
+    ['fight', 1, 0, null],
+  ] as const)('places the round boundary in the %s phase of side %i when side %i went first', (phase, active, first, moment) => {
+    expect(roundReminderMoment(phase, active, first)?.moment ?? null).toBe(moment)
   })
 
   it('does not match the start of a round to the end', () => {

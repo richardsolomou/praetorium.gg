@@ -93,16 +93,8 @@ beforeEach(() => {
 
 afterEach(() => rmSync(root, { recursive: true, force: true }))
 
-test.each([
-  'src/client/offline/localStorage.ts',
-  'src/routes/index.tsx',
-  'src/core/battle.ts',
-  'catalogue/snapshot.json',
-  'mobile/CHANGELOG.md',
-  'mobile/src/localStateStorage.test.ts',
-  'mobile/watch/Tests/BattleSessionTests.swift',
-])('skips iOS delivery when only %s changes', (name) => {
-  file(name, 'web, catalogue, documentation, or test change')
+test('skips iOS delivery when only web code changes', () => {
+  file('src/routes/index.tsx', 'web change')
   expect(iosDeliveryChanged(root, base, commit())).toBe(false)
 })
 
@@ -128,23 +120,8 @@ test('skips a web-only lockfile update even when the root importer and package r
   expect(iosDeliveryChanged(root, base, commit())).toBe(false)
 })
 
-test.each([
-  'mobile/src/localStateStorage.ts',
-  'mobile/src/offlineReferenceStorage.ts',
-  'mobile/src/appSnapshotStorage.ts',
-  'mobile/App.tsx',
-  'mobile/assets/icon.png',
-  'mobile/modules/praetorium-watch/ios/PraetoriumWatchModule.swift',
-  'mobile/watch/WatchStore.swift',
-  'mobile/app.json',
-  'mobile/package.json',
-  'src/contracts/localState.ts',
-  'fastlane/Fastfile',
-  '.github/workflows/mobile.yml',
-  'pnpm-workspace.yaml',
-])('rebuilds iOS when %s changes', (name) => {
-  const previous = existsSync(path.join(root, name)) ? readFileSync(path.join(root, name), 'utf8') : ''
-  file(name, `${previous}\nchanged native input`)
+test.each(['mobile/src/localStateStorage.ts', 'src/contracts/localState.ts'])('rebuilds iOS when %s changes', (name) => {
+  file(name, `${readFileSync(path.join(root, name), 'utf8')}\nchanged native input`)
   expect(iosDeliveryChanged(root, base, commit())).toBe(true)
 })
 

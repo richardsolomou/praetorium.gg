@@ -65,7 +65,6 @@ async function savedListGuide(page: Page, width: number, rosterName?: string) {
   if (width === 1440) await next(page, 'Compare your variants')
   await expect(prompt(page)).toContainText('Review rules and points changes')
   await expect(page).toHaveURL(/\/data-updates$/)
-  await page.screenshot({ path: `test-results/onboarding-army-tools-${width}.png` })
   let releaseReads!: () => void
   const paused = new Promise<void>((resolve) => {
     releaseReads = resolve
@@ -111,7 +110,6 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
   await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
   // Setup is one page: the guide moves on as the table answers, and with its own Next where nothing needs answering.
   await expect(prompt(page)).toContainText('Read your primary mission')
-  await page.screenshot({ path: `test-results/onboarding-battle-mission-${width}.png` })
   await next(page, 'Read your primary mission')
   await expect(prompt(page)).toContainText('Set the battlefield')
   await chooseBattlefield(page)
@@ -140,7 +138,6 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
   await next(page, 'Use your army and mission controls')
   await expect(page.locator('[data-onboarding="battle-live-report"]')).toBeVisible()
   await expect(prompt(page)).toContainText('Read the battle back')
-  await page.screenshot({ path: `test-results/onboarding-battle-${width}.png` })
   await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
   await expect(prompt(page)).toBeHidden()
 }
@@ -163,7 +160,6 @@ for (const width of [1440, 390]) {
     const swap = page.getByRole('button', { name: 'Swap attacker and defender' })
     await expect(swap).toHaveAttribute('data-onboarding-active', 'true')
     await expect.poll(async () => (await swap.boundingBox())?.y ?? 0).toBeGreaterThanOrEqual(54)
-    await page.screenshot({ path: `test-results/onboarding-simulator-${width}.png` })
     await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
     await expect(prompt(page)).toBeHidden()
     await page.reload()
@@ -213,7 +209,6 @@ test('the first-army guide explains Warlords, leader attachments, and reminders'
   for (const width of [1440, 1300]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(prompt(page)).toContainText('Name it, or leave it')
-    await page.screenshot({ path: `test-results/onboarding-roster-setup-${width}.png` })
   }
   await page.setViewportSize(desktop)
   await next(page, 'Name it, or leave it')
@@ -235,7 +230,6 @@ test('the first-army guide explains Warlords, leader attachments, and reminders'
     await page.setViewportSize({ width, height: 900 })
     await expect(addBodyguard).toBeEnabled()
     await expect.poll(bodyguardReceivesPointer).toBe(true)
-    await page.screenshot({ path: `test-results/onboarding-first-army-add-bodyguard-${width}.png` })
   }
   await waitForRosterSave(page, () => addBodyguard.click())
   await page.setViewportSize({ width: 1280, height: 900 })
@@ -254,7 +248,6 @@ test('the first-army guide explains Warlords, leader attachments, and reminders'
   await expect(addBodyguard).toBeEnabled()
   await expect.poll(bodyguardReceivesPointer).toBe(true)
   await addBodyguard.click({ trial: true })
-  await page.screenshot({ path: 'test-results/onboarding-first-army-add-bodyguard-1280.png' })
   await waitForRosterSave(page, () => addBodyguard.click())
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   await page.setViewportSize(desktop)
@@ -280,7 +273,6 @@ test('the first-army guide explains Warlords, leader attachments, and reminders'
   for (const width of [1440, 1300]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(page.locator('[data-onboarding="unit-reminder"][data-onboarding-active="true"]')).toBeVisible()
-    await page.screenshot({ path: `test-results/onboarding-first-army-${width}.png` })
   }
   await page.setViewportSize(desktop)
   await next(page, 'Remember an ability')

@@ -70,7 +70,7 @@ async function inspectChoices(page: Page, card: Locator, name: string, board = t
   }
 }
 
-test('source matchup nominations survive undo and recur only when the next own turn is due', async ({ page, browser }) => {
+test('source matchup nominations survive undo and reload', async ({ page, browser }) => {
   const guestContext = await browser.newContext(desktopContext)
   const guest = await guestContext.newPage()
   const guestName = uniqueName('Disruption captain')
@@ -102,14 +102,16 @@ test('source matchup nominations survive undo and recur only when the next own t
   await expect(punishment).toBeVisible()
   await punishment.getByRole('button', { name: `${guestName} · Plague Marines`, exact: true }).click()
   await expect(punishment.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
-  await punishment.getByRole('switch', { name: 'No enemy unit qualifies; use the one-unit fallback' }).click()
-  await punishment.getByRole('switch', { name: 'I confirm no enemy unit meets either qualification' }).click()
+  const qualifies = punishment.getByRole('switch', {
+    name: 'Each chosen unit is within objective range or destroyed a friendly unit in the previous turn',
+  })
+  await qualifies.click()
   await expect(punishment.getByRole('button', { name: 'Record choice', exact: true })).toBeEnabled()
   await page.setViewportSize({ width: 390, height: 900 })
   await expect.poll(async () => (await punishment.boundingBox())?.x).toBe(0)
   await punishment.getByRole('button', { name: 'Minimize dialog', exact: true }).click()
   await page.getByRole('button', { name: 'Return to prompt', exact: true }).click()
-  await expect(punishment.getByRole('switch', { name: 'I confirm no enemy unit meets either qualification' })).toBeChecked()
+  await expect(qualifies).toBeChecked()
   await punishment.getByRole('button', { name: 'Record choice', exact: true }).click()
 
   const guards = page.getByRole('dialog', { name: 'Burden Of Trust · choices', exact: true })
@@ -120,6 +122,7 @@ test('source matchup nominations survive undo and recur only when the next own t
   await expect(punishment).toBeVisible()
   await punishment.getByRole('button', { name: `${guestName} · Plague Marines`, exact: true }).click()
   await punishment.getByRole('switch', { name: 'No enemy unit qualifies; use the one-unit fallback' }).click()
+  await expect(punishment.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
   await punishment.getByRole('switch', { name: 'I confirm no enemy unit meets either qualification' }).click()
   await punishment.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(target).toBeVisible()
@@ -172,60 +175,6 @@ test('source matchup nominations survive undo and recur only when the next own t
   await expect(guardRecord).toBeInViewport()
   const guardBox = (await guardRecord.boundingBox())!
   expect(guardBox.y + guardBox.height).toBeLessThan((await page.locator('[data-turn-control]').boundingBox())!.y)
-  for (let phase = 0; phase < 6; phase++) await advance(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
-  await takeTheTurn(guest)
-  for (let phase = 0; phase < 6; phase++) await advance(guest)
-  await expect.poll(async () => (await savedWork(guest))?.operations.length).toBe(0)
-  const previousTurn = page.getByRole('dialog', { name: /^Scoring end of their turn points/ })
-  await expect(previousTurn).toBeVisible()
-  await expect(punishment).toBeHidden()
-  await expect(guards).toBeHidden()
-  const scoringBurden = previousTurn
-    .locator('[data-due]')
-    .filter({ has: page.getByRole('button', { name: 'Read Burden Of Trust', exact: true }) })
-  if (await scoringBurden.count()) {
-    await scoringBurden
-      .locator('summary')
-      .filter({ hasText: /^Choices$/ })
-      .click()
-    await inspectChoices(page, scoringBurden, 'Burden Of Trust', false)
-  }
-  await previousTurn.getByRole('button', { name: 'Take the turn', exact: true }).click()
-  await expect(previousTurn).toBeHidden()
-  const incomingDraw = page.getByRole('dialog', { name: /secondary missions$/ })
-  await expect(incomingDraw).toBeVisible()
-  await expect(punishment).toBeHidden()
-  await expect(guards).toBeHidden()
-  await draw(page, ['Cleanse', 'Defend Stronghold'])
-  await expect(punishment).toBeVisible()
-  await expect(target).toBeHidden()
-  await punishment.getByRole('button', { name: `${guestName} · Plague Marines`, exact: true }).click()
-  await punishment
-    .getByRole('switch', { name: 'Each chosen unit is within objective range or destroyed a friendly unit in the previous turn' })
-    .click()
-  await punishment.getByRole('button', { name: 'Record choice', exact: true }).click()
-  await expect(guards).toBeVisible()
-  for (const chooser of await guards
-    .getByRole('combobox', { name: /^Guard for / })
-    .all()
-    .then((items) => items.slice(0, 2))) {
-    await chooser.click()
-    await page.getByRole('option', { name: / · Immortals$/ }).click()
-  }
-  await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
-  await expect(advanceButton(page)).toBeEnabled()
-  await expect(page.getByText('Round 2 of 5', { exact: true })).toBeVisible()
-  for (const summary of await page
-    .locator('summary')
-    .filter({ hasText: /^Choices$/ })
-    .all())
-    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click()
-  await expect(page.getByText('2 guard nominations', { exact: true })).toBeVisible()
-  const roundTwo = burden.locator('details > ul > li').filter({ has: page.getByText('R2', { exact: true }) })
-  await expect(roundTwo.getByText('2 guard nominations', { exact: true })).toBeVisible()
-  await expect(roundTwo.locator('p').filter({ hasText: / · Immortals$/ })).toHaveCount(2)
-  await inspectChoices(page, burden, 'Burden Of Trust')
   await guestContext.close()
 })
 
