@@ -50,6 +50,14 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
   }).toPass({ timeout: 10_000 })
 }
 
+/** Follows a link until the address changes: the router's hydration cancels a navigation that started before it. */
+export async function followLink(link: Locator, url: string | RegExp) {
+  await expect(async () => {
+    if (await link.isVisible()) await link.click({ timeout: 1_000 })
+    await expect(link.page()).toHaveURL(url, { timeout: 1_000 })
+  }).toPass({ timeout: 10_000 })
+}
+
 /** The catalogue unit picker lists every faction's units behind one search; each option names its faction. */
 export async function chooseUnit(page: Page, side: string, faction: string, name: string) {
   const search = page.getByPlaceholder('Search units…')

@@ -68,8 +68,8 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
 
 test('an import names a missing unit and lets the guest correct the text before opening a draft', async ({ page }) => {
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
   await dialog.getByLabel('Roster text').fill(rosterText.replace('Immortals (65 Points)', 'Imaginary unit (65 Points)'))
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('Imaginary unit')
@@ -211,8 +211,8 @@ test('the first-game landing path fits', async ({ page }, testInfo) => {
 test('a saved long roster prints every card without clipping or editing controls', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Printer'))
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
   const entry = rosterText.slice(rosterText.indexOf('Immortals ('), rosterText.indexOf('Exported with'))
   const longRoster = rosterText.replace(entry, entry.repeat(12))
   await dialog.getByLabel('Roster text').fill(longRoster)

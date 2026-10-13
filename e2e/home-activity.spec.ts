@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createBattle, createRoster, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
+import { createBattle, createRoster, followLink, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
 import { productSql, withAuthSql } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
@@ -125,21 +125,21 @@ test('explains supported features before public activity and opens an account-fr
 
 test("a visitor's first action opens the builder without an account", async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: 'Try the builder', exact: true }).click()
+  await followLink(page.getByRole('link', { name: 'Try the builder', exact: true }), '/rosters')
 
   await expect(page).toHaveURL('/rosters')
 })
 
 test('creating an account from the home page opens the sign-up form', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: 'Create an account', exact: true }).first().click()
+  await followLink(page.getByRole('link', { name: 'Create an account', exact: true }).first(), /\/sign-in/)
 
   await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
 })
 
 test('importing from the home page opens the guest builder', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: 'Try importing a list' }).click()
+  await followLink(page.getByRole('link', { name: 'Try importing a list' }), '/rosters')
 
   await expect(page).toHaveURL('/rosters')
   await expect(page.getByRole('button', { name: 'Import roster', exact: true })).toBeVisible()

@@ -47,8 +47,8 @@ test('the import guide example preserves units from a complete text export', asy
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   const text = await exported.locator('pre').innerText()
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
   await dialog.getByLabel('Roster text').fill(text)
   await expect(dialog.getByRole('button', { name: 'Import pasted roster', exact: true })).toBeEnabled()
   await dialog.getByLabel('Roster text').evaluate((element) => {
