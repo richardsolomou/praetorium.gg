@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.140.1
+
+### Patch Changes
+
+- 9c2925b: Restore older saved leagues, rosters and favourites without losing saved changes.
+
 ## 0.140.0
 
 ### Minor Changes
