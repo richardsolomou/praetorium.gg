@@ -1206,6 +1206,20 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
 })
 
+test('a tab never opened before starts at its top', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await context.newPage()
+  await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(844 * 2)
+  await page.mouse.move(195, 300)
+  await page.mouse.wheel(0, 600)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  await page.getByRole('navigation', { name: 'Application sections' }).getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+  await context.close()
+})
+
 test('each application tab returns to where it was left', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const page = await context.newPage()

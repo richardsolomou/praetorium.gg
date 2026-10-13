@@ -129,6 +129,10 @@
     {
       "name": "friend",
       "definition": "An account another account has accepted through a request or one-time invite; only friends and practice opponents can be seated in an ordinary battle."
+    },
+    {
+      "name": "game journal",
+      "definition": "A player's private, self-reported record of games played away from Praetorium, optionally grouped by event; it never feeds profiles, standings, ratings, or the service record."
     }
   ]
 }
