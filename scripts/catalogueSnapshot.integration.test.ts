@@ -17,6 +17,7 @@ import {
   installSnapshotArchive,
   packCatalogueSnapshot,
   verifyInstalledSnapshot,
+  verifySnapshotArchive,
 } from '../src/server/catalogueSnapshot'
 
 function snapshotEntries(bytes: Uint8Array) {
@@ -213,18 +214,17 @@ it('rejects a changed file in an installed snapshot', () => {
   expect(() => verifyInstalledSnapshot(destination)).toThrow('catalogue snapshot has an invalid definitions/test.json')
 })
 
-it('rejects a snapshot built for different source pins', () => {
+it('rejects an archive that does not match its pointer', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
   const archive = path.join(root, 'snapshot.zip')
-  fs.writeFileSync(archive, new Uint8Array([0, 1, 2]))
+  const pointerFile = path.join(root, 'pointer.json')
+  const catalogue = completeCatalogue(root)
+  packCatalogueSnapshot(catalogue, archive, pointerFile)
+  fs.writeFileSync(path.join(catalogue, 'points', 'test.json'), '{"catalogue":"changed"}\n')
+  packCatalogueSnapshot(catalogue, archive, path.join(root, 'other-pointer.json'))
 
-  expect(() =>
-    execFileSync('pnpm', ['catalogue:snapshot', 'verify'], {
-      env: { ...process.env, CATALOGUE_SNAPSHOT_FILE: archive },
-      stdio: 'pipe',
-    }),
-  ).toThrow()
+  expect(() => verifySnapshotArchive(archive, pointerFile)).toThrow('catalogue snapshot archive checksum does not match')
 })
 
 it('installs the previous snapshot format during the source rollout', async () => {
