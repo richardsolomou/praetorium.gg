@@ -11,6 +11,7 @@ import {
   compileCanonicalCatalogueFromSnapshot,
   compileCanonicalRuleDocuments,
   loadCanonicalCatalogue,
+  loadEditionCanonicalCatalogues,
   referenceCatalogue,
 } from './canonicalCatalogue'
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from './datacards'
@@ -580,6 +581,44 @@ describe('canonical catalogue', () => {
       )
 
       expect(() => loadCanonicalCatalogue(root)).toThrow()
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('packaged edition catalogues', () => {
+  const packagedEditions = (catalogues: Record<string, unknown>) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-edition-catalogues-'))
+    fs.mkdirSync(path.join(root, 'canonical'))
+    fs.writeFileSync(path.join(root, 'canonical', 'editions.json'), JSON.stringify({ catalogues }))
+    return root
+  }
+
+  it('reads each compiled edition under the key it was written with', () => {
+    const compiled = compileCanonicalCatalogue(catalogue(), revisions)
+    const root = packagedEditions({ 'codex:': compiled })
+    try {
+      expect([...loadEditionCanonicalCatalogues(root).keys()]).toEqual(['codex:'])
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('leaves out an edition compiled by another compiler, so it is compiled again', () => {
+    const compiled = compileCanonicalCatalogue(catalogue(), revisions)
+    const root = packagedEditions({ 'codex:': { ...compiled, compilerVersion: 2 }, 'base:marines': compiled })
+    try {
+      expect([...loadEditionCanonicalCatalogues(root).keys()]).toEqual(['base:marines'])
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('reads nothing from a snapshot that packages no editions', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-edition-catalogues-'))
+    try {
+      expect(loadEditionCanonicalCatalogues(root).size).toBe(0)
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }
