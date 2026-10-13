@@ -77,7 +77,6 @@ test('Invasion Fleet hides unsupported rules in both roles while retaining calcu
       for (const panel of await buffs.all()) await expect(panel).not.toContainText(name)
     await noOverflow(page)
     await synapse.scrollIntoViewIfNeeded()
-    await simulator.screenshot({ path: `test-results/roster-simulator-invasion-fleet-${width}.png` })
     if (width === 390) {
       await simulator.locator('[data-simulator-scroll]').evaluate((element) => (element.scrollTop = element.scrollHeight))
       const footerTop = await simulator.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().top)
@@ -126,11 +125,9 @@ test('selected friendly support calculates against the marked enemy in both phas
   }
   await buff.scrollIntoViewIfNeeded()
   await noOverflow(page)
-  await simulator.screenshot({ path: 'test-results/roster-simulator-selected-support.png' })
   await page.setViewportSize({ width: 390, height: 1000 })
   await buff.scrollIntoViewIfNeeded()
   await noOverflow(page)
-  await simulator.screenshot({ path: 'test-results/roster-simulator-selected-support-390.png' })
   await buff.click()
   for (const [index] of results.entries())
     await expect.poll(async () => Number(await estimates[index].locator('.readout').first().textContent())).toBe(baseline[index])
@@ -180,11 +177,8 @@ test('Aeldari weapon buffs calculate their named and existing-ability effects', 
       return Boolean(element.compareDocumentPosition(conditions) & Node.DOCUMENT_POSITION_FOLLOWING)
     }),
   ).toBe(true)
-  await blitz.scrollIntoViewIfNeeded()
-  await simulator.screenshot({ path: 'test-results/roster-simulator-aeldari-buffs.png' })
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
-  await simulator.screenshot({ path: 'test-results/roster-simulator-aeldari-buffs-390.png' })
   await hand.click()
   await blitz.click()
   await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
@@ -215,7 +209,6 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
   for (const width of [1440, 390, 900]) {
     await page.setViewportSize({ width, height: 1000 })
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/roster-simulator-entry-${width}.png`, fullPage: true })
   }
   await page.setViewportSize(desktop)
 
@@ -228,7 +221,6 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
     const serverPage = await serverContext.newPage()
     await serverPage.goto(page.url())
     await noOverflow(serverPage)
-    await serverPage.screenshot({ path: `test-results/roster-simulator-ssr-${width}.png`, fullPage: true })
     await serverContext.close()
   }
 
@@ -247,7 +239,6 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
     await chooseCombatUnit(page, 'Defender', 'Necrons', 'Canoptek Reanimator')
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
     await noOverflow(page)
-    await simulator.screenshot({ path: `test-results/roster-simulator-${width}.png` })
     // The narrower widths check layout only; the saved loadout and its edits do not depend on width.
     if (width !== desktop.width) {
       await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
@@ -339,7 +330,6 @@ test('roster simulations inherit enhancements and attached-unit context', async 
   await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
   const bodyguard = page.getByRole('dialog', { name: 'Attacker · Immortals', exact: true })
   await expect(bodyguard.getByRole('button', { name: 'M 7", modified from 5" by Destroyer Ankh', exact: true })).toBeVisible()
-  await bodyguard.screenshot({ path: 'test-results/roster-simulator-inherited.png' })
 })
 
 test('roster buffs apply conditional shooting bonuses and defensive stratagems', async ({ page }) => {
@@ -359,7 +349,6 @@ test('roster buffs apply conditional shooting bonuses and defensive stratagems',
   const tooltip = page.getByRole('tooltip').filter({ hasText: 'Storm of devastation' })
   await expect(tooltip).toContainText('IGNORES COVER')
   await storm.click()
-  await page.screenshot({ path: 'test-results/roster-simulator-rule-tooltip.png' })
   await page.keyboard.press('Escape')
   await expect(tooltip).toBeHidden()
   await expect(simulator).toBeVisible()
@@ -382,7 +371,6 @@ test('roster buffs apply conditional shooting bonuses and defensive stratagems',
   await cover.click()
   await expect(damage).toHaveText('2.22')
   await simulator.locator('[data-combat-buffs] > summary').scrollIntoViewIfNeeded()
-  await simulator.screenshot({ path: 'test-results/roster-simulator-buffs.png' })
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(simulator)
   await expect(damage).toHaveText('2.22')
@@ -424,6 +412,4 @@ test('a support stratagem requires its source and applies to its eligible recipi
   await pulse.click()
   await expect(shooting).toContainText('IGNORES COVER')
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(baseline)
-  await pulse.scrollIntoViewIfNeeded()
-  await simulator.screenshot({ path: 'test-results/roster-simulator-support-stratagem.png' })
 })

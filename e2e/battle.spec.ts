@@ -110,7 +110,6 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   const tabsBox = await applicationTabs.boundingBox()
   expect(controlBox && tabsBox).toBeTruthy()
   expect(controlBox!.y + controlBox!.height).toBeLessThanOrEqual(tabsBox!.y)
-  await page.screenshot({ path: 'test-results/native-battle-controls-phone.png', fullPage: true })
 
   const battleUrl = page.url()
   for (let step = 0; step < 5; step += 1) await advance(page)
@@ -120,7 +119,6 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   const scoringBox = await scoring.boundingBox()
   expect(scoringBox).toBeTruthy()
   expect(scoringBox!.y + scoringBox!.height).toBeLessThanOrEqual(tabsBox!.y)
-  await page.screenshot({ path: 'test-results/native-scoring-prompt-phone.png' })
 
   const cpGain = page
     .locator('[data-panel="player"] button')
@@ -189,12 +187,10 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await expect(draw).toBeVisible()
   await draw.getByRole('button', { name: 'Draw at random' }).click()
   await expect(draw.locator('[data-drawn]')).toHaveCount(2)
-  await page.screenshot({ path: 'test-results/repaired-secondary-draw.png', fullPage: true })
   await takeTheTurn(page)
   for (let step = 0; step < 5; step += 1) await advance(page)
   await page.getByRole('button', { name: 'Pass the turn' }).click()
   await expect(page.getByRole('dialog', { name: /^Scoring end of turn points/ })).toContainText('Primary mission')
-  await page.screenshot({ path: 'test-results/repaired-primary-scoring.png', fullPage: true })
 })
 
 test('the final opponent-turn settlement completes before the battle ends', async ({ page }) => {
@@ -256,7 +252,6 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   const settlement = page.getByRole('dialog', { name: /^Scoring end of battle points/ })
   await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
   await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
-  await page.screenshot({ path: 'test-results/final-round-settlement.png', fullPage: true })
   await settlement.getByRole('button', { name: 'Finish battle' }).click()
   await expect(scoreboard.locator('h1')).toContainText('wins')
   await expect(scoreboard).not.toContainText('Result')
@@ -564,7 +559,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await bob.getByRole('button', { name: 'Return to prompt' }).click()
   await expect(prompt.getByRole('button', { name: 'Remove Cleanse', exact: true })).toBeVisible()
   await prompt.getByRole('button', { name: 'Select Plunder', exact: true }).click()
-  await bob.screenshot({ path: 'test-results/secondary-picker.png' })
   await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   await prompt.getByRole('button', { name: 'Minimize dialog' }).click()
@@ -574,7 +568,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   await expect(prompt.getByText('You can put this back while its paired mission is active.')).toHaveCount(2)
   await expect(prompt.getByRole('button', { name: 'Take the turn' })).toBeEnabled()
-  await bob.screenshot({ path: 'test-results/paired-secondary-choice.png' })
   const firstCard = prompt.locator('[data-drawn]').first()
   const readCard = firstCard.getByRole('button', { name: /^Read / })
   const cardName = (await readCard.getAttribute('aria-label'))?.replace(/^Read /, '') ?? ''
@@ -623,7 +616,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await prompt.getByRole('button', { name: 'Select missions' }).click()
   await selectOrdinaryMissions(prompt)
-  await bob.screenshot({ path: 'test-results/secondary-picker-phone.png' })
   await prompt.getByRole('button', { name: 'Add selected missions' }).click()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
   // The hand is not something to dismiss: it is the one chance to see what was dealt.

@@ -84,10 +84,8 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await expect(table.getByRole('cell')).toHaveCount(4)
   await expect(table).not.toContainText('Skorpekh Destroyers')
   await expect(table.getByRole('columnheader').nth(2)).toContainText('Lokhust Destroyers')
-  await owner.screenshot({ path: 'test-results/league-roster-comparison-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
   expect(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await owner.screenshot({ path: 'test-results/league-roster-comparison-phone.png', fullPage: true })
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   const cachedGate = await holdCombatCalculations(owner)
   await plan.click()
@@ -96,7 +94,6 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await expect(dialog).toContainText('4 / 4 matchups · Complete')
   expect(await owner.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
   await cachedGate.release()
-  await owner.screenshot({ path: 'test-results/league-comparison-cached-phone.png', fullPage: true })
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await owner.reload()
   await expect(leagueHeader(owner)).toContainText('Lists revealed')
@@ -622,24 +619,19 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await roster.click()
   await expect(roster).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('alert')).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/league-roster-dialog.png', fullPage: true })
   await chooser.getByRole('button', { name: `Seal ${rosterName}` }).click()
   await expect(page.getByRole('alert')).toHaveText('a league roster must seal exactly one Character or Epic Hero Warlord')
-  await page.screenshot({ path: 'test-results/league-roster-warlord-error.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/league-roster-dialog-phone.png', fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
 
   // A league that has run one event has no archive to switch between.
   await expect(page.getByRole('button', { name: /^League events/ })).toHaveCount(0)
   await expect(page.locator(`[data-person="${ownerName}"]`)).toBeVisible()
-  await page.screenshot({ path: 'test-results/league-first-event.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/league-first-event-phone.png', fullPage: true })
 })
 
 for (const { rules, status } of [
@@ -708,7 +700,6 @@ for (const { rules, status } of [
     await page.reload()
     await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
     if (status === 'preview') await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', `Rules version: ${rules}`)
-    await page.screenshot({ path: `test-results/league-${status}-rules.png`, fullPage: true })
   })
 }
 
@@ -775,7 +766,6 @@ test('only a changed roster in an open league event offers replacement', async (
   await expect(page.getByRole('heading', { name: 'Your list is sealed' })).toBeVisible()
   const restoredSettings = await openEventSettings(page)
   await restoredSettings.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.screenshot({ path: 'test-results/league-restored-before-admins.png', fullPage: true })
   await page.unrouteAll({ behavior: 'wait' })
 
   const editorResponse = await page.request.get(rosterUrl)
@@ -784,7 +774,6 @@ test('only a changed roster in an open league event offers replacement', async (
   await expect(page.getByLabel('List name')).toHaveValue('Original league list')
   await expect(page.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/league-roster-current-phone.png', fullPage: true })
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated league list'), 'Updated league list')
   const footer = page.locator('footer')
   const update = footer.getByRole('button', { name: 'League roster out of date' })
@@ -794,12 +783,10 @@ test('only a changed roster in an open league event offers replacement', async (
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated league list'), 'Updated league list')
   await expect(update).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/league-roster-editor-phone.png', fullPage: true })
   const footerHeight = (await footer.boundingBox())?.height
   await update.click()
   await expect(page.getByText('Your changes are not in the league roster yet.')).toBeVisible()
   expect((await footer.boundingBox())?.height).toBe(footerHeight)
-  await page.screenshot({ path: 'test-results/league-roster-details-phone.png', fullPage: true })
   await page.getByRole('link', { name: 'Replace league roster' }).click()
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await expect(chooser).toBeVisible()
@@ -846,10 +833,8 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   const entrantCard = owner.locator(`[data-army="${entrantName}"]`)
   await expect(entrantCard).toContainText('sealed')
   await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
-  await owner.screenshot({ path: 'test-results/league-unseal-revealed.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(owner)
-  await owner.screenshot({ path: 'test-results/league-unseal-revealed-phone.png', fullPage: true })
   await owner.setViewportSize({ width: 1440, height: 900 })
 
   const unseal = entrantCard.getByRole('button', { name: `Unseal ${entrantName}’s roster`, exact: true })
@@ -860,19 +845,16 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await unseal.click()
   const confirm = owner.getByRole('alertdialog', { name: `Unseal ${entrantName}’s roster?` })
   await expectNoHorizontalOverflow(owner, confirm)
-  await owner.screenshot({ path: 'test-results/league-unseal-confirm.png', fullPage: true })
   await confirm.getByRole('button', { name: 'Unseal roster' }).click()
 
   await expect(entrantCard.getByText(/^No list yet/)).toBeVisible()
   await expect(viewList(owner, entrantName)).toHaveCount(0)
-  await owner.screenshot({ path: 'test-results/league-unseal-reopened.png', fullPage: true })
 
   await entrant.reload()
   await expect(entrant.getByText('The organizer unsealed your list.')).toBeVisible()
   await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toHaveCount(0)
   await expect(entrant.getByRole('button', { name: /^(?:Unseal|More for) / })).toHaveCount(0)
   await expectNoHorizontalOverflow(entrant)
-  await entrant.screenshot({ path: 'test-results/league-unseal-entrant.png', fullPage: true })
 
   await sealOwnRoster(entrant, 'Corrected list')
   await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
@@ -880,7 +862,6 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await expect(viewList(entrant, entrantName)).toBeVisible()
   await owner.reload()
   await expect(entrantCard).toContainText('Corrected list')
-  await owner.screenshot({ path: 'test-results/league-unseal-resealed.png', fullPage: true })
   await viewList(owner, entrantName).click()
   await expect(owner.locator('[data-unit="Lokhust Destroyers"]')).toBeVisible()
   await ownerContext.close()
@@ -913,7 +894,6 @@ test('an eligible casual matchup is directed through its league event', async ({
   await eventLoaded(owner)
   await expect(owner.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
   await expectNoHorizontalOverflow(owner)
-  await owner.screenshot({ path: 'test-results/legacy-league-battle-button.png', fullPage: true })
 
   await owner.goto('/battles')
   await owner.getByRole('button', { name: 'New battle' }).click()
@@ -924,10 +904,8 @@ test('an eligible casual matchup is directed through its league event', async ({
   const warning = owner.getByRole('dialog', { name: 'You are both in a league' })
   await expect(warning.getByRole('button', { name: 'Play it casually' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, warning)
-  await owner.screenshot({ path: 'test-results/league-battle-guard-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(owner, warning)
-  await owner.screenshot({ path: 'test-results/league-battle-guard-phone.png', fullPage: true })
   await warning.getByRole('button', { name: new RegExp(leagueName) }).click()
 
   const leagueChooser = owner.getByRole('dialog', { name: 'Start 1 vs 1 battle' })
@@ -1003,7 +981,6 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await guest.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', { name: 'Lokhust Destroyers', exact: true }).click()
   await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
-  await guest.screenshot({ path: 'test-results/revealed-roster-details.png', fullPage: true })
 
   const rosterUrl = guest.url()
   const lokhustButton = guest.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', {
@@ -1018,7 +995,6 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
   expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   expect(await unit.evaluate((element) => element.scrollWidth)).toBe(await unit.evaluate((element) => element.clientWidth))
-  await guest.screenshot({ path: 'test-results/revealed-roster-details-phone.png', fullPage: true })
 
   await guest.goBack()
   await expect(guest).toHaveURL(rosterUrl)
@@ -1080,11 +1056,9 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   if (!leagueToken) throw new Error('The created league URL has no token.')
   let organizer = owner.locator('main header').getByText('Organized by', { exact: true }).locator('..')
   await expectOrganizerAvatar(organizer, ownerName)
-  await owner.screenshot({ path: 'test-results/league-detail-organizer-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectOrganizerAvatar(organizer, ownerName)
   await expectNoHorizontalOverflow(owner, organizer)
-  await owner.screenshot({ path: 'test-results/league-detail-organizer-phone.png', fullPage: true })
 
   await owner.goto('/leagues')
   await owner.setViewportSize({ width: 1440, height: 900 })
@@ -1093,17 +1067,14 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expect(card.locator('img').first()).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
   await expect(card).toContainText(`Organized by ${ownerName}`)
   await expectNoHorizontalOverflow(owner, card)
-  await owner.screenshot({ path: 'test-results/league-card-organizer-desktop.png', fullPage: true })
 
   await owner.setViewportSize({ width: 390, height: 844 })
   await expect(card).toContainText(`Organized by ${ownerName}`)
   await expectNoHorizontalOverflow(owner, card)
-  await owner.screenshot({ path: 'test-results/league-card-organizer-phone.png', fullPage: true })
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
   const dropdown = owner.getByRole('menu')
   await expect(dropdown.getByRole('menuitem', { name: 'View league' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, card, dropdown)
-  await owner.screenshot({ path: 'test-results/league-card-overflow-menu-phone.png', fullPage: true })
   await owner.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -1115,7 +1086,6 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   const copyError = owner.getByText('Could not share the invite. Try again.', { exact: true })
   await expect(copyError).toBeVisible()
   await expect(copyError).toHaveAttribute('aria-live', 'polite')
-  await owner.screenshot({ path: 'test-results/league-invite-copy-error-phone.png', fullPage: true })
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
   await owner.getByRole('menuitem', { name: 'Edit league' }).click()
   await expect(copyError).toBeHidden()
@@ -1128,11 +1098,9 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   const contextMenu = owner.getByRole('menu')
   await expect(contextMenu.getByRole('menuitem', { name: 'Edit league' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, card, contextMenu)
-  await owner.screenshot({ path: 'test-results/league-card-context-menu-phone.png', fullPage: true })
   await owner.getByRole('menuitem', { name: 'Edit league' }).click()
   edit = owner.getByRole('dialog', { name: 'Edit league' })
   await expectNoHorizontalOverflow(owner, card, edit)
-  await owner.screenshot({ path: 'test-results/edit-league-dialog-phone.png', fullPage: true })
   await edit.getByLabel('Name').fill(renamed)
   await edit.getByLabel('Details').fill('Updated event details')
   await edit.getByLabel('Player limit').fill('4')
@@ -1174,7 +1142,6 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   const confirmation = owner.getByRole('alertdialog', { name: `Delete ${renamed}?` })
   await expect(confirmation.getByText('Battles already started from it stay where they are.', { exact: false })).toBeVisible()
   await expectNoHorizontalOverflow(owner, confirmation)
-  await owner.screenshot({ path: 'test-results/delete-league-confirm-phone.png', fullPage: true })
   await confirmation.getByRole('button', { name: 'Delete league' }).click()
   await expect(owner).toHaveURL(/\/leagues\/?$/)
   await expect(owner.getByRole('heading', { name: renamed })).toHaveCount(0)
@@ -1202,7 +1169,6 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await create.getByLabel('Name').fill(leagueName)
   await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
   await expect(create.getByText('Recurring', { exact: true })).toHaveCount(0)
-  await owner.screenshot({ path: 'test-results/league-create.png', fullPage: true })
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await submitLeagueCreation(owner, create)
   await expect(owner.getByRole('heading', { name: leagueName })).toBeVisible()
@@ -1211,7 +1177,6 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await expect(owner.getByRole('heading', { name: 'You are not playing' })).toBeVisible()
   await expect(owner.getByRole('heading', { name: 'Nobody is in yet' })).toBeVisible()
   await expect(owner.locator('[data-check="places"]')).toContainText('Accept at least one player.')
-  await owner.screenshot({ path: 'test-results/league-current-event.png', fullPage: true })
   const leagueUrl = new URL(owner.url())
   leagueUrl.search = ''
   const leagueToken = leagueUrl.pathname.split('/').at(-1)
@@ -1231,7 +1196,6 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await expect(owner.getByRole('heading', { name: 'Everyone has sealed' })).toBeVisible()
   await revealEvent(owner)
   await expect(owner.getByRole('button', { name: 'Start event 2' })).toBeVisible()
-  await owner.screenshot({ path: 'test-results/league-event-1.png', fullPage: true })
 
   await owner.getByRole('button', { name: 'Start event 2' }).click()
   const nextEvent = owner.getByRole('dialog', { name: 'Start event 2' })
@@ -1243,7 +1207,6 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await expect(leagueHeader(owner)).toContainText('1 player')
   await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
   expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
-  await owner.screenshot({ path: 'test-results/league-event-2.png', fullPage: true })
 
   await owner.goto('/leagues')
   await expect(owner.locator(`[data-league="${leagueToken}"]`)).toContainText('Event 2')
@@ -1267,7 +1230,6 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await owner.setViewportSize({ width: 390, height: 844 })
   await owner.goto(leagueUrl.toString())
   expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await owner.screenshot({ path: 'test-results/league-events-phone.png', fullPage: true })
 
   await ownerContext.close()
   await entrantContext.close()
@@ -1506,7 +1468,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const teamCard = allied.locator('[data-team-disposition]')
   // The status card leads with the card the pair still owes, not with a list that is already sealed.
   await expect(allied.getByRole('heading', { name: 'Choose your team’s Force Disposition' })).toBeVisible()
-  await allied.screenshot({ path: 'test-results/league-2v1-card-owed-ally-phone.png', fullPage: true })
   await expect(teamCard.getByRole('button')).toHaveCount(3)
   const priorityAssets = teamCard.getByRole('button', { name: 'Priority Assets' })
   await priorityAssets.click()
@@ -1741,7 +1702,6 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(owner, create)
-  await owner.screenshot({ path: 'test-results/create-doubles-league-phone.png', fullPage: true })
   await submitLeagueCreation(owner, create)
   await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
   const leagueUrl = owner.url()
@@ -1773,11 +1733,8 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(team(2).locator('[data-person]')).toHaveText([new RegExp(names[2]), new RegExp(names[3])])
   // A step the organizer has finished leaves the panel.
   await expect(owner.locator('[data-check="teams"]')).toHaveCount(0)
-  await owner.setViewportSize({ width: 1440, height: 900 })
-  await owner.screenshot({ path: 'test-results/doubles-team-assignments-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
-  await owner.screenshot({ path: 'test-results/doubles-team-assignments-phone.png', fullPage: true })
 
   await teammate.setViewportSize({ width: 390, height: 844 })
   await teammate.reload()
@@ -1797,7 +1754,6 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(teamCard.getByRole('button', { name: 'Priority Assets' })).toHaveAttribute('aria-pressed', 'true')
   await expect(teammate.locator('[data-group="team-1"]')).toContainText('plays Priority Assets')
   await expectNoHorizontalOverflow(teammate, teamCard)
-  await teammate.screenshot({ path: 'test-results/doubles-team-disposition-phone.png', fullPage: true })
   const opponent = pages[2]
   await opponent.setViewportSize({ width: 1440, height: 900 })
   await opponent.reload()
@@ -1806,15 +1762,12 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     'aria-pressed',
     'true',
   )
-  await opponent.screenshot({ path: 'test-results/doubles-team-disposition-desktop.png', fullPage: true })
 
   // The organizer's teams carry unpairing and each member's removal together at both widths.
   await owner.reload()
   await expect(owner.getByRole('button', { name: `Remove ${names[0]}`, exact: true })).toBeVisible()
   await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
-  await owner.screenshot({ path: 'test-results/doubles-organizer-entrant-controls-phone.png', fullPage: true })
   await owner.setViewportSize({ width: 1440, height: 900 })
-  await owner.screenshot({ path: 'test-results/doubles-organizer-entrant-controls-desktop.png', fullPage: true })
   await team(1)
     .getByRole('button', { name: `Unpair ${names[0]} and ${names[1]}` })
     .click()
@@ -1826,14 +1779,12 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     clearRosters.locator('[data-slot="alert-dialog-header"]'),
     clearRosters.locator('[data-slot="alert-dialog-footer"]'),
   )
-  await owner.screenshot({ path: 'test-results/doubles-repair-confirmation-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(
     owner,
     clearRosters.locator('[data-slot="alert-dialog-header"]'),
     clearRosters.locator('[data-slot="alert-dialog-footer"]'),
   )
-  await owner.screenshot({ path: 'test-results/doubles-repair-confirmation-phone.png', fullPage: true })
   await clearRosters.getByRole('button', { name: 'Keep current teams' }).click()
   await expect(team(1).locator('[data-person]')).toHaveCount(2)
 
@@ -1846,14 +1797,12 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     removeEntrant.locator('[data-slot="alert-dialog-header"]'),
     removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
   )
-  await owner.screenshot({ path: 'test-results/doubles-remove-confirmation-desktop.png', fullPage: true })
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(
     owner,
     removeEntrant.locator('[data-slot="alert-dialog-header"]'),
     removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
   )
-  await owner.screenshot({ path: 'test-results/doubles-remove-confirmation-phone.png', fullPage: true })
   let releaseRemoval = () => {}
   const removalReleased = new Promise<void>((resolve) => (releaseRemoval = resolve))
   await owner.route('**/*', async (route) => {
@@ -1902,7 +1851,6 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await eventLoaded(owner)
   await expect(team(1)).toContainText('plays Priority Assets')
   await expect(team(2)).toContainText('plays Purge the Foe')
-  await owner.screenshot({ path: 'test-results/doubles-revealed-phone.png', fullPage: true })
   await owner.getByRole('button', { name: 'Start 2 vs 2 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 2 battle' })
   await battleChooser.getByLabel('Opposing team').click()
@@ -1910,7 +1858,6 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(opposingTeam).toBeVisible()
   await opposingTeam.click()
   await expectNoHorizontalOverflow(owner, battleChooser)
-  await owner.screenshot({ path: 'test-results/doubles-battle-chooser-phone.png', fullPage: true })
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
   const sides = owner.getByRole('region', { name: 'Armies' }).locator('[data-players]')
@@ -1920,15 +1867,9 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   const doublesSetup = owner.getByRole('region', { name: 'Armies' })
   await expect(doublesSetup.locator('p', { hasText: 'Side plays' })).toHaveText([/Priority Assets/, /Purge the Foe/])
   await expect(doublesSetup.getByText('Take and Hold', { exact: true })).toHaveCount(0)
-  await owner.screenshot({ path: 'test-results/doubles-battle-setup-phone.png', fullPage: true })
   await expect(sides.nth(1)).toContainText(names[2])
   await expect(sides.nth(1)).toContainText(names[3])
   await expectNoHorizontalOverflow(owner)
-  await owner.setViewportSize({ width: 1440, height: 900 })
-  await owner.screenshot({ path: 'test-results/doubles-league-battle-desktop.png', fullPage: true })
-  await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(owner)
-  await owner.screenshot({ path: 'test-results/doubles-league-battle-phone.png', fullPage: true })
 
   await Promise.all(contexts.map((context) => context.close()))
 })

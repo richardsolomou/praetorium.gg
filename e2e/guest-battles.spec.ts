@@ -22,7 +22,6 @@ test('a visitor browses public battles and opens a spectator view on a phone and
     await expect(page.getByRole('button', { name: 'New battle', exact: true })).toHaveCount(0)
     await expect(page.locator(`[data-battle-shelf="Active"] article > a[href="${battlePath}"]`)).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-    await page.screenshot({ path: `test-results/guest-battles-${width}.png`, fullPage: true })
 
     await page.locator(`[data-battle-shelf="Active"] article > a[href="${battlePath}"]`).click()
     await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toBeVisible()
@@ -70,7 +69,6 @@ test("a signed-in player's battles page lists their games, then friends' and pub
         await expect(dialog.getByRole('button', { name: 'Start battle' })).toBeVisible()
         await expect(dialog).not.toContainText('Battles are public by default')
         await expect(dialog).not.toContainText('One device can record the whole game')
-        await dialog.screenshot({ path: `test-results/create-battle-${width}.png` })
       }
       await page.setViewportSize({ width: 1440, height: 900 })
     },
@@ -87,7 +85,6 @@ test("a signed-in player's battles page lists their games, then friends' and pub
     await expect.poll(sections).toEqual(['Setup', "Friends' games", 'Public games'])
     await expect(page.locator(`[data-home-feed="Public games"] a${watched}`)).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-    await page.screenshot({ path: `test-results/signed-in-battles-${width}.png`, fullPage: true })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -97,7 +94,6 @@ test("a signed-in player's battles page lists their games, then friends' and pub
     await page.setViewportSize({ width, height: 900 })
     await expect(page.locator(`[data-home-feed="Friends' games"] a${watched}`)).toBeVisible()
     await expect(page.locator(`[data-home-feed="Public games"] a${watched}`)).toHaveCount(0)
-    await page.screenshot({ path: `test-results/signed-in-battles-friends-${width}.png`, fullPage: true })
   }
   await hostContext.close()
   await guestContext.close()

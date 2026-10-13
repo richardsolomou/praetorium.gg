@@ -32,7 +32,6 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
-  await page.screenshot({ path: 'test-results/new-battle-dialog.png', fullPage: true })
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
 })
@@ -69,7 +68,6 @@ test('keeps the header controls on screen at double text size', async ({ page })
     }),
   )
   expect(outside).toBe(false)
-  await page.screenshot({ path: test.info().outputPath('header-double-text.png') })
   await header.getByRole('button', { name: 'Open primary navigation' }).click()
   await header.getByRole('button', { name: 'Reference' }).click()
   await page.getByRole('menuitem', { name: 'Missions' }).click()
@@ -113,7 +111,6 @@ test.describe('a touch device', () => {
       )
     })
     expect(overlaps).toBe(false)
-    await page.screenshot({ path: test.info().outputPath('picker-double-text.png') })
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).click()
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
 
@@ -128,7 +125,6 @@ test.describe('a touch device', () => {
       }),
     )
     expect(clipped).toBe(false)
-    await tabs.screenshot({ path: test.info().outputPath('tabs-double-text.png') })
 
     await page
       .locator('[data-unit="Immortals"]')
@@ -138,7 +134,6 @@ test.describe('a touch device', () => {
     expect(await more.evaluate((button) => button.getBoundingClientRect().right <= innerWidth)).toBe(true)
     await more.click()
     await expect(page.getByLabel('Immortals models')).toHaveText('6')
-    await page.screenshot({ path: test.info().outputPath('loadout-double-text.png') })
   })
 
   test('keeps reserve counts, the battle scoreboard and phase control readable at double text size', async ({ page }) => {
@@ -156,7 +151,6 @@ test.describe('a touch device', () => {
       return [...section.querySelectorAll('.chip')].some((chip) => chip.getBoundingClientRect().right > bounds.right + 1)
     })
     expect(outside).toBe(false)
-    await reserves.screenshot({ path: test.info().outputPath('reserves-double-text.png') })
     await startBattle(page)
     const end = page.getByRole('button', { name: 'End the command phase' })
     await expect(end).toBeVisible()
@@ -172,7 +166,6 @@ test.describe('a touch device', () => {
       return { covered, clipped: button.scrollWidth > button.clientWidth }
     })
     expect(unreadable).toEqual({ covered: false, clipped: false })
-    await page.screenshot({ path: test.info().outputPath('battle-double-text.png') })
   })
 
   test('keeps simulator units, weapon headings and result figures apart at double text size', async ({ page }) => {
@@ -196,10 +189,6 @@ test.describe('a touch device', () => {
       }),
     )
     expect(headingsOverlap).toBe(false)
-    await labels
-      .first()
-      .locator('xpath=../../..')
-      .screenshot({ path: test.info().outputPath('weapon-double-text.png') })
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
     await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
     const summary = page.locator('[data-results-summary]')
@@ -222,7 +211,6 @@ test.describe('a touch device', () => {
       }),
     )
     expect(figuresOverlap).toBe(false)
-    await summary.screenshot({ path: test.info().outputPath('simulator-results-double-text.png') })
   })
 
   test('keeps the account menu on screen at double text size', async ({ page }) => {
@@ -237,6 +225,5 @@ test.describe('a touch device', () => {
       return bounds.left < 0 || bounds.right > innerWidth
     })
     expect(outside).toBe(false)
-    await page.screenshot({ path: test.info().outputPath('account-menu-double-text.png') })
   })
 })

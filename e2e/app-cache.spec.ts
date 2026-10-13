@@ -191,7 +191,7 @@ test('sign-out finishes when saved-device storage is unavailable', async ({ page
   expect(errors).toEqual([])
 })
 
-test('email sign-in settles across two open Home tabs without alternating account state', async ({ page, context }, testInfo) => {
+test('email sign-in settles across two open Home tabs without alternating account state', async ({ page, context }) => {
   await page.goto('/')
   await expect.poll(() => savedState(page)).toContain('"owner":null')
   const other = await context.newPage()
@@ -216,5 +216,4 @@ test('email sign-in settles across two open Home tabs without alternating accoun
     return signedOut
   })
   expect(transitions).toBe(false)
-  await other.screenshot({ path: testInfo.outputPath('signed-in-home-stable.png') })
 })

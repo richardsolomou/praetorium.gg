@@ -26,8 +26,6 @@ test('simulation and loadout optimization work in a cold offline application', a
   await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeVisible({ timeout: 120_000 })
   await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
   await expect(reopened.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText('6.00')
-  await reopened.setViewportSize({ width: 390, height: 844 })
-  await reopened.screenshot({ path: test.info().outputPath('offline-simulation-phone.png') })
 })
 
 test('online saves only show sync status when the queue remains pending', async ({ page }) => {
@@ -57,7 +55,6 @@ test('online saves only show sync status when the queue remains pending', async 
         await page.waitForTimeout(5_000)
         await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
         await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
-        await page.screenshot({ path: test.info().outputPath('pending-sync.png') })
       } else {
         await page.waitForTimeout(150)
         expect(await page.locator('[data-roster-builder]').boundingBox()).toEqual(before)
@@ -73,7 +70,6 @@ test('online saves only show sync status when the queue remains pending', async 
       return observation.seen
     })
     expect(seen).toBe(slow)
-    await page.screenshot({ path: test.info().outputPath(`synced-${slow ? 'slow' : 'quick'}.png`) })
     await page.unroute('**/_serverFn/**')
   }
 })
@@ -101,7 +97,6 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await expect(reopened.getByLabel('List name')).toHaveValue('Edited on the plane')
   await expect(reopened.locator('[data-unit="Immortals"]')).toHaveCount(1)
   await reopened.setViewportSize({ width: 390, height: 844 })
-  await reopened.screenshot({ path: test.info().outputPath('offline-edited-roster-phone.png') })
   expect(await operator.roster(id).then((row) => row?.name)).toBe('Before flight')
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
@@ -193,7 +188,6 @@ test('an offline practice battle and its commands survive reopening and sync tog
   await reopened.goto(url)
   await expect(reopened.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(reopened.getByRole('button', { name: 'Open Flight army' }).first()).toBeVisible()
-  await reopened.screenshot({ path: test.info().outputPath('offline-battle.png') })
   expect(await operator.battleByToken(token)).toBeUndefined()
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
@@ -238,9 +232,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
   await expect(dialog.getByRole('status')).toHaveText(
     'Some saved changes need review. Choose how to keep or discard them below before they can sync.',
   )
-  await page.screenshot({ path: test.info().outputPath('saved-changes-review-desktop.png') })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: test.info().outputPath('saved-changes-review-phone.png') })
   const download = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export saved changes' }).click()
   const file = await download

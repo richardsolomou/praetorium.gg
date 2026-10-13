@@ -71,11 +71,9 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await detail.getByRole('button', { name: 'More defender remaining wounds', exact: true }).click()
   await detail.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(cell.locator('.readout')).toHaveText(baseline!)
-  await page.screenshot({ path: 'test-results/battle-matchup-planner-desktop.png', animations: 'disabled' })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect.poll(async () => (await planner.boundingBox())?.width).toBe(390)
   expect(await planner.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
-  await page.screenshot({ path: 'test-results/battle-matchup-planner-phone.png', animations: 'disabled' })
   await page.setViewportSize({ width: 1440, height: 900 })
   await planner.getByRole('button', { name: 'Close', exact: true }).click()
   await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
@@ -85,9 +83,6 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await expect(planner).toContainText('4 / 4 matchups · Complete')
   expect(await page.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
   await cachedGate.release()
-  await page.screenshot({ path: 'test-results/battle-matchup-cached-desktop.png', animations: 'disabled' })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/battle-matchup-cached-phone.png', animations: 'disabled' })
   await page.setViewportSize({ width: 1440, height: 900 })
   const referee = await page.context().newPage()
   await referee.goto(page.url())
@@ -151,7 +146,6 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   await expect(count).toHaveText('1')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
-    await survivors.screenshot({ path: `test-results/simulator-unit-equipment-survivors-${width}.png` })
     expect(await survivors.locator('[data-slot="dialog-body"]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
   }
   await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
@@ -211,7 +205,6 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     await expect(simulator.getByLabel('Defender models', { exact: true })).toHaveText('5')
     await estimate(simulator, 'Shooting')
     await expect(damage).toHaveText(/^\d+\.\d+$/)
-    if (width < 860) await page.screenshot({ path: 'test-results/battle-simulator-fullscreen-phone.png' })
     await expect(shooting).toContainText('4× ➤ Bolt Rifle - Focused Fire')
     await expect(simulator.getByRole('region', { name: 'Melee results' })).toContainText('4× Knives and Fists')
     // The rules behind these estimates do not depend on width, so the narrower layouts skip them.
@@ -236,8 +229,6 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
         .toBeLessThan(woundedKills)
     }
     expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
-    await simulator.locator('[data-simulator-scroll]').evaluate((element) => (element.scrollTop = 0))
-    await simulator.screenshot({ path: `test-results/battle-simulator-${width}.png` })
     await simulator.getByRole('button', { name: 'Close', exact: true }).click()
     await panel.getByRole('button', { name: `Open ${roster}` }).click()
     await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
@@ -275,7 +266,6 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     const serverPage = await serverContext.newPage()
     await serverPage.goto(page.url())
     expect(await serverPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    await serverPage.screenshot({ path: `test-results/battle-simulator-ssr-${width}.png`, fullPage: true })
     await serverContext.close()
   }
 })
@@ -329,7 +319,6 @@ test('a team matchup switches allied armies and carries both sides through a swa
     'Canoptek Reanimator',
   )
   await expect(simulator.getByRole('region', { name: 'Defender', exact: true })).toContainText('4+')
-  await simulator.screenshot({ path: 'test-results/battle-simulator-team.png' })
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await allyContext.close()
 })
@@ -383,13 +372,9 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(penetrated)
   await expect(attacker).not.toContainText('Not calculated')
   await expect(defender).not.toContainText('Not calculated')
-  await attacker.scrollIntoViewIfNeeded()
-  await simulator.screenshot({ path: 'test-results/battle-simulator-auras.png' })
   for (const width of [390, 900]) {
     await page.setViewportSize({ width, height: 1000 })
     expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
-    await attacker.scrollIntoViewIfNeeded()
-    await simulator.screenshot({ path: `test-results/battle-simulator-auras-${width}.png` })
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
   await simulator.getByRole('combobox', { name: 'Attacker unit', exact: true }).click()

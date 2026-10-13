@@ -198,7 +198,6 @@ test('editable detail waits for public access to save before sharing', async ({ 
     await saveStarted
     await expect(review.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled()
     expect((await anonymous.request.get(previewPath, { timeout: 5000 })).status()).toBe(404)
-    await review.screenshot({ path: test.info().outputPath('reviewed-access-save-held.png') })
     expect(await page.locator('html').getAttribute('data-native-message')).toBeNull()
   } finally {
     releaseSave()
