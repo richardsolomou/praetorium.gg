@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { catalogueEditionId, editionCatalogueId, editionLabel, rulesVersionLabel } from '../core/catalogueEdition'
@@ -5,7 +6,13 @@ import { loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
 import { readCatalogueComposition } from './catalogueComposition'
 import { loadRules, type LoadedRules } from './rules'
 import { factionsFor } from '../shared/factionReferences'
-import { compileCanonicalCatalogueFromSnapshot } from './canonicalCatalogue'
+import {
+  CANONICAL_CATALOGUE_COMPILER_VERSION,
+  CANONICAL_CATALOGUE_FORMAT,
+  compileCanonicalCatalogueFromSnapshot,
+  editionCanonicalCataloguesPath,
+  loadEditionCanonicalCatalogues,
+} from './canonicalCatalogue'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { routeSlug } from '../core/slug'
 import { compiledGlobalSearchIndex } from './globalSearch'
@@ -31,6 +38,8 @@ export function catalogueEditionLoaders(
   const runtimeCanonical = new Map<string, CanonicalCatalogue>()
   let prepared: RuntimeStartup | undefined
   const startup = () => (prepared ??= runtime!.read('startup'))
+  let packaged: Map<string, CanonicalCatalogue> | undefined
+  const packagedCanonical = (key: string) => (packaged ??= loadEditionCanonicalCatalogues(directory)).get(key)
   let factions: ReturnType<typeof factionsFor> | null | undefined
   const context = (editionId: string) => {
     const cached = cache.get(editionId)
@@ -127,15 +136,15 @@ export function catalogueEditionLoaders(
     if (baseEditions.has(catalogueId)) {
       const loaded = base()
       if (!loaded) return null
-      let result = baseCanonical.get(catalogueId)
+      let result = baseCanonical.get(catalogueId) ?? packagedCanonical(`base:${catalogueId}`)
       if (!result) {
         result = compileCanonicalCatalogueFromSnapshot(
           { ...loaded, factions: loaded.factions.filter((faction) => faction.id === catalogueId) },
           baseRules(),
           directory,
         )
-        baseCanonical.set(catalogueId, result)
       }
+      baseCanonical.set(catalogueId, result)
       return result
     }
     const selected = lookup(catalogueId)
@@ -143,7 +152,7 @@ export function catalogueEditionLoaders(
     const edition = selected.catalogue.edition!
     const advertised = new Set(edition.catalogueIds.map((bookId) => editionCatalogueId(edition.id, bookId)))
     const scope = advertised.has(catalogueId) ? '' : catalogueId
-    let result = selected.canonical.get(scope)
+    let result = selected.canonical.get(scope) ?? packagedCanonical(`${edition.id}:${scope}`)
     if (!result) {
       const compiled = compileCanonicalCatalogueFromSnapshot(
         {
@@ -161,8 +170,8 @@ export function catalogueEditionLoaders(
         datasheets: compiled.datasheets.map((sheet) => ({ ...sheet, faction: label(sheet.faction) })),
         detachments: compiled.detachments.map((detachment) => ({ ...detachment, faction: label(detachment.faction) })),
       }
-      selected.canonical.set(scope, result)
     }
+    selected.canonical.set(scope, result)
     return result
   }
   const defaults = () =>
@@ -201,6 +210,13 @@ export function catalogueEditionLoaders(
       return id && catalogueEditionId(id) ? (lookup(id)?.rules ?? null) : baseRules()
     },
     canonicalFor: canonical,
+    /** Every edition catalogue compiled or read so far, keyed as the snapshot packages them. */
+    canonicalEntries: () => [
+      ...[...baseCanonical].map(([catalogueId, catalogue]) => [`base:${catalogueId}`, catalogue] as const),
+      ...[...cache].flatMap(([editionId, { canonical: compiled }]) =>
+        [...compiled].map(([scope, catalogue]) => [`${editionId}:${scope}`, catalogue] as const),
+      ),
+    ],
     canonicalCatalogue: (primary: CanonicalCatalogue | null) => {
       if (runtime) return startup().canonical
       if (!primary || !composition?.editions.length) return primary
@@ -289,4 +305,29 @@ export function catalogueEditionLoaders(
       ]
     },
   }
+}
+
+/**
+ * Compiles every rules edition the merged reference catalogue reads, with the rules a running
+ * instance loads, and writes them beside the snapshot's own compiled catalogue.
+ */
+export function writeEditionCanonicalCatalogues(directory: string, primary: CanonicalCatalogue) {
+  const output = editionCanonicalCataloguesPath(directory)
+  fs.rmSync(output, { force: true })
+  const loaded = loadCatalogue(directory)
+  if (!loaded) throw new Error('catalogue data is unavailable')
+  const rules = loadRules(directory, undefined, undefined, undefined, loaded.datacards)
+  const editions = catalogueEditionLoaders(
+    directory,
+    () => loaded,
+    () => rules,
+  )
+  editions.canonicalCatalogue(primary)
+  const catalogues = Object.fromEntries(editions.canonicalEntries())
+  fs.mkdirSync(path.dirname(output), { recursive: true })
+  fs.writeFileSync(
+    output,
+    `${JSON.stringify({ format: CANONICAL_CATALOGUE_FORMAT, compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION, catalogues })}\n`,
+  )
+  return Object.keys(catalogues).length
 }

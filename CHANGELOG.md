@@ -1,5 +1,25 @@
 # praetorium
 
+## 0.136.1
+
+### Patch Changes
+
+- 83ded46: Skip weapon and save work when listing the abilities a detachment gives a datasheet.
+- 83ded46: Start up faster by reading rules editions the catalogue snapshot compiled ahead of time.
+
+## 0.136.0
+
+### Minor Changes
+
+- b818909: Choose a larger text size on your profile; it applies on this device straight away and on every page load.
+
+## 0.135.1
+
+### Patch Changes
+
+- dd42e3d: Open an app tab you have not visited yet at its top instead of at the previous tab's scroll position.
+- dd42e3d: Keep battle setup working on a device that is online while Praetorium is unreachable, saving choices to sync later instead of failing.
+
 ## 0.135.0
 
 ### Minor Changes

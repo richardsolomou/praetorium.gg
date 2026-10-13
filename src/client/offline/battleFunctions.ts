@@ -41,6 +41,7 @@ import {
 } from './localRuntime'
 import { constructionData, localConstruction } from './construction'
 import { cachedRead, cachedPage } from './reads'
+import { isFetchNetworkFailure } from '../networkErrors'
 
 export function workspaceScreen(
   workspace: BattleWorkspace,
@@ -136,8 +137,16 @@ export async function submit(
   const sharedSetup = workspace && localBattleState(workspace.players, workspace.log).status === 'setup'
   const authoritative = options?.background || sharedSetup
   if (authoritative && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
-  if (authoritative && navigator.onLine && !(await hasLocalChanges(resource))) {
-    const answer = await server.submit(args)
+  // A service that never answers is treated like no connection, so the choice is saved and synced later. If
+  // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
+  const answer =
+    authoritative && navigator.onLine && !(await hasLocalChanges(resource))
+      ? await server.submit(args).catch((error: unknown) => {
+          if (isFetchNetworkFailure(error)) return null
+          throw error
+        })
+      : null
+  if (answer) {
     if (answer.screen?.kind !== 'battle') return answer
     const fresh = await battleWorkspace({ data: { token: args.data.token } })
     await rememberBattle(fresh.workspace, owner.id)

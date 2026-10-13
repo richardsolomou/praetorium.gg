@@ -13,6 +13,7 @@ import { AccountSecurity } from './AccountSecurity'
 import { BattleSharing } from './BattleSharing'
 import { CollectionSharing } from './CollectionSharing'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
+import { TextSizeSettings } from './TextSizeSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -209,6 +210,7 @@ function ProfileForm({
               <BattleSharing />
               <CollectionSharing userId={me.id} />
               <PlayerDefaultsSettings />
+              <TextSizeSettings />
             </>
           }
         />

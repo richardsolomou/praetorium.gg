@@ -246,6 +246,25 @@ it('does not replay a connected automatic write after an uncertain network respo
   expect(mocks.queue).not.toHaveBeenCalled()
 })
 
+it('saves a connected setup choice on the device when the service never answers', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.submit.mockRejectedValue(new TypeError('Load failed'))
+  const answer = await submit({ data: { token: 'battle', expectedSeq: 0, command: { kind: 'set-attacker', attackerId: 'bob' } } })
+  expect({ outcome: answer.result.outcome, command: mocks.queue.mock.calls[0]?.[1].command }).toEqual({
+    outcome: 'appended',
+    command: { kind: 'set-attacker', attackerId: 'bob' },
+  })
+})
+
+it('saves a connected automatic write on the device when the service never answers', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.submit.mockRejectedValue(new TypeError('Failed to fetch'))
+  await submit(input, { background: true })
+  expect(mocks.queue).toHaveBeenCalledOnce()
+})
+
 it('returns a competing connected defender choice without retaining a durable conflict', async () => {
   prepare(80)
   vi.stubGlobal('navigator', { onLine: true })
