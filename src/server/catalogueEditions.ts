@@ -181,6 +181,7 @@ export function catalogueEditionLoaders(
         .map((faction) => faction.id),
     )
   return {
+    /** Builds every construction index ahead of requests; benchmarks and audits measure a fully built instance. */
     prepare: () => {
       const original = base()
       const originalRules = baseRules()
