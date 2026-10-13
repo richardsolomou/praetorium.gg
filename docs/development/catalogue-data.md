@@ -272,7 +272,7 @@ Connected construction reads prefer server calculations, including roster prices
 
 Calculation requests fall back to downloaded rules on failure or after five seconds; cancellation must not start local calculation. Offline library rows use lightweight assessments in a bounded account-scoped cache keyed by roster version and downloaded catalogue revision. Yield before each uncached assessment; unchanged refreshes must reuse the result rather than rebuild full unit projections. Connected restoration projects only unsynced roster and battle documents, without preparing catalogue indexes for clean downloads.
 
-Detachment reference ownership follows each datacard record’s declared faction, even when its cards live in a parent faction’s file. Chapter reference pages show both their own and inherited available detachments, linking inherited offers to the canonical parent page in the same rules version. Keep rules, enhancements, upgrades and stratagems together under that ownership; never hide a chapter-only detachment merely because its physical definition lives in the Marine book.
+Detachment reference ownership follows each datacard record’s declared faction, even when its cards live in a parent faction’s file. Faction reference pages list and count only their own canonical detachments. Shared Marine detachments stay on the Space Marines page; chapter rosters can still select them and link to their canonical parent page in the same rules version. Keep rules, enhancements, upgrades and stratagems together under that ownership; never hide a chapter-only detachment merely because its physical definition lives in the Marine book.
 
 ## Verification
 

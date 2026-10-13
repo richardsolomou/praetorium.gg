@@ -471,7 +471,14 @@ describe('mayRevealLeague', () => {
 })
 
 describe('leagueArmy', () => {
-  const unit = (name: string, points: number, warlord = false) => ({ key: name, name, points, models: 1, warlord })
+  const unit = (name: string, points: number, warlord = false, attachedTo?: string) => ({
+    key: name,
+    name,
+    points,
+    models: 1,
+    warlord,
+    ...(attachedTo ? { attachedTo } : {}),
+  })
   const roster = (units: ReturnType<typeof unit>[]): Roster => ({
     name: 'Dynasty',
     text: '',
@@ -487,6 +494,18 @@ describe('leagueArmy', () => {
 
   it('totals the points of every unit', () => {
     expect(leagueArmy(roster([unit('Lord', 80, true), unit('Warriors', 200)])).points).toBe(280)
+  })
+
+  it('counts an empty built roster as zero units', () => {
+    expect(leagueArmy(roster([])).unitCount).toBe(0)
+  })
+
+  it('counts an attached Leader and its squad as one fielded unit', () => {
+    expect(leagueArmy(roster([unit('Lord', 80, true, 'Warriors'), unit('Warriors', 200)])).unitCount).toBe(1)
+  })
+
+  it('counts an attached squad and a standalone unit separately', () => {
+    expect(leagueArmy(roster([unit('Lord', 80, true, 'Warriors'), unit('Warriors', 200), unit('Immortals', 150)])).unitCount).toBe(2)
   })
 
   it('keeps what the roster card reads of the sealed list', () => {

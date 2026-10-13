@@ -193,7 +193,7 @@ describe('joining catalogue detachments to their rules reference', () => {
     } as Partial<LoadedRules> as LoadedRules
 
     const factions = factionsFor(loaded, rules).factions
-    expect(factions.find((faction) => faction.id === chapter.id)?.references[0]?.detachments).toBe(1)
+    expect(factions.find((faction) => faction.id === chapter.id)?.references[0]?.detachments).toBe(0)
     expect(factions.find((faction) => faction.id === chapter.id)?.detachments[0]?.referenceRoute).toEqual({
       catalogueId: 'space-marines',
       slug: 'assault-brethren',

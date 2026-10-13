@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Restore chapter-specific and inherited Space Marine detachments on faction reference pages.
+Restore chapter-specific Space Marine detachments on faction reference pages.
