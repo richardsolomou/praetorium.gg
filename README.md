@@ -38,7 +38,7 @@ See [Contributing](CONTRIBUTING.md) to run the app and its checks, [Architecture
 
 ## Data and trademarks
 
-Catalogue definitions come from [BSData](https://github.com/BSData/wh40k-11e). Rules and mission data come from [Game Datacards](https://github.com/game-datacards/datasources). See [catalogue/README.md](catalogue/README.md) for all sources.
+Catalogue definitions come from [BSData](https://github.com/BSData/wh40k-11e). Rules and mission data come from [Game Datacards](https://github.com/game-datacards/datasources). See [the catalogue repository](https://github.com/richardsolomou/praetorium-catalogue) for all sources.
 
 Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is unofficial and is not endorsed by Games Workshop.
 

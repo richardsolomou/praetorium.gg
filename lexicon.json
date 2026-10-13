@@ -16,7 +16,7 @@
     },
     {
       "name": "catalogue snapshot",
-      "definition": "An immutable, checksummed package of every pinned catalogue source with its manifest, provenance and change history; the release pins one in catalogue/lock.json and current.json points at the latest verified one."
+      "definition": "An immutable, checksummed package of every pinned catalogue source with its manifest, provenance and change history; the release pins one in catalogue.json and current.json points at the latest verified one."
     },
     {
       "name": "correction patch",

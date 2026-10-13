@@ -20,13 +20,13 @@ import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSo
 import { disabledCatalogueSources } from '../src/server/catalogueSources'
 import { writeCatalogueRuntime } from './lib/catalogueRuntime'
 import { packCatalogueRuntime } from './lib/catalogueRuntimeDistribution'
-import authoring from '../catalogue/authoring.json' with { type: 'json' }
+import releaseLock from '../catalogue.json' with { type: 'json' }
 
 const root = path.join(import.meta.dirname, '..')
 const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
 const archive = process.env.CATALOGUE_SNAPSHOT_FILE ?? path.join(root, 'catalogue-snapshot.zip')
 const pointer = process.env.CATALOGUE_SNAPSHOT_POINTER_FILE ?? path.join(root, 'catalogue-current.json')
-const lock = path.join(root, 'catalogue', 'lock.json')
+const lock = path.join(root, 'catalogue.json')
 const command = process.argv[2]
 
 if (command === 'pack') {
@@ -39,7 +39,7 @@ if (command === 'pack') {
     fs.rmSync(canonicalCataloguePath(directory), { force: true })
     fs.rmSync(editionCanonicalCataloguesPath(directory), { force: true })
   }
-  const authoringRevision = process.env.CATALOGUE_AUTHORING_REVISION ?? authoring.revision
+  const authoringRevision = process.env.CATALOGUE_AUTHORING_REVISION ?? releaseLock.authoring.revision
   if (!/^[a-f0-9]{40}$/.test(authoringRevision)) throw new Error('Catalogue authoring revision must be a full Git SHA')
   const packed = packCatalogueSnapshot(directory, archive, pointer, process.env.CATALOGUE_OBJECTS_DIR, authoringRevision)
   console.log(`${packed.id} ${archive}`)
@@ -70,12 +70,7 @@ if (command === 'pack') {
     const current = installedSnapshot(candidate)
     if (!current) throw new Error('the fetched catalogue snapshot is incomplete')
     const revisions = JSON.parse(fs.readFileSync(path.join(candidate, 'revision.json'), 'utf8')) as Record<string, string>
-    fs.writeFileSync(lock, `${JSON.stringify({ format: 'praetorium.catalogue-lock.v1', pointer: current, revisions }, null, 2)}\n`)
-    if (current.authoringRevision)
-      fs.writeFileSync(
-        path.join(root, 'catalogue/authoring.json'),
-        `${JSON.stringify({ ...authoring, revision: current.authoringRevision }, null, 2)}\n`,
-      )
+    fs.writeFileSync(lock, `${JSON.stringify({ ...releaseLock, pointer: current, revisions }, null, 2)}\n`)
     console.log(`${current.id} ${lock}`)
   } finally {
     fs.rmSync(work, { recursive: true, force: true })
