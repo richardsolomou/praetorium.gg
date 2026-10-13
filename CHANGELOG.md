@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.140.2
+
+### Patch Changes
+
+- bd95765: Show an allied side's Force Disposition once in battle setup, and lead a league pair's status with the card they still need to choose.
+
 ## 0.140.1
 
 ### Patch Changes
