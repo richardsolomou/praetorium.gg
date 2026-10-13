@@ -66,6 +66,7 @@ it('discards a cached runtime that fails verification', async () => {
 it('shares a fresh compile under its key as an archive that installs identically', async () => {
   const uploads: { key: string; archive: Uint8Array }[] = []
   const store: RuntimeStore = {
+    has: async () => false,
     download: async () => false,
     upload: async (shared, archive) => void uploads.push({ key: shared, archive }),
   }
