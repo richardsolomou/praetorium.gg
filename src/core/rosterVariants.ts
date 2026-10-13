@@ -10,13 +10,22 @@ export function variantName(stem: string, taken: readonly string[]) {
   }
 }
 
+/** A variant group in the order it is offered: its base, then every other list in the order it was made. */
+export function orderVariantGroup<T extends { id: string; createdAt: number | bigint }>(members: readonly T[], baseId: string) {
+  return members.toSorted(
+    (left, right) =>
+      Number(right.id === baseId) - Number(left.id === baseId) ||
+      (left.createdAt < right.createdAt ? -1 : left.createdAt > right.createdAt ? 1 : left.id.localeCompare(right.id)),
+  )
+}
+
 /**
  * Sorted lists with each group gathered where its first member sorts, headed by its base.
  *
  * A group is keyed by the base id its variants store, so it outlives a deleted base and
- * is headed by its first remaining member instead.
+ * is headed by its oldest remaining member instead.
  */
-export function variantGroups<T extends { id: string; baseRosterId: string | null }>(sorted: readonly T[]) {
+export function variantGroups<T extends { id: string; baseRosterId: string | null; createdAt: number }>(sorted: readonly T[]) {
   const groups = new Map<string, T[]>()
   for (const roster of sorted) {
     const key = roster.baseRosterId ?? roster.id
@@ -25,7 +34,7 @@ export function variantGroups<T extends { id: string; baseRosterId: string | nul
     else groups.set(key, [roster])
   }
   return [...groups].flatMap(([key, members]) => {
-    const head = members.find((roster) => roster.id === key) ?? members[0]!
+    const head = orderVariantGroup(members, key)[0]!
     return [{ roster: head, variant: false }, ...members.filter((roster) => roster !== head).map((roster) => ({ roster, variant: true }))]
   })
 }

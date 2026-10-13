@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
 import { saveRosterSchema } from '../../contracts/schemas'
-import { copyRoster, saveRoster, savedRosterSummaries, setRosterLocked, setRosterVisibility } from '../functions'
+import { copyRoster, rosterAccess, saveRoster, savedRosterSummaries, setRosterLocked, setRosterVisibility } from '../functions'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 
 const mocks = vi.hoisted(() => ({
@@ -69,6 +69,16 @@ it.each([false, true])('uses the account privacy default for an offline copy (va
   }))
   await copyRoster({ data: { id: 'original', variant } })
   expect(mocks.queue.mock.calls[0]?.[1].visibility).toBe('private')
+})
+
+it('offers an offline variant group oldest first when its base was deleted', async () => {
+  const variant = (id: string, createdAt: number) => ({ data: { ...roster, id, baseRosterId: 'deleted', createdAt }, serverVersion: 1 })
+  await mocks.engines.get('alice')!.storage.change((state: ReturnType<typeof emptyLocalState>) => ({
+    ...state,
+    documents: { 'roster:newer': variant('newer', 3), 'roster:older': variant('older', 2) },
+  }))
+  const access = await rosterAccess({ data: { id: 'newer' } })
+  expect(access?.variants.map(({ id }) => id)).toEqual(['older', 'newer'])
 })
 
 it('leaves the new account roster download intact when an old account response arrives', async () => {

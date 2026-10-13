@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ROSTER_NAME_MAX_LENGTH } from './battle'
-import { variantCards, variantGroups, variantName } from './rosterVariants'
+import { orderVariantGroup, variantCards, variantGroups, variantName } from './rosterVariants'
 
-const roster = (id: string, baseRosterId: string | null = null) => ({ id, baseRosterId })
+const roster = (id: string, baseRosterId: string | null = null, createdAt = 0) => ({ id, baseRosterId, createdAt })
 const shape = (rows: ReturnType<typeof variantGroups<ReturnType<typeof roster>>>) =>
   rows.map(({ roster: { id }, variant }) => (variant ? `  ${id}` : id))
 
@@ -38,8 +38,22 @@ describe('the library order of variant groups', () => {
     expect(shape(variantGroups([roster('a3', 'a'), roster('a'), roster('a2', 'a')]))).toEqual(['a', '  a3', '  a2'])
   })
 
-  it('heads a group whose base was deleted with its first member', () => {
-    expect(shape(variantGroups([roster('a3', 'a'), roster('a2', 'a')]))).toEqual(['a3', '  a2'])
+  it('heads a group whose base was deleted with its oldest member', () => {
+    expect(shape(variantGroups([roster('a3', 'a', 3), roster('a2', 'a', 2)]))).toEqual(['a2', '  a3'])
+  })
+})
+
+describe('the order a variant group is offered in', () => {
+  it('puts the base first', () => {
+    expect(orderVariantGroup([roster('a2', 'a', 1), roster('a', null, 2)], 'a').map(({ id }) => id)).toEqual(['a', 'a2'])
+  })
+
+  it('orders the other lists by when they were made', () => {
+    expect(orderVariantGroup([roster('a3', 'a', 3), roster('a2', 'a', 2)], 'a').map(({ id }) => id)).toEqual(['a2', 'a3'])
+  })
+
+  it('orders lists made at the same moment by id', () => {
+    expect(orderVariantGroup([roster('a3', 'a', 1), roster('a2', 'a', 1)], 'a').map(({ id }) => id)).toEqual(['a2', 'a3'])
   })
 })
 

@@ -39,7 +39,7 @@ import { unitWoundsIn } from '../shared/catalogue'
 import { attachedUnitCount } from '../core/attachedUnits'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { referenceData } from './offline/runtime'
-import { variantName } from '../core/rosterVariants'
+import { orderVariantGroup, variantName } from '../core/rosterVariants'
 import type { LocalState } from '../contracts/localState'
 import { playerDefaults } from './offline/actionFunctions'
 import { localRosterAssessment } from './offline/rosterAssessment'
@@ -221,7 +221,10 @@ function accessFor(roster: LocalRoster, state?: LocalState) {
     .map((document) => document.data as LocalRoster | null)
     .filter((entry): entry is LocalRoster => Boolean(entry?.catalogueId && entry.picks))
   const baseId = roster.baseRosterId ?? roster.id
-  const variants = members.filter((entry) => (entry.baseRosterId ?? entry.id) === baseId).map(summaryFor)
+  const variants = orderVariantGroup(
+    members.filter((entry) => (entry.baseRosterId ?? entry.id) === baseId),
+    baseId,
+  ).map(summaryFor)
   const base = members.find((entry) => entry.id === roster.baseRosterId)
   const raw = base ? rosterDifferences(base, roster) : null
   const catalogue = raw ? localConstruction(roster.catalogueId)?.catalogue : undefined
