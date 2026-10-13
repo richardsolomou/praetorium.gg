@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, test } from './test'
 import { confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, withAuthSql } from './storage'
