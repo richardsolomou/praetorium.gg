@@ -60,7 +60,9 @@ export function equippedWeaponProfiles(
   profiles: readonly WeaponProfileData[],
   choices: readonly { options: readonly Pick<LoadoutOption, 'name' | 'count' | 'pieceCounts'>[] }[],
 ) {
-  return profiles.filter((profile) => (profile.count ?? 1) > controlledProfileCount(choices, profile.name))
+  return profiles.filter(
+    (profile) => (profile.count ?? 1) > Math.max(...weaponProfileNames(profile).map((name) => controlledProfileCount(choices, name))),
+  )
 }
 
 export function unmodeledGrantedWeapons(
@@ -81,7 +83,11 @@ export function unmodeledGrantedWeapons(
       )
       .map((name) => wargearKey(name)),
   )
-  return profiles.filter((profile) => granted.has(wargearKey(profile.name)) && !modeled.has(wargearKey(profile.name)))
+  return profiles.filter(
+    (profile) =>
+      weaponProfileNames(profile).some((name) => granted.has(wargearKey(name))) &&
+      !weaponProfileNames(profile).some((name) => modeled.has(wargearKey(name))),
+  )
 }
 
 export function loadoutInstructions(
@@ -240,11 +246,16 @@ export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
   })
 }
 
+export const weaponProfileNames = (profile: WeaponProfileData) =>
+  profile.equipmentName ? [profile.name, profile.equipmentName] : [profile.name]
+
 export function weaponProfilesFor(option: { name: string; pieces?: readonly string[] }, profiles: readonly WeaponProfileData[]) {
   return uniqueWeaponProfiles(
     option.pieces?.length
-      ? option.pieces.flatMap((name) => profiles.filter((profile) => weaponPieceMatches(name, profile.name)))
-      : profiles.filter((profile) => weaponMatches(option.name, profile.name)),
+      ? option.pieces.flatMap((name) =>
+          profiles.filter((profile) => weaponProfileNames(profile).some((candidate) => weaponPieceMatches(name, candidate))),
+        )
+      : profiles.filter((profile) => weaponProfileNames(profile).some((name) => weaponMatches(option.name, name))),
   )
 }
 
@@ -314,7 +325,8 @@ export function ordered<T extends { name: string }>(
     .flatMap((cluster) => cluster.entries)
 }
 
-const profilesFor = (name: string, weapons: readonly WeaponProfileData[]) => weapons.filter((weapon) => weaponMatches(name, weapon.name))
+const profilesFor = (name: string, weapons: readonly WeaponProfileData[]) =>
+  weapons.filter((weapon) => weaponProfileNames(weapon).some((candidate) => weaponMatches(name, candidate)))
 
 // A combi-weapon has a melee profile and is still a gun, so what it also does cannot
 // decide where it goes.

@@ -1,10 +1,9 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { wargearBaseName } from '../../core/wargear'
 import { datasheetCharacteristicKindOf } from '../../core/datasheetStructure'
 import type { Datasheet } from '../../contracts/catalogue'
 import { HoverTooltip } from './HoverTooltip'
 import { KeywordList } from './Keyword'
-import { addedKeywords, weaponProfileGroups, weaponProfileMode } from '../datasheet'
+import { addedKeywords, weaponProfileGroupName, weaponProfileGroups, weaponProfileMode } from '../datasheet'
 
 type Profile = Datasheet['profiles'][number]
 
@@ -74,7 +73,7 @@ export function WeaponProfiles({
     if (profiles.length === 1) {
       return <WeaponProfile key={first.id} weapon={first} rules={rules} showName={showName} showCount={showCount} embedded={embedded} />
     }
-    const name = wargearBaseName(first.name)
+    const name = weaponProfileGroupName(profiles)
     return (
       <section key={first.id} aria-label={`${name} profiles`} className={embedded ? 'mx-2 my-1.5' : 'border border-edge bg-card p-2'}>
         <h3 className="flex items-baseline justify-between gap-2 text-xs">
@@ -83,7 +82,14 @@ export function WeaponProfiles({
         </h3>
         <div className="mt-1 ml-3 border-l-2 border-edge-strong pl-3">
           {profiles.map((weapon) => (
-            <WeaponProfile key={weapon.id} weapon={weapon} rules={rules} label={weaponProfileMode(weapon)} showCount={false} embedded />
+            <WeaponProfile
+              key={weapon.id}
+              weapon={weapon}
+              rules={rules}
+              label={weaponProfileMode(weapon, profiles)}
+              showCount={false}
+              embedded
+            />
           ))}
         </div>
       </section>

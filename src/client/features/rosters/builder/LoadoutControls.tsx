@@ -12,6 +12,7 @@ import {
   type SpreadUpdate,
   spreadHandlers,
   weaponProfilesFor,
+  weaponProfileNames,
   weaponPieceMatches,
   wargearMatches,
 } from './loadoutModel'
@@ -516,7 +517,7 @@ function OptionProfiles({
   const counted = showCount
     ? matching.map((profile) => ({
         ...profile,
-        count: option.pieceCounts?.find((piece) => weaponPieceMatches(piece.name, profile.name))?.count,
+        count: option.pieceCounts?.find((piece) => weaponProfileNames(profile).some((name) => weaponPieceMatches(piece.name, name)))?.count,
       }))
     : matching
   return matching.length ? (

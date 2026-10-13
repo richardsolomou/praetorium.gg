@@ -5,6 +5,32 @@ import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
 import { deploymentRules } from '../shared/rosterDeployment'
 
 describe('the profile modifiers on a datasheet', () => {
+  it('preserves equipment ownership for inline and linked profiles with unrelated names', () => {
+    const book = bookOf({
+      sharedProfiles: [{ id: 'linked-mode', name: 'Alternate target', typeName: 'Ranged Weapons', characteristics: [] }],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'weapon',
+              name: 'Rifle',
+              type: 'upgrade',
+              profiles: [{ id: 'inline-mode', name: 'Special attack', typeName: 'Ranged Weapons' }],
+              infoLinks: [{ id: 'mode-link', targetId: 'linked-mode', type: 'profile' }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'unit')?.profiles.map(({ id, equipmentName }) => ({ id, equipmentName }))).toEqual([
+      { id: 'inline-mode', equipmentName: 'Rifle' },
+      { id: 'linked-mode', equipmentName: 'Rifle' },
+    ])
+  })
+
   it('shows an unconditional weapon ability granted by the selected detachment', () => {
     const categoryEntries = ['Necrons', 'Vehicle', 'Mounted', 'Titanic'].map((name) => ({
       id: name.toLocaleLowerCase(),

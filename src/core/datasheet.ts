@@ -19,6 +19,7 @@ export type Datasheet = {
     name: string
     type: string
     count?: number
+    equipmentName?: string
     values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
   }[]
   abilities: { id: string; name: string; source?: string; description: string | null; kind: AbilityKind }[]
