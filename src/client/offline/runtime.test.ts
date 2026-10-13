@@ -4,7 +4,8 @@ import { globalSearchQuery } from '../queries/references'
 import { factionDatasheetsQuery } from '../queries/rosters'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
-import { offlineDatasheets, offlineSearch, referenceRead } from './runtime'
+import { offlineDatasheets, offlineSearch, referenceRead, referenceData } from './runtime'
+import { compressReference } from './compressedReference'
 const saved: OfflineReferenceData = {
   version: 1,
   savedAt: 1,
@@ -56,6 +57,23 @@ it('reads a downloaded rule without contacting the service', async () => {
   const online = vi.fn(() => Promise.reject(new Error('Network unavailable')))
   expect(await referenceRead(['rule-section', 'core', 'moving'], online)).toEqual({ title: 'Moving' })
   expect(online).not.toHaveBeenCalled()
+})
+it.each(['PraetoriumOffline', 'PraetoriumReferenceCache'])(
+  'restores a compressed %s once and releases the compressed copy',
+  async (key) => {
+    vi.stubGlobal('window', { [key]: await compressReference(saved) })
+    const restored = referenceData()
+    expect({ restored, reused: referenceData() === restored, global: window[key as keyof Window] }).toEqual({
+      restored: saved,
+      reused: true,
+      global: saved,
+    })
+  },
+)
+it('ignores an unreadable native reference and uses the connected service', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: { encoding: 'gzip-base64', data: 'broken' } })
+  vi.stubGlobal('navigator', { onLine: true })
+  expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toBe('Live rule')
 })
 it('reports missing saved data rather than hanging on a network request', async () => {
   await expect(referenceRead(['rule-section', 'core', 'missing'], () => Promise.resolve('Network'))).rejects.toThrow(

@@ -954,7 +954,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByText('Gladius Task Force', { exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/dark-angels-faction-content.png', fullPage: true })
   await darkAngelsDatasheets.click()
-  await expect(page.locator('main > header [data-faction-mark="marine-main~470a-6daa-9014-12df"]')).toBeVisible()
+  await expect(page.locator('main > header [data-faction-mark="marine-2026-10-13~470a-6daa-9014-12df"]')).toBeVisible()
   await expect(page.getByText('Epic heroes', { exact: true }).locator('..')).toContainText(/Epic heroes\s*\d+/)
   await expect(page.getByText('Infantry', { exact: true }).locator('..')).toContainText(/Infantry\s*\d+/)
   await expect(page.getByText('Vehicles', { exact: true }).locator('..')).toContainText(/Vehicles\s*\d+/)
@@ -1206,6 +1206,20 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
 })
 
+test('a tab never opened before starts at its top', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await context.newPage()
+  await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(844 * 2)
+  await page.mouse.move(195, 300)
+  await page.mouse.wheel(0, 600)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  await page.getByRole('navigation', { name: 'Application sections' }).getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+  await context.close()
+})
+
 test('each application tab returns to where it was left', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const page = await context.newPage()
@@ -1227,7 +1241,7 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await expect(page).toHaveURL(/\/missions\//)
 
   await sections.getByRole('link', { name: 'Factions' }).click()
-  await expect(page).toHaveURL('/factions/dark-angels/rules/space-marines-codex-2026-10-12/datasheets/deathwing-terminator-squad')
+  await expect(page).toHaveURL('/factions/dark-angels/rules/space-marines-codex-2026-10-13/datasheets/deathwing-terminator-squad')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
 
   // The section you are already in has one obvious destination left: its top.

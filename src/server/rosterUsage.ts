@@ -1,4 +1,3 @@
-import { leagueEditionError } from '../core/catalogueEdition'
 import { rosterSnapshot } from '../core/rosterSnapshot'
 import { ROSTER_NOT_USABLE } from '../core/rosterUse'
 import { app } from './app'
@@ -9,7 +8,7 @@ export { rosterUseProblem, rosterUseError } from '../core/rosterLegality'
 import { rosterUseError } from '../core/rosterLegality'
 
 /** A battle may field a roster a friend lent; a league entry is sealed from the entrant's own rosters. */
-export async function rosterForUse(userId: string, rosterId: string, options: { releasedOnly?: boolean; lent?: boolean } = {}) {
+export async function rosterForUse(userId: string, rosterId: string, options: { lent?: boolean } = {}) {
   const usable = await app().service.usableRoster(userId, rosterId)
   if (!usable || (usable.lentBy && !options.lent)) {
     throw new Response(options.lent ? 'this roster is not yours or lent to you' : 'you do not own this roster', { status: 403 })
@@ -17,8 +16,6 @@ export async function rosterForUse(userId: string, rosterId: string, options: { 
   const { roster: saved, lentBy } = usable
   const catalogue = await app().catalogueFor(saved.catalogueId)
   if (!catalogue) throw new Response('army data is not available', { status: 409 })
-  const editionError = options.releasedOnly && leagueEditionError(catalogue.edition)
-  if (editionError) throw new Response(editionError, { status: 409 })
   const rules = await app().rulesFor(saved.catalogueId)
   if (!rules) throw new Response('army rules data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)

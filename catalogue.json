@@ -1,0 +1,25 @@
+{
+  "format": "praetorium.catalogue-lock.v1",
+  "authoring": {
+    "repository": "richardsolomou/praetorium-catalogue",
+    "revision": "e561386265908ac997e9ef8dde74897ba9d93d83"
+  },
+  "pointer": {
+    "format": "praetorium.catalogue-pointer.v1",
+    "id": "398b47248de8e5cc9594c81b49a5a81e8ab65c74bfb81be69180bef028edf895",
+    "archiveSha256": "16d159fbbef43b64d0eec79b1d4b9586a5680615d68f86f02d307ff3a8387610",
+    "objects": true,
+    "authoringRevision": "562bca021552ecc6bf5d211f7ee688a5ef3a6bb6",
+    "runtime": {
+      "fingerprint": "b708e5d162f49d32538dc7e1cece959f2adf7770590c8eada9e1afd5690ea6d7",
+      "archiveSha256": "062c7b3374b83239b54ff6ef3aa665a0392b9114104c9d5474fe09a9921040c9"
+    }
+  },
+  "revisions": {
+    "definitions": "51600d8c90803d07c584a8ac2666d9b5564ec1ef05abf015a151c08017e11872",
+    "points": "8e0e635674018969fdcfaa64e83d4153ebefad70",
+    "datacards": "319a25a971ed5af39bb5affaabc3bef797437562f18aa63309f99981e8e94189",
+    "battlemaster": "4ac21244c7bde9a3be8ee2faa6dc44d639606c32788570e3b244d93291997a82",
+    "icons": "be230023ff0755d19ffb1a1762658c711c2887f9"
+  }
+}

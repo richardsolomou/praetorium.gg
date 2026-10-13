@@ -29,6 +29,11 @@ it('downloads a new complete corpus in one anonymous compressed request', async 
   expect(await referenceBundle(version, signal, { ...saved, revision: 'old' })).toEqual(saved)
   expect(fetch.mock.calls).toEqual([[version.bundle, expect.objectContaining({ credentials: 'omit' })]])
 })
+it('preserves Unicode split across decompressed response chunks', async () => {
+  const value = { ...saved, css: '…'.repeat(22_000) }
+  vi.stubGlobal('fetch', async () => response(value))
+  expect(await referenceBundle(version, signal)).toEqual(value)
+})
 
 it('restores shared version data before accepting and saving a download', async () => {
   const base = { version: 1, revision: 'base', files: [], datacards: null, mfm: null, rules: { core: ['Rule'] } }

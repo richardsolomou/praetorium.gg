@@ -11,6 +11,8 @@ import {
   compileCanonicalCatalogueFromSnapshot,
   compileCanonicalRuleDocuments,
   loadCanonicalCatalogue,
+  loadEditionCanonicalCatalogues,
+  readCanonicalCatalogue,
   referenceCatalogue,
 } from './canonicalCatalogue'
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from './datacards'
@@ -558,6 +560,19 @@ describe('canonical catalogue', () => {
     expect(compile('tr_TR.UTF-8')).toBe(compile('C.UTF-8'))
   })
 
+  it('keeps previous compiler artifacts readable for audits while serving recompiles them', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-previous-'))
+    try {
+      const file = path.join(root, 'canonical', 'catalogue.json')
+      fs.mkdirSync(path.dirname(file))
+      fs.writeFileSync(file, JSON.stringify({ ...compileCanonicalCatalogue(catalogue(), revisions), compilerVersion: 3 }))
+      expect(readCanonicalCatalogue(file).compilerVersion).toBe(3)
+      expect(loadCanonicalCatalogue(root)).toBeNull()
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('falls back when a snapshot carries a newer canonical format', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-format-'))
     try {
@@ -580,6 +595,44 @@ describe('canonical catalogue', () => {
       )
 
       expect(() => loadCanonicalCatalogue(root)).toThrow()
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('packaged edition catalogues', () => {
+  const packagedEditions = (catalogues: Record<string, unknown>) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-edition-catalogues-'))
+    fs.mkdirSync(path.join(root, 'canonical'))
+    fs.writeFileSync(path.join(root, 'canonical', 'editions.json'), JSON.stringify({ catalogues }))
+    return root
+  }
+
+  it('reads each compiled edition under the key it was written with', () => {
+    const compiled = compileCanonicalCatalogue(catalogue(), revisions)
+    const root = packagedEditions({ 'codex:': compiled })
+    try {
+      expect([...loadEditionCanonicalCatalogues(root).keys()]).toEqual(['codex:'])
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('leaves out an edition compiled by another compiler, so it is compiled again', () => {
+    const compiled = compileCanonicalCatalogue(catalogue(), revisions)
+    const root = packagedEditions({ 'codex:': { ...compiled, compilerVersion: 2 }, 'base:marines': compiled })
+    try {
+      expect([...loadEditionCanonicalCatalogues(root).keys()]).toEqual(['base:marines'])
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('reads nothing from a snapshot that packages no editions', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-edition-catalogues-'))
+    try {
+      expect(loadEditionCanonicalCatalogues(root).size).toBe(0)
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }

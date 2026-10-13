@@ -26,7 +26,7 @@ import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
 import { pushNotifier, silentNotifier } from './pushNotifier'
-import { prepareGlobalSearch } from './globalSearch'
+import { productionCatalogueRuntime } from './catalogueRuntime'
 import { referenceCatalogue } from './canonicalCatalogue'
 import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
@@ -44,6 +44,7 @@ import type { BattleFaction } from '../shared/battleSummary'
 type App = {
   hotReloadToken?: object
   health: () => Promise<void>
+  prepareCatalogue: () => void
   service: PraetoriumService
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
@@ -147,31 +148,31 @@ const sync = {
 }
 
 /** Pays the one-time preparation cost after startup, before a player opens the catalogue. */
-export function warm(instance: Pick<App, 'catalogue' | 'canonicalCatalogue' | 'combatUnits' | 'rules'>): Promise<void> {
-  return new Promise((resolve) => {
-    setImmediate(() => {
-      try {
-        prepareGlobalSearch(instance.catalogue(), instance.rules())
-        instance.canonicalCatalogue()
-        instance.combatUnits()
-      } catch (error) {
-        sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
-      }
-      resolve()
-    })
-  })
+export async function warm(
+  instance: Pick<App, 'prepareCatalogue' | 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits'>,
+): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  try {
+    await instance.searchIndexFor()
+    instance.canonicalCatalogue()
+    instance.combatUnits()
+    instance.prepareCatalogue()
+  } catch (error) {
+    sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
+  }
 }
 
 const hotReloadToken = {}
 
 function catalogueLoaders(directory: string) {
+  const runtime = productionCatalogueRuntime(directory)
   const catalogue = memoize(() => loadCatalogue(directory))
   const rules = memoize(() => loadRules(directory, undefined, undefined, undefined, catalogue()?.datacards))
-  const editions = catalogueEditionLoaders(directory, catalogue, rules)
+  const editions = catalogueEditionLoaders(directory, catalogue, rules, runtime)
   return {
     catalogue,
     editions,
-    canonical: memoize(() => editions.canonicalCatalogue(referenceCatalogue(directory, catalogue, rules))),
+    canonical: memoize(() => editions.canonicalCatalogue(runtime ? null : referenceCatalogue(directory, catalogue, rules))),
     rules,
     history: memoize(() => loadCatalogueHistory(directory)),
     combatUnits: memoize(() => editions.combatUnits()),
@@ -182,6 +183,7 @@ function catalogueLoaders(directory: string) {
 function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalogueLoaders>) {
   const versions = () => loaded.editions
   return {
+    prepareCatalogue: () => versions().prepare(),
     catalogueFor: async (catalogueId: string) => versions().catalogueFor(catalogueId),
     canonicalCatalogueFor: async (catalogueId?: string) => {
       if (catalogueId) {

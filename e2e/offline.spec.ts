@@ -65,15 +65,28 @@ test('the complete reference keeps its existing UI after a cold offline launch',
     const cache = await caches.open('praetorium-reference-v2')
     const html = await (await cache.match('/offline-reference.html'))!.text()
     const serialized = html.match(/<script>window\.PraetoriumOffline=([^]*?);<\/script>/)![1]
-    const data = JSON.parse(serialized)
+    const json = serialized.startsWith('JSON.parse(') ? JSON.parse(serialized.slice('JSON.parse('.length, -1)) : serialized
+    const packed = JSON.parse(json)
+    const data =
+      packed.encoding === 'gzip-base64'
+        ? await new Response(
+            new Blob([Uint8Array.from(atob(packed.data), (char) => char.charCodeAt(0))])
+              .stream()
+              .pipeThrough(new DecompressionStream('gzip')),
+          ).json()
+        : packed
     data.revision = 'previous-reference'
     data.queries.find((entry: { key: string[] }) => entry.key.join('/') === 'rule-section/core-rules/moving').data.section.title =
       'Saved Moving'
+    const expression = JSON.stringify(data).replaceAll('<', '\\u003c')
     await cache.put(
       '/offline-reference.html',
-      new Response(html.replace(serialized, JSON.stringify(data).replaceAll('<', '\\u003c')), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      }),
+      new Response(
+        html.replace(serialized, () => expression),
+        {
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        },
+      ),
     )
   })
   let release!: () => void

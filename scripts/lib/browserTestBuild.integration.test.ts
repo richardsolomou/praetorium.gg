@@ -37,6 +37,7 @@ it.each([
   'scripts/example.ts',
   'public/reference-worker.js',
   'pnpm-lock.yaml',
+  'catalogue.json',
   'vite.config.ts',
   '.env.production.local',
 ])('invalidates the build after changing %s', async (name) => {

@@ -16,11 +16,11 @@
     },
     {
       "name": "catalogue snapshot",
-      "definition": "An immutable, checksummed package of every pinned catalogue source with its manifest, provenance and change history; the release pins one in catalogue/lock.json and current.json points at the latest verified one."
+      "definition": "An immutable, checksummed package of every pinned catalogue source with its manifest, provenance and change history; the release pins one in catalogue.json and current.json points at the latest verified one."
     },
     {
       "name": "correction patch",
-      "definition": "An authored source correction in catalogue/patches/, minimal and source-pinned with verified provenance, applied during materialization; a stale one fails the build and leaves the previous output intact."
+      "definition": "An authored source correction in the catalogue repository’s catalogue/patches/, minimal and source-pinned with verified provenance, applied during materialization; a stale one fails the build and leaves the previous output intact."
     },
     {
       "name": "roster",
@@ -129,6 +129,10 @@
     {
       "name": "friend",
       "definition": "An account another account has accepted through a request or one-time invite; only friends and practice opponents can be seated in an ordinary battle."
+    },
+    {
+      "name": "game journal",
+      "definition": "A player's private, self-reported record of games played away from Praetorium, optionally grouped by event; it never feeds profiles, standings, ratings, or the service record."
     }
   ]
 }

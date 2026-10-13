@@ -12,7 +12,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { BookOpen, Calculator, ChevronDown, Gavel, Layers3, Medal, Menu, ScrollText, Swords, Trophy, UsersRound, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
@@ -25,6 +25,7 @@ import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { meQuery } from '../../queries'
 import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
+import { restoreTextSize } from '../../textSize'
 import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
 // A local dev server shares the production project token, so gate the browser
 // SDK on a built bundle to keep localhost sessions out of the production project.
@@ -171,6 +172,7 @@ export function AppShell() {
   const { data: me } = useQuery(meQuery())
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
+  useLayoutEffect(restoreTextSize, [])
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

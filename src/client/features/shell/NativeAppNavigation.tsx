@@ -93,7 +93,8 @@ export function NativeAppNavigation({
     event.preventDefault()
     void navigate({
       href: remembered?.href ?? to,
-      resetScroll: false,
+      // A tab with no memory opens at its top rather than at the last tab's scroll.
+      resetScroll: !remembered,
       ...(remembered?.state ? { state: (current) => ({ ...current, ...remembered.state }) } : {}),
     })
   }

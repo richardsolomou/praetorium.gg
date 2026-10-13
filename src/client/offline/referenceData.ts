@@ -1,13 +1,16 @@
 import { notifyManager, type QueryClient } from '@tanstack/react-query'
 import { referenceData } from './runtime'
 import { MAX_OFFLINE_BYTES, isReferenceBundle, type OfflineReferenceData } from '../../contracts/offlineReference'
+import { embeddedReferenceJson } from '../../contracts/embeddedReference'
+import { decompressReference } from './compressedReference'
 
 export function savedReferenceData(html: string): OfflineReferenceData | null {
   if (html.length > MAX_OFFLINE_BYTES) return null
-  const serialized = html.match(/<script>window\.PraetoriumOffline=([^]*?);<\/script>/)?.[1]
+  const serialized = embeddedReferenceJson(html)
   if (!serialized) return null
   try {
     const data = JSON.parse(serialized) as OfflineReferenceData
+    if ('encoding' in data) return decompressReference(data)
     return isReferenceBundle(data) && Number.isFinite(data.savedAt) ? data : null
   } catch {
     return null

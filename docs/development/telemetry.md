@@ -12,6 +12,8 @@ Server logs/spans use stable operation names and bounded metadata. Request metri
 
 Public crawler `$http_log` capture allows only reference/discovery paths without account or opaque object IDs. Strip query strings, use referrer origin only, disable GeoIP, and create no person profile. Day-scoped salted identities do not link across days/restarts. Human browser reads may produce both these logs and pageviews.
 
+Memory gauges include RSS, heap used/total, external allocations, and ArrayBuffer bytes. ArrayBuffer memory is included in external memory; do not add the two together. Compare these process gauges with container memory to distinguish retained JavaScript objects from buffers and the public Node proxy's separate process.
+
 MCP Analytics retains anonymous tool names, timings, outcomes, and protocol/deployment metadata. Strip arguments, results, intent, client identifiers, and exception events. The project's `Remove MCP Analytics IP` transformation removes the address added at ingestion; SDK `$ip = null` alone does not prove removal.
 
 ## Event contract

@@ -19,6 +19,19 @@ beforeEach(() => {
 afterEach(() => {
   stop()
   vi.useRealTimers()
+  vi.restoreAllMocks()
+})
+
+it('reports external allocations and array buffers separately from the JavaScript heap', () => {
+  vi.spyOn(process, 'memoryUsage').mockReturnValue({ rss: 100, heapTotal: 80, heapUsed: 60, external: 30, arrayBuffers: 20 })
+  busySeconds(0, 0, 0)
+  expect(Object.fromEntries([...reported].filter(([name]) => name.startsWith('process.memory.')))).toEqual({
+    'process.memory.rss': [100],
+    'process.memory.heap_total': [80],
+    'process.memory.heap_used': [60],
+    'process.memory.external': [30],
+    'process.memory.array_buffers': [20],
+  })
 })
 
 function busySeconds(...shares: number[]) {

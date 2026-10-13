@@ -9,7 +9,7 @@ const inputs = [
   'src',
   'scripts',
   'public',
-  'catalogue',
+  'catalogue.json',
   'spacetimedb',
   'package.json',
   'pnpm-lock.yaml',

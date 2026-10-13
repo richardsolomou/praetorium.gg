@@ -1,3 +1,4 @@
+import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 import { productSql } from './storage'
@@ -176,16 +177,7 @@ test('both sides settle source final awards beyond round caps through cold offli
     .nth(1)
     .click()
   await expect(finalTurn.locator('output')).toContainText('Scoring 10 VP')
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async () => {
-          const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-          return Boolean(saved && (await saved.text()).includes('"construction"') && window.PraetoriumReferenceCache?.construction)
-        }),
-      { timeout: 120_000 },
-    )
-    .toBe(true)
+  await waitForOfflineApp(page)
   const url = page.url()
   await context.setOffline(true)
   await finalTurn.getByRole('button', { name: 'Pass the turn', exact: true }).click()

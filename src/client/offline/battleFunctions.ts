@@ -41,6 +41,7 @@ import {
 } from './localRuntime'
 import { constructionData, localConstruction } from './construction'
 import { cachedRead, cachedPage } from './reads'
+import { isFetchNetworkFailure } from '../networkErrors'
 
 export function workspaceScreen(
   workspace: BattleWorkspace,
@@ -136,8 +137,16 @@ export async function submit(
   const sharedSetup = workspace && localBattleState(workspace.players, workspace.log).status === 'setup'
   const authoritative = options?.background || sharedSetup
   if (authoritative && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
-  if (authoritative && navigator.onLine && !(await hasLocalChanges(resource))) {
-    const answer = await server.submit(args)
+  // A service that never answers is treated like no connection, so the choice is saved and synced later. If
+  // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
+  const answer =
+    authoritative && navigator.onLine && !(await hasLocalChanges(resource))
+      ? await server.submit(args).catch((error: unknown) => {
+          if (isFetchNetworkFailure(error)) return null
+          throw error
+        })
+      : null
+  if (answer) {
     if (answer.screen?.kind !== 'battle') return answer
     const fresh = await battleWorkspace({ data: { token: args.data.token } })
     await rememberBattle(fresh.workspace, owner.id)
@@ -345,12 +354,13 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
 const projectedBattles = new Map<string, string>()
 export function projectBattles(state: LocalState) {
   const client = localClient()
-  if (!client || localOwner()?.id !== state.owner || !constructionData()) return
+  if (!client || localOwner()?.id !== state.owner) return
   for (const key of projectedBattles.keys())
     if (!key.startsWith(`${state.owner}:`) || !state.documents[key.slice(state.owner.length + 1)]) projectedBattles.delete(key)
   for (const [resource, document] of Object.entries(state.documents)) {
     if (!resource.startsWith('battle:')) continue
     if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
+    if (!constructionData()) return
     if (!document.data) {
       client.setQueryData(['battle', resource.slice(7)], { kind: 'unavailable' })
       continue

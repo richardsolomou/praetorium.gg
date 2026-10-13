@@ -55,7 +55,7 @@ appId: gg.praetorium
     timeout: 10000
 - inputText: Necrons
 - tapOn: Done
-- tapOn: 'NECRONS.*detachments'
+- tapOn: '.*detachments'
 - tapOn: 'DATASHEETS.*'
 - tapOn: Find a datasheet
 - inputText: Immortals

@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { structureDatasheetProfiles } from '../core/datasheetStructure'
 import { compareText } from '../core/text'
@@ -27,7 +28,7 @@ import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 3 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 4 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -225,7 +226,7 @@ const ruleDocumentSchema = z.object({
 
 export const canonicalCatalogueSchema = z.object({
   format: z.literal(CANONICAL_CATALOGUE_FORMAT),
-  compilerVersion: z.union([z.literal(1), z.literal(CANONICAL_CATALOGUE_COMPILER_VERSION)]),
+  compilerVersion: z.union([z.literal(1), z.literal(3), z.literal(CANONICAL_CATALOGUE_COMPILER_VERSION)]),
   revisions: z.record(z.string(), z.string()),
   datasheets: z.array(canonicalDatasheetSchema),
   detachments: z.array(canonicalDetachmentSchema).default([]),
@@ -509,12 +510,35 @@ export function referenceCatalogue(directory: string, catalogue: () => LoadedCat
   return loaded ? compileCanonicalCatalogueFromSnapshot(loaded, rules(), directory) : null
 }
 
+export function editionCanonicalCataloguesPath(directory: string) {
+  return path.join(directory, 'canonical', 'editions.json')
+}
+
+/** The rules editions compile, keyed as the edition loaders cache them; an entry from another format or compiler is left out. */
+export function loadEditionCanonicalCatalogues(directory: string): Map<string, CanonicalCatalogue> {
+  const file = editionCanonicalCataloguesPath(directory)
+  if (!fs.existsSync(file)) return new Map()
+  const packaged = readSharedJson(file) as { catalogues?: Record<string, unknown> } | null
+  return new Map(
+    Object.entries(packaged?.catalogues ?? {}).flatMap(([key, candidate]) => {
+      const current = currentCandidate(candidate)
+      return current ? [[key, current] as const] : []
+    }),
+  )
+}
+
 export function writeCanonicalCatalogue(directory: string, output = canonicalCataloguePath(directory)) {
   const loaded = loadCatalogue(directory)
   if (!loaded) throw new Error('catalogue data is unavailable')
   const catalogue = compileCanonicalCatalogueFromSnapshot(loaded, snapshotRules(directory, loaded), directory)
   fs.mkdirSync(path.dirname(output), { recursive: true })
-  fs.writeFileSync(output, `${JSON.stringify(catalogue, null, 2)}\n`)
+  const temporary = `${output}.${randomUUID()}`
+  try {
+    fs.writeFileSync(temporary, `${JSON.stringify(catalogue, null, 2)}\n`)
+    fs.renameSync(temporary, output)
+  } finally {
+    fs.rmSync(temporary, { force: true })
+  }
   return catalogue
 }
 
@@ -537,8 +561,10 @@ export const loadCanonicalCatalogue = (directory = catalogueDirectory()) => curr
 
 /** Null for an artifact of another format or compiler, which older schemas may not parse; its snapshot is recompiled instead. */
 function currentCanonicalCatalogue(file: string): CanonicalCatalogue | null {
-  if (!fs.existsSync(file)) return null
-  const candidate = readSharedJson(file)
+  return fs.existsSync(file) ? currentCandidate(readSharedJson(file)) : null
+}
+
+function currentCandidate(candidate: unknown): CanonicalCatalogue | null {
   if (
     candidate &&
     typeof candidate === 'object' &&
