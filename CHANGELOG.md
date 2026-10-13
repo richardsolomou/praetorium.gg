@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.141.6
+
+### Patch Changes
+
+- 2449f7a: Catalogue materialization reuses Battlemaster layouts cached for the pinned revision when `CATALOGUE_BATTLEMASTER_CACHE` is set.
+- 2449f7a: `pnpm catalogue:history` compiles the published and new catalogues at the same time.
+
 ## 0.141.5
 
 ### Patch Changes
