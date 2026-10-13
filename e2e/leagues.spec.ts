@@ -1468,7 +1468,6 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   await rules.getByRole('button', { name: /^Doubles/ }).click()
   await expect(rules.getByLabel('Player limit')).toHaveValue('4')
   await expectNoHorizontalOverflow(owner, rules)
-  await owner.screenshot({ path: 'test-results/league-format-raises-places.png', fullPage: true })
   await rules.getByRole('button', { name: 'Save changes' }).click()
   await expect(rules).toBeHidden()
   await expect(leagueHeader(owner)).toContainText('2 of 4 players')
@@ -1521,13 +1520,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(owner, create)
-  await owner.screenshot({ path: 'test-results/create-2v1-league-phone.png', fullPage: true })
   await submitLeagueCreation(owner, create)
   const rules = await openEventSettings(owner)
   await rules.getByRole('button', { name: /^Solo vs pair/ }).click()
   await expect(rules.getByText('Points', { exact: true })).toBeVisible()
   await expectNoHorizontalOverflow(owner, rules)
-  await owner.screenshot({ path: 'test-results/create-2v1-league-rule-phone.png', fullPage: true })
   await rules.getByRole('button', { name: 'Save changes' }).click()
   await expect(rules).toBeHidden()
   const leagueUrl = owner.url()
@@ -1563,7 +1560,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   expect(await revealThroughServer(leagueToken)).toBe('not-ready')
   const assignmentRows = owner.locator('[data-person]')
   await expectNoHorizontalOverflow(owner, ...(await assignmentRows.all()))
-  await owner.screenshot({ path: 'test-results/league-2v1-assignments-phone.png', fullPage: true })
 
   await owner.getByRole('button', { name: `Assign ${alliedLabel} an allied roster` }).click()
   const reassignment = owner.getByRole('alertdialog', { name: `Change ${alliedLabel}’s roster size?` })
@@ -1587,13 +1583,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await alliedPool.getByRole('button', { name: /^Pair / }).click()
   await expect(owner.locator('[data-group="pair-1"]')).toContainText(secondAlliedLabel)
   await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
-  await owner.screenshot({ path: 'test-results/league-2v1-paired-phone.png', fullPage: true })
   await sealTeamEventRosters(leagueToken)
   await owner.reload()
   // The allies' lists chose different cards, so the pair owes its one Force Disposition before anything opens.
   await expect(owner.getByRole('button', { name: 'Reveal all lists' })).toBeDisabled()
   await expect(owner.getByText('need to choose their team’s Force Disposition')).toBeVisible()
-  await owner.screenshot({ path: 'test-results/league-2v1-card-owed-phone.png', fullPage: true })
   expect(await revealThroughServer(leagueToken)).toBe('not-ready')
 
   await allied.setViewportSize({ width: 390, height: 844 })
@@ -1614,7 +1608,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(alliedSide).toContainText('plays Priority Assets')
   await expect(allied.getByRole('heading', { name: 'Your list is sealed' })).toBeVisible()
   await expectNoHorizontalOverflow(allied, teamCard)
-  await allied.screenshot({ path: 'test-results/league-2v1-team-disposition-phone.png', fullPage: true })
   // A 2v1 seats the allied rosters together and never against each other, so each ally reads the other's
   // before reveal, while the solo roster they will both face stays sealed.
   const secondAlliedRow = alliedSide.locator(`[data-person="${alliedName}"]`).filter({ hasText: secondAlliedLabel })
@@ -1623,7 +1616,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(allied.locator(`[data-person="${ownerName}"]`).getByRole('button', { name: /^View / })).toHaveCount(0)
   await expect(allied.getByText(`Only ${secondAlliedLabel} can see it before the reveal.`)).toBeVisible()
   await expectNoHorizontalOverflow(allied, ...(await allied.locator('[data-person]').all()))
-  await allied.screenshot({ path: 'test-results/league-2v1-ally-roster-phone.png', fullPage: true })
   await viewRoster(secondAlliedRow, secondAlliedLabel).click()
   await expect(allied.locator('[data-unit="Test unit"]')).toBeVisible()
   await allied.goBack()
@@ -1633,14 +1625,12 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(chooser.locator(`[data-roster="${alliedRoster}"]`)).toBeVisible()
   await expect(chooser.locator(`[data-roster="${wrongRoster}"]`)).toHaveCount(0)
   await expectNoHorizontalOverflow(allied, chooser)
-  await allied.screenshot({ path: 'test-results/league-2v1-roster-filter.png', fullPage: true })
   await allied.keyboard.press('Escape')
 
   await owner.reload()
   await expect(owner.getByRole('button', { name: 'Reveal all lists' })).toBeEnabled()
   await revealEvent(owner)
   await expect(owner.locator('[data-group="pair-1"]')).toContainText('plays Priority Assets')
-  await owner.screenshot({ path: 'test-results/league-2v1-revealed-phone.png', fullPage: true })
   // Once the lists are out the pair's card is fixed, and a replacement list has to leave it on offer.
   const revealedEvent = await eventForLeague(leagueToken)
   const [revealedEventRow] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${revealedEvent.id}`
@@ -1688,7 +1678,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   // Choosing one ally seats their partner, since a pair always plays together.
   await expect(battleChooser.getByLabel('Second opponent')).toContainText(secondAlliedLabel)
   await expect(battleChooser.getByRole('button', { name: 'Start battle' })).toBeEnabled()
-  await owner.screenshot({ path: 'test-results/league-2v1-battle-chooser-phone.png', fullPage: true })
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
   const ownerSetup = owner.getByRole('region', { name: 'Armies' })
@@ -1697,7 +1686,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   // The pair shows the one card it plays, not the two its lists chose.
   await expect(ownerSetup.locator('p', { hasText: 'Side plays' })).toContainText('Priority Assets')
   await expect(ownerSetup.getByText('Purge the Foe', { exact: true })).toHaveCount(0)
-  await owner.screenshot({ path: 'test-results/league-2v1-battle-setup-phone.png', fullPage: true })
   const battleUrl = owner.url()
   const battlePath = new URL(battleUrl).pathname
 
@@ -1715,7 +1703,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(spectatorPlayer).toHaveAttribute('href', /^\/users\/[^/?]+$/)
   await expect(spectator.getByRole('link', { name: '2,000-point roster', exact: true })).toHaveCount(0)
   await expectNoHorizontalOverflow(spectator)
-  await spectator.screenshot({ path: 'test-results/league-battle-spectator-desktop.png', fullPage: true })
   await spectatorPlayer.click()
   await expect(spectator.getByRole('heading', { name: ownerName })).toBeVisible()
   await spectator.goBack()
@@ -1725,15 +1712,12 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(spectatorRoster.locator('[data-unit="Test unit"]')).toBeVisible()
   await expect(spectatorRoster.getByRole('button', { name: /Mark .* lost/ })).toHaveCount(0)
   await expectNoHorizontalOverflow(spectator, spectatorRoster)
-  await spectator.screenshot({ path: 'test-results/league-battle-spectator-roster-desktop.png', fullPage: true })
   await spectator.keyboard.press('Escape')
   await expect(spectatorRoster).toBeHidden()
   await spectator.setViewportSize({ width: 390, height: 844 })
   await expectNoHorizontalOverflow(spectator)
-  await spectator.screenshot({ path: 'test-results/league-battle-spectator-phone.png', fullPage: true })
   await spectator.getByRole('button', { name: 'Open 2,000-point roster' }).click()
   await expectNoHorizontalOverflow(spectator, spectatorRoster)
-  await spectator.screenshot({ path: 'test-results/league-battle-spectator-roster-phone.png', fullPage: true })
   await spectator.keyboard.press('Escape')
   await expect(spectatorRoster).toBeHidden()
 
@@ -1805,10 +1789,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
       await expect(viewer.getByText('Battle setup', { exact: true })).toHaveCount(0)
     }
   }
-  await owner.screenshot({ path: 'test-results/publication-privacy-phone.png', fullPage: true })
   await owner.setViewportSize({ width: 1440, height: 900 })
-  await owner.screenshot({ path: 'test-results/publication-privacy-desktop.png', fullPage: true })
-  await spectator.screenshot({ path: 'test-results/private-league-battle-phone.png', fullPage: true })
   await owner.goto(battleUrl)
   await expect(owner.getByRole('region', { name: 'Armies' })).toBeVisible()
   await allied.goto(leagueUrl)
