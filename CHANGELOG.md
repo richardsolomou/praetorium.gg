@@ -1,5 +1,26 @@
 # praetorium
 
+## 0.138.0
+
+### Minor Changes
+
+- fa3ddb5: Let a league's owner name friends as admins who can start events, change settings and manage players, while only the owner can delete the league.
+- fa3ddb5: Show each revealed league list as the roster library's card, one per line, with the player and icon actions to open it or simulate against it.
+- fa3ddb5: Show everyone in a league whose list is sealed, and let anyone playing reveal the lists once every one is in, with the event naming who revealed it.
+- fa3ddb5: Show a results table on every revealed league, ranked by wins, then draws, then victory points, and tell each duel player who they still have to play.
+- fa3ddb5: Open every sealed list automatically once a league with a player limit is full and the last list is sealed. A player limit no longer has to be filled before the organizer can reveal.
+
+### Patch Changes
+
+- fa3ddb5: Record clicks that get no response, so controls that look broken show up in analytics.
+- fa3ddb5: Start new leagues with automatic entry, since the private link already decides who can join.
+- fa3ddb5: Tidy league cards and pages: one status in place of rows of chips, a status card with a step checklist in the side column, and a lighter readiness panel.
+- fa3ddb5: Simplify the league settings dialog to its name, format, points and whether you play, with everything else under More options.
+- fa3ddb5: Open the list chooser straight after joining a duel league, start a list from it at the league's size, and link back from the builder to seal it.
+- fa3ddb5: Explain a revealed league to readers who are not in it, with a way to start their own.
+- fa3ddb5: Say league rather than event where a page, notification or error means the whole league, and number events only once a league has more than one.
+- fa3ddb5: Use a calculator icon for the combat simulator and every simulate action.
+
 ## 0.137.1
 
 ### Patch Changes
