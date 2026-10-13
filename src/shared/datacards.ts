@@ -55,13 +55,13 @@ export type ConstructionEnhancement = {
 }
 import type { EnhancementEligibility } from '../contracts/factions'
 export type { EnhancementEligibility } from '../contracts/factions'
-export type ConstructionStratagem = {
+export type FactionStratagem = {
   id: string
   name: string
   cp: number
   limit: Stratagem['limit']
-  phases: NonNullable<Stratagem['phases']>
-  turn: NonNullable<Stratagem['turn']>
+  phases: NonNullable<Stratagem['phases']> | null
+  turn: NonNullable<Stratagem['turn']> | null
   type: string | null
   description: string
 }
@@ -76,7 +76,7 @@ export type FactionContent = {
   detachmentFactions?: ReadonlyMap<string, string>
   /** Unambiguous cards by their detachment's accent- and spacing-insensitive join key. */
   enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
-  stratagems: ReadonlyMap<string, readonly ConstructionStratagem[]>
+  stratagems: ReadonlyMap<string, readonly FactionStratagem[]>
   stratagemIssues: readonly string[]
   detachmentRules: ReadonlyMap<string, readonly RuleCard[]>
   armyRules: RuleCard[]
@@ -240,8 +240,8 @@ export function factionContent(
     const key = joinKey(candidate.detachment)
     enhancements.set(key, [...(enhancements.get(key) ?? []), resolved])
   }
-  const stratagemCandidates = new Map<string, Map<string, ConstructionStratagem | null>>()
-  const stratagemIds = new Map<string, { cards: Map<string, ConstructionStratagem | null>; name: string }>()
+  const stratagemCandidates = new Map<string, Map<string, FactionStratagem | null>>()
+  const stratagemIds = new Map<string, { cards: Map<string, FactionStratagem | null>; name: string }>()
   const stratagemIssues: string[] = []
   for (const entry of records(parsed, 'stratagems')) {
     const detachment = stringField(entry, 'detachment')
@@ -250,7 +250,7 @@ export function factionContent(
       continue
     }
     const key = joinKey(detachment)
-    const cards = stratagemCandidates.get(key) ?? new Map<string, ConstructionStratagem | null>()
+    const cards = stratagemCandidates.get(key) ?? new Map<string, FactionStratagem | null>()
     stratagemCandidates.set(key, cards)
     const id = stringField(entry, 'id')
     const stratagemName = localizedField(entry, 'name')
@@ -260,7 +260,7 @@ export function factionContent(
       cardPhases(entry.phase) ??
       (Array.isArray(entry.phase) && entry.phase.length === 0 ? phaseFromWhen(localizedField(entry, 'when')) : null)
     const turn = cardTurn(entry.turn)
-    if (!id || !stratagemName || cp === null || !description || phases === null || !turn) {
+    if (!id || !stratagemName || cp === null || !description) {
       if (stratagemName) cards.set(routeSlug(stratagemName), null)
       if (id) {
         const previous = stratagemIds.get(id)
@@ -269,6 +269,7 @@ export function factionContent(
       stratagemIssues.push(`${detachment} | ${stratagemName ?? 'unnamed card'}: incomplete card`)
       continue
     }
+    if (phases === null || !turn) stratagemIssues.push(`${detachment} | ${stratagemName}: incomplete card`)
     const card = {
       id,
       name: stratagemName,
@@ -326,7 +327,7 @@ export function factionContent(
     stratagems: new Map(
       [...stratagemCandidates].map(([detachment, cards]) => [
         detachment,
-        [...cards.values()].filter((card): card is ConstructionStratagem => card !== null),
+        [...cards.values()].filter((card): card is FactionStratagem => card !== null),
       ]),
     ),
     stratagemIssues,

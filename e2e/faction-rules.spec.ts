@@ -10,6 +10,52 @@ const factions = [
 
 for (const width of [390, 1440]) {
   test(
+    `Custodes reference retains cards with unsupported battle timing at ${width}px`,
+    { tag: '@catalogue' },
+    async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 })
+      const factionPath = '/factions/adeptus-custodes/rules/custodes-codex-2026-10-17'
+      await page.goto(factionPath)
+      const detachments = page.locator('[data-onboarding="faction-detachments"]')
+      for (const [name, count] of [
+        ['Aquilan Shield', 3],
+        ['Auric Champions', 2],
+        ['Dread Host', 3],
+        ['Emissaries Imperatus', 3],
+        ['Emperor’s Chosen', 3],
+        ['Grav-Assault Force', 3],
+        ['Guardians of the Throne', 6],
+        ['Honoured Companions', 3],
+        ['Lions of the Emperor', 3],
+        ['Might of the Moritoi', 3],
+        ['Null Maiden Vigil', 3],
+        ['Shadowkeepers', 3],
+        ['Solar Watch', 3],
+      ] as const) {
+        await expect(detachments.getByRole('link', { name: new RegExp(`^${name}\\s`, 'i') })).toContainText(`${count} stratagems`)
+      }
+      await detachments.getByRole('link', { name: /^Guardians of the Throne\s/i }).scrollIntoViewIfNeeded()
+      await page.screenshot({ path: testInfo.outputPath('custodes-detachment-counts.png') })
+      await detachments.getByRole('link', { name: /^Guardians of the Throne\s/i }).click()
+      const stratagems = page.locator('[data-onboarding="detachment-stratagems"]')
+      await expect(stratagems.locator('article')).toHaveCount(6)
+      await expect(stratagems).toContainText('Superhuman Focus')
+      await expect(stratagems).toContainText('In Auramite Clad')
+      await page.reload()
+      await expect(stratagems.locator('article')).toHaveCount(6)
+      const firstCard = stratagems.locator('article').first()
+      await firstCard.scrollIntoViewIfNeeded()
+      await expect(firstCard).toBeInViewport()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      await page.screenshot({ path: testInfo.outputPath('guardians-stratagems.png') })
+      await page.goto(`${factionPath}/detachments/auric-champions`)
+      await expect(stratagems.locator('article')).toHaveCount(2)
+      await expect(stratagems).toContainText('Gilded Champion')
+      await expect(stratagems).toContainText('Duty Unto Death')
+    },
+  )
+
+  test(
     `current Redeemer rules include Machine Spirit while retained rules stay unchanged at ${width}px`,
     { tag: '@catalogue' },
     async ({ page }, testInfo) => {

@@ -597,7 +597,7 @@ it('reads both dispositions offered by a three-point detachment and rejects malf
   })
 })
 
-it('reads faction stratagem mechanics and leaves malformed cards unavailable', () => {
+it('reads faction stratagem cards while leaving unsupported timing unavailable', () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
   fs.writeFileSync(
     path.join(directory, 'orks.json'),
@@ -649,6 +649,16 @@ it('reads faction stratagem mechanics and leaves malformed cards unavailable', (
       turn: 'your-turn',
       type: 'Battle Tactic',
       description: '**Effect:** Your attacks have Lethal Hits.',
+    },
+    {
+      id: 'unknown-phase',
+      name: 'Unknown Phase',
+      cp: 1,
+      limit: 'phase',
+      phases: null,
+      turn: 'either',
+      type: null,
+      description: '**Effect:** Do something.',
     },
     {
       id: 'printed-phase',

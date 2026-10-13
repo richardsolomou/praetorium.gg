@@ -51,14 +51,20 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
       const cards = content.stratagems.get(joinKey(name)) ?? []
       stratagems.set(
         id,
-        cards.map((card) => ({
-          key: card.id,
-          name: card.name,
-          cp: card.cp,
-          limit: card.limit,
-          ...(card.phases.length ? { phases: card.phases } : {}),
-          turn: card.turn,
-        })),
+        cards.flatMap((card) =>
+          card.phases === null || card.turn === null
+            ? []
+            : [
+                {
+                  key: card.id,
+                  name: card.name,
+                  cp: card.cp,
+                  limit: card.limit,
+                  ...(card.phases.length ? { phases: card.phases } : {}),
+                  turn: card.turn,
+                },
+              ],
+        ),
       )
       references.set(id, {
         enhancements: enhancements.length,
@@ -90,7 +96,7 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
             name: card.name,
             cp: card.cp,
             type: card.type,
-            phases: card.phases,
+            phases: card.phases ?? [],
             turn: card.turn,
             description: card.description,
           }))
