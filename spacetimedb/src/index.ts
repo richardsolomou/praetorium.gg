@@ -5,6 +5,7 @@ import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { attachedUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
+import { orderVariantGroup } from '../../src/core/rosterVariants'
 import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
 import { customPointsBudget, pointsBudgetError, reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
@@ -1103,14 +1104,10 @@ export const rosterGroupByUser = spacetime.procedure(
       const rows = Array.from(tx.db.rosters.userId.filter(userId))
       if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
       return productJson(
-        rows
-          .filter((row) => (row.baseRosterId ?? row.id) === baseRosterId)
-          .sort(
-            (left, right) =>
-              Number(right.id === baseRosterId) - Number(left.id === baseRosterId) ||
-              (left.createdAt < right.createdAt ? -1 : left.createdAt > right.createdAt ? 1 : left.id.localeCompare(right.id)),
-          )
-          .map(({ id, name, automaticName }) => ({ id, name, automaticName })),
+        orderVariantGroup(
+          rows.filter((row) => (row.baseRosterId ?? row.id) === baseRosterId),
+          baseRosterId,
+        ).map(({ id, name, automaticName }) => ({ id, name, automaticName })),
       )
     }),
 )
@@ -1174,6 +1171,16 @@ function lockedEdit(current: StoredRoster | null, input: ReturnType<typeof parse
     : null
 }
 
+/**
+ * The group a new variant joins, so variants of variants stay one flat group. A group outlives
+ * its deleted base, so a device may still name it by the id its remaining members store.
+ */
+function variantGroupOf(tx: Context, userId: string, baseRosterId: string) {
+  const base = tx.db.rosters.id.find(baseRosterId)
+  if (base) return base.userId === userId ? (base.baseRosterId ?? base.id) : null
+  return Array.from(tx.db.rosters.userId.filter(userId)).some((row) => row.baseRosterId === baseRosterId) ? baseRosterId : null
+}
+
 function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
   const current = tx.db.rosters.id.find(input.id)
   if (current?.userId !== undefined && current.userId !== input.userId) return 'forbidden'
@@ -1203,10 +1210,8 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     if (current.visibility !== 'private' || input.visibility !== 'private') touchPublic(tx, 'rosters')
     return 'updated'
   }
-  // A variant joins its base's group, so variants of variants stay one flat group.
-  const base = input.baseRosterId ? tx.db.rosters.id.find(input.baseRosterId) : null
-  if (input.baseRosterId && base?.userId !== input.userId) return 'forbidden'
-  const baseRosterId = base ? (base.baseRosterId ?? base.id) : undefined
+  const baseRosterId = input.baseRosterId ? variantGroupOf(tx, input.userId, input.baseRosterId) : undefined
+  if (baseRosterId === null) return 'forbidden'
   tx.db.rosters.insert({
     id: input.id,
     userId: input.userId,

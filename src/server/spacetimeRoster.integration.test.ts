@@ -130,6 +130,42 @@ it.skipIf(!url || !database || !token)('keeps roster variants in one flat group 
   }
 })
 
+it.skipIf(!url || !database || !token)('keeps a variant group open to its owner after its base is deleted', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const [base, variant, joined, stolen] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()]
+  const now = Date.now()
+  const input = (id: string, baseRosterId: string | null = null, at = 0) => ({
+    id,
+    userId,
+    name: 'Variant roster',
+    catalogueId: 'catalogue-proof',
+    detachmentId: null,
+    disposition: null,
+    limit: 1_000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    optionalRules: '[]',
+    borrowedDetachmentId: null,
+    baseRosterId,
+    visibility: 'private' as const,
+    source: 'editable' as const,
+    now: now + at,
+  })
+  try {
+    await store.saveRoster(input(base, null, 1))
+    await store.saveRoster(input(variant, base, 2))
+    await store.deleteRoster(base, userId)
+    expect(await store.saveRoster(input(joined, base, 3))).toBe('inserted')
+    expect((await store.rosterGroupByUser(userId, base)).map((row) => row.id)).toEqual([variant, joined])
+    expect(await store.saveRoster({ ...input(stolen, base), userId: 'other' })).toBeNull()
+  } finally {
+    for (const id of [variant, joined]) await store.deleteRoster(id, userId)
+  }
+})
+
 const lockedInput = (userId: string, id = randomUUID(), now = Date.now()) => ({
   id,
   userId,
