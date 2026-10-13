@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -14,29 +13,30 @@ const publishedOrCompiled: Prepare = async (directory, output) => {
 
 const compilerSources = ['src/contracts', 'src/core', 'src/server', 'src/shared', 'scripts/lib', 'scripts/compileCatalogueRuntime.ts']
 
+function* sourceFiles(root: string, relative: string): Generator<string> {
+  const target = path.join(root, relative)
+  if (!fs.existsSync(target)) return
+  if (fs.statSync(target).isFile()) {
+    if (!/\.(?:integration\.)?test\.[^.]+$/.test(relative)) yield relative
+    return
+  }
+  for (const entry of fs.readdirSync(target).sort()) yield* sourceFiles(root, path.join(relative, entry))
+}
+
 /**
  * The published pack is keyed by the snapshot and the compiler version its authors bumped; a
  * local compile also depends on every compiler source as it is now, so a change that forgot the
- * bump still recompiles instead of restoring yesterday's output.
+ * bump still recompiles instead of restoring yesterday's output. Files are walked rather than
+ * listed by git because the image build has neither.
  */
 export function compilerSourcesFingerprint(worktree = process.cwd()) {
-  const listed = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...compilerSources], {
-    cwd: worktree,
-    encoding: 'utf8',
-    maxBuffer: 8_000_000,
-  })
   const hash = createHash('sha256')
-  for (const file of listed
-    .split('\0')
-    .filter((name) => name && !/\.(?:integration\.)?test\.[^.]+$/.test(name))
-    .sort()) {
-    hash.update(file).update('\0')
-    try {
-      hash.update(fs.readFileSync(path.join(worktree, file)))
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    }
-    hash.update('\0')
+  for (const file of compilerSources.flatMap((source) => [...sourceFiles(worktree, source)])) {
+    hash
+      .update(file)
+      .update('\0')
+      .update(fs.readFileSync(path.join(worktree, file)))
+      .update('\0')
   }
   return hash.digest('hex')
 }
