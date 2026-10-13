@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.135.1
+
+### Patch Changes
+
+- dd42e3d: Open an app tab you have not visited yet at its top instead of at the previous tab's scroll position.
+- dd42e3d: Keep battle setup working on a device that is online while Praetorium is unreachable, saving choices to sync later instead of failing.
+
 ## 0.135.0
 
 ### Minor Changes
