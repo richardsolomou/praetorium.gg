@@ -782,9 +782,11 @@ for (const width of [1440, 350]) {
     await expect(numbers).toHaveText([/^\d+\.\d{2}$/, /^\d+\.\d{2}$/, /^\d+\.\d%$/])
     const [wounds, models] = await numbers.allTextContents()
     expect(Number(models)).toBe(Number(wounds))
+    await closeCombatBreakdown(page)
     await defender.getByRole('button', { name: 'Allocate to Nob earlier', exact: true }).click()
     await expect(defender.getByRole('row')).toHaveText([/Order/, /^1\. Nob ×1/, /^2\. Boy ×9/])
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
+    await openCombatBreakdown(page)
     await expect.poll(async () => Number((await numbers.allTextContents())[1])).toBeLessThan(Number(models))
     expect(Number((await numbers.allTextContents())[0])).toBeGreaterThan(Number(wounds))
     await noOverflow(page)
@@ -1672,6 +1674,8 @@ for (const width of [320, 690, 1024]) {
     await choose(page, 'Attacker add attached unit', 'Overlord')
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
     await choose(page, 'Defender add attached unit', 'Captain')
+    await expect(page.getByRole('region', { name: 'Combined estimate', exact: true })).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByRole('region', { name: 'Combined estimate', exact: true }).locator('[data-result-numbers]')).toContainText('%')
     for (const side of ['Attacker', 'Defender']) {
       const card = page.getByRole('region', { name: side, exact: true })
       const actions = card.getByLabel(`${side} unit actions`, { exact: true })
@@ -1706,6 +1710,9 @@ for (const width of [320, 690, 1024]) {
     await noOverflow(page)
     await page.keyboard.press('Escape')
     await page.screenshot({ path: `test-results/simulator-inline-members-${width}.png`, fullPage: true })
+    await openCombatBreakdown(page)
+    await noOverflow(page)
+    await page.screenshot({ path: `test-results/simulator-breakdown-${width}.png` })
   })
 }
 

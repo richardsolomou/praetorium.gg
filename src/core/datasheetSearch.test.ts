@@ -11,6 +11,15 @@ const fields = {
 }
 
 describe('datasheet search', () => {
+  it.each([
+    ['advance and charge', 'This unit can declare a charge even if it Advanced this turn.'],
+    ['fight on death', 'Each time a model is destroyed, it can fight before it is removed.'],
+  ])('finds common effect phrasing in publisher wording: %s', (query, description) => {
+    expect(matchDatasheet(query, { ...fields, abilityDescriptions: [{ name: 'Special ability', description }] })?.reasons).toEqual([
+      { kind: 'ability', value: 'Special ability' },
+    ])
+  })
+
   it('ranks a complete ability-effect match ahead of words spread across fields', () => {
     const complete = matchDatasheet('gain 1cp', { ...fields, abilityDescriptions: [{ name: 'Strategist', description: 'You gain 1CP.' }] })
     const scattered = matchDatasheet('gain 1cp', { ...fields, abilities: ['Gain'], weapons: ['1 CP'] })

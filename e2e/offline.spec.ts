@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { signUp, uniqueName } from './account'
+import { scrollSearchResultIntoView, signUp, uniqueName } from './account'
 
 for (const path of ['/', '/guides/compare-loadouts']) {
   test(`${path} paints before downloading the offline application`, async ({ page }) => {
@@ -138,6 +138,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await offline.screenshot({ path: test.info().outputPath('offline-rules-desktop.png') })
   await offline.getByRole('button', { name: 'Search Praetorium', exact: true }).first().click()
   await offline.getByPlaceholder('Search everything…').fill('gain 1cp')
+  await scrollSearchResultIntoView(offline, offline.getByRole('option', { name: /Imotekh the Stormlord/ }).first())
   await expect(offline.getByRole('option', { name: /Imotekh the Stormlord/ }).first()).toBeVisible()
   await offline.getByPlaceholder('Search everything…').fill('Immortals')
   await offline.getByRole('option').filter({ hasText: 'Immortals' }).first().click()

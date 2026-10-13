@@ -528,3 +528,20 @@ export async function confirmRosterSetup(dialog: Locator) {
   await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
   await expect(review).toBeHidden()
 }
+
+export async function scrollSearchResultIntoView(page: Page, result: Locator) {
+  const scroller = page
+    .getByRole('dialog')
+    .isVisible()
+    .then((open) => (open ? page.getByRole('listbox', { name: 'Search results' }) : page.getByRole('region', { name: 'Search results' })))
+  const list = await scroller
+  await expect(async () => {
+    if (!(await result.isVisible()))
+      await list.evaluate((element) => {
+        element.scrollTop += element.clientHeight / 2
+      })
+    await expect(result).toBeVisible({ timeout: 100 })
+    await result.scrollIntoViewIfNeeded()
+    await expect(result).toBeInViewport({ timeout: 100 })
+  }).toPass({ timeout: 15000 })
+}

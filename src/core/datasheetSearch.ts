@@ -25,7 +25,7 @@ export type DatasheetSearchFields = {
 }
 
 export type DatasheetSearchReason = {
-  kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear'
+  kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear' | 'detachment rule' | 'enhancement' | 'upgrade' | 'stratagem'
   value: string
 }
 
@@ -163,6 +163,13 @@ function reasonCombination(
   return null
 }
 
+export function matchSearchText(query: string, value: string): number | null {
+  const wanted = [...new Set(wordsIn(query))]
+  if (!wanted.length) return null
+  const match = fieldMatch(wanted, value)
+  return match?.complete ? match.quality : null
+}
+
 function fieldMatch(wanted: readonly string[], value: string) {
   const normalized = normalize(value)
   const candidates = wordsIn(value)
@@ -175,7 +182,11 @@ function fieldMatch(wanted: readonly string[], value: string) {
 }
 
 const wordMatches = (wanted: string, candidate: string) =>
-  /^\d+$/.test(wanted) ? candidate === wanted : wanted === 'gain' ? candidate.startsWith(wanted) : candidate.includes(wanted)
+  /^\d+$/.test(wanted)
+    ? candidate === wanted
+    : wanted === 'gain'
+      ? candidate.startsWith(wanted)
+      : candidate.includes(wanted) || (wanted === 'death' && candidate === 'destroyed')
 
 const wordsIn = (value: string) => normalize(value).split(' ').filter(Boolean)
 
@@ -187,4 +198,6 @@ const normalize = (value: string) =>
     .toLocaleLowerCase()
     .replaceAll(/\b(\d+)\s*(?:cp|command points?)\b/g, '$1 cp')
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
+    .replaceAll(/\badvance\s+and\s+charge\b/g, 'advance charge')
+    .replaceAll(/\bfight(?:s|ing)?\s+on\s+death\b/g, 'fight death')
     .trim()

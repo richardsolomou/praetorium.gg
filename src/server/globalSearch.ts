@@ -1,5 +1,11 @@
 import { searchReference, searchOwn, type OwnSearchData } from '../core/referenceSearch'
-import type { GlobalSearchIndex, GlobalSearchResult, IndexedResult, IndexedDatasheet } from '../contracts/referenceSearch'
+import type {
+  GlobalSearchIndex,
+  GlobalSearchResult,
+  IndexedResult,
+  IndexedDatasheet,
+  IndexedDetachment,
+} from '../contracts/referenceSearch'
 export type { GlobalSearchIndex, GlobalSearchResult } from '../contracts/referenceSearch'
 import { nameOf, targetOf } from '../core/catalogue'
 import { datasheetSearchFieldsIn } from '../shared/catalogue'
@@ -7,6 +13,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
 import { isMatchedPlayDatasheet } from '../shared/cataloguePicker'
 import { factionsFor } from '../shared/factionReferences'
+import { detachmentReference } from '../shared/detachmentReference'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { ruleIndexOf } from './rulesCore'
 import { factionReferenceHref } from '../core/factionReferenceRoute'
@@ -33,7 +40,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
   if (!catalogueIds && cached?.rules === rules) return cached.index
 
   const factions: IndexedResult[] = []
-  const detachments: IndexedResult[] = []
+  const detachments: IndexedDetachment[] = []
   const datasheets: IndexedDatasheet[] = []
   for (const faction of factionsFor(loaded, rules, catalogueIds).factions) {
     factions.push({
@@ -48,8 +55,15 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
     })
     for (const detachment of faction.detachments) {
       if (!faction.referenceDetachmentIds.includes(detachment.id)) continue
+      const detail = rules ? detachmentReference(loaded, rules, faction.id, detachment.slug) : null
       detachments.push({
         search: detachment.name.toLowerCase(),
+        cards: [
+          ...(detail?.rules ?? []).map((card) => ({ kind: 'detachment rule' as const, name: card.name, description: card.description })),
+          ...(detail?.enhancements ?? []).map((card) => ({ kind: 'enhancement' as const, name: card.name, description: card.description })),
+          ...(detail?.upgrades ?? []).map((card) => ({ kind: 'upgrade' as const, name: card.name, description: card.description })),
+          ...(detail?.stratagems ?? []).map((card) => ({ kind: 'stratagem' as const, name: card.name, description: card.description })),
+        ],
         result: {
           id: `detachment:${faction.id}:${detachment.id}`,
           group: 'Detachments',
