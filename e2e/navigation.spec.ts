@@ -417,7 +417,7 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   await expect(page.getByRole('tooltip')).toHaveCount(0)
 })
 
-test('server-rendered reference pages keep route-shaped payloads', async ({ request }) => {
+test('server-rendered reference pages keep route-shaped payloads', { tag: '@catalogue' }, async ({ request }) => {
   const factions = await (await request.get('/factions')).body()
   const missionPack = await (await request.get('/missions/chapter-approved-2026-2027')).body()
   // One section, never the five documents: the whole rules corpus is far larger.
