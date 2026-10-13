@@ -30,10 +30,10 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const trimmed = query.trim()
   const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
   const { data = [], isFetching, isPending, isError } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
-  const results =
-    trimmed.length >= 2
-      ? globalSearchGroups.flatMap((group) => [...matchingPages(settled), ...data].filter((result) => result.group === group))
-      : []
+  const results = useMemo(
+    () => globalSearchGroups.flatMap((group) => [...matchingPages(settled), ...data].filter((result) => result.group === group)),
+    [data, settled],
+  )
   const resultCount = results.length
   const reportedQuery = useRef<string | null>(null)
   const changeOpen = useCallback(

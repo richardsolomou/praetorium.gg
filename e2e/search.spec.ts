@@ -1,6 +1,16 @@
 import { expect, test } from './test'
 import { retryUntilVisible, scrollSearchResultIntoView } from './account'
 
+test('global search retains page shortcuts before a query is entered', async ({ page }) => {
+  await page.goto('/search')
+  await retryUntilVisible(page.getByRole('combobox'), () =>
+    page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
+  )
+  await expect(page.getByRole('option', { name: /^Home / })).toBeVisible()
+  await page.getByRole('combobox').press('Enter')
+  await expect(page).toHaveURL('/')
+})
+
 for (const width of [390, 1280]) {
   test(`browser unit search opens datasheets and preserves the query at ${width}px`, async ({ page, request }) => {
     await page.setViewportSize({ width, height: 844 })

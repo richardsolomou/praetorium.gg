@@ -1672,6 +1672,8 @@ for (const width of [320, 690, 1024]) {
     await choose(page, 'Attacker add attached unit', 'Overlord')
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
     await choose(page, 'Defender add attached unit', 'Captain')
+    await expect(page.getByRole('region', { name: 'Combined estimate', exact: true })).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByRole('region', { name: 'Combined estimate', exact: true }).locator('[data-result-numbers]')).toContainText('%')
     for (const side of ['Attacker', 'Defender']) {
       const card = page.getByRole('region', { name: side, exact: true })
       const actions = card.getByLabel(`${side} unit actions`, { exact: true })
@@ -1706,6 +1708,9 @@ for (const width of [320, 690, 1024]) {
     await noOverflow(page)
     await page.keyboard.press('Escape')
     await page.screenshot({ path: `test-results/simulator-inline-members-${width}.png`, fullPage: true })
+    await openCombatBreakdown(page)
+    await noOverflow(page)
+    await page.screenshot({ path: `test-results/simulator-breakdown-${width}.png` })
   })
 }
 
