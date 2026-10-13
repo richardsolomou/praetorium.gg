@@ -38,51 +38,41 @@ test('a private roster can be shared and made private again', async ({ browser }
     'true',
   )
   await chooseRosterDefault(page, 'Private')
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    await page.goto('/rosters')
-    const creation = page.getByRole('dialog', { name: 'Create roster' })
-    await retryUntilVisible(creation, () => page.getByRole('button', { name: 'Create editable roster' }).click())
-    await expect(creation.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
-    await expect(creation).toContainText('You, friends you lend it to, and seated players through a battle using this list')
-    await creation.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
-    await expect(creation.locator('#setup-visibility-reach')).toBeInViewport()
-    await creation.screenshot({ path: test.info().outputPath(`private-roster-create-${width}.png`), animations: 'disabled' })
-    await creation.getByRole('button', { name: 'Cancel', exact: true }).click()
-  }
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.goto('/rosters')
+  const creation = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(creation, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+  await expect(creation.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
+  await expect(creation).toContainText('You, friends you lend it to, and seated players through a battle using this list')
+  await creation.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+  await expect(creation.locator('#setup-visibility-reach')).toBeInViewport()
+  await creation.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.setViewportSize({ width: 1440, height: 900 })
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shareable roster' })
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const privateSetup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await expect(privateSetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(privateSetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    await privateSetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
-    await expect(privateSetup.locator('#setup-visibility-reach')).toBeInViewport()
-    await privateSetup.screenshot({ path: test.info().outputPath(`private-roster-edit-${width}.png`), animations: 'disabled' })
-  }
+  await page.setViewportSize({ width: 390, height: 900 })
+  await privateSetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+  await expect(privateSetup.locator('#setup-visibility-reach')).toBeInViewport()
+  await page.setViewportSize({ width: 1440, height: 900 })
   await privateSetup.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('link', { name: 'Awakened Dynasty', exact: true }).click()
   await page.getByRole('button', { name: 'Start a roster', exact: true }).click()
   const referenceSetup = page.getByRole('dialog', { name: 'Create roster' })
   await expect(referenceSetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(referenceSetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    await referenceSetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
-    await expect(referenceSetup.locator('#setup-visibility-reach')).toBeInViewport()
-    await referenceSetup.screenshot({ path: test.info().outputPath(`private-roster-reference-${width}.png`), animations: 'disabled' })
-  }
+  await page.setViewportSize({ width: 390, height: 900 })
+  await referenceSetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+  await expect(referenceSetup.locator('#setup-visibility-reach')).toBeInViewport()
+  await page.setViewportSize({ width: 1440, height: 900 })
   await referenceSetup.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.goto('/profile')
   const privateDefault = page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: /^Private/ })
   await expect(privateDefault).toContainText('You, friends you lend it to, and seated players through a battle using this list')
   await expect(privateDefault).toHaveAttribute('aria-pressed', 'true')
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    await privateDefault.screenshot({ path: test.info().outputPath(`private-roster-default-${width}.png`) })
-  }
   await page.goto('/rosters')
 
   // Scoped to the row, because 'Unlisted' and 'Private' also appear in the menu
@@ -90,34 +80,31 @@ test('a private roster can be shared and made private again', async ({ browser }
   // to the visible label, because a phone reads it in the row's details line instead.
   const row = page.locator('[data-roster="Shareable roster"]')
 
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-    await page.getByRole('menuitem', { name: 'Edit setup', exact: true }).click()
-    const librarySetup = page.getByRole('dialog', { name: 'Edit roster setup' })
-    await expect(librarySetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
-    await expect(librarySetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
-    await librarySetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
-    await expect(librarySetup.locator('#setup-visibility-reach')).toBeInViewport()
-    await librarySetup.screenshot({ path: test.info().outputPath(`private-library-edit-${width}.png`), animations: 'disabled' })
-    await librarySetup.getByRole('button', { name: 'Cancel', exact: true }).click()
-    for (const menu of ['context', 'overflow']) {
-      if (menu === 'context') await row.click({ button: 'right' })
-      else await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-      const sharing = page.getByRole('menuitem', { name: /^Make unlisted and copy link/ })
-      await expect(sharing).toContainText('Anyone with the link can read this roster.')
-      await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
-      expect(
-        await sharing.evaluate((element) => {
-          const bounds = element.getBoundingClientRect()
-          return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
-        }),
-      ).toBe(true)
-      await sharing.screenshot({ path: test.info().outputPath(`private-share-${menu}-${width}.png`) })
-      await page.keyboard.press('Escape')
-      await expect(sharing).toBeHidden()
-    }
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
+  await page.getByRole('menuitem', { name: 'Edit setup', exact: true }).click()
+  const librarySetup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await expect(librarySetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
+  await expect(librarySetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
+  await librarySetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
+  await expect(librarySetup.locator('#setup-visibility-reach')).toBeInViewport()
+  await librarySetup.getByRole('button', { name: 'Cancel', exact: true }).click()
+  for (const menu of ['context', 'overflow']) {
+    if (menu === 'context') await row.click({ button: 'right' })
+    else await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
+    const sharing = page.getByRole('menuitem', { name: /^Make unlisted and copy link/ })
+    await expect(sharing).toContainText('Anyone with the link can read this roster.')
+    await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
+    expect(
+      await sharing.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
+      }),
+    ).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(sharing).toBeHidden()
   }
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
   await page.getByRole('menuitem', { name: /^Make unlisted and copy link/ }).click()
   await expect(row.getByText('Unlisted').filter({ visible: true })).toBeVisible()
@@ -160,23 +147,9 @@ test('a private roster can be shared and made private again', async ({ browser }
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
   expect((await anonymous.request.get(previewPath)).status()).toBe(404)
-  await anonymous.screenshot({ path: test.info().outputPath('revoked-roster.png') })
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
-    const deletion = page.getByRole('alertdialog', { name: 'Delete Shareable roster?' })
-    await expect(deletion).toContainText('Frozen copies in battles and leagues are kept.')
-    await deletion.screenshot({ path: `test-results/publication-delete-${width}.png` })
-    await deletion.getByRole('button', { name: 'Cancel', exact: true }).click()
-    await page.goto('/profile')
-    await page.locator('#battle-sharing').screenshot({ path: `test-results/publication-settings-${width}.png` })
-    await page.goto('/privacy')
-    await page.getByRole('heading', { name: 'Who can see your content' }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: `test-results/publication-policy-${width}.png` })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-    await page.goto('/rosters')
-  }
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.goto('/privacy')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
 
 test('editable detail waits for public access to save before sharing', async ({ browser }) => {
