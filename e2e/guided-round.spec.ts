@@ -77,12 +77,6 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(page.locator('html')).toHaveJSProperty('clientWidth', width)
-    if (width === 390) {
-      await side.locator('[data-secondary]').filter({ hasText: 'Plunder' }).scrollIntoViewIfNeeded()
-      await page.screenshot({ path: test.info().outputPath('round-two-390.png'), animations: 'disabled' })
-      await side.getByRole('button', { name: 'Use New Orders', exact: true }).scrollIntoViewIfNeeded()
-      await page.screenshot({ path: test.info().outputPath('round-two-phone-orders.png'), animations: 'disabled' })
-    } else await side.screenshot({ path: test.info().outputPath('round-two-1440.png'), animations: 'disabled' })
   }
   await opponent.reload()
   await expect(opponent.locator('[data-scoreboard]')).toContainText('Round 2 of 5')
@@ -156,14 +150,6 @@ test('both sides settle source final awards beyond round caps through cold offli
         }),
       )
       .toBe(true)
-    await page.screenshot({ path: test.info().outputPath(`final-awards-${width}.png`), animations: 'disabled' })
-    if (width === 390) {
-      await primary
-        .getByRole('button', { name: /plus 5$/ })
-        .nth(1)
-        .scrollIntoViewIfNeeded()
-      await page.screenshot({ path: test.info().outputPath('final-awards-phone-controls.png'), animations: 'disabled' })
-    }
   }
   await page.reload()
   await expect(finalTurn.locator('output')).toContainText('Scoring 0 VP')

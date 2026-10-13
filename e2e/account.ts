@@ -240,10 +240,14 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
   }).toPass({ timeout: 20_000 })
 }
 
+/** A step button rendered by the server scrolls nothing until React owns it, so the click repeats until the section arrives. */
 export async function setupStep(page: Page, label: string) {
   const section = page.getByRole('region', { name: label, exact: true })
-  await page.getByRole('navigation', { name: 'Setup sections' }).locator(`button[data-step="${label}"]`).click()
-  await expect(section).toBeInViewport()
+  const step = page.getByRole('navigation', { name: 'Setup sections' }).locator(`button[data-step="${label}"]`)
+  await expect(async () => {
+    await step.click({ timeout: 1_000 })
+    await expect(section).toBeInViewport({ timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
 }
 
 /** Attaches a saved list to a seat: your own by default, or a named one such as a practice opponent's. */

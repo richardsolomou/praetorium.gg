@@ -8,7 +8,7 @@ import { webSourceMapPlugins } from '../vite.config'
 
 const dockerfile = readFileSync(new URL('../Dockerfile.node', import.meta.url), 'utf8')
 const uploadCommand = dockerfile
-  .split('RUN --mount=type=secret,id=posthog_api_key,env=POSTHOG_CLI_API_KEY \\\n')[1]!
+  .split('--mount=type=secret,id=posthog_api_key,env=POSTHOG_CLI_API_KEY \\\n')[1]!
   .split('\nADD ')[0]!
   .replaceAll('\\\n', ' ')
 const directories: string[] = []

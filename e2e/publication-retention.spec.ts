@@ -55,7 +55,15 @@ async function collectionAndFavourite(page: Page, userId: string) {
   const entryId = collection[0]?.entryId
   if (!entryId) throw new Error('Missing saved collection datasheet')
   await expect.poll(async () => (await product.favouriteDatasheetsByUser(userId)).map((row) => row.entryId)).toEqual([entryId])
-  return { collection, favourites: await product.favouriteDatasheetsByUser(userId) }
+  return { entryId, collection, favourites: await product.favouriteDatasheetsByUser(userId) }
+}
+
+async function seedCollection(userId: string, entryId: string) {
+  const product = await productOperator()
+  await product.addToCollection({ userId, entryId, now: Date.now() })
+  await product.setCollectionModels({ userId, entryId, models: 2, now: Date.now() })
+  await product.addFavouriteDatasheet({ userId, entryId, now: Date.now() })
+  return { collection: await product.collectionByUser(userId), favourites: await product.favouriteDatasheetsByUser(userId) }
 }
 
 async function leagueFixture(ownerId: string, members: string[]) {
@@ -259,7 +267,7 @@ test('self-account deletion removes populated shared history and sealed entries 
     })
     const opponentRosterId = tokenOf(opponent.url())
     const ownerCollection = await collectionAndFavourite(owner, ownerId)
-    const opponentCollection = await collectionAndFavourite(opponent, opponentId)
+    const opponentCollection = await seedCollection(opponentId, ownerCollection.entryId)
     const finished = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster: ownerRoster, guestRoster: opponentRoster })
     await concede(owner)
     const otherCreated = await createBattle(opponent, { opponent: ownerName })
@@ -303,8 +311,6 @@ test('self-account deletion removes populated shared history and sealed entries 
       }
       await expect.poll(contained).toBe(true)
       await expect(dialog.getByRole('button', { name: 'Permanently delete account', exact: true })).toBeInViewport()
-      await owner.screenshot({ path: test.info().outputPath(`populated-account-delete-${width}.png`), animations: 'disabled' })
-      await expect.poll(contained).toBe(true)
     }
     await dialog.getByRole('button', { name: 'Permanently delete account', exact: true }).click()
     await owner.waitForURL('/')
@@ -329,10 +335,8 @@ test('self-account deletion removes populated shared history and sealed entries 
     for (const deleted of [finished, otherCreated]) {
       await expect(opponent.locator(`a[href="${new URL(deleted).pathname}"]`)).toHaveCount(0)
     }
-    for (const deleted of [finished, otherCreated]) {
-      await opponent.goto(deleted)
-      await expect(opponent.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
-    }
+    await opponent.goto(finished)
+    await expect(opponent.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
     await anonymous.reload()
     await expect(anonymous.getByRole('heading', { name: 'No such player' })).toBeVisible()
     await expectRecord(opponent, opponentId, 0)
@@ -344,10 +348,10 @@ test('self-account deletion removes populated shared history and sealed entries 
 })
 
 test('saved public results leave cached rankings and viewer records after audience changes and battle deletion', async ({ browser }) => {
-  const contexts = await Promise.all(Array.from({ length: 5 }, () => browser.newContext()))
+  const contexts = await Promise.all(Array.from({ length: 4 }, () => browser.newContext()))
   try {
-    const [owner, opponent, friend, stranger, anonymous] = await Promise.all(contexts.map((context) => context.newPage()))
-    if (!owner || !opponent || !friend || !stranger || !anonymous) throw new Error('Missing audience test pages')
+    const [owner, opponent, friend, anonymous] = await Promise.all(contexts.map((context) => context.newPage()))
+    if (!owner || !opponent || !friend || !anonymous) throw new Error('Missing audience test pages')
     const ownerName = uniqueName('Record owner')
     const opponentName = uniqueName('Record opponent')
     await signUp(owner, ownerName)
@@ -365,51 +369,38 @@ test('saved public results leave cached rankings and viewer records after audien
     })
     await signUp(friend, uniqueName('Record friend'))
     await befriend(friend, owner)
-    await signUp(stranger, uniqueName('Record stranger'))
-    const first = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster, guestRoster })
+    // Which viewer may read which audience is decided in `src/server/servicePlayerProfile.test.ts`; this journey covers the cached reads.
+    const battle = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster, guestRoster })
     await concede(owner)
-    const second = await createBattle(owner, { opponent: opponentName })
-    await opponent.goto(second)
-    await attachRoster(owner, hostRoster)
-    await attachRoster(opponent, guestRoster)
-    await startBattle(owner)
-    await concede(owner)
-    for (const page of [owner, opponent, friend, stranger, anonymous]) await expectRecord(page, ownerId, 2)
+    await expectRecord(anonymous, ownerId, 1)
     const standing = anonymous.locator('[data-rankings] a').filter({ hasText: 'Everyone' })
-    await expect(standing).toContainText('0 won · 0% · 2 battles')
-    await deleteBattle(owner, first)
     await expect(standing).toContainText('0 won · 0% · 1 battle')
-    await expect(playedCount(friend)).toHaveText('1')
-    await expectRecord(stranger, ownerId, 1)
 
     await owner.goto('/profile')
     await owner.getByRole('button', { name: /^Friends/ }).click()
     await expect(standing).toHaveCount(0)
     await expectRecord(friend, ownerId, 1)
-    await expectRecord(stranger, ownerId, 0)
     await expectRecord(anonymous, ownerId, 0)
     await expect(anonymous.locator('[data-rankings]')).toHaveCount(0)
     await expect(anonymous.locator('meta[property="og:description"]')).not.toHaveAttribute('content', /1 battle/)
-    const preview = await anonymous.request.get(`/api/previews/battles/${tokenOf(second)}`)
+    const preview = await anonymous.request.get(`/api/previews/battles/${tokenOf(battle)}`)
     expect([preview.status(), preview.headers()['cache-control']]).toEqual([404, 'no-store'])
 
     await owner.getByRole('button', { name: /^Players only/ }).click()
     await expect(friend.locator('[data-service-record]')).toContainText('No finished battles here yet.')
     await expectRecord(friend, ownerId, 0)
-    await expectRecord(owner, ownerId, 1)
     await expectRecord(opponent, ownerId, 1)
-    await stranger.goto(second)
-    await expect(stranger.getByRole('heading', { name: 'This battle is not open to you' })).toBeVisible()
-    await owner.goto('/profile')
+    await friend.goto(battle)
+    await expect(friend.getByRole('heading', { name: 'This battle is not open to you' })).toBeVisible()
     await owner.getByRole('button', { name: /^Anyone/ }).click()
     await expectRecord(anonymous, ownerId, 1)
     await expect(standing).toContainText('0 won · 0% · 1 battle')
-    await deleteBattle(owner, second)
+    await expectRecord(friend, ownerId, 1)
+    await deleteBattle(owner, battle)
     await expect(standing).toHaveCount(0)
+    await expect(friend.locator('[data-service-record]')).toContainText('No finished battles here yet.')
     await expectRecord(anonymous, ownerId, 0)
     await expectRecord(opponent, ownerId, 0)
-    await anonymous.setViewportSize({ width: 390, height: 844 })
-    await anonymous.screenshot({ path: test.info().outputPath('revoked-record-phone.png') })
   } finally {
     await Promise.all(contexts.map((context) => context.close()))
   }

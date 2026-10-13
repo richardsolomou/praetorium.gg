@@ -13,12 +13,18 @@ const guides = [
   },
 ] as const
 
-for (const width of [1440, 390]) {
-  for (const guide of guides) {
-    test(`a visitor reads ${guide.title} and follows its action at ${width}px`, async ({ page }, testInfo) => {
+for (const guide of guides) {
+  test(`a visitor reads ${guide.title} and follows its action`, async ({ page }, testInfo) => {
+    await page.goto('/guides')
+    const link = page.getByRole('link', { name: new RegExp(`^${guide.title}`) })
+    for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 })
-      await page.goto('/guides')
-      await page.getByRole('link', { name: new RegExp(`^${guide.title}`) }).click()
+      await expect(link).toBeVisible()
+    }
+    await link.click()
+    const action = page.getByRole('link', { name: guide.action, exact: true })
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 })
       await expect(page.getByRole('heading', { name: guide.title, exact: true })).toBeVisible()
       await expect(page.getByRole('list', { name: 'Steps', exact: true }).getByRole('listitem')).toHaveCount(5)
       await page.getByRole('heading', { name: guide.example, exact: true }).scrollIntoViewIfNeeded()
@@ -30,9 +36,11 @@ for (const width of [1440, 390]) {
       await expect.poll(() => overview.getByRole('img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
       await page.evaluate(() => window.scrollTo(0, 0))
-      await page.screenshot({ path: testInfo.outputPath('guide.png'), fullPage: true })
-      await page.getByRole('link', { name: guide.action, exact: true }).click()
-      await expect(page).toHaveURL(guide.destination)
-    })
-  }
+      await page.screenshot({ path: testInfo.outputPath(`guide-${width}.png`), fullPage: true })
+      await expect(action).toBeVisible()
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await action.click()
+    await expect(page).toHaveURL(guide.destination)
+  })
 }

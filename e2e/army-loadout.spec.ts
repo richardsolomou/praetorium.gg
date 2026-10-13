@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { retryUntilVisible } from './account'
 
-for (const width of [390, 1440]) {
-  for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel']) {
-    test(`spectators inspect army loadouts in ${token} at ${width}px`, async ({ page }) => {
+for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel']) {
+  test(`spectators inspect army loadouts in ${token}`, async ({ page }) => {
+    await page.goto(`/battles/${token}`)
+    for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
-      await page.goto(`/battles/${token}`)
       await expect(page.locator('a[href*="?battle="]')).toHaveCount(0)
       const open = page.getByRole('button', { name: /^Open / }).first()
       await expect(open).toHaveText('Army')
@@ -68,8 +68,14 @@ for (const width of [390, 1440]) {
       await expect(loadout).toHaveCount(1)
       await expect(second).toHaveAttribute('aria-pressed', 'true')
       await expect(select).toBeInViewport()
-    })
-  }
+      if (width === 1440) {
+        await second.click()
+        await expect(loadout).toHaveCount(0)
+        await page.keyboard.press('Escape')
+        await expect(army).toBeHidden()
+      }
+    }
+  })
 }
 
 test('an unavailable loadout leaves the frozen army readable', async ({ page }) => {

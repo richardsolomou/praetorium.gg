@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.141.4
+
+### Patch Changes
+
+- 5d8c497: Reuse the compiled catalogue runtime across builds and browser-test stacks from the shared platform cache.
+- 87039bd: Answer readiness as soon as the reference, search and simulator projections load; each faction's construction index is built by its first request instead of at startup.
+
+## 0.141.3
+
+### Patch Changes
+
+- 7854363: Restore stratagem text and counts on detachment references when battle timing is unsupported.
+
 ## 0.141.2
 
 ### Patch Changes

@@ -18,35 +18,6 @@ for (const path of ['/', '/guides/compare-loadouts']) {
   })
 }
 
-test('saved application pages load same-origin telemetry scripts when connected', async ({ page, context }) => {
-  test.setTimeout(240_000)
-  await page.goto('/rules')
-  await expect
-    .poll(() => page.evaluate(async () => Boolean(await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))), {
-      timeout: 180_000,
-    })
-    .toBe(true)
-  await context.setOffline(true)
-  await page.goto('/rules/core-rules/moving')
-  await expect(page.getByRole('heading', { name: '03. Moving', exact: true })).toBeVisible()
-  expect(await page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(true)
-  await context.setOffline(false)
-  await page.route('**/t/offline-telemetry-probe.js', (route) =>
-    route.fulfill({ contentType: 'application/javascript', body: 'window.__offlineTelemetryLoaded = true' }),
-  )
-  const loaded = await page.evaluate(
-    () =>
-      new Promise<boolean>((resolve) => {
-        const script = document.createElement('script')
-        script.src = '/t/offline-telemetry-probe.js'
-        script.onload = () => resolve((window as typeof window & { __offlineTelemetryLoaded?: boolean }).__offlineTelemetryLoaded === true)
-        script.onerror = () => resolve(false)
-        document.head.append(script)
-      }),
-  )
-  expect(loaded).toBe(true)
-})
-
 test('the complete reference keeps its existing UI after a cold offline launch', { tag: '@catalogue' }, async ({ page, context }) => {
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')
@@ -135,7 +106,6 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(offline.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
   await offline.locator('main details summary').first().click()
   await expect(offline.locator('main details').first()).toHaveAttribute('open', '')
-  await offline.screenshot({ path: test.info().outputPath('offline-rules-desktop.png') })
   await offline.getByRole('button', { name: 'Search Praetorium', exact: true }).first().click()
   await offline.getByPlaceholder('Search everything…').fill('gain 1cp')
   await scrollSearchResultIntoView(offline, offline.getByRole('option', { name: /Imotekh the Stormlord/ }).first())
@@ -153,7 +123,6 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await offline.mouse.move(0, 0)
   await expect(offline.getByRole('tooltip')).toBeHidden()
   await offline.setViewportSize({ width: 390, height: 844 })
-  await offline.screenshot({ path: test.info().outputPath('offline-datasheet-phone.png') })
   await offline.goto('/factions/necrons/datasheets')
   await offline.getByRole('textbox', { name: 'Find a datasheet' }).fill('Warriors')
   await expect(offline.locator('[data-datasheet]')).toHaveCount(1)
@@ -184,6 +153,20 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await offline.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect(offline.getByRole('button', { name: 'Refresh now' })).toHaveCount(0)
   await expect(offline.getByText('Offline · Reference saved', { exact: false })).toHaveCount(0)
+  await offline.route('**/t/offline-telemetry-probe.js', (route) =>
+    route.fulfill({ contentType: 'application/javascript', body: 'window.__offlineTelemetryLoaded = true' }),
+  )
+  const telemetryLoaded = await offline.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const script = document.createElement('script')
+        script.src = '/t/offline-telemetry-probe.js'
+        script.onload = () => resolve((window as typeof window & { __offlineTelemetryLoaded?: boolean }).__offlineTelemetryLoaded === true)
+        script.onerror = () => resolve(false)
+        document.head.append(script)
+      }),
+  )
+  expect(telemetryLoaded).toBe(true)
 })
 
 test('one compressed reference download is reused across an application update', async ({ page, request }) => {

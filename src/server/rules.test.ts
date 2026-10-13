@@ -173,6 +173,55 @@ it('uses the current detachment points and stratagem card', () => {
   })
 })
 
+it.each([
+  { name: 'missing phase', phase: [], turn: 'either' },
+  { name: 'missing turn', phase: ['shooting', 'fight'], turn: null },
+  { name: 'missing phase and turn', phase: [], turn: null },
+  { name: 'unsupported phase', phase: ['deployment'], turn: 'either' },
+])('retains reference cards with $name without making them playable', ({ phase, turn }) => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json'), {
+    name: 'Death Guard',
+    datasheets: [],
+    detachments: [{ name: { en: 'Flyblown Host' } }],
+    stratagems: [
+      { id: 'playable', name: { en: 'Playable' }, phase: ['fight'], turn: 'either' },
+      { id: 'reference', name: { en: 'Reference' }, phase, turn },
+    ].map((card) => ({ ...card, detachment: 'Flyblown Host', cost: 1, effect: { en: 'Printed effect.' } })),
+  })
+
+  const loaded = rules()
+  expect({
+    reference: loaded.detachmentDetails
+      .get('death-guard')
+      ?.get('flyblown-host')
+      ?.stratagems.map((card) => card.id),
+    count: loaded.detachmentReferences.get('death-guard')?.get('flyblown-host')?.stratagems,
+    playable: loaded.byDetachment
+      .get('death-guard')
+      ?.get('flyblown-host')
+      ?.map((card) => card.key),
+  }).toEqual({ reference: ['playable', 'reference'], count: 2, playable: ['playable'] })
+})
+
+it.each([0, 1, 3])('counts %i reference-only cards from the source', (count) => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json'), {
+    name: 'Death Guard',
+    datasheets: [],
+    detachments: [{ name: { en: 'Flyblown Host' } }],
+    stratagems: Array.from({ length: count }, (_, index) => ({
+      id: `reference-${index}`,
+      name: { en: `Reference ${index}` },
+      detachment: 'Flyblown Host',
+      cost: 1,
+      phase: [],
+      turn: null,
+      effect: { en: 'Printed effect.' },
+    })),
+  })
+
+  expect(rules().detachmentReferences.get('death-guard')?.get('flyblown-host')?.stratagems).toBe(count)
+})
+
 it('enforces the core once per phase limit for faction and core stratagems', () => {
   expect(rules().byDetachment.get('death-guard')?.get('flyblown-host')?.[0]?.limit).toBe('phase')
   expect(rules().core[0]?.limit).toBe('phase')

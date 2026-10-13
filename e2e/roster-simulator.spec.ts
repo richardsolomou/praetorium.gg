@@ -193,28 +193,38 @@ test('Aeldari weapon buffs calculate their named and existing-ability effects', 
   await expect(page.locator('[data-unit="Asurmen"]')).toBeVisible()
 })
 
-for (const width of [1440, 390, 900]) {
-  test(`roster simulations preserve the saved loadout at ${width}px`, async ({ browser, page }) => {
+test('roster simulations preserve the saved loadout', async ({ browser, page }) => {
+  test.setTimeout(240_000)
+  const desktop = { width: 1440, height: 1000 }
+  await page.setViewportSize(desktop)
+  await signUp(page, 'Simulator')
+  await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
+  await add(page, 'Intercessor Squad')
+  await noOverflow(page)
+  for (const width of [390, 900]) {
     await page.setViewportSize({ width, height: 1000 })
-    await signUp(page, 'Simulator')
-    await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
-    await add(page, 'Intercessor Squad')
-    if (width < 1300) await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
     await noOverflow(page)
-    const card = page.locator('[data-unit="Intercessor Squad"]')
-    await card.getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
-    const pane = page.locator('aside[aria-label="Loadout"]')
-    await waitForRosterSave(page, () =>
-      pane
-        .getByRole('group', { name: 'Intercessor Squad Weapon 1' })
-        .getByRole('button', { name: 'Select Plasma pistol', exact: true })
-        .click(),
-    )
-    await waitForRosterSave(page, () => pane.getByRole('button', { name: 'More models in Intercessor Squad', exact: true }).click())
-    await expect(pane.getByLabel('Intercessor Squad models', { exact: true })).toHaveText('6')
+  }
+  await page.setViewportSize(desktop)
+  const card = page.locator('[data-unit="Intercessor Squad"]')
+  await card.getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
+  const pane = page.locator('aside[aria-label="Loadout"]')
+  await waitForRosterSave(page, () =>
+    pane
+      .getByRole('group', { name: 'Intercessor Squad Weapon 1' })
+      .getByRole('button', { name: 'Select Plasma pistol', exact: true })
+      .click(),
+  )
+  await waitForRosterSave(page, () => pane.getByRole('button', { name: 'More models in Intercessor Squad', exact: true }).click())
+  await expect(pane.getByLabel('Intercessor Squad models', { exact: true })).toHaveText('6')
+  for (const width of [1440, 390, 900]) {
+    await page.setViewportSize({ width, height: 1000 })
     await noOverflow(page)
     await page.screenshot({ path: `test-results/roster-simulator-entry-${width}.png`, fullPage: true })
+  }
+  await page.setViewportSize(desktop)
 
+  for (const width of [1440, 390, 900]) {
     const serverContext = await browser.newContext({
       javaScriptEnabled: false,
       storageState: await page.context().storageState(),
@@ -225,14 +235,21 @@ for (const width of [1440, 390, 900]) {
     await noOverflow(serverPage)
     await serverPage.screenshot({ path: `test-results/roster-simulator-ssr-${width}.png`, fullPage: true })
     await serverContext.close()
+  }
 
+  const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
+  const shooting = simulator.getByRole('region', { name: 'Shooting results' })
+  const melee = simulator.getByRole('region', { name: 'Melee results' })
+  for (const width of [1440, 390, 900]) {
+    if (width !== desktop.width) {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.goto(new URL(page.url()).pathname)
+      await card.getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
+    }
     await pane.getByRole('button', { name: 'Simulate combat', exact: true }).click()
-    const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
     await expect(simulator.getByLabel('Attacker models', { exact: true })).toHaveText('6')
     await expect(simulator.getByLabel('Attacker faction', { exact: true })).toContainText('Space Marines')
     await chooseCombatUnit(page, 'Defender', 'Necrons', 'Canoptek Reanimator')
-    const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-    const melee = simulator.getByRole('region', { name: 'Melee results' })
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
     await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
     await expect(shooting).toContainText('Plasma pistol')
@@ -285,11 +302,13 @@ for (const width of [1440, 390, 900]) {
     await pane.getByRole('button', { name: 'Simulate combat', exact: true }).click()
     await expect(simulator.getByLabel('Attacker models', { exact: true })).toHaveText('6')
     await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-    await page.reload()
-    await expect(card).toContainText('5x Bolt Rifle')
-    await expect(card).toContainText('Plasma pistol')
-  })
-}
+    if (width !== desktop.width) await pane.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  }
+  await page.setViewportSize(desktop)
+  await page.reload()
+  await expect(card).toContainText('5x Bolt Rifle')
+  await expect(card).toContainText('Plasma pistol')
+})
 
 test('roster simulations inherit enhancements and attached-unit context', async ({ page }) => {
   await signUp(page, 'Context')

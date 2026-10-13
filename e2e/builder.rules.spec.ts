@@ -201,14 +201,15 @@ test('a unit upgrade shows the core ability it grants', async ({ page }) => {
   await shot(loadout, 'test-results/enlivened-sentinels-granted-ability-phone.png')
 })
 
-for (const width of [390, 1600]) {
-  test(`weapon swaps keep fixed profiles stable while saving at ${width}px`, async ({ page }) => {
+test('weapon swaps keep fixed profiles stable while saving', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page)
+  await add(page, 'Tomb Blades')
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  for (const width of [1600, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await openBuilder(page)
-    await add(page, 'Tomb Blades')
-    if (width < 1000) await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+    if (width === 390) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.locator('[data-unit="Tomb Blades"]').getByRole('button', { name: 'Tomb Blades', exact: true }).click()
-    const loadout = page.locator('aside[aria-label="Loadout"]')
     await expect(loadout.getByRole('heading', { name: 'Equipped melee weapons 3', exact: true })).toBeVisible()
     const initialHeadings = await loadout
       .locator('h2')
@@ -249,8 +250,8 @@ for (const width of [390, 1600]) {
     expect(frames.length).toBeGreaterThan(0)
     expect(frames.every((headings) => headings.join(',') === initialHeadings.join(','))).toBe(true)
     await page.unrouteAll({ behavior: 'wait' })
-  })
-}
+  }
+})
 
 test('wargear abilities are explained beside their choices', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })

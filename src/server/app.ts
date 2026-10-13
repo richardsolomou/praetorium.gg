@@ -44,7 +44,6 @@ import type { BattleFaction } from '../shared/battleSummary'
 type App = {
   hotReloadToken?: object
   health: () => Promise<void>
-  prepareCatalogue: () => void
   service: PraetoriumService
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
@@ -147,16 +146,17 @@ const sync = {
   },
 }
 
-/** Pays the one-time preparation cost after startup, before a player opens the catalogue. */
-export async function warm(
-  instance: Pick<App, 'prepareCatalogue' | 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits'>,
-): Promise<void> {
+/**
+ * Loads the projections every page needs after startup. A faction's construction index costs
+ * up to a second on its first request and is kept for the process lifetime; building all ninety
+ * ahead would stall every request behind it, so none are.
+ */
+export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits'>): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve))
   try {
     await instance.searchIndexFor()
     instance.canonicalCatalogue()
     instance.combatUnits()
-    instance.prepareCatalogue()
   } catch (error) {
     sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
   }
@@ -183,7 +183,6 @@ function catalogueLoaders(directory: string) {
 function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalogueLoaders>) {
   const versions = () => loaded.editions
   return {
-    prepareCatalogue: () => versions().prepare(),
     catalogueFor: async (catalogueId: string) => versions().catalogueFor(catalogueId),
     canonicalCatalogueFor: async (catalogueId?: string) => {
       if (catalogueId) {

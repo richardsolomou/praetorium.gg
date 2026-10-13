@@ -4,23 +4,23 @@ import { productOperator, savedWork } from './storage'
 
 const LOCKED = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
 
-for (const width of [1440, 390]) {
-  test(`a locked roster stays read-only until unlocked while its copies stay editable at ${width}px`, async ({ page }) => {
-    test.setTimeout(180_000)
-    await signUp(page, uniqueName('Locked list'))
-    const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: `Finished list ${width}` })
-    const id = new URL(page.url()).pathname.split('/').at(-1)!
-    const operator = await productOperator()
-    await waitForRosterSave(page, async () => {
-      await page.getByLabel('Add a unit').fill('Immortals')
-      await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
-    })
-    await page.setViewportSize({ width, height: 900 })
+test('a locked roster stays read-only until unlocked while its copies stay editable', async ({ page }) => {
+  test.setTimeout(180_000)
+  await signUp(page, uniqueName('Locked list'))
+  const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Finished list' })
+  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const operator = await productOperator()
+  await waitForRosterSave(page, async () => {
+    await page.getByLabel('Add a unit').fill('Immortals')
+    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  })
 
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Lock roster' }).click()
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Lock roster' }).click()
+  const listName = page.getByLabel('List name')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
     await expect(page.getByText('Locked. Unlock to edit, or create a variant.')).toBeVisible()
-    const listName = page.getByLabel('List name')
     await expect(listName).not.toBeEditable()
     await listName.click()
     await page.keyboard.type(' edited')
@@ -30,9 +30,13 @@ for (const width of [1440, 390]) {
     expect((await operator.roster(id))?.locked).toBe(true)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
     await page.screenshot({ path: test.info().outputPath(`locked-builder-${width}.png`) })
+  }
 
-    await page.goto('/rosters')
-    const row = page.locator(`[data-roster="${name}"]`)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/rosters')
+  const row = page.locator(`[data-roster="${name}"]`)
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
     await expect(row.getByText('Locked', { exact: true })).toBeVisible()
     await page.screenshot({ path: test.info().outputPath(`locked-library-${width}.png`) })
     await row.getByRole('button', { name: `Actions for ${name}` }).click()
@@ -40,28 +44,32 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('menuitem', { name: 'Convert rules version' })).toBeDisabled()
     await expect(page.getByRole('menuitem', { name: 'Unlock roster' })).toBeEnabled()
     await page.screenshot({ path: test.info().outputPath(`locked-row-menu-${width}.png`) })
-    await page.getByRole('menuitem', { name: 'Duplicate' }).click()
-    const duplicate = page.locator(`[data-roster="Copy of ${name}"]`)
-    await expect(duplicate).toBeVisible()
-    await expect(duplicate.getByText('Locked', { exact: true })).toHaveCount(0)
+    if (width === 390) {
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('menuitem', { name: 'Duplicate' })).toHaveCount(0)
+    }
+  }
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+  const duplicate = page.locator(`[data-roster="Copy of ${name}"]`)
+  await expect(duplicate).toBeVisible()
+  await expect(duplicate.getByText('Locked', { exact: true })).toHaveCount(0)
 
-    await page.goto(`/rosters/${id}`)
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Create variant' }).click()
-    await page.waitForURL((url) => !url.pathname.endsWith(id))
-    const variantId = new URL(page.url()).pathname.split('/').at(-1)!
-    await waitForRosterSave(page, () => page.getByLabel('List name').fill('Experimental variant'), 'Experimental variant')
-    await expect.poll(async () => (await operator.roster(variantId))?.name).toBe('Experimental variant')
-    expect((await operator.roster(id))?.name).toBe(name)
+  await page.goto(`/rosters/${id}`)
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Create variant' }).click()
+  await page.waitForURL((url) => !url.pathname.endsWith(id))
+  const variantId = new URL(page.url()).pathname.split('/').at(-1)!
+  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Experimental variant'), 'Experimental variant')
+  await expect.poll(async () => (await operator.roster(variantId))?.name).toBe('Experimental variant')
+  expect((await operator.roster(id))?.name).toBe(name)
 
-    await page.goto(`/rosters/${id}`)
-    await page.getByRole('button', { name: 'Unlock', exact: true }).click()
-    await expect(page.getByLabel('List name')).toHaveValue(name)
-    await expect.poll(async () => (await operator.roster(id))?.locked).toBe(false)
-    await waitForRosterSave(page, () => page.getByLabel('List name').fill(`Reworked list ${width}`), `Reworked list ${width}`)
-    await expect.poll(async () => (await operator.roster(id))?.name).toBe(`Reworked list ${width}`)
-  })
-}
+  await page.goto(`/rosters/${id}`)
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click()
+  await expect(page.getByLabel('List name')).toHaveValue(name)
+  await expect.poll(async () => (await operator.roster(id))?.locked).toBe(false)
+  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Reworked list'), 'Reworked list')
+  await expect.poll(async () => (await operator.roster(id))?.name).toBe('Reworked list')
+})
 
 test('an edit queued offline is refused visibly after another device locks the roster', async ({ browser, context, page }) => {
   test.setTimeout(180_000)
