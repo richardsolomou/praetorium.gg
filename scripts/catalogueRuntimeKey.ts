@@ -1,4 +1,4 @@
 import path from 'node:path'
-import { catalogueRuntimeFingerprint } from '../src/server/catalogueRuntime'
+import { runtimeCacheKey } from './lib/catalogueRuntimeCache'
 
-console.log(catalogueRuntimeFingerprint(process.env.CATALOGUE_DIR ?? path.resolve('catalogue-data')))
+console.log(runtimeCacheKey(process.env.CATALOGUE_DIR ?? path.resolve('catalogue-data')))

@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { system } from '../../src/server/catalogue.fixtures'
 import { writeCatalogueRuntime } from './catalogueRuntime'
-import { prepareCatalogueRuntime } from './catalogueRuntimeCache'
+import { prepareCatalogueRuntime, runtimeCacheKey } from './catalogueRuntimeCache'
 
 let directory: string
 let cacheRoot: string
@@ -50,6 +50,12 @@ it('discards a cached runtime that fails verification', async () => {
     compiled: 2,
     entries: [entry],
   })
+})
+
+it('prepares again after a compiler source changes', async () => {
+  await prepareCatalogueRuntime(directory, output, cacheRoot, compile, runtimeCacheKey(directory, 'before'))
+  const result = await prepareCatalogueRuntime(directory, output, cacheRoot, compile, runtimeCacheKey(directory, 'after'))
+  expect({ result, compiled: compile.mock.calls.length }).toEqual({ result: 'prepared', compiled: 2 })
 })
 
 it('prepares without storing when the cache is off', async () => {
