@@ -13,11 +13,15 @@ export function packRuntimeData(value: unknown): RuntimeData {
 }
 
 export function unpackRuntimeData<T>(value: RuntimeData): T {
-  return JSON.parse(JSON.stringify(value), (_key, item: unknown) => {
+  const restore = (item: RuntimeData): unknown => {
+    if (Array.isArray(item)) return item.map(restore)
     if (item && typeof item === 'object') {
-      if ('$praetoriumMap' in item && Array.isArray(item.$praetoriumMap)) return new Map(item.$praetoriumMap)
-      if ('$praetoriumSet' in item && Array.isArray(item.$praetoriumSet)) return new Set(item.$praetoriumSet)
+      if (Array.isArray(item.$praetoriumMap))
+        return new Map(item.$praetoriumMap.map((pair) => (pair as RuntimeData[]).map(restore) as [unknown, unknown]))
+      if (Array.isArray(item.$praetoriumSet)) return new Set(item.$praetoriumSet.map(restore))
+      return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, restore(child)]))
     }
     return item
-  }) as T
+  }
+  return restore(value) as T
 }

@@ -7,12 +7,11 @@ it('warms catalogue data after yielding startup', async () => {
   vi.useFakeTimers()
   const loaded: string[] = []
   const ready = warm({
-    catalogue: () => {
-      loaded.push('catalogue')
-      return null
+    prepareCatalogue: () => {
+      loaded.push('construction')
     },
-    rules: () => {
-      loaded.push('rules')
+    searchIndexFor: async () => {
+      loaded.push('search')
       return null
     },
     canonicalCatalogue: () => {
@@ -27,5 +26,5 @@ it('warms catalogue data after yielding startup', async () => {
   const beforeYield = [...loaded]
   await vi.runAllTimersAsync()
   await ready
-  expect({ beforeYield, loaded }).toEqual({ beforeYield: [], loaded: ['catalogue', 'rules', 'canonical', 'simulator'] })
+  expect({ beforeYield, loaded }).toEqual({ beforeYield: [], loaded: ['search', 'canonical', 'simulator', 'construction'] })
 })

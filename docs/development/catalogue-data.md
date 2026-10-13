@@ -6,18 +6,18 @@ Offline construction bundles include each rules version's playable catalogues an
 
 ## Sources and loading
 
-| Authority                                         | Location                           |
-| ------------------------------------------------- | ---------------------------------- |
-| Upstream revisions, licences, and attribution     | `catalogue/sources.json`           |
-| Pinned file composition and rules versions        | `catalogue/composition.json`       |
-| Release snapshot pin                              | `catalogue/lock.json`              |
-| Withdrawn snapshots/sources                       | `catalogue/revocations.json`       |
-| Saved IDs from retired sources                    | `catalogue/retired-ids.json`       |
-| Reviewed saved-loadout migrations                 | `catalogue/roster-migrations.json` |
-| Authored corrections with provenance              | `catalogue/patches/`               |
-| Immutable manifest, hashes, and canonical records | Verified snapshot                  |
+| Authority                                         | Location                                     |
+| ------------------------------------------------- | -------------------------------------------- |
+| Upstream revisions, licences, and attribution     | Catalogue repo: `catalogue/sources.json`     |
+| Pinned file composition and rules versions        | Catalogue repo: `catalogue/composition.json` |
+| Release snapshot pin                              | `catalogue/lock.json`                        |
+| Withdrawn snapshots/sources                       | Catalogue repo: `catalogue/revocations.json` |
+| Saved IDs from retired sources                    | `catalogue/retired-ids.json`                 |
+| Reviewed saved-loadout migrations                 | `catalogue/roster-migrations.json`           |
+| Authored corrections with provenance              | Catalogue repo: `catalogue/patches/`         |
+| Immutable manifest, hashes, and canonical records | Verified snapshot                            |
 
-Never commit fetched upstream files, copied rules prose, generated catalogues, or snapshots. Keep corrections minimal and source-pinned. Game Datacards extraction includes only the configured edition/game. Inspect the exact source before changing rules; unsupported or conflicting semantics remain reported, not guessed.
+The [catalogue repository](https://github.com/richardsolomou/praetorium-catalogue) owns source pins, composition, authored corrections and publication. This application pins its authoring commit in `catalogue/authoring.json`; `pnpm catalogue:authoring` installs it under ignored `.catalogue-authoring/`. Set `CATALOGUE_AUTHORING_DIR` to an absolute authoring checkout for explicit local validation. Saved-roster migrations and generic engine behaviour remain in the application. Never commit fetched upstream files, copied rules prose, generated catalogues, or snapshots. Keep corrections minimal and source-pinned. Game Datacards extraction includes only the configured edition/game. Inspect the exact source before changing rules; unsupported or conflicting semantics remain reported, not guessed.
 
 Rule references recognize both `Twin Linked` and `Twin-linked` as the same weapon ability while preserving the source's displayed spelling. Weapon abilities split on commas and semicolons, preserving colon-delimited target restrictions. The server, client, and combat reader share that splitting rule. Missing catalogue rule definitions fall back to unambiguous weapon and core ability definitions in Game Datacards' `keywords.json`; a datasheet's own named ability can also describe a weapon keyword. Granted core abilities retain their source note and use the same rule definitions for their tooltip.
 
@@ -27,17 +27,25 @@ Rule references recognize both `Twin Linked` and `Twin-linked` as the same weapo
 
 Battlemaster materialization fetches detail and Chapter Approved lite data for every layout. Verify layout identity, slot, deployment, instance order, position, and rotation before joining objective codes. New lite files require publishing and pinning a new verified snapshot before deployment; older snapshots retain deployment-objective fallback.
 
-Canonical catalogue output carries a compiler version. When its version is older than the application's compiler, startup recompiles the reference in memory from the verified snapshot's sources. Local generated output must match both the current compiler version and source revisions. Compiler fixes therefore reach reference pages on deployment without changing the pinned upstream data or editing the immutable snapshot.
+Canonical catalogue output carries a compiler version. The production build uses the compatible pinned runtime artifact or recompiles stale reference data from the verified snapshot and writes private runtime JSON under its ignored server output. Runtime manifests bind the snapshot revisions, composition, reference policy, and compiler version; reads verify file size and SHA256 before parsing and fail closed on missing or mismatched artifacts. Compiler fixes reach reference pages on deployment without editing the immutable snapshot. Development and audits retain source loading.
+
+Production readiness loads prepared factions, reference, search, and simulator projections, then prepares every edition's complete construction index, advertised reference projection and default picker before accepting traffic. Construction uses the existing source loader, sharing identical source files across versions and retaining complete context for dynamic keyword, attachment, and saved-option lookups. Keep these contexts for the process lifetime: eviction would rebuild indexes and discard their derived lookup caches on a request. Base construction and pickers are also prepared for legacy IDs. Edition reference files store indexes into the combined reference instead of duplicating its records; restore the same read-only objects and preserve edition metadata. Rules use the source loader so unchanged rule files share parsed objects across versions. Generated files stay inside the built image and outside Git. The catalogue publisher releases source/audit and prepared-runtime artifacts separately on GitHub and R2. Source snapshot format 4 stores identical files once; installation restores all logical paths with shared disk blocks. A shared gzip object pool supports incremental installs; archive fallback retains older snapshot formats. Stream and bound source downloads/extraction, verify every hash, and atomically replace only complete installations. Runtime archives are pinned by checksum and fingerprint; incompatible compiler fingerprints trigger local compilation. Bump the runtime format/fingerprint version when changing projection semantics. Public offline assets retain their separate application-owned format.
+
+Do not scope the server's construction files to catalogue imports alone. The source can omit an import for a shared-ID override, and name-based keyword or attachment lookups need books beyond that graph. Compare production roster prices, availability, and legality as well as complete reconstructed reference projections after changing construction preparation. The public offline bundle retains its existing scoped format and limits.
+
+After building, compare retained memory in fresh processes with `node --expose-gc --import tsx scripts/benchmarkCatalogueMemory.ts source` and the same command with `runtime`. Both exercise readiness, base construction and pickers, and two cycles through every edition and its advertised pickers. Append explicit snapshot and runtime-output paths followed by `--verify` to compare complete projection hashes, including unit picker prices for imported support books. Local RSS and post-GC heap measurements are diagnostic; verify container memory and latency under real traffic after deployment.
+
+Compare lookup latency with `node --expose-gc --import tsx scripts/benchmarkCatalogueLookups.ts source` and the same command with `runtime`, using the same optional snapshot and runtime-output paths. It measures readiness, first default picker/reference reads, 200 cached reads per advertised version, and revisits after GC and cycling all versions. These measurements cover catalogue computation, not HTTP latency or concurrent throughput. Other battle sizes and detachment selections retain their existing first-use preparation costs.
 
 ### Composing sources and publishing rules versions
 
-`catalogue/composition.json` selects files from independently pinned repositories. Its root `overlays` replace exact files in `definitions`, `points`, or `datacards` after fetching `catalogue/sources.json`. Every repository source uses a full commit SHA; `branch` is used for drift reporting, never as a moving download target. Include imported libraries and shared dependencies required by a replacement. Materialization rejects missing files, duplicate book IDs, duplicate overlay destinations, and missing imported books before replacing the output. It does not validate every upstream entry-ID collision or every rules interpretation; inspect the selected source and run the ordinary catalogue audits.
+In the catalogue repository, `catalogue/composition.json` selects files from independently pinned repositories. Its root `overlays` replace exact files in `definitions`, `points`, or `datacards` after fetching `catalogue/sources.json`. Every repository source uses a full commit SHA; `branch` is used for drift reporting, never as a moving download target. Include imported libraries and shared dependencies required by a replacement. Materialization rejects missing files, duplicate book IDs, duplicate overlay destinations, and missing imported books before replacing the output. It does not validate every upstream entry-ID collision or every rules interpretation; inspect the selected source and run the ordinary catalogue audits.
 
 The composition selects the Praetorium fork’s `main`, which tracks BSData main. The Space Marines codex was [merged upstream](https://github.com/BSData/wh40k-11e/pull/2409) on 11 October 2026; the current rules snapshot pins main with the subsequent corrections. The retained 3 October codex version pins the previous base sources and Marine/chapter overlay, including its compatible shared game system and local Ceramite Sentinels correction. Keep those pins and its saved rules identity unchanged.
 
 `richardsolomou/wh40k-11e` supplies definitions. Keep `main` as an upstream tracking branch; author new codexes on separate branches in that fork, preserving BSData identities and file structure. Select their exact commits as edition overlays when their data is verified. A branch created from current rules is only an authoring baseline; do not configure it as a preview until the new rules, points, and datacards are verified. Keep small verified corrections in `catalogue/patches/`; do not copy whole catalogues or rules prose into this application. Historical branch pins remain fixed even after their content merges into main.
 
-Before checking upstream drift, fast-forward the fork’s main without force, then inspect its changes and advance the application pins deliberately:
+Author source and patch changes in the catalogue repository. The application commands use its installed authoring files. Before checking upstream drift, fast-forward the fork’s main without force, then inspect its changes and advance the application pins deliberately:
 
 ```sh
 gh repo sync richardsolomou/wh40k-11e --source BSData/wh40k-11e --branch main
@@ -248,7 +256,7 @@ Visitors review every supported text import before opening their one local draft
 
 History records points and additions/removals for reference datasheets, detachments, enhancements, and upgrades. It excludes prose, profiles, wargear, and renames. IDs match first, then unambiguous source-backed identities; price rows retain their conditions. Missing datasets and ambiguous matches are not interpreted as removals. Bound and deterministically order output.
 
-The publisher compiles both verified snapshots with the same code and appends idempotently. History describes the previous snapshot and resulting revisions, not the containing snapshot's own content hash. Failed historical reads/compiles never invent a change; explicit repair verifies both sides before replacing the latest entry. `catalogue-history.yml` reconstructs older history from verified archives and upstream checkpoints; its reports/cache stay outside Git.
+The publisher compiles both verified snapshots with the same code and appends idempotently. History describes the previous snapshot and resulting revisions, not the containing snapshot's own content hash. Failed historical reads/compiles never invent a change; explicit repair verifies both sides before replacing the latest entry. The catalogue repository’s `history.yml` reconstructs older history from verified archives and upstream checkpoints; its reports/cache stay outside Git.
 
 `/data-updates` and faction pages paginate with stable cursors and fragment anchors. Initial HTML includes history, and opening a fragment preserves the native details state. Reference links resolve against current data; removed records have no link. Sitemap `lastmod` comes only from measured changes, never assumed rules-text freshness.
 

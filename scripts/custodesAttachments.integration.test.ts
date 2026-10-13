@@ -10,7 +10,7 @@ import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { datasheetIn } from '../src/shared/catalogue'
 
 const source = path.join(process.env.CATALOGUE_DIR ?? 'catalogue-data', 'editions', 'custodes-11e')
-const patches = path.resolve('catalogue/patches/editions/custodes-11e')
+const patches = path.resolve('.catalogue-authoring/catalogue/patches/editions/custodes-11e')
 const guards = ['Custodian Guard Sodality', 'Sentinel Guard Sodality', 'Custodian Wardens']
 const terminators = [
   'Allarus Custodians',
@@ -57,7 +57,7 @@ describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
         }
       }
     }
-    const edition = readCatalogueComposition(path.resolve('catalogue'))!.editions.find(
+    const edition = readCatalogueComposition(path.resolve('.catalogue-authoring/catalogue'))!.editions.find(
       ({ edition: candidate }) => candidate.id === 'custodes-11e',
     )!.edition
     loaded = loadCatalogue(directory, edition)!
