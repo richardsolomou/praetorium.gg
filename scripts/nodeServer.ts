@@ -183,7 +183,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   const started = performance.now()
   const readinessSignal = AbortSignal.any([lifecycle.signal, AbortSignal.timeout(360_000)])
   let ready = false
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < 600; attempt++) {
     readinessSignal.throwIfAborted()
     try {
       const response = await fetch(`${appOrigin}/api/health`, { signal: readinessSignal })
@@ -194,7 +194,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
     } catch {
       // The application is still warming its catalogue.
     }
-    await delay(1_000, undefined, { signal: readinessSignal })
+    await delay(200, undefined, { signal: readinessSignal })
   }
   if (!ready) throw new Error('Node server did not become healthy')
   console.error(`Node startup: application readiness completed in ${Math.round(performance.now() - started)}ms`)
