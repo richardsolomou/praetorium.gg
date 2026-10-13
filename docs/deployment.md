@@ -4,7 +4,7 @@
 
 ## Runtime
 
-Dokploy runs one web replica. SQLite accounts/sessions use a production volume; SpacetimeDB owns product state and realtime updates. Public R2 stores profile images/catalogues; private R2 stores backups/audit cache. The web application and product database share one VM, so an outage requires restoration. One replica avoids retaining duplicate catalogue heaps on that VM; a web process failure can briefly interrupt requests until Swarm replaces it. Start-first rolling updates temporarily run the replacement alongside the old replica and require capacity for both.
+Dokploy runs the web replicas. SQLite accounts/sessions share a production volume; SpacetimeDB owns product state and realtime updates. Public R2 stores profile images/catalogues; private R2 stores backups/audit cache. The replicas and product database share one VM, so an outage requires restoration.
 
 The Node server trusts Cloudflare's visitor header for proxying/rate limits. Restrict origin traffic to Cloudflare: direct callers could otherwise choose that header. Asset errors use `no-store` so a missing file cannot poison the browser or edge cache.
 
@@ -24,7 +24,7 @@ The public Node proxy owns a separate Nitro child process. Shutdown stops accept
 
 Deployment configuration gives a new replica six minutes to warm its pinned catalogue and retained rules before failed health checks count toward rollback. Checks still run every ten seconds and admit traffic as soon as readiness succeeds. After startup, three failed checks mark the replica unhealthy. Keep this allowance at least as long as the Node proxy's bounded readiness loop; retained rules can exceed a minute on the production VM.
 
-The image build prepares private catalogue runtime files alongside the Nitro server, using the same pinned snapshot as the offline bundle. Readiness loads those prepared projections rather than rebuilding every rules-version index. Construction contexts load on demand with bounded edition caches. `scripts/configureDokployNode.ts` persists and verifies the one-replica setting on deployment; this is deployment configuration, not a live scaling operation during development. [Catalogue data](development/catalogue-data.md#sources-and-loading) owns runtime validation and memory benchmarking.
+The image build prepares private catalogue runtime files alongside the Nitro server, using the same pinned snapshot as the offline bundle. Readiness loads those projections and prepares all complete construction indexes before accepting traffic. Edition contexts stay cached for the process lifetime to avoid request-time reloads. [Catalogue data](development/catalogue-data.md#sources-and-loading) owns runtime validation and memory benchmarking.
 
 The Node proxy's readiness requests share one six-minute deadline and its shutdown signal. Let an in-flight request wait for catalogue warmup instead of cancelling it on a short per-request timeout. Verify delayed readiness and shutdown while a probe is pending in `scripts/nodeServer.integration.test.ts`.
 

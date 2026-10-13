@@ -27,7 +27,6 @@ it('gives a cold catalogue six minutes to become ready without disabling health 
   await ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)
   expect(saved).toEqual({
     applicationId: 'web-id',
-    replicas: 1,
     healthCheckSwarm: {
       Test: [
         'CMD',
@@ -41,18 +40,6 @@ it('gives a cold catalogue six minutes to become ready without disabling health 
       Retries: 3,
     },
   })
-})
-
-it('rejects configuration when Dokploy retains multiple web replicas', async () => {
-  let saved: Record<string, unknown> = {}
-  const request: typeof fetch = async (_url, options) => {
-    if (options?.method === 'POST') {
-      saved = JSON.parse(options.body as string)
-      return Response.json(true)
-    }
-    return Response.json({ ...saved, replicas: 2 })
-  }
-  await expect(ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)).rejects.toThrow('did not persist')
 })
 
 it('rejects a health check update that Dokploy does not save', async () => {

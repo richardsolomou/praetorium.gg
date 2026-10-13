@@ -108,7 +108,7 @@ export async function ensureWebHealthCheck(origin: URL, headers: Record<string, 
   const response = await request(new URL('/api/application.update', origin), {
     method: 'POST',
     headers: { ...headers, 'content-type': 'application/json' },
-    body: JSON.stringify({ applicationId, replicas: 1, healthCheckSwarm }),
+    body: JSON.stringify({ applicationId, healthCheckSwarm }),
     signal: AbortSignal.timeout(30_000),
   })
   if (!response.ok) throw new Error(`Dokploy health check save failed with HTTP ${response.status}`)
@@ -116,10 +116,9 @@ export async function ensureWebHealthCheck(origin: URL, headers: Record<string, 
   url.searchParams.set('applicationId', applicationId)
   const readback = await request(url, { headers, signal: AbortSignal.timeout(30_000) })
   if (!readback.ok) throw new Error(`Dokploy health check read failed with HTTP ${readback.status}`)
-  const saved = (await readback.json()) as { applicationId: string; replicas: number; healthCheckSwarm: typeof healthCheckSwarm | null }
+  const saved = (await readback.json()) as { applicationId: string; healthCheckSwarm: typeof healthCheckSwarm | null }
   if (
     saved.applicationId !== applicationId ||
-    saved.replicas !== 1 ||
     !saved.healthCheckSwarm ||
     Object.entries(healthCheckSwarm).some(
       ([key, value]) => JSON.stringify(saved.healthCheckSwarm![key as keyof typeof healthCheckSwarm]) !== JSON.stringify(value),

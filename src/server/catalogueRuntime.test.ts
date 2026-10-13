@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { readCatalogueRuntime } from './catalogueRuntime'
 import { writeCatalogueRuntime } from '../../scripts/lib/catalogueRuntime'
@@ -190,41 +191,57 @@ it('preserves a legacy book ID that also matches the current faction route', () 
   expect(versions.resolve('army')).toBe('army')
 })
 
-it('evicts the least recently used construction version', () => {
+it('shares edition reference records with the combined reference', () => {
+  withEditions()
+  const runtime = readCatalogueRuntime(directory, output)
+  const edition = runtime.read('version-1.canonical')
+  expect(edition.datasheets[0]).toBe(runtime.read('startup').canonical.datasheets.find((sheet) => sheet.catalogueId === 'version-1~army'))
+})
+
+it.each([-1, 0.5, 999999])('rejects an invalid prepared reference index %s', (index) => {
+  withEditions()
+  const file = path.join(output, 'version-1.canonical.json')
+  const reference = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const content = JSON.stringify({ ...reference, datasheets: [index] })
+  fs.writeFileSync(file, content)
+  const manifestFile = path.join(output, 'manifest.json')
+  const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
+  manifest.files['version-1.canonical'] = { bytes: Buffer.byteLength(content), sha256: createHash('sha256').update(content).digest('hex') }
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest))
+  expect(() => readCatalogueRuntime(directory, output).read('version-1.canonical')).toThrow('invalid index')
+})
+
+it('retains construction versions after other versions are read', () => {
   const versions = withEditions()
   const first = versions.catalogueFor('version-1~army')!
   versions.catalogueFor('version-2~army')
   versions.catalogueFor('version-3~army')
-  expect(versions.catalogueFor('version-1~army')).not.toBe(first)
-})
-
-it('keeps a recently used version while evicting an older one', () => {
-  const versions = withEditions()
-  const first = versions.catalogueFor('version-1~army')
-  versions.catalogueFor('version-2~army')
-  versions.catalogueFor('version-1~army')
-  versions.catalogueFor('version-3~army')
   expect(versions.catalogueFor('version-1~army')).toBe(first)
 })
 
-it('evicts the least recently used prepared reference version', () => {
+it('prepares every construction version before requests arrive', () => {
   const versions = withEditions()
-  const first = versions.canonicalFor('version-1~army')
-  versions.canonicalFor('version-2~army')
-  versions.canonicalFor('version-3~army')
-  fs.unlinkSync(path.join(output, 'version-1.canonical.json'))
-  expect(() => versions.canonicalFor('version-1~army')).toThrow()
-  expect(first).not.toBeNull()
+  versions.prepare()
+  fs.rmSync(path.join(directory, 'editions'), { recursive: true })
+  expect(
+    [1, 2, 3].map((number) => versions.catalogueFor(`version-${number}~army`)?.index.catalogues.has(`version-${number}~army`)),
+  ).toEqual([true, true, true])
 })
 
-it('keeps a recently used prepared reference version', () => {
+it('retains prepared reference versions after other versions are read', () => {
   const versions = withEditions()
   const first = versions.canonicalFor('version-1~army')
   versions.canonicalFor('version-2~army')
-  versions.canonicalFor('version-1~army')
   versions.canonicalFor('version-3~army')
   fs.unlinkSync(path.join(output, 'version-1.canonical.json'))
   expect(versions.canonicalFor('version-1~army')).toBe(first)
+})
+
+it('prepares every advertised reference version before requests arrive', () => {
+  const versions = withEditions()
+  versions.prepare()
+  fs.rmSync(output, { recursive: true })
+  expect([1, 2, 3].map((number) => versions.canonicalFor(`version-${number}~army`)?.datasheets.length)).toEqual([1, 1, 1])
 })
 
 it('restores the previous runtime when replacement publication fails', () => {

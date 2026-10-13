@@ -16,6 +16,9 @@ Maintenance, catalogue publishing, verification and deployment entry points an o
 - benchmark catalogue memory: an operator compares retained memory and complete projections across source and prepared runtime loading
   handler: scripts/benchmarkCatalogueMemory.ts
   trust: operator
+- benchmark catalogue lookups: an operator compares startup, first picker reads, cached reads and rules-version revisits using the same snapshot
+  handler: scripts/benchmarkCatalogueLookups.ts
+  trust: operator
 - catalogue coverage: an operator writes down everything the app can say about the synced catalogue so two revisions can be compared
   handler: scripts/catalogueCoverage.ts
   trust: operator

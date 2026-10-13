@@ -7,7 +7,6 @@ import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { editionCatalogueId } from '../../src/core/catalogueEdition'
-import { packRuntimeData } from '../../src/contracts/runtimeData'
 import { catalogueRuntimeFingerprint, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
 
 export function writeCatalogueRuntime(directory: string, output: string) {
@@ -28,6 +27,16 @@ export function writeCatalogueRuntime(directory: string, output: string) {
     ),
   )
   if (!canonical) throw new Error('Runtime reference is unavailable')
+  const positions = <T>(records: T[]) => new Map(records.map((record, index) => [record, index]))
+  const datasheets = positions(canonical.datasheets)
+  const detachments = positions(canonical.detachments)
+  const issues = positions(canonical.issues)
+  const indexes = <T>(records: T[], offsets: Map<T, number>) =>
+    records.map((record) => {
+      const index = offsets.get(record)
+      if (index === undefined) throw new Error('Runtime reference is missing an edition record')
+      return index
+    })
   const staging = fs.mkdtempSync(`${output}.`)
   const files: Record<string, { sha256: string; bytes: number }> = {}
   const write = (key: string, value: unknown) => {
@@ -44,17 +53,22 @@ export function writeCatalogueRuntime(directory: string, output: string) {
       canonical,
       searchIndex: versions.searchIndex(),
       combatUnits: versions.combatUnits(),
-      rules: packRuntimeData(rules),
     })
     for (const { edition } of readCatalogueComposition(directory)?.editions ?? []) {
       const id = editionCatalogueId(edition.id, edition.catalogueIds[0]!)
-      write(`${edition.id}.canonical`, versions.canonicalFor(id))
+      const selected = versions.canonicalFor(id)!
+      write(`${edition.id}.canonical`, {
+        ...selected,
+        datasheets: indexes(selected.datasheets, datasheets),
+        detachments: indexes(selected.detachments, detachments),
+        issues: indexes(selected.issues, issues),
+      })
     }
     fs.writeFileSync(
       path.join(staging, 'manifest.json'),
       JSON.stringify(
         runtimeManifestSchema.parse({
-          format: 'praetorium.catalogue-runtime.v1',
+          format: 'praetorium.catalogue-runtime.v2',
           fingerprint: catalogueRuntimeFingerprint(directory),
           files,
         }),
