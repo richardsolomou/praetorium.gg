@@ -8,6 +8,7 @@
  * explicit `--repair-last` fails if it cannot verify both snapshots it compares.
  */
 
+import { fork } from 'node:child_process'
 import fs from 'node:fs'
 import { createHash } from 'node:crypto'
 import os from 'node:os'
@@ -23,10 +24,11 @@ import {
   MAX_ARCHIVE_BYTES,
   remoteRevocations,
 } from '../src/server/catalogueSnapshot'
-import { isSnapshotSourceName } from '../src/server/catalogueSources'
+import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchWithRetry } from '../src/server/fetch'
-import { catalogueChanges } from '../src/core/catalogueChanges'
+import { catalogueChanges, type ChangeSource } from '../src/core/catalogueChanges'
 import { compiledChangeSource } from './lib/catalogueHistoryCompile'
+import type { WorkerResult } from './catalogueHistoryWorker'
 import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
 import { readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
 
@@ -36,13 +38,23 @@ const base = catalogueBaseUrl()
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-history-'))
 const repairLast = process.argv.includes('--repair-last')
 
-const attempt = <T>(label: string, run: () => T) => {
-  try {
-    return run()
-  } catch (error) {
-    console.log(`${label}: ${error instanceof Error ? error.message : String(error)}`)
-    return null
-  }
+/** Compiles a catalogue directory in its own process, so the published and the new catalogue compile at once. */
+function compileApart(catalogue: string, sources: SnapshotSourceName[]) {
+  const worker = fork(path.join(import.meta.dirname, 'catalogueHistoryWorker.ts'), [], {
+    execArgv: ['--import', 'tsx', '--max-old-space-size=8192'],
+  })
+  return new Promise<WorkerResult>((resolve, reject) => {
+    worker.once('message', (result: WorkerResult) => resolve(result))
+    worker.once('exit', (code) => reject(new Error(`a compile process exited with ${code}`)))
+    worker.send({ kind: 'directory', directory: catalogue, sources })
+  }).finally(() => worker.disconnect())
+}
+
+const compiled = async (label: string, pending: Promise<WorkerResult>): Promise<ChangeSource | null> => {
+  const result = await pending
+  if (result.ok) return result.source
+  console.log(`${label}: ${result.reason}`)
+  return null
 }
 
 const revisionsIn = (catalogue: string): Record<string, string> =>
@@ -79,24 +91,23 @@ try {
   const composition = readCatalogueComposition(directory)
   if (composition?.editions.length && !pointer) throw new Error('edition history requires a readable published snapshot')
   if (pointer) validateEditionContinuity(readCatalogueComposition(previousDirectory), composition)
+  const nextCompile = compileApart(
+    directory,
+    Object.keys(nextRevisions).filter((name) => isSnapshotSourceName(name)),
+  )
+  const previousSources = pointer ? historicalSnapshotSources(previousDirectory) : null
+  const previousCompile = previousSources
+    ? compileApart(previousDirectory, previousSources)
+    : Promise.resolve<WorkerResult>({ ok: false, reason: 'today’s code does not read it as a complete snapshot' })
   const next = {
     point: { id: '', revisions: nextRevisions, recordedAt: Date.now() } satisfies HistoryPoint,
-    source: attempt('the new catalogue could not be compiled', () =>
-      compiledChangeSource(
-        directory,
-        Object.keys(nextRevisions).filter((name) => isSnapshotSourceName(name)),
-      ),
-    ),
+    source: await compiled('the new catalogue could not be compiled', nextCompile),
   }
   const previous = pointer
     ? {
         point: { id: pointer.id, revisions: revisionsIn(previousDirectory), recordedAt: 0 } satisfies HistoryPoint,
         history: loadCatalogueHistory(previousDirectory),
-        source: attempt('the published snapshot could not be compiled', () => {
-          const sources = historicalSnapshotSources(previousDirectory)
-          if (!sources) throw new Error('today’s code does not read it as a complete snapshot')
-          return compiledChangeSource(previousDirectory, sources)
-        }),
+        source: await compiled('the published snapshot could not be compiled', previousCompile),
       }
     : null
   if (composition?.editions.length && (!next.source || !previous?.source))
