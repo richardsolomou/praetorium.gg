@@ -107,6 +107,77 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await opponentContext.close()
 })
 
+test('league roster cards count the same fielded units as saved roster cards', async ({ browser }) => {
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const opponentContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const owner = await ownerContext.newPage()
+  const opponent = await opponentContext.newPage()
+  const ownerName = uniqueName('Unit count owner')
+  const opponentName = uniqueName('Unit count opponent')
+  await signUp(owner, ownerName)
+  await signUp(opponent, opponentName)
+  const rosterName = uniqueName('Attached unit counts')
+  await createRoster(owner, { faction: 'Necrons', detachment: /Cursed Legion/, name: rosterName })
+  const savedUrl = owner.url()
+  const libraryCount = async (count: number) => {
+    await owner.goto('/rosters')
+    await owner.reload()
+    await expect(owner.locator(`[data-roster="${rosterName}"]`)).toContainText(
+      new RegExp(`\\b${count} ${count === 1 ? 'unit' : 'units'}\\b`),
+    )
+    await owner.goto(savedUrl)
+  }
+  await libraryCount(0)
+  await owner.getByLabel('Add a unit').fill('Skorpekh Lord')
+  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click())
+  await owner.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
+  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Make Skorpekh Lord Warlord' }).click())
+  await libraryCount(1)
+  await owner.getByLabel('Add a unit').fill('Skorpekh Destroyers')
+  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Add Skorpekh Destroyers', exact: true }).first().click())
+  await owner
+    .locator('[data-unit="Skorpekh Destroyers"]')
+    .getByRole('button', { name: 'Attach a unit to Skorpekh Destroyers', exact: true })
+    .click()
+  await waitForRosterSave(owner, () =>
+    owner
+      .getByRole('menu')
+      .getByRole('group', { name: 'In this roster' })
+      .getByRole('menuitem', { name: 'Skorpekh Lord', exact: true })
+      .click(),
+  )
+  await libraryCount(1)
+  await owner.getByLabel('Add a unit').fill('Immortals')
+  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await libraryCount(2)
+  await sealableRoster(opponent, 'Single fielded unit')
+  await opponent.goto('/rosters')
+  await expect(opponent.locator('[data-roster="Single fielded unit"]')).toContainText(/\b1 unit\b/)
+  await owner.goto('/leagues')
+  const create = await openLeagueCreation(owner)
+  await create.getByLabel('Name').fill(uniqueName('Unit count league'))
+  await create.getByRole('button', { name: /^Anyone who joins/ }).click()
+  await submitLeagueCreation(owner, create)
+  const leagueUrl = owner.url()
+  await join(owner)
+  await sealOwnRoster(owner, rosterName)
+  await opponent.goto(leagueUrl)
+  await join(opponent)
+  await sealOwnRoster(opponent, 'Single fielded unit')
+  await owner.reload()
+  await revealEvent(owner)
+  for (const width of [1440, 390]) {
+    await owner.setViewportSize({ width, height: 900 })
+    await owner.reload()
+    await expect(owner.locator(`[data-army="${ownerName}"]`)).toContainText(/\b2 units\b/)
+    await expect(owner.locator(`[data-army="${opponentName}"]`)).toContainText(/\b1 unit\b/)
+    await owner.screenshot({ path: `test-results/league-fielded-unit-counts-${width}.png`, fullPage: true })
+    expect(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  await ownerContext.close()
+  await opponentContext.close()
+})
+
 async function eventForLeague(leagueToken: string) {
   const [league] = await productSql<{ id: string }>`SELECT id FROM leagues WHERE token = ${leagueToken}`
   if (!league) throw new Error('The league test league is missing.')

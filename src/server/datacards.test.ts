@@ -280,6 +280,7 @@ it('indexes the faction-owned datasheets and detachments', () => {
 
   expect(loadDatacards(directory).factions.get('dark-angels')).toEqual({
     name: 'Dark Angels',
+    detachmentFactions: new Map(),
     datasheets: new Set(['Asmodai', 'Azrael']),
     datasheetDetails: new Map([
       [

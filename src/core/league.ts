@@ -1,3 +1,4 @@
+import { attachedUnitCount } from './attachedUnits'
 import type { TableShape } from './tableShape'
 import type { FormatRuleId, Roster } from './battle'
 import type { RosterPick } from './roster'
@@ -307,7 +308,7 @@ export function leagueArmy(roster: Roster): LeagueArmy {
     waivedRules: built.waivedRules ?? [],
     points: built.units.reduce((total, unit) => total + unit.points, 0),
     limit: built.limit,
-    unitCount: built.units.length,
+    unitCount: attachedUnitCount(built.units),
   }
 }
 

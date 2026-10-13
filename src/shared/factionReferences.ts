@@ -1,3 +1,4 @@
+import { datacardsFactionKeys } from './datacards'
 import type { StandingFaction } from '../core/standings'
 import { targetOf } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
@@ -20,7 +21,12 @@ export function isReferenceDetachment(
   const slugId = routeSlug(displayName)
   const content = loaded.factionContents.get(slugId)
   const rulesId = rulesFaction(rules, routeSlug(faction.name))
-  if (content) return [...content.detachments].some((name) => joinKey(name) === joinKey(detachment.name))
+  if (content)
+    return [...content.detachments].some(
+      (name) =>
+        joinKey(name) === joinKey(detachment.name) &&
+        (!content.detachmentFactions?.get(name) || datacardsFactionKeys(content.detachmentFactions.get(name)!).has(slugId)),
+    )
 
   if (!detachmentNamed(rules?.detachmentReferences.get(rulesId), detachment.name)) return false
 
