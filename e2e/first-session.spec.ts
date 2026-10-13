@@ -27,39 +27,44 @@ Immortals (65 Points)
 
 Exported with BattleBase, Data Version: v20260812`
 
-for (const width of [1440, 1280, 390]) {
-  test(`a guest reviews, imports and saves their first list at ${width}px`, async ({ page }, testInfo) => {
+test('a guest reviews, imports and saves their first list', async ({ page }, testInfo) => {
+  await page.goto('/rosters')
+  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  await dialog.getByLabel('Roster text').fill(rosterText)
+  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await expect(dialog).toContainText('1 of 1 matched entry')
+  for (const width of [1440, 1280, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/rosters')
-    const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-    await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
-    await dialog.getByLabel('Roster text').fill(rosterText)
-    await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
-    await expect(dialog).toContainText('1 of 1 matched entry')
-    await dialog.screenshot({ path: testInfo.outputPath('guest-import-review.png') })
-    await dialog.getByRole('button', { name: 'Open imported draft', exact: true }).click()
-    await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toContain('"picks":[{')
-    await page.reload()
-    await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-    const save = page.getByRole('button', { name: 'Save roster', exact: true })
+    await dialog.screenshot({ path: testInfo.outputPath(`guest-import-review-${width}.png`) })
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await dialog.getByRole('button', { name: 'Open imported draft', exact: true }).click()
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toContain('"picks":[{')
+  await page.reload()
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
+  const save = page.getByRole('button', { name: 'Save roster', exact: true })
+  for (const width of [1440, 1280, 390]) {
+    await page.setViewportSize({ width, height: 900 })
     if (width < 1300) {
       const add = page.getByRole('button', { name: 'Add units', exact: true })
       expect((await save.boundingBox())?.height).toBe((await add.boundingBox())?.height)
     } else {
       expect((await save.boundingBox())!.height).toBeLessThan(44)
     }
-    await page.screenshot({ path: testInfo.outputPath('guest-import-builder.png') })
-    await signUp(page, uniqueName('Importer'))
-    await page.goto('/rosters')
-    await page.getByRole('button', { name: 'Save it', exact: true }).click()
-    await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
-    await page.reload()
-    await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-    await page.goto('/rosters')
-    await expect(page.locator('[data-roster]')).toHaveCount(1)
-  })
-}
+    await page.screenshot({ path: testInfo.outputPath(`guest-import-builder-${width}.png`) })
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await signUp(page, uniqueName('Importer'))
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Save it', exact: true }).click()
+  await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
+  await page.reload()
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
+  await page.goto('/rosters')
+  await expect(page.locator('[data-roster]')).toHaveCount(1)
+})
 
 test('an import names a missing unit and lets the guest correct the text before opening a draft', async ({ page }) => {
   await page.goto('/rosters')
@@ -76,38 +81,36 @@ test('an import names a missing unit and lets the guest correct the text before 
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
 })
 
-for (const width of [1440, 1280, 390]) {
-  test(`the first roster names each missing setup choice at ${width}px`, async ({ page }, testInfo) => {
+test('the first roster names each missing setup choice', async ({ page }, testInfo) => {
+  await page.goto('/rosters')
+  const setup = page.getByRole('region', { name: 'Create roster' })
+  const start = setup.getByRole('button', { name: 'Start building', exact: true })
+  await expect(start).toHaveAccessibleDescription('Choose your faction.')
+  await retryUntilVisible(page.getByPlaceholder('Search factions…'), () => setup.getByRole('combobox', { name: 'Faction' }).click())
+  await page.getByPlaceholder('Search factions…').fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await expect(start).toHaveAccessibleDescription('Choose a detachment.')
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await expect(start).toHaveAccessibleDescription('Choose a Force disposition.')
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+  await expect(start).toBeEnabled()
+  await start.click()
+  await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
+  const choose = page.getByRole('button', { name: 'Choose a unit', exact: true })
+  const search = page.getByPlaceholder('Search units, keywords, abilities…')
+  await expect(choose).toBeHidden()
+  await expect(search).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('first-unit-1440.png') })
+  for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/rosters')
-    const setup = page.getByRole('region', { name: 'Create roster' })
-    const start = setup.getByRole('button', { name: 'Start building', exact: true })
-    await expect(start).toHaveAccessibleDescription('Choose your faction.')
-    await retryUntilVisible(page.getByPlaceholder('Search factions…'), () => setup.getByRole('combobox', { name: 'Faction' }).click())
-    await page.getByPlaceholder('Search factions…').fill('Necrons')
-    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
-    await expect(start).toHaveAccessibleDescription('Choose a detachment.')
-    await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
-    await expect(start).toHaveAccessibleDescription('Choose a Force disposition.')
-    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-    await expect(start).toBeEnabled()
-    await start.click()
-    await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
-    const choose = page.getByRole('button', { name: 'Choose a unit', exact: true })
-    const search = page.getByPlaceholder('Search units, keywords, abilities…')
-    if (width >= 1300) {
-      await expect(choose).toBeHidden()
-      await expect(search).toBeVisible()
-    } else {
-      await expect(search).toBeHidden()
-      await choose.click()
-      await expect(search).toBeVisible()
-      await page.getByRole('button', { name: 'Close', exact: true }).click()
-      await expect(search).toBeHidden()
-    }
-    await page.screenshot({ path: testInfo.outputPath('first-unit.png') })
-  })
-}
+    await expect(search).toBeHidden()
+    await choose.click()
+    await expect(search).toBeVisible()
+    await page.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(search).toBeHidden()
+    await page.screenshot({ path: testInfo.outputPath(`first-unit-${width}.png`) })
+  }
+})
 
 // The desktop path through Battle options runs in the other battle journeys; a phone reaches it through the Battle tab.
 test('a casual player practises a round, corrects an action and reviews the finished game at 390px', async ({ page }, testInfo) => {
@@ -191,19 +194,19 @@ test('a friend invite QR code opens the same one-time invite link', async ({ bro
   }
 })
 
-for (const width of [1440, 390]) {
-  test(`the first-game landing path fits at ${width}px`, async ({ page }, testInfo) => {
+test('the first-game landing path fits', async ({ page }, testInfo) => {
+  await page.goto('/')
+  const features = page.locator('[data-home-features]')
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/')
-    const features = page.locator('[data-home-features]')
     await expect(features.getByRole('img')).toHaveCount(0)
     await expect(features.getByRole('list')).toHaveCount(0)
     await expect(features.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
     await features.getByRole('heading', { level: 2 }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath('landing-path.png') })
+    await page.screenshot({ path: testInfo.outputPath(`landing-path-${width}.png`) })
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
-  })
-}
+  }
+})
 
 test('a saved long roster prints every card without clipping or editing controls', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Printer'))

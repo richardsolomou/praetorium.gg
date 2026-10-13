@@ -23,17 +23,17 @@ test('a connected launch loads the current application instead of the saved appl
   await page.screenshot({ path: test.info().outputPath('current-release-launch.png') })
 })
 
-for (const width of [1440, 390]) {
-  test(`release notice waits for a new version and refreshes only on request at ${width}px`, async ({ page }) => {
+test('release notice waits for a new version and refreshes only on request', async ({ page }) => {
+  let served = version
+  await page.route('**/api/release', (route) => route.fulfill({ json: { version: served }, headers: { 'cache-control': 'no-store' } }))
+  await page.clock.install()
+  await page.goto('/')
+  const notice = page.getByRole('complementary', { name: 'Release update' })
+  await expect(notice).toHaveCount(0)
+  served = '99.0.0'
+  await page.clock.runFor(60_000)
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    let served = version
-    await page.route('**/api/release', (route) => route.fulfill({ json: { version: served }, headers: { 'cache-control': 'no-store' } }))
-    await page.clock.install()
-    await page.goto('/')
-    const notice = page.getByRole('complementary', { name: 'Release update' })
-    await expect(notice).toHaveCount(0)
-    served = '99.0.0'
-    await page.clock.runFor(60_000)
     await expect(notice).toBeVisible()
     await expect(notice).toHaveText('Praetorium has been updated.Refresh')
     await expect(notice.getByRole('button')).toHaveCount(1)
@@ -44,14 +44,15 @@ for (const width of [1440, 390]) {
       expect(bounds!.y + bounds!.height).toBeLessThan(tabs!.y)
     }
     await page.screenshot({ path: `test-results/release-update-${width}.png` })
-    await page.clock.runFor(60_000)
-    await expect(notice).toBeVisible()
-    served = version
-    await notice.getByRole('button', { name: 'Refresh', exact: true }).click()
-    await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
-    await expect(notice).toHaveCount(0)
-  })
-}
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.clock.runFor(60_000)
+  await expect(notice).toBeVisible()
+  served = version
+  await notice.getByRole('button', { name: 'Refresh', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await expect(notice).toHaveCount(0)
+})
 
 test('failed release checks leave the page usable without an update notice', async ({ page }) => {
   await page.route('**/api/release', (route) => route.fulfill({ status: 502 }))

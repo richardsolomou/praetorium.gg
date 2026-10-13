@@ -70,86 +70,92 @@ async function selectedProfile(page: Page, prefix: string) {
   await expect.poll(() => shared(page).sides[0]?.preferences).toEqual({ [`${prefix}ranged:0:smite`]: `${prefix}${focused}` })
 }
 
-for (const width of [390, 1440]) {
-  test(`surviving profile choices agree with results and v1 links through member edits at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto(`/simulator?s=${encodeSimulatorState(memberState())}`)
-    await choose(page, 'Librarian · Smite', focusedName)
-    await selectedProfile(page, 'attached:2:')
+test('surviving profile choices agree with results and v1 links through member edits', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto(`/simulator?s=${encodeSimulatorState(memberState())}`)
+  await choose(page, 'Librarian · Smite', focusedName)
+  await selectedProfile(page, 'attached:2:')
 
-    const previous = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
-    let release: () => void = () => undefined
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    let pending = 0
-    await page.route('**/_serverFn/**', async (route) => {
-      if (route.request().method() === 'POST') {
-        pending++
-        await gate
-      }
-      await route.continue()
-    })
-    try {
-      await page.getByRole('button', { name: 'Remove attacker Lieutenant', exact: true }).click()
-      await expect.poll(() => pending).toBeGreaterThan(0)
-      await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText(previous!)
-      await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
-    } finally {
-      release()
-      await page.unrouteAll({ behavior: 'wait' })
+  const previous = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
+  let release: () => void = () => undefined
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let pending = 0
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      pending++
+      await gate
     }
-    await selectedProfile(page, 'attached:1:')
-    await choose(page, 'Librarian · Smite', witchfireName)
-    await settled(page)
-    const ordinary = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
-    await choose(page, 'Librarian · Smite', focusedName)
-    await selectedProfile(page, 'attached:1:')
-    await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).not.toHaveText(ordinary!)
+    await route.continue()
+  })
+  try {
+    await page.getByRole('button', { name: 'Remove attacker Lieutenant', exact: true }).click()
+    await expect.poll(() => pending).toBeGreaterThan(0)
+    await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText(previous!)
+    await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
+  } finally {
+    release()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+  await selectedProfile(page, 'attached:1:')
+  await choose(page, 'Librarian · Smite', witchfireName)
+  await settled(page)
+  const ordinary = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
+  await choose(page, 'Librarian · Smite', focusedName)
+  await selectedProfile(page, 'attached:1:')
+  await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).not.toHaveText(ordinary!)
 
-    await page.getByRole('button', { name: 'Remove attacker Intercessor Squad', exact: true }).click()
-    await selectedProfile(page, '')
-    const damage = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
-    const swap = page.getByRole('button', { name: 'Swap attacker and defender', exact: true })
-    await swap.click()
-    await settled(page)
-    await page.goto(page.url())
-    await expect(page.getByRole('region', { name: 'Defender', exact: true })).toContainText('Librarian')
-    await expect(swap).toBeEnabled()
-    await swap.click()
-    await selectedProfile(page, '')
-    await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText(damage!)
-    await swap.click()
-    await settled(page)
-    await swap.click()
+  await page.getByRole('button', { name: 'Remove attacker Intercessor Squad', exact: true }).click()
+  await selectedProfile(page, '')
+  const damage = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
+  const swap = page.getByRole('button', { name: 'Swap attacker and defender', exact: true })
+  await swap.click()
+  await settled(page)
+  await page.goto(page.url())
+  await expect(page.getByRole('region', { name: 'Defender', exact: true })).toContainText('Librarian')
+  await expect(swap).toBeEnabled()
+  await swap.click()
+  await selectedProfile(page, '')
+  await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText(damage!)
+  await swap.click()
+  await settled(page)
+  await swap.click()
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
     await selectedProfile(page, '')
     await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
     await noOverflow(page, page.getByRole('region', { name: 'Attacker', exact: true }))
     await page.screenshot({ path: `test-results/simulator-context-members-${width}.png`, fullPage: true })
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
 
-    const obsolete = shared(page)
-    obsolete.sides[0]!.preferences = { 'ranged:0:smite': 'retired-smite-profile' }
-    await page.goto(`/simulator?s=${encodeSimulatorState(obsolete)}`)
+  const obsolete = shared(page)
+  obsolete.sides[0]!.preferences = { 'ranged:0:smite': 'retired-smite-profile' }
+  await page.goto(`/simulator?s=${encodeSimulatorState(obsolete)}`)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
     await settled(page)
     await expect(page.getByText(discarded, { exact: true })).toBeVisible()
     await expect(page.getByRole('combobox', { name: 'Librarian · Smite', exact: true })).toContainText(witchfireName)
-    await expect
-      .poll(() => {
-        const state = shared(page)
-        return [state.sides[0]?.preferences ?? {}, state.matchup?.preferences]
-      })
-      .toEqual([{}, {}])
-    await choose(page, 'Librarian · Smite', focusedName)
-    await selectedProfile(page, '')
-    await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
-    await page.goto(`/simulator?s=${encodeSimulatorState(obsolete)}`)
-    await settled(page)
-    await expect(page.getByText(discarded, { exact: true })).toBeVisible()
-    await openCombatControls(page)
-    await page.getByRole('button', { name: 'Reset', exact: true }).click()
-    await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
-  })
-}
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect
+    .poll(() => {
+      const state = shared(page)
+      return [state.sides[0]?.preferences ?? {}, state.matchup?.preferences]
+    })
+    .toEqual([{}, {}])
+  await choose(page, 'Librarian · Smite', focusedName)
+  await selectedProfile(page, '')
+  await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
+  await page.goto(`/simulator?s=${encodeSimulatorState(obsolete)}`)
+  await settled(page)
+  await expect(page.getByText(discarded, { exact: true })).toBeVisible()
+  await openCombatControls(page)
+  await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
+})
 
 async function holdLoadoutReplies(page: Page, memberIndex: number) {
   await page.evaluate((index) => {

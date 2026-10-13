@@ -265,10 +265,8 @@ test('a manual 2v2 seats two armies on each side with one shared pool', async ({
   await expect(side(host, 0).locator('[data-stat="cp"]')).toHaveCount(1)
   await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
-  await host.screenshot({ path: 'test-results/doubles-battle-desktop.png', fullPage: true })
   await host.setViewportSize({ width: 390, height: 844 })
   expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await host.screenshot({ path: 'test-results/doubles-battle-phone.png', fullPage: true })
 })
 
 const sidePanels = (page: Page) => page.locator('[data-panel="player"]')

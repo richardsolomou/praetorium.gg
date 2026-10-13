@@ -44,23 +44,13 @@ test('Insane Bravery is usable once in your Command phase and survives reload', 
   await expect(page.getByRole('dialog', { name: 'Insane Bravery', exact: true })).toContainText('used 1x this battle')
 })
 
-test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page, browser }) => {
-  const opponent = await (await browser.newContext(desktopContext)).newPage()
-  const opponentName = uniqueName('Scoring opponent')
-  await signUp(opponent, opponentName)
-  const opponentRoster = await createRoster(opponent, {
-    faction: 'Necrons',
-    detachment: /Awakened Dynasty/,
-    name: 'Scoring opponent roster',
-  })
+test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page }) => {
   await signUp(page, uniqueName('Standard secondaries'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Standard scoring roster' })
-  await setupBattle(page, opponent, {
-    opponent: opponentName,
-    hostRoster: roster,
-    guestRoster: opponentRoster,
-    openingSecondaries: ['Cleanse', 'Centre Ground'],
-  })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
 
   const ongoing = page.locator('[data-panel="player"][data-side="0"]')
   await expect(ongoing.locator('[data-secondary]')).toHaveCount(2)
@@ -77,12 +67,8 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
       expect(Math.abs(stratagems!.y - missions!.y)).toBeLessThan(1)
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
-    await ongoing.screenshot({ path: `test-results/ongoing-missions-${width}.png` })
   }
-  await ongoing.screenshot({ path: 'test-results/ongoing-missions-desktop.png' })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.evaluate(() => window.scrollTo(0, 0))
-  await ongoing.screenshot({ path: 'test-results/ongoing-missions-phone.png' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -95,12 +81,9 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).click()
   await scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true }).click()
   await expect(scoring.locator('output')).toContainText('Scoring 5 VP')
-  await page.screenshot({ path: 'test-results/standard-secondary-scoring-desktop.png' })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(scoring).toBeVisible()
-  await page.screenshot({ path: 'test-results/standard-secondary-scoring-phone.png' })
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
-  await page.screenshot({ path: 'test-results/standard-secondary-scoring-phone-bottom.png' })
   await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await page.reload()
@@ -118,10 +101,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(cleanse.getByRole('listitem', { name: 'Round 2: not played', exact: true })).toHaveCount(0)
   await expect(side.locator('[data-missions] .chip')).toHaveCount(0)
   await expect(side.locator('[data-missions]').getByText(/^(tactical|fixed)$/i)).toHaveCount(0)
-  await page.evaluate(() => window.scrollTo(0, 0))
-  await side.screenshot({ path: 'test-results/mission-scorecards-phone.png' })
   await page.setViewportSize({ width: 1440, height: 900 })
-  await side.screenshot({ path: 'test-results/mission-scorecards-desktop.png' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
   await side.getByRole('button', { name: 'View remaining secondary missions (16)' }).click()
   const remaining = page.getByRole('dialog', { name: 'Remaining secondary missions', exact: true })
@@ -445,7 +425,6 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(missionDetails).toBeVisible()
   await alice.keyboard.press('Escape')
   await expect(alice.locator('[data-minimized-battle-prompt]')).toBeVisible()
-  await alice.screenshot({ path: 'test-results/scoring-minimized.png' })
   await alice.getByRole('button', { name: 'Return to prompt' }).click()
   await expect(scoring).toBeVisible()
   // Whichever cards the matchup dealt, a flat payout is a yes or no rather than
@@ -465,7 +444,6 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await advance(alice)
   await alice.getByRole('button', { name: 'Pass the turn' }).click()
   await expect(scoring).toContainText(`Scoring ${scored} VP`)
-  await alice.screenshot({ path: 'test-results/scoring-undo-restored.png' })
 
   // Hold Bob's first submission so Alice deterministically wins this race.
   await expect.poll(() => bob.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction))).toBe(true)
@@ -516,17 +494,14 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     await discard.getByRole('button', { name: 'Minimize dialog' }).click()
     await expect(discard).toBeHidden()
     await expect(alice.locator('[data-turn-control] button').first()).toBeDisabled()
-    await alice.screenshot({ path: 'test-results/discard-minimized-phone.png' })
     await alice.getByRole('button', { name: 'Return to prompt' }).click()
     await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveCount(0)
     await discard.getByRole('button', { name: 'Undo latest action' }).click()
     await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toBeVisible()
     await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await alice.screenshot({ path: 'test-results/undo-discard-phone.png' })
     await discard.getByRole('button', { name: 'Discard 1 and gain 1 CP' }).click()
     await expect(nextHand).toBeVisible()
     await expect(nextHand.getByRole('button', { name: `Remove ${chosenMissionName}`, exact: true })).toBeVisible()
-    await alice.screenshot({ path: 'test-results/secondary-undo-restored-phone.png' })
     await nextHand.getByRole('button', { name: 'Cancel selection' }).click()
     await alice.setViewportSize(desktopContext.viewport)
   } finally {
@@ -570,13 +545,11 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   )
 
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
-  await alice.screenshot({ path: 'test-results/battle.png', fullPage: true })
   await alice.setViewportSize({ width: 1100, height: 900 })
   const stackedStratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()
   const stackedPrimaryPosition = await ownPanel.locator('[data-stat="primary"]').boundingBox()
   expect(stackedStratagemPosition && stackedPrimaryPosition).toBeTruthy()
   expect(stackedStratagemPosition!.y).toBeGreaterThan(stackedPrimaryPosition!.y)
-  await alice.screenshot({ path: 'test-results/battle-stacked-desktop.png', fullPage: true })
   // The same panel on a phone, reached the same way. Only one panel is on screen at
   // a time there, so the scoreboard names the players again.
   await alice.setViewportSize({ width: 390, height: 844 })
@@ -591,11 +564,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const shownSecondaries = await ownPanel.locator('[data-secondary]').count()
   const resolvedToggle = ownPanel.getByRole('button', { name: /Show \d+ resolved missions?/ })
   const resolvedCount = Number((await resolvedToggle.innerText()).match(/\d+/)?.[0])
-  await alice.screenshot({ path: 'test-results/battle-phone.png', fullPage: true })
   await resolvedToggle.click()
   await expect(ownPanel.getByRole('button', { name: 'Hide resolved missions' })).toBeVisible()
   await expect(ownPanel.locator('[data-secondary]')).toHaveCount(shownSecondaries + resolvedCount)
-  await alice.screenshot({ path: 'test-results/battle-phone-resolved.png', fullPage: true })
   await playerLink.click()
   await expect(alice).toHaveURL(/\/users\/[^/?]+$/)
   await expect(alice.getByRole('heading', { name: aliceName })).toBeVisible()
@@ -829,7 +800,6 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
         await expect(hands.nth(side)).toContainText(/Engage on All Fronts/i)
         await expect(hands.nth(side)).toContainText(/Bring It Down/i)
       }
-      await alice.screenshot({ path: 'test-results/opponent-secondary-setup.png', fullPage: true })
     },
   })
 

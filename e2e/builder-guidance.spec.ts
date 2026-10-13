@@ -10,10 +10,11 @@ async function closePickerOnPhone(page: Page, width: number) {
   if (width < 500) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
 }
 
-for (const width of [1440, 390]) {
-  test(`a unit's attach menu adds and attaches a new leader, then offers only its free support slot at ${width}px`, async ({ page }) => {
+test(`a unit's attach menu adds and attaches a new leader, then offers only its free support slot`, async ({ page }) => {
+  await signUp(page, 'Richard')
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await openBuilder(page)
+    await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toHaveCount(0)
     await waitForRosterSave(page, () => add(page, 'Immortals'))
     await waitForRosterSave(page, () => add(page, 'Overlord'))
@@ -52,11 +53,14 @@ for (const width of [1440, 390]) {
     await expect(leader).toContainText('Immortals')
     await page.screenshot({ path: `test-results/attach-roster-${width}.png` })
     await expect(page.locator('[data-unit="Overlord"]')).not.toContainText('Leading')
-  })
+  }
+})
 
-  test(`a unit whose only leader slot is full offers no attach menu at ${width}px`, async ({ page }) => {
+test('a unit whose only leader slot is full offers no attach menu', async ({ page }) => {
+  await signUp(page, 'Richard')
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await openBuilder(page)
+    await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     await waitForRosterSave(page, () => add(page, 'Skorpekh Destroyers'))
     await closePickerOnPhone(page, width)
 
@@ -76,11 +80,14 @@ for (const width of [1440, 390]) {
     await page.reload()
     await expect(destroyers).toContainText('Skorpekh Lord')
     await expect(attachUnit).toHaveCount(0)
-  })
+  }
+})
 
-  test(`a character's attach menu adds and joins a new bodyguard at ${width}px`, async ({ page }) => {
+test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }) => {
+  await signUp(page, 'Richard')
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await openBuilder(page)
+    await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     await waitForRosterSave(page, () => add(page, 'Overlord'))
     await closePickerOnPhone(page, width)
 
@@ -101,8 +108,8 @@ for (const width of [1440, 390]) {
     await page.reload()
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
     await expect(overlord).toContainText('Immortals')
-  })
-}
+  }
+})
 
 test('a unit attaches a character already in the roster from its own card', async ({ page }) => {
   await openBuilder(page)

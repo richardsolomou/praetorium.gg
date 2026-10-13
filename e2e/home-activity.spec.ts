@@ -9,20 +9,20 @@ async function makePreviewBattleMostRecent() {
   await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE id = ${battles[0].id}`
 }
 
-for (const width of [390, 1440]) {
-  test(`shows the faction icon for an unqualified frozen army at ${width}px`, async ({ page }, testInfo) => {
+test('shows the faction icon for an unqualified frozen army', async ({ page }, testInfo) => {
+  await signUp(page, uniqueName('Historical faction'))
+  await page.goto('/')
+  const battle = page.locator('[data-home-feed="Public games"] a[href="/battles/preview-league-battle-doubles"]')
+  const mark = battle.locator('[data-faction-mark="space-marines"]')
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await signUp(page, uniqueName('Historical faction'))
-    await page.goto('/')
-    const battle = page.locator('[data-home-feed="Public games"] a[href="/battles/preview-league-battle-doubles"]')
-    const mark = battle.locator('[data-faction-mark="space-marines"]')
     await expect(mark).toBeVisible()
     await expect(mark).toHaveCSS('mask-image', /faction-icons\/space-marines/)
     expect((await page.request.get('/api/faction-icons/space-marines')).ok()).toBe(true)
     await battle.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath('historical-battle-faction.png') })
-  })
-}
+    await page.screenshot({ path: testInfo.outputPath(`historical-battle-faction-${width}.png`) })
+  }
+})
 
 test('greets a signed-in player whose provider supplied no name', async ({ page }) => {
   const { email } = await signUp(page, uniqueName('Nameless'))
@@ -33,29 +33,33 @@ test('greets a signed-in player whose provider supplied no name', async ({ page 
   await page.screenshot({ path: 'test-results/home-nameless-greeting.png' })
 })
 
-for (const width of [390, 1440]) {
-  test(`offers a secondary account-creation button below sign-in at ${width}px`, async ({ page }) => {
+test('offers a secondary account-creation button below sign-in', async ({ page }) => {
+  await page.goto('/sign-in?next=%2Frosters')
+  const switchAccount = page.getByRole('button', { name: 'I need an account' })
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/sign-in?next=%2Frosters')
-    const switchAccount = page.getByRole('button', { name: 'I need an account' })
     await expect(switchAccount).toBeVisible()
     const switchBounds = await switchAccount.boundingBox()
     const signInBounds = await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).boundingBox()
     expect(switchBounds!.y).toBeGreaterThan(signInBounds!.y + signInBounds!.height)
     expect(switchBounds!.width).toBeLessThan(signInBounds!.width)
     await page.screenshot({ path: `test-results/sign-in-account-switch-${width}.png` })
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
 
-    await switchAccount.click()
-    await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
-    await expect(page.getByLabel('Your name')).toBeVisible()
-    await expect(page).toHaveURL('/sign-in?next=%2Frosters')
+  await switchAccount.click()
+  await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
+  await expect(page.getByLabel('Your name')).toBeVisible()
+  await expect(page).toHaveURL('/sign-in?next=%2Frosters')
 
-    await page.getByRole('button', { name: 'I already have an account' }).click()
-    await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
-    await expect(page.getByLabel('Your name')).toHaveCount(0)
+  await page.getByRole('button', { name: 'I already have an account' }).click()
+  await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Your name')).toHaveCount(0)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-  })
-}
+  }
+})
 
 /**
  * The home page is the front door for both kinds of visitor.
@@ -378,16 +382,16 @@ test('a player profile fits a phone', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
 
-for (const width of [390, 1440]) {
-  test(`a finished featured battle omits the repeated result at ${width}px`, async ({ page }, testInfo) => {
-    await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE token = 'preview-league-battle-duel'`
+test('a finished featured battle omits the repeated result', async ({ page }, testInfo) => {
+  await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE token = 'preview-league-battle-duel'`
+  await page.goto('/')
+  const featured = page.locator('[data-home-featured]')
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/')
-    const featured = page.locator('[data-home-featured]')
     await expect(featured).toHaveAttribute('href', '/battles/preview-league-battle-duel')
     await expect(featured.getByText('35', { exact: true })).toBeVisible()
     await expect(featured).not.toContainText('wins')
     await featured.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath('finished-featured-battle.png') })
-  })
-}
+    await page.screenshot({ path: testInfo.outputPath(`finished-featured-battle-${width}.png`) })
+  }
+})

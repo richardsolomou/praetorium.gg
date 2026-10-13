@@ -6,13 +6,13 @@
   },
   "pointer": {
     "format": "praetorium.catalogue-pointer.v1",
-    "id": "03a8aab0ffce5c043d7755c4d1d302ac2a4c1675e54abe1c020feb23d227ca08",
-    "archiveSha256": "1170a9257badd4488893aca0851b0558120f32d2c86b5e83f8790e59ee88b5f5",
+    "id": "760ff4ef4547944925de03c077f917fd358f69ee21960fa18565b019dbdf8852",
+    "archiveSha256": "ca3923786680584108eadc545fdb05222ff9105232fd59ead1f02c5977bb296e",
     "objects": true,
-    "authoringRevision": "5bd6c310336a7c8c7ff34439f4ad592f0f3a7eef",
+    "authoringRevision": "99cadb58661d70eaf6ccc75183b7cfa7f573baea",
     "runtime": {
-      "fingerprint": "9f19034ff2c44185baa5a9782092e1dbd7bd4df299084e1686b786896cd513d8",
-      "archiveSha256": "b64d35924060bc9f3f6316fd65edba88ab4e31e7d1220fe7ee2fdc98c788bd4d"
+      "fingerprint": "b09a71c832e9197d62019f1bbe0c6de4209cdf07dfba2bd0c1a8ef3d8ae9fc0e",
+      "archiveSha256": "4e69224a6d8ceb452957c8cd4c70b75c159b6381c11b5dcebfa1315401bb41a3"
     }
   },
   "revisions": {

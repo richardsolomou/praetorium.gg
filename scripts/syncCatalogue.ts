@@ -16,6 +16,7 @@ import {
 } from '../src/server/catalogueSnapshot'
 import { syncFactionIcons } from '../src/server/sync'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
+import { catalogueCacheRoot } from './lib/catalogueCache'
 import { materializeCatalogue } from './lib/catalogueMaterialize'
 
 const root = path.join(import.meta.dirname, '..')
@@ -115,13 +116,7 @@ if (argument === '--check') {
   console.log(output)
 } else if (argument === undefined || argument === '--latest') {
   const base = catalogueBaseUrl()
-  const shared = process.env.CATALOGUE_CACHE_DIR?.trim()
-  const cacheRoot =
-    shared === 'off'
-      ? null
-      : path.resolve(
-          shared || path.join(process.env.XDG_CACHE_HOME?.trim() || path.join(os.homedir(), '.cache'), 'praetorium', 'catalogues'),
-        )
+  const cacheRoot = catalogueCacheRoot('catalogues')
   if (!cacheRoot) {
     const fetch = argument === '--latest' ? fetchCurrentSnapshot : fetchPinnedSnapshot
     await fetch(dataDirectory, base, (message) => console.log(message))

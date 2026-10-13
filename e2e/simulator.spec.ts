@@ -25,39 +25,42 @@ async function estimate(page: Page, phase: 'Shooting' | 'Melee') {
   return page.getByRole('region', { name: `${phase} estimate`, includeHidden: true })
 }
 
-for (const width of [1440, 390]) {
-  test(`Terminator hammer and shield loadouts survive reload at ${width}px`, { tag: '@catalogue' }, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Terminator Assault Squad')
-    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
-    const melee = page.getByRole('region', { name: 'Melee results' })
-    const loadout = page.getByRole('dialog')
-    await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
-    const hammers = 'Assault Terminator w/ Thunder Hammer & Storm Shield'
-    const initial = Number(await loadout.getByLabel(`${hammers} count`, { exact: true }).innerText())
-    expect(Number.isInteger(initial)).toBe(true)
-    for (let selected = initial; selected !== 2;) {
-      const increasing = selected < 2
-      await loadout.getByRole('button', { name: `${increasing ? 'More' : 'Fewer'} ${hammers}`, exact: true }).click()
-      selected += increasing ? 1 : -1
-      await expect(loadout.getByLabel(`${hammers} count`, { exact: true })).toHaveText(String(selected))
-    }
+test('Terminator hammer and shield loadouts survive reload', { tag: '@catalogue' }, async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Terminator Assault Squad')
+  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  const loadout = page.getByRole('dialog')
+  await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
+  const hammers = 'Assault Terminator w/ Thunder Hammer & Storm Shield'
+  const initial = Number(await loadout.getByLabel(`${hammers} count`, { exact: true }).innerText())
+  expect(Number.isInteger(initial)).toBe(true)
+  for (let selected = initial; selected !== 2;) {
+    const increasing = selected < 2
+    await loadout.getByRole('button', { name: `${increasing ? 'More' : 'Fewer'} ${hammers}`, exact: true }).click()
+    selected += increasing ? 1 : -1
+    await expect(loadout.getByLabel(`${hammers} count`, { exact: true })).toHaveText(String(selected))
+  }
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-thunder-hammers-${width}.png` })
-    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    await expect(melee.getByRole('heading', { name: '2× Thunder Hammer', exact: true })).toBeVisible()
-    await expect(melee.getByRole('heading', { name: '2× Twin Lightning Claws', exact: true })).toBeVisible()
-    await expect(melee.getByRole('alert')).toHaveCount(0)
-    await page.reload()
-    await expect(melee.getByRole('heading', { name: '2× Thunder Hammer', exact: true })).toBeVisible()
+  })
+  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(melee.getByRole('heading', { name: '2× Thunder Hammer', exact: true })).toBeVisible()
+  await expect(melee.getByRole('heading', { name: '2× Twin Lightning Claws', exact: true })).toBeVisible()
+  await expect(melee.getByRole('alert')).toHaveCount(0)
+  await page.reload()
+  await expect(melee.getByRole('heading', { name: '2× Thunder Hammer', exact: true })).toBeVisible()
+  await atWidths(page, [1440, 390], async () => {
     await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
     await expect(loadout.getByLabel('Assault Terminator w/ Twin Lightning Claws count', { exact: true })).toHaveText('2')
     await expect(loadout.getByLabel('Assault Terminator w/ Thunder Hammer & Storm Shield count', { exact: true })).toHaveText('2')
     await noOverflow(page)
+    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
   })
-}
+})
 
 test('the Death Guard Defiler calculates either Shearing claws mode', async ({ page }) => {
   await page.goto('/simulator')
@@ -76,45 +79,53 @@ test('the Death Guard Defiler calculates either Shearing claws mode', async ({ p
   }
 })
 
-for (const width of [1440, 390]) {
-  test(`source-linked equipment calculates without ownership errors at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-    for (const [faction, unit, phase] of [
-      ['Blood Angels', 'Lemartes', 'Shooting'],
-      ['Chaos Daemons', 'Pink Horrors', 'Shooting'],
-      ['Astra Militarum', 'Cadian Heavy Weapons Squad', 'Melee'],
-      ['Aeldari', 'Jain Zar', 'Melee'],
-      ['Drukhari', 'Lady Malys', 'Melee'],
-      ['Orks', 'Deffkoptas', 'Shooting'],
-    ] as const) {
-      await chooseCombatUnit(page, 'Attacker', faction, unit)
-      const results = page.getByRole('region', { name: `${phase} results` })
-      await expect(results).toHaveAttribute('aria-busy', 'false')
-      await expect(results.getByRole('alert')).toHaveCount(0)
-      await expect((await estimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
-      await expect(results).not.toContainText('ref. only')
+test('source-linked equipment calculates without ownership errors', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  for (const [faction, unit, phase] of [
+    ['Blood Angels', 'Lemartes', 'Shooting'],
+    ['Chaos Daemons', 'Pink Horrors', 'Shooting'],
+    ['Astra Militarum', 'Cadian Heavy Weapons Squad', 'Melee'],
+    ['Aeldari', 'Jain Zar', 'Melee'],
+    ['Drukhari', 'Lady Malys', 'Melee'],
+    ['Orks', 'Deffkoptas', 'Shooting'],
+  ] as const) {
+    await chooseCombatUnit(page, 'Attacker', faction, unit)
+    const results = page.getByRole('region', { name: `${phase} results` })
+    await expect(results).toHaveAttribute('aria-busy', 'false')
+    await expect(results.getByRole('alert')).toHaveCount(0)
+    await expect((await estimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
+    await expect(results).not.toContainText('ref. only')
+    await atWidths(page, [1440, 390], async (width) => {
       await noOverflow(page)
       await page.screenshot({ path: `test-results/simulator-ownership-${unit.replaceAll(' ', '-')}-${width}.png` })
-    }
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Triarch Praetorians')
-    await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
-    const loadout = page.getByRole('dialog')
-    for (let count = 1; count <= 5; count++) {
-      await loadout.getByRole('button', { name: 'More Particle caster and voidblade', exact: true }).click()
-      await expect(loadout.getByLabel('Particle caster and voidblade count', { exact: true })).toHaveText(String(count))
-    }
+    })
+  }
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Triarch Praetorians')
+  const attackerLoadout = page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true })
+  await attackerLoadout.click()
+  const loadout = page.getByRole('dialog')
+  for (let count = 1; count <= 5; count++) {
+    await loadout.getByRole('button', { name: 'More Particle caster and voidblade', exact: true }).click()
+    await expect(loadout.getByLabel('Particle caster and voidblade count', { exact: true })).toHaveText(String(count))
+  }
+  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+  await atWidths(page, [390], async () => {
+    await attackerLoadout.click()
+    await expect(loadout.getByLabel('Particle caster and voidblade count', { exact: true })).toHaveText('5')
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('Particle caster')
-    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidblade')
-    for (const phase of ['Shooting', 'Melee'] as const) {
-      await expect(page.getByRole('region', { name: `${phase} results` }).getByRole('alert')).toHaveCount(0)
-      await expect((await estimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
-    }
+  })
+  await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('Particle caster')
+  await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidblade')
+  for (const phase of ['Shooting', 'Melee'] as const) {
+    await expect(page.getByRole('region', { name: `${phase} results` }).getByRole('alert')).toHaveCount(0)
+    await expect((await estimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
+  }
+  await atWidths(page, [1440, 390], async (width) => {
     await page.screenshot({ path: `test-results/simulator-ownership-bundle-${width}.png` })
   })
-}
+})
 
 /** Every modifier tab offers the same chips, and the previous panel can linger while the next one opens. */
 async function modifierTab(page: Page, title: 'All' | 'Shooting' | 'Melee') {
@@ -140,6 +151,16 @@ async function noOverflow(page: Page) {
       .locator('main section, [role=dialog], [data-slot=scroll-area-viewport]')
       .evaluateAll((panels) => panels.every((element) => element.scrollWidth <= element.clientWidth + 1)),
   ).toBe(true)
+}
+
+/** Repeats width-dependent checks at each width, then restores the viewport the journey runs at. */
+async function atWidths(page: Page, widths: number[], check: (width: number) => Promise<void>) {
+  const viewport = page.viewportSize()!
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: viewport.height })
+    await check(width)
+  }
+  await page.setViewportSize(viewport)
 }
 
 test('the unit picker keeps only distinct faction contexts', async ({ page }) => {
@@ -505,41 +526,42 @@ test('variable weapon abilities produce damage probabilities', async ({ page }) 
   await shooting.screenshot({ path: 'test-results/simulator-variable-hits-390.png' })
 })
 
-for (const width of [1440, 390, 860, 1024]) {
-  test(`automatic shooting and melee with stable edits at ${width}px`, async ({ page }) => {
-    await page.route('**/offline-reference-version.json', (route) => route.abort())
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/more')
-    await page.getByRole('link', { name: 'Simulator Damage and kill probabilities' }).click()
-    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
-    const swap = page.getByRole('button', { name: 'Swap attacker and defender' })
-    await expect(swap).toBeDisabled()
-    await matchup(page)
-    await closeCombatBreakdown(page)
-    if (width === 390) {
-      expect(await page.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
-      const shootingEstimate = await estimate(page, 'Shooting')
-      await expect(shootingEstimate.locator('h3 svg')).toBeVisible()
-      expect(
-        await shootingEstimate.evaluate((element) => {
-          const heading = element.querySelector('h3')!
-          const wounds = element.querySelector('[data-result-numbers] > div')!
-          return wounds.getBoundingClientRect().left - heading.getBoundingClientRect().right
-        }),
-      ).toBeGreaterThanOrEqual(7)
-    }
-    const shooting = page.getByRole('region', { name: 'Shooting results' })
-    const melee = page.getByRole('region', { name: 'Melee results' })
-    await expect(await estimate(page, 'Shooting')).toContainText('2.22')
-    await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
-    await expect(melee).toContainText('5× Knives and Fists')
-    for (const [results, phase] of [
-      [shooting, 'Shooting'],
-      [melee, 'Melee'],
-    ] as const) {
-      for (const label of ['Wounds lost', 'Models lost']) {
-        const chart = page.getByRole('dialog', { name: `${phase} · ${label} probabilities`, exact: true })
-        await expect(chart).toHaveCount(0)
+test('automatic shooting and melee with stable edits', async ({ page }) => {
+  const widths = [1440, 390, 860, 1024]
+  await page.route('**/offline-reference-version.json', (route) => route.abort())
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/more')
+  await page.getByRole('link', { name: 'Simulator Damage and kill probabilities' }).click()
+  await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+  const swap = page.getByRole('button', { name: 'Swap attacker and defender' })
+  await expect(swap).toBeDisabled()
+  await matchup(page)
+  await closeCombatBreakdown(page)
+  await atWidths(page, [390], async () => {
+    expect(await page.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
+    const shootingEstimate = await estimate(page, 'Shooting')
+    await expect(shootingEstimate.locator('h3 svg')).toBeVisible()
+    expect(
+      await shootingEstimate.evaluate((element) => {
+        const heading = element.querySelector('h3')!
+        const wounds = element.querySelector('[data-result-numbers] > div')!
+        return wounds.getBoundingClientRect().left - heading.getBoundingClientRect().right
+      }),
+    ).toBeGreaterThanOrEqual(7)
+  })
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  await expect(await estimate(page, 'Shooting')).toContainText('2.22')
+  await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
+  await expect(melee).toContainText('5× Knives and Fists')
+  for (const [results, phase] of [
+    [shooting, 'Shooting'],
+    [melee, 'Melee'],
+  ] as const) {
+    for (const label of ['Wounds lost', 'Models lost']) {
+      const chart = page.getByRole('dialog', { name: `${phase} · ${label} probabilities`, exact: true })
+      await expect(chart).toHaveCount(0)
+      await atWidths(page, widths, async (width) => {
         await (await estimate(page, phase)).getByRole('button', { name: new RegExp(`${label}: .*Show probabilities`) }).hover()
         await expect(chart).toBeVisible()
         await expect(chart).toContainText('At least')
@@ -551,22 +573,28 @@ for (const width of [1440, 390, 860, 1024]) {
         if (phase === 'Shooting' && label === 'Models lost') await page.screenshot({ path: `test-results/simulator-chart-${width}.png` })
         await page.mouse.move(0, 0)
         await expect(chart).toBeHidden()
-      }
-      await expect(results.locator('summary')).toHaveCount(0)
+      })
     }
-    await expect(
-      shooting.getByRole('heading', { name: '5× ➤ Bolt Rifle - Focused Fire', exact: true }).locator('..').locator('.eyebrow'),
-    ).toHaveText(['Range', 'A', 'BS', 'S', 'AP', 'D'])
-    await expect(page.getByText('Evaluated profiles and weapon rules included.', { exact: false })).toHaveCount(0)
-    await expect(page.getByText('Each phase starts against the full defending unit.', { exact: true })).toHaveCount(0)
-    await expect(page.locator('[data-manual-modifiers]')).toHaveCount(1)
-    await expect(chip(page, 'FNP 5+')).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Attacker rules', exact: true })).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Defender rules', exact: true })).toBeVisible()
+    await expect(results.locator('summary')).toHaveCount(0)
+  }
+  await expect(
+    shooting.getByRole('heading', { name: '5× ➤ Bolt Rifle - Focused Fire', exact: true }).locator('..').locator('.eyebrow'),
+  ).toHaveText(['Range', 'A', 'BS', 'S', 'AP', 'D'])
+  await expect(page.getByText('Evaluated profiles and weapon rules included.', { exact: false })).toHaveCount(0)
+  await expect(page.getByText('Each phase starts against the full defending unit.', { exact: true })).toHaveCount(0)
+  await expect(page.locator('[data-manual-modifiers]')).toHaveCount(1)
+  await expect(chip(page, 'FNP 5+')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Attacker rules', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Defender rules', exact: true })).toBeVisible()
+  for (const side of ['Attacker', 'Defender']) {
+    const panel = page.getByRole('region', { name: side, exact: true })
+    await expect(panel.locator('[data-characteristic] .readout')).toHaveText(['5', '3+', '2', '—', '—'])
+    await expect(panel.getByRole('button', { name: `Fewer ${side.toLowerCase()} models` })).toBeDisabled()
+  }
+  // Each width presses Swap once; an even number of presses leaves the identical sides where they started.
+  await atWidths(page, widths, async (width) => {
     for (const side of ['Attacker', 'Defender']) {
       const panel = page.getByRole('region', { name: side, exact: true })
-      await expect(panel.locator('[data-characteristic] .readout')).toHaveText(['5', '3+', '2', '—', '—'])
-      await expect(panel.getByRole('button', { name: `Fewer ${side.toLowerCase()} models` })).toBeDisabled()
       const controls = await panel.getByRole('button', { name: 'Loadout', exact: true }).evaluate((element) => {
         const row = element.parentElement!
         const models = row.firstElementChild!
@@ -592,96 +620,124 @@ for (const width of [1440, 390, 860, 1024]) {
     await noOverflow(page)
     await page.getByRole('region', { name: 'Attacker', exact: true }).screenshot({ path: `test-results/simulator-controls-${width}.png` })
     await page.screenshot({ path: `test-results/simulator-${width}.png`, fullPage: true })
+  })
 
-    await page.getByRole('tab', { name: /^Shooting/ }).click()
-    await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(await estimate(page, 'Shooting')).not.toContainText('2.22')
-    const coveredDamage = await (await estimate(page, 'Shooting')).locator('.readout').first().textContent()
+  await page.getByRole('tab', { name: /^Shooting/ }).click()
+  await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(await estimate(page, 'Shooting')).not.toContainText('2.22')
+  const coveredDamage = await (await estimate(page, 'Shooting')).locator('.readout').first().textContent()
 
-    const calculation = await holdCombatCalculations(page)
-    await page.getByRole('button', { name: 'More defender models' }).click()
-    await calculation.waitForStart()
-    await expect(shooting).toHaveAttribute('aria-busy', 'true')
-    await expect(page.getByRole('region', { name: 'Combined estimate' }).getByText('Updating…', { exact: true })).toBeVisible()
-    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('6')
-    for (let added = 0; added < 4; added++) await page.getByRole('button', { name: 'More defender models' }).click()
-    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('10')
-    await expect(page.getByRole('button', { name: 'More defender models' })).toBeDisabled()
-    await expect((await estimate(page, 'Shooting')).locator('.readout').first()).toHaveText(coveredDamage!)
-    await expect(melee).toContainText('5× Knives and Fists')
+  const calculation = await holdCombatCalculations(page)
+  await page.getByRole('button', { name: 'More defender models' }).click()
+  await calculation.waitForStart()
+  await expect(shooting).toHaveAttribute('aria-busy', 'true')
+  await expect(page.getByRole('region', { name: 'Combined estimate' }).getByText('Updating…', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('6')
+  for (let added = 0; added < 4; added++) await page.getByRole('button', { name: 'More defender models' }).click()
+  await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('10')
+  await expect(page.getByRole('button', { name: 'More defender models' })).toBeDisabled()
+  await expect((await estimate(page, 'Shooting')).locator('.readout').first()).toHaveText(coveredDamage!)
+  await expect(melee).toContainText('5× Knives and Fists')
+  await atWidths(page, widths, async (width) => {
     await page.screenshot({ path: `test-results/simulator-updating-${width}.png`, fullPage: true })
-    await calculation.release()
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  })
+  await calculation.release()
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
 
-    await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
-    const loadout = page.getByRole('dialog')
-    const mode = loadout
-      .getByRole('group', { name: 'Intercessor Squad Weapon 1' })
-      .getByRole('button', { name: 'Select Plasma pistol', exact: true })
-    await expect(mode).toBeVisible()
-    const heading = loadout.getByRole('heading', { name: 'Attacker · Intercessor Squad' })
+  await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
+  const loadout = page.getByRole('dialog')
+  const mode = loadout
+    .getByRole('group', { name: 'Intercessor Squad Weapon 1' })
+    .getByRole('button', { name: 'Select Plasma pistol', exact: true })
+  await expect(mode).toBeVisible()
+  const heading = loadout.getByRole('heading', { name: 'Attacker · Intercessor Squad' })
+  await atWidths(page, widths, async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-loadout-${width}.png`, fullPage: true })
+  })
 
-    const loadoutCalculation = await holdCombatCalculations(page)
-    await mode.click()
-    await loadoutCalculation.waitForStart()
-    await expect(heading).toBeVisible()
-    await expect(mode).toBeVisible()
-    await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
+  const loadoutCalculation = await holdCombatCalculations(page)
+  await mode.click()
+  await loadoutCalculation.waitForStart()
+  await expect(heading).toBeVisible()
+  await expect(mode).toBeVisible()
+  await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
+  await atWidths(page, widths, async (width) => {
     await page.screenshot({ path: `test-results/simulator-loadout-updating-${width}.png`, fullPage: true })
-    await loadoutCalculation.release()
-    await expect(mode).toHaveAttribute('aria-pressed', 'true')
-    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    await expect(melee).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('Plasma pistol')
-    await expect(melee).toContainText('5× Knives and Fists')
+  })
+  await loadoutCalculation.release()
+  await expect(mode).toHaveAttribute('aria-pressed', 'true')
+  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(melee).toHaveAttribute('aria-busy', 'false')
+  await expect(shooting).toContainText('Plasma pistol')
+  await expect(melee).toContainText('5× Knives and Fists')
+  await atWidths(page, widths, async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-melee-${width}.png`, fullPage: true })
+  })
 
-    await swap.click()
-    await openCombatControls(page)
-    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('10')
-    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('5')
-    await expect(melee).toContainText('10× Knives and Fists')
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).not.toContainText('Plasma pistol')
-    await expect(shooting).toContainText('10× ➤ Bolt Rifle - Focused Fire')
+  await swap.click()
+  await openCombatControls(page)
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('10')
+  await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('5')
+  await expect(melee).toContainText('10× Knives and Fists')
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(shooting).not.toContainText('Plasma pistol')
+  await expect(shooting).toContainText('10× ➤ Bolt Rifle - Focused Fire')
+  await atWidths(page, [1440, 390], async () => {
     await page.getByRole('region', { name: 'Defender', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
     await expect(mode).toHaveAttribute('aria-pressed', 'true')
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    for (let removed = 0; removed < 5; removed++) await page.getByRole('button', { name: 'Fewer attacker models' }).click()
-    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
-    await expect(page.getByRole('button', { name: 'Fewer attacker models' })).toBeDisabled()
-    await expect(swap).toBeEnabled()
-    await swap.click()
-    await openCombatControls(page)
-    await expect(melee).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('Plasma pistol')
-    await expect(melee).toContainText('5× Knives and Fists')
-    const withMode = Number(await (await estimate(page, 'Shooting')).locator('.readout').first().textContent())
-    expect(withMode).toBeGreaterThan(0)
-    await page.getByRole('tab', { name: /^Shooting/ }).click()
-    await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'false')
-    await chip(page, 'FNP 5+').click()
-    await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText(
-      '5+',
-    )
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect
-      .poll(async () => Number(await (await estimate(page, 'Shooting')).locator('.readout').first().textContent()))
-      .toBeLessThan(withMode)
+  })
+  for (let removed = 0; removed < 5; removed++) await page.getByRole('button', { name: 'Fewer attacker models' }).click()
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
+  await expect(page.getByRole('button', { name: 'Fewer attacker models' })).toBeDisabled()
+  await expect(swap).toBeEnabled()
+  await swap.click()
+  await openCombatControls(page)
+  await expect(melee).toHaveAttribute('aria-busy', 'false')
+  await expect(shooting).toContainText('Plasma pistol')
+  await expect(melee).toContainText('5× Knives and Fists')
+  const withMode = Number(await (await estimate(page, 'Shooting')).locator('.readout').first().textContent())
+  expect(withMode).toBeGreaterThan(0)
+  await page.getByRole('tab', { name: /^Shooting/ }).click()
+  await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await chip(page, 'FNP 5+').click()
+  await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText('5+')
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect
+    .poll(async () => Number(await (await estimate(page, 'Shooting')).locator('.readout').first().textContent()))
+    .toBeLessThan(withMode)
+  await atWidths(page, widths, async (width) => {
     await noOverflow(page)
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({ path: `test-results/simulator-swapped-${width}.png`, fullPage: true })
   })
+})
 
-  test(`simulator first frame reserves its layout at ${width}px`, async ({ browser, baseURL }) => {
-    const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width, height: 1000 } })
-    const page = await context.newPage()
-    await page.goto(`${baseURL}/simulator`)
-    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+test('simulator first frame reserves its layout', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 1000 } })
+  const page = await context.newPage()
+  await page.goto(`${baseURL}/simulator`)
+  await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+  const initialAttacker = page.getByRole('region', { name: 'Attacker', exact: true })
+  for (const name of ['Fewer attacker models', 'More attacker models', 'Loadout', 'Optimize']) {
+    await expect(initialAttacker.getByRole('button', { name, exact: true })).toBeDisabled()
+  }
+  for (const side of ['Attacker', 'Defender']) {
+    const card = page.getByRole('region', { name: side, exact: true })
+    await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveAttribute('aria-busy', 'false')
+    await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveText('—')
+    await expect(card.getByRole('combobox', { name: `${side} unit`, exact: true })).toContainText('Choose a unit')
+    await expect(card.locator('.animate-pulse, .animate-spin')).toHaveCount(0)
+  }
+  await expect(initialAttacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeDisabled()
+  const interactive = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+  await interactive.goto(`${baseURL}/simulator`)
+  for (const width of [1440, 390, 860, 1024]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await interactive.setViewportSize({ width, height: 1000 })
     await noOverflow(page)
     const contentWidth = await page.locator('main > div').evaluate((element) => {
       const padding = getComputedStyle(element)
@@ -689,76 +745,60 @@ for (const width of [1440, 390, 860, 1024]) {
     })
     expect((await page.getByLabel('Combat matchup').boundingBox())?.width).toBe(contentWidth)
     expect((await page.getByLabel('Results summary').boundingBox())?.width).toBe(contentWidth)
-    const serverBounds = await page.getByRole('region', { name: 'Attacker', exact: true }).boundingBox()
-    const initialAttacker = page.getByRole('region', { name: 'Attacker', exact: true })
-    for (const name of ['Fewer attacker models', 'More attacker models', 'Loadout', 'Optimize']) {
-      await expect(initialAttacker.getByRole('button', { name, exact: true })).toBeDisabled()
-    }
-    for (const side of ['Attacker', 'Defender']) {
-      const card = page.getByRole('region', { name: side, exact: true })
-      await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveAttribute('aria-busy', 'false')
-      await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveText('—')
-      await expect(card.getByRole('combobox', { name: `${side} unit`, exact: true })).toContainText('Choose a unit')
-      await expect(card.locator('.animate-pulse, .animate-spin')).toHaveCount(0)
-    }
-    await expect(initialAttacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeDisabled()
+    const serverBounds = await initialAttacker.boundingBox()
     await page.screenshot({ path: `test-results/simulator-first-frame-${width}.png`, fullPage: true })
-    const interactive = await browser.newPage({ viewport: { width, height: 1000 } })
-    await interactive.goto(`${baseURL}/simulator`)
     await retryUntilVisible(interactive.getByPlaceholder('Search units…'), () =>
       interactive.getByRole('combobox', { name: 'Attacker unit', exact: true }).click(),
     )
     await interactive.keyboard.press('Escape')
     expect(await interactive.getByRole('region', { name: 'Attacker', exact: true }).boundingBox()).toEqual(serverBounds)
-    await interactive.close()
-    await context.close()
-  })
-}
+  }
+  await interactive.close()
+  await context.close()
+})
 
-for (const width of [1440, 390]) {
-  test(`printed Feel No Pain applies, an extra one only improves it, and it swaps with the unit at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
-    await chooseCombatUnit(page, 'Defender', 'Necrons', 'Canoptek Reanimator')
-    const defender = page.getByRole('region', { name: 'Defender', exact: true })
-    const shooting = page.getByRole('region', { name: 'Shooting results' })
-    const printed = defender.locator('[data-characteristic="FNP"] .readout')
-    const extra = page.locator('button[aria-pressed="true"]', { hasText: /^FNP/ })
-    await expect(defender.locator('[data-characteristic] .readout')).toHaveText(['6', '3+', '6', '—', '4+'])
-    await expect(extra).toHaveCount(0)
-    await expect(
-      page
-        .getByRole('region', { name: 'Defender rules', exact: true })
-        .getByRole('button', { name: 'Defender Feel No Pain 4+ rules', exact: true }),
-    ).toBeVisible()
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    const damage = (await estimate(page, 'Shooting')).locator('.readout').first()
-    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0)
-    const baseline = Number(await damage.textContent())
-    await chip(page, 'FNP 6+').click()
-    await expect(printed).toHaveText('4+')
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    expect(Number(await damage.textContent())).toBe(baseline)
-    await chip(page, 'FNP 2+').click()
-    await expect(printed).toHaveText('2+')
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(baseline)
-    await page.getByRole('button', { name: 'Reset', exact: true }).click()
-    await expect(extra).toHaveCount(0)
-    await expect(printed).toHaveText('4+')
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
-    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
-    await openCombatControls(page)
-    await expect(page.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText(
-      '4+',
-    )
-    await expect(printed).toHaveText('—')
-    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
-    await openCombatControls(page)
-    await expect(printed).toHaveText('4+')
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
+test('printed Feel No Pain applies, an extra one only improves it, and it swaps with the unit', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
+  await chooseCombatUnit(page, 'Defender', 'Necrons', 'Canoptek Reanimator')
+  const defender = page.getByRole('region', { name: 'Defender', exact: true })
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  const printed = defender.locator('[data-characteristic="FNP"] .readout')
+  const extra = page.locator('button[aria-pressed="true"]', { hasText: /^FNP/ })
+  await expect(defender.locator('[data-characteristic] .readout')).toHaveText(['6', '3+', '6', '—', '4+'])
+  await expect(extra).toHaveCount(0)
+  await expect(
+    page
+      .getByRole('region', { name: 'Defender rules', exact: true })
+      .getByRole('button', { name: 'Defender Feel No Pain 4+ rules', exact: true }),
+  ).toBeVisible()
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  const damage = (await estimate(page, 'Shooting')).locator('.readout').first()
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0)
+  const baseline = Number(await damage.textContent())
+  await chip(page, 'FNP 6+').click()
+  await expect(printed).toHaveText('4+')
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  expect(Number(await damage.textContent())).toBe(baseline)
+  await chip(page, 'FNP 2+').click()
+  await expect(printed).toHaveText('2+')
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(baseline)
+  await page.getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(extra).toHaveCount(0)
+  await expect(printed).toHaveText('4+')
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  await openCombatControls(page)
+  await expect(page.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText('4+')
+  await expect(printed).toHaveText('—')
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  await openCombatControls(page)
+  await expect(printed).toHaveText('4+')
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.evaluate(() => window.scrollTo(0, 0))
     await defender.screenshot({ path: `test-results/simulator-reanimator-${width}.png` })
@@ -766,33 +806,33 @@ for (const width of [1440, 390]) {
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({ path: `test-results/simulator-fnp-${width}.png`, fullPage: true })
   })
-}
+})
 
-for (const width of [1440, 350]) {
-  test(`mixed defences allocate attacks in the chosen group order at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
-    await chooseCombatUnit(page, 'Defender', 'Orks', 'Boyz')
-    const defender = page.getByRole('region', { name: 'Defender', exact: true })
-    const shooting = page.getByRole('region', { name: 'Shooting results' })
-    const numbers = (await estimate(page, 'Shooting')).locator('[data-result-numbers] .readout')
-    await expect(defender.getByRole('row')).toHaveText([/Order/, /^1\. Boy ×9/, /^2\. Nob ×1/])
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(numbers).toHaveText([/^\d+\.\d{2}$/, /^\d+\.\d{2}$/, /^\d+\.\d%$/])
-    const [wounds, models] = await numbers.allTextContents()
-    expect(Number(models)).toBe(Number(wounds))
-    await closeCombatBreakdown(page)
-    await defender.getByRole('button', { name: 'Allocate to Nob earlier', exact: true }).click()
-    await expect(defender.getByRole('row')).toHaveText([/Order/, /^1\. Nob ×1/, /^2\. Boy ×9/])
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await openCombatBreakdown(page)
-    await expect.poll(async () => Number((await numbers.allTextContents())[1])).toBeLessThan(Number(models))
-    expect(Number((await numbers.allTextContents())[0])).toBeGreaterThan(Number(wounds))
+test('mixed defences allocate attacks in the chosen group order', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
+  await chooseCombatUnit(page, 'Defender', 'Orks', 'Boyz')
+  const defender = page.getByRole('region', { name: 'Defender', exact: true })
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  const numbers = (await estimate(page, 'Shooting')).locator('[data-result-numbers] .readout')
+  await expect(defender.getByRole('row')).toHaveText([/Order/, /^1\. Boy ×9/, /^2\. Nob ×1/])
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(numbers).toHaveText([/^\d+\.\d{2}$/, /^\d+\.\d{2}$/, /^\d+\.\d%$/])
+  const [wounds, models] = await numbers.allTextContents()
+  expect(Number(models)).toBe(Number(wounds))
+  await closeCombatBreakdown(page)
+  await defender.getByRole('button', { name: 'Allocate to Nob earlier', exact: true }).click()
+  await expect(defender.getByRole('row')).toHaveText([/Order/, /^1\. Nob ×1/, /^2\. Boy ×9/])
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await openCombatBreakdown(page)
+  await expect.poll(async () => Number((await numbers.allTextContents())[1])).toBeLessThan(Number(models))
+  expect(Number((await numbers.allTextContents())[0])).toBeGreaterThan(Number(wounds))
+  await atWidths(page, [1440, 350], async (width) => {
     await noOverflow(page)
     await defender.screenshot({ path: `test-results/simulator-mixed-defences-${width}.png` })
   })
-}
+})
 
 test('a failed worker can be retried without reselecting either unit', async ({ page }) => {
   await page.route('**/_serverFn/**', (route) => (isCombatCalculationRequest(route.request()) ? route.abort() : route.continue()))
@@ -819,56 +859,64 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
   await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
 })
 
-for (const width of [1440, 390]) {
-  test(`particle casters simulate with the Pistol keyword at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Canoptek Wraiths')
-    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-    await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
-    const loadout = page.getByRole('dialog')
-    await loadout.getByRole('button', { name: 'More Particle caster', exact: true }).click()
+test('particle casters simulate with the Pistol keyword', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Canoptek Wraiths')
+  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  const attackerLoadout = page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true })
+  await attackerLoadout.click()
+  const loadout = page.getByRole('dialog')
+  await loadout.getByRole('button', { name: 'More Particle caster', exact: true }).click()
+  await expect(loadout.getByLabel('Particle caster count', { exact: true })).toHaveText('1')
+  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+  await atWidths(page, [390], async () => {
+    await attackerLoadout.click()
     await expect(loadout.getByLabel('Particle caster count', { exact: true })).toHaveText('1')
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    const shooting = page.getByRole('region', { name: 'Shooting results' })
-    await expect(shooting).toContainText('Particle caster')
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting.getByRole('alert')).toHaveCount(0)
-    const damage = (await estimate(page, 'Shooting')).locator('.readout').first()
-    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0.4)
-    expect(Number(await damage.textContent())).toBeLessThan(0.45)
-    const baseline = Number(await damage.textContent())
+  })
+  const shooting = page.getByRole('region', { name: 'Shooting results' })
+  await expect(shooting).toContainText('Particle caster')
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(shooting.getByRole('alert')).toHaveCount(0)
+  const damage = (await estimate(page, 'Shooting')).locator('.readout').first()
+  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0.4)
+  expect(Number(await damage.textContent())).toBeLessThan(0.45)
+  const baseline = Number(await damage.textContent())
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-particle-caster-${width}.png`, fullPage: true })
-    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
-    await openCombatControls(page)
-    await expect(page.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-combat-member]').first()).toContainText(
-      'Intercessor Squad',
-    )
-    await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-combat-member]').first()).toContainText(
-      'Canoptek Wraiths',
-    )
-    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
-    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('3')
-    await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic] .readout')).toHaveText([
-      '6',
-      '3+',
-      '4',
-      '4+',
-      '—',
-    ])
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
-    await expect(shooting).not.toContainText('Particle caster')
+  })
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  await openCombatControls(page)
+  await expect(page.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-combat-member]').first()).toContainText(
+    'Intercessor Squad',
+  )
+  await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-combat-member]').first()).toContainText(
+    'Canoptek Wraiths',
+  )
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')
+  await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('3')
+  await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic] .readout')).toHaveText([
+    '6',
+    '3+',
+    '4',
+    '4+',
+    '—',
+  ])
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
+  await expect(shooting).not.toContainText('Particle caster')
+  await atWidths(page, [1440, 390], async (width) => {
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({ path: `test-results/simulator-wraith-defender-${width}.png`, fullPage: true })
-    await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
-    await openCombatControls(page)
-    await expect(shooting).toHaveAttribute('aria-busy', 'false')
-    await expect(shooting).toContainText('Particle caster')
-    await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
   })
-}
+  await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
+  await openCombatControls(page)
+  await expect(shooting).toHaveAttribute('aria-busy', 'false')
+  await expect(shooting).toContainText('Particle caster')
+  await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
+})
 
 test('the unit picker opens on every unit, grouped by faction, rendering only the visible rows', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 1000 })
@@ -1026,61 +1074,69 @@ test('a link that does not decode opens an empty simulator', async ({ page }) =>
   await expect(page.getByText('Choose a unit to see its buffs.')).toHaveCount(2)
 })
 
-for (const width of [1440, 390]) {
-  test(`combined shooting and melee against Lion El'Jonson at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
-    await chooseCombatUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
-    const combined = page.getByRole('region', { name: 'Combined estimate' })
-    await expect(combined).toHaveAttribute('aria-busy', 'false')
-    await expect(combined.locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
-    const percentage = async (region: Locator) => Number((await region.locator('[data-combat-wipe]').textContent())!.replace('%', ''))
-    expect(await percentage(combined)).toBeGreaterThan(
-      (await percentage(await estimate(page, 'Shooting'))) + (await percentage(await estimate(page, 'Melee'))),
-    )
-    await noOverflow(page)
-    await closeCombatBreakdown(page)
+test("combined shooting and melee against Lion El'Jonson", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
+  await chooseCombatUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
+  const combined = page.getByRole('region', { name: 'Combined estimate' })
+  await expect(combined).toHaveAttribute('aria-busy', 'false')
+  await expect(combined.locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
+  const percentage = async (region: Locator) => Number((await region.locator('[data-combat-wipe]').textContent())!.replace('%', ''))
+  expect(await percentage(combined)).toBeGreaterThan(
+    (await percentage(await estimate(page, 'Shooting'))) + (await percentage(await estimate(page, 'Melee'))),
+  )
+  await atWidths(page, [1440, 390], async () => noOverflow(page))
+  await closeCombatBreakdown(page)
+  await atWidths(page, [1440, 390], async (width) => {
     if (width === 390) {
       expect(await page.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
     }
-    await closeCombatBreakdown(page)
     await page.getByRole('region', { name: 'Defender buffs' }).evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await page.screenshot({ path: `test-results/simulator-combined-lion-${width}.png` })
+  })
+  const distribution = page.getByRole('dialog', { name: 'Combined · Wounds lost probabilities', exact: true })
+  await atWidths(page, [1440, 390], async () => {
     await openCombatBreakdown(page)
     await page
       .getByRole('region', { name: 'Combined distributions' })
       .getByRole('button', { name: /Wounds lost: .*Show probabilities/ })
       .click()
-    await expect(page.getByRole('dialog', { name: 'Combined · Wounds lost probabilities', exact: true })).toBeVisible()
+    await expect(distribution).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(distribution).toBeHidden()
   })
-}
+})
 
-for (const width of [1440, 390]) {
-  test(`the simulator leads with one outcome and reveals its controls at ${width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Simulator help', exact: true })).toBeHidden()
-    await expect(page.getByRole('button', { name: 'Load example', exact: true })).toBeHidden()
-    await page.screenshot({ path: testInfo.outputPath('simulator-empty.png') })
-    await chooseCatalogueUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
-    await chooseCatalogueUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
-    const summary = page.getByLabel('Results summary')
-    const combined = page.getByRole('region', { name: 'Combined estimate' })
-    await expect(combined).toContainText('8.1%')
-    await expect(combined).toContainText('6.83')
-    await expect(page.getByRole('region', { name: 'Shooting estimate' })).toBeHidden()
-    await expect(page.locator('[data-manual-modifiers]')).not.toHaveAttribute('open')
-    await page.locator('[data-manual-modifiers] > summary').click()
-    await expect(page.getByRole('tab', { name: 'All', exact: true })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByRole('region', { name: 'Applied modifiers' })).toBeVisible()
+test('the simulator leads with one outcome and reveals its controls', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Simulator help', exact: true })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Load example', exact: true })).toBeHidden()
+  await atWidths(page, [1440, 390], async (width) => {
+    await page.screenshot({ path: testInfo.outputPath(`simulator-empty-${width}.png`) })
+  })
+  await chooseCatalogueUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
+  await chooseCatalogueUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
+  const summary = page.getByLabel('Results summary')
+  const combined = page.getByRole('region', { name: 'Combined estimate' })
+  await expect(combined).toContainText('8.1%')
+  await expect(combined).toContainText('6.83')
+  await expect(page.getByRole('region', { name: 'Shooting estimate' })).toBeHidden()
+  await expect(page.locator('[data-manual-modifiers]')).not.toHaveAttribute('open')
+  await page.locator('[data-manual-modifiers] > summary').click()
+  await expect(page.getByRole('tab', { name: 'All', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('region', { name: 'Applied modifiers' })).toBeVisible()
+  await atWidths(page, [1440, 390], async () => {
     expect(await summary.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
-    await expect(page.locator('[data-results-space]')).toHaveCount(0)
-    const defender = page.getByRole('region', { name: 'Defender buffs', exact: true })
-    await expect(page.locator('[data-combat-buffs]')).toHaveCount(1)
-    await expect(page.locator('[data-combat-buffs]')).not.toHaveAttribute('open')
-    await page.locator('[data-combat-buffs] > summary').click()
+  })
+  await expect(page.locator('[data-results-space]')).toHaveCount(0)
+  const defender = page.getByRole('region', { name: 'Defender buffs', exact: true })
+  await expect(page.locator('[data-combat-buffs]')).toHaveCount(1)
+  await expect(page.locator('[data-combat-buffs]')).not.toHaveAttribute('open')
+  await page.locator('[data-combat-buffs] > summary').click()
+  await atWidths(page, [1440, 390], async () => {
     for (const selector of ['[data-combat-buffs]', '[data-manual-modifiers]']) {
       const section = page.locator(selector)
       const heading = section.locator(':scope > summary')
@@ -1097,41 +1153,47 @@ for (const width of [1440, 390]) {
       await heading.click()
       await expect(section).toHaveAttribute('open')
     }
-    await expect(defender.getByRole('switch', { name: "Defender The Emperor's Shield", exact: true })).toBeVisible()
-    const watchers = defender.getByRole('switch', { name: 'Defender The Watchers', exact: true })
-    await expect(watchers).toBeChecked()
-    await watchers.click()
-    await expect(watchers).toBeVisible()
-    await watchers.click()
-    await expect(watchers).toBeChecked()
-    await expect(defender.getByRole('switch', { name: 'Defender The Watchers', exact: true })).toHaveCount(1)
-    await watchers.click()
-    await openCombatBreakdown(page)
-    await expect(page.getByRole('region', { name: 'Shooting estimate' })).toContainText('alone')
-    await expect(summary).toContainText('what survives shooting')
+  })
+  await expect(defender.getByRole('switch', { name: "Defender The Emperor's Shield", exact: true })).toBeVisible()
+  const watchers = defender.getByRole('switch', { name: 'Defender The Watchers', exact: true })
+  await expect(watchers).toBeChecked()
+  await watchers.click()
+  await expect(watchers).toBeVisible()
+  await watchers.click()
+  await expect(watchers).toBeChecked()
+  await expect(defender.getByRole('switch', { name: 'Defender The Watchers', exact: true })).toHaveCount(1)
+  await watchers.click()
+  await openCombatBreakdown(page)
+  await expect(page.getByRole('region', { name: 'Shooting estimate' })).toContainText('alone')
+  await expect(summary).toContainText('what survives shooting')
+  await atWidths(page, [1440, 390], async () => {
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     expect(
       await page.getByRole('region', { name: 'Applied modifiers' }).evaluate((element) => element.getBoundingClientRect().bottom),
     ).toBeLessThanOrEqual(await summary.evaluate((element) => element.getBoundingClientRect().top))
-    await page
-      .getByRole('region', { name: 'Shooting estimate' })
-      .getByRole('button', { name: /Wounds lost: .*Show probabilities/ })
-      .click()
-    await expect(page.getByRole('dialog', { name: 'Shooting · Wounds lost probabilities', exact: true })).toBeVisible()
-    await page.keyboard.press('Escape')
-    await summary.locator('details > summary').click()
-    await expect(combined).toContainText('8.1%')
+  })
+  await page
+    .getByRole('region', { name: 'Shooting estimate' })
+    .getByRole('button', { name: /Wounds lost: .*Show probabilities/ })
+    .click()
+  await expect(page.getByRole('dialog', { name: 'Shooting · Wounds lost probabilities', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await summary.locator('details > summary').click()
+  await expect(combined).toContainText('8.1%')
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.locator('[data-combat-buffs] > summary').scrollIntoViewIfNeeded()
     await page.screenshot({ path: `test-results/simulator-hierarchy-${width}.png` })
-    await chip(await modifierTab(page, 'All'), '+1 Hit').click()
-    await page.locator('[data-manual-modifiers] > summary').click()
-    await expect(page.getByRole('region', { name: 'Applied modifiers' })).toContainText('+1 to hit (All)')
+  })
+  await chip(await modifierTab(page, 'All'), '+1 Hit').click()
+  await page.locator('[data-manual-modifiers] > summary').click()
+  await expect(page.getByRole('region', { name: 'Applied modifiers' })).toContainText('+1 to hit (All)')
+  const footer = page.locator('[data-web-app-footer]')
+  await atWidths(page, [1440, 390], async (width) => {
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     expect(
       await page.getByRole('region', { name: 'Applied modifiers' }).evaluate((element) => element.getBoundingClientRect().bottom),
     ).toBeLessThanOrEqual(await summary.evaluate((element) => element.getBoundingClientRect().top))
-    const footer = page.locator('[data-web-app-footer]')
     await expect
       .poll(async () =>
         page.evaluate(() => {
@@ -1145,7 +1207,7 @@ for (const width of [1440, 390]) {
     expect((await summary.boundingBox())!.y + (await summary.boundingBox())!.height).toBeLessThanOrEqual((await footer.boundingBox())!.y)
     await page.screenshot({ path: `test-results/simulator-bottom-${width}.png` })
   })
-}
+})
 
 test('folded rules keep saved selections through reload', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 1000 })
@@ -1185,252 +1247,273 @@ test('folded rules keep saved selections through reload', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Combined estimate' })).toContainText('8.1%')
 })
 
-for (const width of [1440, 390]) {
-  test(`Deathwing Knights optimize against Mortarion at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Dark Angels', 'Deathwing Knights')
-    await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Mortarion')
-    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
-    const headline = page.getByRole('region', { name: 'Combined estimate' })
-    await expect(headline.locator('.readout').nth(1)).toHaveText('5.55')
-    const response = page.waitForResponse((answer) => answer.url().endsWith('/api/simulator/optimize'))
-    await attacker.getByRole('button', { name: 'Optimize', exact: true }).click()
-    expect((await response).ok()).toBe(true)
-    await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeVisible()
-    await expect(attacker.getByRole('alert')).toHaveCount(0)
-    await expect(headline.locator('.readout').nth(1)).toHaveText('6.00')
-    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Relic Weapon')
-    await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
+test('Deathwing Knights optimize against Mortarion', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Dark Angels', 'Deathwing Knights')
+  await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Mortarion')
+  const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+  const headline = page.getByRole('region', { name: 'Combined estimate' })
+  await expect(headline.locator('.readout').nth(1)).toHaveText('5.55')
+  const response = page.waitForResponse((answer) => answer.url().endsWith('/api/simulator/optimize'))
+  await attacker.getByRole('button', { name: 'Optimize', exact: true }).click()
+  expect((await response).ok()).toBe(true)
+  await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeVisible()
+  await expect(attacker.getByRole('alert')).toHaveCount(0)
+  await expect(headline.locator('.readout').nth(1)).toHaveText('6.00')
+  await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Relic Weapon')
+  await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
+  await atWidths(page, [1440, 390], async (width) => {
     await page.screenshot({ path: `test-results/simulator-deathwing-optimized-${width}.png` })
   })
+})
 
-  test(`the headline retains results when weapon phases are empty at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCatalogueUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
-    await chooseCatalogueUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
-    const headline = page.getByRole('region', { name: 'Combined estimate' })
-    await expect(headline).toContainText('8.1%')
-    const togglePhase = async (phase: 'Shooting' | 'Melee') => {
-      for (const toggle of await page
-        .getByRole('region', { name: `${phase} results` })
-        .getByRole('switch')
-        .all())
-        await toggle.click()
-    }
-    const matchesPhase = async (phase: 'Shooting' | 'Melee') => {
-      await openCombatBreakdown(page)
-      const result = page.getByRole('region', { name: `${phase} estimate` })
-      await expect(headline.locator('[data-combat-wipe]')).toHaveText(await result.locator('[data-combat-wipe]').innerText())
-      await expect(headline.locator('.readout').nth(1)).toHaveText(await result.locator('.readout').first().innerText())
-      await expect(headline.locator('.readout').nth(2)).toHaveText(await result.locator('.readout').nth(1).innerText())
-      await closeCombatBreakdown(page)
-    }
-    await togglePhase('Shooting')
-    await expect(headline).toContainText('2.3%')
-    await matchesPhase('Melee')
+test('the headline retains results when weapon phases are empty', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCatalogueUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
+  await chooseCatalogueUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
+  const headline = page.getByRole('region', { name: 'Combined estimate' })
+  await expect(headline).toContainText('8.1%')
+  const togglePhase = async (phase: 'Shooting' | 'Melee') => {
+    for (const toggle of await page
+      .getByRole('region', { name: `${phase} results` })
+      .getByRole('switch')
+      .all())
+      await toggle.click()
+  }
+  const matchesPhase = async (phase: 'Shooting' | 'Melee') => {
+    await openCombatBreakdown(page)
+    const result = page.getByRole('region', { name: `${phase} estimate` })
+    await expect(headline.locator('[data-combat-wipe]')).toHaveText(await result.locator('[data-combat-wipe]').innerText())
+    await expect(headline.locator('.readout').nth(1)).toHaveText(await result.locator('.readout').first().innerText())
+    await expect(headline.locator('.readout').nth(2)).toHaveText(await result.locator('.readout').nth(1).innerText())
+    await closeCombatBreakdown(page)
+  }
+  await togglePhase('Shooting')
+  await expect(headline).toContainText('2.3%')
+  await matchesPhase('Melee')
+  await atWidths(page, [1440, 390], async (width) => {
     await page.getByRole('region', { name: 'Shooting results' }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: `test-results/simulator-melee-only-${width}.png` })
-    await togglePhase('Melee')
-    await expect(headline.locator('[data-combat-wipe]')).toHaveText('0.0%')
-    await expect(headline.locator('.readout').nth(1)).toHaveText('0.00')
-    await expect(headline.locator('.readout').nth(2)).toHaveText('0.00')
-    await togglePhase('Shooting')
-    await expect(headline).toContainText('0.3%')
-    await matchesPhase('Shooting')
-    await chooseCatalogueUnit(page, 'Attacker', 'Tyranids', 'Hormagaunts')
-    await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('No shooting weapons equipped')
-    await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    await matchesPhase('Melee')
-    await noOverflow(page)
   })
-}
+  await togglePhase('Melee')
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText('0.0%')
+  await expect(headline.locator('.readout').nth(1)).toHaveText('0.00')
+  await expect(headline.locator('.readout').nth(2)).toHaveText('0.00')
+  await togglePhase('Shooting')
+  await expect(headline).toContainText('0.3%')
+  await matchesPhase('Shooting')
+  await chooseCatalogueUnit(page, 'Attacker', 'Tyranids', 'Hormagaunts')
+  await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('No shooting weapons equipped')
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  await matchesPhase('Melee')
+  await atWidths(page, [1440, 390], async () => noOverflow(page))
+})
 
-for (const width of [1440, 390]) {
-  test(`attached leaders and support contribute weapons and survive sharing at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
-    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
-    const headline = page.getByRole('region', { name: 'Combined estimate' })
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    const initial = Number(await headline.locator('.readout').nth(1).textContent())
-    await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
-    await expect(attacker.getByRole('button', { name: 'Remove attacker Immortals', exact: true })).toBeDisabled()
-    await expect(attacker).not.toContainText('Attached units')
-    await expect(attacker.getByText('Replace unit', { exact: true })).toHaveCount(0)
-    await expect(attacker.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Immortals')
-    await expect(attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeEnabled()
+test('attached leaders and support contribute weapons and survive sharing', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+  const headline = page.getByRole('region', { name: 'Combined estimate' })
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  const initial = Number(await headline.locator('.readout').nth(1).textContent())
+  await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
+  await expect(attacker.getByRole('button', { name: 'Remove attacker Immortals', exact: true })).toBeDisabled()
+  await expect(attacker).not.toContainText('Attached units')
+  await expect(attacker.getByText('Replace unit', { exact: true })).toHaveCount(0)
+  await expect(attacker.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Immortals')
+  await expect(attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeEnabled()
+  const countPositions = new Map<number, number>()
+  await atWidths(page, [1440, 390], async (width) => {
     const countPosition = await attacker.getByLabel('Attacker models', { exact: true }).boundingBox()
     const loadoutPosition = await attacker.getByRole('button', { name: 'Loadout', exact: true }).boundingBox()
     expect(countPosition!.x).toBeLessThan(loadoutPosition!.x)
-    const oldWeapon = await page
-      .getByRole('region', { name: 'Shooting results' })
-      .getByRole('heading', { name: '5× Gauss blaster', exact: true })
-      .elementHandle()
-    const oldLoadout = await attacker.getByRole('button', { name: 'Loadout', exact: true }).elementHandle()
-    const beforeAttach = await headline.locator('.readout').nth(1).textContent()
-    const buffs = page.locator('[data-combat-buffs]')
-    await buffs.locator('summary').click()
-    let intercepted = false
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    await page.route('**/*', async (route) => {
-      if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) {
-        intercepted = true
-        await gate
-      }
-      await route.continue()
-    })
-    try {
-      await choose(page, 'Attacker add attached unit', 'Overlord')
-      await expect.poll(() => intercepted).toBe(true)
-      await expect(headline).toHaveAttribute('aria-busy', 'true')
-      await expect(headline.locator('.readout').nth(1)).toHaveText(beforeAttach!)
-      await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeVisible()
-      await expect(attacker).not.toContainText('Loading loadout…')
-      expect(await oldWeapon.evaluate((element) => element.isConnected)).toBe(true)
-      expect(await oldLoadout.evaluate((element) => element.isConnected)).toBe(true)
-      await page.screenshot({ path: `test-results/simulator-member-pending-${width}.png`, fullPage: true })
-    } finally {
-      release()
-      await page.unrouteAll({ behavior: 'wait' })
+    countPositions.set(width, countPosition!.x)
+  })
+  const oldWeapon = await page
+    .getByRole('region', { name: 'Shooting results' })
+    .getByRole('heading', { name: '5× Gauss blaster', exact: true })
+    .elementHandle()
+  const oldLoadout = await attacker.getByRole('button', { name: 'Loadout', exact: true }).elementHandle()
+  const beforeAttach = await headline.locator('.readout').nth(1).textContent()
+  const buffs = page.locator('[data-combat-buffs]')
+  await buffs.locator('summary').click()
+  let intercepted = false
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/*', async (route) => {
+    if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) {
+      intercepted = true
+      await gate
     }
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
+    await route.continue()
+  })
+  try {
+    await choose(page, 'Attacker add attached unit', 'Overlord')
+    await expect.poll(() => intercepted).toBe(true)
+    await expect(headline).toHaveAttribute('aria-busy', 'true')
+    await expect(headline.locator('.readout').nth(1)).toHaveText(beforeAttach!)
+    await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeVisible()
+    await expect(attacker).not.toContainText('Loading loadout…')
     expect(await oldWeapon.evaluate((element) => element.isConnected)).toBe(true)
     expect(await oldLoadout.evaluate((element) => element.isConnected)).toBe(true)
-    expect(await buffs.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(2)
-    await expect(attacker).toContainText('6 models')
-    expect((await attacker.getByLabel('Attacker models', { exact: true }).boundingBox())!.x).toBe(countPosition!.x)
-    await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toBeVisible()
-    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText("Overlord's blade")
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    await expect.poll(async () => Number(await headline.locator('.readout').nth(1).textContent())).toBeGreaterThan(initial)
-    await choose(page, 'Attacker add attached unit', 'Plasmancer')
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(3)
-    await expect(attacker).toContainText('7 models')
-    await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('Plasmic lance')
-    await expect(attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeDisabled()
-    await choose(page, 'Defender add attached unit', 'Captain')
-    const defender = page.getByRole('region', { name: 'Defender', exact: true })
-    await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeVisible()
-    await expect(defender).toContainText('Captain ×1')
-    await expect(defender.getByRole('button', { name: /Allocate to .*Captain.* earlier/ })).toHaveCount(0)
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    const beforeReload = await headline.locator('.readout').nth(1).textContent()
-    await page.reload()
-    await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toBeVisible()
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
-    await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeVisible()
-    await expect(headline.locator('.readout').nth(1)).toHaveText(beforeReload!)
-    await attacker.getByLabel('Attacker Overlord loadout', { exact: true }).click()
-    const leaderLoadout = page.getByRole('dialog', { name: 'Attacker · Overlord', exact: true })
-    await expect(leaderLoadout).toBeVisible()
-    await expect(leaderLoadout.getByLabel(/^Melee, unit: .*, best$/).first()).toBeVisible()
-    await expect(leaderLoadout.getByLabel(/^Melee, 1 model with this weapon: /).first()).toBeVisible()
-    const choiceOdds = await leaderLoadout
-      .locator('article')
-      .filter({ has: page.getByRole('button', { name: 'Select Voidscythe', exact: true }) })
-      .getByLabel(/^Melee, unit: /)
-      .getAttribute('aria-label')
-    const predicted = choiceOdds!.match(/([\d.]+) wounds lost on average/)![1]
-    await leaderLoadout.getByRole('button', { name: 'Select Voidscythe', exact: true }).click()
-    await expect(leaderLoadout.getByRole('button', { name: 'Select Voidscythe', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await atWidths(page, [1440, 390], async (width) => {
+      await page.screenshot({ path: `test-results/simulator-member-pending-${width}.png`, fullPage: true })
+    })
+  } finally {
+    release()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  expect(await oldWeapon.evaluate((element) => element.isConnected)).toBe(true)
+  expect(await oldLoadout.evaluate((element) => element.isConnected)).toBe(true)
+  expect(await buffs.evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(2)
+  await expect(attacker).toContainText('6 models')
+  await atWidths(page, [1440, 390], async (width) => {
+    expect((await attacker.getByLabel('Attacker models', { exact: true }).boundingBox())!.x).toBe(countPositions.get(width))
+  })
+  await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Melee results' })).toContainText("Overlord's blade")
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  await expect.poll(async () => Number(await headline.locator('.readout').nth(1).textContent())).toBeGreaterThan(initial)
+  await choose(page, 'Attacker add attached unit', 'Plasmancer')
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(3)
+  await expect(attacker).toContainText('7 models')
+  await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('Plasmic lance')
+  await expect(attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeDisabled()
+  await choose(page, 'Defender add attached unit', 'Captain')
+  const defender = page.getByRole('region', { name: 'Defender', exact: true })
+  await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeVisible()
+  await expect(defender).toContainText('Captain ×1')
+  await expect(defender.getByRole('button', { name: /Allocate to .*Captain.* earlier/ })).toHaveCount(0)
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  const beforeReload = await headline.locator('.readout').nth(1).textContent()
+  await page.reload()
+  await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toBeVisible()
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
+  await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeVisible()
+  await expect(headline.locator('.readout').nth(1)).toHaveText(beforeReload!)
+  await attacker.getByLabel('Attacker Overlord loadout', { exact: true }).click()
+  const leaderLoadout = page.getByRole('dialog', { name: 'Attacker · Overlord', exact: true })
+  await expect(leaderLoadout).toBeVisible()
+  await expect(leaderLoadout.getByLabel(/^Melee, unit: .*, best$/).first()).toBeVisible()
+  await expect(leaderLoadout.getByLabel(/^Melee, 1 model with this weapon: /).first()).toBeVisible()
+  const choiceOdds = await leaderLoadout
+    .locator('article')
+    .filter({ has: page.getByRole('button', { name: 'Select Voidscythe', exact: true }) })
+    .getByLabel(/^Melee, unit: /)
+    .getAttribute('aria-label')
+  const predicted = choiceOdds!.match(/([\d.]+) wounds lost on average/)![1]
+  await leaderLoadout.getByRole('button', { name: 'Select Voidscythe', exact: true }).click()
+  await expect(leaderLoadout.getByRole('button', { name: 'Select Voidscythe', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await leaderLoadout.screenshot({ path: `test-results/simulator-attached-loadout-${width}.png` })
+  })
+  await leaderLoadout.getByRole('button', { name: 'Close', exact: true }).click()
+  await atWidths(page, [390], async () => {
+    await attacker.getByLabel('Attacker Overlord loadout', { exact: true }).click()
+    await expect(leaderLoadout.getByRole('button', { name: 'Select Voidscythe', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await leaderLoadout.getByRole('button', { name: 'Close', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidscythe')
-    await expect((await estimate(page, 'Melee')).locator('.readout').first()).toHaveText(predicted)
-    await page.reload()
-    await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidscythe')
-    await expect(attacker).toContainText('7 models')
-    await page.getByRole('button', { name: 'Swap attacker and defender', exact: true }).click()
-    await expect(attacker.getByLabel('Attacker Captain loadout', { exact: true })).toBeVisible()
-    await expect(defender.getByLabel('Defender Overlord loadout', { exact: true })).toBeVisible()
-    await expect(defender.getByLabel('Defender Plasmancer loadout', { exact: true })).toBeVisible()
+  })
+  await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidscythe')
+  await expect((await estimate(page, 'Melee')).locator('.readout').first()).toHaveText(predicted)
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidscythe')
+  await expect(attacker).toContainText('7 models')
+  await page.getByRole('button', { name: 'Swap attacker and defender', exact: true }).click()
+  await expect(attacker.getByLabel('Attacker Captain loadout', { exact: true })).toBeVisible()
+  await expect(defender.getByLabel('Defender Overlord loadout', { exact: true })).toBeVisible()
+  await expect(defender.getByLabel('Defender Plasmancer loadout', { exact: true })).toBeVisible()
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-attached-${width}.png`, fullPage: true })
-    await page.getByRole('button', { name: 'Swap attacker and defender', exact: true }).click()
-    await attacker.getByRole('button', { name: 'Remove attacker Overlord', exact: true }).click()
-    await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
-    await expect(page.getByRole('region', { name: 'Melee results' })).not.toContainText('Voidscythe')
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
-    await attacker.getByRole('button', { name: 'Remove attacker Plasmancer', exact: true }).click()
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toHaveCount(0)
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
-    await expect(attacker).toContainText('5 models')
-    await page.reload()
-    await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toHaveCount(0)
-    await choose(page, 'Attacker add attached unit', 'Overlord')
-    await choose(page, 'Attacker add attached unit', 'Plasmancer')
-    await attacker.getByRole('combobox', { name: 'Attacker Overlord unit', exact: true }).click()
-    const replacement = page.getByRole('option').filter({ hasNotText: 'Overlord' }).first()
-    await expect(replacement).toBeVisible()
-    await replacement.click()
-    await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
+  })
+  await page.getByRole('button', { name: 'Swap attacker and defender', exact: true }).click()
+  await attacker.getByRole('button', { name: 'Remove attacker Overlord', exact: true }).click()
+  await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Melee results' })).not.toContainText('Voidscythe')
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
+  await attacker.getByRole('button', { name: 'Remove attacker Plasmancer', exact: true }).click()
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toHaveCount(0)
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
+  await expect(attacker).toContainText('5 models')
+  await page.reload()
+  await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toHaveCount(0)
+  await choose(page, 'Attacker add attached unit', 'Overlord')
+  await choose(page, 'Attacker add attached unit', 'Plasmancer')
+  await attacker.getByRole('combobox', { name: 'Attacker Overlord unit', exact: true }).click()
+  const replacement = page.getByRole('option').filter({ hasNotText: 'Overlord' }).first()
+  await expect(replacement).toBeVisible()
+  await replacement.click()
+  await expect(attacker.getByLabel('Attacker Overlord loadout', { exact: true })).toHaveCount(0)
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(3)
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  const replacementName = await attacker.locator('[data-combat-member]').nth(1).getAttribute('data-combat-member')
+  await page.reload()
+  await expect(attacker.locator('[data-combat-member]').nth(1)).toHaveAttribute('data-combat-member', replacementName!)
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  const beforeReplacement = await headline.locator('.readout').nth(1).textContent()
+  const rootPicker = await attacker.getByRole('combobox', { name: 'Attacker unit', exact: true }).elementHandle()
+  const rootLoadout = await attacker.getByRole('button', { name: 'Loadout', exact: true }).elementHandle()
+  let finishReplacement = () => {}
+  const replacementGate = new Promise<void>((resolve) => {
+    finishReplacement = resolve
+  })
+  await page.route('**/*', async (route) => {
+    if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) await replacementGate
+    await route.continue()
+  })
+  try {
+    await chooseCatalogueUnit(page, 'Attacker', 'Necrons', 'Necron Warriors')
+    await expect(headline).toHaveAttribute('aria-busy', 'true')
+    await expect(headline.locator('.readout').nth(1)).toHaveText(beforeReplacement!)
+    await expect(attacker.getByRole('combobox', { name: 'Attacker unit', exact: true })).toHaveAttribute('aria-busy', 'true')
+    await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeDisabled()
+    expect(await rootPicker.evaluate((element) => element.isConnected)).toBe(true)
+    expect(await rootLoadout.evaluate((element) => element.isConnected)).toBe(true)
     await expect(attacker.locator('[data-combat-member]')).toHaveCount(3)
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    const replacementName = await attacker.locator('[data-combat-member]').nth(1).getAttribute('data-combat-member')
-    await page.reload()
-    await expect(attacker.locator('[data-combat-member]').nth(1)).toHaveAttribute('data-combat-member', replacementName!)
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    const beforeReplacement = await headline.locator('.readout').nth(1).textContent()
-    const rootPicker = await attacker.getByRole('combobox', { name: 'Attacker unit', exact: true }).elementHandle()
-    const rootLoadout = await attacker.getByRole('button', { name: 'Loadout', exact: true }).elementHandle()
-    let finishReplacement = () => {}
-    const replacementGate = new Promise<void>((resolve) => {
-      finishReplacement = resolve
-    })
-    await page.route('**/*', async (route) => {
-      if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) await replacementGate
-      await route.continue()
-    })
-    try {
-      await chooseCatalogueUnit(page, 'Attacker', 'Necrons', 'Necron Warriors')
-      await expect(headline).toHaveAttribute('aria-busy', 'true')
-      await expect(headline.locator('.readout').nth(1)).toHaveText(beforeReplacement!)
-      await expect(attacker.getByRole('combobox', { name: 'Attacker unit', exact: true })).toHaveAttribute('aria-busy', 'true')
-      await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeDisabled()
-      expect(await rootPicker.evaluate((element) => element.isConnected)).toBe(true)
-      expect(await rootLoadout.evaluate((element) => element.isConnected)).toBe(true)
-      await expect(attacker.locator('[data-combat-member]')).toHaveCount(3)
+    await atWidths(page, [1440, 390], async (width) => {
       await page.screenshot({ path: `test-results/simulator-member-replacing-${width}.png`, fullPage: true })
-    } finally {
-      finishReplacement()
-      await page.unrouteAll({ behavior: 'wait' })
-    }
-    await expect(attacker.locator('[data-combat-member]').first()).toHaveAttribute('data-combat-member', 'Necron Warriors')
-    await expect(attacker.locator('[data-combat-member]').nth(1)).toHaveAttribute('data-combat-member', replacementName!)
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
-    await expect(attacker.getByRole('alert')).toHaveCount(0)
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
+    })
+  } finally {
+    finishReplacement()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+  await expect(attacker.locator('[data-combat-member]').first()).toHaveAttribute('data-combat-member', 'Necron Warriors')
+  await expect(attacker.locator('[data-combat-member]').nth(1)).toHaveAttribute('data-combat-member', replacementName!)
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
+  await expect(attacker.getByRole('alert')).toHaveCount(0)
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-member-pickers-${width}.png`, fullPage: true })
-    await attacker.getByRole('button', { name: 'Remove attacker Necron Warriors', exact: true }).click()
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(2)
-    await expect(attacker.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText(replacementName!)
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeEnabled()
-    await page.reload()
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(2)
-    await attacker.getByRole('button', { name: 'Remove attacker Plasmancer', exact: true }).click()
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
-    await expect(attacker.getByRole('button', { name: `Remove attacker ${replacementName}`, exact: true })).toBeDisabled()
-    await page.reload()
-    await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
-    await expect(attacker.getByRole('button', { name: `Remove attacker ${replacementName}`, exact: true })).toBeDisabled()
-    await noOverflow(page)
   })
-}
+  await attacker.getByRole('button', { name: 'Remove attacker Necron Warriors', exact: true }).click()
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(2)
+  await expect(attacker.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText(replacementName!)
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeEnabled()
+  await page.reload()
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(2)
+  await attacker.getByRole('button', { name: 'Remove attacker Plasmancer', exact: true }).click()
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
+  await expect(attacker.getByRole('button', { name: `Remove attacker ${replacementName}`, exact: true })).toBeDisabled()
+  await page.reload()
+  await expect(attacker.locator('[data-combat-member]')).toHaveCount(1)
+  await expect(attacker.getByRole('button', { name: `Remove attacker ${replacementName}`, exact: true })).toBeDisabled()
+  await atWidths(page, [1440, 390], async () => noOverflow(page))
+})
 
 test('shared defences retain phase estimates when their source can die before another character', async ({ page }) => {
   await page.goto('/simulator')
@@ -1447,222 +1530,259 @@ test('shared defences retain phase estimates when their source can die before an
   }
 })
 
-for (const width of [1440, 390]) {
-  test(`Immortals and Overlord calculate combined attacks against Deathshroud and Typhus at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
-    await choose(page, 'Attacker add attached unit', 'Overlord')
-    await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Deathshroud Terminators')
-    await choose(page, 'Defender add attached unit', 'Typhus')
-    await expect(
-      page.getByRole('region', { name: 'Defender', exact: true }).getByRole('row').filter({ hasText: 'Typhus' }).getByRole('cell').last(),
-    ).toHaveText('4+')
-    const headline = page.getByRole('region', { name: 'Combined estimate' })
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+(?:\.\d+)?%$/)
-    await expect(page.getByRole('alert')).toHaveCount(0)
-    const optimize = page.getByRole('button', { name: 'Optimize', exact: true })
-    await expect(optimize).toBeEnabled()
-    await optimize.click()
-    await expect(optimize).toBeVisible({ timeout: 120_000 })
-    await expect(page.getByRole('alert')).toHaveCount(0)
-    await page.reload()
-    await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+(?:\.\d+)?%$/)
+test('Immortals and Overlord calculate combined attacks against Deathshroud and Typhus', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+  await choose(page, 'Attacker add attached unit', 'Overlord')
+  await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Deathshroud Terminators')
+  await choose(page, 'Defender add attached unit', 'Typhus')
+  await expect(
+    page.getByRole('region', { name: 'Defender', exact: true }).getByRole('row').filter({ hasText: 'Typhus' }).getByRole('cell').last(),
+  ).toHaveText('4+')
+  const headline = page.getByRole('region', { name: 'Combined estimate' })
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+(?:\.\d+)?%$/)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  const optimize = page.getByRole('button', { name: 'Optimize', exact: true })
+  await expect(optimize).toBeEnabled()
+  await optimize.click()
+  await expect(optimize).toBeVisible({ timeout: 120_000 })
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.reload()
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+(?:\.\d+)?%$/)
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-deathshroud-typhus-${width}.png`, fullPage: true })
   })
-}
+})
 
-for (const width of [1440, 390]) {
-  test(`Optimize changes attached character equipment and preserves the whole unit at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
-    await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Mortarion')
-    await choose(page, 'Attacker add attached unit', 'Overlord')
-    await choose(page, 'Attacker add attached unit', 'Plasmancer')
-    await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('Plasmic lance')
-    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
-    const headline = page.getByRole('region', { name: 'Combined estimate' })
+test('Optimize changes attached character equipment and preserves the whole unit', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+  await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Mortarion')
+  await choose(page, 'Attacker add attached unit', 'Overlord')
+  await choose(page, 'Attacker add attached unit', 'Plasmancer')
+  await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('Plasmic lance')
+  const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+  const headline = page.getByRole('region', { name: 'Combined estimate' })
+  await attacker.getByLabel('Attacker Overlord loadout', { exact: true }).click()
+  const loadout = page.getByRole('dialog', { name: 'Attacker · Overlord', exact: true })
+  await loadout.getByRole('button', { name: 'Select Staff of light', exact: true }).click()
+  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+  await atWidths(page, [390], async () => {
     await attacker.getByLabel('Attacker Overlord loadout', { exact: true }).click()
-    const loadout = page.getByRole('dialog', { name: 'Attacker · Overlord', exact: true })
-    await loadout.getByRole('button', { name: 'Select Staff of light', exact: true }).click()
+    await expect(loadout.getByRole('button', { name: 'Select Staff of light', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    const melee = page.getByRole('region', { name: 'Melee results' })
-    await expect(melee).toContainText('Staff of light')
-    await expect(headline).toHaveAttribute('aria-busy', 'false')
-    const original = Number(await headline.locator('.readout').nth(1).textContent())
-    const optimize = attacker.getByRole('button', { name: 'Optimize', exact: true })
-    await expect(optimize).toHaveText('')
-    await optimize.hover()
-    await expect(page.getByRole('tooltip')).toContainText('Optimize the whole unit’s loadout')
-    const idleBounds = await optimize.boundingBox()
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    await page.route('**/api/simulator/optimize', async (route) => {
-      await gate
-      await route.continue()
-    })
-    try {
-      await optimize.click()
-      const progress = attacker.getByRole('button', { name: /^Cancel optimization/ })
-      await expect(progress).toHaveText('0%')
-      expect(await progress.boundingBox()).toEqual(idleBounds)
+  })
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  await expect(melee).toContainText('Staff of light')
+  await expect(headline).toHaveAttribute('aria-busy', 'false')
+  const original = Number(await headline.locator('.readout').nth(1).textContent())
+  const optimize = attacker.getByRole('button', { name: 'Optimize', exact: true })
+  await expect(optimize).toHaveText('')
+  await optimize.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Optimize the whole unit’s loadout')
+  // Bounds are compared at the top of the page because resizing moves the scroll position.
+  const idleBounds = new Map<number, Awaited<ReturnType<Locator['boundingBox']>>>()
+  await atWidths(page, [1440, 390], async (width) => {
+    await page.evaluate(() => window.scrollTo(0, 0))
+    idleBounds.set(width, await optimize.boundingBox())
+  })
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/api/simulator/optimize', async (route) => {
+    await gate
+    await route.continue()
+  })
+  try {
+    await optimize.click()
+    const progress = attacker.getByRole('button', { name: /^Cancel optimization/ })
+    await expect(progress).toHaveText('0%')
+    await atWidths(page, [1440, 390], async (width) => {
+      await page.evaluate(() => window.scrollTo(0, 0))
+      expect(await progress.boundingBox()).toEqual(idleBounds.get(width))
       await attacker.screenshot({ path: `test-results/simulator-optimize-progress-${width}.png` })
-    } finally {
-      release()
-      await page.unrouteAll({ behavior: 'wait' })
-    }
-    await expect(optimize).toBeVisible({ timeout: 120_000 })
-    expect(await optimize.boundingBox()).toEqual(idleBounds)
-    await expect(attacker.getByRole('alert')).toHaveCount(0)
-    await expect(melee).not.toContainText('Staff of light')
-    await expect.poll(async () => Number(await headline.locator('.readout').nth(1).textContent())).toBeGreaterThan(original)
-    await expect(attacker).toContainText('7 models')
-    await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
-    const optimized = await headline.locator('.readout').nth(1).textContent()
-    await page.reload()
-    await expect(melee).not.toContainText('Staff of light')
-    await expect(headline.locator('.readout').nth(1)).toHaveText(optimized!)
-    await expect(attacker).toContainText('7 models')
+    })
+  } finally {
+    release()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+  await expect(optimize).toBeVisible({ timeout: 120_000 })
+  await atWidths(page, [1440, 390], async (width) => {
+    await page.evaluate(() => window.scrollTo(0, 0))
+    expect(await optimize.boundingBox()).toEqual(idleBounds.get(width))
+  })
+  await expect(attacker.getByRole('alert')).toHaveCount(0)
+  await expect(melee).not.toContainText('Staff of light')
+  await expect.poll(async () => Number(await headline.locator('.readout').nth(1).textContent())).toBeGreaterThan(original)
+  await expect(attacker).toContainText('7 models')
+  await expect(attacker.getByLabel('Attacker Plasmancer loadout', { exact: true })).toBeVisible()
+  const optimized = await headline.locator('.readout').nth(1).textContent()
+  await page.reload()
+  await expect(melee).not.toContainText('Staff of light')
+  await expect(headline.locator('.readout').nth(1)).toHaveText(optimized!)
+  await expect(attacker).toContainText('7 models')
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-attached-optimized-${width}.png`, fullPage: true })
   })
-}
+})
 
-for (const width of [1440, 390]) {
-  test(`initial unit loading reserves every member control at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
-    for (const side of ['Attacker', 'Defender']) {
-      const card = page.getByRole('region', { name: side, exact: true })
-      await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveText('—')
-      await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveAttribute('aria-busy', 'false')
-      await expect(card.locator('.animate-pulse, .animate-spin')).toHaveCount(0)
-    }
-    const controls = [
-      attacker.getByRole('combobox', { name: 'Attacker unit', exact: true }),
-      attacker.getByLabel('Attacker models', { exact: true }),
-      attacker.getByRole('button', { name: 'Fewer attacker models', exact: true }),
-      attacker.getByRole('button', { name: 'More attacker models', exact: true }),
-      attacker.getByRole('button', { name: 'Loadout', exact: true }),
-      attacker.getByRole('button', { name: /^Remove attacker / }),
-      attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true }),
-      attacker.getByRole('button', { name: 'Optimize', exact: true }),
-    ]
-    const before = await Promise.all(controls.map((control) => control.boundingBox()))
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    await page.route('**/*', async (route) => {
-      if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) await gate
-      await route.continue()
-    })
-    try {
-      await chooseCatalogueUnit(page, 'Attacker', 'Necrons', 'Immortals')
-      await expect(attacker.getByLabel('Attacker models', { exact: true })).toHaveAttribute('aria-busy', 'true')
-      await expect(attacker.locator('.animate-pulse').first()).toBeVisible()
-      await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('.animate-pulse, .animate-spin')).toHaveCount(0)
-      await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeDisabled()
-      await expect(attacker).not.toContainText('Loading loadout…')
-      expect(await Promise.all(controls.map((control) => control.boundingBox()))).toEqual(before)
+test('initial unit loading reserves every member control', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+  for (const side of ['Attacker', 'Defender']) {
+    const card = page.getByRole('region', { name: side, exact: true })
+    await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveText('—')
+    await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveAttribute('aria-busy', 'false')
+    await expect(card.locator('.animate-pulse, .animate-spin')).toHaveCount(0)
+  }
+  const controls = [
+    attacker.getByRole('combobox', { name: 'Attacker unit', exact: true }),
+    attacker.getByLabel('Attacker models', { exact: true }),
+    attacker.getByRole('button', { name: 'Fewer attacker models', exact: true }),
+    attacker.getByRole('button', { name: 'More attacker models', exact: true }),
+    attacker.getByRole('button', { name: 'Loadout', exact: true }),
+    attacker.getByRole('button', { name: /^Remove attacker / }),
+    attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true }),
+    attacker.getByRole('button', { name: 'Optimize', exact: true }),
+  ]
+  // Bounds are compared at the top of the page because resizing moves the scroll position.
+  const bounds = async () => {
+    await page.evaluate(() => window.scrollTo(0, 0))
+    return Promise.all(controls.map((control) => control.boundingBox()))
+  }
+  const before = new Map<number, Awaited<ReturnType<typeof bounds>>>()
+  await atWidths(page, [1440, 390], async (width) => {
+    before.set(width, await bounds())
+  })
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  await page.route('**/*', async (route) => {
+    if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) await gate
+    await route.continue()
+  })
+  try {
+    await chooseCatalogueUnit(page, 'Attacker', 'Necrons', 'Immortals')
+    await expect(attacker.getByLabel('Attacker models', { exact: true })).toHaveAttribute('aria-busy', 'true')
+    await expect(attacker.locator('.animate-pulse').first()).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('.animate-pulse, .animate-spin')).toHaveCount(0)
+    await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeDisabled()
+    await expect(attacker).not.toContainText('Loading loadout…')
+    await atWidths(page, [1440, 390], async (width) => {
+      expect(await bounds()).toEqual(before.get(width))
       await noOverflow(page)
       await attacker.screenshot({ path: `test-results/simulator-member-placeholders-${width}.png` })
-    } finally {
-      release()
-      await page.unrouteAll({ behavior: 'wait' })
-    }
-    await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeEnabled()
-    await expect(attacker.getByLabel('Attacker models', { exact: true })).toHaveText('5')
-    await expect(attacker.locator('.animate-pulse, .animate-spin')).toHaveCount(0)
-    expect(await Promise.all(controls.map((control) => control.boundingBox()))).toEqual(before)
+    })
+  } finally {
+    release()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+  await expect(attacker.getByRole('button', { name: 'Loadout', exact: true })).toBeEnabled()
+  await expect(attacker.getByLabel('Attacker models', { exact: true })).toHaveText('5')
+  await expect(attacker.locator('.animate-pulse, .animate-spin')).toHaveCount(0)
+  await atWidths(page, [1440, 390], async (width) => {
+    expect(await bounds()).toEqual(before.get(width))
     await noOverflow(page)
   })
+})
 
-  test(`imported leaders retain their faction mark and compact loadout control at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Dark Angels', 'Deathwing Knights')
-    const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
-    await attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true }).click()
-    await page
-      .getByRole('option', { name: /Captain/ })
-      .first()
-      .click()
-    const captain = attacker.locator('[data-combat-member]').nth(1)
-    await expect(captain.locator('[data-faction-mark="marine-points-1013~e0af-67df-9d63-8fb7"]')).toBeVisible()
-    await expect(
-      attacker
-        .getByRole('combobox', { name: 'Attacker unit', exact: true })
-        .locator('[data-faction-mark="marine-points-1013~470a-6daa-9014-12df"]'),
-    ).toBeVisible()
-    const loadout = captain.getByRole('button', { name: /loadout$/ })
-    await expect(loadout).toHaveText('')
-    await expect(loadout).toHaveAttribute('title', 'Loadout')
+test('imported leaders retain their faction mark and compact loadout control', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Dark Angels', 'Deathwing Knights')
+  const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
+  await attacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true }).click()
+  await page
+    .getByRole('option', { name: /Captain/ })
+    .first()
+    .click()
+  const captain = attacker.locator('[data-combat-member]').nth(1)
+  await expect(captain.locator('[data-faction-mark="marine-points-1013~e0af-67df-9d63-8fb7"]')).toBeVisible()
+  await expect(
+    attacker
+      .getByRole('combobox', { name: 'Attacker unit', exact: true })
+      .locator('[data-faction-mark="marine-points-1013~470a-6daa-9014-12df"]'),
+  ).toBeVisible()
+  const loadout = captain.getByRole('button', { name: /loadout$/ })
+  await expect(loadout).toHaveText('')
+  await expect(loadout).toHaveAttribute('title', 'Loadout')
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await attacker.screenshot({ path: `test-results/simulator-member-factions-${width}.png` })
+  })
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
     await loadout.click()
     await expect(page.getByRole('dialog').getByText('Invulnerable save', { exact: false }).first()).toBeVisible()
     await noOverflow(page)
-  })
-
-  test(`defender can add a squad to a standalone Captain at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
-    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Captain')
-    const defender = page.getByRole('region', { name: 'Defender', exact: true })
-    await defender.getByRole('button', { name: 'Loadout', exact: true }).click()
-    const loadout = page.getByRole('dialog')
-    await loadout.getByRole('button', { name: 'Select Master-crafted power weapon', exact: true }).click()
-    await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-    await choose(page, 'Defender add attached unit', 'Intercessor Squad')
-    await expect(defender.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Intercessor Squad')
-    await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeEnabled()
-    await expect(defender).toContainText('6 models')
-    await defender.getByLabel('Defender Captain loadout', { exact: true }).click()
-    await expect(page.getByRole('dialog').getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
-    await page.reload()
-    await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeEnabled()
-    await expect(defender).toContainText('6 models')
-    await expect(defender.getByRole('alert')).toHaveCount(0)
+  }
+})
+
+test('defender can add a squad to a standalone Captain', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Captain')
+  const defender = page.getByRole('region', { name: 'Defender', exact: true })
+  await defender.getByRole('button', { name: 'Loadout', exact: true }).click()
+  const loadout = page.getByRole('dialog')
+  await loadout.getByRole('button', { name: 'Select Master-crafted power weapon', exact: true }).click()
+  await loadout.getByRole('button', { name: 'Close', exact: true }).click()
+  await choose(page, 'Defender add attached unit', 'Intercessor Squad')
+  await expect(defender.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Intercessor Squad')
+  await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeEnabled()
+  await expect(defender).toContainText('6 models')
+  await defender.getByLabel('Defender Captain loadout', { exact: true }).click()
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
+  await page.reload()
+  await expect(defender.getByLabel('Defender Captain loadout', { exact: true })).toBeEnabled()
+  await expect(defender).toContainText('6 models')
+  await expect(defender.getByRole('alert')).toHaveCount(0)
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await defender.screenshot({ path: `test-results/simulator-captain-squad-${width}.png` })
-    await defender.getByRole('button', { name: 'Remove defender Intercessor Squad', exact: true }).click()
-    await expect(defender.locator('[data-combat-member]')).toHaveCount(1)
-    await expect(defender.getByRole('button', { name: 'Remove defender Captain', exact: true })).toBeDisabled()
-    await expect(defender.getByRole('button', { name: 'Loadout', exact: true })).toBeEnabled()
-    await page.reload()
+  })
+  await defender.getByRole('button', { name: 'Remove defender Intercessor Squad', exact: true }).click()
+  await expect(defender.locator('[data-combat-member]')).toHaveCount(1)
+  await expect(defender.getByRole('button', { name: 'Remove defender Captain', exact: true })).toBeDisabled()
+  await expect(defender.getByRole('button', { name: 'Loadout', exact: true })).toBeEnabled()
+  await page.reload()
+  await atWidths(page, [1440, 390], async () => {
     await defender.getByRole('button', { name: 'Loadout', exact: true }).click()
     await expect(page.getByRole('dialog').getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
-    await choose(page, 'Defender add attached unit', 'Intercessor Squad')
-    await defender.getByRole('button', { name: 'Remove defender Captain', exact: true }).click()
-    await expect(defender.locator('[data-combat-member]')).toHaveCount(1)
-    await expect(defender.getByRole('button', { name: 'Remove defender Intercessor Squad', exact: true })).toBeDisabled()
-    await page.reload()
-    await expect(defender.locator('[data-combat-member]')).toHaveCount(1)
-    await expect(defender.getByRole('button', { name: 'Remove defender Intercessor Squad', exact: true })).toBeDisabled()
-    await noOverflow(page)
   })
-}
+  await choose(page, 'Defender add attached unit', 'Intercessor Squad')
+  await defender.getByRole('button', { name: 'Remove defender Captain', exact: true }).click()
+  await expect(defender.locator('[data-combat-member]')).toHaveCount(1)
+  await expect(defender.getByRole('button', { name: 'Remove defender Intercessor Squad', exact: true })).toBeDisabled()
+  await page.reload()
+  await expect(defender.locator('[data-combat-member]')).toHaveCount(1)
+  await expect(defender.getByRole('button', { name: 'Remove defender Intercessor Squad', exact: true })).toBeDisabled()
+  await atWidths(page, [1440, 390], async () => noOverflow(page))
+})
 
-for (const width of [320, 690, 1024]) {
-  test(`unit controls remain beside truncated pickers at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
+test('unit controls remain beside truncated pickers', async ({ page }) => {
+  const widths = [1024, 320, 690]
+  await page.setViewportSize({ width: 1024, height: 1000 })
+  await page.goto('/simulator')
+  await atWidths(page, widths, async () => {
     for (const side of ['Attacker', 'Defender']) {
       const picker = page.getByRole('combobox', { name: `${side} unit`, exact: true })
       const models = page.getByRole('button', { name: `Fewer ${side.toLowerCase()} models`, exact: true })
@@ -1670,12 +1790,14 @@ for (const width of [320, 690, 1024]) {
       const modelBounds = await models.boundingBox()
       expect(Math.abs(pickerBounds!.y + pickerBounds!.height / 2 - modelBounds!.y - modelBounds!.height / 2)).toBeLessThan(2)
     }
-    await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
-    await choose(page, 'Attacker add attached unit', 'Overlord')
-    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-    await choose(page, 'Defender add attached unit', 'Captain')
-    await expect(page.getByRole('region', { name: 'Combined estimate', exact: true })).toHaveAttribute('aria-busy', 'false')
-    await expect(page.getByRole('region', { name: 'Combined estimate', exact: true }).locator('[data-result-numbers]')).toContainText('%')
+  })
+  await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
+  await choose(page, 'Attacker add attached unit', 'Overlord')
+  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  await choose(page, 'Defender add attached unit', 'Captain')
+  await expect(page.getByRole('region', { name: 'Combined estimate', exact: true })).toHaveAttribute('aria-busy', 'false')
+  await expect(page.getByRole('region', { name: 'Combined estimate', exact: true }).locator('[data-result-numbers]')).toContainText('%')
+  await atWidths(page, widths, async (width) => {
     for (const side of ['Attacker', 'Defender']) {
       const card = page.getByRole('region', { name: side, exact: true })
       const actions = card.getByLabel(`${side} unit actions`, { exact: true })
@@ -1713,44 +1835,45 @@ for (const width of [320, 690, 1024]) {
     await openCombatBreakdown(page)
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-breakdown-${width}.png` })
+    await closeCombatBreakdown(page)
   })
-}
+})
 
-for (const width of [1440, 390]) {
-  test(`optimized weapon profiles follow the unit through swaps and reload at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await page.goto('/simulator')
-    await chooseCombatUnit(page, 'Attacker', 'Chaos Daemons', "Be'lakor")
-    await chooseCombatUnit(page, 'Defender', 'Necrons', 'Necron Warriors')
-    for (let models = 11; models <= 20; models++) {
-      await page.getByRole('button', { name: 'More defender models', exact: true }).click()
-      await expect(page.getByLabel('Defender models', { exact: true })).toHaveText(String(models))
-    }
-    const optimize = page.getByRole('button', { name: 'Optimize', exact: true })
-    await optimize.click()
-    await expect(optimize).toBeVisible({ timeout: 120_000 })
-    const melee = page.getByRole('region', { name: 'Melee results' })
-    await expect(melee).toContainText(/The Blade of Shadows.*sweep/i)
-    const weapons = page.locator('[data-weapon-card] h3')
-    const profiles = await weapons.allTextContents()
-    const summary = page.getByRole('region', { name: 'Combined estimate' })
-    await expect(summary).toHaveAttribute('aria-busy', 'false')
-    const outcome = await summary.locator('.readout').allTextContents()
-    const swap = page.getByRole('button', { name: 'Swap attacker and defender', exact: true })
-    await swap.click()
-    await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText("Be'lakor")
-    await swap.click()
-    await expect(weapons).toHaveText(profiles)
-    await expect(summary.locator('.readout')).toHaveText(outcome)
-    await swap.click()
-    await page.reload()
-    await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText("Be'lakor")
-    await expect(swap).toBeEnabled()
-    await swap.click()
-    await expect(melee).toContainText(/The Blade of Shadows.*sweep/i)
-    await expect(weapons).toHaveText(profiles)
-    await expect(summary.locator('.readout')).toHaveText(outcome)
+test('optimized weapon profiles follow the unit through swaps and reload', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/simulator')
+  await chooseCombatUnit(page, 'Attacker', 'Chaos Daemons', "Be'lakor")
+  await chooseCombatUnit(page, 'Defender', 'Necrons', 'Necron Warriors')
+  for (let models = 11; models <= 20; models++) {
+    await page.getByRole('button', { name: 'More defender models', exact: true }).click()
+    await expect(page.getByLabel('Defender models', { exact: true })).toHaveText(String(models))
+  }
+  const optimize = page.getByRole('button', { name: 'Optimize', exact: true })
+  await optimize.click()
+  await expect(optimize).toBeVisible({ timeout: 120_000 })
+  const melee = page.getByRole('region', { name: 'Melee results' })
+  await expect(melee).toContainText(/The Blade of Shadows.*sweep/i)
+  const weapons = page.locator('[data-weapon-card] h3')
+  const profiles = await weapons.allTextContents()
+  const summary = page.getByRole('region', { name: 'Combined estimate' })
+  await expect(summary).toHaveAttribute('aria-busy', 'false')
+  const outcome = await summary.locator('.readout').allTextContents()
+  const swap = page.getByRole('button', { name: 'Swap attacker and defender', exact: true })
+  await swap.click()
+  await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText("Be'lakor")
+  await swap.click()
+  await expect(weapons).toHaveText(profiles)
+  await expect(summary.locator('.readout')).toHaveText(outcome)
+  await swap.click()
+  await page.reload()
+  await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText("Be'lakor")
+  await expect(swap).toBeEnabled()
+  await swap.click()
+  await expect(melee).toContainText(/The Blade of Shadows.*sweep/i)
+  await expect(weapons).toHaveText(profiles)
+  await expect(summary.locator('.readout')).toHaveText(outcome)
+  await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: `test-results/simulator-optimized-swap-${width}.png`, fullPage: true })
   })
-}
+})

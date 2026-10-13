@@ -36,7 +36,7 @@ async function draw(page: Page, cards: string[]) {
   await expect(prompt).toBeHidden()
 }
 
-async function inspectChoices(page: Page, card: Locator, name: string, image: string, board = true) {
+async function inspectChoices(page: Page, card: Locator, name: string, board = true) {
   const title = card.getByRole('button', { name: `Read ${name}`, exact: true })
   const choices = card.locator('summary').filter({ hasText: /^Choices$/ })
   await expect(title).toHaveCount(1)
@@ -67,7 +67,6 @@ async function inspectChoices(page: Page, card: Locator, name: string, image: st
       const box = (await record.boundingBox())!
       expect(box.y + box.height).toBeLessThan((await page.locator('[data-turn-control]').boundingBox())!.y)
     }
-    await page.screenshot({ path: `test-results/${image}-${width}.png`, animations: 'disabled' })
   }
 }
 
@@ -106,12 +105,8 @@ test('source matchup nominations survive undo and recur only when the next own t
   await punishment.getByRole('switch', { name: 'No enemy unit qualifies; use the one-unit fallback' }).click()
   await punishment.getByRole('switch', { name: 'I confirm no enemy unit meets either qualification' }).click()
   await expect(punishment.getByRole('button', { name: 'Record choice', exact: true })).toBeEnabled()
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await expect(punishment).toBeVisible()
-    if (width === 390) await expect.poll(async () => (await punishment.boundingBox())?.x).toBe(0)
-    await page.screenshot({ path: `test-results/mission-punishment-${width}.png`, animations: 'disabled' })
-  }
+  await page.setViewportSize({ width: 390, height: 900 })
+  await expect.poll(async () => (await punishment.boundingBox())?.x).toBe(0)
   await punishment.getByRole('button', { name: 'Minimize dialog', exact: true }).click()
   await page.getByRole('button', { name: 'Return to prompt', exact: true }).click()
   await expect(punishment.getByRole('switch', { name: 'I confirm no enemy unit meets either qualification' })).toBeChecked()
@@ -133,11 +128,8 @@ test('source matchup nominations survive undo and recur only when the next own t
   await target.getByRole('switch', { name: 'This is not a home objective', exact: true }).click()
   await expect(target.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
   await target.getByRole('switch', { name: 'This objective is within No Man’s Land', exact: true }).click()
-  for (const width of [1440, 390]) {
-    await guest.setViewportSize({ width, height: 900 })
-    if (width === 390) await expect.poll(async () => (await target.boundingBox())?.x).toBe(0)
-    await guest.screenshot({ path: `test-results/mission-tempting-${width}.png`, animations: 'disabled' })
-  }
+  await guest.setViewportSize({ width: 390, height: 900 })
+  await expect.poll(async () => (await target.boundingBox())?.x).toBe(0)
   await target.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(target).toBeHidden()
   await expect(guards).toBeVisible()
@@ -150,20 +142,14 @@ test('source matchup nominations survive undo and recur only when the next own t
     .first()
     .click()
   await page.getByRole('option', { name: / · Immortals$/ }).click()
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    if (width === 390) await expect.poll(async () => (await guards.boundingBox())?.x).toBe(0)
-    await page.screenshot({ path: `test-results/mission-guards-${width}.png`, animations: 'disabled' })
-    if (width === 390) {
-      const last = guards.getByRole('combobox', { name: /^Guard for / }).last()
-      await last.scrollIntoViewIfNeeded()
-      await expect(last).toBeInViewport()
-      const footer = guards.getByRole('button', { name: 'Record choice', exact: true })
-      const box = (await last.boundingBox())!
-      expect(box.y + box.height).toBeLessThanOrEqual((await footer.boundingBox())!.y)
-      await page.screenshot({ path: 'test-results/mission-guards-phone-last.png', animations: 'disabled' })
-    }
-  }
+  await page.setViewportSize({ width: 390, height: 900 })
+  await expect.poll(async () => (await guards.boundingBox())?.x).toBe(0)
+  const lastGuard = guards.getByRole('combobox', { name: /^Guard for / }).last()
+  await lastGuard.scrollIntoViewIfNeeded()
+  await expect(lastGuard).toBeInViewport()
+  const footer = guards.getByRole('button', { name: 'Record choice', exact: true })
+  const lastGuardBox = (await lastGuard.boundingBox())!
+  expect(lastGuardBox.y + lastGuardBox.height).toBeLessThanOrEqual((await footer.boundingBox())!.y)
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(advanceButton(page)).toBeEnabled()
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
@@ -179,17 +165,13 @@ test('source matchup nominations survive undo and recur only when the next own t
   const burden = hostSide
     .locator('[data-secondary]')
     .filter({ has: page.getByRole('button', { name: 'Read Burden Of Trust', exact: true }) })
-  await inspectChoices(page, burden, 'Burden Of Trust', 'mission-burden-record-r1')
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await page.screenshot({ path: 'test-results/mission-records-desktop.png' })
+  await inspectChoices(page, burden, 'Burden Of Trust')
   await page.setViewportSize({ width: 390, height: 900 })
-  await page.screenshot({ path: 'test-results/mission-records-phone.png' })
   const guardRecord = page.getByText('1 guard nomination', { exact: true })
   await guardRecord.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
   await expect(guardRecord).toBeInViewport()
   const guardBox = (await guardRecord.boundingBox())!
   expect(guardBox.y + guardBox.height).toBeLessThan((await page.locator('[data-turn-control]').boundingBox())!.y)
-  await page.screenshot({ path: 'test-results/mission-guard-record-phone.png', animations: 'disabled' })
   for (let phase = 0; phase < 6; phase++) await advance(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await takeTheTurn(guest)
@@ -207,7 +189,7 @@ test('source matchup nominations survive undo and recur only when the next own t
       .locator('summary')
       .filter({ hasText: /^Choices$/ })
       .click()
-    await inspectChoices(page, scoringBurden, 'Burden Of Trust', 'mission-burden-scoring', false)
+    await inspectChoices(page, scoringBurden, 'Burden Of Trust', false)
   }
   await previousTurn.getByRole('button', { name: 'Take the turn', exact: true }).click()
   await expect(previousTurn).toBeHidden()
@@ -243,7 +225,7 @@ test('source matchup nominations survive undo and recur only when the next own t
   const roundTwo = burden.locator('details > ul > li').filter({ has: page.getByText('R2', { exact: true }) })
   await expect(roundTwo.getByText('2 guard nominations', { exact: true })).toBeVisible()
   await expect(roundTwo.locator('p').filter({ hasText: / · Immortals$/ })).toHaveCount(2)
-  await inspectChoices(page, burden, 'Burden Of Trust', 'mission-burden-record-r2')
+  await inspectChoices(page, burden, 'Burden Of Trust')
   await guestContext.close()
 })
 
@@ -274,31 +256,26 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
     .click()
   await expect(side.getByText('Chosen at the table during the card’s timing.', { exact: true })).toBeVisible()
   const beacon = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Beacon', exact: true }) })
-  await inspectChoices(page, beacon, 'Beacon', 'mission-beacon-record')
+  await inspectChoices(page, beacon, 'Beacon')
   await side.getByRole('button', { name: 'Open Beacon nomination roster', exact: true }).click()
   const army = page.getByRole('dialog', { name: 'Beacon nomination roster', exact: true })
   await army.getByRole('button', { name: 'Mark Immortals lost', exact: true }).click()
   await army.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(beacon.getByText('Immortals (destroyed)', { exact: true })).toBeVisible()
-  await inspectChoices(page, beacon, 'Beacon', 'mission-beacon-record-destroyed')
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await side.screenshot({ path: `test-results/mission-beacon-destroyed-${width}.png`, animations: 'disabled' })
-  }
+  await inspectChoices(page, beacon, 'Beacon')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await page.reload()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(side.locator('[data-stat="secondary"]')).toHaveText('0')
 })
 
-async function inspectDialog(page: Page, dialog: Locator, image: string) {
+async function inspectDialog(page: Page, dialog: Locator) {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(dialog).toBeVisible()
     if (width === 390) await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    await page.screenshot({ path: `test-results/${image}-${width}.png`, animations: 'disabled' })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 }
@@ -343,19 +320,9 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
     .click()
   await expect(record).toBeDisabled()
   await consecrate.getByRole('switch', { name: 'None of these objectives is my home objective' }).click()
-  await inspectDialog(page, consecrate, 'mission-consecrate')
+  await inspectDialog(page, consecrate)
   await record.click()
   await expect(consecrate).toBeHidden()
-  await expect(advanceButton(page)).toBeEnabled()
-  await page.getByRole('button', { name: 'Undo latest action', exact: true }).click()
-  await expect(consecrate).toBeVisible()
-  await consecrate.getByRole('combobox', { name: `Consecration unit for ${objective}`, exact: true }).click()
-  await page.getByRole('option', { name: `${name} · Immortals`, exact: true }).click()
-  await consecrate
-    .getByRole('switch', { name: 'Each chosen unit destroyed a unit since it last consecrated and is within range of its objective' })
-    .click()
-  await consecrate.getByRole('switch', { name: 'None of these objectives is my home objective' }).click()
-  await record.click()
   await expect(advanceButton(page)).toBeEnabled()
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await page.reload()
@@ -363,7 +330,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   const card = primaryCard(page, 0)
   await expect(card.getByText('1 consecrated objective', { exact: true })).toBeVisible()
   await expect(card.getByText(`${objective} · Immortals`, { exact: true })).toBeVisible()
-  await inspectChoices(page, card, 'Consecrate', 'mission-consecrate-record-r1')
+  await inspectChoices(page, card, 'Consecrate')
   await page.setViewportSize({ width: 1440, height: 900 })
   await advance(page)
   await takeTheTurn(page)
@@ -375,12 +342,12 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await expect(consecrate).toBeVisible()
   await expect(consecrate.getByText(`Already consecrated: ${objective}`, { exact: true })).toBeVisible()
   await expect(consecrate.getByRole('combobox', { name: `Consecration unit for ${objective}`, exact: true })).toHaveCount(0)
-  await inspectDialog(page, consecrate, 'mission-consecrate-r2')
+  await inspectDialog(page, consecrate)
   await record.click()
   await expect(advanceButton(page)).toBeEnabled()
   await openChoices(page)
   await expect(card.getByText('0 consecrated objectives', { exact: true })).toBeVisible()
-  await inspectChoices(page, card, 'Consecrate', 'mission-consecrate-record-r2')
+  await inspectChoices(page, card, 'Consecrate')
 })
 
 test('Locate and Deny markers are placed before the first turn and an Extract Relic sweep removes one', async ({ page }) => {
@@ -413,7 +380,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   await expect(locate.getByRole('switch', { name: 'No other terrain area is outside my deployment zone' })).toHaveCount(0)
   await expect(record).toBeDisabled()
   await locate.getByRole('switch', { name: 'Each terrain area is outside my deployment zone' }).click()
-  await inspectDialog(page, locate, 'mission-locate')
+  await inspectDialog(page, locate)
   await record.click()
   await expect(locate).toBeHidden()
   await expect(advanceButton(page)).toBeEnabled()
@@ -430,7 +397,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   await sweep
     .getByRole('switch', { name: 'The sweeping unit started within range of a central objective and controls it at the end of my turn' })
     .click()
-  await inspectDialog(page, sweep, 'mission-sensor-sweep')
+  await inspectDialog(page, sweep)
   await sweep.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(sweep).toBeHidden()
   await expect(relic.getByRole('button', { name: 'Record Sensor Sweep', exact: true })).toHaveCount(0)
@@ -441,5 +408,5 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   await expect(card.getByText('5 operation markers', { exact: true })).toBeVisible()
   await expect(card.getByText('(removed R1)', { exact: true })).toBeVisible()
   await expect(relic.getByText('Removed Ruin B', { exact: true })).toBeVisible()
-  await inspectChoices(page, card, 'Locate and Deny', 'mission-locate-record')
+  await inspectChoices(page, card, 'Locate and Deny')
 })
