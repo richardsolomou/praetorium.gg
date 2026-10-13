@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.141.9
+
+### Patch Changes
+
+- d8314f4: Keep the oldest remaining list at the head of a variant group whose original was deleted, so a new variant no longer takes its place.
+- d8314f4: Save a new variant of a roster whose original was deleted instead of holding it for review as a roster you do not own.
+
 ## 0.141.8
 
 ### Patch Changes
