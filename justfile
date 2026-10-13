@@ -20,6 +20,10 @@ dev-stop:
 dev-restart:
     pnpm dev:restart
 
+# Stop this worktree's stack and remove the browser-test stacks it or a deleted worktree left behind; run once its PR has merged
+teardown:
+    pnpm exec tsx scripts/teardown.ts
+
 # Export production roster selections without account data or notes
 rosters-fetch snapshot="data-dev/production-rosters.json":
     node --env-file-if-exists=.env.local --import tsx scripts/productionRosters.ts fetch "{{ snapshot }}"
