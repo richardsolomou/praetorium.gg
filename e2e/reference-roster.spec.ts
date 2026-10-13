@@ -91,6 +91,40 @@ test('partial Eradicator squads retain their copy-tier prices through reload, vi
 })
 
 for (const width of [1440, 390]) {
+  test(`Prosecutor fixed weapons remain visible through resizing, reload and view at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    const name = 'Prosecutor Squad'
+    await addFromDatasheet(page, '/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/prosecutor-squad')
+    const setup = page.getByRole('dialog', { name: 'Create roster' })
+    await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()
+    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
+    await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+    const card = page.locator(`[data-unit="${name}"]`)
+    await card.getByRole('button', { name, exact: true }).click()
+    const boltgun = page.getByRole('heading', { name: /^\d+× Boltgun$/ })
+    const stock = page.getByRole('heading', { name: /^\d+× Gun Stock$/ })
+    await expect(boltgun).toBeVisible()
+    await expect(stock).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('prosecutor-editor.png') })
+    await expect(boltgun).toHaveText('4× Boltgun')
+    await expect(stock).toHaveText('4× Gun Stock')
+    await page.getByRole('button', { name: `More models in ${name}`, exact: true }).click()
+    await expect(page.getByLabel(`${name} models`, { exact: true })).toHaveText('5')
+    await expect(boltgun).toHaveText('5× Boltgun')
+    await expect(stock).toHaveText('5× Gun Stock')
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"models":5')
+    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    await page.reload()
+    await card.getByRole('button', { name, exact: true }).click()
+    await expect(boltgun).toBeVisible()
+    await expect(stock).toBeVisible()
+    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    await page.getByRole('button', { name: 'View', exact: true }).click()
+    await card.getByRole('button', { name, exact: true }).click()
+    await expect(boltgun).toBeVisible()
+    await expect(stock).toBeVisible()
+  })
+
   test(`Eradicator melta profiles remain visible through reload and view at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 })
     const name = 'Eradicator Squad with Melta Rifles'
