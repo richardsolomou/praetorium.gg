@@ -11,7 +11,7 @@ import { ALICE, BOB, builtRoster, log } from '../core/battle.fixtures'
 import { reduceBattle } from '../core/battle'
 import { battleSummary } from '../shared/battleSummary'
 
-const mocks = vi.hoisted(() => ({ loadCatalogue: vi.fn(), compile: vi.fn() }))
+const mocks = vi.hoisted(() => ({ loadCatalogue: vi.fn(), compile: vi.fn(), packaged: vi.fn(() => new Map()) }))
 vi.mock('./catalogueIndex', async (original) => ({
   ...(await original<typeof import('./catalogueIndex')>()),
   loadCatalogue: mocks.loadCatalogue,
@@ -20,6 +20,7 @@ vi.mock('./rules', async (original) => ({ ...(await original<typeof import('./ru
 vi.mock('./canonicalCatalogue', async (original) => ({
   ...(await original<typeof import('./canonicalCatalogue')>()),
   compileCanonicalCatalogueFromSnapshot: mocks.compile,
+  loadEditionCanonicalCatalogues: mocks.packaged,
 }))
 
 let directory: string
@@ -270,4 +271,18 @@ it('retains exact root canonical reads after removing its selectable duplicate',
     issues: [],
   }))
   expect(loaded.canonicalFor('parent')?.datasheets.map(({ catalogueId }) => catalogueId)).toEqual(['parent'])
+})
+
+it('reads an edition the snapshot compiled instead of compiling it at startup', () => {
+  const loaded = versions(['child'])
+  const packaged = { datasheets: [], detachments: [], issues: [] } as unknown as CanonicalCatalogue
+  mocks.packaged.mockReturnValue(new Map([['codex:', packaged]]))
+  expect({ read: loaded.canonicalFor('codex~child'), compiled: mocks.compile.mock.calls.length }).toEqual({ read: packaged, compiled: 0 })
+})
+
+it('names every edition catalogue it holds as the snapshot packages them', () => {
+  const loaded = versions(['child'])
+  mocks.compile.mockReturnValue({ datasheets: [], detachments: [], issues: [] })
+  loaded.canonicalFor('codex~child')
+  expect(loaded.canonicalEntries().map(([key]) => key)).toEqual(['codex:'])
 })

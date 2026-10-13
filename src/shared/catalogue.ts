@@ -687,11 +687,13 @@ export function detachmentAbilitiesIn(loaded: LoadedCatalogue, catalogueId: stri
     const unit = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId, roster: selectedDetachments })
     if (!unit) return []
     return (
-      walk(loaded, catalogueId, entryId, {
-        selections: [...selectedDetachments, unit],
-        unitSelectionIndex: selectedDetachments.length,
-        everyWargearAbility: true,
-      })?.abilities ?? []
+      walk(
+        loaded,
+        catalogueId,
+        entryId,
+        { selections: [...selectedDetachments, unit], unitSelectionIndex: selectedDetachments.length, everyWargearAbility: true },
+        true,
+      )?.abilities ?? []
     )
   }
   const abilities = project()
