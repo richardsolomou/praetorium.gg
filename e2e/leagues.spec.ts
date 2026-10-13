@@ -1533,11 +1533,15 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(alliedSide.getByRole('heading', { name: 'Allied pair 1' })).toBeVisible()
   // The pair chooses from every card either list's detachments offer, not only the two the lists chose.
   const teamCard = allied.locator('[data-team-disposition]')
+  // The status card leads with the card the pair still owes, not with a list that is already sealed.
+  await expect(allied.getByRole('heading', { name: 'Choose your team’s Force Disposition' })).toBeVisible()
+  await allied.screenshot({ path: 'test-results/league-2v1-card-owed-ally-phone.png', fullPage: true })
   await expect(teamCard.getByRole('button')).toHaveCount(3)
   const priorityAssets = teamCard.getByRole('button', { name: 'Priority Assets' })
   await priorityAssets.click()
   await expect(priorityAssets).toHaveAttribute('aria-pressed', 'true')
   await expect(alliedSide).toContainText('plays Priority Assets')
+  await expect(allied.getByRole('heading', { name: 'Your list is sealed' })).toBeVisible()
   await expectNoHorizontalOverflow(allied, teamCard)
   await allied.screenshot({ path: 'test-results/league-2v1-team-disposition-phone.png', fullPage: true })
   // A 2v1 seats the allied rosters together and never against each other, so each ally reads the other's
@@ -1619,6 +1623,9 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const ownerSetup = owner.getByRole('region', { name: 'Armies' })
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
+  // The pair shows the one card it plays, not the two its lists chose.
+  await expect(ownerSetup.locator('p', { hasText: 'Side plays' })).toContainText('Priority Assets')
+  await expect(ownerSetup.getByText('Purge the Foe', { exact: true })).toHaveCount(0)
   await owner.screenshot({ path: 'test-results/league-2v1-battle-setup-phone.png', fullPage: true })
   const battleUrl = owner.url()
   const battlePath = new URL(battleUrl).pathname
@@ -1965,6 +1972,9 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(sides).toHaveCount(2)
   await expect(sides.nth(0)).toContainText(names[0])
   await expect(sides.nth(0)).toContainText(names[1])
+  const doublesSetup = owner.getByRole('region', { name: 'Armies' })
+  await expect(doublesSetup.locator('p', { hasText: 'Side plays' })).toHaveText([/Priority Assets/, /Purge the Foe/])
+  await expect(doublesSetup.getByText('Take and Hold', { exact: true })).toHaveCount(0)
   await owner.screenshot({ path: 'test-results/doubles-battle-setup-phone.png', fullPage: true })
   await expect(sides.nth(1)).toContainText(names[2])
   await expect(sides.nth(1)).toContainText(names[3])

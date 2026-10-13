@@ -107,11 +107,13 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                             : 'Waiting for this player'}
                     </span>
                     {/*
-                     * The disposition, in the colour the roster builder gave it. It is what
-                     * decides the mission this side plays, so it belongs beside the army
-                     * rather than being read back off the battlefield step later.
+                     * The disposition, in the colour the roster builder gave it. It decides the
+                     * mission this side plays, so it belongs beside the army. Allies who have
+                     * settled one card show it once for the side instead of each list's own.
                      */}
-                    <DispositionChip disposition={nameDisposition(army.roster?.built?.disposition)} className="mt-1" />
+                    {side.armies.length === 1 || !side.disposition ? (
+                      <DispositionChip disposition={nameDisposition(army.roster?.built?.disposition)} className="mt-1" />
+                    ) : null}
                     {/* Said under every army rather than only under your own: an opponent
                         deciding whether to play this game needs the same fact its owner has. */}
                     <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
@@ -175,6 +177,11 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                 ) : null}
               </article>
             ))}
+            {side.armies.length > 1 && nameDisposition(side.disposition) ? (
+              <p className="flex flex-wrap items-center gap-2 text-xs text-dim">
+                Side plays <DispositionChip disposition={nameDisposition(side.disposition)} />
+              </p>
+            ) : null}
             {/*
              * The bonus is the side's and pays once, so it is said under the side rather
              * than beside each list — an allied pair fields one army between them, and
