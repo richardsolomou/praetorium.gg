@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import rawRetired from '../../catalogue/retired-ids.json' with { type: 'json' }
-import rawRetainedRules from '../../catalogue/retained-roster-rules.json' with { type: 'json' }
-import rawMigrations from '../../catalogue/roster-migrations.json' with { type: 'json' }
+import rawRetired from '../../.catalogue-authoring/catalogue/retired-ids.json' with { type: 'json' }
+import rawRetainedRules from '../../.catalogue-authoring/catalogue/retained-roster-rules.json' with { type: 'json' }
+import rawMigrations from '../../.catalogue-authoring/catalogue/roster-migrations.json' with { type: 'json' }
 import type { RosterPick } from './roster'
 import { catalogueEditionId, editionCatalogueId, editionFamilyId, picksForCatalogueEdition } from './catalogueEdition'
 

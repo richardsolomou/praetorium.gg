@@ -23,7 +23,7 @@ routes ──> client ──> contracts ──> core
 | `src/client/components` | Shared browser components                                                                             |
 | `src/components/ui`     | Generated, vendored shadcn components                                                                 |
 | `src/routes`            | URLs, loaders, search validation, metadata, and page composition                                      |
-| `catalogue`             | Authoring/release pins and application-specific saved-roster compatibility                            |
+| `catalogue`             | Authoring and release pins                                                                            |
 | `scripts`               | Maintenance and deployment entry points; shared helpers in `scripts/lib`                              |
 
 ## Placement rules

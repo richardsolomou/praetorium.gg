@@ -71,11 +71,6 @@ if (command === 'pack') {
     if (!current) throw new Error('the fetched catalogue snapshot is incomplete')
     const revisions = JSON.parse(fs.readFileSync(path.join(candidate, 'revision.json'), 'utf8')) as Record<string, string>
     fs.writeFileSync(lock, `${JSON.stringify({ format: 'praetorium.catalogue-lock.v1', pointer: current, revisions }, null, 2)}\n`)
-    if (current.authoringRevision)
-      fs.writeFileSync(
-        path.join(root, 'catalogue/authoring.json'),
-        `${JSON.stringify({ ...authoring, revision: current.authoringRevision }, null, 2)}\n`,
-      )
     console.log(`${current.id} ${lock}`)
   } finally {
     fs.rmSync(work, { recursive: true, force: true })

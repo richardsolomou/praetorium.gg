@@ -244,6 +244,7 @@ jobs:
         with:
           ref: ${{ matrix.sha }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: pnpm catalogue:authoring
       - uses: actions/download-artifact@v8
         with:
           name: coverage-catalogue
@@ -267,13 +268,19 @@ jobs:
 
   coverage:
     if: always()
-    needs: [coverage-snapshot]
+    needs: [coverage-data, coverage-snapshot]
     runs-on: ubuntu-latest
+    env:
+      BASE_SHA: ${{ needs.coverage-data.outputs.base-sha }}
+      HEAD_SHA: ${{ needs.coverage-data.outputs.head-sha }}
     steps:
       - name: Require both snapshots
         run: test '${{ needs.coverage-snapshot.result }}' = success
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: pnpm catalogue:authoring
       - uses: actions/download-artifact@v8
         with:
           name: coverage-catalogue
@@ -287,7 +294,11 @@ jobs:
           set -euo pipefail
           jq -s 'add' base-0.json base-1.json > base.json
           jq -s 'add' head-0.json head-1.json > head.json
-          pnpm catalogue:coverage:compare base.json head.json --accept catalogue/accepted-coverage-losses.json | tee coverage.txt
+          accepted=()
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue/authoring.json; then
+            accepted=(--accept .catalogue-authoring/catalogue/accepted-coverage-losses.json)
+          fi
+          pnpm catalogue:coverage:compare base.json head.json "${accepted[@]}" | tee coverage.txt
       - name: Require no lost coverage
         run: |
           set -euo pipefail
