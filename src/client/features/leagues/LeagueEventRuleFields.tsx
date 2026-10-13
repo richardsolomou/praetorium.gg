@@ -9,21 +9,18 @@ export type LeagueEventRuleValue = { format: TableShape; rosterLimit: number }
 
 /** What each shape asks of an entrant's roster, which is the whole reason an event fixes one. */
 export const ROSTER_RULE: Record<TableShape, string> = {
-  '1v1': 'Everyone builds to the same points.',
-  '2v1': 'You give each entrant a solo or allied size.',
-  '2v2': 'You pair entrants into fixed teams of two.',
+  '1v1': 'Everyone seals a list built to this size.',
+  '2v1': 'You give each player a solo or allied size before they seal.',
+  '2v2': 'You pair players into teams of two, and each seals a half-size list. Team-wide limits are yours to check.',
 }
 
 export function LeagueEventRuleFields({
   value,
   disabled = false,
-  stacked = false,
   onChange,
 }: {
   value: LeagueEventRuleValue
   disabled?: boolean
-  /** One card per row, for a column too narrow to set the three shapes side by side. */
-  stacked?: boolean
   onChange: (value: LeagueEventRuleValue) => void
 }) {
   const limits = value.format === '1v1' ? GAME_SIZES.map((size) => size.limit) : LEAGUE_TEAM_ROSTER_LIMITS
@@ -39,8 +36,8 @@ export function LeagueEventRuleFields({
       <Choice
         label="Battle format"
         value={value.format}
-        options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape], detail: ROSTER_RULE[shape] }))}
-        columns={stacked ? 1 : undefined}
+        options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
+        columns={3}
         disabled={disabled}
         onChange={(format) =>
           onChange({
@@ -53,7 +50,7 @@ export function LeagueEventRuleFields({
         }
       />
       <div className="space-y-1.5">
-        <Label htmlFor="league-event-roster-limit">Roster size</Label>
+        <Label htmlFor="league-event-roster-limit">Points</Label>
         <Select
           value={String(value.rosterLimit)}
           disabled={disabled}
@@ -70,13 +67,7 @@ export function LeagueEventRuleFields({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-dim">
-          {value.format === '2v1'
-            ? 'Nobody can seal a list until you give them a size.'
-            : value.format === '2v2'
-              ? 'Each player seals their own legal half-size list. Team-wide restrictions are yours to check.'
-              : 'Everyone seals a list built for this size.'}
-        </p>
+        <p className="text-xs text-dim">{ROSTER_RULE[value.format]}</p>
       </div>
     </>
   )

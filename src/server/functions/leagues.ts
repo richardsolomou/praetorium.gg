@@ -14,9 +14,11 @@ import {
   createLeagueSchema,
   leagueBattlesSchema,
   leagueEventSchema,
+  leagueResultsSchema,
   leagueRosterSchema,
   moderateLeagueEntrySchema,
   openLeagueSchema,
+  setLeagueAdminsSchema,
   submitLeagueRosterSchema,
   tokenSchema,
   updateLeagueSchema,
@@ -35,7 +37,9 @@ export const outdatedLeagueEntriesForRoster = createServerFn({ method: 'GET' })
 
 export const openLeague = createServerFn({ method: 'GET' })
   .validator(openLeagueSchema)
-  .handler(({ data }) => rpc(async () => app().service.league(data.token, await currentUserId(), data.eventToken)))
+  .handler(({ data }) =>
+    rpc(async () => app().service.league(data.token, await currentUserId(), data.eventToken, await app().battleFactionsFor())),
+  )
 
 export const listLeagueBattles = createServerFn({ method: 'GET' })
   .validator(leagueBattlesSchema)
@@ -50,6 +54,20 @@ export const listLeagueBattles = createServerFn({ method: 'GET' })
         await currentUserId(),
       )
     }),
+  )
+
+export const leagueResults = createServerFn({ method: 'GET' })
+  .validator(leagueResultsSchema)
+  .handler(({ data }) =>
+    rpc(async () =>
+      app().service.leagueResults(
+        data.token,
+        data.eventToken,
+        await app().battleMissionRulesFor(),
+        await app().battleFactionsFor(),
+        await currentUserId(),
+      ),
+    ),
   )
 
 export const createLeague = createServerFn({ method: 'POST' })
@@ -124,6 +142,7 @@ export const submitLeagueRoster = createServerFn({ method: 'POST' })
         format: result.format,
         required_limit: result.requiredLimit,
       })
+      if (result.revealed) await app().telemetry.capture(player.id, 'league_rosters_revealed', { automatic: true })
       return null
     }),
   )
@@ -134,7 +153,7 @@ export const revealLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       await app().service.revealLeague(data.token, player.id, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_rosters_revealed')
+      await app().telemetry.capture(player.id, 'league_rosters_revealed', { automatic: false })
       return null
     }),
   )
@@ -215,6 +234,17 @@ export const updateLeague = createServerFn({ method: 'POST' })
           format: input.rule.format,
           roster_limit: input.rule.rosterLimit,
         })
+      return null
+    }),
+  )
+
+export const setLeagueAdmins = createServerFn({ method: 'POST' })
+  .validator(setLeagueAdminsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.setLeagueAdmins(data.token, player.id, data.userIds)
+      await app().telemetry.capture(player.id, 'league_admins_updated', { count: data.userIds.length, added: result.added.length })
       return null
     }),
   )

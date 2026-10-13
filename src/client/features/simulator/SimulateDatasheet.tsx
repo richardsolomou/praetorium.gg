@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, Crosshair, Shield, Swords } from 'lucide-react'
+import { Calculator, ChevronDown, Crosshair, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { datasheetMatchup } from '../../../contracts/simulatorState'
@@ -9,7 +9,7 @@ export function SimulateDatasheet({ catalogueId, entryId }: { catalogueId: strin
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-        <Swords /> Simulate <ChevronDown data-icon="inline-end" />
+        <Calculator /> Simulate <ChevronDown data-icon="inline-end" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40">
         <DropdownMenuItem

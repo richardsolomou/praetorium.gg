@@ -136,6 +136,7 @@ const leagueEvent = z.object({
   rosterLimit: z.number().int().nullable(),
   createdAt: z.number().int(),
   revealedAt: z.number().int().nullable(),
+  revealedBy: z.string().nullable(),
 })
 const leagueEntry = z.object({
   key: z.string(),
@@ -157,6 +158,7 @@ const leagueRecord = z.object({
   events: z.array(leagueEvent),
   eventCount: z.number().int(),
   entries: z.array(leagueEntry),
+  adminIds: z.array(z.string()),
   latestEntryCount: z.number().int(),
   latestAcceptedCount: z.number().int(),
 })
@@ -164,6 +166,7 @@ const visibleLeague = z.object({
   league,
   event: leagueEvent,
   personal: z.boolean(),
+  adminIds: z.array(z.string()),
   joined: z.number().int(),
   accepted: z.number().int(),
   occupied: z.number().int(),

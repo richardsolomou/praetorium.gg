@@ -144,9 +144,9 @@ export function CreateBattle() {
         {leagueMatches.length ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-2xl">You are both in a league event</DialogTitle>
+              <DialogTitle className="text-2xl">You are both in a league</DialogTitle>
               <DialogDescription>
-                Pick the event to play it there: the sealed lists go on the table for you, and the battle joins the event history.
+                Pick the league to play it there: the sealed lists go on the table for you, and the result counts in its table.
               </DialogDescription>
             </DialogHeader>
             <DialogBody>

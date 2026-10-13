@@ -24,18 +24,28 @@ import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 
 export type ManageableLeague = { token: string; name: string }
 
-export function LeagueCardActions({ league, children }: { league: ManageableLeague; children: (menu: ReactNode) => ReactNode }) {
+/** One frame for every league card, so a card with organizer actions looks like one without. */
+export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:bg-raised'
+
+/** `canDelete` is the owner's alone; an admin runs the league but cannot remove it. */
+export function LeagueCardActions({
+  league,
+  canDelete,
+  children,
+}: {
+  league: ManageableLeague
+  canDelete: boolean
+  children: (menu: ReactNode) => ReactNode
+}) {
   const actions = useLeagueActions(league)
   return (
     <>
       <ContextMenu>
-        <ContextMenuTrigger
-          render={<article data-league={league.token} className="min-w-0 border border-edge bg-panel hover:border-info hover:bg-raised" />}
-        >
-          {children(<LeagueMenu actions={actions} showView />)}
+        <ContextMenuTrigger render={<article data-league={league.token} className={LEAGUE_CARD} />}>
+          {children(<LeagueMenu actions={actions} showView canDelete={canDelete} />)}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
-          <LeagueActionItems Item={ContextMenuItem} actions={actions} showView showShare />
+          <LeagueActionItems Item={ContextMenuItem} actions={actions} showView showShare canDelete={canDelete} />
         </ContextMenuContent>
       </ContextMenu>
       <LeagueActionDialogs actions={actions} />
@@ -45,24 +55,28 @@ export function LeagueCardActions({ league, children }: { league: ManageableLeag
 }
 
 /** The league page's own controls: its settings in the open, and the rarely wanted deletion behind the menu. */
-export function LeaguePageActions({ actions }: { actions: LeagueActionsController }) {
+export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActionsController; canDelete: boolean }) {
   return (
     <>
       <Button variant="outline" className="pointer-coarse:h-11" onClick={actions.openEdit}>
         <Pencil /> Edit league
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon" className="pointer-coarse:size-11" aria-label={`More for ${actions.league.name}`} />}
-        >
-          <EllipsisVertical />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem variant="destructive" onClick={actions.openDeleting}>
-            <Trash2 /> Delete league
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {canDelete ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon" className="pointer-coarse:size-11" aria-label={`More for ${actions.league.name}`} />
+            }
+          >
+            <EllipsisVertical />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem variant="destructive" onClick={actions.openDeleting}>
+              <Trash2 /> Delete league
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
       <LeagueActionDialogs actions={actions} />
     </>
   )
@@ -72,10 +86,12 @@ function LeagueMenu({
   actions,
   showView = false,
   showShare = true,
+  canDelete,
 }: {
   actions: LeagueActionsController
   showView?: boolean
   showShare?: boolean
+  canDelete: boolean
 }) {
   return (
     <DropdownMenu>
@@ -83,7 +99,7 @@ function LeagueMenu({
         <EllipsisVertical />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <LeagueActionItems Item={DropdownMenuItem} actions={actions} showView={showView} showShare={showShare} />
+        <LeagueActionItems Item={DropdownMenuItem} actions={actions} showView={showView} showShare={showShare} canDelete={canDelete} />
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -94,11 +110,13 @@ function LeagueActionItems({
   actions,
   showView,
   showShare,
+  canDelete,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   actions: LeagueActionsController
   showView: boolean
   showShare: boolean
+  canDelete: boolean
 }) {
   const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
   return (
@@ -117,9 +135,11 @@ function LeagueActionItems({
       <Item onClick={actions.openEdit}>
         <Pencil /> Edit league
       </Item>
-      <Item variant="destructive" onClick={actions.openDeleting}>
-        <Trash2 /> Delete league
-      </Item>
+      {canDelete ? (
+        <Item variant="destructive" onClick={actions.openDeleting}>
+          <Trash2 /> Delete league
+        </Item>
+      ) : null}
     </>
   )
 }

@@ -16,7 +16,7 @@ MCP Analytics retains anonymous tool names, timings, outcomes, and protocol/depl
 
 ## Event contract
 
-Custom events measure starts, attempts, completed actions, and bounded failures. Ordinary navigation/clicks remain autocaptured. Server-confirmed creation is distinct from opening/submitting a form; parsing an import is distinct from saving it. Search settles consecutive queries and reports recovery without repeating a successful refetch. Query text never enters properties.
+Custom events measure starts, attempts, completed actions, and bounded failures. Ordinary navigation/clicks remain autocaptured, with dead and rage clicks marking controls that did not respond. Server-confirmed creation is distinct from opening/submitting a form; parsing an import is distinct from saving it. Search settles consecutive queries and reports recovery without repeating a successful refetch. Query text never enters properties.
 
 Important count/identity meanings:
 
@@ -29,6 +29,8 @@ Important count/identity meanings:
 - Onboarding stores/captures reading-tour answers, skips, and welcome; domain-derived progress does not emit a duplicate completion event.
 - Simulator open/completion/failure are bounded per mounted session/matchup, with `source` identifying standalone, roster, or battle.
 - `spectator_invite_shown`, `spectator_invite_followed`, and `spectator_invite_dismissed` measure the invitation a battle shows a reader without a seat; `offer` and `action` name the roster or battle step. Measure conversion as unique people from `spectator_invite_followed` to `guest_roster_started`, `account_created`, or `battle_creation_submitted`. A battle finishing while watched moves the invitation and can repeat `shown`.
+- `league_rosters_revealed` carries `automatic`: true when the last list sealed into a full league opened every list, under the sealing player; false when the organizer revealed.
+- `league_admins_updated` records the owner's saved admin list: `count` is its size and `added` how many are new.
 - `friend_invite_shared` comes from the Friends page or, for a player without friends, the New battle dialog; its `feature` tells them apart.
 - `reference` (`datasheet` or `detachment`) marks flows begun on a reference page: `roster_add_started`, `roster_creation_started`/`submitted`/`failed`, `guest_roster_started`, the requested `roster_unit_added` or `roster_unit_add_refused`, and `combat_simulator_opened`. Measure reference conversion with these, not pageviews of the destination.
 

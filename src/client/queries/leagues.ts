@@ -1,5 +1,5 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
-import { listLeagueBattles, listLeagues, openLeague, openLeagueRoster, outdatedLeagueEntriesForRoster } from '../functions'
+import { leagueResults, listLeagueBattles, listLeagues, openLeague, openLeagueRoster, outdatedLeagueEntriesForRoster } from '../functions'
 import { type BattlesCursor, requireBattlePage } from './battles'
 import { SSR_STALE_TIME } from './shared'
 
@@ -34,6 +34,15 @@ export const leagueBattlesQuery = (token: string, eventToken: string) =>
     getNextPageParam: (page) => page?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
     refetchInterval: 5_000,
+  })
+
+/** Under the league's key, so every league refresh also refreshes its table; battles finish less often than the list polls. */
+export const leagueResultsQuery = (token: string, eventToken: string) =>
+  queryOptions({
+    queryKey: ['league', token, 'results', eventToken],
+    queryFn: () => leagueResults({ data: { token, eventToken } }),
+    staleTime: SSR_STALE_TIME,
+    refetchInterval: 30_000,
   })
 
 export const leagueBattlesFrom = (data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) =>

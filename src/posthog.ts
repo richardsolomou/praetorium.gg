@@ -60,6 +60,7 @@ export const browserEventContext: BeforeSendFn = (event) => {
 export const POSTHOG_BROWSER_OPTIONS = {
   capture_exceptions: true,
   capture_performance: true,
+  capture_dead_clicks: true,
   mask_personal_data_properties: true,
   custom_personal_data_properties: ['token'],
   session_recording: { maskAllInputs: true },

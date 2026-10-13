@@ -1,4 +1,4 @@
-import { Minus, Plus, Scroll, Swords } from 'lucide-react'
+import { Calculator, Minus, Plus, Scroll } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -86,7 +86,7 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
         </Button>
         {army.units.some(canSimulate) ? (
           <Button variant="secondary" size="xs" onClick={() => simulate()} aria-label={`Simulate ${army.playerName}'s combat`}>
-            <Swords aria-hidden /> Simulate
+            <Calculator aria-hidden /> Simulate
           </Button>
         ) : null}
         {/* What is left of it, so the number worth glancing at needs no dialog to read. */}

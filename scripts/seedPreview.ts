@@ -757,6 +757,7 @@ async function seedInto(
           input.eventToken,
         )
       }
+      let revealed = false
       for (const entry of input.entries) {
         const saved = await repository.roster(entry.rosterId)
         if (!saved) throw new Error(`${entry.rosterId} was not saved`)
@@ -772,9 +773,10 @@ async function seedInto(
           now: now(),
         })
         if (result.outcome !== 'sealed') throw new Error(`${saved.name} could not be sealed: ${result.outcome}`)
+        revealed = result.revealedIds !== null
       }
-      const revealed = await repository.revealLeague(input.token, input.ownerId, now(), input.eventToken)
-      if (revealed.outcome !== 'revealed') throw new Error(`${input.name} could not be revealed: ${revealed.outcome}`)
+      // Every seeded event fills its places, so its last list reveals it.
+      if (!revealed) throw new Error(`${input.name} was not revealed by its last list`)
     }
     if (await repository.battleByToken(input.battle.token)) return
     const battleRosters = input.entries.map((entry) => [entry.userId, entry.rosterId] as const)

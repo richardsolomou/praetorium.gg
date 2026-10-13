@@ -17,6 +17,11 @@ import {
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueRevealsItself,
+  mayRevealLeague,
+  isLeagueOrganizer,
+  LEAGUE_ADMIN_MAX,
+  type LeagueEntryStatus,
   matchesSealedLeagueRoster,
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
@@ -216,7 +221,7 @@ function activeLoan(ctx: Context, rosterId: string, borrowerId: string) {
 function touchLeague(ctx: Context, leagueId: string, eventId?: string) {
   const league = ctx.db.leagues.id.find(leagueId)
   if (!league) return
-  const users = new Set([league.ownerId])
+  const users = new Set([league.ownerId, ...leagueAdminIds(ctx, leagueId)])
   const event = eventId ? ctx.db.leagueEvents.id.find(eventId) : leagueEventFor(ctx, leagueId, null)
   if (event) for (const entry of ctx.db.leagueEventEntries.eventId.filter(event.id)) users.add(entry.userId)
   for (const userId of users) touchProduct(ctx, userId, 'leagues', 'onboarding')
@@ -249,7 +254,12 @@ function deleteLeague(ctx: Context, leagueId: string) {
       ctx.db.leagueEventBattles.battleId.delete(row.battleId)
     ctx.db.leagueEvents.id.delete(event.id)
   }
+  for (const row of Array.from(ctx.db.leagueAdmins.leagueId.filter(leagueId))) ctx.db.leagueAdmins.key.delete(row.key)
   ctx.db.leagues.id.delete(leagueId)
+}
+
+function leagueAdminIds(ctx: Context, leagueId: string) {
+  return Array.from(ctx.db.leagueAdmins.leagueId.filter(leagueId), (row) => row.userId)
 }
 
 export const init = spacetime.init((ctx) => {
@@ -323,6 +333,10 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.sessionAccess.userId.filter(userId))) revoke(ctx, row.subject)
   for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) deleteBattle(ctx, row.battleId)
   for (const row of Array.from(ctx.db.leagues.ownerId.filter(userId))) deleteLeague(ctx, row.id)
+  for (const row of Array.from(ctx.db.leagueAdmins.userId.filter(userId))) {
+    ctx.db.leagueAdmins.key.delete(row.key)
+    touchLeague(ctx, row.leagueId)
+  }
   for (const row of Array.from(ctx.db.userOnboardingTasks.userId.filter(userId))) ctx.db.userOnboardingTasks.key.delete(row.key)
   ctx.db.userOnboarding.userId.delete(userId)
   ctx.db.battleSharing.userId.delete(userId)
@@ -1745,6 +1759,7 @@ function leagueRecord(ctx: Context, token: string, eventToken: string | null) {
     events: events.slice(0, 100),
     eventCount: events.length,
     entries,
+    adminIds: leagueAdminIds(ctx, league.id),
     latestEntryCount: latestEntries.length,
     latestAcceptedCount: latestEntries.filter((entry) => entry.status === 'accepted').length,
   }
@@ -1765,6 +1780,7 @@ export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit:
     const personal = new Set<string>()
     if (userId) {
       for (const row of tx.db.leagues.ownerId.filter(userId)) personal.add(row.id)
+      for (const row of tx.db.leagueAdmins.userId.filter(userId)) personal.add(row.leagueId)
       for (const entry of tx.db.leagueEventEntries.userId.filter(userId)) {
         const event = tx.db.leagueEvents.id.find(entry.eventId)
         if (event) personal.add(event.leagueId)
@@ -1787,6 +1803,7 @@ export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit:
             league,
             event,
             personal: personal.has(league.id),
+            adminIds: leagueAdminIds(tx, league.id),
             joined: entries.length,
             accepted: entries.filter((entry) => entry.status === 'accepted').length,
             occupied: entries.filter((entry) => entry.status !== 'rejected').length,
@@ -1906,6 +1923,7 @@ export const leagueRosters = spacetime.procedure(
 )
 
 type LeagueEntryRow = NonNullable<ReturnType<Context['db']['leagueEventEntries']['key']['find']>>
+type LeagueEventRow = NonNullable<ReturnType<Context['db']['leagueEvents']['id']['find']>>
 
 /** Accepts waiting requests in `leagueEntriesFor` order, oldest first, until the event's places run out, returning who got in. */
 function admitWaiting(ctx: Context, entries: LeagueEntryRow[], playerLimit: number | null, include: (entry: LeagueEntryRow) => boolean) {
@@ -1965,6 +1983,71 @@ const leagueDetailsInput = z.object({
   admission: z.enum(['automatic', 'approval']),
   playerLimit: z.number().int().min(2).max(128).nullable(),
 })
+
+/** Opens every sealed list of an unrevealed event for `actorId`, or says why it cannot, checking the rosters themselves beyond the checklist. */
+function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, actorId: string) {
+  const all = leagueEntriesFor(tx, event.id)
+  const entries = all.filter((entry) => entry.status === 'accepted')
+  const checks = leagueRevealChecklist(
+    { format: (event.format ?? null) as '1v1' | '2v1' | '2v2' | null, rosterLimit: event.rosterLimit ?? null },
+    all.map(leagueRevealEntry),
+  )
+  if (!checks.every((check) => check.done)) return { outcome: 'not-ready' as const }
+  let snapshots: Roster[] = []
+  if (event.format !== undefined) {
+    try {
+      snapshots = entries.map((entry) => parseRosterSnapshot(entry.rosterSnapshot!))
+    } catch {
+      return { outcome: 'not-ready' as const }
+    }
+  }
+  if (
+    event.format !== undefined &&
+    event.format !== '2v2' &&
+    snapshots.some((snapshot) => {
+      const selected = leagueWarlords([snapshot], true)
+      return !selected.eligible || selected.count !== 1
+    })
+  )
+    return { outcome: 'invalid-warlords' as const, format: event.format }
+  if (event.format === '2v2') {
+    const teams = new Map<string, Roster[]>()
+    entries.forEach((entry, index) => teams.set(entry.teamId!, [...(teams.get(entry.teamId!) ?? []), snapshots[index]!]))
+    if (
+      [...teams.values()].some((team) => {
+        const selected = leagueWarlords(team)
+        return !selected.eligible || selected.count !== 1
+      })
+    )
+      return { outcome: 'invalid-warlords' as const, format: '2v2' }
+  }
+  if (
+    event.format !== undefined &&
+    entries.some((entry, index) => {
+      const required = requiredLeagueRosterLimit(
+        event.format as '1v1' | '2v1' | '2v2',
+        event.rosterLimit ?? null,
+        entry.requiredLimit ?? null,
+        entry.teamId ?? null,
+      )
+      return required === null || snapshots[index]!.built?.limit !== required
+    })
+  )
+    return { outcome: 'not-ready' as const }
+  for (const entry of all.filter((row) => row.status === 'pending')) tx.db.leagueEventEntries.key.update({ ...entry, status: 'rejected' })
+  tx.db.leagueEvents.id.update({ ...event, revealedAt: BigInt(now), revealedBy: actorId })
+  return { outcome: 'revealed' as const, entrantIds: entries.map((entry) => entry.userId) }
+}
+
+function leagueRevealEntry(entry: LeagueEntryRow) {
+  return {
+    userId: entry.userId,
+    status: entry.status as 'pending' | 'accepted' | 'rejected',
+    submitted: entry.rosterSnapshot !== undefined,
+    requiredLimit: entry.requiredLimit ?? null,
+    teamId: entry.teamId ?? null,
+  }
+}
 
 export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   ctx.withTx((tx) => leagueCommandIn(tx, [payload])),
@@ -2458,6 +2541,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       rosterLimit: input.rosterLimit ?? undefined,
       createdAt: BigInt(input.now),
       revealedAt: undefined,
+      revealedBy: undefined,
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
     touchProduct(tx, input.ownerId, 'leagues', 'onboarding')
@@ -2497,16 +2581,41 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       )
     )
       return productJson('full')
-    const status = league.admission === 'automatic' || league.ownerId === input.userId ? 'accepted' : 'pending'
+    const organizers = [league.ownerId, ...leagueAdminIds(tx, league.id)]
+    const status = league.admission === 'automatic' || organizers.includes(input.userId) ? 'accepted' : 'pending'
     if (existing) tx.db.leagueEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now) })
     else insertLeagueEntry(tx, event.id, input.userId, status, input.now)
     touchLeague(tx, league.id, event.id)
-    return productJson(status === 'pending' && input.noticeResults ? { status, ownerId: league.ownerId } : status)
+    return productJson(status === 'pending' && input.noticeResults ? { status, organizerIds: organizers } : status)
   }
   if (!league) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
+  // `ownerId` names whoever acts: the owner, an admin, or for sealing, revealing and battles, an entrant.
   const ownerId = leagueCommandInput(z.object({ ownerId: leagueIdInput }), value).ownerId
-  if (operation !== 'submit' && operation !== 'create-battle' && league.ownerId !== ownerId)
-    return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'forbidden')
+  const organizer = isLeagueOrganizer(league, leagueAdminIds(tx, league.id), ownerId)
+  const ownerOnly = operation === 'delete' || operation === 'set-admins'
+  if (
+    ownerOnly ? league.ownerId !== ownerId : operation !== 'submit' && operation !== 'create-battle' && operation !== 'reveal' && !organizer
+  )
+    return productJson('forbidden')
+
+  if (operation === 'set-admins') {
+    const input = leagueCommandInput(
+      z.object({ op: z.literal('set-admins'), userIds: z.array(leagueIdInput).max(LEAGUE_ADMIN_MAX), now: leagueTimeInput }),
+      value,
+    )
+    const userIds = [...new Set(input.userIds)]
+    if (userIds.some((userId) => userId === league.ownerId || friendshipBetween(tx, league.ownerId, userId)?.acceptedAt === undefined))
+      return productJson('not-friends')
+    const current = Array.from(tx.db.leagueAdmins.leagueId.filter(league.id))
+    for (const row of current) if (!userIds.includes(row.userId)) tx.db.leagueAdmins.key.delete(row.key)
+    for (const userId of userIds) {
+      if (current.some((row) => row.userId === userId)) continue
+      tx.db.leagueAdmins.insert({ key: JSON.stringify([league.id, userId]), leagueId: league.id, userId, addedAt: BigInt(input.now) })
+    }
+    touchLeague(tx, league.id)
+    for (const row of current) touchProduct(tx, row.userId, 'leagues')
+    return productJson({ added: userIds.filter((userId) => !current.some((row) => row.userId === userId)) })
+  }
 
   if (operation === 'create-event') {
     const input = leagueCommandInput(
@@ -2542,8 +2651,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       rosterLimit: input.rosterLimit ?? undefined,
       createdAt: BigInt(input.now),
       revealedAt: undefined,
+      revealedBy: undefined,
     })
-    if (input.ownerPlays) insertLeagueEntry(tx, input.id, league.ownerId, 'accepted', input.now)
+    if (input.ownerPlays) insertLeagueEntry(tx, input.id, ownerId, 'accepted', input.now)
     touchLeague(tx, league.id, latest.id)
     return productJson('created')
   }
@@ -2612,7 +2722,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     )
     if (event.revealedAt !== undefined) return productJson('closed')
     const userIds = [...new Set(input.userIds)]
-    if (userIds.some((userId) => userId === league.ownerId || friendshipBetween(tx, league.ownerId, userId)?.acceptedAt === undefined))
+    if (userIds.some((userId) => userId === ownerId || friendshipBetween(tx, ownerId, userId)?.acceptedAt === undefined))
       return productJson('not-friends')
     const entries = leagueEntriesFor(tx, event.id)
     const current = new Map(entries.map((entry) => [entry.userId, entry]))
@@ -2827,74 +2937,35 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       rosterSnapshot: input.snapshot,
       submittedAt: BigInt(input.now),
     })
+    const revealed =
+      event.revealedAt === undefined &&
+      leagueRevealsItself(
+        {
+          format: (event.format ?? null) as '1v1' | '2v1' | '2v2' | null,
+          rosterLimit: event.rosterLimit ?? null,
+          playerLimit: league.playerLimit ?? null,
+        },
+        leagueEntriesFor(tx, event.id).map(leagueRevealEntry),
+      )
+        ? revealLeagueEvent(tx, event, input.now, input.userId)
+        : null
     touchLeague(tx, league.id, event.id)
-    return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
+    return productJson({
+      outcome: 'sealed',
+      format: event.format ?? null,
+      requiredLimit,
+      revealedIds: revealed?.outcome === 'revealed' ? revealed.entrantIds : null,
+    })
   }
   if (operation === 'reveal') {
     const input = leagueCommandInput(z.object({ op: z.literal('reveal'), now: leagueTimeInput }), value)
     if (event.revealedAt !== undefined) return productJson({ outcome: 'not-ready' })
-    const all = leagueEntriesFor(tx, event.id)
-    const entries = all.filter((entry) => entry.status === 'accepted')
-    const checks = leagueRevealChecklist(
-      {
-        format: (event.format ?? null) as '1v1' | '2v1' | '2v2' | null,
-        rosterLimit: event.rosterLimit ?? null,
-        playerLimit: league.playerLimit ?? null,
-      },
-      all.map((entry) => ({
-        userId: entry.userId,
-        status: entry.status as 'pending' | 'accepted' | 'rejected',
-        submitted: entry.rosterSnapshot !== undefined,
-        requiredLimit: entry.requiredLimit ?? null,
-        teamId: entry.teamId ?? null,
-      })),
-    )
-    if (!checks.every((check) => check.done)) return productJson({ outcome: 'not-ready' })
-    let snapshots: Roster[] = []
-    if (event.format !== undefined) {
-      try {
-        snapshots = entries.map((entry) => parseRosterSnapshot(entry.rosterSnapshot!))
-      } catch {
-        return productJson({ outcome: 'not-ready' })
-      }
-    }
-    if (
-      event.format !== undefined &&
-      event.format !== '2v2' &&
-      snapshots.some((snapshot) => {
-        const selected = leagueWarlords([snapshot], true)
-        return !selected.eligible || selected.count !== 1
-      })
-    )
-      return productJson({ outcome: 'invalid-warlords', format: event.format })
-    if (event.format === '2v2') {
-      const teams = new Map<string, Roster[]>()
-      entries.forEach((entry, index) => teams.set(entry.teamId!, [...(teams.get(entry.teamId!) ?? []), snapshots[index]!]))
-      if (
-        [...teams.values()].some((team) => {
-          const selected = leagueWarlords(team)
-          return !selected.eligible || selected.count !== 1
-        })
-      )
-        return productJson({ outcome: 'invalid-warlords', format: '2v2' })
-    }
-    if (
-      event.format !== undefined &&
-      entries.some((entry, index) => {
-        const required = requiredLeagueRosterLimit(
-          event.format as '1v1' | '2v1' | '2v2',
-          event.rosterLimit ?? null,
-          entry.requiredLimit ?? null,
-          entry.teamId ?? null,
-        )
-        return required === null || snapshots[index]!.built?.limit !== required
-      })
-    )
+    const actor = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, ownerId]))
+    if (!mayRevealLeague(organizer, actor ? { status: actor.status as LeagueEntryStatus } : null))
       return productJson({ outcome: 'not-ready' })
-    for (const entry of all.filter((row) => row.status === 'pending')) tx.db.leagueEventEntries.key.update({ ...entry, status: 'rejected' })
-    tx.db.leagueEvents.id.update({ ...event, revealedAt: BigInt(input.now) })
-    touchLeague(tx, league.id, event.id)
-    return productJson({ outcome: 'revealed', entrantIds: entries.map((entry) => entry.userId) })
+    const revealed = revealLeagueEvent(tx, event, input.now, ownerId)
+    if (revealed.outcome === 'revealed') touchLeague(tx, league.id, event.id)
+    return productJson(revealed)
   }
   if (operation === 'unseal') {
     const input = leagueCommandInput(z.object({ op: z.literal('unseal'), userId: leagueIdInput }), value)

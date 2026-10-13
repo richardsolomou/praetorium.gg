@@ -166,7 +166,7 @@ test('a private roster can be shared and made private again', async ({ browser }
     await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
     await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
     const deletion = page.getByRole('alertdialog', { name: 'Delete Shareable roster?' })
-    await expect(deletion).toContainText('Frozen copies in battles and league events are kept.')
+    await expect(deletion).toContainText('Frozen copies in battles and leagues are kept.')
     await deletion.screenshot({ path: `test-results/publication-delete-${width}.png` })
     await deletion.getByRole('button', { name: 'Cancel', exact: true }).click()
     await page.goto('/profile')

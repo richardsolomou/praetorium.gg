@@ -205,6 +205,7 @@ const leagueEvents = table(
     rosterLimit: t.option(t.u32()),
     createdAt: t.u64(),
     revealedAt: t.option(t.u64()),
+    revealedBy: t.option(t.string()).default(undefined),
   },
 )
 
@@ -222,6 +223,17 @@ const leagueEventEntries = table(
     submittedAt: t.option(t.u64()),
     requiredLimit: t.option(t.u32()),
     teamId: t.option(t.string()),
+  },
+)
+
+/** Players the owner trusts to run the league beside them; the owner alone deletes it or changes who these are. */
+const leagueAdmins = table(
+  { name: 'league_admins' },
+  {
+    key: t.string().primaryKey(),
+    leagueId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    addedAt: t.u64(),
   },
 )
 
@@ -359,6 +371,7 @@ export const productTables = {
   leagueEvents,
   leagueEventEntries,
   leagueEventBattles,
+  leagueAdmins,
   collection,
   collectionSharing,
   collectionStock,

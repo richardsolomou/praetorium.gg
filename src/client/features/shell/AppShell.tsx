@@ -9,7 +9,7 @@ import { HeadContent, Link, Outlet, Scripts, useLocation, useMatch } from '@tans
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { BookOpen, ChevronDown, Dices, Gavel, Layers3, Medal, Menu, ScrollText, Swords, Trophy, UsersRound, X } from 'lucide-react'
+import { BookOpen, Calculator, ChevronDown, Gavel, Layers3, Medal, Menu, ScrollText, Swords, Trophy, UsersRound, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -121,7 +121,7 @@ function PrimaryNavigation({ path }: { path: string }) {
           className={linkClass}
           activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
         >
-          <Dices aria-hidden className="size-4 shrink-0 text-info" />
+          <Calculator aria-hidden className="size-4 shrink-0 text-info" />
           Simulator
         </Link>
         <DropdownMenu>

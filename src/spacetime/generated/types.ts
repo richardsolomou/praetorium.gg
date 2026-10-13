@@ -149,6 +149,7 @@ export const LeagueEvents = __t.object('LeagueEvents', {
   rosterLimit: __t.option(__t.u32()),
   createdAt: __t.u64(),
   revealedAt: __t.option(__t.u64()),
+  revealedBy: __t.option(__t.string()),
 })
 export type LeagueEvents = __Infer<typeof LeagueEvents>
 

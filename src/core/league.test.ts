@@ -7,6 +7,10 @@ import {
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueRevealsItself,
+  leagueArmy,
+  mayRevealLeague,
+  isLeagueOrganizer,
   leagueTableShape,
   matchesSealedLeagueRoster,
   readsAlliedLeagueRoster,
@@ -95,15 +99,15 @@ it('treats a missing legacy format as 1v1', () => {
 
 describe('visibleLeagueEntries', () => {
   it('shows only accepted entrants to a visitor', () => {
-    expect(visibleLeagueEntries(entries, 'owner', null).map((entry) => entry.userId)).toEqual(['accepted'])
+    expect(visibleLeagueEntries(entries, false, null).map((entry) => entry.userId)).toEqual(['accepted'])
   })
 
   it('shows a player their own pending entry', () => {
-    expect(visibleLeagueEntries(entries, 'owner', 'pending').map((entry) => entry.userId)).toEqual(['accepted', 'pending'])
+    expect(visibleLeagueEntries(entries, false, 'pending').map((entry) => entry.userId)).toEqual(['accepted', 'pending'])
   })
 
   it('shows every entry to the organizer', () => {
-    expect(visibleLeagueEntries(entries, 'owner', 'owner')).toEqual(entries)
+    expect(visibleLeagueEntries(entries, true, 'admin')).toEqual(entries)
   })
 })
 
@@ -251,7 +255,7 @@ describe('leagueRevealChecklist', () => {
     ...over,
   })
   const ready = (checks: ReturnType<typeof leagueRevealChecklist>) => checks.every((check) => check.done)
-  const duel = { format: '1v1' as const, rosterLimit: 2_000, playerLimit: null }
+  const duel = { format: '1v1' as const, rosterLimit: 2_000 }
 
   it('is ready when every accepted 1v1 entrant has sealed', () => {
     expect(ready(leagueRevealChecklist(duel, [entry('a'), entry('b'), entry('c', { status: 'pending', submitted: false })]))).toBe(true)
@@ -261,13 +265,8 @@ describe('leagueRevealChecklist', () => {
     expect(leagueRevealChecklist(duel, [entry('a', { status: 'pending' })])[0]).toMatchObject({ step: 'places', done: false })
   })
 
-  it('waits for every configured place to be filled', () => {
-    expect(leagueRevealChecklist({ ...duel, playerLimit: 3 }, [entry('a'), entry('b')])[0]).toEqual({
-      step: 'places',
-      done: false,
-      accepted: 2,
-      required: 3,
-    })
+  it('does not wait for a player limit to fill', () => {
+    expect(leagueRevealChecklist(duel, [entry('a')])[0]).toEqual({ step: 'places', done: true, accepted: 1 })
   })
 
   it('names the entrants who have not sealed', () => {
@@ -279,7 +278,7 @@ describe('leagueRevealChecklist', () => {
   })
 
   describe('2v1', () => {
-    const trial = { format: '2v1' as const, rosterLimit: 2_000, playerLimit: null }
+    const trial = { format: '2v1' as const, rosterLimit: 2_000 }
     const sizes = (rows: LeagueRevealEntry[]) => leagueRevealChecklist(trial, rows).find((check) => check.step === 'sizes')
 
     it('is ready with one solo and two allied entrants', () => {
@@ -310,7 +309,7 @@ describe('leagueRevealChecklist', () => {
   })
 
   describe('2v2', () => {
-    const doubles = { format: '2v2' as const, rosterLimit: 2_000, playerLimit: null }
+    const doubles = { format: '2v2' as const, rosterLimit: 2_000 }
     const paired = ['a', 'b', 'c', 'd'].map((userId, index) => entry(userId, { teamId: index < 2 ? 'team-1' : 'team-2' }))
     const check = (rows: LeagueRevealEntry[], step: string) =>
       leagueRevealChecklist(doubles, rows).find((candidate) => candidate.step === step)
@@ -341,10 +340,7 @@ describe('leagueRevealChecklist', () => {
   })
 
   it('ignores sizes and teams for a legacy event', () => {
-    expect(leagueRevealChecklist({ format: null, rosterLimit: null, playerLimit: null }, [entry('a')]).map((check) => check.step)).toEqual([
-      'places',
-      'lists',
-    ])
+    expect(leagueRevealChecklist({ format: null, rosterLimit: null }, [entry('a')]).map((check) => check.step)).toEqual(['places', 'lists'])
   })
 })
 
@@ -365,5 +361,97 @@ describe('sealed Warlords', () => {
   })
   it('honors an explicit ineligible Warlord over its Character group', () => {
     expect(leagueWarlords([roster([{ ...unit, warlordEligible: false }])])).toEqual({ count: 1, eligible: false })
+  })
+})
+
+describe('leagueRevealsItself', () => {
+  const sealed = (userId: string): LeagueRevealEntry => ({ userId, status: 'accepted', submitted: true, requiredLimit: null, teamId: null })
+  const duel = { format: '1v1' as const, rosterLimit: 2_000 }
+
+  it('opens a full event once every list is sealed', () => {
+    expect(leagueRevealsItself({ ...duel, playerLimit: 2 }, [sealed('a'), sealed('b')])).toBe(true)
+  })
+
+  it('waits for an empty place', () => {
+    expect(leagueRevealsItself({ ...duel, playerLimit: 3 }, [sealed('a'), sealed('b')])).toBe(false)
+  })
+
+  it('waits for an unsealed list', () => {
+    expect(leagueRevealsItself({ ...duel, playerLimit: 2 }, [sealed('a'), { ...sealed('b'), submitted: false }])).toBe(false)
+  })
+
+  it('leaves an event without a limit to the organizer', () => {
+    expect(leagueRevealsItself({ ...duel, playerLimit: null }, [sealed('a'), sealed('b')])).toBe(false)
+  })
+})
+
+describe('mayRevealLeague', () => {
+  it('lets the organizer reveal without playing', () => {
+    expect(mayRevealLeague(true, null)).toBe(true)
+  })
+
+  it('lets anyone playing reveal', () => {
+    expect(mayRevealLeague(false, { status: 'accepted' })).toBe(true)
+  })
+
+  it('keeps a waiting request from revealing', () => {
+    expect(mayRevealLeague(false, { status: 'pending' })).toBe(false)
+  })
+
+  it('keeps a reader outside the league from revealing', () => {
+    expect(mayRevealLeague(false, null)).toBe(false)
+  })
+})
+
+describe('leagueArmy', () => {
+  const unit = (name: string, points: number, warlord = false) => ({ key: name, name, points, models: 1, warlord })
+  const roster = (units: ReturnType<typeof unit>[]): Roster => ({
+    name: 'Dynasty',
+    text: '',
+    built: {
+      catalogueId: 'necrons',
+      revision: 'r',
+      limit: 2_000,
+      detachment: 'Awakened Dynasty',
+      disposition: null,
+      units,
+    },
+  })
+
+  it('totals the points of every unit', () => {
+    expect(leagueArmy(roster([unit('Lord', 80, true), unit('Warriors', 200)])).points).toBe(280)
+  })
+
+  it('keeps what the roster card reads of the sealed list', () => {
+    expect(leagueArmy(roster([unit('Lord', 80, true)]))).toMatchObject({
+      catalogueId: 'necrons',
+      limit: 2_000,
+      unitCount: 1,
+      pointsBudget: null,
+    })
+  })
+
+  it('shows a text-only list by name alone', () => {
+    expect(leagueArmy({ name: 'Pasted list', text: 'units' })).toMatchObject({ name: 'Pasted list', points: null, limit: null })
+  })
+})
+
+describe('isLeagueOrganizer', () => {
+  const league = { ownerId: 'owner' }
+
+  it('counts the owner', () => {
+    expect(isLeagueOrganizer(league, [], 'owner')).toBe(true)
+  })
+
+  it('counts an admin the owner chose', () => {
+    expect(isLeagueOrganizer(league, ['admin'], 'admin')).toBe(true)
+  })
+
+  it('leaves out everyone else', () => {
+    expect(isLeagueOrganizer(league, ['admin'], 'player')).toBe(false)
+  })
+
+  it('leaves out a signed-out reader', () => {
+    expect(isLeagueOrganizer(league, ['admin'], null)).toBe(false)
   })
 })
