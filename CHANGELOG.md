@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.137.1
+
+### Patch Changes
+
+- 38d2754: Reduce iOS reloads caused by memory pressure when restoring cached reference data, and defer unused battle data during online roster edits.
+
 ## 0.137.0
 
 ### Minor Changes
