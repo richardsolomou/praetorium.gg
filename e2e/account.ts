@@ -415,10 +415,15 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
     }
     const phase = page.locator('[data-scoreboard] h1')
     const before = await phase.textContent()
-    const clicked = await advanceButton(page)
-      .click({ timeout: 5_000 })
-      .then(() => true)
-      .catch(() => false)
+    // The button stays disabled until the last command lands, and a prompt opening instead hides it.
+    const ready = advanceButton(page).and(page.locator(':enabled'))
+    await expect(ready.or(reminder).or(owedPrompt(page)).or(drawPrompt(page)).first()).toBeVisible()
+    const clicked =
+      (await ready.isVisible()) &&
+      (await ready
+        .click({ timeout: 5_000 })
+        .then(() => true)
+        .catch(() => false))
     if (clicked) {
       const scoring = page.getByRole('dialog', { name: /^Scoring end of (turn|command|movement|shooting|charge|fight) / })
       const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
