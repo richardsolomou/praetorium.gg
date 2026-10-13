@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.136.2
+
+### Patch Changes
+
+- cc91bca: Restore the Land Raider Redeemer's Wrath of the Machine Spirit ability in the current Space Marines rules.
+
 ## 0.136.1
 
 ### Patch Changes
