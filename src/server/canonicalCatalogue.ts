@@ -28,7 +28,7 @@ import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 4 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 5 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -226,7 +226,7 @@ const ruleDocumentSchema = z.object({
 
 export const canonicalCatalogueSchema = z.object({
   format: z.literal(CANONICAL_CATALOGUE_FORMAT),
-  compilerVersion: z.union([z.literal(1), z.literal(3), z.literal(CANONICAL_CATALOGUE_COMPILER_VERSION)]),
+  compilerVersion: z.union([z.literal(1), z.literal(3), z.literal(4), z.literal(CANONICAL_CATALOGUE_COMPILER_VERSION)]),
   revisions: z.record(z.string(), z.string()),
   datasheets: z.array(canonicalDatasheetSchema),
   detachments: z.array(canonicalDetachmentSchema).default([]),
