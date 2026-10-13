@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.10
+
+### Patch Changes
+
+- 81e94fa: Growing Cadian Shock Troops to 20 models keeps their special weapons and no longer flags them as an unavailable saved choice.
+
 ## 0.141.9
 
 ### Patch Changes
