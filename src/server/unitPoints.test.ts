@@ -188,6 +188,74 @@ it('prices first, second, and third copies from MFM without retaining BSData cop
   }).toEqual({ picker: 90, units: [90, 90, 105], assessment: 285, total: 285 })
 })
 
+it.each([3, 4, 5, 6])('prices saved %i-model squads from MFM across copy tiers and roster summaries', (models) => {
+  const catalogue = bookOf({
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        costs: points(95),
+        selectionEntries: [
+          {
+            id: 'body',
+            name: 'Body',
+            type: 'model',
+            constraints: [
+              { id: 'min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+              { id: 'max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  catalogue.mfm = new Map([
+    [
+      'test-catalogue',
+      {
+        slug: 'test-catalogue',
+        version: '1.5',
+        units: [
+          {
+            name: 'Squad',
+            pricing: [
+              {
+                range: '[1,2]',
+                costs: [
+                  { models: 3, points: 100 },
+                  { models: 6, points: 215 },
+                ],
+              },
+              {
+                range: '[3,)',
+                costs: [
+                  { models: 3, points: 130 },
+                  { models: 6, points: 245 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  ])
+  const saved = savedRosterPriceInput({
+    catalogueId: 'cat',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    picks: Array.from({ length: 3 }, () => ({ entryId: 'squad', models })),
+  })
+  expect({
+    units: calculateRosterPrice(saved, catalogue, null)?.units.map((unit) => unit.points),
+    assessment: calculateRosterAssessment(saved, catalogue, null)?.points,
+    total: calculateRosterTotals(saved, catalogue, null)?.points,
+  }).toEqual(
+    models === 3 ? { units: [100, 100, 130], assessment: 330, total: 330 } : { units: [215, 215, 245], assessment: 675, total: 675 },
+  )
+})
+
 it('uses MFM wargear prices after a selected option is saved and reloaded', () => {
   const catalogue = bookOf({
     selectionEntries: [

@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.139.1
+
+### Patch Changes
+
+- baacc68: Refresh Space Marines points and charge partial squads at the larger squad price.
+
 ## 0.139.0
 
 ### Minor Changes

@@ -28,10 +28,11 @@ test('Home, rosters and battles launch from saved state and update without repla
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Saved army' })
   const rosterPath = new URL(page.url()).pathname
   const battlePath = new URL(await createBattle(page, { practice: true })).pathname
+  await expect(page.getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()
+  await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', battlePath.split('/').at(-1)!]))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
   await expect.poll(() => savedState(page)).toContain(roster)
-  await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', battlePath.split('/').at(-1)!]))
   await expect
     .poll(() => page.evaluate(async () => Boolean(await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))), {
       timeout: 180_000,
