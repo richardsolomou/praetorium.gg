@@ -75,10 +75,10 @@ export function localStateStorage(owner: string): LocalStateStorage {
   const verify = (saved: StoredState) => {
     if (verified?.saved === saved) return verified.state
     if (epoch && epoch !== saved.epoch) throw new Error('The account on this device changed.')
-    if (saved.state && (!parseLocalState(saved.state) || saved.state.owner !== owner))
-      throw new Error('Saved changes belong to another account.')
+    const parsed = saved.state ? parseLocalState(saved.state) : null
+    if (saved.state && (!parsed || parsed.owner !== owner)) throw new Error('Saved changes belong to another account.')
     epoch = saved.epoch
-    const state = saved.state ?? { ...emptyLocalState(owner), epoch: saved.epoch }
+    const state = parsed ?? { ...emptyLocalState(owner), epoch: saved.epoch }
     verified = { saved, state }
     return state
   }

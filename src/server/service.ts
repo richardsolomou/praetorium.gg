@@ -1202,12 +1202,3 @@ function referencedPlays(
     }
   })
 }
-
-/** The legacy column held one id; new rows hold the ordered 11e purchase list. */
-/**
- * The format rules a saved row says it has waived.
- *
- * Parsed rather than trusted: a rule id this build does not know would be a
- * restriction the roster believes is off while every check still enforces it, so an
- * unrecognised name is dropped and the rule goes on being played.
- */

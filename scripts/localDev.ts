@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
+import { migrateProductData } from './lib/productDataMigrations.ts'
 import {
   browserTestBuildEnvironment,
   browserTestBuildFingerprint,
@@ -182,6 +183,13 @@ async function configure(value: Credentials) {
     JSON.stringify([`${publicUrl}/api/auth`, database, value.operator.identity]),
   )
   await spacetime('POST', `/v1/database/${database}/call/operator_health`, value.operator.token, '[]')
+  const migrated = await migrateProductData({
+    url: spacetimeUrl,
+    database,
+    ownerToken: value.owner.token,
+    operatorToken: value.operator.token,
+  })
+  console.log(`Product data migration: ${migrated.rosters} rosters, ${migrated.collection} favourites`)
 }
 
 async function main() {

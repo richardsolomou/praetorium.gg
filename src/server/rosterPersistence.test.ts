@@ -40,8 +40,8 @@ describe('rosterFromRow', () => {
     expect(rosterFromRow({ ...row, name: 'CL 2K', automaticName: true }).automaticName).toBe(true)
   })
 
-  it('treats existing unnamed rows as automatic', () => {
-    expect(rosterFromRow({ ...row, name: '', automaticName: null }).automaticName).toBe(true)
+  it('reads migrated unnamed rows as automatic', () => {
+    expect(rosterFromRow({ ...row, name: '', automaticName: true }).automaticName).toBe(true)
   })
 
   it('reads a retired Marine profile roster against its original rules', () => {

@@ -8,7 +8,7 @@ let epoch: string | undefined
 type SavedState = { epoch: string; snapshot: unknown }
 
 export async function readAppSnapshot(): Promise<AppSnapshot | null> {
-  if (supportsNativeAppSnapshot()) return window.PraetoriumAppSnapshot ?? null
+  if (supportsNativeAppSnapshot()) return parseAppSnapshot(window.PraetoriumAppSnapshot)
   let saved = await get<SavedState>('snapshot', store)
   if (!saved) {
     await update<SavedState>(

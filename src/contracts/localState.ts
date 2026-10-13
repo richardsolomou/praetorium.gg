@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { migrateSavedLeague } from './savedLeagues'
+import { migrateSavedRoster } from '../core/savedRosterMigrations'
 
 export const MAX_LOCAL_STATE_BYTES = 50_000_000
 export const MAX_LOCAL_OPERATIONS = 2_000
@@ -32,7 +34,12 @@ export function emptyLocalState(owner: string): LocalState {
 
 export function parseLocalState(value: unknown): LocalState | null {
   const parsed = localStateSchema.safeParse(value)
-  if (!parsed.success || new TextEncoder().encode(JSON.stringify(parsed.data)).byteLength > MAX_LOCAL_STATE_BYTES) return null
+  if (!parsed.success) return null
+  for (const [resource, document] of Object.entries(parsed.data.documents)) {
+    if (resource.startsWith('league:')) document.data = migrateSavedLeague(document.data)
+    if (resource.startsWith('roster:')) document.data = migrateSavedRoster(document.data)
+  }
+  if (new TextEncoder().encode(JSON.stringify(parsed.data)).byteLength > MAX_LOCAL_STATE_BYTES) return null
   if (new Set(parsed.data.operations.map((operation) => operation.id)).size !== parsed.data.operations.length) return null
   return parsed.data
 }
