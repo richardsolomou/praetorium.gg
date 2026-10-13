@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.141.2
+
+### Patch Changes
+
+- 98579f8: Count attached Leaders and their squads as one unit on league roster cards.
+- 97cd75a: Restore chapter-specific Space Marine detachments on faction reference pages.
+
 ## 0.141.1
 
 ### Patch Changes
