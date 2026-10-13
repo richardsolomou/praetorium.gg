@@ -10,12 +10,7 @@ import { promisify } from 'node:util'
 import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
-import {
-  browserTestBuildEnvironment,
-  browserTestBuildFingerprint,
-  restoreBrowserTestBuild,
-  saveBrowserTestBuild,
-} from './lib/browserTestBuild.ts'
+import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
 const worktree = await realpath(process.cwd())
@@ -296,13 +291,14 @@ async function main() {
   const buildStartedAt = performance.now()
   if (testMode) {
     Object.assign(environment, browserTestBuildEnvironment(environment))
-    const cache = path.join(worktree, 'data-dev/e2e-build')
-    const fingerprint = await browserTestBuildFingerprint(worktree, catalogueDirectory, environment)
-    const cached = environment.LOCAL_BUILD_CACHE !== 'off' && (await restoreBrowserTestBuild(cache, fingerprint, buildDir))
-    if (!cached) await run('pnpm', ['build'])
-    if ((await browserTestBuildFingerprint(worktree, catalogueDirectory, environment)) !== fingerprint)
-      throw new Error('Browser-test build inputs changed during startup; rerun the tests')
-    if (!cached && environment.LOCAL_BUILD_CACHE !== 'off') await saveBrowserTestBuild(cache, fingerprint, buildDir)
+    const { cached } = await ensureBrowserTestBuild(
+      worktree,
+      catalogueDirectory,
+      environment,
+      buildDir,
+      path.join(worktree, 'data-dev/e2e-build'),
+      () => run('pnpm', ['build']),
+    )
     timings.webBuildCached = cached
   } else {
     console.log('Preparing the local seed bundle; application pages will use Vite live reload')

@@ -115,3 +115,24 @@ export async function saveBrowserTestBuild(cache: string, fingerprint: string, o
     await rm(temporary, { recursive: true, force: true })
   }
 }
+
+/**
+ * Leaves a compiled browser-test build at `output` for the current inputs: restored from `cache`
+ * when its fingerprint matches, otherwise built and saved there for the next stack.
+ */
+export async function ensureBrowserTestBuild(
+  worktree: string,
+  catalogue: string,
+  environment: NodeJS.ProcessEnv,
+  output: string,
+  cache: string,
+  build: () => Promise<void>,
+) {
+  const fingerprint = await browserTestBuildFingerprint(worktree, catalogue, environment)
+  const cached = environment.LOCAL_BUILD_CACHE !== 'off' && (await restoreBrowserTestBuild(cache, fingerprint, output))
+  if (!cached) await build()
+  if ((await browserTestBuildFingerprint(worktree, catalogue, environment)) !== fingerprint)
+    throw new Error('Browser-test build inputs changed during the build; run it again')
+  if (!cached && environment.LOCAL_BUILD_CACHE !== 'off') await saveBrowserTestBuild(cache, fingerprint, output)
+  return { fingerprint, cached }
+}

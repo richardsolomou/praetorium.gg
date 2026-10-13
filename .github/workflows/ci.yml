@@ -75,8 +75,8 @@ jobs:
       - run: pnpm catalogue:sync
       - run: pnpm reference:evaluate
 
-  catalogue-smoke:
-    name: Catalogue smoke
+  browser-build:
+    name: Browser-test build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -103,18 +103,8 @@ jobs:
         with:
           path: ~/.cache/praetorium/runtime
           key: catalogue-runtime-${{ steps.runtime.outputs.key }}
-      - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
-        id: spacetime
-        with:
-          version: '2.7.0-hotfix3'
-          sha256: d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831
-      - name: Run catalogue smoke tests
-        env:
-          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
-          PLAYWRIGHT_OUTPUT_DIR: test-results-catalogue
-          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-report-catalogue.json
-          PLAYWRIGHT_STARTUP_REPORT: e2e-startup-catalogue.json
-        run: pnpm exec playwright test --grep @catalogue --reporter=github,json
+      - name: Build or restore the browser-test build
+        run: pnpm exec tsx scripts/browserTestBuild.ts
       - name: Verify the shared browser-test build
         run: |
           set -euo pipefail
@@ -127,6 +117,42 @@ jobs:
           path: data-dev/e2e-build
           include-hidden-files: true
           retention-days: 7
+
+  catalogue-smoke:
+    name: Catalogue smoke
+    needs: [browser-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+        with:
+          install: 'false'
+      - uses: ./.github/actions/e2e-dependencies
+      - run: pnpm catalogue:sync
+      - name: Require the terrain geometry
+        run: pnpm catalogue:terrain
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-test-build
+          path: data-dev/e2e-build
+      - name: Verify the shared browser-test build
+        run: |
+          set -euo pipefail
+          expected="$(pnpm exec tsx scripts/browserTestBuildKey.ts)"
+          stored="$(cat data-dev/e2e-build/fingerprint)"
+          test "$expected" = "$stored"
+      - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
+        id: spacetime
+        with:
+          version: '2.7.0-hotfix3'
+          sha256: d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831
+      - name: Run catalogue smoke tests
+        env:
+          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
+          PLAYWRIGHT_OUTPUT_DIR: test-results-catalogue
+          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-report-catalogue.json
+          PLAYWRIGHT_STARTUP_REPORT: e2e-startup-catalogue.json
+        run: pnpm exec playwright test --grep @catalogue --reporter=github,json
       - name: Report browser-test startup
         if: success() || failure()
         run: |
@@ -150,7 +176,7 @@ jobs:
 
   e2e-shard:
     name: E2E runner ${{ matrix.runner }} of 16
-    needs: [catalogue-smoke]
+    needs: [browser-build]
     strategy:
       fail-fast: false
       matrix:
@@ -221,11 +247,12 @@ jobs:
 
   e2e:
     if: always()
-    needs: [catalogue-smoke, e2e-shard]
+    needs: [browser-build, catalogue-smoke, e2e-shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
         run: |
+          test '${{ needs.browser-build.result }}' = success
           test '${{ needs.catalogue-smoke.result }}' = success
           test '${{ needs.e2e-shard.result }}' = success
 

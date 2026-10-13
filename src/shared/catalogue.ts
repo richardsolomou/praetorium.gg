@@ -10,7 +10,7 @@ import {
   type Selection,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
-import { unitChoices } from '../core/unitChoices'
+import { isUnitCompositionChoice, unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
@@ -674,13 +674,15 @@ export function datasheetViewsIn(
   const selection = context.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
   const options = { primaryCatalogueId: catalogueId, roster: context.selections.filter((entry) => entry !== selection) }
   const controlledChoices = selection
-    ? unitChoices(entryId, selection, loaded.index, options).map((choice) => ({
-        options: choice.options.map((option) => ({
-          name: option.name,
-          count: option.count,
-          pieceCounts: choiceOptionWargear(choice.key, option.id, selection, loaded.index, options),
-        })),
-      }))
+    ? unitChoices(entryId, selection, loaded.index, options)
+        .filter((choice) => !isUnitCompositionChoice(choice))
+        .map((choice) => ({
+          options: choice.options.map((option) => ({
+            name: option.name,
+            count: option.count,
+            pieceCounts: choiceOptionWargear(choice.key, option.id, selection, loaded.index, options),
+          })),
+        }))
     : []
   return {
     controlledChoices,

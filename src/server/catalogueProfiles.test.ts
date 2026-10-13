@@ -3,8 +3,68 @@ import { contextualAbilityNamesIn, datasheetIn, datasheetViewsIn } from '../shar
 import { bookOf, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
 import { deploymentRules } from '../shared/rosterDeployment'
+import { defaultSelection } from '../core/expand'
+import { equippedWeaponProfiles } from '../client/features/rosters/builder/loadoutModel'
 
 describe('the profile modifiers on a datasheet', () => {
+  it.each([4, 10])('keeps fixed weapons visible for a %i-model composition choice', (count) => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Unit Composition',
+              defaultSelectionEntryId: 'size',
+              constraints: [
+                { id: 'required-size', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                { id: 'maximum-size', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [
+                { id: 'other-size', name: '5 models', type: 'upgrade' },
+                {
+                  id: 'size',
+                  name: `${count} models`,
+                  type: 'upgrade',
+                  selectionEntries: [
+                    {
+                      id: 'model',
+                      name: 'Trooper',
+                      type: 'model',
+                      collective: true,
+                      constraints: [{ id: 'required-models', type: 'min', value: count, field: 'selections', scope: 'parent' }],
+                      selectionEntries: ['Ranged Weapons', 'Melee Weapons'].map((typeName, index) => ({
+                        id: `weapon-${index}`,
+                        name: `Weapon ${index}`,
+                        type: 'upgrade' as const,
+                        collective: true,
+                        constraints: [
+                          { id: `required-weapon-${index}`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' },
+                        ],
+                        profiles: [{ id: `profile-${index}`, name: `Weapon ${index}`, typeName }],
+                      })),
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selection = defaultSelection('unit', book.index, { primaryCatalogueId: 'cat' })!
+    const views = datasheetViewsIn(book, 'cat', 'unit', { selections: [selection], unitSelectionIndex: 0 })
+    expect(
+      equippedWeaponProfiles(views.selected!.profiles, views.controlledChoices).map(({ name, count: held }) => ({ name, count: held })),
+    ).toEqual([
+      { name: 'Weapon 0', count },
+      { name: 'Weapon 1', count },
+    ])
+  })
+
   it('preserves equipment ownership for inline and linked profiles with unrelated names', () => {
     const book = bookOf({
       sharedProfiles: [{ id: 'linked-mode', name: 'Alternate target', typeName: 'Ranged Weapons', characteristics: [] }],
