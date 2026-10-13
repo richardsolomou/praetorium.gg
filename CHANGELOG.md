@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.5
+
+### Patch Changes
+
+- 30093d7: Share each compiled catalogue runtime on the catalogue mirror under a key naming its inputs, so builds and deployments download it instead of compiling.
+
 ## 0.141.4
 
 ### Patch Changes
