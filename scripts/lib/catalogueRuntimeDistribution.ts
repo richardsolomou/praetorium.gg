@@ -68,6 +68,18 @@ export function installRuntimeArchive(directory: string, output: string, bytes: 
   }
 }
 
+/** Whether the store already holds `key`; an unreachable store reads as holding it, so nothing retries uploads against it. */
+export async function storeHasRuntime(key: string, store = runtimeStoreUrl()) {
+  if (!store) return true
+  try {
+    const response = await fetchWithRetry(`${store}/${key}.zip`, { method: 'HEAD', signal: AbortSignal.timeout(15_000) })
+    await response.body?.cancel()
+    return response.status !== 404
+  } catch {
+    return true
+  }
+}
+
 /** A missing, unreachable or unverifiable object is a cache miss, never a failed build. */
 export async function downloadRuntime(directory: string, output: string, key: string, store = runtimeStoreUrl()) {
   if (!store) return false

@@ -4,15 +4,16 @@ import os from 'node:os'
 import path from 'node:path'
 import { catalogueRuntimeFingerprint, readCatalogueRuntime, runtimeManifestSchema } from '../../src/server/catalogueRuntime'
 import { writeCatalogueRuntime } from './catalogueRuntime'
-import { downloadRuntime, packCatalogueRuntime, uploadRuntime } from './catalogueRuntimeDistribution'
+import { downloadRuntime, packCatalogueRuntime, storeHasRuntime, uploadRuntime } from './catalogueRuntimeDistribution'
 
 type Compile = (directory: string, output: string) => Promise<void> | void
 export type RuntimeStore = {
+  has: (key: string) => Promise<boolean>
   download: (directory: string, output: string, key: string) => Promise<boolean>
   upload: (key: string, archive: Uint8Array) => Promise<unknown>
 }
 
-const sharedStore: RuntimeStore = { download: downloadRuntime, upload: uploadRuntime }
+const sharedStore: RuntimeStore = { has: storeHasRuntime, download: downloadRuntime, upload: uploadRuntime }
 const compilerSources = ['src/contracts', 'src/core', 'src/server', 'src/shared', 'scripts/lib', 'scripts/compileCatalogueRuntime.ts']
 
 function* sourceFiles(root: string, relative: string): Generator<string> {
@@ -60,7 +61,11 @@ export async function prepareCatalogueRuntime(
   store: RuntimeStore = sharedStore,
 ): Promise<'cached' | 'downloaded' | 'compiled'> {
   const cached = cacheRoot ? path.join(cacheRoot, key) : null
-  if (cached && restoreRuntime(directory, cached, output)) return 'cached'
+  if (cached && restoreRuntime(directory, cached, output)) {
+    // A build without write access usually compiles first and leaves its result in this cache.
+    if (!(await store.has(key))) await share(directory, output, key, store)
+    return 'cached'
+  }
   fs.mkdirSync(path.dirname(output), { recursive: true })
   if (await store.download(directory, output, key)) {
     if (cached) storeRuntime(output, cached)
@@ -68,6 +73,11 @@ export async function prepareCatalogueRuntime(
   }
   await compile(directory, output)
   if (cached) storeRuntime(output, cached)
+  await share(directory, output, key, store)
+  return 'compiled'
+}
+
+async function share(directory: string, output: string, key: string, store: RuntimeStore) {
   const archive = path.join(os.tmpdir(), `praetorium-runtime-${randomUUID()}.zip`)
   try {
     packCatalogueRuntime(directory, output, archive)
@@ -77,7 +87,6 @@ export async function prepareCatalogueRuntime(
   } finally {
     fs.rmSync(archive, { force: true })
   }
-  return 'compiled'
 }
 
 function verifyRuntime(directory: string, location: string) {

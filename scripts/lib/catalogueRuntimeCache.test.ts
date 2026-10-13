@@ -12,7 +12,7 @@ let directory: string
 let cacheRoot: string
 let output: string
 const compile = vi.fn((source: string, target: string) => writeCatalogueRuntime(source, target))
-const offline: RuntimeStore = { download: vi.fn(async () => false), upload: vi.fn(async () => 'skipped') }
+const offline: RuntimeStore = { has: async () => true, download: vi.fn(async () => false), upload: vi.fn(async () => 'skipped') }
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-runtime-cache-'))
   cacheRoot = path.join(directory, 'cache')
@@ -80,6 +80,7 @@ it('shares a fresh compile under its key as an archive that installs identically
 
 it('restores a shared runtime instead of compiling, and caches it', async () => {
   const store: RuntimeStore = {
+    has: async () => true,
     download: async (source, target) => {
       writeCatalogueRuntime(source, target)
       return true
@@ -104,6 +105,7 @@ it('restores a shared runtime instead of compiling, and caches it', async () => 
 
 it('keeps the compiled runtime when sharing it fails', async () => {
   const store: RuntimeStore = {
+    has: async () => false,
     download: async () => false,
     upload: async () => {
       throw new Error('store is read-only')
@@ -111,6 +113,25 @@ it('keeps the compiled runtime when sharing it fails', async () => {
   }
   const result = await prepareCatalogueRuntime(directory, output, cacheRoot, compile, key(), store)
   expect({ result, startup: fs.existsSync(path.join(output, 'startup.json')) }).toEqual({ result: 'compiled', startup: true })
+})
+
+it('shares a cached runtime the store does not hold yet', async () => {
+  await prepareCatalogueRuntime(directory, output, cacheRoot, compile, key(), offline)
+  const uploads: string[] = []
+  const store: RuntimeStore = { has: async () => false, download: async () => false, upload: async (shared) => void uploads.push(shared) }
+  const result = await prepareCatalogueRuntime(directory, output, cacheRoot, compile, key(), store)
+  expect({ result, uploads, compiled: compile.mock.calls.length }).toEqual({ result: 'cached', uploads: [key()], compiled: 1 })
+})
+
+it('leaves a cached runtime alone when the store holds it', async () => {
+  await prepareCatalogueRuntime(directory, output, cacheRoot, compile, key(), offline)
+  const upload = vi.fn(async () => 'uploaded')
+  const result = await prepareCatalogueRuntime(directory, output, cacheRoot, compile, key(), {
+    has: async () => true,
+    download: async () => false,
+    upload,
+  })
+  expect({ result, uploads: upload.mock.calls.length }).toEqual({ result: 'cached', uploads: 0 })
 })
 
 it('compiles without storing when the cache is off', async () => {
