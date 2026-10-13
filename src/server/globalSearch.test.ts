@@ -26,6 +26,66 @@ it('links preview search results through the stable faction path', () => {
 })
 
 describe('global datasheet search', () => {
+  it('does not attribute a generic faction rule effect to every unit', async () => {
+    const catalogue = shelfOf({
+      name: 'Necrons',
+      rules: [{ id: 'army-rule', name: 'Army rule', description: 'You gain 1 CP.' }],
+      selectionEntries: [
+        {
+          id: 'warrior',
+          name: 'Warrior',
+          type: 'model',
+          costs: points(10),
+          infoLinks: [{ id: 'army-rule-link', targetId: 'army-rule', name: 'Army rule', type: 'rule' }],
+        },
+      ],
+    })
+    const results = await searchEverything('gain 1cp', { catalogue, rules: null, own: async () => null })
+    expect(results.filter((result) => result.group === 'Datasheets')).toEqual([])
+  })
+  it('returns every matching datasheet beyond the former twelve-result cap', async () => {
+    const catalogue = shelfOf({
+      name: 'Necrons',
+      selectionEntries: Array.from({ length: 60 }, (_, index) => ({
+        id: `unit-${index}`,
+        name: `Guard ${index}`,
+        type: 'model' as const,
+        costs: points(10),
+      })),
+    })
+    const results = await searchEverything('guard', { catalogue, rules: null, own: async () => null })
+    expect(results.filter((result) => result.group === 'Datasheets')).toHaveLength(60)
+  })
+  it('finds command-phase CP generators through the compiled ability description', async () => {
+    const catalogue = shelfOf({
+      name: 'Necrons',
+      selectionEntries: [
+        {
+          id: 'strategist',
+          name: 'Strategist',
+          type: 'model',
+          costs: points(100),
+          profiles: [
+            {
+              id: 'grand-strategist',
+              name: 'Grand Strategist',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'You gain 1 CP in your Command phase.' }],
+            },
+          ],
+        },
+      ],
+    })
+    const results = await searchEverything('gain 1cp command phase', {
+      catalogue: null,
+      catalogueIndex: compiledGlobalSearchIndex(catalogue, null),
+      rules: null,
+      own: async () => null,
+    })
+    expect(results.filter((result) => result.group === 'Datasheets').map(({ label, matchReasons }) => ({ label, matchReasons }))).toEqual([
+      { label: 'Strategist', matchReasons: [{ kind: 'ability', value: 'Grand Strategist' }] },
+    ])
+  })
   it('finds a datasheet by structured metadata and explains the match', async () => {
     const catalogue = shelfOf({
       name: 'Necrons',

@@ -12,9 +12,7 @@ import { ruleIndexOf } from './rulesCore'
 import { factionReferenceHref } from '../core/factionReferenceRoute'
 import type { LoadedRules } from './rules'
 
-/** The order results are shown in, and the most of each that is worth showing. */
 const GROUPS: GlobalSearchResult['group'][] = ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Rules', 'Your rosters', 'Your battles']
-const PER_GROUP = 12
 
 type Sources = {
   catalogue: LoadedCatalogue | null
@@ -58,6 +56,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
           label: detachment.name,
           detail: faction.displayName,
           href: factionReferenceHref(faction, `/detachments/${detachment.slug}`),
+          faction: { slug: faction.slug, displayName: faction.displayName, icon: faction.icon, edition: faction.edition },
         },
       })
     }
@@ -78,6 +77,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
           label: name,
           detail: faction.displayName,
           href: factionReferenceHref(faction, `/datasheets/${datasheetSlug(loaded, faction.id, entryId)}`),
+          faction: { slug: faction.slug, displayName: faction.displayName, icon: faction.icon, edition: faction.edition },
         },
       })
     }
@@ -106,7 +106,7 @@ export async function searchEverything(query: string, sources: Sources): Promise
     ),
     ...searchOwn(query, await sources.own()),
   ]
-  return GROUPS.flatMap((group) => results.filter((result) => result.group === group).slice(0, PER_GROUP))
+  return GROUPS.flatMap((group) => results.filter((result) => result.group === group))
 }
 
 function indexedMissions(rules: LoadedRules | null): IndexedResult[] {

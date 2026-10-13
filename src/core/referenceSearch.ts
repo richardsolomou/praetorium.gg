@@ -1,4 +1,5 @@
 import type { DatasheetSearchFields, DatasheetSearchReason } from './datasheetSearch'
+import type { CatalogueEdition } from './catalogueEdition'
 
 export type GlobalSearchResult = {
   id: string
@@ -6,6 +7,12 @@ export type GlobalSearchResult = {
   label: string
   detail: string
   href: string
+  faction?: {
+    slug: string
+    displayName: string
+    icon: string | null
+    edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status' | 'description'> | null
+  }
   matchReasons?: DatasheetSearchReason[]
   /** A typo-tolerant fallback, shown separately from direct matches. */
   fuzzy?: boolean
@@ -37,7 +44,7 @@ export function searchReference(query: string, index: GlobalSearchIndex): Global
     ...[...index.missions, ...index.rules].filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
   ]
   return ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Rules'].flatMap((group) =>
-    results.filter((result) => result.group === group).slice(0, 12),
+    results.filter((result) => result.group === group),
   )
 }
 

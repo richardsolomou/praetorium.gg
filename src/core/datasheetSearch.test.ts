@@ -11,6 +11,37 @@ const fields = {
 }
 
 describe('datasheet search', () => {
+  it('ranks a complete ability-effect match ahead of words spread across fields', () => {
+    const complete = matchDatasheet('gain 1cp', { ...fields, abilityDescriptions: [{ name: 'Strategist', description: 'You gain 1CP.' }] })
+    const scattered = matchDatasheet('gain 1cp', { ...fields, abilities: ['Gain'], weapons: ['1 CP'] })
+    expect(complete!.score).toBeLessThan(scattered!.score)
+  })
+
+  it('does not match regaining wounds as gaining CP', () => {
+    expect(
+      matchDatasheet('gain 1cp', { ...fields, abilityDescriptions: [{ name: 'Repair', description: 'Regain 1 wound by spending CP.' }] }),
+    ).toBeNull()
+  })
+  it.each(['gain 1cp', 'gain 1 CP', 'gain 1 command point', 'gain 1cp command phase'])(
+    'finds command-point abilities by their effect: %s',
+    (query) => {
+      expect(
+        matchDatasheet(query, {
+          ...fields,
+          abilityDescriptions: [{ name: 'Grand Strategist', description: 'At the start of your Command phase, you gain 1 CP.' }],
+        })?.reasons,
+      ).toEqual([{ kind: 'ability', value: 'Grand Strategist' }])
+    },
+  )
+
+  it.each([2, 12])('does not confuse gaining %i command points with gaining one', (amount) => {
+    expect(
+      matchDatasheet('gain 1cp', {
+        ...fields,
+        abilityDescriptions: [{ name: 'Grand Strategist', description: `In your Command phase, you gain ${amount}CP.` }],
+      }),
+    ).toBeNull()
+  })
   it('filters loaded picker entries with the same ranking and match reasons', () => {
     const entries = [
       { id: 'technomancer', name: 'Technomancer', search: fields },
