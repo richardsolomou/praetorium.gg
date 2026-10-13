@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.7
+
+### Patch Changes
+
+- f796e88: Show fixed weapons in roster loadouts when squad size is selected through unit composition.
+
 ## 0.141.6
 
 ### Patch Changes
