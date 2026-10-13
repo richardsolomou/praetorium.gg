@@ -1,7 +1,8 @@
 /**
- * One compile at a time, for `catalogueHistorySeed.ts`: a published snapshot or a point in
- * upstream history, materialised into a directory laid out as a synced catalogue, compiled
- * from its sources with today's code, and removed again before the next task.
+ * One compile at a time, for `catalogueHistory.ts` and `catalogueHistorySeed.ts`: a catalogue
+ * directory, or a published snapshot or point in upstream history materialised into a directory
+ * laid out as a synced catalogue, compiled from its sources with today's code. Materialised
+ * directories are removed again before the next task.
  */
 
 import { execFileSync } from 'node:child_process'
@@ -17,6 +18,7 @@ import { extractSourceArchive } from '../src/server/sync'
 import { compiledChangeSource } from './lib/catalogueHistoryCompile'
 
 export type WorkerTask =
+  | { kind: 'directory'; directory: string; sources: SnapshotSourceName[] }
   | { kind: 'published'; id: string; base: string }
   | {
       kind: 'upstream'
@@ -79,6 +81,7 @@ process.on('message', (task: WorkerTask) => {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-history-'))
   const run = async (): Promise<WorkerResult> => {
     try {
+      if (task.kind === 'directory') return { ok: true, source: compiledChangeSource(task.directory, task.sources), revisions: {} }
       return task.kind === 'published' ? await published(task, work) : upstream(task, work)
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
