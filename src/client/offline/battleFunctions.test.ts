@@ -18,6 +18,7 @@ afterEach(() => {
 
 it('keeps authoritative battle missions until local rules are available', () => {
   vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: false })
   const client = new QueryClient()
   configureLocalRuntime(client, () => {})
   client.setQueryData(['me'], { id: 'alice' })
@@ -61,5 +62,37 @@ it('keeps connected authoritative battle data without constructing clean downloa
   const state = emptyLocalState('alice')
   state.documents['battle:token'] = { data: workspace(), serverVersion: 0 }
   projectBattles(state)
-  expect({ screen: client.getQueryData(['battle', 'token']), builds: construction.local.mock.calls.length }).toEqual({ screen, builds: 0 })
+  expect({
+    screen: client.getQueryData(['battle', 'token']),
+    restores: construction.data.mock.calls.length,
+    builds: construction.local.mock.calls.length,
+  }).toEqual({ screen, restores: 0, builds: 0 })
+})
+
+it('does not restore construction data while projecting roster work without battles', () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  const client = new QueryClient()
+  configureLocalRuntime(client, () => {})
+  client.setQueryData(['me'], { id: 'alice' })
+  const state = emptyLocalState('alice')
+  state.documents['roster:army'] = { data: { id: 'army' }, serverVersion: 1 }
+  projectBattles(state)
+  expect(construction.data).not.toHaveBeenCalled()
+})
+
+it.each([false, true])('projects a battle that needs local rules while online=%s', (online) => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: online })
+  construction.data.mockReturnValue({})
+  const client = new QueryClient()
+  configureLocalRuntime(client, () => {})
+  client.setQueryData(['me'], { id: ALICE })
+  const saved = workspace()
+  const state = emptyLocalState(ALICE)
+  state.documents['battle:token'] = { data: saved, serverVersion: 0 }
+  if (online)
+    state.operations.push({ id: 'pending', resource: 'battle:token', kind: 'battleCommand', input: {}, createdAt: 1, status: 'pending' })
+  projectBattles(state)
+  expect(client.getQueryData(['battle', 'token'])).toMatchObject({ kind: 'battle', view: { seq: saved.log.at(-1)!.seq } })
 })

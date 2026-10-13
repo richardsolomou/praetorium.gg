@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
 import { applyReferenceData, savedReferenceData } from './referenceData'
 import { referenceRead } from './runtime'
+import { referenceJsonExpression } from '../../contracts/embeddedReference'
+import { compressReference } from './compressedReference'
 
 function reference(revision: string, queries: OfflineReferenceData['queries']): OfflineReferenceData {
   return {
@@ -20,6 +22,18 @@ afterEach(() => vi.unstubAllGlobals())
 it('restores public query data from a stored application', () => {
   const data = reference('saved', [{ key: ['rule-index'], data: { documents: [] } }])
   expect(savedReferenceData(`<script>window.PraetoriumOffline=${JSON.stringify(data)};</script>`)).toEqual(data)
+})
+it('restores public query data from a JSON-parsed application', () => {
+  const data = reference('saved', [{ key: ['rule-index'], data: { documents: [] } }])
+  expect(savedReferenceData(`<script>window.PraetoriumOffline=${referenceJsonExpression(JSON.stringify(data))};</script>`)).toEqual(data)
+})
+it('restores public query data from a compressed application', async () => {
+  const data = reference('saved', [{ key: ['rule-index'], data: { documents: [] } }])
+  expect(
+    savedReferenceData(
+      `<script>window.PraetoriumOffline=${referenceJsonExpression(JSON.stringify(await compressReference(data)))};</script>`,
+    ),
+  ).toEqual(data)
 })
 it('keeps the connected faction index while restoring an older saved reference', () => {
   const client = new QueryClient()

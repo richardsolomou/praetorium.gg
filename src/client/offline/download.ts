@@ -8,6 +8,8 @@ import {
   type OfflineAppVersion,
 } from '../../contracts/offlineReference'
 import { anySignal } from '../abortSignals'
+import { referenceJsonExpression } from '../../contracts/embeddedReference'
+import { compressReference } from './compressedReference'
 
 async function fetchManifest(url: string, signal: AbortSignal) {
   const response = await fetch(url, {
@@ -53,7 +55,8 @@ export async function referenceBundle(
   const response = await fetch(version.bundle, { credentials: 'omit', signal: downloadSignal })
   if (!response.ok || !response.body) throw new Error('The reference bundle is unavailable')
   const reader = response.body.pipeThrough(new DecompressionStream('gzip')).getReader()
-  const parts: Uint8Array[] = []
+  const decoder = new TextDecoder()
+  let json = ''
   let size = 0
   const abort = () => void reader.cancel().catch(() => {})
   downloadSignal.addEventListener('abort', abort, { once: true })
@@ -65,15 +68,10 @@ export async function referenceBundle(
       if (result.done) break
       size += result.value.byteLength
       if (size > MAX_OFFLINE_BYTES) throw new Error('The reference exceeds this device’s download limit')
-      parts.push(result.value)
+      json += decoder.decode(result.value, { stream: true })
     }
-    const bytes = new Uint8Array(size)
-    let offset = 0
-    for (const part of parts) {
-      bytes.set(part, offset)
-      offset += part.byteLength
-    }
-    const value = decodeReferenceBundle(JSON.parse(new TextDecoder().decode(bytes)))
+    json += decoder.decode()
+    const value = decodeReferenceBundle(JSON.parse(json))
     if (!isReferenceBundle(value) || value.revision !== version.revision) throw new Error('The reference bundle is invalid')
     return value
   } finally {
@@ -118,7 +116,7 @@ export async function downloadReference(
   })
   if (!scriptResponse.ok) throw new Error('The offline app is unavailable. Please try again.')
   const script = await scriptResponse.text()
-  const json = JSON.stringify(saved).replaceAll('<', '\\u003c')
+  const json = referenceJsonExpression(JSON.stringify(await compressReference(saved, signal)))
   const html = `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data: https:; font-src data:; connect-src 'self' ${location.origin.replace(/^http/, 'ws')}; worker-src 'self' blob: data:; base-uri 'none'; form-action 'self'"></head><body><script>window.PraetoriumOffline=${json};</script><script type="module">${script.replaceAll('</script', '<\\/script')}</script></body></html>`
   if (new TextEncoder().encode(html).byteLength > MAX_OFFLINE_BYTES) throw new Error('The reference exceeds this device’s download limit.')
   return { html, savedAt: saved.savedAt, data: saved }
