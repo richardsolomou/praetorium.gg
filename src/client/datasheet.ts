@@ -1,4 +1,4 @@
-import { wargearBaseName } from '../core/wargear'
+import { sameWargear, wargearBaseName } from '../core/wargear'
 import { splitWeaponKeywords as splitKeywords } from '../core/ruleReference'
 import { datasheetCharacteristicKindOf, datasheetProfileKindOf } from '../core/datasheetStructure'
 import type { Datasheet } from '../contracts/catalogue'
@@ -167,8 +167,15 @@ export function attachmentGroups(sheet: AttachmentSheet) {
 
 export function weaponProfileGroups(weapons: readonly Profile[]) {
   const groups = new Map<string, Profile[]>()
+  const identified = new Set(
+    weapons
+      .filter((weapon) => weapon.equipmentName && sameWargear(weapon.equipmentName, weapon.name))
+      .map((weapon) => `${weapon.type}/${wargearBaseName(weapon.equipmentName!)}`),
+  )
   for (const weapon of weapons) {
-    const key = `${weapon.type}/${weapon.count ?? 1}/${wargearBaseName(weapon.name)}`
+    const owner = weapon.equipmentName ? wargearBaseName(weapon.equipmentName) : ''
+    const base = owner && identified.has(`${weapon.type}/${owner}`) ? owner : wargearBaseName(weapon.name)
+    const key = `${weapon.type}/${weapon.count ?? 1}/${owner}/${base}`
     const group = groups.get(key)
     if (group) group.push(weapon)
     else groups.set(key, [weapon])
@@ -176,12 +183,16 @@ export function weaponProfileGroups(weapons: readonly Profile[]) {
   return [...groups.values()]
 }
 
-export function weaponProfileMode(profile: Profile) {
+export function weaponProfileGroupName(profiles: readonly Profile[]) {
+  const first = profiles[0]!
+  const owner = first.equipmentName
+  return wargearBaseName(owner && profiles.some((profile) => sameWargear(owner, profile.name)) ? owner : first.name)
+}
+
+export function weaponProfileMode(profile: Profile, profiles: readonly Profile[] = [profile]) {
+  const name = profile.name.replace(/^[^\p{L}\p{N}]+/u, '')
+  const base = weaponProfileGroupName(profiles)
   const mode =
-    profile.name
-      .replace(/^[^\p{L}\p{N}]+/u, '')
-      .slice(wargearBaseName(profile.name).length)
-      .replace(/^\s*[-–—(]\s*|\)\s*$/g, '')
-      .trim() || profile.name
+    (name.toLocaleLowerCase().startsWith(base) ? name.slice(base.length) : name).replace(/^\s*[-–—(]\s*|\)\s*$/g, '').trim() || profile.name
   return mode.replace(/^\p{Ll}/u, (letter) => letter.toLocaleUpperCase())
 }

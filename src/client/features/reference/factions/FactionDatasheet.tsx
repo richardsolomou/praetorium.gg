@@ -3,7 +3,6 @@ import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
-import { wargearBaseName } from '../../../../core/wargear'
 import { datasheetCharacteristicKindOf, datasheetProfileKindOf, datasheetProfilesByKind } from '../../../../core/datasheetStructure'
 import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile } from '../../../../contracts/catalogue'
 import {
@@ -13,6 +12,7 @@ import {
   profileTableColumns,
   profileTableValue,
   referenceAbilities,
+  weaponProfileGroupName,
   weaponProfileGroups,
   weaponProfileMode,
 } from '../../../datasheet'
@@ -416,13 +416,13 @@ export function ProfileTable({
           {groups.map((group) => (
             <tbody
               key={group[0]!.id}
-              aria-label={group.length > 1 ? `${wargearBaseName(group[0]!.name)} profiles` : undefined}
+              aria-label={group.length > 1 ? `${weaponProfileGroupName(group)} profiles` : undefined}
               className="divide-y divide-edge border-t border-edge"
             >
               {group.length > 1 ? (
                 <tr>
                   <th colSpan={columns.length + 1} className="bg-raised/50 px-3 py-2">
-                    <span className="font-semibold uppercase">{wargearBaseName(group[0]!.name)}</span>
+                    <span className="font-semibold uppercase">{weaponProfileGroupName(group)}</span>
                     <span className="ml-3 text-xs font-normal text-faint">{group.length} profiles</span>
                   </th>
                 </tr>
@@ -435,7 +435,7 @@ export function ProfileTable({
                     }
                   >
                     <ReferenceAnchors prefix="profile" ids={(anchorIds.get(profile.id) ?? []).filter((id) => id !== profile.id)} />
-                    {group.length > 1 ? weaponProfileMode(profile) : profile.name}
+                    {group.length > 1 ? weaponProfileMode(profile, group) : profile.name}
                   </th>
                   {columns.map((column) => {
                     const value = profileTableValue(profile, column)

@@ -11,6 +11,7 @@ import {
   profileTableValue,
   referenceAbilities,
   ruleProfileSections,
+  weaponProfileGroupName,
   weaponProfileGroups,
   weaponProfileMode,
 } from './datasheet'
@@ -303,4 +304,56 @@ describe('weapon profile mode labels', () => {
   it('preserves source modes that already have deliberate casing', () => {
     expect(weaponProfileMode(profile('➤ Blaster - FOCUSED'))).toBe('FOCUSED')
   })
+})
+
+it('groups conditional profiles by equipment ownership without parsing their names', () => {
+  expect(
+    weaponProfileGroups([
+      { id: 'standard', name: 'Rifle', equipmentName: 'Rifle', type: 'Ranged Weapons', values: [] },
+      { id: 'conditional', name: 'Special target', equipmentName: 'Rifle', type: 'Ranged Weapons', values: [] },
+      { id: 'other', name: 'Rifle', equipmentName: 'Other weapon', type: 'Ranged Weapons', values: [] },
+    ]).map((group) => group.map((profile) => profile.id)),
+  ).toEqual([['standard', 'conditional'], ['other']])
+})
+
+it('keeps distinct weapons in one equipment bundle in separate groups', () => {
+  expect(
+    weaponProfileGroups([
+      {
+        id: 'thrower',
+        name: 'Kroot bolt thrower',
+        equipmentName: 'Kroot bolt thrower and Kroot rifle',
+        type: 'Ranged Weapons',
+        values: [],
+      },
+      {
+        id: 'rifle',
+        name: 'Kroot rifle (Ranged)',
+        equipmentName: 'Kroot bolt thrower and Kroot rifle',
+        type: 'Ranged Weapons',
+        values: [],
+      },
+    ]).map((group) => group.map((profile) => profile.id)),
+  ).toEqual([['thrower'], ['rifle']])
+})
+
+it('preserves a bundled weapon’s group heading and mode labels', () => {
+  const profiles = [
+    { id: 'focused', name: '➤ Cannon - Focused', equipmentName: 'Cannon and Rifle', type: 'Ranged Weapons', values: [] },
+    { id: 'dispersed', name: '➤ Cannon - Dispersed', equipmentName: 'Cannon and Rifle', type: 'Ranged Weapons', values: [] },
+  ]
+  expect([weaponProfileGroupName(profiles), ...profiles.map((profile) => weaponProfileMode(profile, profiles))]).toEqual([
+    'cannon',
+    'Focused',
+    'Dispersed',
+  ])
+})
+
+it('keeps a generic equipment container’s distinct weapons separate', () => {
+  expect(
+    weaponProfileGroups([
+      { id: 'blade', name: "Lady's Blade", equipmentName: 'Melee Weapons', type: 'Melee Weapons', values: [] },
+      { id: 'fan', name: 'Razor fan', equipmentName: 'Melee Weapons', type: 'Melee Weapons', values: [] },
+    ]).map((group) => group.map((profile) => profile.id)),
+  ).toEqual([['blade'], ['fan']])
 })

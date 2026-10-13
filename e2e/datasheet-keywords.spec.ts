@@ -24,11 +24,18 @@ for (const width of [1440, 390]) {
     })
   }
 
+  test(`Lady Malys keeps her two melee weapons separate at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/factions/drukhari/datasheets/lady-malys')
+    await expect(page.getByRole('heading', { name: /Melee weapons 2/i })).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('separate-weapons.png') })
+  })
+
   test(`Eradicator Hunter profiles explain their Melta ability at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
     await page.waitForLoadState('networkidle')
-    const weapon = page.getByRole('row').filter({ hasText: 'Melta Rifle HUNTER:Monster/Vehicle' })
+    const weapon = page.locator('tbody[aria-label="melta rifle profiles"]').getByRole('row').filter({ hasText: 'HUNTER:Monster/Vehicle' })
     await weapon.getByRole('button', { name: 'Melta 2', exact: true }).click()
     await expect(page.getByRole('tooltip')).toContainText(/D characteristic/i)
     await page.screenshot({ path: testInfo.outputPath('tooltip.png') })

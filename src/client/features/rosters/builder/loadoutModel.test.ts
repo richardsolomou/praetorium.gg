@@ -267,6 +267,25 @@ describe('matching a wargear name to what describes it', () => {
     ).toEqual(['➤ Launcher - Frag', 'Launcher - Krak', 'Blade'])
   })
 
+  it.each([undefined, ['Melta Rifle']])('shows both Melta Rifle profiles with equipment pieces %s', (pieces) => {
+    expect(
+      weaponProfilesFor({ name: 'Melta Rifle', pieces }, [
+        { ...weapon('➤ Melta Rifle', 'Ranged Weapons'), equipmentName: 'Melta Rifle' },
+        { ...weapon('➤ Melta Rifle HUNTER:Monster/Vehicle', 'Ranged Weapons'), equipmentName: 'Melta Rifle' },
+        { ...weapon('➤ Multi-melta HUNTER:Monster/Vehicle', 'Ranged Weapons'), equipmentName: 'Multi-melta' },
+      ]).map((profile) => profile.name),
+    ).toEqual(['➤ Melta Rifle', '➤ Melta Rifle HUNTER:Monster/Vehicle'])
+  })
+
+  it('matches an unrelated profile name through its equipment owner', () => {
+    expect(
+      weaponProfilesFor({ name: 'Rifle', pieces: ['Rifle'] }, [
+        { ...weapon('Special target', 'Ranged Weapons'), equipmentName: 'Rifle' },
+        { ...weapon('Other mode', 'Ranged Weapons'), equipmentName: 'Other weapon' },
+      ]).map((profile) => profile.name),
+    ).toEqual(['Special target'])
+  })
+
   it('keeps bundle profiles in equipment order when the available profiles change order', () => {
     expect(
       weaponProfilesFor({ name: 'Cannon and Fist and Projector', pieces: ['Cannon', 'Fist', 'Projector'] }, [
@@ -729,4 +748,22 @@ it.each([
           ['models/specialist/melee', { blade: specialists - 1 }],
         ],
   )
+})
+
+it('matches a weapon within a bundle by its existing profile name', () => {
+  expect(
+    weaponProfilesFor({ name: 'Kroot rifle', pieces: ['Kroot rifle'] }, [
+      { ...weapon('Kroot rifle (Ranged)', 'Ranged Weapons'), equipmentName: 'Kroot bolt thrower and Kroot rifle' },
+      { ...weapon('Kroot bolt thrower', 'Ranged Weapons'), equipmentName: 'Kroot bolt thrower and Kroot rifle' },
+    ]).map((profile) => profile.name),
+  ).toEqual(['Kroot rifle (Ranged)'])
+})
+
+it.each([0, 1, 3])('retains the existing equipped-profile accounting for %s bundled rifles', (count) => {
+  expect(
+    equippedWeaponProfiles(
+      [{ ...weapon('Rifle', 'Ranged Weapons'), count, equipmentName: 'Cannon and Rifle' }],
+      [{ options: [{ name: 'Rifle', count, pieceCounts: [{ name: 'Rifle', count }] }] }],
+    ),
+  ).toEqual([])
 })

@@ -517,6 +517,12 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
     if (selectedUnit && weapon && !context?.everyWeapon && referenceOnlyWeapon(profile.name)) return []
     if (selectedUnit && weapon && !context?.everyWeapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
+    const equipment = weapon
+      ? owner
+          .map((id) => loaded.index.definitions.get(id))
+          .findLast((definition) => definition && targetOf(definition, loaded.index.definitions).type === 'upgrade')
+      : undefined
+    const equipmentName = equipment ? nameOf(equipment, loaded.index.definitions) : undefined
     const profileLineage = [...lineage, profile.id]
     const hidden = modifiedProfileField(String(profile.hidden ?? false), 'hidden', profileType, profileLineage, owner, modifiers).value
     if (hidden === 'true') return []
@@ -566,6 +572,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         id: profile.id,
         name: annotation ? `${changedName.value} (${annotation})` : changedName.value,
         type: profileType,
+        ...(equipmentName ? { equipmentName } : {}),
         ...(weapon && selectedUnit
           ? {
               count:
