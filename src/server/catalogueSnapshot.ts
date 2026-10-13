@@ -257,7 +257,13 @@ export function packCatalogueSnapshot(
   for (const [name, bytes] of packed.bytes) entries[`objects/${packed.files[name]}`] = bytes
   const archive = zipSync(entries, { level: 9, mtime: new Date('2000-01-01T00:00:00Z') })
   if (archive.length > MAX_ARCHIVE_BYTES) throw new Error('catalogue snapshot archive is too large')
-  const pointer: SnapshotPointer = { format: POINTER_FORMAT, id, archiveSha256: sha256(archive), objects: true }
+  const pointer: SnapshotPointer = {
+    format: POINTER_FORMAT,
+    id,
+    archiveSha256: sha256(archive),
+    objects: true,
+    ...(authoringRevision ? { authoringRevision } : {}),
+  }
   if (objectsDirectory) {
     fs.mkdirSync(objectsDirectory, { recursive: true })
     fs.writeFileSync(path.join(objectsDirectory, 'manifest.json'), packed.manifest)
@@ -304,6 +310,11 @@ function assertReplaceableDirectory(directory: string) {
 
 const objectCache = (directory: string) => path.join(path.dirname(path.resolve(directory)), '.catalogue-objects')
 
+function assertManifestAuthoring(manifest: SnapshotManifest, pointer: SnapshotPointer) {
+  if (manifest.authoringRevision && manifest.authoringRevision !== pointer.authoringRevision)
+    throw new Error('catalogue authoring revision does not match its manifest')
+}
+
 function installManifestFiles(
   directory: string,
   rawManifest: Uint8Array,
@@ -317,6 +328,7 @@ function installManifestFiles(
     throw new Error('refusing to replace an activated snapshot symlink')
   if (sha256(rawManifest) !== expected.id) throw new Error('catalogue snapshot manifest does not match its id')
   const manifest = JSON.parse(Buffer.from(rawManifest).toString('utf8')) as SnapshotManifest
+  assertManifestAuthoring(manifest, expected)
   if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
     throw new Error('catalogue snapshot format is unsupported')
   if (!manifest.files || Object.keys(manifest.files).length > 10_000) throw new Error('catalogue snapshot has an invalid file inventory')
@@ -519,6 +531,7 @@ export function verifyInstalledSnapshot(directory: string): SnapshotPointer {
   const rawManifest = fs.readFileSync(path.join(directory, '.snapshot-manifest.json'))
   if (sha256(rawManifest) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
   const manifest = JSON.parse(Buffer.from(rawManifest).toString('utf8')) as SnapshotManifest
+  assertManifestAuthoring(manifest, pointer)
   if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
     throw new Error('catalogue snapshot format is unsupported')
   const sources = manifestSources(manifest)

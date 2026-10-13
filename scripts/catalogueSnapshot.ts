@@ -42,7 +42,6 @@ if (command === 'pack') {
   const authoringRevision = process.env.CATALOGUE_AUTHORING_REVISION ?? authoring.revision
   if (!/^[a-f0-9]{40}$/.test(authoringRevision)) throw new Error('Catalogue authoring revision must be a full Git SHA')
   const packed = packCatalogueSnapshot(directory, archive, pointer, process.env.CATALOGUE_OBJECTS_DIR, authoringRevision)
-  fs.writeFileSync(pointer, `${JSON.stringify({ ...packed, authoringRevision }, null, 2)}\n`)
   console.log(`${packed.id} ${archive}`)
 } else if (command === 'runtime') {
   const output = path.join(path.dirname(archive), 'catalogue-runtime')

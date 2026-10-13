@@ -86,6 +86,16 @@ it('repeats the same release ID for the same sources and authoring commit', () =
   expect(packCatalogueSnapshot(source, archive, pointer, undefined, 'a'.repeat(40))).toEqual(first)
 })
 
+it('rejects a release descriptor that substitutes a different authoring commit', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-authoring-mismatch-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'), undefined, 'a'.repeat(40))
+  expect(() =>
+    installSnapshotArchive(path.join(root, 'installed'), archive, { ...pointer, authoringRevision: 'b'.repeat(40) }, null),
+  ).toThrow('authoring revision does not match')
+})
+
 it('packs and verifies a complete catalogue', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
