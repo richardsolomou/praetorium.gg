@@ -2,17 +2,13 @@ import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { unzipSync, zipSync } from 'fflate'
-import {
-  catalogueRuntimeFingerprint,
-  readCatalogueRuntime,
-  runtimeManifestSchema,
-  MAX_RUNTIME_FILE_BYTES,
-} from '../../src/server/catalogueRuntime'
-import { catalogueBaseUrl, catalogueLock, type SnapshotPointer } from '../../src/server/catalogueSnapshot'
-import { catalogueReleaseUrl, fetchCatalogueArtifact } from '../../src/server/catalogueDistribution'
+import { readCatalogueRuntime, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
+import { fetchWithRetry } from '../../src/server/fetch'
+import { DEFAULT_PUBLIC_ASSETS_BASE_URL } from '../../src/server/objectStorage'
+import { publicAssetsR2Client } from '../../src/server/r2Client'
 
-const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const MAX_BYTES = 128 * 1024 * 1024
+const STORE_PATH = 'catalogue/runtime/by-key'
 
 export function packCatalogueRuntime(directory: string, output: string, archive: string) {
   const manifest = runtimeManifestSchema.parse(JSON.parse(fs.readFileSync(path.join(output, 'manifest.json'), 'utf8')))
@@ -25,26 +21,19 @@ export function packCatalogueRuntime(directory: string, output: string, archive:
   const bytes = zipSync(files, { level: 9, mtime: new Date('2000-01-01T00:00:00Z') })
   if (bytes.length > MAX_BYTES) throw new Error('Catalogue runtime archive is too large')
   fs.writeFileSync(archive, bytes)
-  return { fingerprint: manifest.fingerprint, archiveSha256: hash(bytes) }
+  return { fingerprint: manifest.fingerprint, archiveSha256: createHash('sha256').update(bytes).digest('hex') }
 }
 
-export async function installPublishedRuntime(directory: string, output: string, pointer: SnapshotPointer = catalogueLock.pointer) {
-  if (!pointer.runtime || pointer.runtime.fingerprint !== catalogueRuntimeFingerprint(directory)) return false
-  const response = await fetchCatalogueArtifact(
-    `${catalogueBaseUrl()}/runtime/${pointer.runtime.archiveSha256}.zip`,
-    catalogueReleaseUrl(pointer.id, 'runtime.zip'),
-  )
-  if (!response.ok) throw new Error(`Catalogue runtime archive answered ${response.status}`)
-  if (!response.body) throw new Error('Catalogue runtime archive has no body')
-  const chunks: Uint8Array[] = []
-  let size = 0
-  for await (const chunk of response.body) {
-    size += chunk.length
-    if (size > MAX_BYTES) throw new Error('Catalogue runtime archive is too large')
-    chunks.push(chunk)
-  }
-  const bytes = Buffer.concat(chunks)
-  if (hash(bytes) !== pointer.runtime.archiveSha256) throw new Error('Catalogue runtime archive checksum does not match')
+/** Where compiled runtimes are shared by cache key; `off` keeps every build compiling for itself. */
+export function runtimeStoreUrl(environment: NodeJS.ProcessEnv = process.env) {
+  const value = environment.CATALOGUE_RUNTIME_STORE?.trim()
+  if (value === 'off') return null
+  return (value || `${DEFAULT_PUBLIC_ASSETS_BASE_URL}/${STORE_PATH}`).replace(/\/$/, '')
+}
+
+/** Unpacks an archive into `output` only once every file verifies against its manifest and the snapshot. */
+export function installRuntimeArchive(directory: string, output: string, bytes: Uint8Array) {
+  if (bytes.length > MAX_BYTES) throw new Error('Catalogue runtime archive is too large')
   let expanded = 0
   const entries = unzipSync(bytes, {
     filter: (entry) => {
@@ -74,8 +63,59 @@ export async function installPublishedRuntime(directory: string, output: string,
       throw error
     }
     fs.rmSync(previous, { recursive: true, force: true })
-    return true
   } finally {
     fs.rmSync(staging, { recursive: true, force: true })
   }
+}
+
+/** A missing, unreachable or unverifiable object is a cache miss, never a failed build. */
+export async function downloadRuntime(directory: string, output: string, key: string, store = runtimeStoreUrl()) {
+  if (!store) return false
+  try {
+    const response = await fetchWithRetry(`${store}/${key}.zip`, { signal: AbortSignal.timeout(60_000) })
+    if (!response.ok || !response.body) {
+      await response.body?.cancel()
+      return false
+    }
+    const chunks: Uint8Array[] = []
+    let size = 0
+    for await (const chunk of response.body) {
+      size += chunk.length
+      if (size > MAX_BYTES) throw new Error('Catalogue runtime archive is too large')
+      chunks.push(chunk)
+    }
+    installRuntimeArchive(directory, output, Buffer.concat(chunks))
+    return true
+  } catch (error) {
+    console.error(`Catalogue runtime ${key} not restored from the store:`, error instanceof Error ? error.message : String(error))
+    return false
+  }
+}
+
+type Uploader = { fetch: (url: string, init: RequestInit) => Promise<Response>; base: string }
+
+function configuredUploader(): Uploader | null {
+  try {
+    const client = publicAssetsR2Client()
+    return client ? { fetch: (url, init) => client.client.fetch(url, init), base: client.base } : null
+  } catch (error) {
+    console.error('Catalogue runtime store is not writable here:', error instanceof Error ? error.message : String(error))
+    return null
+  }
+}
+
+/** Keys name their inputs, so an object is written once and never replaced. */
+export async function uploadRuntime(key: string, archive: Uint8Array, uploader = configuredUploader()) {
+  if (!uploader) return 'skipped' as const
+  const body = new Uint8Array(archive.byteLength)
+  body.set(archive)
+  const response = await uploader.fetch(`${uploader.base}${STORE_PATH}/${key}.zip`, {
+    method: 'PUT',
+    body,
+    headers: { 'content-type': 'application/zip', 'if-none-match': '*' },
+    signal: AbortSignal.timeout(120_000),
+  })
+  if (response.status === 412) return 'exists' as const
+  if (!response.ok) throw new Error(`Catalogue runtime upload failed with HTTP ${response.status}`)
+  return 'uploaded' as const
 }

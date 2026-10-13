@@ -1,16 +1,18 @@
 import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { catalogueRuntimeFingerprint, readCatalogueRuntime, runtimeManifestSchema } from '../../src/server/catalogueRuntime'
 import { writeCatalogueRuntime } from './catalogueRuntime'
-import { installPublishedRuntime } from './catalogueRuntimeDistribution'
+import { downloadRuntime, packCatalogueRuntime, uploadRuntime } from './catalogueRuntimeDistribution'
 
-type Prepare = (directory: string, output: string) => Promise<void>
-
-const publishedOrCompiled: Prepare = async (directory, output) => {
-  if (!(await installPublishedRuntime(directory, output))) writeCatalogueRuntime(directory, output)
+type Compile = (directory: string, output: string) => Promise<void> | void
+export type RuntimeStore = {
+  download: (directory: string, output: string, key: string) => Promise<boolean>
+  upload: (key: string, archive: Uint8Array) => Promise<unknown>
 }
 
+const sharedStore: RuntimeStore = { download: downloadRuntime, upload: uploadRuntime }
 const compilerSources = ['src/contracts', 'src/core', 'src/server', 'src/shared', 'scripts/lib', 'scripts/compileCatalogueRuntime.ts']
 
 function* sourceFiles(root: string, relative: string): Generator<string> {
@@ -24,10 +26,9 @@ function* sourceFiles(root: string, relative: string): Generator<string> {
 }
 
 /**
- * The published pack is keyed by the snapshot and the compiler version its authors bumped; a
- * local compile also depends on every compiler source as it is now, so a change that forgot the
- * bump still recompiles instead of restoring yesterday's output. Files are walked rather than
- * listed by git because the image build has neither.
+ * A compiled runtime depends on the snapshot and on every compiler source as it is now, so the key
+ * names both and nobody has to remember a version bump. Files are walked rather than listed by git
+ * because the image build has neither.
  */
 export function compilerSourcesFingerprint(worktree = process.cwd()) {
   const hash = createHash('sha256')
@@ -46,22 +47,37 @@ export function runtimeCacheKey(directory: string, sources = compilerSourcesFing
 }
 
 /**
- * Prepares the runtime at `output`, reusing a cached copy under `key`; compiling it from the
- * snapshot costs minutes and every build and browser-test stack on a machine needs the same one.
+ * Prepares the runtime at `output` from the first of: this machine's cache, the shared store, a
+ * compile. A compile costs minutes and the result is the same for everyone with the same key, so
+ * it is cached here and uploaded for every other build, deployment and worktree.
  */
 export async function prepareCatalogueRuntime(
   directory: string,
   output: string,
   cacheRoot: string | null,
-  prepare: Prepare = publishedOrCompiled,
+  compile: Compile = writeCatalogueRuntime,
   key = runtimeCacheKey(directory),
-): Promise<'cached' | 'prepared'> {
+  store: RuntimeStore = sharedStore,
+): Promise<'cached' | 'downloaded' | 'compiled'> {
   const cached = cacheRoot ? path.join(cacheRoot, key) : null
   if (cached && restoreRuntime(directory, cached, output)) return 'cached'
   fs.mkdirSync(path.dirname(output), { recursive: true })
-  await prepare(directory, output)
+  if (await store.download(directory, output, key)) {
+    if (cached) storeRuntime(output, cached)
+    return 'downloaded'
+  }
+  await compile(directory, output)
   if (cached) storeRuntime(output, cached)
-  return 'prepared'
+  const archive = path.join(os.tmpdir(), `praetorium-runtime-${randomUUID()}.zip`)
+  try {
+    packCatalogueRuntime(directory, output, archive)
+    await store.upload(key, fs.readFileSync(archive))
+  } catch (error) {
+    console.error(`Catalogue runtime ${key} was not shared:`, error instanceof Error ? error.message : String(error))
+  } finally {
+    fs.rmSync(archive, { force: true })
+  }
+  return 'compiled'
 }
 
 function verifyRuntime(directory: string, location: string) {
