@@ -40,7 +40,10 @@ export function matchingLeagueBattles(candidates: readonly LeagueMatchCandidate[
             .map((id) => entries.get(id)?.requiredLimit)
             .every((limit) => limit === (side.length === 1 ? candidate.rosterLimit : alliedLimit)),
         )
-        return sideIds.some((side) => side.length === 1) && sideIds.some((side) => side.length === 2) && roles.every(Boolean)
+        const pair = sideIds.find((side) => side.length === 2)?.map((id) => entries.get(id)?.teamId ?? null)
+        // An event revealed before allies were paired let any two of them play together.
+        const together = pair !== undefined && (pair.every((teamId) => teamId === null) || (pair[0] !== null && pair[0] === pair[1]))
+        return sideIds.some((side) => side.length === 1) && roles.every(Boolean) && together
       }
       if (candidate.format === '2v2' && participantIds.length === 4 && sideIds.every((side) => side.length === 2)) {
         const ownTeam = entries.get(userId)?.teamId

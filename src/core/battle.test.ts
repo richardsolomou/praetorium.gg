@@ -412,6 +412,119 @@ describe('setup', () => {
     expect(sideDisposition(begun, 1)).toBe('recon')
   })
 
+  describe('cards an allied side may play', () => {
+    const teamBattle: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const army = (name: string, disposition: string, dispositions: string[], limit: number): Command => ({
+      kind: 'attach-roster',
+      roster: {
+        name,
+        text: name,
+        built: { catalogueId: 'cat', revision: 'rev', limit, detachment: null, disposition, dispositions, units: [] },
+      },
+    })
+    const seats = [ALICE, BOB, CAROL]
+    const sideOfEach = [0, 1, 1]
+    const table = (bob: Command, carol: Command) =>
+      log(
+        [ALICE, teamBattle],
+        [ALICE, army('Necrons', 'take-and-hold', ['take-and-hold', 'priority-assets'], 2000)],
+        [BOB, bob],
+        [CAROL, carol],
+      )
+    const then = (entries: ReturnType<typeof log>, by: string, command: Command) => [
+      ...entries,
+      { seq: entries.length + 1, by, at: entries.length, command },
+    ]
+
+    it('offers allies every card either list’s detachments offered', () => {
+      const state = reduceBattle(
+        seats,
+        table(army('Marines', 'recon', ['recon', 'take-and-hold'], 1000), army('Guard', 'purge-the-foe', ['purge-the-foe'], 1000)),
+        sideOfEach,
+      )
+      expect(sideDispositionChoices(state, 1)).toEqual(['recon', 'take-and-hold', 'purge-the-foe'])
+    })
+
+    it('accepts an offered card neither ally chose', () => {
+      const entries = table(
+        army('Marines', 'recon', ['recon', 'take-and-hold'], 1000),
+        army('Guard', 'purge-the-foe', ['purge-the-foe'], 1000),
+      )
+      expect(
+        validate(reduceBattle(seats, entries, sideOfEach), BOB, { kind: 'set-side-disposition', side: 1, disposition: 'take-and-hold' }),
+      ).toBeNull()
+    })
+
+    it('keeps a lone army on the card its list chose', () => {
+      const entries = table(army('Marines', 'recon', ['recon'], 1000), army('Guard', 'recon', ['recon'], 1000))
+      expect(
+        validate(reduceBattle(seats, entries, sideOfEach), ALICE, {
+          kind: 'set-side-disposition',
+          side: 0,
+          disposition: 'priority-assets',
+        }),
+      ).toBe('that force disposition is not one this side brought')
+    })
+
+    it('plays the card allies agree on until they pick another they were offered', () => {
+      const entries = table(army('Marines', 'recon', ['recon', 'take-and-hold'], 1000), army('Guard', 'recon', ['recon'], 1000))
+      expect(sideDisposition(reduceBattle(seats, entries, sideOfEach), 1)).toBe('recon')
+      expect(
+        sideDisposition(
+          reduceBattle(seats, then(entries, BOB, { kind: 'set-side-disposition', side: 1, disposition: 'take-and-hold' }), sideOfEach),
+          1,
+        ),
+      ).toBe('take-and-hold')
+    })
+
+    describe('sealed by a league lock', () => {
+      const entries = table(
+        army('Marines', 'recon', ['recon', 'take-and-hold'], 1000),
+        army('Guard', 'purge-the-foe', ['purge-the-foe'], 1000),
+      )
+      const lock = (dispositions?: { side: number; disposition: string }[]): Command => ({
+        kind: 'lock-league-rosters',
+        leagueToken: 'league',
+        eventToken: 'event',
+        ...(dispositions ? { dispositions } : {}),
+      })
+      const sealed = reduceBattle(seats, then(entries, ALICE, lock([{ side: 1, disposition: 'take-and-hold' }])), sideOfEach)
+
+      it('plays the sealed card', () => {
+        expect(sideDisposition(sealed, 1)).toBe('take-and-hold')
+      })
+
+      it('refuses changing the sealed card in setup', () => {
+        expect(validate(sealed, CAROL, { kind: 'set-side-disposition', side: 1, disposition: 'purge-the-foe' })).toBe(
+          'the league sealed each side’s force disposition',
+        )
+      })
+
+      it('stops asking the side to choose', () => {
+        expect(battleView({ token: 'sealed' }, NAMES, sealed, BOB).players[1]?.dispositionChoices).toEqual([])
+      })
+
+      it('refuses sealing a card the side was not offered', () => {
+        expect(validate(reduceBattle(seats, entries, sideOfEach), ALICE, lock([{ side: 1, disposition: 'priority-assets' }]))).toBe(
+          'that force disposition is not one this side brought',
+        )
+      })
+
+      it('leaves an older event’s lock to the setup choice', () => {
+        const unsealed = reduceBattle(seats, then(entries, ALICE, lock()), sideOfEach)
+        expect(validate(unsealed, CAROL, { kind: 'set-side-disposition', side: 1, disposition: 'purge-the-foe' })).toBeNull()
+      })
+    })
+  })
+
   it('shares allied command points while keeping their rosters separate', () => {
     const configure: Command = {
       kind: 'configure-battle',

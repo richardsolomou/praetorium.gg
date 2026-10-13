@@ -14,6 +14,7 @@ it('freezes the preview label when the same codex is later released', () => {
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [],
     },
     [],
@@ -44,6 +45,7 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [
         {
           key: 0,
@@ -108,6 +110,7 @@ it('freezes enabled reminders into a roster snapshot', () => {
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [],
     },
     [],
@@ -141,6 +144,7 @@ it('maps unit alerts from roster picks to the battle units they produced', () =>
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [
         {
           key: 1,
@@ -185,6 +189,7 @@ it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () =>
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [
         {
           key: 0,
@@ -230,6 +235,7 @@ it('does not freeze a reserve limit from incomplete rules facts', () => {
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [],
     },
     [],
@@ -269,6 +275,7 @@ it('freezes the unit a character joined into a roster snapshot', () => {
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [
         { ...unit, key: 0, entryId: 'marines', name: 'Plague Marines', group: 'battleline' },
         { ...unit, key: 1, entryId: 'lord', name: 'Lord of Contagion', group: 'character' },
@@ -300,6 +307,7 @@ it('leaves a character the list joined to nothing unattached', () => {
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [
         {
           key: 0,
@@ -344,6 +352,7 @@ it('fields a list nobody named under the label it had when it was fielded', () =
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [
         {
           key: 0,
@@ -389,6 +398,7 @@ it('freezes a custom points budget and halves it for the strategic reserve limit
       detachments: [],
       detachmentPointBudget: 3,
       disposition: null,
+      dispositions: [],
       units: [],
     },
     [],
@@ -441,6 +451,7 @@ it('freezes two identical units with their own notes, unaffected by later edits 
       detachments: [],
       detachmentPointBudget: null,
       disposition: null,
+      dispositions: [],
       units: [unit(0), unit(1)],
     },
     [],

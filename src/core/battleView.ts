@@ -126,7 +126,7 @@ export type BattleView = {
      * Null where two allies brought different cards and have not settled which.
      */
     disposition: string | null
-    /** The cards the side could play, where its allies brought more than one. */
+    /** The cards the side could still choose between, where its allies offered more than one and no league sealed its card. */
     dispositionChoices: string[]
     cp: number
     cpGained: number
@@ -290,8 +290,7 @@ export function battleView(
          * than this list's: an allied pair fields one army and plays one card.
          */
         disposition: sideDisposition(state, player.side),
-        /** The cards the side could play, where its allies brought different ones. */
-        dispositionChoices: sideDispositionChoices(state, player.side),
+        dispositionChoices: state.dispositionsSealed ? [] : sideDispositionChoices(state, player.side),
         cp: resources.cp,
         cpGained: resources.cpGained,
         cpSpent: resources.cpSpent,

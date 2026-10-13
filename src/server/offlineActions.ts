@@ -59,6 +59,9 @@ export const offlineActions: Record<OfflineActionKind, (owner: string, input: un
       })
     return service().submitLeagueRoster(data.token, owner, saved, snapshot, data.eventToken)
   }),
+  setLeagueTeamDisposition: action(schemas.setLeagueTeamDisposition, (owner, data) =>
+    service().setLeagueTeamDisposition(data.token, owner, data.disposition, data.eventToken),
+  ),
   revealLeague: action(schemas.revealLeague, (owner, data) => service().revealLeague(data.token, owner, data.eventToken)),
   unsealLeagueRoster: action(schemas.unsealLeagueRoster, (owner, data) =>
     service().unsealLeagueRoster(data.token, owner, data.userId, data.eventToken),

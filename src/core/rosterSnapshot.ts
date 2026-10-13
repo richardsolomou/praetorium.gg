@@ -31,6 +31,7 @@ type PricedRoster = {
   detachments: readonly { name: string; points: number | null }[]
   detachmentPointBudget: number | null
   disposition: string | null | undefined
+  dispositions: readonly string[]
   units: readonly {
     /** The position of the pick this was priced from, since a pick that cannot be built has no unit. */
     key: number
@@ -108,6 +109,7 @@ export function rosterSnapshot(
       detachments: [...priced.detachments],
       detachmentPointBudget: priced.detachmentPointBudget,
       disposition: priced.disposition ?? null,
+      dispositions: [...priced.dispositions],
       detachmentIds: [...saved.detachmentIds],
       // Carried into the battle so the snapshot is priced under the rules it was
       // built under: a waiver left behind would report the roster as illegal on the

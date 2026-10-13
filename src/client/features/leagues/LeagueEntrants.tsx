@@ -3,9 +3,8 @@ import { Eye } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
+import type { LeagueEntryView } from '../../../core/league'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import type { League } from './leagueEvent'
 
 export function SectionHeading({ title, count, action }: { title: string; count?: number; action?: ReactNode }) {
   return (
@@ -84,19 +83,6 @@ export function EntrantGroup({
 export function sealStatus(entry: Pick<LeagueEntryView, 'submitted'>, revealed: boolean) {
   if (revealed) return entry.submitted ? 'List revealed' : 'No list'
   return entry.submitted ? 'List sealed' : 'No list yet'
-}
-
-/** What each side of a 2v1 means at the table, said where the side is named rather than left to be guessed. */
-export function sideGroups(league: Pick<League, 'rosterLimit'>): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
-  const solo = league.rosterLimit ?? 0
-  return {
-    solo: { title: `Solo · ${solo.toLocaleString()} points`, detail: 'Plays alone against a pair.' },
-    allied: {
-      title: `Allied · ${alliedLeagueRosterLimit(solo).toLocaleString()} points`,
-      detail: 'Plays beside another ally.',
-    },
-    unsized: { title: 'Waiting for a size' },
-  }
 }
 
 export function ViewRosterButton({

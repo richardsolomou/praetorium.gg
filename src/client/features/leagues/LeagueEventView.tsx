@@ -23,13 +23,13 @@ import { errorMessage } from '../../queryClient'
 import { HomeFeed } from '../home/HomeFeed'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
-import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, sideGroups, ViewRosterButton } from './LeagueEntrants'
+import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, ViewRosterButton } from './LeagueEntrants'
 import {
   doublesTeams,
+  entrantGroups,
   entryProgress,
   formatNames,
   namesPhrase,
-  soloOrAllied,
   useLeagueRefresh,
   type EntryStage,
   type EntryStep,
@@ -41,6 +41,7 @@ import { LeagueReadiness } from './LeagueReadiness'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
+import { TeamDispositionPanel } from './LeagueTeamDisposition'
 
 type Action =
   | { label: string; icon?: ReactNode; variant?: 'default' | 'outline'; pending?: boolean; onClick: () => void }
@@ -71,6 +72,7 @@ export function LeagueEventView({
     enabled: Boolean(league.revealedAt),
   })
   const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: Boolean(league.revealedAt) })
+  const { data: gameReferences } = useQuery(gameReferencesQuery())
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
@@ -131,9 +133,9 @@ export function LeagueEventView({
   const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
   const battleFormat = leagueTableShape(league.format)
-  const teams = doublesTeams(accepted)
-  const ownTeam = league.format === '2v2' && ownEntry?.teamId ? (teams.find((team) => team.id === ownEntry.teamId)?.members ?? []) : []
-  const ownSideSealed = league.format !== '2v2' || (ownTeam.length === 2 && ownTeam.every((entry) => entry.submitted))
+  const ownTeam = ownEntry?.teamId ? (doublesTeams(accepted).find((team) => team.id === ownEntry.teamId)?.members ?? []) : []
+  const ownSideSealed =
+    league.format === '2v2' || ownEntry?.teamId ? ownTeam.length === 2 && ownTeam.every((entry) => entry.submitted) : true
   // A legacy event fixed no size, so a 1v1 there is only between lists sealed at the same one.
   const oneOnOneEntrants =
     league.format === null
@@ -196,27 +198,15 @@ export function LeagueEventView({
       ) : null}
     </EntrantRow>
   )
-  const sides = sideGroups(league)
-  // The revealed lists split by side or team the way the entrant list does, so a pairing reads the same before and after.
-  const armyGroups: ArmyGroup[] =
-    league.format === '2v1'
-      ? (['solo', 'allied', 'unsized'] as const).flatMap((side) => {
-          const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
-          return members.length ? [{ key: side, ...sides[side], entries: members }] : []
-        })
-      : league.format === '2v2'
-        ? [
-            ...teams.map((team, index) => ({
-              key: `team-${index + 1}`,
-              title: `Team ${index + 1}`,
-              detail: formatNames(team.members.map(label)),
-              entries: team.members,
-            })),
-            ...(accepted.some((entry) => !entry.teamId)
-              ? [{ key: 'unpaired', title: 'Waiting for a teammate', entries: accepted.filter((entry) => !entry.teamId) }]
-              : []),
-          ]
-        : [{ key: 'all', entries: accepted }]
+  // A pair names the card it sealed once the reader may see it: its own members before the reveal, everyone after.
+  const pairNames = (members: LeagueEntryView[]) => {
+    const card = league.entries.find((entry) => entry.userId === members[0]?.userId)?.team?.disposition
+    const named = card ? (gameReferences?.dispositions.find((disposition) => disposition.id === card)?.name ?? card) : null
+    return [formatNames(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
+  }
+  const groups = entrantGroups(league, accepted, pairNames)
+  // The revealed lists split by side or pair the way the entrant list does, so a pairing reads the same before and after.
+  const armyGroups: ArmyGroup[] = groups
   // Once the lists are out, each player shows with their list, so the entrant list has nothing left to say.
   const entrants = revealed ? null : isOrganizer ? (
     <OrganizerEntrants league={league} token={token} row={row} />
@@ -229,38 +219,18 @@ export function LeagueEventView({
           <p className="mt-3 font-bold uppercase">No entrants yet</p>
           <p className="mt-1 text-sm text-dim">Players show up here once they’re in.</p>
         </div>
-      ) : league.format === '2v1' ? (
-        <div className="space-y-4">
-          {(['solo', 'allied', 'unsized'] as const).map((side) => {
-            const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
-            if (!members.length) return null
-            return (
-              <EntrantGroup key={side} group={side} title={sides[side].title} detail={sides[side].detail}>
-                <EntrantList>{members.map((entry) => row(entry))}</EntrantList>
-              </EntrantGroup>
-            )
-          })}
-        </div>
-      ) : league.format === '2v2' ? (
-        <div className="space-y-4">
-          {teams.map((team, index) => (
-            <EntrantGroup
-              key={team.id}
-              group={`team-${index + 1}`}
-              title={`Team ${index + 1}`}
-              detail={formatNames(team.members.map(label))}
-            >
-              <EntrantList>{team.members.map((entry) => row(entry))}</EntrantList>
-            </EntrantGroup>
-          ))}
-          {accepted.some((entry) => !entry.teamId) ? (
-            <EntrantGroup group="unpaired" title="Waiting for a teammate">
-              <EntrantList>{accepted.filter((entry) => !entry.teamId).map((entry) => row(entry))}</EntrantList>
-            </EntrantGroup>
-          ) : null}
-        </div>
       ) : (
-        <EntrantList>{accepted.map((entry) => row(entry))}</EntrantList>
+        <div className="space-y-4">
+          {groups.map((group) =>
+            group.title ? (
+              <EntrantGroup key={group.key} group={group.key} title={group.title} detail={group.detail}>
+                <EntrantList>{group.entries.map((entry) => row(entry))}</EntrantList>
+              </EntrantGroup>
+            ) : (
+              <EntrantList key={group.key}>{group.entries.map((entry) => row(entry))}</EntrantList>
+            ),
+          )}
+        </div>
       )}
     </section>
   )
@@ -287,6 +257,11 @@ export function LeagueEventView({
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
         <div className="lg:col-start-2 lg:row-start-1">
           <EntryStatusCard status={status} problem={problem} token={token} />
+          {!revealed && ownEntry?.team && ownEntry.team.choices.length > 1 ? (
+            <div className="mt-3">
+              <TeamDispositionPanel token={token} eventToken={league.eventToken} team={ownEntry.team} />
+            </div>
+          ) : null}
         </div>
         <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
           {!revealed && (isOrganizer || accepted.length) ? (

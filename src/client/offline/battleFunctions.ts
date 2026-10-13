@@ -396,7 +396,14 @@ export async function createLeagueBattle(
   )
   const identifiers = { battleId: crypto.randomUUID(), battleToken: crypto.randomUUID() }
   const prepared = buildLeagueBattle(
-    { ...league, entries: rosters.map((entry) => ({ ...entry, snapshot: entry.snapshot ? JSON.stringify(entry.snapshot) : null })) },
+    {
+      ...league,
+      entries: rosters.map((entry) => ({
+        ...entry,
+        snapshot: entry.snapshot ? JSON.stringify(entry.snapshot) : null,
+        teamDisposition: entry.team?.disposition ?? null,
+      })),
+    },
     owner.id,
     league.token,
     args.data.opponentId,

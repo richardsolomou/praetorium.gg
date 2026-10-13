@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest'
+import type { Roster } from '../core/battle'
+import { buildLeagueBattle, type LeagueBattleSetup } from './leagueBattle'
+
+const offered = ['take-and-hold', 'priority-assets', 'purge-the-foe']
+const roster = (limit: number, disposition: string): string =>
+  JSON.stringify({
+    name: `List ${limit}`,
+    text: 'List',
+    built: { catalogueId: 'army', revision: 'r', limit, detachment: null, disposition, dispositions: offered, units: [] },
+  } satisfies Roster)
+
+const entrant = (
+  userId: string,
+  limit: number,
+  disposition: string,
+  teamId: string | null = null,
+  teamDisposition: string | null = null,
+) => ({
+  userId,
+  requiredLimit: limit,
+  snapshot: roster(limit, disposition),
+  teamId,
+  teamDisposition,
+})
+
+const trial = (entries: LeagueBattleSetup['entries']): LeagueBattleSetup => ({
+  eventToken: 'event',
+  format: '2v1',
+  rosterLimit: 2_000,
+  revealedAt: 1,
+  entries,
+})
+
+const paired = trial([
+  entrant('solo', 2_000, 'take-and-hold'),
+  entrant('ally', 1_000, 'take-and-hold', 'pair', 'priority-assets'),
+  entrant('partner', 1_000, 'purge-the-foe', 'pair', 'priority-assets'),
+  entrant('other', 1_000, 'take-and-hold', 'second-pair', 'take-and-hold'),
+  entrant('other-partner', 1_000, 'take-and-hold', 'second-pair', 'take-and-hold'),
+])
+const build = (league: LeagueBattleSetup, userId: string, opponentId: string, allyId?: string, secondOpponentId?: string) =>
+  buildLeagueBattle(league, userId, 'league', opponentId, null, 'battle', allyId, secondOpponentId)
+const lock = (prepared: ReturnType<typeof build>) => prepared.initialCommands.find((command) => command.kind === 'lock-league-rosters')
+
+describe('2v1 league battles', () => {
+  it('seats a solo entrant against the whole pair of the ally they chose', () => {
+    expect(build(paired, 'solo', 'ally').opponentIds).toEqual(['ally', 'partner'])
+  })
+
+  it('seats an allied entrant beside their fixed partner', () => {
+    expect(build(paired, 'ally', 'solo').allyIds).toEqual(['partner'])
+  })
+
+  it('refuses an ally who is not the creator’s partner', () => {
+    expect(() => build(paired, 'ally', 'solo', 'other')).toThrow('an allied entrant must choose one allied teammate and one solo opponent')
+  })
+
+  it('seals the pair’s card into the league lock', () => {
+    expect(lock(build(paired, 'solo', 'ally'))).toMatchObject({ dispositions: [{ side: 1, disposition: 'priority-assets' }] })
+  })
+
+  it('leaves the card to setup for an event revealed before pairs sealed one', () => {
+    const unpaired = trial([
+      entrant('solo', 2_000, 'take-and-hold'),
+      entrant('ally', 1_000, 'recon'),
+      entrant('partner', 1_000, 'purge-the-foe'),
+    ])
+    expect(lock(build(unpaired, 'ally', 'solo', 'partner'))).not.toHaveProperty('dispositions')
+  })
+})
+
+describe('doubles league battles', () => {
+  const doubles: LeagueBattleSetup = {
+    eventToken: 'event',
+    format: '2v2',
+    rosterLimit: 2_000,
+    revealedAt: 1,
+    entries: [
+      entrant('a', 1_000, 'take-and-hold', 'one', 'take-and-hold'),
+      entrant('b', 1_000, 'purge-the-foe', 'one', 'take-and-hold'),
+      entrant('c', 1_000, 'take-and-hold', 'two', 'purge-the-foe'),
+      entrant('d', 1_000, 'purge-the-foe', 'two', 'purge-the-foe'),
+    ],
+  }
+
+  it('seals both teams’ cards into the league lock', () => {
+    expect(lock(build(doubles, 'a', 'c'))).toMatchObject({
+      dispositions: [
+        { side: 0, disposition: 'take-and-hold' },
+        { side: 1, disposition: 'purge-the-foe' },
+      ],
+    })
+  })
+})

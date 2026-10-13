@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave } from './account'
 import { productOperator, productSql, withAuthSql } from './storage'
 import { holdCombatCalculations } from './combat'
+import type { Command } from '../src/core/battle'
 
 test.setTimeout(180_000)
 
@@ -115,7 +116,10 @@ async function eventForLeague(leagueToken: string) {
   return event
 }
 
-function snapshot(userId: string, limit: number, warlord: boolean, name: string, unitName: string) {
+/** The card a fixture list chose and every card its detachments offered. */
+type FixtureCards = { disposition: string; dispositions: string[] }
+
+function snapshot(userId: string, limit: number, warlord: boolean, name: string, unitName: string, cards?: FixtureCards) {
   return JSON.stringify({
     name,
     text: `${limit.toLocaleString()} points`,
@@ -124,7 +128,8 @@ function snapshot(userId: string, limit: number, warlord: boolean, name: string,
       revision: 'test-revision',
       limit,
       detachment: null,
-      disposition: null,
+      disposition: cards?.disposition ?? null,
+      ...(cards ? { dispositions: cards.dispositions } : {}),
       units: [
         {
           key: `${userId}-unit`,
@@ -152,6 +157,7 @@ async function submitFixtureRoster(
   warlord: boolean,
   name: string,
   unitName = 'Test unit',
+  cards?: FixtureCards,
 ) {
   const product = await productOperator()
   const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
@@ -188,7 +194,7 @@ async function submitFixtureRoster(
       rosterName: name,
       rosterLimit: limit,
       rosterUpdatedAt: now,
-      snapshot: snapshot(userId, limit, warlord, name, unitName),
+      snapshot: snapshot(userId, limit, warlord, name, unitName, cards),
       now,
     },
     z.object({ outcome: z.string() }),
@@ -295,6 +301,12 @@ async function givePlayersTheSameName(existingName: string, playerName: string) 
   })
 }
 
+/** The cards each 2v1 fixture list brings: the allies chose different ones, and only the first ally's detachment offers Priority Assets. */
+const TEAM_EVENT_CARDS: FixtureCards[] = [
+  { disposition: 'take-and-hold', dispositions: ['take-and-hold', 'priority-assets'] },
+  { disposition: 'purge-the-foe', dispositions: ['purge-the-foe'] },
+]
+
 async function sealTeamEventRosters(leagueToken: string) {
   const event = await eventForLeague(leagueToken)
   const entries = await productSql<{
@@ -304,10 +316,12 @@ async function sealTeamEventRosters(leagueToken: string) {
   if (entries.length !== 3 || entries.some((entry) => option(entry.required_limit) === null)) {
     throw new Error('The team league assignments are incomplete.')
   }
+  let allies = 0
   for (const entry of entries) {
     const limit = option(entry.required_limit)!
     const name = `${limit.toLocaleString()}-point roster`
-    const outcome = await submitFixtureRoster(leagueToken, event.id, entry.user_id, limit, true, name)
+    const cards = limit < 2_000 ? TEAM_EVENT_CARDS[allies++ % 2] : { disposition: 'take-and-hold', dispositions: ['take-and-hold'] }
+    const outcome = await submitFixtureRoster(leagueToken, event.id, entry.user_id, limit, true, name, undefined, cards)
     if (outcome !== 'sealed') throw new Error(`The team league fixture roster returned ${outcome} for ${entry.user_id}.`)
   }
 }
@@ -334,6 +348,7 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
       warlord,
       '1,000-point doubles roster',
       'Test character',
+      TEAM_EVENT_CARDS[warlord ? 0 : 1],
     )
     if (outcome !== 'sealed') {
       throw new Error(`The doubles league fixture roster returned ${outcome}.`)
@@ -1438,16 +1453,39 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
       return entries.map((entry) => option(entry.required_limit)).toSorted((left, right) => (left ?? 0) - (right ?? 0))
     })
     .toEqual([1_000, 1_000, 2_000])
+  await owner.reload()
+  await expect(owner.locator('[data-check="teams"]')).toContainText('with another ally.')
+  // The organizer pairs the allies, and a pair plays together in every battle of the event.
+  const alliedPool = owner.locator('[data-group="allied"]')
+  await alliedPool.getByRole('checkbox', { name: `Pick ${alliedLabel} for a pair` }).check()
+  await alliedPool.getByRole('checkbox', { name: `Pick ${secondAlliedLabel} for a pair` }).check()
+  await alliedPool.getByRole('button', { name: /^Pair / }).click()
+  await expect(owner.locator('[data-group="pair-1"]')).toContainText(secondAlliedLabel)
+  await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
+  await owner.screenshot({ path: 'test-results/league-2v1-paired-phone.png', fullPage: true })
   await sealTeamEventRosters(leagueToken)
   await owner.reload()
-  await expect(owner.getByRole('button', { name: 'Reveal all lists' })).toBeEnabled()
+  // The allies' lists chose different cards, so the pair owes its one Force Disposition before anything opens.
+  await expect(owner.getByRole('button', { name: 'Reveal all lists' })).toBeDisabled()
+  await expect(owner.getByText('need to choose their team’s Force Disposition')).toBeVisible()
+  await owner.screenshot({ path: 'test-results/league-2v1-card-owed-phone.png', fullPage: true })
+  expect(await revealThroughServer(leagueToken)).toBe('not-ready')
 
   await allied.setViewportSize({ width: 390, height: 844 })
   await allied.reload()
-  const alliedSide = allied.locator('[data-group="allied"]')
+  const alliedSide = allied.locator('[data-group="pair-1"]')
   const ownEntrantRow = alliedSide.locator(`[data-person="${alliedName}"]`).filter({ hasText: alliedLabel })
   await expect(ownEntrantRow).toBeVisible()
-  await expect(alliedSide.getByText('Plays beside another ally.')).toBeVisible()
+  await expect(alliedSide.getByRole('heading', { name: 'Allied pair 1' })).toBeVisible()
+  // The pair chooses from every card either list's detachments offer, not only the two the lists chose.
+  const teamCard = allied.locator('[data-team-disposition]')
+  await expect(teamCard.getByRole('button')).toHaveCount(3)
+  const priorityAssets = teamCard.getByRole('button', { name: 'Priority Assets' })
+  await priorityAssets.click()
+  await expect(priorityAssets).toHaveAttribute('aria-pressed', 'true')
+  await expect(alliedSide).toContainText('plays Priority Assets')
+  await expectNoHorizontalOverflow(allied, teamCard)
+  await allied.screenshot({ path: 'test-results/league-2v1-team-disposition-phone.png', fullPage: true })
   // A 2v1 seats the allied rosters together and never against each other, so each ally reads the other's
   // before reveal, while the solo roster they will both face stays sealed.
   const secondAlliedRow = alliedSide.locator(`[data-person="${alliedName}"]`).filter({ hasText: secondAlliedLabel })
@@ -1469,7 +1507,31 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await allied.screenshot({ path: 'test-results/league-2v1-roster-filter.png', fullPage: true })
   await allied.keyboard.press('Escape')
 
+  await owner.reload()
+  await expect(owner.getByRole('button', { name: 'Reveal all lists' })).toBeEnabled()
   await revealEvent(owner)
+  await expect(owner.locator('[data-group="pair-1"]')).toContainText('plays Priority Assets')
+  await owner.screenshot({ path: 'test-results/league-2v1-revealed-phone.png', fullPage: true })
+  // Once the lists are out the pair's card is fixed, and a replacement list has to leave it on offer.
+  const revealedEvent = await eventForLeague(leagueToken)
+  const [revealedEventRow] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${revealedEvent.id}`
+  const [leagueRow] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
+  const sealedEntries = await productSql<{
+    user_id: string
+    roster_snapshot: [number, string | []]
+  }>`SELECT user_id, roster_snapshot FROM league_event_entries WHERE event_id = ${revealedEvent.id} AND status = 'accepted'`
+  const holder = sealedEntries.find((entry) => option(entry.roster_snapshot)?.includes('priority-assets'))!
+  const operator = await productOperator()
+  const command = (input: Record<string, unknown>) =>
+    operator.leagueCommand({ token: leagueToken, eventToken: revealedEventRow.token, now: Date.now(), ...input }, z.unknown())
+  expect(await command({ op: 'set-team-disposition', ownerId: holder.user_id, disposition: 'take-and-hold' })).toEqual({
+    outcome: 'closed',
+  })
+  expect(await command({ op: 'unseal', ownerId: leagueRow.owner_id, userId: holder.user_id })).toBe('unsealed')
+  const reseal = (cards: FixtureCards) =>
+    submitFixtureRoster(leagueToken, revealedEvent.id, holder.user_id, 1_000, true, '1,000-point roster', undefined, cards)
+  expect(await reseal({ disposition: 'take-and-hold', dispositions: ['take-and-hold'] })).toBe('disposition-dropped')
+  expect(await reseal(TEAM_EVENT_CARDS[0])).toBe('sealed')
   // A revealed event no longer holds the limit to its shape, so it can drop below what a 2v1 needs.
   const edit = await openEventSettings(owner)
   await expect(edit.getByLabel('Player limit')).toHaveAttribute('min', '2')
@@ -1492,11 +1554,10 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await owner.getByRole('button', { name: 'Start 2 vs 1 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
   await expectNoHorizontalOverflow(owner, battleChooser)
-  await battleChooser.getByLabel('Second opponent').click()
-  await owner.getByRole('option', { name: secondAlliedLabel }).click()
-  await expect(battleChooser.getByLabel('Second opponent')).toContainText(secondAlliedLabel)
   await battleChooser.getByLabel('First opponent').click()
   await owner.getByRole('option', { name: alliedLabel }).click()
+  // Choosing one ally seats their partner, since a pair always plays together.
+  await expect(battleChooser.getByLabel('Second opponent')).toContainText(secondAlliedLabel)
   await expect(battleChooser.getByRole('button', { name: 'Start battle' })).toBeEnabled()
   await owner.screenshot({ path: 'test-results/league-2v1-battle-chooser-phone.png', fullPage: true })
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
@@ -1504,6 +1565,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const ownerSetup = owner.getByRole('region', { name: 'Armies' })
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
+  await owner.screenshot({ path: 'test-results/league-2v1-battle-setup-phone.png', fullPage: true })
   const battleUrl = owner.url()
   const battlePath = new URL(battleUrl).pathname
 
@@ -1547,10 +1609,9 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await allied.getByRole('button', { name: 'Start 2 vs 1 battle' }).click()
   const alliedBattleChooser = allied.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
   await expectNoHorizontalOverflow(allied, alliedBattleChooser)
+  await expect(alliedBattleChooser.getByLabel('Your ally')).toContainText(secondAlliedLabel)
   await alliedBattleChooser.getByLabel('Opponent').click()
   await allied.getByRole('option', { name: ownerName }).click()
-  await alliedBattleChooser.getByLabel('Your ally').click()
-  await allied.getByRole('option', { name: secondAlliedLabel }).click()
   await alliedBattleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(allied).toHaveURL(/\/battles\/[^/?]+$/)
   const alliedSetup = allied.getByRole('region', { name: 'Armies' })
@@ -1571,6 +1632,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   })
   const product = await productOperator()
   const [battleIdentity] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${battlePath.split('/').at(-1)!}`
+  // The pair's sealed card is written into the battle, so setup never asks it again.
+  const battleCommands = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleIdentity.id}`
+  expect(battleCommands.map((row) => JSON.parse(row.body) as Command).find((entry) => entry.kind === 'lock-league-rosters')).toMatchObject({
+    dispositions: [{ side: 1, disposition: 'priority-assets' }],
+  })
   const [eventLink] = await productSql<{
     event_id: string
   }>`SELECT event_id FROM league_event_battles WHERE battle_id = ${battleIdentity.id}`
@@ -1706,6 +1772,23 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await sealDoublesEventRosters(leagueToken, true)
   // A sealed list reaches the one entrant who will field a force alongside it, before any reveal.
   await teammate.reload()
+  // Each team settles its one Force Disposition before the reveal, from every card either list offers.
+  const teamCard = teammate.locator('[data-team-disposition]')
+  await expect(teamCard.getByRole('button')).toHaveCount(3)
+  await teamCard.getByRole('button', { name: 'Priority Assets' }).click()
+  await expect(teamCard.getByRole('button', { name: 'Priority Assets' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(teammate.locator('[data-group="team-1"]')).toContainText('plays Priority Assets')
+  await expectNoHorizontalOverflow(teammate, teamCard)
+  await teammate.screenshot({ path: 'test-results/doubles-team-disposition-phone.png', fullPage: true })
+  const opponent = pages[2]
+  await opponent.setViewportSize({ width: 1440, height: 900 })
+  await opponent.reload()
+  await opponent.locator('[data-team-disposition]').getByRole('button', { name: 'Purge the Foe' }).click()
+  await expect(opponent.locator('[data-team-disposition]').getByRole('button', { name: 'Purge the Foe' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await opponent.screenshot({ path: 'test-results/doubles-team-disposition-desktop.png', fullPage: true })
   const teammateRow = (name: string) => teammate.locator(`[data-person="${name}"]`)
   await expect(viewRoster(teammateRow(names[0]), names[0])).toBeVisible()
   for (const sealed of [names[1], names[2], names[3]]) {
@@ -1811,6 +1894,9 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(reveal).toBeHidden()
   await owner.unrouteAll({ behavior: 'wait' })
   await eventLoaded(owner)
+  await expect(team(1)).toContainText('plays Priority Assets')
+  await expect(team(2)).toContainText('plays Purge the Foe')
+  await owner.screenshot({ path: 'test-results/doubles-revealed-phone.png', fullPage: true })
   await owner.getByRole('button', { name: 'Start 2 vs 2 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 2 battle' })
   await battleChooser.getByLabel('Opposing team').click()
@@ -1825,6 +1911,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(sides).toHaveCount(2)
   await expect(sides.nth(0)).toContainText(names[0])
   await expect(sides.nth(0)).toContainText(names[1])
+  await owner.screenshot({ path: 'test-results/doubles-battle-setup-phone.png', fullPage: true })
   await expect(sides.nth(1)).toContainText(names[2])
   await expect(sides.nth(1)).toContainText(names[3])
   await expectNoHorizontalOverflow(owner)

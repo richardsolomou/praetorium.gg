@@ -158,6 +158,7 @@ const leagueRecord = z.object({
   events: z.array(leagueEvent),
   eventCount: z.number().int(),
   entries: z.array(leagueEntry),
+  teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),
   adminIds: z.array(z.string()),
   latestEntryCount: z.number().int(),
   latestAcceptedCount: z.number().int(),

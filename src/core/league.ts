@@ -2,6 +2,7 @@ import type { TableShape } from './tableShape'
 import type { FormatRuleId, Roster } from './battle'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
+import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 
 export const LEAGUE_VISIBILITIES = ['public', 'private'] as const
 export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
@@ -63,6 +64,7 @@ export type LeagueEntryView = {
   requiredLimit: number | null
   sealedLimit: number | null
   teamId: string | null
+  dispositionOwed: boolean
 }
 
 /** The fewest places each table shape can seat. */
@@ -100,6 +102,8 @@ export type LeagueRevealEntry = {
   submitted: boolean
   requiredLimit: number | null
   teamId: string | null
+  /** Whether this entrant's team has sealed both lists without settling the one Force Disposition it plays. */
+  dispositionOwed: boolean
 }
 
 /**
@@ -115,6 +119,7 @@ export type LeagueRevealCheck =
   | { step: 'sizes'; done: boolean; waiting: string[]; solo: number; allied: number }
   | { step: 'teams'; done: boolean; waiting: string[] }
   | { step: 'lists'; done: boolean; waiting: string[] }
+  | { step: 'dispositions'; done: boolean; waiting: string[] }
 
 export function leagueRevealChecklist(
   event: { format: TableShape | null; rosterLimit: number | null },
@@ -136,9 +141,16 @@ export function leagueRevealChecklist(
     const allied = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit).length
     const unsized = accepted.filter((entry) => entry.requiredLimit === null).map((entry) => entry.userId)
     checks.push({ step: 'sizes', done: unsized.length === 0 && solo > 0 && allied >= 2, waiting: unsized, solo, allied })
+    const allies = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit)
+    const unpaired = allies.filter((entry) => !entry.teamId || allies.filter((ally) => ally.teamId === entry.teamId).length !== 2)
+    checks.push({ step: 'teams', done: unpaired.length === 0, waiting: unpaired.map((entry) => entry.userId) })
   }
   const unsealed = accepted.filter((entry) => !entry.submitted).map((entry) => entry.userId)
   checks.push({ step: 'lists', done: unsealed.length === 0, waiting: unsealed })
+  if (event.format === '2v1' || event.format === '2v2') {
+    const owing = accepted.filter((entry) => entry.dispositionOwed).map((entry) => entry.userId)
+    checks.push({ step: 'dispositions', done: owing.length === 0, waiting: owing })
+  }
   return checks
 }
 
@@ -221,6 +233,33 @@ export function readsAlliedLeagueRoster(
     return reader.requiredLimit === allied && sealed.requiredLimit === allied
   }
   return false
+}
+
+/** A fixed pair's sealed Force Disposition: what its lists offer, and the card it plays or null while it still owes the choice. */
+export type LeagueTeam = { id: string; userIds: string[]; choices: string[]; disposition: string | null; owed: boolean }
+
+/**
+ * Every fixed pair in an event, with the one Force Disposition it plays.
+ *
+ * A pair chooses only once both lists are sealed, from every card either list's detachments offered,
+ * so the choice is made before reveal shows them the other side. A pick the sealed lists no longer
+ * offer counts for nothing, so replacing a list cannot leave a card neither list brings.
+ */
+export function leagueTeams(
+  entries: readonly { userId: string; status: LeagueEntryStatus; teamId: string | null; roster: Roster | null }[],
+  picks: ReadonlyMap<string, string>,
+): LeagueTeam[] {
+  const members = new Map<string, (typeof entries)[number][]>()
+  for (const entry of entries) {
+    if (entry.status === 'accepted' && entry.teamId) members.set(entry.teamId, [...(members.get(entry.teamId) ?? []), entry])
+  }
+  return [...members].map(([id, team]) => {
+    const sealed = team.length === 2 && team.every((entry) => entry.roster)
+    const rosters = team.map((entry) => entry.roster)
+    const choices = sealed ? teamDispositionChoices(rosters) : []
+    const disposition = sealed ? teamDisposition(rosters, picks.get(id) ?? null) : null
+    return { id, userIds: team.map((entry) => entry.userId), choices, disposition, owed: choices.length > 1 && disposition === null }
+  })
 }
 
 export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {

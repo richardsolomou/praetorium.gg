@@ -42,13 +42,64 @@ export function soloOrAllied(league: Pick<League, 'format' | 'rosterLimit'>, ent
   return entry.requiredLimit === alliedLeagueRosterLimit(league.rosterLimit) ? 'allied' : null
 }
 
-/** The teams of a doubles event in the order their first member joined, each with its two entries. */
+/** The fixed pairs of an event in the order their first member joined, each with its entries. */
 export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'>>(entries: readonly T[]) {
   const teams = new Map<string, T[]>()
   for (const entry of entries) {
     if (entry.status === 'accepted' && entry.teamId) teams.set(entry.teamId, [...(teams.get(entry.teamId) ?? []), entry])
   }
   return [...teams].map(([id, members]) => ({ id, members }))
+}
+
+/** What each side of a 2v1 means at the table, said where the side is named rather than left to be guessed. */
+export function sideGroups(league: Pick<League, 'rosterLimit'>): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
+  const solo = league.rosterLimit ?? 0
+  return {
+    solo: { title: `Solo · ${solo.toLocaleString()} points`, detail: 'Plays alone against a pair.' },
+    allied: {
+      title: `Allied · ${alliedLeagueRosterLimit(solo).toLocaleString()} points`,
+      detail: 'Plays beside another ally.',
+    },
+    unsized: { title: 'Waiting for a size' },
+  }
+}
+
+/**
+ * One titled run of an event's entrants: a 2v1 side, a fixed pair, or the players still waiting for one.
+ *
+ * `teamId` marks a pair, which plays together and seals one Force Disposition; a duel is one untitled run.
+ */
+export type EntrantGrouping<T> = { key: string; title?: string; detail?: string; teamId?: string; entries: T[] }
+
+/** The groups the entrant list, the organizer and the revealed lists all split an event into, so a pairing reads the same everywhere. */
+export function entrantGroups<T extends Pick<LeagueEntryView, 'teamId' | 'status' | 'requiredLimit'>>(
+  league: Pick<League, 'format' | 'rosterLimit'>,
+  accepted: readonly T[],
+  names: (members: T[]) => string,
+): EntrantGrouping<T>[] {
+  const pairs = (entries: readonly T[], prefix: string, keyPrefix: string) =>
+    doublesTeams(entries).map((team, index) => ({
+      key: `${keyPrefix}-${index + 1}`,
+      title: `${prefix} ${index + 1}`,
+      detail: names(team.members),
+      teamId: team.id,
+      entries: team.members,
+    }))
+  if (league.format === '2v2')
+    return [
+      ...pairs(accepted, 'Team', 'team'),
+      { key: 'unpaired', title: 'Waiting for a teammate', entries: accepted.filter((entry) => !entry.teamId) },
+    ].filter((group) => group.entries.length)
+  if (league.format !== '2v1') return [{ key: 'all', entries: [...accepted] }]
+  const sides = sideGroups(league)
+  const on = (side: 'solo' | 'allied' | 'unsized') => accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
+  const allied = on('allied')
+  return [
+    { key: 'solo', ...sides.solo, entries: on('solo') },
+    ...pairs(allied, 'Allied pair', 'pair'),
+    { key: 'allied', ...sides.allied, entries: allied.filter((entry) => !entry.teamId) },
+    { key: 'unsized', ...sides.unsized, entries: on('unsized') },
+  ].filter((group) => group.entries.length)
 }
 
 export type EntryStep = { label: string; state: 'done' | 'current' | 'upcoming' }
@@ -58,7 +109,7 @@ export type EntryStage = 'join' | 'assign' | 'seal' | 'reveal' | 'play'
 
 /** The path through an event with the stage the reader is on marked current, so it can only restate the status card's own decision. */
 export function entryProgress(league: Pick<League, 'format'>, stage: EntryStage): EntryStep[] {
-  const assignment = league.format === '2v1' ? 'Get a solo or allied size' : league.format === '2v2' ? 'Get paired with a teammate' : null
+  const assignment = league.format === '2v1' ? 'Play solo or get an ally' : league.format === '2v2' ? 'Get paired with a teammate' : null
   const stages: { stage: EntryStage; label: string }[] = [
     { stage: 'join', label: 'Join the league' },
     ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
