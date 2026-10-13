@@ -49,6 +49,8 @@ export function reportRuntimeMetrics(
       ['process.memory.rss', memory.rss, 'byte'],
       ['process.memory.heap_used', memory.heapUsed, 'byte'],
       ['process.memory.heap_total', memory.heapTotal, 'byte'],
+      ['process.memory.external', memory.external, 'byte'],
+      ['process.memory.array_buffers', memory.arrayBuffers, 'byte'],
       ['process.cpu.utilization', (secondStart.cpu - intervalStart.cpu) / Math.max(1, secondStart.at - intervalStart.at), '1'],
       ['process.cpu.busiest_second', busiestSecond, '1'],
       ['process.event_loop.delay.p99', delay.percentile(99) / 1e6, 'ms'],

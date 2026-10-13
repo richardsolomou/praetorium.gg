@@ -14,6 +14,6 @@ const directory = process.env.CATALOGUE_DIR ?? path.resolve('.output', ...(sourc
 await materializeCatalogue(directory, catalogueSources, {
   source: source as (typeof SNAPSHOT_SOURCE_NAMES)[number] | undefined,
   report: console.log,
-  composition: readCatalogueComposition(path.resolve('catalogue')),
+  composition: readCatalogueComposition(path.resolve('.catalogue-authoring/catalogue')),
 })
 console.log(directory)
