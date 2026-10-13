@@ -28,9 +28,9 @@ import { errorMessage } from '../../queryClient'
 import { useOrigin } from '../../useOrigin'
 import { useNativeShare } from '../../nativeBridge'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
-import { EntrantGroup, EntrantList, SectionHeading, sealStatus, sideGroups } from './LeagueEntrants'
+import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
-import { doublesTeams, formatNames, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
+import { entrantGroups, formatNames, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 
 /** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`. */
 export type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode) => ReactNode
@@ -80,12 +80,15 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
   const accepted = byJoin.filter((entry) => entry.status === 'accepted')
   const pending = byJoin.filter((entry) => entry.status === 'pending')
   const rejected = byJoin.filter((entry) => entry.status === 'rejected')
-  const teams = doublesTeams(accepted)
+  // Doubles pairs anyone without a team; a 2v1 pairs only the allies, since the solo player plays alone.
+  const pairPool = (group: { key: string }) => group.key === 'unpaired' || (league.format === '2v1' && group.key === 'allied')
+  // Whoever still needs the organizer leads: players without a size, then players without a partner.
+  const rank = (group: { key: string }) => (group.key === 'unsized' ? 0 : pairPool(group) ? 1 : 2)
+  const groups = entrantGroups(league, accepted, (members) => formatNames(members.map(label))).sort((one, other) => rank(one) - rank(other))
   // A picked player who was paired or removed since is dropped, so the picker never holds a place for a row it no longer shows.
-  const unpairedIds = new Set(accepted.filter((entry) => !entry.teamId).map((entry) => entry.userId))
+  const unpairedIds = new Set(groups.filter(pairPool).flatMap((group) => group.entries.map((entry) => entry.userId)))
   const pickedLive = picked.filter((id) => unpairedIds.has(id))
   const openPlaces = league.playerLimit === null ? pending.length : Math.max(0, league.playerLimit - accepted.length)
-  const sides = sideGroups(league)
 
   const requestAssignment = (entry: LeagueEntryView, requiredLimit: number) => {
     if (entry.requiredLimit === requiredLimit) return
@@ -101,7 +104,8 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
     const sealed = accepted.filter(
       (entry) => entry.submitted && (userIds.includes(entry.userId) || (entry.teamId && touched.has(entry.teamId))),
     )
-    if (sealed.length) setClearing({ userIds, sealed })
+    // Doubles teams share a Warlord, so a new pairing clears their lists; a 2v1 ally's list stands on its own.
+    if (league.format === '2v2' && sealed.length) setClearing({ userIds, sealed })
     else assignTeam.mutate(userIds)
   }
   // A refusal is shown on the row it came from, unless a confirmation dialog is already showing it.
@@ -129,144 +133,95 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
     </Button>
   )
 
+  const sizeToggle = (entry: LeagueEntryView) =>
+    league.format === '2v1' && league.rosterLimit ? (
+      <SizeToggle
+        label={label(entry)}
+        side={soloOrAllied(league, entry)}
+        pending={assign.isPending}
+        onAssign={(next) => requestAssignment(entry, next === 'solo' ? league.rosterLimit! : alliedLeagueRosterLimit(league.rosterLimit!))}
+      />
+    ) : null
+  const controls = (entry: LeagueEntryView, pick?: ReactNode) => (
+    <>
+      {pick}
+      {sizeToggle(entry)}
+      {removeButton(entry)}
+      {reassigning ? null : rowError(assign.error, assign.variables?.userId, entry)}
+      {moderateError(entry)}
+    </>
+  )
+  const pickBox = (entry: LeagueEntryView) => {
+    const checked = pickedLive.includes(entry.userId)
+    return (
+      <label className="flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold tracking-label text-dim uppercase pointer-coarse:min-h-11">
+        <input
+          type="checkbox"
+          className="size-5 accent-parchment"
+          aria-label={`Pick ${label(entry)} for a ${league.format === '2v1' ? 'pair' : 'team'}`}
+          checked={checked}
+          disabled={!checked && pickedLive.length === 2}
+          onChange={() => setPicked(checked ? pickedLive.filter((id) => id !== entry.userId) : [...pickedLive, entry.userId])}
+        />
+        Pick
+      </label>
+    )
+  }
+
   const entrants = !accepted.length ? (
     <div className="border border-edge bg-panel px-5 py-9 text-center">
       <UserPlus className="mx-auto size-7 text-faint" />
       <p className="mt-3 font-bold uppercase">No entrants yet</p>
       <p className="mt-1 text-sm text-dim">Share the invite link to fill it.</p>
     </div>
-  ) : league.format === '2v1' ? (
+  ) : league.format === '2v1' || league.format === '2v2' ? (
     <div className="space-y-4">
-      {(['unsized', 'solo', 'allied'] as const).map((side) => {
-        const members = accepted.filter((entry) => (soloOrAllied(league, entry) ?? 'unsized') === side)
-        if (!members.length) return null
+      {groups.map((group) => {
+        const pairing = pairPool(group)
         return (
-          <EntrantGroup key={side} group={side} title={sides[side].title} detail={sides[side].detail}>
+          <EntrantGroup
+            key={group.key}
+            group={group.key}
+            title={group.title!}
+            detail={pairing ? `Tick two ${league.format === '2v1' ? 'allies' : 'players'}, then pair them.` : group.detail}
+            action={
+              pairing ? (
+                <Button
+                  size="sm"
+                  className="pointer-coarse:h-11"
+                  disabled={pickedLive.length !== 2 || assignTeam.isPending}
+                  onClick={() => requestTeam(pickedLive)}
+                >
+                  {pickedLive.length === 2 ? `Pair ${formatNames(pickedLive.map(nameOf))}` : 'Pick two to pair'}
+                </Button>
+              ) : group.teamId ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="pointer-coarse:h-11"
+                  disabled={assignTeam.isPending}
+                  aria-label={`Unpair ${formatNames(group.entries.map(label))}`}
+                  onClick={() => requestTeam([group.entries[0]!.userId])}
+                >
+                  <X /> Unpair
+                </Button>
+              ) : undefined
+            }
+          >
             <EntrantList>
-              {members.map((entry) =>
-                row(
-                  entry,
-                  sealStatus(entry, false),
-                  <>
-                    {league.rosterLimit ? (
-                      <SizeToggle
-                        label={label(entry)}
-                        side={soloOrAllied(league, entry)}
-                        pending={assign.isPending}
-                        onAssign={(next) =>
-                          requestAssignment(entry, next === 'solo' ? league.rosterLimit! : alliedLeagueRosterLimit(league.rosterLimit!))
-                        }
-                      />
-                    ) : null}
-                    {removeButton(entry)}
-                    {reassigning ? null : rowError(assign.error, assign.variables?.userId, entry)}
-                    {moderateError(entry)}
-                  </>,
-                ),
-              )}
+              {group.entries.map((entry) => row(entry, sealStatus(entry, false), controls(entry, pairing ? pickBox(entry) : undefined)))}
             </EntrantList>
+            {pairing && assignTeam.error && clearing === null ? (
+              <p role="alert" className="mt-2 text-sm text-destructive">
+                {errorMessage(assignTeam.error)}
+              </p>
+            ) : null}
           </EntrantGroup>
         )
       })}
     </div>
-  ) : league.format === '2v2' ? (
-    <div className="space-y-4">
-      {accepted.some((entry) => !entry.teamId) ? (
-        <EntrantGroup
-          group="unpaired"
-          title="Waiting for a teammate"
-          detail="Tick two players, then pair them."
-          action={
-            <Button
-              size="sm"
-              className="pointer-coarse:h-11"
-              disabled={pickedLive.length !== 2 || assignTeam.isPending}
-              onClick={() => requestTeam(pickedLive)}
-            >
-              {pickedLive.length === 2 ? `Pair ${formatNames(pickedLive.map(nameOf))}` : 'Pick two to pair'}
-            </Button>
-          }
-        >
-          <EntrantList>
-            {accepted
-              .filter((entry) => !entry.teamId)
-              .map((entry) => {
-                const checked = pickedLive.includes(entry.userId)
-                return row(
-                  entry,
-                  sealStatus(entry, false),
-                  <>
-                    <label className="flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold tracking-label text-dim uppercase pointer-coarse:min-h-11">
-                      <input
-                        type="checkbox"
-                        className="size-5 accent-parchment"
-                        aria-label={`Pick ${label(entry)} for a team`}
-                        checked={checked}
-                        disabled={!checked && pickedLive.length === 2}
-                        onChange={() => setPicked(checked ? pickedLive.filter((id) => id !== entry.userId) : [...pickedLive, entry.userId])}
-                      />
-                      Pick
-                    </label>
-                    {removeButton(entry)}
-                    {moderateError(entry)}
-                  </>,
-                )
-              })}
-          </EntrantList>
-          {assignTeam.error && clearing === null ? (
-            <p role="alert" className="mt-2 text-sm text-destructive">
-              {errorMessage(assignTeam.error)}
-            </p>
-          ) : null}
-        </EntrantGroup>
-      ) : null}
-      {teams.map((team, index) => (
-        <EntrantGroup
-          key={team.id}
-          group={`team-${index + 1}`}
-          title={`Team ${index + 1}`}
-          detail={formatNames(team.members.map(label))}
-          action={
-            <Button
-              size="sm"
-              variant="ghost"
-              className="pointer-coarse:h-11"
-              disabled={assignTeam.isPending}
-              aria-label={`Unpair ${formatNames(team.members.map(label))}`}
-              onClick={() => requestTeam([team.members[0]!.userId])}
-            >
-              <X /> Unpair
-            </Button>
-          }
-        >
-          <EntrantList>
-            {team.members.map((entry) =>
-              row(
-                entry,
-                sealStatus(entry, false),
-                <>
-                  {removeButton(entry)}
-                  {moderateError(entry)}
-                </>,
-              ),
-            )}
-          </EntrantList>
-        </EntrantGroup>
-      ))}
-    </div>
   ) : (
-    <EntrantList>
-      {accepted.map((entry) =>
-        row(
-          entry,
-          sealStatus(entry, false),
-          <>
-            {removeButton(entry)}
-            {moderateError(entry)}
-          </>,
-        ),
-      )}
-    </EntrantList>
+    <EntrantList>{accepted.map((entry) => row(entry, sealStatus(entry, false), controls(entry)))}</EntrantList>
   )
 
   return (

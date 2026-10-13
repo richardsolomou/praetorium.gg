@@ -8,7 +8,7 @@ Player-facing copy says league when it means the whole league and numbers an eve
 
 Creating a league creates its first event atomically. At most one event has open registration; another can start after reveal. League identity, organizer, settings, and invite link persist, while entrants, assignments, teams, and snapshots belong to one event. Prior events stay readable; returning players join again.
 
-1v1 assigns the event's roster size. 2v1 requires solo and allied roles; 2v2 requires fixed teams of two. Read `src/core/tableShape.ts` and league decisions for their sizes and minimum places. Team rosters are independently legal and share one eligible Warlord. Remaining unsupported cross-army uniqueness rules require manual review.
+1v1 assigns the event's roster size. 2v1 requires solo and allied roles, with the allies paired into fixed pairs; 2v2 requires fixed teams of two. A pair plays together in every battle of the event. Read `src/core/tableShape.ts` and league decisions for their sizes and minimum places. Doubles team rosters are independently legal and share one eligible Warlord. Remaining unsupported cross-army uniqueness rules require manual review.
 
 Changing an open event's shape is allowed only before the first seal and atomically clears obsolete assignments/teams. League settings and event changes save together. Player limits must seat the format and existing accepted entrants; a revealed event no longer constrains future-event limits. A player limit caps entry rather than holding the reveal back.
 
@@ -34,13 +34,17 @@ Preview, released, and archived rules may be sealed. Submission prices the roste
 
 Outside doubles, every roster has one eligible Warlord. A first doubles roster may have zero or one; once both exist, the team must contain exactly one. Freeze source-backed eligibility rather than inferring it from names.
 
-Saved edits never change `league_event_entries.roster_snapshot`. Before reveal, an entrant can replace it deliberately. Reassignment/re-pairing clears every affected snapshot atomically. Compare saved choices with the sealed copy to warn about changed unrevealed lists; restoration clears the warning.
+Saved edits never change `league_event_entries.roster_snapshot`. Before reveal, an entrant can replace it deliberately. Reassignment and doubles re-pairing clear every affected snapshot atomically; pairing a 2v1 ally keeps an allied-size list, since its Warlord is its own. Compare saved choices with the sealed copy to warn about changed unrevealed lists; restoration clears the warning.
+
+## Team Force Disposition
+
+A fixed pair plays one Force Disposition, chosen before reveal so that it cannot answer the opposing lists. `leagueTeams` owns the decision through `src/core/teamDisposition.ts`, the same rule a battle uses for an allied side. Once both lists are sealed, either member chooses from every card either list's detachments offered (`built.dispositions`), not only the cards the lists chose; a player saves the roster as a personal list. Lists that chose the same card play it without asking. The pick is stored in `league_event_teams` and counts only while the sealed lists still offer it, so replacing a list can reopen the choice. Reveal requires every pair to have a card and records each one. After reveal the card is fixed: the choice is closed, and a list sealed after an unseal must leave it on offer. Before reveal, only the pair reads its choices and card.
 
 Detail reads expose submission status and frozen name, not roster JSON. Before reveal, only `readsAlliedLeagueRoster` grants another entrant access: a fixed doubles teammate or fellow 2v1 allied entrant. Organizer status grants no extra roster access. Reassignment revokes the old alliance immediately. SQL narrows candidates; the domain decides access.
 
 ## Reveal
 
-`leagueRevealChecklist` supplies structural checks to both UI and command. Reveal additionally validates the sealed rosters and Warlords in one transaction. Require an accepted entrant, complete assignments/snapshots, valid team composition, and no pending approval requests in doubles. Checklist completion alone is not proof that roster validation passed.
+`leagueRevealChecklist` supplies structural checks to both UI and command. Reveal additionally validates the sealed rosters and Warlords in one transaction. Require an accepted entrant, complete assignments/snapshots, valid team composition, a settled Force Disposition for every pair, and no pending approval requests in doubles. Checklist completion alone is not proof that roster validation passed.
 
 Before reveal, everyone reading the event sees whose list is sealed. The organizer or any accepted entrant reveals once every check passes (`mayRevealLeague`), and the event records who did. An event with a player limit also reveals itself, through `leagueRevealsItself`, inside the seal that fills its last place when every check passes; the seal result reports the revealed entrants so the service notifies them. A failed roster validation leaves the event sealed for the organizer to resolve.
 
@@ -50,9 +54,9 @@ Once revealed, the lists lead the event page. Cards stack one per line like the 
 
 ## Battles
 
-Accepted entrants in a revealed event choose a valid opposing composition. A duel entrant who joins without needing an assignment goes straight to the list chooser; a saved list matching an open entry's required size links back to seal it from the builder. The server derives fixed teammates and verifies every sealed roster size; no friendship is required within this boundary.
+Accepted entrants in a revealed event choose a valid opposing composition. A duel entrant who joins without needing an assignment goes straight to the list chooser; a saved list matching an open entry's required size links back to seal it from the builder. The server derives fixed teammates and pairs and verifies every sealed roster size; no friendship is required within this boundary. A 2v1 event revealed before allies were paired still lets an entrant name both allies.
 
-Creation copies snapshots and appends `lock-league-rosters` in one transaction. The lock preserves event identity and prevents roster replacement/removal, reset, size changes, and adding a side. Saved-list or catalogue updates cannot rewrite it. Event battle history is read-only and respects both the narrowest-seat battle audience and battle field visibility. An event's reveal or link never widens access to a private battle.
+Creation copies snapshots and appends `lock-league-rosters` in one transaction. The lock preserves event identity and prevents roster replacement/removal, reset, size changes, and adding a side. It carries each pair's sealed Force Disposition, which setup then cannot change; an event revealed before pairs sealed one leaves the choice to setup. Saved-list or catalogue updates cannot rewrite it. Event battle history is read-only and respects both the narrowest-seat battle audience and battle field visibility. An event's reveal or link never widens access to a private battle.
 
 Ordinary creation detects exact matchups from revealed events and directs the player to that event. Proceeding as an unlinked casual battle requires explicit confirmation.
 
@@ -62,4 +66,4 @@ A revealed event's results fold the event battles its reader may watch, so a pri
 
 ## Verification
 
-Exercise admission/capacity races, organizer and ally access before/after reassignment, saved-versus-sealed restoration, team Warlords, atomic invalidation, irreversible and self-revealing events, unseal/reseal, results from finished and private battles, and immutable event-linked battles. Use adjacent tests and `e2e/leagues.spec.ts`, then inspect open and revealed event layouts on phones.
+Exercise admission/capacity races, organizer and ally access before/after reassignment, saved-versus-sealed restoration, team Warlords, team Force Dispositions before and after reveal, atomic invalidation, irreversible and self-revealing events, unseal/reseal, results from finished and private battles, and immutable event-linked battles. Use adjacent tests and `e2e/leagues.spec.ts`, then inspect open and revealed event layouts on phones.

@@ -8,7 +8,14 @@ export type LeagueBattleSetup = {
   format: TableShape | null
   rosterLimit: number | null
   revealedAt: number | null
-  entries: { userId: string; requiredLimit: number | null; snapshot: string | null; teamId: string | null }[]
+  /** `teamDisposition` is the card the entrant's fixed pair sealed, absent from events revealed before pairs sealed one. */
+  entries: {
+    userId: string
+    requiredLimit: number | null
+    snapshot: string | null
+    teamId: string | null
+    teamDisposition: string | null
+  }[]
 }
 export class LeagueBattleSetupError extends Error {
   constructor(
@@ -18,6 +25,16 @@ export class LeagueBattleSetupError extends Error {
     super(message)
   }
 }
+/** The card each allied side sealed before reveal; an event whose pairs never sealed one leaves every side's to setup. */
+function sealedDispositions(league: LeagueBattleSetup, ...sides: string[][]) {
+  const dispositions = sides.flatMap((playerIds, side) => {
+    const disposition = league.entries.find((entry) => entry.userId === playerIds[0])?.teamDisposition
+    return playerIds.length > 1 ? [{ side, disposition }] : []
+  })
+  if (!dispositions.length || dispositions.some((entry) => !entry.disposition)) return {}
+  return { dispositions: dispositions.map(({ side, disposition }) => ({ side, disposition: disposition! })) }
+}
+
 export function buildLeagueBattle(
   league: LeagueBattleSetup,
   userId: string,
@@ -35,8 +52,9 @@ export function buildLeagueBattle(
   if (league.format === '2v2' && !LEAGUE_TEAM_ROSTER_LIMITS.some((candidate) => candidate === league.rosterLimit)) {
     throw new LeagueBattleSetupError('sealed rosters use an unsupported doubles force size', 409)
   }
-  if (league.format !== '2v2' && (league.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1)) {
-    throw new LeagueBattleSetupError('choose accepted entrants with sealed rosters', 403)
+  if (league.format === '1v1' || league.format === null) {
+    if (league.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1)
+      throw new LeagueBattleSetupError('choose accepted entrants with sealed rosters', 403)
   }
   const rosters = new Map(
     league.entries.map((entry) => {
@@ -76,31 +94,42 @@ export function buildLeagueBattle(
     const requirements = new Map(league.entries.map((entry) => [entry.userId, entry.requiredLimit]))
     const alliedLimit = alliedLeagueRosterLimit(limit)
     const creatorLimit = requirements.get(userId)
+    // A fixed allied pair always plays together; an event revealed before pairs existed names the second ally.
+    const teammate = (playerId: string) => {
+      const teamId = league.entries.find((entry) => entry.userId === playerId)?.teamId
+      return teamId ? league.entries.find((entry) => entry.teamId === teamId && entry.userId !== playerId)?.userId : undefined
+    }
     if (creatorLimit === limit) {
+      const second = teammate(opponentId) ?? secondOpponentId
       if (
         allyId ||
-        !secondOpponentId ||
+        !second ||
+        (secondOpponentId && secondOpponentId !== second) ||
         requirements.get(opponentId) !== alliedLimit ||
-        requirements.get(secondOpponentId) !== alliedLimit
+        requirements.get(second) !== alliedLimit
       ) {
         throw new LeagueBattleSetupError('a solo entrant must face two allied entrants', 409)
       }
-      opponentIds = [opponentId, secondOpponentId]
+      opponentIds = [opponentId, second]
     } else {
+      const ally = teammate(userId) ?? allyId
       if (
         creatorLimit !== alliedLimit ||
-        !allyId ||
+        !ally ||
+        (allyId && allyId !== ally) ||
         secondOpponentId ||
-        requirements.get(allyId) !== alliedLimit ||
+        requirements.get(ally) !== alliedLimit ||
         requirements.get(opponentId) !== limit
       ) {
         throw new LeagueBattleSetupError('an allied entrant must choose one allied teammate and one solo opponent', 409)
       }
-      allyIds = [allyId]
+      allyIds = [ally]
     }
-    for (const entry of league.entries) {
-      const rosterLimit = rosters.get(entry.userId)?.built?.limit
-      if (rosterLimit !== entry.requiredLimit) throw new LeagueBattleSetupError('a sealed roster does not match its assigned size', 409)
+    participantIds = [userId, ...allyIds, ...opponentIds]
+    for (const playerId of participantIds) {
+      const rosterLimit = rosters.get(playerId)?.built?.limit
+      if (rosterLimit === undefined || rosterLimit !== requirements.get(playerId))
+        throw new LeagueBattleSetupError('a sealed roster does not match its assigned size', 409)
     }
   }
   if (league.format === '2v2') {
@@ -125,7 +154,12 @@ export function buildLeagueBattle(
     ...participantIds
       .filter((playerId) => playerId !== userId && playerId !== opponentIds[0])
       .map((playerId) => ({ kind: 'attach-roster' as const, playerId, roster: rosters.get(playerId)!, prep: null, painted: true })),
-    { kind: 'lock-league-rosters', leagueToken, eventToken: league.eventToken },
+    {
+      kind: 'lock-league-rosters',
+      leagueToken,
+      eventToken: league.eventToken,
+      ...sealedDispositions(league, [userId, ...allyIds], opponentIds),
+    },
   ]
   return {
     allyIds,

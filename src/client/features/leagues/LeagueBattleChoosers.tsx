@@ -107,7 +107,7 @@ export function LeagueBattleChooser({
   ownUserId: string
   ownRequiredLimit: number | null
   rosterLimit: number
-  entries: { userId: string; name: string; image: string | null; requiredLimit: number | null }[]
+  entries: { userId: string; name: string; image: string | null; requiredLimit: number | null; teamId: string | null }[]
   pending: boolean
   error: Error | null
   onIntentChange: () => void
@@ -126,7 +126,14 @@ export function LeagueBattleChooser({
   // The organizer's roster assignment already says which side of the table this entrant is on.
   const isSolo = ownRequiredLimit === rosterLimit
   const seats = seatsFor('2v1', isSolo ? 'solo' : 'pair')
-  const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
+  // A fixed allied pair always plays together, so choosing one ally seats the other; older events paired nobody.
+  const teammateOf = (userId: string) => {
+    const teamId = entries.find((entry) => entry.userId === userId)?.teamId
+    return teamId ? (entries.find((entry) => entry.teamId === teamId && entry.userId !== userId)?.userId ?? null) : null
+  }
+  const ownTeammate = teammateOf(ownUserId)
+  const paired = entries.some((entry) => entry.teamId)
+  const seatedIn = (seat: Seat) => (seat.side === 'yours' ? (ownTeammate ?? allyId) : (theirIds[seat.at] ?? null))
   const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const candidates = entries.map((entry) => ({
     id: entry.userId,
@@ -142,6 +149,7 @@ export function LeagueBattleChooser({
     const items = candidates
       .filter((entry) => entry.id !== ownUserId && !taken.has(entry.id))
       .filter((entry) => entry.requiredLimit === (wantsSolo ? rosterLimit : alliedLimit))
+      .filter((entry) => seat.side !== 'yours' || !ownTeammate || entry.id === ownTeammate)
       .map((entry) => seatOption(entry, labels))
     return items.length ? [{ label, items }] : []
   }
@@ -152,7 +160,13 @@ export function LeagueBattleChooser({
         <DialogHeader>
           <DialogTitle className="text-2xl">{startBattleLabel('2v1')}</DialogTitle>
           <DialogDescription>
-            {isSolo ? 'Pick the two allied entrants you are facing.' : 'Pick your teammate and the solo entrant you are facing.'}
+            {isSolo
+              ? paired
+                ? 'Pick the allied pair you are facing.'
+                : 'Pick the two allied entrants you are facing.'
+              : ownTeammate
+                ? 'Pick the solo entrant you and your ally are facing.'
+                : 'Pick your teammate and the solo entrant you are facing.'}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -164,7 +178,8 @@ export function LeagueBattleChooser({
             onPick={(seat, id) => {
               onIntentChange()
               if (seat.side === 'yours') return setAllyId(id)
-              setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
+              const partner = id ? teammateOf(id) : null
+              setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : partner && isSolo ? partner : held)))
             }}
           />
           <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, candidates)} />

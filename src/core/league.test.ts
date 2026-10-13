@@ -9,6 +9,7 @@ import {
   leagueRevealChecklist,
   leagueRevealsItself,
   leagueArmy,
+  leagueTeams,
   mayRevealLeague,
   isLeagueOrganizer,
   leagueTableShape,
@@ -66,6 +67,7 @@ const entries: LeagueEntryView[] = [
     requiredLimit: 2_000,
     sealedLimit: 2_000,
     teamId: null,
+    dispositionOwed: false,
   },
   {
     userId: 'pending',
@@ -78,6 +80,7 @@ const entries: LeagueEntryView[] = [
     requiredLimit: null,
     sealedLimit: null,
     teamId: null,
+    dispositionOwed: false,
   },
   {
     userId: 'rejected',
@@ -90,6 +93,7 @@ const entries: LeagueEntryView[] = [
     requiredLimit: null,
     sealedLimit: null,
     teamId: null,
+    dispositionOwed: false,
   },
 ]
 
@@ -252,6 +256,7 @@ describe('leagueRevealChecklist', () => {
     submitted: true,
     requiredLimit: null,
     teamId: null,
+    dispositionOwed: false,
     ...over,
   })
   const ready = (checks: ReturnType<typeof leagueRevealChecklist>) => checks.every((check) => check.done)
@@ -281,16 +286,25 @@ describe('leagueRevealChecklist', () => {
     const trial = { format: '2v1' as const, rosterLimit: 2_000 }
     const sizes = (rows: LeagueRevealEntry[]) => leagueRevealChecklist(trial, rows).find((check) => check.step === 'sizes')
 
-    it('is ready with one solo and two allied entrants', () => {
+    it('is ready with one solo entrant and an allied pair', () => {
       expect(
         ready(
           leagueRevealChecklist(trial, [
             entry('a', { requiredLimit: 2_000 }),
-            entry('b', { requiredLimit: 1_000 }),
-            entry('c', { requiredLimit: 1_000 }),
+            entry('b', { requiredLimit: 1_000, teamId: 'pair' }),
+            entry('c', { requiredLimit: 1_000, teamId: 'pair' }),
           ]),
         ),
       ).toBe(true)
+    })
+
+    it('names allied entrants without a partner', () => {
+      const teams = leagueRevealChecklist(trial, [
+        entry('a', { requiredLimit: 2_000 }),
+        entry('b', { requiredLimit: 1_000, teamId: 'pair' }),
+        entry('c', { requiredLimit: 1_000 }),
+      ]).find((check) => check.step === 'teams')
+      expect(teams).toEqual({ step: 'teams', done: false, waiting: ['b', 'c'] })
     })
 
     it('names the entrants still waiting for a size', () => {
@@ -337,10 +351,56 @@ describe('leagueRevealChecklist', () => {
     it('needs two teams even when everyone is paired', () => {
       expect(check(paired.slice(0, 2), 'teams')?.done).toBe(false)
     })
+
+    it('names a team that has not settled its Force Disposition', () => {
+      const owing = paired.map((row, index) => (index < 2 ? { ...row, dispositionOwed: true } : row))
+      expect(check(owing, 'dispositions')).toEqual({ step: 'dispositions', done: false, waiting: ['a', 'b'] })
+    })
   })
 
   it('ignores sizes and teams for a legacy event', () => {
     expect(leagueRevealChecklist({ format: null, rosterLimit: null }, [entry('a')]).map((check) => check.step)).toEqual(['places', 'lists'])
+  })
+})
+
+describe('leagueTeams', () => {
+  const list = (disposition: string, dispositions: string[]): Roster => ({
+    ...sealedLeagueRoster,
+    built: { ...sealedLeagueRoster.built!, disposition, dispositions },
+  })
+  const pair = (one: Roster | null, other: Roster | null, pick?: string) =>
+    leagueTeams(
+      [
+        { userId: 'a', status: 'accepted', teamId: 'pair', roster: one },
+        { userId: 'b', status: 'accepted', teamId: 'pair', roster: other },
+      ],
+      new Map(pick ? [['pair', pick]] : []),
+    )[0]!
+  const dynasty = list('take-and-hold', ['take-and-hold', 'priority-assets'])
+  const hunters = list('purge-the-foe', ['purge-the-foe'])
+
+  it('offers every card either sealed list’s detachments offered', () => {
+    expect(pair(dynasty, hunters).choices).toEqual(['take-and-hold', 'priority-assets', 'purge-the-foe'])
+  })
+
+  it('owes a choice while the lists chose different cards', () => {
+    expect(pair(dynasty, hunters)).toMatchObject({ disposition: null, owed: true })
+  })
+
+  it('plays an offered card neither list chose once the pair picks it', () => {
+    expect(pair(dynasty, hunters, 'priority-assets')).toMatchObject({ disposition: 'priority-assets', owed: false })
+  })
+
+  it('plays the card both lists chose without asking', () => {
+    expect(pair(dynasty, list('take-and-hold', ['take-and-hold']))).toMatchObject({ disposition: 'take-and-hold', owed: false })
+  })
+
+  it('ignores a pick the sealed lists no longer offer', () => {
+    expect(pair(dynasty, hunters, 'recon').owed).toBe(true)
+  })
+
+  it('asks nothing until both lists are sealed', () => {
+    expect(pair(dynasty, null)).toMatchObject({ choices: [], owed: false })
   })
 })
 
@@ -365,7 +425,14 @@ describe('sealed Warlords', () => {
 })
 
 describe('leagueRevealsItself', () => {
-  const sealed = (userId: string): LeagueRevealEntry => ({ userId, status: 'accepted', submitted: true, requiredLimit: null, teamId: null })
+  const sealed = (userId: string): LeagueRevealEntry => ({
+    userId,
+    status: 'accepted',
+    submitted: true,
+    requiredLimit: null,
+    teamId: null,
+    dispositionOwed: false,
+  })
   const duel = { format: '1v1' as const, rosterLimit: 2_000 }
 
   it('opens a full event once every list is sealed', () => {

@@ -133,7 +133,15 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('reset-setup') }),
   z.object({ kind: z.literal('detach-roster'), playerId: id.optional() }),
-  z.object({ kind: z.literal('lock-league-rosters'), leagueToken: id, eventToken: id.optional() }),
+  z.object({
+    kind: z.literal('lock-league-rosters'),
+    leagueToken: id,
+    eventToken: id.optional(),
+    dispositions: z
+      .array(z.object({ side: z.number().int().min(0).max(1), disposition: id }))
+      .max(2)
+      .optional(),
+  }),
   z.object({ kind: z.literal('set-setup-step'), step: z.number().int().min(0).max(SETUP_STEP_MAX) }),
   z.object({ kind: z.literal('set-attacker'), attackerId: id }),
   z.object({ kind: z.literal('set-first-turn'), firstPlayerId: id }),
@@ -165,6 +173,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
             .optional(),
           detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),
+          dispositions: z.array(z.string().max(64)).max(16).optional(),
           detachmentIds: z.array(detachmentIdSchema).max(3).optional(),
           waivedRules: z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional(),
           picks: z.array(rosterPickSchema).max(100).optional(),

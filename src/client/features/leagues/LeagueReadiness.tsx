@@ -60,7 +60,11 @@ export function LeagueReadiness({
   const pending = league.entries.filter((entry) => entry.status === 'pending').length
   const checks = leagueRevealChecklist(league, league.entries)
   const ready = checks.every((check) => check.done)
-  const organizerSteps = checks.flatMap((check) => (!check.done && ORGANIZER_STEPS[check.step] ? [ORGANIZER_STEPS[check.step]!] : []))
+  const organizerSteps = checks.flatMap((check) => {
+    const step = check.step === 'teams' && league.format === '2v1' ? 'pair the allies' : ORGANIZER_STEPS[check.step]
+    return !check.done && step ? [step] : []
+  })
+  const owing = checks.find((check) => check.step === 'dispositions')?.waiting ?? []
   const nameOf = (userId: string) => {
     const entry = league.entries.find((candidate) => candidate.userId === userId)
     return entry ? label(entry) : 'someone'
@@ -83,6 +87,9 @@ export function LeagueReadiness({
       : `${revealNow}.`
   const detail = [
     waiting.length ? `Waiting on ${namesPhrase(waiting.map(label))}.` : null,
+    owing.length
+      ? `${namesPhrase(owing.map(nameOf))} still ${owing.length === 1 ? 'needs' : 'need'} to choose their team’s Force Disposition.`
+      : null,
     !isOrganizer && organizerSteps.length
       ? `${league.admins.length ? 'The organizers still need' : `${league.ownerName} still needs`} to ${namesPhrase(organizerSteps)}.`
       : null,
@@ -94,7 +101,10 @@ export function LeagueReadiness({
   // The organizer gets every structural step by name; the chips below already say whose list is sealed.
   // The organizer sees only what still stands in the way, in words; the bar and faces already say who has sealed.
   const organizerChecks = isOrganizer
-    ? checks.filter((check): check is Exclude<LeagueRevealCheck, { step: 'lists' }> => check.step !== 'lists' && !check.done)
+    ? checks.filter(
+        (check): check is Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' }> =>
+          check.step !== 'lists' && check.step !== 'dispositions' && !check.done,
+      )
     : []
 
   return (
@@ -161,7 +171,7 @@ export function LeagueReadiness({
           {organizerChecks.map((check) => (
             <li key={check.step} data-check={check.step} className="flex min-w-0 items-start gap-2 text-sm text-discarded">
               <Circle className="mt-1 size-3 shrink-0" strokeWidth={3} aria-hidden />
-              <span className="min-w-0 break-words">{checkDetail(check, accepted.length, nameOf)}</span>
+              <span className="min-w-0 break-words">{checkDetail(check, league.format, accepted.length, nameOf)}</span>
             </li>
           ))}
         </ul>
@@ -203,7 +213,12 @@ export function LeagueReadiness({
 }
 
 /** What the organizer still has to do for one unmet check. */
-function checkDetail(check: Exclude<LeagueRevealCheck, { step: 'lists' }>, accepted: number, nameOf: (userId: string) => string) {
+function checkDetail(
+  check: Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' }>,
+  format: League['format'],
+  accepted: number,
+  nameOf: (userId: string) => string,
+) {
   const names = (userIds: string[]) => namesPhrase(userIds.map(nameOf))
   switch (check.step) {
     case 'places':
@@ -214,6 +229,7 @@ function checkDetail(check: Exclude<LeagueRevealCheck, { step: 'lists' }>, accep
       if (check.waiting.length) return `Give ${names(check.waiting)} a size.`
       return check.solo === 0 ? 'Make one player solo.' : 'Make two players allied.'
     case 'teams':
+      if (format === '2v1') return `Pair ${names(check.waiting)} with another ally.`
       if (accepted < 4) return 'Doubles needs four players.'
       if (accepted % 2) return 'Doubles needs an even number of players.'
       return `Pair ${names(check.waiting)}.`

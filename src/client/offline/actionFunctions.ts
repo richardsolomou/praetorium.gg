@@ -434,6 +434,15 @@ export async function submitLeagueRoster(
   return null
 }
 
+export async function setLeagueTeamDisposition(
+  args: Parameters<typeof server.setLeagueTeamDisposition>[0],
+): ReturnType<typeof server.setLeagueTeamDisposition> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.setLeagueTeamDisposition(args)
+  await defer('setLeagueTeamDisposition', args.data, `league:${args.data.token}`)
+  return null
+}
+
 export async function revealLeague(args: Parameters<typeof server.revealLeague>[0]): ReturnType<typeof server.revealLeague> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.revealLeague(args)

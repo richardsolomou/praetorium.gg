@@ -225,6 +225,10 @@ export class PraetoriumService {
     return this.leagueService.submitLeagueRoster(...args)
   }
 
+  setLeagueTeamDisposition(...args: Parameters<LeagueService['setLeagueTeamDisposition']>) {
+    return this.leagueService.setLeagueTeamDisposition(...args)
+  }
+
   revealLeague(...args: Parameters<LeagueService['revealLeague']>) {
     return this.leagueService.revealLeague(...args)
   }

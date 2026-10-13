@@ -235,7 +235,7 @@ export class LeagueService {
     }
     if (result === 'forbidden') throw new Response('only the organizer can assign teams', { status: 403 })
     if (result === 'closed') throw new Response('teams cannot change after reveal', { status: 409 })
-    if (result === 'wrong-format') throw new Response('teams are assigned only for 2v2 leagues', { status: 409 })
+    if (result === 'wrong-format') throw new Response('pairs are assigned only for 2v1 and 2v2 leagues', { status: 409 })
     throw new Response('choose accepted event entrants', { status: 404 })
   }
 
@@ -275,6 +275,13 @@ export class LeagueService {
       return { ...sealedResult, revealed: revealedIds !== null }
     }
     if (result.outcome === 'unassigned') throw new Response('wait for the organizer to give you a size or team', { status: 409 })
+    if (result.outcome === 'disposition-dropped')
+      throw new Response(
+        'your team sealed a Force Disposition this list and your teammate’s no longer offer; choose a list that keeps it',
+        {
+          status: 409,
+        },
+      )
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
     if (result.outcome === 'invalid-warlords')
       throw new Response(
@@ -284,6 +291,23 @@ export class LeagueService {
         { status: 409 },
       )
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
+  }
+
+  /** Records the one Force Disposition a fixed pair plays, before reveal shows them the other side. */
+  async setLeagueTeamDisposition(token: string, userId: string, disposition: string, eventToken?: string) {
+    const result = await this.repository.setLeagueTeamDisposition(token, userId, disposition, this.clock(), eventToken)
+    if (result.outcome === 'chosen') {
+      if (result.revealedIds)
+        this.notifier.notify([
+          { kind: 'league-revealed', actorId: userId, recipientIds: result.revealedIds, leagueToken: token, eventToken },
+        ])
+      return { revealed: result.revealedIds !== null }
+    }
+    if (result.outcome === 'closed')
+      throw new Response('the lists are already out, so your team’s Force Disposition is settled', { status: 409 })
+    if (result.outcome === 'not-offered')
+      throw new Response('choose a Force Disposition one of your team’s sealed lists offers, once both are sealed', { status: 409 })
+    throw new Response('you are not on a team in this event', { status: 404 })
   }
 
   async revealLeague(token: string, ownerId: string, eventToken?: string) {
@@ -299,7 +323,7 @@ export class LeagueService {
           : 'each league roster must select exactly one eligible Warlord before reveal',
         { status: 409 },
       )
-    throw new Response('wait for every accepted list before reveal', { status: 409 })
+    throw new Response('wait for every accepted list and every pair’s Force Disposition before reveal', { status: 409 })
   }
 
   /** Send one revealed list back to its owner so a mistake can be corrected in place. */

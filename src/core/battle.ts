@@ -17,6 +17,7 @@ import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
+import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
 import {
@@ -105,6 +106,8 @@ type BuiltRoster = {
   detachmentPointBudget?: number | null
   /** The chosen force disposition; the pair decides the mission. */
   disposition: string | null
+  /** Every Force Disposition the list's detachments offered, which a side of allies chooses its one card from; absent from older snapshots. */
+  dispositions?: string[]
   /** Frozen selections let a battle roster open the same applied datasheets as a shared roster. */
   detachmentIds?: string[]
   /** The format restrictions the list was built without, so it prices in the battle as it did in the builder. */
@@ -756,7 +759,13 @@ export type Command =
   | { kind: 'set-side-disposition'; side: number; disposition: string }
   | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
   | ({ kind: 'detach-roster' } & OnBehalfOf)
-  | { kind: 'lock-league-rosters'; leagueToken: string; eventToken?: string }
+  | {
+      kind: 'lock-league-rosters'
+      leagueToken: string
+      eventToken?: string
+      /** Each allied side's card, sealed with the event's rosters so it cannot be chosen after seeing the opponent's list. */
+      dispositions?: { side: number; disposition: string }[]
+    }
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
   /** `delta` is the change in wounds left, so a unit taking damage is negative, like models. */
@@ -1045,13 +1054,15 @@ export type BattleState = {
   firstPlayerId: PlayerId | null
   attackerId: PlayerId | null
   /**
-   * The Force Disposition each side plays, where its armies brought more than one.
+   * The Force Disposition each side plays, where its armies offered more than one.
    *
    * A side of allies fields one army between them and plays one card, chosen from
-   * those either of them brought. A side that brought only one has nothing to record
-   * here, which is why this is empty for every duel.
+   * those either list's detachments offered. A lone army plays its list's own card,
+   * which is why this is empty for every duel.
    */
   sideDispositions: Record<number, string>
+  /** Set when a league lock sealed every side's card, which setup can then no longer change. */
+  dispositionsSealed: boolean
   resumePlayerId: PlayerId | null
   pendingSettlement: { playerId: PlayerId; round: number } | null
   completionPending: boolean
@@ -1185,6 +1196,7 @@ export function emptyBattle(
     firstPlayerId: null,
     attackerId: null,
     sideDispositions: {},
+    dispositionsSealed: false,
     resumePlayerId: null,
     pendingSettlement: null,
     completionPending: false,
@@ -1304,12 +1316,10 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         : refuse('unknown-player', 'that player is not in this battle')
     case 'set-side-disposition': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
-      // Only a card one of the side's own armies brought. The side chooses between
-      // them; it does not get to play something nobody at the table wrote down.
-      const brought = state.players.some(
-        (candidate) => candidate.side === command.side && candidate.roster?.built?.disposition === command.disposition,
-      )
-      return brought ? null : refuse('disposition-not-brought', 'that force disposition is not one this side brought')
+      if (state.dispositionsSealed) return refuse('league-sealed', 'the league sealed each side’s force disposition')
+      return sideDispositionChoices(state, command.side).includes(command.disposition)
+        ? null
+        : refuse('disposition-not-brought', 'that force disposition is not one this side brought')
     }
     case 'attach-roster': {
       if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
@@ -1351,7 +1361,10 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'lock-league-rosters':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (state.leagueToken) return refuse('league-sealed', 'league rosters are already sealed')
-      return state.players.every((candidate) => candidate.roster) ? null : refuse('missing-roster', 'every player needs a sealed roster')
+      if (!state.players.every((candidate) => candidate.roster)) return refuse('missing-roster', 'every player needs a sealed roster')
+      return command.dispositions?.every(({ side, disposition }) => sideDispositionChoices(state, side).includes(disposition)) === false
+        ? refuse('disposition-not-brought', 'that force disposition is not one this side brought')
+        : null
     case 'begin-battle': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       const requiredPlayers = battleCapacity(state.settings)
@@ -1890,6 +1903,10 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'lock-league-rosters': {
       state.leagueToken = command.leagueToken
       state.leagueEventToken = command.eventToken ?? null
+      if (command.dispositions) {
+        for (const { side, disposition } of command.dispositions) state.sideDispositions[side] = disposition
+        state.dispositionsSealed = true
+      }
       return
     }
     case 'set-unit': {
@@ -2525,34 +2542,26 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
 /**
  * The Force Disposition a side plays, which decides the primary it is set.
  *
- * One army fields one card. Where a side's armies agree, or where there is only one
- * of them, that is the answer and nothing has to be asked. Where two allies brought
- * different cards the side has to say which it plays, and until it does the answer
- * is nothing at all — taking the first seat's card would have played one ally's
- * choice for both of them without ever saying so.
+ * Where two allies' lists chose different cards and the side has not said which it
+ * plays, the answer is nothing at all — taking the first seat's card would have
+ * played one ally's choice for both of them without ever saying so.
  */
 export function sideDisposition(state: BattleState, side: number): string | null {
-  const brought = state.players.flatMap((player) =>
-    player.side === side && player.roster?.built?.disposition ? [player.roster.built.disposition] : [],
-  )
-  const chosen = state.sideDispositions[side]
-  if (chosen && brought.includes(chosen)) return chosen
-  if (new Set(brought).size === 1) return brought[0] ?? null
+  const disposition = teamDisposition(sideRosters(state, side), state.sideDispositions[side] ?? null)
   // A battle already being played is never left without a mission. Setup refuses to
   // start one until each side has said, so this only answers for battles begun before
   // the question was asked — and it answers what they were already being played on.
-  return state.status === 'setup' ? null : (sideCaptain(state, side).roster?.built?.disposition ?? null)
+  if (disposition || state.status === 'setup') return disposition
+  return sideCaptain(state, side).roster?.built?.disposition ?? null
 }
 
 /** The cards a side could play, which is what it is asked to choose between. */
 export function sideDispositionChoices(state: BattleState, side: number): string[] {
-  return [
-    ...new Set(
-      state.players.flatMap((player) =>
-        player.side === side && player.roster?.built?.disposition ? [player.roster.built.disposition] : [],
-      ),
-    ),
-  ]
+  return teamDispositionChoices(sideRosters(state, side))
+}
+
+function sideRosters(state: BattleState, side: number) {
+  return state.players.filter((player) => player.side === side).map((player) => player.roster)
 }
 
 /** Required mission choices any side still owes, including a start-of-battle choice owed by the side not taking the turn. */

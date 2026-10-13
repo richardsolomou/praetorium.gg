@@ -15,6 +15,8 @@ const failures = new Set([
   'invalid-warlords',
   'not-ready',
   'not-revealed',
+  'not-offered',
+  'disposition-dropped',
   'self',
   'already-friends',
 ])

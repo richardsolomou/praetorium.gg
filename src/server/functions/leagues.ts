@@ -19,6 +19,7 @@ import {
   moderateLeagueEntrySchema,
   openLeagueSchema,
   setLeagueAdminsSchema,
+  setLeagueTeamDispositionSchema,
   submitLeagueRosterSchema,
   tokenSchema,
   updateLeagueSchema,
@@ -142,6 +143,17 @@ export const submitLeagueRoster = createServerFn({ method: 'POST' })
         format: result.format,
         required_limit: result.requiredLimit,
       })
+      if (result.revealed) await app().telemetry.capture(player.id, 'league_rosters_revealed', { automatic: true })
+      return null
+    }),
+  )
+
+export const setLeagueTeamDisposition = createServerFn({ method: 'POST' })
+  .validator(setLeagueTeamDispositionSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.setLeagueTeamDisposition(data.token, player.id, data.disposition, data.eventToken)
       if (result.revealed) await app().telemetry.capture(player.id, 'league_rosters_revealed', { automatic: true })
       return null
     }),

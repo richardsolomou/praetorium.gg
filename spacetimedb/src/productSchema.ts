@@ -226,6 +226,17 @@ const leagueEventEntries = table(
   },
 )
 
+/** The Force Disposition a fixed pair chose before reveal, keyed by event and team; a pick its sealed lists no longer offer counts for nothing. */
+const leagueEventTeams = table(
+  { name: 'league_event_teams' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    teamId: t.string(),
+    disposition: t.string(),
+  },
+)
+
 /** Players the owner trusts to run the league beside them; the owner alone deletes it or changes who these are. */
 const leagueAdmins = table(
   { name: 'league_admins' },
@@ -370,6 +381,7 @@ export const productTables = {
   leagues,
   leagueEvents,
   leagueEventEntries,
+  leagueEventTeams,
   leagueEventBattles,
   leagueAdmins,
   collection,
