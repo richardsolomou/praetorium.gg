@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.8
+
+### Patch Changes
+
+- 413958b: Printing a fielded battle roster waits for its army data, so the print no longer comes out empty while the faction is still loading.
+
 ## 0.141.7
 
 ### Patch Changes
