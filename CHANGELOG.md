@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.1
+
+### Patch Changes
+
+- 67779fc: Show both Hunter and standard melta weapon profiles in Eradicator roster loadouts.
+
 ## 0.141.0
 
 ### Minor Changes
