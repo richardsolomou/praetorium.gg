@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
 import { type BattlemasterSource } from './catalogueSources'
@@ -68,7 +68,16 @@ type BattlemasterDetail = {
 const MAX_BATTLEMASTER_FILE_BYTES = 5 * 1024 * 1024
 const MAX_BATTLEMASTER_TOTAL_BYTES = 64 * 1024 * 1024
 
-export async function fetchBattlemasterInto(source: BattlemasterSource, target: string) {
+/**
+ * Battlemaster layouts for the pinned catalogue. With `cacheRoot`, layouts kept from an earlier
+ * download of the same catalogue revision are reused when they still match the live catalogue's
+ * layout keys, and the cache is refreshed after any download.
+ */
+export async function fetchBattlemasterInto(
+  source: BattlemasterSource,
+  target: string,
+  cacheRoot = process.env.CATALOGUE_BATTLEMASTER_CACHE?.trim() || null,
+) {
   const catalogUrl = new URL('/v1.1/public/tts/layouts', source.baseUrl)
   catalogUrl.searchParams.set('owner', source.owner)
   catalogUrl.searchParams.set('missionPack', source.missionPack)
@@ -80,51 +89,77 @@ export async function fetchBattlemasterInto(source: BattlemasterSource, target: 
   const revision = createHash('sha256').update(catalog.catalogKey).digest('hex')
   if (revision !== source.revision) throw new Error('catalog does not match the pinned revision')
 
+  const cache = cacheRoot ? path.join(cacheRoot, source.revision) : null
   const staging = `${target}.incoming`
   fs.rmSync(staging, { recursive: true, force: true })
   fs.mkdirSync(path.join(staging, 'layouts'), { recursive: true })
   fs.writeFileSync(path.join(staging, 'catalog.json'), `${JSON.stringify(catalog)}\n`)
   let total = 0
+  let downloaded = false
 
   for (const entry of catalog.layouts) {
     if (!/^terrain-[0-9a-f-]+$/.test(entry.id)) throw new Error(`unsafe layout id ${entry.id}`)
     if (!/^[0-9a-f-]+$/.test(entry.owner)) throw new Error(`unsafe owner id for ${entry.id}`)
-    const detailUrl = new URL(`/v1/public/data/layouts/${entry.owner}/${entry.id}`, source.baseUrl)
-    // Fetch sequentially to avoid bursting the public API.
-    const detailResponse = await fetchWithRetry(detailUrl)
-    if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
-    const bytes = new Uint8Array(await detailResponse.arrayBuffer())
-    if (bytes.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
-    total += bytes.length
-    if (total > MAX_BATTLEMASTER_TOTAL_BYTES) throw new Error(`layouts exceed ${MAX_BATTLEMASTER_TOTAL_BYTES} bytes`)
-    const detail = JSON.parse(new TextDecoder().decode(bytes)) as BattlemasterDetail
-    if (!battlemasterDetailMatches(entry, detail, source.baseUrl)) throw new Error(`${entry.id} changed during sync`)
-    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.json`), bytes)
-    const slot = detail.layout?.chapterApprovedSlot
-    if (!slot) throw new Error(`${entry.id} has no Chapter Approved slot`)
-    const liteUrl = new URL('/v1/public/tts/chapter-approved-layout-lite', source.baseUrl)
-    for (const [key, value] of Object.entries({
-      owner: source.owner,
-      archetypeA: slot.archetypeA,
-      archetypeB: slot.archetypeB,
-      slot: String(slot.slotIndex),
-      text: '0',
-    })) {
-      liteUrl.searchParams.set(key, value)
-    }
-    const liteResponse = await fetchWithRetry(liteUrl)
-    if (!liteResponse.ok) throw new Error(`${entry.id} objective layout answered ${liteResponse.status}`)
-    const liteBytes = new Uint8Array(await liteResponse.arrayBuffer())
-    if (liteBytes.length > MAX_BATTLEMASTER_FILE_BYTES)
+    const layout = (cache && cachedLayout(cache, entry, source.baseUrl)) || ((downloaded = true), await downloadLayout(source, entry))
+    if (layout.detail.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
+    if (layout.lite.length > MAX_BATTLEMASTER_FILE_BYTES)
       throw new Error(`${entry.id} objective layout exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
-    total += liteBytes.length
+    total += layout.detail.length + layout.lite.length
     if (total > MAX_BATTLEMASTER_TOTAL_BYTES) throw new Error(`layouts exceed ${MAX_BATTLEMASTER_TOTAL_BYTES} bytes`)
-    battlemasterObjectiveHosts(detail, JSON.parse(new TextDecoder().decode(liteBytes)), entry.id)
-    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.lite.json`), liteBytes)
+    battlemasterObjectiveHosts(parseJson(layout.detail), parseJson(layout.lite), entry.id)
+    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.json`), layout.detail)
+    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.lite.json`), layout.lite)
   }
 
+  if (cache && downloaded) {
+    const incoming = `${cache}.incoming-${randomUUID()}`
+    fs.cpSync(staging, incoming, { recursive: true })
+    fs.rmSync(cache, { recursive: true, force: true })
+    fs.renameSync(incoming, cache)
+  }
   fs.rmSync(target, { recursive: true, force: true })
   fs.renameSync(staging, target)
+}
+
+type BattlemasterLayout = { detail: Uint8Array; lite: Uint8Array }
+
+const parseJson = (bytes: Uint8Array) => JSON.parse(new TextDecoder().decode(bytes)) as unknown
+
+/** A cached layout that still matches the live catalogue entry; anything else is downloaded again. */
+function cachedLayout(cache: string, entry: BattlemasterCatalog['layouts'][number], baseUrl: string): BattlemasterLayout | null {
+  try {
+    const detail = new Uint8Array(fs.readFileSync(path.join(cache, 'layouts', `${entry.id}.json`)))
+    const lite = new Uint8Array(fs.readFileSync(path.join(cache, 'layouts', `${entry.id}.lite.json`)))
+    return battlemasterDetailMatches(entry, parseJson(detail) as BattlemasterDetail, baseUrl) ? { detail, lite } : null
+  } catch {
+    return null
+  }
+}
+
+async function downloadLayout(source: BattlemasterSource, entry: BattlemasterCatalog['layouts'][number]): Promise<BattlemasterLayout> {
+  const detailUrl = new URL(`/v1/public/data/layouts/${entry.owner}/${entry.id}`, source.baseUrl)
+  // Fetch sequentially to avoid bursting the public API.
+  const detailResponse = await fetchWithRetry(detailUrl)
+  if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
+  const detail = new Uint8Array(await detailResponse.arrayBuffer())
+  if (detail.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
+  const parsed = parseJson(detail) as BattlemasterDetail
+  if (!battlemasterDetailMatches(entry, parsed, source.baseUrl)) throw new Error(`${entry.id} changed during sync`)
+  const slot = parsed.layout?.chapterApprovedSlot
+  if (!slot) throw new Error(`${entry.id} has no Chapter Approved slot`)
+  const liteUrl = new URL('/v1/public/tts/chapter-approved-layout-lite', source.baseUrl)
+  for (const [key, value] of Object.entries({
+    owner: source.owner,
+    archetypeA: slot.archetypeA,
+    archetypeB: slot.archetypeB,
+    slot: String(slot.slotIndex),
+    text: '0',
+  })) {
+    liteUrl.searchParams.set(key, value)
+  }
+  const liteResponse = await fetchWithRetry(liteUrl)
+  if (!liteResponse.ok) throw new Error(`${entry.id} objective layout answered ${liteResponse.status}`)
+  return { detail, lite: new Uint8Array(await liteResponse.arrayBuffer()) }
 }
 
 function battlemasterDetailMatches(entry: BattlemasterCatalog['layouts'][number], detail: BattlemasterDetail, baseUrl: string) {
