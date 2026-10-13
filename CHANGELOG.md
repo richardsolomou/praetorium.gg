@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.136.1
+
+### Patch Changes
+
+- 83ded46: Skip weapon and save work when listing the abilities a detachment gives a datasheet.
+- 83ded46: Start up faster by reading rules editions the catalogue snapshot compiled ahead of time.
+
 ## 0.136.0
 
 ### Minor Changes
