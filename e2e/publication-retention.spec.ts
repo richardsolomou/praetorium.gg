@@ -91,6 +91,8 @@ async function leagueFixture(ownerId: string, members: string[]) {
 
 async function sealThroughPage(page: Page, leagueToken: string, rosterName: string) {
   await page.goto(`/leagues/${leagueToken}`)
+  // A press before hydration opens nothing, so the chooser waits for the page to settle.
+  await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Choose a list', exact: true }).click()
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
