@@ -15,7 +15,10 @@ const parsedFiles = new Map<string, WeakRef<object>>()
  * while anything still holds it. Treat the result as read-only.
  */
 export function readSharedJson(file: string, strings = new Map<string, string>()): unknown {
-  const content = fs.readFileSync(file, 'utf8')
+  return parseSharedJson(fs.readFileSync(file, 'utf8'), strings)
+}
+
+export function parseSharedJson(content: string, strings = new Map<string, string>()): unknown {
   const key = createHash('sha256').update(content).digest('base64')
   const kept = parsedFiles.get(key)?.deref()
   if (kept) return kept

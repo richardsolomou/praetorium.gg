@@ -13,6 +13,9 @@ Maintenance, catalogue publishing, verification and deployment entry points an o
 - benchmark roster loading: an operator times saved-roster loading against the active catalogue
   handler: scripts/benchmarkRosterLoading.ts
   trust: operator
+- benchmark catalogue memory: an operator compares retained memory and complete projections across source and prepared runtime loading
+  handler: scripts/benchmarkCatalogueMemory.ts
+  trust: operator
 - catalogue coverage: an operator writes down everything the app can say about the synced catalogue so two revisions can be compared
   handler: scripts/catalogueCoverage.ts
   trust: operator
@@ -54,6 +57,9 @@ Maintenance, catalogue publishing, verification and deployment entry points an o
   trust: operator
 - compile catalogue: an operator compiles the canonical catalogue from the materialized sources
   handler: scripts/compileCatalogue.ts
+  trust: operator
+- compile catalogue runtime: the image build prepares private reference files from the verified snapshot
+  handler: scripts/compileCatalogueRuntime.ts
   trust: operator
 - configure dokploy node: the deploy workflow configures the Dokploy web application and its environment
   handler: scripts/configureDokployNode.ts

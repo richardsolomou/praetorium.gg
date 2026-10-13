@@ -10,8 +10,14 @@ import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { routeSlug } from '../core/slug'
 import { compiledGlobalSearchIndex } from './globalSearch'
 import { combatUnitsFor } from './combatUnits'
+import type { CatalogueRuntime, RuntimeStartup } from './catalogueRuntime'
 
-export function catalogueEditionLoaders(directory: string, base: () => LoadedCatalogue | null, baseRules: () => LoadedRules | null) {
+export function catalogueEditionLoaders(
+  directory: string,
+  base: () => LoadedCatalogue | null,
+  baseRules: () => LoadedRules | null,
+  runtime: CatalogueRuntime | null = null,
+) {
   const composition = readCatalogueComposition(directory)
   type EditionContext = { catalogue: LoadedCatalogue; rules: LoadedRules | null; canonical: Map<string, CanonicalCatalogue> }
   const baseEditions = new Map(
@@ -21,10 +27,17 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
   )
   const cache = new Map<string, EditionContext>()
   const baseCanonical = new Map<string, CanonicalCatalogue>()
+  const runtimeCanonical = new Map<string, CanonicalCatalogue>()
+  let prepared: RuntimeStartup | undefined
+  const startup = () => (prepared ??= runtime!.read('startup'))
   let factions: ReturnType<typeof factionsFor> | null | undefined
   const context = (editionId: string) => {
     const cached = cache.get(editionId)
-    if (cached) return cached
+    if (cached) {
+      cache.delete(editionId)
+      cache.set(editionId, cached)
+      return cached
+    }
     const configuration = composition?.editions.find(({ edition }) => edition.id === editionId)
     if (!configuration) return null
     const target = configuration.base ? directory : path.join(directory, 'editions', editionId)
@@ -33,6 +46,7 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     const rules = loadRules(target, path.join(directory, 'battlemaster'), path.join(directory, 'icons'), undefined, catalogue.datacards)
     const result: EditionContext = { catalogue, rules, canonical: new Map() }
     cache.set(editionId, result)
+    if (runtime && cache.size > 2) cache.delete(cache.keys().next().value!)
     return result
   }
   const lookup = (catalogueId: string) => {
@@ -45,6 +59,7 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
   }
   const editionContexts = () => (composition?.editions ?? []).map(({ edition }) => ({ edition, ...context(edition.id)! }))
   const allFactions = () => {
+    if (runtime) return startup().factions
     if (factions !== undefined) return factions
     const loaded = base()
     if (!loaded) return null
@@ -86,7 +101,7 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     return factions
   }
   const resolve = (id: string) => {
-    if (catalogueEditionId(id) || base()?.index.catalogues.has(id)) return id
+    if (catalogueEditionId(id) || (runtime ? startup().baseCatalogueIds.includes(id) : base()?.index.catalogues.has(id))) return id
     return allFactions()?.factions.find((faction) => routeSlug(faction.displayName) === id && faction.isDefault)?.id ?? id
   }
   const factionFor = (catalogueId: string) => {
@@ -106,6 +121,15 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
   }
   const canonical = (id: string) => {
     const catalogueId = resolve(id)
+    const editionId = catalogueEditionId(catalogueId)
+    const configured = composition?.editions.find(({ edition }) => edition.id === editionId)
+    if (runtime && configured?.edition.catalogueIds.some((bookId) => editionCatalogueId(configured.edition.id, bookId) === catalogueId)) {
+      const result = runtimeCanonical.get(editionId!) ?? runtime.read(`${editionId}.canonical`)
+      runtimeCanonical.delete(editionId!)
+      runtimeCanonical.set(editionId!, result)
+      if (runtimeCanonical.size > 2) runtimeCanonical.delete(runtimeCanonical.keys().next().value!)
+      return result
+    }
     if (baseEditions.has(catalogueId)) {
       const loaded = base()
       if (!loaded) return null
@@ -175,6 +199,7 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     },
     canonicalFor: canonical,
     canonicalCatalogue: (primary: CanonicalCatalogue | null) => {
+      if (runtime) return startup().canonical
       if (!primary || !composition?.editions.length) return primary
       const replaced = new Set(
         composition.editions
@@ -231,6 +256,7 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
     },
     factions: allFactions,
     searchIndex: () => {
+      if (runtime) return startup().searchIndex
       const loaded = base()
       if (!loaded) return null
       const ids = defaults()
@@ -248,6 +274,7 @@ export function catalogueEditionLoaders(directory: string, base: () => LoadedCat
       }
     },
     combatUnits: () => {
+      if (runtime) return startup().combatUnits
       const loaded = base()
       if (!loaded) return []
       const ids = defaults()
