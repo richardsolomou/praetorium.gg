@@ -108,7 +108,7 @@ export async function waitForRosterSave(page: Page, action: () => Promise<unknow
 
 export async function createRoster(
   page: Page,
-  { faction, detachment, name, size }: { faction: string; detachment: RegExp; name?: string; size?: RegExp },
+  { faction, detachment, name, size, rules }: { faction: string; detachment: RegExp; name?: string; size?: RegExp; rules?: string },
 ) {
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
@@ -116,6 +116,10 @@ export async function createRoster(
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill(faction)
   await page.getByRole('option', { name: faction, exact: true }).click()
+  if (rules) {
+    await dialog.getByRole('combobox', { name: 'Rules version' }).click()
+    await page.getByRole('option', { name: rules, exact: true }).click()
+  }
   // A 2v1 ally brings half the battle size, so the size is a choice rather than the default.
   if (size) {
     await dialog.getByRole('combobox', { name: 'Battle size' }).click()

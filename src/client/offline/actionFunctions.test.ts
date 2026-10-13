@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { leagueRosterFixture } from '../../server/leagueRoster.fixtures'
+import { saveRosterSchema } from '../../contracts/schemas'
 import { setPushNotifications, submitLeagueRoster } from './actionFunctions'
 
 const runtime = vi.hoisted(() => ({
@@ -16,7 +18,7 @@ vi.mock('./localRuntime', () => ({
   attemptLocalSync: runtime.sync,
   localClient: () => undefined,
   localDocument: runtime.document,
-  hasLocalChanges: vi.fn(),
+  hasLocalChanges: () => true,
   rememberDocument: vi.fn(),
 }))
 vi.mock('./construction', () => ({ localConstruction: runtime.construction }))
@@ -44,13 +46,29 @@ it('rejects the result when the account changes while an action syncs', async ()
   await expect(setPushNotifications({ data: { enabled: true } })).rejects.toThrow('The account changed while saving this action.')
 })
 
-it('refuses a saved preview league roster before enqueueing a seal', async () => {
-  runtime.document.mockResolvedValue({ catalogueId: 'codex~cat' })
-  runtime.construction.mockReturnValue({ catalogue: { edition: { status: 'preview' } } })
+it.each(['preview', 'released', 'retired'] as const)('queues a saved %s league roster for offline sealing', async (status) => {
+  const { saved, catalogue, rules } = leagueRosterFixture(status)
+  runtime.document.mockImplementation(async (resource: string) => (resource.startsWith('roster:') ? saved : { format: '1v1' }))
+  runtime.construction.mockReturnValue({ catalogue, rules })
   runtime.queue.mockClear()
   vi.stubGlobal('navigator', { onLine: false })
-  await expect(submitLeagueRoster({ data: { token: 'league', rosterId: 'roster' } })).rejects.toThrow(
-    'preview rules cannot be submitted to a league',
+  await submitLeagueRoster({ data: { token: 'league', rosterId: saved.id } })
+  expect(runtime.queue).toHaveBeenCalledWith(
+    'submitLeagueRoster',
+    {
+      input: {
+        token: 'league',
+        rosterId: saved.id,
+        capturedRoster: saveRosterSchema.parse(saved),
+        catalogueRevision: catalogue.index.revision,
+      },
+      identifiers: {},
+    },
+    'league:league',
+    undefined,
+    ['roster:roster'],
+    undefined,
+    'alice',
+    undefined,
   )
-  expect(runtime.queue).not.toHaveBeenCalled()
 })

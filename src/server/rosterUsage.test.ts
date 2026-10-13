@@ -1,17 +1,20 @@
 import { expect, it, vi } from 'vitest'
+import { leagueRosterFixture } from './leagueRoster.fixtures'
 import { app } from './app'
 import { bookOf, points } from './catalogue.fixtures'
 import { rosterForUse, rosterUseError, rosterUseProblem } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
-it('refuses a preview league roster before trying to price it', async () => {
+it.each(['preview', 'released', 'retired'] as const)('snapshots a %s league roster with its rules identity', async (status) => {
+  const { saved, catalogue, rules, edition } = leagueRosterFixture(status)
   vi.mocked(app).mockReturnValue({
-    service: { usableRoster: async () => ({ roster: { catalogueId: 'codex~cat' }, lentBy: null }) },
-    catalogueFor: async () => ({ edition: { status: 'preview' } }),
+    service: { usableRoster: async () => ({ roster: saved, lentBy: null }) },
+    catalogueFor: async () => catalogue,
+    rulesFor: async () => rules,
   } as never)
-  const message = await rosterForUse('player', 'roster', { releasedOnly: true }).catch((response: Response) => response.text())
-  expect(message).toBe('preview rules cannot be submitted to a league')
+  const { snapshot } = await rosterForUse('player', 'roster')
+  expect(snapshot.built?.edition).toEqual(edition)
 })
 
 const priced = {

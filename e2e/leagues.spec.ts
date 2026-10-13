@@ -542,6 +542,76 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.screenshot({ path: 'test-results/league-first-event-phone.png', fullPage: true })
 })
 
+for (const { rules, status } of [
+  { rules: 'Custodes codex · 17 Oct 2026 · Preview', status: 'preview' },
+  { rules: 'MFM 1.4 · 30 Sep 2026 · Archived', status: 'archived' },
+]) {
+  test(`seals ${status} rules rosters in a league and preserves the selected catalogue`, async ({ page }) => {
+    const ownerName = uniqueName('Version owner')
+    const { email } = await signUp(page, ownerName)
+    const rosterName = `${status} league roster`
+    if (status === 'archived') {
+      const user = await withAuthSql(
+        (database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string },
+      )
+      const id = crypto.randomUUID()
+      await (
+        await productOperator()
+      ).saveRoster({
+        id,
+        userId: user.id,
+        name: rosterName,
+        catalogueId: '470a-6daa-9014-12df',
+        detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
+        disposition: 'priority-assets',
+        limit: 2000,
+        picks: '[]',
+        prep: null,
+        tags: '[]',
+        waivedRules: '[]',
+        visibility: 'private',
+        source: 'editable',
+        now: Date.now(),
+      })
+      await page.goto(`/rosters/${id}`)
+    } else {
+      await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: rosterName, rules })
+    }
+    const unit = status === 'archived' ? 'Captain' : 'Blade Champion'
+    await page.getByLabel('Add a unit').fill(unit)
+    await page
+      .getByRole('button', { name: `Add ${unit}`, exact: true })
+      .first()
+      .click()
+    await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
+    await waitForRosterSave(page, () => page.getByRole('button', { name: `Make ${unit} Warlord` }).click())
+    const operator = await productOperator()
+    const saved = (await operator.roster(new URL(page.url()).pathname.split('/').at(-1)!))!
+    await page.goto('/leagues')
+    const create = await openLeagueCreation(page)
+    await create.getByLabel('Name').fill(uniqueName('Rules league'))
+    await create.getByRole('button', { name: /^Automatic/ }).click()
+    await submitLeagueCreation(page, create)
+    await join(page)
+    await sealOwnRoster(page, rosterName)
+    await page.reload()
+    const entry = page.locator(`[data-person="${ownerName}"]`)
+    await expect(entry.getByText('List sealed', { exact: true })).toBeVisible()
+    const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
+    const sealed = await operator.leagueRosters(leagueToken, saved.userId)
+    expect(JSON.parse(sealed[0].entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
+    await revealEvent(page)
+    await viewRoster(entry, ownerName).click()
+    await expect(page).toHaveURL(/\/rosters\/[^?]+\?league=/)
+    if (status === 'preview') await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', `Rules version: ${rules}`)
+    await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
+    await page.reload()
+    await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
+    if (status === 'preview') await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', `Rules version: ${rules}`)
+    await page.screenshot({ path: `test-results/league-${status}-rules.png`, fullPage: true })
+  })
+}
+
 test('only a changed roster in an open league event offers replacement', async ({ page }) => {
   await signUp(page, uniqueName('RosterOwner'))
   await sealableRoster(page, 'Original league list')

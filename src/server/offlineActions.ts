@@ -49,7 +49,7 @@ export const offlineActions: Record<OfflineActionKind, (owner: string, input: un
     service().moderateLeagueEntry(data.token, owner, data.userId, data.status, data.eventToken),
   ),
   submitLeagueRoster: action(schemas.submitLeagueRoster, async (owner, data) => {
-    const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { releasedOnly: true })
+    const { saved, snapshot } = await rosterForUse(owner, data.rosterId)
     if (
       JSON.stringify(saveRosterSchema.parse(saved)) !== JSON.stringify(data.capturedRoster) ||
       (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision
