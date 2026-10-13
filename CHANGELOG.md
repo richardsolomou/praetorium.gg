@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.137.0
+
+### Minor Changes
+
+- 23cea62: Allow league rosters to use preview rules alongside released and archived rules.
+
 ## 0.136.3
 
 ### Patch Changes
