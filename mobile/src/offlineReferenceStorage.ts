@@ -2,6 +2,7 @@ import { Directory, File, Paths } from 'expo-file-system'
 import { APP_URL } from './navigation'
 import { MAX_OFFLINE_BYTES } from '../../src/contracts/offlineReference'
 import { parseSavedReference, type SavedReference } from './offlineReference'
+import { embeddedReferenceJson, referenceJsonExpression } from '../../src/contracts/embeddedReference'
 
 function directory() {
   return new Directory(Paths.document, 'offline-app', Array.from(APP_URL, (character) => character.charCodeAt(0).toString(16)).join(''))
@@ -45,6 +46,6 @@ export function storeOfflineReference(pack: SavedReference, id: string) {
 }
 
 export function offlineReferenceDataScript(pack = readOfflineReference()) {
-  const json = pack?.html.match(/<script>window\.PraetoriumOffline=([^]*?);<\/script>/)?.[1]
-  return json ? `window.PraetoriumReferenceCache=${json};` : ''
+  const json = pack ? embeddedReferenceJson(pack.html) : null
+  return json ? `window.PraetoriumReferenceCache=${referenceJsonExpression(json)};` : ''
 }

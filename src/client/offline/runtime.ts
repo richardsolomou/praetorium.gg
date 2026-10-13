@@ -6,21 +6,29 @@ import type { QueryClient } from '@tanstack/react-query'
 import type { savedRosterSummaries, myBattles, factionIndex } from '../functions'
 type FactionIndex = NonNullable<Awaited<ReturnType<typeof factionIndex>>>
 import type { UnitSummary } from '../../contracts/catalogue'
+import { decompressReference, type CompressedReference } from './compressedReference'
 
 declare global {
   interface Window {
-    PraetoriumOffline?: OfflineReferenceData
-    PraetoriumReferenceCache?: OfflineReferenceData
+    PraetoriumOffline?: OfflineReferenceData | CompressedReference
+    PraetoriumReferenceCache?: OfflineReferenceData | CompressedReference
     PraetoriumOfflineStart?: string
   }
 }
 
+function restoredReference(key: 'PraetoriumOffline' | 'PraetoriumReferenceCache') {
+  if (typeof window === 'undefined') return undefined
+  const data = window[key]
+  if (data && 'encoding' in data) return (window[key] = decompressReference(data) ?? undefined)
+  return data
+}
+
 export function offlineData() {
-  return typeof window === 'undefined' ? undefined : window.PraetoriumOffline
+  return restoredReference('PraetoriumOffline')
 }
 
 export function referenceData() {
-  return typeof window === 'undefined' ? undefined : (window.PraetoriumOffline ?? window.PraetoriumReferenceCache)
+  return offlineData() ?? restoredReference('PraetoriumReferenceCache')
 }
 
 export function referenceRead<T>(key: readonly unknown[], online: () => Promise<T>, current?: T): Promise<T> {

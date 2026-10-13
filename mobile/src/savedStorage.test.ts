@@ -55,13 +55,21 @@ vi.mock('expo-file-system', () => {
   return { Directory, File, Paths: { document: 'documents' } }
 })
 import { readAppSnapshot, storeAppSnapshot } from './appSnapshotStorage'
-import { readOfflineReference, storeOfflineReference } from './offlineReferenceStorage'
+import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './offlineReferenceStorage'
+import { referenceJsonExpression } from '../../src/contracts/embeddedReference'
 
 const snapshot: AppSnapshot = { version: 1, owner: 'alice', queries: [{ key: ['me'], data: { id: 'alice' }, updatedAt: 1 }] }
 const pack = { html: '<!doctype html><script>window.PraetoriumOffline={version:1}</script>', savedAt: 1 }
 beforeEach(() => {
   disk.files.clear()
   disk.fault = ''
+})
+
+it.each([false, true])('injects a saved reference through the JSON parser when the download uses JSON parsing=%s', (encoded) => {
+  const json = '{"version":1}'
+  const expression = encoded ? referenceJsonExpression(json) : json
+  const script = offlineReferenceDataScript({ html: `<script>window.PraetoriumOffline=${expression};</script>`, savedAt: 1 })
+  expect(script).toBe('window.PraetoriumReferenceCache=JSON.parse("{\\"version\\":1}");')
 })
 
 it.each(['short', 'write', 'move'])('keeps the saved snapshot after a %s replacement failure', (fault) => {

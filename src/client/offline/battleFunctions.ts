@@ -354,12 +354,13 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
 const projectedBattles = new Map<string, string>()
 export function projectBattles(state: LocalState) {
   const client = localClient()
-  if (!client || localOwner()?.id !== state.owner || !constructionData()) return
+  if (!client || localOwner()?.id !== state.owner) return
   for (const key of projectedBattles.keys())
     if (!key.startsWith(`${state.owner}:`) || !state.documents[key.slice(state.owner.length + 1)]) projectedBattles.delete(key)
   for (const [resource, document] of Object.entries(state.documents)) {
     if (!resource.startsWith('battle:')) continue
     if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
+    if (!constructionData()) return
     if (!document.data) {
       client.setQueryData(['battle', resource.slice(7)], { kind: 'unavailable' })
       continue
