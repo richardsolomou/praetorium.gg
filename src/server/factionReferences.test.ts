@@ -42,6 +42,18 @@ describe('joining catalogue detachments to their rules reference', () => {
     expect(isReferenceDetachment(loaded, null, faction, detachment)).toBe(true)
   })
 
+  it.each([
+    ['Gladius Task Force', 'Adeptus Astartes', true],
+    ["Forgefather's Seekers", 'Salamanders', false],
+  ])('uses declared ownership for %s in the parent reference', (name, owner, expected) => {
+    const loaded = bookOf({ name: 'Space Marines', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
+    const content = withCards('Adeptus Astartes', [])
+    content.detachments.add(name)
+    content.detachmentFactions = new Map([[name, owner]])
+    loaded.factionContents.set('space-marines', content)
+    expect(isReferenceDetachment(loaded, null, loaded.factions[0]!, { id: 'detachment', name })).toBe(expected)
+  })
+
   it('tolerates accents omitted by an upstream id', () => {
     const delve = { points: 2 }
     expect(detachmentNamed(new Map([['delve-assault-shift', delve]]), 'Dêlve Assault Shift')).toBe(delve)
@@ -181,6 +193,7 @@ describe('joining catalogue detachments to their rules reference', () => {
     } as Partial<LoadedRules> as LoadedRules
 
     const factions = factionsFor(loaded, rules).factions
+    expect(factions.find((faction) => faction.id === chapter.id)?.references[0]?.detachments).toBe(1)
     expect(factions.find((faction) => faction.id === chapter.id)?.detachments[0]?.referenceRoute).toEqual({
       catalogueId: 'space-marines',
       slug: 'assault-brethren',

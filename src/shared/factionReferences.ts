@@ -1,3 +1,4 @@
+import { datacardsFactionKeys } from './datacards'
 import type { StandingFaction } from '../core/standings'
 import { targetOf } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
@@ -20,7 +21,12 @@ export function isReferenceDetachment(
   const slugId = routeSlug(displayName)
   const content = loaded.factionContents.get(slugId)
   const rulesId = rulesFaction(rules, routeSlug(faction.name))
-  if (content) return [...content.detachments].some((name) => joinKey(name) === joinKey(detachment.name))
+  if (content)
+    return [...content.detachments].some(
+      (name) =>
+        joinKey(name) === joinKey(detachment.name) &&
+        (!content.detachmentFactions?.get(name) || datacardsFactionKeys(content.detachmentFactions.get(name)!).has(slugId)),
+    )
 
   if (!detachmentNamed(rules?.detachmentReferences.get(rulesId), detachment.name)) return false
 
@@ -78,6 +84,11 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
+  const availableDetachments = detachments.map((detachment) => ({
+    id: detachment.id,
+    name: detachment.name,
+    referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
+  }))
   return {
     summary: {
       id: faction.id,
@@ -96,13 +107,9 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
       references: faction.references.map((reference) => ({
         ...reference,
         datasheets: content?.datasheets.size ?? reference.datasheets,
-        detachments: referenceDetachments.length,
+        detachments: availableDetachments.filter((detachment) => detachment.referenceRoute).length,
       })),
-      detachments: detachments.map((detachment) => ({
-        id: detachment.id,
-        name: detachment.name,
-        referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
-      })),
+      detachments: availableDetachments,
     },
     detachments,
     referenceDetachments,

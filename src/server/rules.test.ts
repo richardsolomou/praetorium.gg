@@ -637,3 +637,85 @@ it('preserves the fifth-round fallback on opponent-turn secondaries', () => {
   ])
   expect(cards.secondaries[0]?.awards[0]?.trigger.timing).toBe('end-of-turn-or-final-round')
 })
+
+it('files chapter-specific detachments under their declared faction with complete cards', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'marines.json'), {
+    name: 'Adeptus Astartes',
+    datasheets: [],
+    detachments: [
+      {
+        name: { en: "Forgefather's Seekers" },
+        faction: 'Salamanders',
+        detachmentPoints: 2,
+        forceDisposition: { name: { en: 'Priority Assets' } },
+      },
+      { name: { en: 'Gladius Task Force' }, detachmentPoints: 3, forceDisposition: { name: { en: 'Take and Hold' } } },
+    ],
+    enhancements: [
+      {
+        id: 'relic',
+        name: { en: 'Forged Relic' },
+        detachment: "Forgefather's Seekers",
+        cost: 15,
+        description: { en: 'Protect the bearer.' },
+      },
+    ],
+    stratagems: [
+      {
+        id: 'seek',
+        name: { en: 'Seek the Relics' },
+        detachment: "Forgefather's Seekers",
+        cost: 1,
+        phase: ['fight'],
+        turn: 'either',
+        effect: { en: 'Claim the objective.' },
+      },
+    ],
+  })
+  const loaded = rules()
+  expect(loaded.detachmentDetails.get('salamanders')?.get('forgefathers-seekers')).toMatchObject({
+    points: 2,
+    dispositions: ['priority-assets'],
+    enhancements: [{ name: 'Forged Relic', points: 15 }],
+    stratagems: [{ name: 'Seek the Relics' }],
+  })
+})
+
+it('does not publish chapter-specific detachments as generic parent rules', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'marines.json'), {
+    name: 'Adeptus Astartes',
+    datasheets: [],
+    detachments: [
+      {
+        name: { en: "Forgefather's Seekers" },
+        faction: 'Salamanders',
+        detachmentPoints: 2,
+        forceDisposition: { name: { en: 'Priority Assets' } },
+      },
+    ],
+  })
+  expect(rules().detachmentReferences.get('adeptus-astartes')?.has('forgefathers-seekers')).toBe(false)
+})
+
+it('inherits generic Marine cards without leaking another chapter’s detachment', () => {
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'marines.json'), {
+    name: 'Adeptus Astartes',
+    datasheets: [],
+    detachments: [
+      {
+        name: { en: "Forgefather's Seekers" },
+        faction: 'Salamanders',
+        detachmentPoints: 2,
+        forceDisposition: { name: { en: 'Priority Assets' } },
+      },
+      { name: { en: 'Shadowmark Talon' }, faction: 'Raven Guard', detachmentPoints: 2, forceDisposition: { name: { en: 'Disruption' } } },
+      {
+        name: { en: 'Gladius Task Force' },
+        faction: 'Adeptus Astartes',
+        detachmentPoints: 3,
+        forceDisposition: { name: { en: 'Take and Hold' } },
+      },
+    ],
+  })
+  expect([...rules().detachmentReferences.get('salamanders')!.keys()].sort()).toEqual(['forgefathers-seekers', 'gladius-task-force'])
+})

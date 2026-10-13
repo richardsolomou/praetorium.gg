@@ -31,10 +31,18 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
   for (const content of contents) {
     const faction = routeSlug(content.name)
     const parent = content.parentName ? routeSlug(content.parentName) : null
-    const references = new Map<string, DetachmentReference>()
-    const details = new Map<string, DetachmentRulesDetail>()
-    const stratagems = new Map<string, Stratagem[]>()
+    detachmentReferences.set(faction, detachmentReferences.get(faction) ?? new Map())
     for (const name of content.detachments) {
+      const ownerName = content.detachmentFactions?.get(name) ?? content.name
+      const owner = routeSlug(ownerName)
+      for (const key of datacardsFactionKeys(ownerName)) factionKeys.set(key, owner)
+      if (owner !== faction && !factionParents.has(owner)) factionParents.set(owner, faction)
+      const references = detachmentReferences.get(owner) ?? new Map<string, DetachmentReference>()
+      const details = detachmentDetails.get(owner) ?? new Map<string, DetachmentRulesDetail>()
+      const stratagems = byDetachment.get(owner) ?? new Map<string, Stratagem[]>()
+      detachmentReferences.set(owner, references)
+      detachmentDetails.set(owner, details)
+      byDetachment.set(owner, stratagems)
       const id = routeSlug(name)
       const construction = constructionDetachment(datacards, content.name, name, parent)
       const sourceEnhancements = content.enhancements.get(joinKey(name)) ?? []
@@ -89,10 +97,19 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
           .sort((a, b) => compareText(a.name, b.name)),
       })
     }
-    detachmentReferences.set(faction, references)
-    detachmentDetails.set(faction, details)
-    if (stratagems.size) byDetachment.set(faction, stratagems)
   }
+  const inherit = <T>(maps: Map<string, Map<string, T>>) => {
+    for (const [child, parent] of factionParents) {
+      const inherited = maps.get(parent)
+      if (!inherited) continue
+      const own = maps.get(child) ?? new Map<string, T>()
+      for (const [name, value] of inherited) if (!own.has(name)) own.set(name, value)
+      maps.set(child, own)
+    }
+  }
+  inherit(detachmentReferences)
+  inherit(detachmentDetails)
+  inherit(byDetachment)
   if (fs.existsSync(iconDirectory)) {
     for (const file of fs.readdirSync(iconDirectory).filter((name) => /^[a-z0-9-]+\.svg$/.test(name))) {
       factionIcons.set(file.slice(0, -4), `data:image/svg+xml;base64,${fs.readFileSync(path.join(iconDirectory, file)).toString('base64')}`)

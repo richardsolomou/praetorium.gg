@@ -73,6 +73,7 @@ export type FactionContent = {
   datasheetDetails: Map<string, DatasheetDetails>
   datasheetIds: ReadonlyMap<string, DatasheetDetails>
   detachments: Set<string>
+  detachmentFactions?: ReadonlyMap<string, string>
   /** Unambiguous cards by their detachment's accent- and spacing-insensitive join key. */
   enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
   stratagems: ReadonlyMap<string, readonly ConstructionStratagem[]>
@@ -314,6 +315,13 @@ export function factionContent(
       ),
     ),
     detachments: new Set(records(parsed, 'detachments').flatMap((entry) => localizedField(entry, 'name') ?? [])),
+    detachmentFactions: new Map(
+      records(parsed, 'detachments').flatMap((entry) => {
+        const detachment = localizedField(entry, 'name')
+        const faction = stringField(entry, 'faction')
+        return detachment && faction ? [[detachment, faction] as const] : []
+      }),
+    ),
     enhancements,
     stratagems: new Map(
       [...stratagemCandidates].map(([detachment, cards]) => [
