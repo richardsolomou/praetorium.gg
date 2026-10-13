@@ -1,3 +1,4 @@
+import { waitForOfflineApp } from './offline'
 import { expect, test, type Locator, type Page } from './test'
 import { attachRoster, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -126,16 +127,7 @@ test('collection counts survive a cold offline reopen and reconnect', async ({ p
   await page.goto('/collection')
   await addDatasheet(page, 'Overlord', 'Necrons')
   await expect(owned(page, 'Overlord')).toHaveValue('1')
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async () => {
-          const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-          return Boolean(saved && (await saved.text()).includes('"construction"'))
-        }),
-      { timeout: 180_000 },
-    )
-    .toBe(true)
+  await waitForOfflineApp(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { waitForOfflineApp } from './offline'
+import { expect, test } from '@playwright/test'
 import { createBattle, createRoster, signUp, uniqueName, setupStep, retryUntilVisible, attachRoster, startBattle, advance } from './account'
 import { productOperator, savedWork, withAuthSql } from './storage'
 import { chooseCombatUnit } from './combat'
@@ -28,19 +29,6 @@ test('simulation and loadout optimization work in a cold offline application', a
   await reopened.setViewportSize({ width: 390, height: 844 })
   await reopened.screenshot({ path: test.info().outputPath('offline-simulation-phone.png') })
 })
-
-async function waitForOfflineApp(page: Page) {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async () => {
-          const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-          return Boolean(saved && (await saved.text()).includes('"construction"'))
-        }),
-      { timeout: 180_000 },
-    )
-    .toBe(true)
-}
 
 test('online saves only show sync status when the queue remains pending', async ({ page }) => {
   await signUp(page, uniqueName('Quiet sync'))

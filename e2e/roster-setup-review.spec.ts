@@ -1,3 +1,4 @@
+import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from '@playwright/test'
 import { confirmRosterSetup, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
@@ -134,16 +135,7 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
 test('reviewed setup survives an offline reload and reconnects with the same selected units', async ({ page, context }) => {
   test.setTimeout(240_000)
   const { id, operator, source } = await savedArmy(page)
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async () => {
-          const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-          return Boolean(saved && (await saved.text()).includes('"construction"'))
-        }),
-      { timeout: 180_000 },
-    )
-    .toBe(true)
+  await waitForOfflineApp(page)
   await context.setOffline(true)
   const review = await shrink(page)
   await review.getByRole('button', { name: 'Confirm changes' }).click()
