@@ -24,7 +24,7 @@ type Lockfile = {
   snapshots: Record<string, { dependencies?: Dependencies; optionalDependencies?: Dependencies }>
 }
 
-function nativeInput(file: string) {
+export function nativeInput(file: string) {
   if (/\.(?:md|(?:test|spec)\.[^.]+)$/.test(file) || file.includes('/Tests/')) return false
   return (
     file.startsWith('mobile/') ||
