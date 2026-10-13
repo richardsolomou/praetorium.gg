@@ -32,16 +32,36 @@ jobs:
       revision: ${{ needs.release.outputs.sha || github.sha }}
     secrets: inherit
 
-  # The release commit skips push workflows, so the ones it must still run are started here.
   after-release:
     needs: [release]
-    if: needs.release.outputs.created == 'true'
     runs-on: ubuntu-latest
     permissions:
       actions: write
+      contents: read
+      deployments: read
     steps:
-      - env:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.sha || github.sha }}
+          fetch-depth: 0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Check iOS delivery inputs
+        id: ios
+        env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh workflow run mobile.yml --repo "$GITHUB_REPOSITORY" --ref main
-          gh workflow run coverage-baseline.yml --repo "$GITHUB_REPOSITORY" --ref main
+          PENDING_IOS_REVISIONS="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/mobile.yml/runs?branch=main&event=workflow_dispatch&per_page=100" --jq '[.workflow_runs[] | select(.status != "completed") | .display_title | try capture("^iOS delivery (?<sha>[0-9a-f]{40})$").sha]')"
+          base_revision="$(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=mobile-ios-stable&per_page=1" --jq '.[0].sha // ""')"
+          export PENDING_IOS_REVISIONS
+          pnpm exec tsx scripts/iosDelivery.ts "${base_revision:-0000000000000000000000000000000000000000}" HEAD
+      - name: Deliver changed iOS application
+        if: steps.ios.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REVISION: ${{ needs.release.outputs.sha || github.sha }}
+        run: gh workflow run mobile.yml --repo "$GITHUB_REPOSITORY" --ref main -f revision="$RELEASE_REVISION"
+      - name: Refresh the release coverage baseline
+        if: needs.release.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run coverage-baseline.yml --repo "$GITHUB_REPOSITORY" --ref main
