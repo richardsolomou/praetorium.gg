@@ -2,22 +2,29 @@ import { expect, test, type Page } from '@playwright/test'
 import { chooseUnit, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
-for (const width of [390, 1440]) {
-  test(`faction search explains structured matches at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    await page.goto('/factions/necrons/datasheets')
-    const search = page.getByRole('textbox', { name: 'Find a datasheet' })
-    const technomancer = page.locator('[data-datasheet="Technomancer"]')
+const desktop = { width: 1440, height: 900 }
+const phone = { width: 390, height: 900 }
 
-    await retryUntilVisible(technomancer.getByText('Matches Cryptek keyword · Staff of light weapon'), async () => {
-      await search.fill('')
-      await search.fill('cryptek staff')
-    })
+test('faction search explains structured matches', async ({ page }) => {
+  await page.setViewportSize(desktop)
+  await page.goto('/factions/necrons/datasheets')
+  const search = page.getByRole('textbox', { name: 'Find a datasheet' })
+  const technomancer = page.locator('[data-datasheet="Technomancer"]')
+
+  await retryUntilVisible(technomancer.getByText('Matches Cryptek keyword · Staff of light weapon'), async () => {
+    await search.fill('')
+    await search.fill('cryptek staff')
+  })
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(technomancer).toContainText('Matches Cryptek keyword · Staff of light weapon')
     await expect(technomancer.locator('mark')).toHaveText(['Cryptek', 'Staff'])
-    await page.screenshot({ path: `test-results/reference-search-${width}.png`, fullPage: true })
+    await page.screenshot({ path: `test-results/reference-search-${viewport.width}.png`, fullPage: true })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
 
+  for (const viewport of [phone, desktop]) {
+    await page.setViewportSize(viewport)
     await search.fill('Rites of Reanimation')
     await expect(technomancer).toContainText('Matches Rites of Reanimation ability')
     await search.fill('Technomancer')
@@ -28,51 +35,55 @@ for (const width of [390, 1440]) {
     await page.getByRole('button', { name: 'Empty the datasheet filter' }).click()
     await expect(technomancer).toBeVisible()
     await expect(technomancer).not.toContainText('Matches')
+  }
 
-    await technomancer.getByRole('link', { name: /^Technomancer/ }).click()
+  await technomancer.getByRole('link', { name: /^Technomancer/ }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Technomancer', exact: true })).toBeVisible()
+  await page.reload()
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(page.getByRole('heading', { level: 1, name: 'Technomancer', exact: true })).toBeVisible()
+  }
+})
+
+test('preview and archived reference identities remain visible in the simulator', async ({ page }) => {
+  for (const source of [
+    {
+      path: 'adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/allarus-custodians',
+      name: 'Allarus Custodians',
+      edition: 'custodes-11e',
+    },
+    { path: 'dark-angels/rules/mfm-1-4-2026-09-30/datasheets/deathwing-knights', name: 'Deathwing Knights', edition: 'legacy-rosters' },
+  ]) {
+    await page.goto(`/factions/${source.path}`)
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Simulate', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'As defender', exact: true }).click()
+    const selected = page.getByRole('combobox', { name: 'Defender unit', exact: true })
+    await expect(selected).toHaveAttribute('aria-busy', 'false')
+    await expect(selected).toContainText(source.name)
+    await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toBeVisible()
+    const state = new URL(page.url()).searchParams.get('s')
+    expect(decodeSimulatorState(state ?? undefined)?.sides[1]?.catalogueId).toMatch(new RegExp(`^${source.edition}~`))
     await page.reload()
-    await expect(page.getByRole('heading', { level: 1, name: 'Technomancer', exact: true })).toBeVisible()
-  })
-}
-
-for (const width of [390, 1440]) {
-  test(`preview and archived reference identities remain visible in the simulator at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    for (const source of [
-      {
-        path: 'adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/allarus-custodians',
-        name: 'Allarus Custodians',
-        edition: 'custodes-11e',
-      },
-      { path: 'dark-angels/rules/mfm-1-4-2026-09-30/datasheets/deathwing-knights', name: 'Deathwing Knights', edition: 'legacy-rosters' },
-    ]) {
-      await page.goto(`/factions/${source.path}`)
-      await page.waitForLoadState('networkidle')
-      await page.getByRole('button', { name: 'Simulate', exact: true }).click()
-      await page.getByRole('menuitem', { name: 'As defender', exact: true }).click()
-      const selected = page.getByRole('combobox', { name: 'Defender unit', exact: true })
-      await expect(selected).toHaveAttribute('aria-busy', 'false')
-      await expect(selected).toContainText(source.name)
-      await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toBeVisible()
-      const state = new URL(page.url()).searchParams.get('s')
-      expect(decodeSimulatorState(state ?? undefined)?.sides[1]?.catalogueId).toMatch(new RegExp(`^${source.edition}~`))
-      await page.reload()
+    for (const viewport of [desktop, phone]) {
+      await page.setViewportSize(viewport)
       await expect(selected).toContainText(source.name)
       await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toBeVisible()
       expect(new URL(page.url()).searchParams.get('s')).toBe(state)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-      await page.screenshot({ path: `test-results/reference-simulator-${source.edition}-${width}.png`, fullPage: true })
-      await chooseUnit(page, 'Defender', source.edition === 'custodes-11e' ? 'Adeptus Custodes' : 'Dark Angels', source.name)
-      await expect(selected).toHaveAttribute('aria-busy', 'false')
-      await expect(selected).toContainText(source.name)
-      await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toHaveCount(0)
-      expect(decodeSimulatorState(new URL(page.url()).searchParams.get('s') ?? undefined)?.sides[1]?.catalogueId).not.toMatch(
-        new RegExp(`^${source.edition}~`),
-      )
+      await page.screenshot({ path: `test-results/reference-simulator-${source.edition}-${viewport.width}.png`, fullPage: true })
     }
-  })
-}
+    await page.setViewportSize(desktop)
+    await chooseUnit(page, 'Defender', source.edition === 'custodes-11e' ? 'Adeptus Custodes' : 'Dark Angels', source.name)
+    await expect(selected).toHaveAttribute('aria-busy', 'false')
+    await expect(selected).toContainText(source.name)
+    await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toHaveCount(0)
+    expect(decodeSimulatorState(new URL(page.url()).searchParams.get('s') ?? undefined)?.sides[1]?.catalogueId).not.toMatch(
+      new RegExp(`^${source.edition}~`),
+    )
+  }
+})
 
 async function custodesRoster(page: Page, version: string, detachment: string) {
   await page.goto('/rosters')
@@ -92,31 +103,35 @@ async function custodesRoster(page: Page, version: string, detachment: string) {
   return new URL(page.url()).pathname
 }
 
-for (const width of [390, 1440]) {
-  test(`reference roster choices distinguish saved rules versions at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    await signUp(page, `Rules chooser ${width}`)
-    const current = await custodesRoster(page, 'MFM 1.5 · Current', 'Shield Host')
-    const preview = await custodesRoster(page, 'Custodes codex · 17 Oct 2026 · Preview', 'Aquilan Shield')
-    await page.goto('/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/allarus-custodians')
-    await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Add to', exact: true }).click()
-    await page
-      .getByRole('dialog', { name: 'Add Allarus Custodians to', exact: true })
-      .getByRole('button', { name: 'Roster…', exact: true })
-      .click()
-    const chooser = page.getByRole('dialog', { name: 'Add Allarus Custodians to a roster', exact: true })
+test('reference roster choices distinguish saved rules versions', async ({ page }) => {
+  await signUp(page, 'Rules chooser')
+  const current = await custodesRoster(page, 'MFM 1.5 · Current', 'Shield Host')
+  const preview = await custodesRoster(page, 'Custodes codex · 17 Oct 2026 · Preview', 'Aquilan Shield')
+  await page.goto('/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/allarus-custodians')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Add to', exact: true }).click()
+  await page
+    .getByRole('dialog', { name: 'Add Allarus Custodians to', exact: true })
+    .getByRole('button', { name: 'Roster…', exact: true })
+    .click()
+  const chooser = page.getByRole('dialog', { name: 'Add Allarus Custodians to a roster', exact: true })
+  const previewChoice = chooser.locator(`a[href^="${preview}?"]`)
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(chooser.getByRole('link')).toHaveCount(2)
     await expect(chooser.locator(`a[href^="${current}?"]`)).toContainText('MFM 1.5 · Current')
-    const previewChoice = chooser.locator(`a[href^="${preview}?"]`)
     await expect(previewChoice).toContainText('Custodes codex · 17 Oct 2026 · Preview')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    await page.screenshot({ path: `test-results/reference-roster-chooser-${width}.png`, fullPage: true })
-    await previewChoice.click()
-    await expect(page.locator('[data-unit="Allarus Custodians"]')).toBeVisible()
-    await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-    await page.reload()
+    await page.screenshot({ path: `test-results/reference-roster-chooser-${viewport.width}.png`, fullPage: true })
+  }
+  await page.setViewportSize(desktop)
+  await previewChoice.click()
+  await expect(page.locator('[data-unit="Allarus Custodians"]')).toBeVisible()
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await page.reload()
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('180')
     await expect(page.locator('[data-rules-version="custodes-11e"]')).toBeVisible()
-  })
-}
+  }
+})

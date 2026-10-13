@@ -48,24 +48,48 @@ async function shrink(page: Page) {
   return review
 }
 
-for (const width of [1440, 390]) {
-  test(`setup preview cancellation and exact saved result at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    const { id, operator, source } = await savedArmy(page)
-    const setup = await openSetup(page)
-    await setup.getByLabel('Roster name').fill('Name-only review')
-    await setup.getByRole('button', { name: 'Review changes' }).click()
-    const nameReview = page.getByRole('dialog', { name: 'Review roster changes' })
-    const unchanged = nameReview.locator('details')
+const desktop = { width: 1440, height: 900 }
+const phone = { width: 390, height: 900 }
+
+test('setup preview cancellation and exact saved result', async ({ page }) => {
+  await page.setViewportSize(desktop)
+  const { id, operator } = await savedArmy(page)
+  await page.setViewportSize(phone)
+  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await page.getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'No enhancement', exact: true }).click())
+  await expect(page.locator('[data-unit="Skorpekh Lord"]')).not.toContainText('Mark of the Nekrosor')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'Select Mark of the Nekrosor', exact: true }).click())
+  await expect(page.locator('[data-unit="Skorpekh Lord"]')).toContainText('Mark of the Nekrosor')
+  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await page.setViewportSize(desktop)
+  const source = (await operator.roster(id))!
+
+  const setup = await openSetup(page)
+  await setup.getByLabel('Roster name').fill('Name-only review')
+  await setup.getByRole('button', { name: 'Review changes' }).click()
+  const nameReview = page.getByRole('dialog', { name: 'Review roster changes' })
+  const unchanged = nameReview.locator('details')
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(unchanged.locator('summary')).toHaveText('13 unchanged units')
     await expect(unchanged).not.toHaveAttribute('open')
     await expect(nameReview.getByRole('region', { name: 'Unit changes' })).toHaveCount(0)
-    await unchanged.locator('summary').click()
+  }
+  await page.setViewportSize(desktop)
+  await unchanged.locator('summary').click()
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(unchanged.locator('li')).toHaveCount(13)
     await expect(unchanged.getByText('Kept: Mark of the Nekrosor')).toBeVisible()
     await expectNoHorizontalOverflow(nameReview)
-    await nameReview.getByRole('button', { name: 'Cancel', exact: true }).click()
-    let review = await shrink(page)
+  }
+  await page.setViewportSize(desktop)
+  await nameReview.getByRole('button', { name: 'Cancel', exact: true }).click()
+  let review = await shrink(page)
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(review).toContainText('Removed: Skyshroud Spearhead')
     await expect(review).toContainText('Removed choices: Mark of the Nekrosor')
     await expect(review).toContainText('Over budget by')
@@ -79,25 +103,29 @@ for (const width of [1440, 390]) {
       'rgb(245, 122, 122)',
     )
     await attention.scrollIntoViewIfNeeded()
-    await review.screenshot({ path: test.info().outputPath(`setup-review-top-${width}.png`) })
+    await review.screenshot({ path: test.info().outputPath(`setup-review-top-${viewport.width}.png`) })
     await review.getByText('Removed choices: Mark of the Nekrosor', { exact: true }).scrollIntoViewIfNeeded()
-    await review.screenshot({ path: test.info().outputPath(`setup-review-${width}.png`) })
-    await review.getByRole('button', { name: 'Cancel', exact: true }).click()
-    expect((await operator.roster(id))!.picks).toBe(source.picks)
-    expect((await operator.roster(id))!.limit).toBe(source.limit)
-    await page.reload()
-    await expect(page.locator('[data-unit="Skorpekh Lord"]')).toContainText('Mark of the Nekrosor')
-    review = await shrink(page)
-    await waitForRosterSave(page, () => review.getByRole('button', { name: 'Confirm changes' }).click())
-    await page.reload()
+    await review.screenshot({ path: test.info().outputPath(`setup-review-${viewport.width}.png`) })
+  }
+  await page.setViewportSize(desktop)
+  await review.getByRole('button', { name: 'Cancel', exact: true }).click()
+  expect((await operator.roster(id))!.picks).toBe(source.picks)
+  expect((await operator.roster(id))!.limit).toBe(source.limit)
+  await page.reload()
+  await expect(page.locator('[data-unit="Skorpekh Lord"]')).toContainText('Mark of the Nekrosor')
+  review = await shrink(page)
+  await waitForRosterSave(page, () => review.getByRole('button', { name: 'Confirm changes' }).click())
+  await page.reload()
+  const saved = (await operator.roster(id))!
+  expect(saved.limit).toBe(600)
+  expect(JSON.parse(saved.detachmentId)).toHaveLength(1)
+  expect(JSON.parse(saved.picks)).toHaveLength(JSON.parse(source.picks).length)
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
     await expect(page.locator('[data-unit="Skorpekh Lord"]')).not.toContainText('Mark of the Nekrosor')
-    const saved = (await operator.roster(id))!
-    expect(saved.limit).toBe(600)
-    expect(JSON.parse(saved.detachmentId)).toHaveLength(1)
-    expect(JSON.parse(saved.picks)).toHaveLength(JSON.parse(source.picks).length)
-    await page.screenshot({ path: test.info().outputPath(`setup-saved-${width}.png`) })
-  })
-}
+    await page.screenshot({ path: test.info().outputPath(`setup-saved-${viewport.width}.png`) })
+  }
+})
 
 test('library setup uses the same reviewed enhancement removal and refuses a changed baseline', async ({ page, context }) => {
   const { id, operator } = await savedArmy(page)
