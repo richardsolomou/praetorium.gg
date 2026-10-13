@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { Phase } from './battle'
 import { routeSlug } from './slug'
 
 export const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
@@ -149,6 +150,13 @@ export function reminderTimingCountsByUnit(reminders: readonly RosterReminder[])
     if (reminder.unit) counts.set(reminder.unit.index, (counts.get(reminder.unit.index) ?? 0) + reminder.timings.length)
   }
   return counts
+}
+
+/** The round boundary a phase opens or closes: the first side's command phase or the other side's end phase. */
+export function roundReminderMoment(phase: Phase, activeSide: number, firstSide: number): ReminderTiming | null {
+  if (phase === 'command' && activeSide === firstSide) return { moment: 'round-start', phase: null, turn: 'either' }
+  if (phase === 'end' && activeSide !== firstSide) return { moment: 'round-end', phase: null, turn: 'either' }
+  return null
 }
 
 export function reminderTimingLabel(timing: ReminderTiming): string {
