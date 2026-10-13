@@ -18,7 +18,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { productSql } from './storage'
+import { battleLog, productSql } from './storage'
 
 test('Insane Bravery is usable once in your Command phase and survives reload', async ({ page }) => {
   await signUp(page, uniqueName('Bravery'))
@@ -229,22 +229,7 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
   await startBattle(page)
 
-  const token = new URL(page.url()).pathname.split('/').at(-1)!
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  if (!battle) throw new Error('Battle did not start')
-  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
-  const started = commands.find((command) => (JSON.parse(command.body) as { kind: string }).kind === 'begin-battle')
-  if (!started) throw new Error('Battle did not start')
-  const firstPlayerId = (JSON.parse(started.body) as { firstPlayerId: string }).firstPlayerId
-  const [opponent] = await productSql<{
-    user_id: string
-  }>`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id} AND user_id <> ${firstPlayerId}`
-  if (!opponent) throw new Error('Battle seats are incomplete')
-  let seq = Math.max(...commands.map((command) => command.seq))
-  const append = async (by: string, body: object) => {
-    seq += 1
-    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
-  }
+  const { append, first: firstPlayerId, second: opponentId } = await battleLog(page)
   await append(firstPlayerId, {
     kind: 'select-secret',
     secondary: {
@@ -269,10 +254,10 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   }
   for (let round = 1; round < 5; round += 1) {
     await passPhases(firstPlayerId, 6)
-    await passPhases(opponent.user_id, 6)
+    await passPhases(opponentId, 6)
   }
   await passPhases(firstPlayerId, 6)
-  await passPhases(opponent.user_id, 5)
+  await passPhases(opponentId, 5)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
 

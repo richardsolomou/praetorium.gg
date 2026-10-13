@@ -1,7 +1,7 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
-import { productSql } from './storage'
+import { battleLog, productSql } from './storage'
 
 test('New Orders, discard CP and carried cards survive a complete two-player round', async ({ page, browser }) => {
   test.setTimeout(180_000)
@@ -99,30 +99,18 @@ test('both sides settle source final awards beyond round caps through cold offli
   await signUp(page, uniqueName('Final host'))
   const ours = await createRoster(page, { faction: 'Death Guard', detachment: /Flyblown Host/, name: 'First final army' })
   await setupBattle(page, opponent, { opponent: name, hostRoster: ours, guestRoster: theirs })
-  const token = new URL(page.url()).pathname.split('/').at(-1)!
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
-  const start = commands.find((command) => JSON.parse(command.body).kind === 'begin-battle')!
-  const first = JSON.parse(start.body).firstPlayerId
-  const [second] = await productSql<{
-    user_id: string
-  }>`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id} AND user_id <> ${first}`
-  let seq = Math.max(...commands.map((command) => command.seq))
-  const append = async (by: string, body: object) => {
-    seq += 1
-    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
-  }
+  const { append, first, second, id: battleId } = await battleLog(page)
   for (let phase = 0; phase < 48; phase += 1) {
-    const playerId = Math.floor(phase / 6) % 2 ? second.user_id : first
+    const playerId = Math.floor(phase / 6) % 2 ? second : first
     if (phase > 0 && phase % 6 === 0) await append(playerId, { kind: 'settle-opponent-turn' })
     await append(playerId, { kind: 'advance' })
   }
   await append(first, { kind: 'settle-opponent-turn' })
   await append(first, { kind: 'score', category: 'primary', delta: 15 })
   for (let phase = 0; phase < 6; phase += 1) await append(first, { kind: 'advance' })
-  await append(second.user_id, { kind: 'settle-opponent-turn' })
-  await append(second.user_id, { kind: 'score', category: 'primary', delta: 15 })
-  for (let phase = 0; phase < 5; phase += 1) await append(second.user_id, { kind: 'advance' })
+  await append(second, { kind: 'settle-opponent-turn' })
+  await append(second, { kind: 'score', category: 'primary', delta: 15 })
+  for (let phase = 0; phase < 5; phase += 1) await append(second, { kind: 'advance' })
   await page.reload()
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   const finalTurn = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
@@ -185,7 +173,7 @@ test('both sides settle source final awards beyond round caps through cold offli
   await expect(firstFinal.locator('output')).toContainText('Scoring 10 VP')
   await firstFinal.getByRole('button', { name: 'Finish battle', exact: true }).click()
   await expect(page.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
-  const queued = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`
+  const queued = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`
   expect(
     queued
       .map((command) => JSON.parse(command.body))
@@ -196,7 +184,7 @@ test('both sides settle source final awards beyond round caps through cold offli
   await expect
     .poll(
       async () =>
-        (await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`)
+        (await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`)
           .map((command) => JSON.parse(command.body))
           .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final))
           .length,
@@ -205,7 +193,7 @@ test('both sides settle source final awards beyond round caps through cold offli
     .toBe(2)
   await opponent.reload()
   await expect(opponent.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
-  const saved = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
+  const saved = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
   expect(
     saved
       .sort((left, right) => left.seq - right.seq)
@@ -213,7 +201,7 @@ test('both sides settle source final awards beyond round caps through cold offli
       .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final))
       .map((command) => ({ playerId: command.playerId, round: command.round, scores: command.scores })),
   ).toEqual([
-    { playerId: second.user_id, round: 5, scores: [{ category: 'primary', delta: 10, final: { claims: [0, 0, 0, 0, 1, 1], delta: 10 } }] },
+    { playerId: second, round: 5, scores: [{ category: 'primary', delta: 10, final: { claims: [0, 0, 0, 0, 1, 1], delta: 10 } }] },
     { playerId: first, round: 5, scores: [{ category: 'primary', delta: 10, final: { claims: [0, 0, 0, 0, 1, 1], delta: 10 } }] },
   ])
 })

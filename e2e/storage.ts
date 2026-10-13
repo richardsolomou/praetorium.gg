@@ -83,3 +83,29 @@ export async function productSql<T extends Record<string, unknown> = Record<stri
   if (columns.some((name) => !name)) throw new Error('Local SpacetimeDB SQL query needs named columns')
   return results[0].rows.map((row) => Object.fromEntries(columns.map((name, index) => [name, row[index]])))
 }
+
+/** Appends commands to the open battle's log, for journeys that only need to reach a later state. */
+export async function battleLog(page: Page) {
+  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  if (!battle) throw new Error('Battle not found')
+  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
+  const begun = commands
+    .map((command) => JSON.parse(command.body) as { kind: string; firstPlayerId?: string })
+    .find((body) => body.kind === 'begin-battle')
+  if (!begun?.firstPlayerId) throw new Error('Battle did not start')
+  const [second] = await productSql<{
+    user_id: string
+  }>`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id} AND user_id <> ${begun.firstPlayerId}`
+  if (!second) throw new Error('Battle seats are incomplete')
+  let seq = Math.max(...commands.map((command) => command.seq))
+  return {
+    id: battle.id,
+    first: begun.firstPlayerId,
+    second: second.user_id,
+    append: async (by: string, body: object) => {
+      seq += 1
+      await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
+    },
+  }
+}
