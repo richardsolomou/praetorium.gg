@@ -41,5 +41,5 @@ it.each(['catalogue-smoke', 'e2e-shard'])('%s rejects a missing build', (job) =>
 })
 
 it.each(['catalogue-smoke', 'e2e-shard'])('%s stops when input fingerprinting fails', (job) => {
-  expect(verify(job, null, true)).not.toBe(0)
+  expect(verify(job, '', true)).not.toBe(0)
 })
