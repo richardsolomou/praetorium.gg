@@ -445,7 +445,7 @@ function entryStatus({
   playing,
 }: {
   league: League
-  ownEntry: LeagueEntryView | undefined
+  ownEntry: League['entries'][number] | undefined
   signedIn: boolean
   isOrganizer: boolean
   registrationFull: boolean
@@ -521,6 +521,15 @@ function entryStatus({
       detail: revealed ? 'The organizer unsealed your list.' : hidden,
       action: { label: 'Choose a list', icon: <FileLock2 />, onClick: choose },
       steps: steps('seal'),
+    }
+  // The pair's card is the one thing left to do before the reveal, so it leads the card until it is chosen.
+  if (!revealed && ownEntry.team && ownEntry.team.choices.length > 1 && !ownEntry.team.disposition)
+    return {
+      title: 'Choose your team’s Force Disposition',
+      detail: 'Your team plays one card. Choose it below before the lists are revealed.',
+      tone: 'waiting',
+      action: { label: 'Swap list', variant: 'outline', onClick: choose },
+      steps: steps('reveal'),
     }
   if (!revealed)
     return {
