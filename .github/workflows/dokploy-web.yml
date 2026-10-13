@@ -197,6 +197,15 @@ jobs:
           api-key: ${{ secrets.DOKPLOY_API_KEY }}
           application-id: ${{ env.DOKPLOY_APPLICATION_ID }}
           image: ${{ steps.image.outputs.reference }}
+      # Discovery follows production, so a rollback also returns current.json to the snapshot it serves.
+      - name: Activate the catalogue snapshot production serves
+        if: inputs.environment == 'production'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: python3 scripts/publishCatalogue.py activate "$(jq -r .pointer.id catalogue.json)"
       - name: Verify and schedule production auth backups
         if: inputs.environment == 'production'
         run: node scripts/dokployAuthSchedule.ts
