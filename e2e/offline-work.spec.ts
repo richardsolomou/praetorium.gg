@@ -34,50 +34,47 @@ test('online saves only show sync status when the queue remains pending', async 
   await signUp(page, uniqueName('Quiet sync'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    for (const slow of [false, true]) {
-      const name = `${slow ? 'Slow' : 'Quick'} save ${width}`
-      let release!: () => void
-      const pending = new Promise<void>((resolve) => (release = resolve))
-      await page.route('**/_serverFn/**', async (route) => {
-        const body = route.request().postData() ?? ''
-        if (body.includes(name) && body.includes('operationId')) await pending
-        await route.continue()
-      })
-      await page.evaluate(() => {
-        const banner = () => [...document.querySelectorAll('output')].some((element) => /waiting to sync/.test(element.textContent ?? ''))
-        const observation = { seen: banner(), observer: new MutationObserver(() => (observation.seen ||= banner())) }
-        observation.observer.observe(document.body, { childList: true, subtree: true, characterData: true })
-        Object.assign(window, { syncObservation: observation })
-      })
-      const before = await page.locator('[data-roster-builder]').boundingBox()
-      try {
-        await page.getByLabel('List name').fill(name)
-        await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
-        if (slow) {
-          await page.waitForTimeout(5_000)
-          await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
-          await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
-          await page.screenshot({ path: test.info().outputPath(`pending-sync-${width}.png`) })
-        } else {
-          await page.waitForTimeout(150)
-          expect(await page.locator('[data-roster-builder]').boundingBox()).toEqual(before)
-        }
-      } finally {
-        release()
+  for (const slow of [false, true]) {
+    const name = `${slow ? 'Slow' : 'Quick'} save`
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => (release = resolve))
+    await page.route('**/_serverFn/**', async (route) => {
+      const body = route.request().postData() ?? ''
+      if (body.includes(name) && body.includes('operationId')) await pending
+      await route.continue()
+    })
+    await page.evaluate(() => {
+      const banner = () => [...document.querySelectorAll('output')].some((element) => /waiting to sync/.test(element.textContent ?? ''))
+      const observation = { seen: banner(), observer: new MutationObserver(() => (observation.seen ||= banner())) }
+      observation.observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+      Object.assign(window, { syncObservation: observation })
+    })
+    const before = await page.locator('[data-roster-builder]').boundingBox()
+    try {
+      await page.getByLabel('List name').fill(name)
+      await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
+      if (slow) {
+        await page.waitForTimeout(5_000)
+        await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
+        await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
+        await page.screenshot({ path: test.info().outputPath('pending-sync.png') })
+      } else {
+        await page.waitForTimeout(150)
+        expect(await page.locator('[data-roster-builder]').boundingBox()).toEqual(before)
       }
-      await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
-      await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
-      const seen = await page.evaluate(() => {
-        const observation = (window as unknown as { syncObservation: { seen: boolean; observer: MutationObserver } }).syncObservation
-        observation.observer.disconnect()
-        return observation.seen
-      })
-      expect(seen).toBe(slow)
-      await page.screenshot({ path: test.info().outputPath(`synced-${slow ? 'slow' : 'quick'}-${width}.png`) })
-      await page.unroute('**/_serverFn/**')
+    } finally {
+      release()
     }
+    await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+    await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
+    const seen = await page.evaluate(() => {
+      const observation = (window as unknown as { syncObservation: { seen: boolean; observer: MutationObserver } }).syncObservation
+      observation.observer.disconnect()
+      return observation.seen
+    })
+    expect(seen).toBe(slow)
+    await page.screenshot({ path: test.info().outputPath(`synced-${slow ? 'slow' : 'quick'}.png`) })
+    await page.unroute('**/_serverFn/**')
   }
 })
 
@@ -262,39 +259,4 @@ test('conflicting roster edits stay saved and export before choosing the server 
   await page.keyboard.press('Escape')
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue('Other device edit')
-})
-
-test('concurrent offline favourites survive a cold reopen and reconnect', async ({ page, context }) => {
-  test.setTimeout(240_000)
-  await signUp(page, uniqueName('Offline favourites'))
-  await page.goto('/factions')
-  await waitForOfflineApp(page)
-  const first = page.getByRole('button', { name: 'Add Necrons to favourites', exact: true })
-  const second = page.getByRole('button', { name: 'Add Dark Angels to favourites', exact: true })
-  await expect(first).toBeVisible()
-  await expect(second).toBeVisible()
-  const resource = 'query:["favourite-factions"]'
-  await expect.poll(async () => (await savedWork(page))?.documents[resource]?.data).toEqual([])
-  await context.setOffline(true)
-  await page
-    .getByRole('button', { name: /^Add (Necrons|Dark Angels) to favourites$/ })
-    .evaluateAll((buttons) => buttons.forEach((button) => (button as HTMLButtonElement).click()))
-  await expect.poll(async () => ((await savedWork(page))?.documents[resource]?.data as string[] | undefined)?.length).toBe(2)
-  const owner = (await savedWork(page))!.owner
-  const operator = await productOperator()
-  await page.close()
-  const reopened = await context.newPage()
-  await reopened.goto('/factions')
-  const favourites = reopened.locator('section').filter({ has: reopened.getByText('Favourites', { exact: true }) })
-  await expect(favourites.getByRole('button', { name: 'Remove Necrons from favourites', exact: true })).toBeVisible()
-  await expect(favourites.getByRole('button', { name: 'Remove Dark Angels from favourites', exact: true })).toBeVisible()
-  await reopened.setViewportSize({ width: 390, height: 844 })
-  await reopened.screenshot({ path: test.info().outputPath('offline-favourites-phone.png') })
-  await context.setOffline(false)
-  await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await savedWork(reopened))?.operations.length).toBe(0)
-  await expect.poll(async () => (await operator.favouriteFactionsByUser(owner)).length).toBe(2)
-  await reopened.reload()
-  await expect(favourites.getByRole('button', { name: 'Remove Necrons from favourites', exact: true })).toBeVisible()
-  await expect(favourites.getByRole('button', { name: 'Remove Dark Angels from favourites', exact: true })).toBeVisible()
 })

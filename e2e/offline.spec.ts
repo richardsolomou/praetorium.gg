@@ -1,22 +1,44 @@
 import { expect, test } from '@playwright/test'
 import { scrollSearchResultIntoView, signUp, uniqueName } from './account'
 
-for (const path of ['/', '/guides/compare-loadouts']) {
-  test(`${path} paints before downloading the offline application`, async ({ page }) => {
-    test.setTimeout(240_000)
-    await page.goto(path)
-    await expect(page.locator('main h1')).toBeVisible()
-    await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).toBeTruthy()
-    const downloads = await page.evaluate(() =>
-      performance
-        .getEntriesByType('resource')
-        .filter((entry) => /\/assets\/(reference-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(entry.name))
-        .map((entry) => entry.startTime),
-    )
-    expect(downloads).toHaveLength(2)
-    expect(Math.min(...downloads)).toBeGreaterThanOrEqual(10_000)
+// The offline downloads mount once in the app shell, so the home page stands for every route.
+test('the home page paints before downloading the offline application and keeps its reference across an update', async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(240_000)
+  const bundles: string[] = []
+  page.on('request', (assetRequest) => {
+    if (/\/assets\/reference-[a-f0-9]+\.bin$/.test(assetRequest.url())) bundles.push(assetRequest.url())
   })
-}
+  await page.goto('/')
+  await expect(page.locator('main h1')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).toBeTruthy()
+  const downloads = await page.evaluate(() =>
+    performance
+      .getEntriesByType('resource')
+      .filter((entry) => /\/assets\/(reference-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(entry.name))
+      .map((entry) => entry.startTime),
+  )
+  expect(downloads).toHaveLength(2)
+  expect(Math.min(...downloads)).toBeGreaterThanOrEqual(10_000)
+
+  const manifest = await request.get('/offline-reference-version.json')
+  expect(manifest.headers()['cache-control']).toBe('no-store')
+  const reference = await manifest.json()
+  const bundle = await request.get(reference.bundle)
+  expect(bundle.headers()['content-type']).toBe('application/octet-stream')
+  expect(bundle.headers()['content-encoding']).toBeUndefined()
+  expect((await bundle.body()).subarray(0, 2).toString('hex')).toBe('1f8b')
+  const appManifest = await request.get('/offline-app-version.json')
+  expect(appManifest.headers()['cache-control']).toBe('no-store')
+  const app = await appManifest.json()
+  await page.route('**/offline-app-version.json', (route) => route.fulfill({ json: { ...app, revision: 'next-app-version' } }))
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.appRevision), { timeout: 60_000 }).toBe('next-app-version')
+  expect(bundles).toHaveLength(1)
+  await expect(page.locator('main h1')).toBeVisible()
+})
 
 test('the complete reference keeps its existing UI after a cold offline launch', { tag: '@catalogue' }, async ({ page, context }) => {
   test.setTimeout(240_000)
@@ -167,30 +189,4 @@ test('the complete reference keeps its existing UI after a cold offline launch',
       }),
   )
   expect(telemetryLoaded).toBe(true)
-})
-
-test('one compressed reference download is reused across an application update', async ({ page, request }) => {
-  test.setTimeout(240_000)
-  const bundles: string[] = []
-  page.on('request', (assetRequest) => {
-    if (/\/assets\/reference-[a-f0-9]+\.bin$/.test(assetRequest.url())) bundles.push(assetRequest.url())
-  })
-  await page.goto('/rules')
-  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).toBeTruthy()
-  expect(bundles).toHaveLength(1)
-  const manifest = await request.get('/offline-reference-version.json')
-  expect(manifest.headers()['cache-control']).toBe('no-store')
-  const reference = await manifest.json()
-  const bundle = await request.get(reference.bundle)
-  expect(bundle.headers()['content-type']).toBe('application/octet-stream')
-  expect(bundle.headers()['content-encoding']).toBeUndefined()
-  expect((await bundle.body()).subarray(0, 2).toString('hex')).toBe('1f8b')
-  const appManifest = await request.get('/offline-app-version.json')
-  expect(appManifest.headers()['cache-control']).toBe('no-store')
-  const app = await appManifest.json()
-  await page.route('**/offline-app-version.json', (route) => route.fulfill({ json: { ...app, revision: 'next-app-version' } }))
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.appRevision), { timeout: 60_000 }).toBe('next-app-version')
-  expect(bundles).toHaveLength(1)
-  await expect(page.getByRole('heading', { name: 'Rules', exact: true })).toBeVisible()
 })

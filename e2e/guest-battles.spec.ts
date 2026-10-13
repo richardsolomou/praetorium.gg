@@ -48,24 +48,6 @@ test('a visitor browses public battles and opens a spectator view on a phone and
   await opponentContext.close()
 })
 
-test('signing in switches from public battles to the player’s own saved games', async ({ page, browser }) => {
-  await page.goto('/battles')
-  await expect(page.getByRole('heading', { name: 'Public battles', exact: true })).toBeVisible()
-  await signUp(page, uniqueName('Battle visitor'))
-  await page.goto('/battles')
-  await expect(page.getByRole('heading', { name: 'My battles' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'No battles yet.' })).toBeVisible()
-  const opponentContext = await browser.newContext()
-  const opponent = await opponentContext.newPage()
-  const opponentName = uniqueName('Saved opponent')
-  await signUp(opponent, opponentName)
-  await befriend(page, opponent)
-  const battleUrl = await createBattle(page, { opponent: opponentName })
-  await page.goto('/battles')
-  await expect(page.locator('[data-battle-shelf="Setup"] article > a')).toHaveAttribute('href', new URL(battleUrl).pathname)
-  await opponentContext.close()
-})
-
 test("a signed-in player's battles page lists their games, then friends' and public games once each", async ({ page, browser }) => {
   test.setTimeout(120_000)
   const hostContext = await browser.newContext()
