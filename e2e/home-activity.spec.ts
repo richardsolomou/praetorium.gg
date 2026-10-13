@@ -1,12 +1,21 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { createBattle, createRoster, followLink, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
 import { productSql, withAuthSql } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
-async function makePreviewBattleMostRecent() {
-  const battles = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = 'preview-casual-doubles'`
-  if (battles.length !== 1) throw new Error('The preview doubles battle is missing.')
-  await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE id = ${battles[0].id}`
+/**
+ * Opens the signed-out home page with a preview battle as its hero, the most recent public battle.
+ *
+ * Dated ahead of the public battles other tests open meanwhile, and reloaded past the public feed's short hold.
+ */
+async function featurePreviewBattle(page: Page, token: string) {
+  const battles = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  if (battles.length !== 1) throw new Error(`The preview battle ${token} is missing.`)
+  await productSql`UPDATE battles SET created_at = ${Date.now() + 60 * 60 * 1000} WHERE id = ${battles[0].id}`
+  await expect(async () => {
+    await page.goto('/')
+    await expect(page.locator('[data-home-featured]')).toHaveAttribute('href', `/battles/${token}`, { timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
 }
 
 test('shows the faction icon for an unqualified frozen army', async ({ page }, testInfo) => {
@@ -154,28 +163,45 @@ test('the home page links to GitHub Sponsors', async ({ page }) => {
   )
 })
 
-test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await makePreviewBattleMostRecent()
-  await page.goto('/')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+// Each test features its own preview battle on the one shared home page, so they take turns.
+test.describe('the featured battle', () => {
+  test.describe.configure({ mode: 'default' })
 
-  const featuredBattle = page.locator('[data-home-featured]')
-  for (const [first, second] of [
-    ['Preview Player', 'Preview Ally'],
-    ['Preview Opponent', 'Preview Rival'],
-  ]) {
-    const firstName = featuredBattle.getByText(first, { exact: true })
-    const secondName = featuredBattle.getByText(second, { exact: true })
-    await expect(firstName).toBeVisible()
-    await expect(secondName).toBeVisible()
-    expect((await secondName.boundingBox())!.y).toBeGreaterThan((await firstName.boundingBox())!.y)
-  }
+  test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await featurePreviewBattle(page, 'preview-casual-doubles')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 
-  await signUp(page, uniqueName('Narrow'))
-  await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    const featuredBattle = page.locator('[data-home-featured]')
+    for (const [first, second] of [
+      ['Preview Player', 'Preview Ally'],
+      ['Preview Opponent', 'Preview Rival'],
+    ]) {
+      const firstName = featuredBattle.getByText(first, { exact: true })
+      const secondName = featuredBattle.getByText(second, { exact: true })
+      await expect(firstName).toBeVisible()
+      await expect(secondName).toBeVisible()
+      expect((await secondName.boundingBox())!.y).toBeGreaterThan((await firstName.boundingBox())!.y)
+    }
+
+    await signUp(page, uniqueName('Narrow'))
+    await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  })
+
+  test('a finished featured battle omits the repeated result', async ({ page }, testInfo) => {
+    await featurePreviewBattle(page, 'preview-league-battle-duel')
+    const featured = page.locator('[data-home-featured]')
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 })
+      await expect(featured).toHaveAttribute('href', '/battles/preview-league-battle-duel')
+      await expect(featured.getByText('35', { exact: true })).toBeVisible()
+      await expect(featured).not.toContainText('wins')
+      await featured.scrollIntoViewIfNeeded()
+      await page.screenshot({ path: testInfo.outputPath(`finished-featured-battle-${width}.png`) })
+    }
+  })
 })
 
 test('offers native notification permission on home and retries device setup', async ({ page }) => {
@@ -380,18 +406,4 @@ test('a player profile fits a phone', async ({ page }) => {
   await expect(page.locator('[data-service-record]')).toBeVisible()
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-})
-
-test('a finished featured battle omits the repeated result', async ({ page }, testInfo) => {
-  await productSql`UPDATE battles SET created_at = ${Date.now()} WHERE token = 'preview-league-battle-duel'`
-  await page.goto('/')
-  const featured = page.locator('[data-home-featured]')
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await expect(featured).toHaveAttribute('href', '/battles/preview-league-battle-duel')
-    await expect(featured.getByText('35', { exact: true })).toBeVisible()
-    await expect(featured).not.toContainText('wins')
-    await featured.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath(`finished-featured-battle-${width}.png`) })
-  }
 })
