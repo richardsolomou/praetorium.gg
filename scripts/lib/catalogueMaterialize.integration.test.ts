@@ -60,6 +60,8 @@ function downloads() {
 }
 
 beforeEach(() => {
+  // The publisher caches layouts between runs; these tests exercise the fetch itself.
+  vi.stubEnv('CATALOGUE_BATTLEMASTER_CACHE', '')
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-materialize-'))
   directory = path.join(root, 'catalogue-data')
   vi.stubGlobal('fetch', downloads())
@@ -67,6 +69,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   fs.rmSync(root, { recursive: true, force: true })
 })
 
