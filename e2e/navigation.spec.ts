@@ -954,7 +954,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByText('Gladius Task Force', { exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/dark-angels-faction-content.png', fullPage: true })
   await darkAngelsDatasheets.click()
-  await expect(page.locator('main > header [data-faction-mark="marine-main~470a-6daa-9014-12df"]')).toBeVisible()
+  await expect(page.locator('main > header [data-faction-mark="marine-2026-10-13~470a-6daa-9014-12df"]')).toBeVisible()
   await expect(page.getByText('Epic heroes', { exact: true }).locator('..')).toContainText(/Epic heroes\s*\d+/)
   await expect(page.getByText('Infantry', { exact: true }).locator('..')).toContainText(/Infantry\s*\d+/)
   await expect(page.getByText('Vehicles', { exact: true }).locator('..')).toContainText(/Vehicles\s*\d+/)
@@ -1241,7 +1241,7 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await expect(page).toHaveURL(/\/missions\//)
 
   await sections.getByRole('link', { name: 'Factions' }).click()
-  await expect(page).toHaveURL('/factions/dark-angels/rules/space-marines-codex-2026-10-12/datasheets/deathwing-terminator-squad')
+  await expect(page).toHaveURL('/factions/dark-angels/rules/space-marines-codex-2026-10-13/datasheets/deathwing-terminator-squad')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
 
   // The section you are already in has one obvious destination left: its top.
