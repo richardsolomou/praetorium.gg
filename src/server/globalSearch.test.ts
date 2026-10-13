@@ -328,6 +328,56 @@ describe('global datasheet search', () => {
       armyRules: [],
       factionAbilityNames: new Set(),
     })
+    rules.detachmentDetails.set('deathwatch', new Map())
+    rules.detachmentDetails.get('deathwatch')!.set('black-spear-task-force', {
+      id: 'black-spear',
+      name: 'Black Spear Task Force',
+      points: null,
+      dispositions: [],
+      rules: [{ name: 'Masterful Tactics', description: 'You gain 1 CP in your Command phase.' }],
+      upgrades: [{ name: 'Veteran Training', points: 10, description: null }],
+      enhancements: [{ name: 'Superior Creation', points: 25, description: 'The bearer can Advance and charge.', eligibility: null }],
+      stratagems: [
+        {
+          id: 'stratagem',
+          name: 'Unyielding Sentinels',
+          cp: 1,
+          type: null,
+          phases: [],
+          turn: null,
+          description: 'Models can fight on death.',
+        },
+      ],
+    })
+
+    for (const query of ['superior creation', 'unyielding sentinels', 'veteran training']) {
+      const matches = await searchEverything(query, {
+        catalogue: null,
+        catalogueIndex: compiledGlobalSearchIndex(catalogue, rules),
+        rules,
+        own: async () => null,
+      })
+      expect(matches.filter((result) => result.group === 'Detachments').map((result) => result.href)).toEqual([
+        '/factions/deathwatch/detachments/black-spear-task-force',
+      ])
+    }
+
+    for (const [query, kind, value] of [
+      ['masterful tactics', 'detachment rule', 'Masterful Tactics'],
+      ['gain 1cp', 'detachment rule', 'Masterful Tactics'],
+      ['advance and charge', 'enhancement', 'Superior Creation'],
+      ['fight on death', 'stratagem', 'Unyielding Sentinels'],
+    ]) {
+      const matches = await searchEverything(query!, { catalogue, rules, own: async () => null })
+      expect(matches.filter((result) => result.group === 'Detachments')).toEqual([
+        expect.objectContaining({ label: 'Black Spear Task Force', matchReasons: [{ kind, value }] }),
+      ])
+    }
+    for (const query of ['gain 2cp', 'advance fight death']) {
+      expect(
+        (await searchEverything(query, { catalogue, rules, own: async () => null })).filter((result) => result.group === 'Detachments'),
+      ).toEqual([])
+    }
 
     const results = await searchEverything('black spear', { catalogue, rules, own: async () => null })
     expect(results.filter((result) => result.group === 'Detachments')).toEqual([

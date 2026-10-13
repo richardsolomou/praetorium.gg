@@ -1,1 +1,1 @@
-export type { GlobalSearchIndex, GlobalSearchResult, IndexedResult, IndexedDatasheet } from '../core/referenceSearch'
+export type { GlobalSearchIndex, GlobalSearchResult, IndexedResult, IndexedDatasheet, IndexedDetachment } from '../core/referenceSearch'

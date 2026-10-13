@@ -19,6 +19,9 @@ export type GlobalSearchResult = {
 }
 
 export type IndexedResult = { search: string; result: GlobalSearchResult }
+export type IndexedDetachment = IndexedResult & {
+  cards?: { kind: 'detachment rule' | 'enhancement' | 'upgrade' | 'stratagem'; name: string; description: string | null }[]
+}
 export type IndexedDatasheet = {
   targetId: string
   allied: boolean
@@ -28,14 +31,14 @@ export type IndexedDatasheet = {
 }
 export type GlobalSearchIndex = {
   factions: IndexedResult[]
-  detachments: IndexedResult[]
+  detachments: IndexedDetachment[]
   datasheets: IndexedDatasheet[]
   missions: IndexedResult[]
   rules: IndexedResult[]
 }
 
 import { distance } from 'fastest-levenshtein'
-import { matchDatasheet } from './datasheetSearch'
+import { matchDatasheet, matchSearchText } from './datasheetSearch'
 
 export function searchReference(query: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
@@ -52,7 +55,7 @@ function catalogueResults(wanted: string, index: GlobalSearchIndex | null): Glob
   if (!index) return []
   const results: GlobalSearchResult[] = [
     ...index.factions.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
-    ...index.detachments.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
+    ...detachmentResults(wanted, index.detachments),
   ]
   const datasheets = new Map<string, { primary: RankedResult[]; allied?: RankedResult }>()
   for (const entry of index.datasheets) {
@@ -68,6 +71,27 @@ function catalogueResults(wanted: string, index: GlobalSearchIndex | null): Glob
   const direct = datasheetResults(datasheets)
   results.push(...(direct.length ? direct : fuzzyDatasheetResults(index.datasheets, wanted)))
   return results
+}
+
+function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalSearchResult[] {
+  return entries
+    .flatMap((entry) => {
+      const titleScore = matchSearchText(query, entry.search)
+      if (titleScore !== null) return [{ result: entry.result, score: titleScore }]
+      const matches = (entry.cards ?? [])
+        .flatMap((card) => {
+          const nameScore = matchSearchText(query, card.name)
+          const effectScore = card.description ? matchSearchText(query, `${card.name} ${card.description}`) : null
+          const score = nameScore ?? (effectScore === null ? null : 100 + effectScore)
+          return score === null ? [] : [{ score, reason: { kind: card.kind, value: card.name } }]
+        })
+        .toSorted((left, right) => left.score - right.score)
+      return matches.length
+        ? [{ result: { ...entry.result, matchReasons: matches.slice(0, 3).map(({ reason }) => reason) }, score: 10 + matches[0]!.score }]
+        : []
+    })
+    .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
+    .map(({ result }) => result)
 }
 
 type RankedResult = { result: GlobalSearchResult; score: number }

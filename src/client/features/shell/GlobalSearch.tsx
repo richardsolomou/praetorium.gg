@@ -1,18 +1,17 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { ChevronRight, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { CommandDialog } from '@/components/ui/command'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../functions'
 import { globalSearchQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'
-import { globalSearchGroups, matchingPages, SEARCH_RESULT_BATCH_SIZE } from './globalSearchPages'
+import { globalSearchGroups, matchingPages, SEARCH_DEBOUNCE_MS } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
-import { SearchResultDetail } from './SearchResultDetail'
+import { SearchResults } from './SearchResults'
 
 type GlobalSearchContextValue = {
   open: () => void
@@ -25,12 +24,16 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [visibleCount, setVisibleCount] = useState(SEARCH_RESULT_BATCH_SIZE)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const listId = useId()
   const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
   const trimmed = query.trim()
-  const settled = useSettled(trimmed, 75)
+  const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
   const { data = [], isFetching, isPending, isError } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
-  const results = [...matchingPages(trimmed), ...data]
+  const results =
+    trimmed.length >= 2
+      ? globalSearchGroups.flatMap((group) => [...matchingPages(settled), ...data].filter((result) => result.group === group))
+      : []
   const resultCount = results.length
   const reportedQuery = useRef<string | null>(null)
   const changeOpen = useCallback(
@@ -48,6 +51,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
           failed: isError,
         })
         setQuery('')
+        setSelectedIndex(0)
       }
       setOpen(next)
     },
@@ -97,50 +101,48 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
         description="Search pages, factions, datasheets and their rules, detachments, missions, rosters and battles."
         className="top-1/2 max-w-xl -translate-y-1/2 rounded-none!"
       >
-        <Command shouldFilter={false}>
-          <CommandInput
+        <div className="flex flex-col bg-popover p-1">
+          <input
+            className="h-9 w-full border border-edge bg-sunken px-3 text-base outline-none md:text-sm focus-visible:border-info"
+            role="combobox"
+            aria-label="Search Praetorium"
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={results.length ? `${listId}-${Math.min(selectedIndex, results.length - 1)}` : undefined}
             value={query}
-            onValueChange={(value) => {
-              setQuery(value)
-              setVisibleCount(SEARCH_RESULT_BATCH_SIZE)
+            maxLength={80}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setSelectedIndex(0)
+            }}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || !results.length) return
+              const current = Math.min(selectedIndex, results.length - 1)
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault()
+                setSelectedIndex((current + (event.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length)
+              } else if (event.key === 'Enter') {
+                event.preventDefault()
+                void go(results[current]!)
+              } else if ((event.key === 'Home' || event.key === 'End') && event.ctrlKey) {
+                event.preventDefault()
+                setSelectedIndex(event.key === 'Home' ? 0 : results.length - 1)
+              }
             }}
             placeholder="Search everything…"
           />
-          <CommandList className="h-[min(60vh,30rem)] max-h-none">
-            {trimmed.length >= 2 && isFetching ? <output className="sr-only">Searching</output> : null}
-            {trimmed.length >= 2 && trimmed === settled && !isFetching ? <CommandEmpty>No results found.</CommandEmpty> : null}
-            {globalSearchGroups.map((group) => {
-              const items = results.filter((result) => result.group === group)
-              if (!items.length) return null
-              return (
-                <CommandGroup
-                  key={group}
-                  heading={group === 'Datasheets' && items.every((result) => result.fuzzy) ? 'Close matches' : group}
-                >
-                  {items.slice(0, visibleCount).map((result) => (
-                    <CommandItem
-                      key={result.id}
-                      value={`${result.label} ${result.detail}`}
-                      onSelect={() => void go(result)}
-                      className="border-l-2 border-transparent data-[selected=true]:border-parchment data-[selected=true]:bg-parchment/15 data-[selected=true]:text-bone data-[selected=true]:[&_.result-detail]:text-dim"
-                    >
-                      <ChevronRight className="size-4 opacity-0 group-data-[selected=true]/command-item:opacity-100" aria-hidden />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold uppercase">{result.label}</span>
-                        <SearchResultDetail result={result} />
-                        <DatasheetMatchReasons query={trimmed} reasons={result.matchReasons} />
-                      </span>
-                    </CommandItem>
-                  ))}
-                  {items.length > visibleCount ? (
-                    <CommandItem value={`more:${group}`} onSelect={() => setVisibleCount((count) => count + SEARCH_RESULT_BATCH_SIZE)}>
-                      Show more {group.toLowerCase()}
-                    </CommandItem>
-                  ) : null}
-                </CommandGroup>
-              )
-            })}
-          </CommandList>
+          {trimmed.length >= 2 && isFetching ? <output className="sr-only">Searching</output> : null}
+          {trimmed.length >= 2 && trimmed === settled && !isFetching && !results.length ? (
+            <p className="py-6 text-center text-sm">{isError ? 'Search unavailable. Try again.' : 'No results found.'}</p>
+          ) : null}
+          <SearchResults
+            results={results}
+            query={settled}
+            listId={listId}
+            selectedIndex={Math.min(selectedIndex, results.length - 1)}
+            onSelect={(result) => void go(result)}
+          />
           <div className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-3xs text-dim" aria-hidden>
             <span>
               <Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate
@@ -152,7 +154,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
               <Kbd>esc</Kbd> close
             </span>
           </div>
-        </Command>
+        </div>
       </CommandDialog>
     </GlobalSearchContext>
   )

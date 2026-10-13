@@ -25,7 +25,7 @@ export type DatasheetSearchFields = {
 }
 
 export type DatasheetSearchReason = {
-  kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear'
+  kind: 'keyword' | 'ability' | 'weapon' | 'weapon keyword' | 'wargear' | 'detachment rule' | 'enhancement' | 'upgrade' | 'stratagem'
   value: string
 }
 
@@ -161,6 +161,13 @@ function reasonCombination(
     if (found) return found
   }
   return null
+}
+
+export function matchSearchText(query: string, value: string): number | null {
+  const wanted = [...new Set(wordsIn(query))]
+  if (!wanted.length) return null
+  const match = fieldMatch(wanted, value)
+  return match?.complete ? match.quality : null
 }
 
 function fieldMatch(wanted: readonly string[], value: string) {

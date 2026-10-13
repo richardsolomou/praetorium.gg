@@ -1,7 +1,7 @@
 import type { GlobalSearchResult } from '../../functions'
 import { PRODUCT_GUIDES } from '../../../contracts/productGuides'
 
-export const SEARCH_RESULT_BATCH_SIZE = 50
+export const SEARCH_DEBOUNCE_MS = 250
 
 export const globalSearchGroups: GlobalSearchResult['group'][] = [
   'Pages',

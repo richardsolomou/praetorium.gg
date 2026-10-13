@@ -1,22 +1,18 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { globalSearchQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { useState } from 'react'
-import { globalSearchGroups, matchingPages, SEARCH_RESULT_BATCH_SIZE } from './globalSearchPages'
-import { SearchResultDetail } from './SearchResultDetail'
+import { matchingPages, SEARCH_DEBOUNCE_MS } from './globalSearchPages'
+import { SearchResults } from './SearchResults'
 
 export function SearchPage({ query }: { query: string }) {
   const navigate = useNavigate()
-  const [visibleCount, setVisibleCount] = useState(SEARCH_RESULT_BATCH_SIZE)
   const trimmed = query.trim()
-  const settled = useSettled(trimmed, 75)
+  const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
   const {
     data = [],
     isPending,
@@ -27,7 +23,7 @@ export function SearchPage({ query }: { query: string }) {
     ...globalSearchQuery(settled),
     placeholderData: keepPreviousData,
   })
-  const results = [...matchingPages(trimmed), ...data]
+  const results = [...matchingPages(settled), ...data]
   const searchable = trimmed.length >= 2
   const searching = trimmed !== settled || isFetching
 
@@ -40,7 +36,6 @@ export function SearchPage({ query }: { query: string }) {
             type="search"
             value={query}
             onChange={(event) => {
-              setVisibleCount(SEARCH_RESULT_BATCH_SIZE)
               void navigate({ to: '/search', search: { q: event.target.value }, replace: true, resetScroll: false })
             }}
             aria-label="Search Praetorium"
@@ -63,38 +58,7 @@ export function SearchPage({ query }: { query: string }) {
           ) : (isPending || searching) && !results.length ? (
             <PageState headingLevel={2} loading title="Searching" explanation="Finding matching results." />
           ) : results.length ? (
-            globalSearchGroups.map((group) => {
-              const items = results.filter((result) => result.group === group)
-              if (!items.length) return null
-              return (
-                <section key={group} className="mb-5">
-                  <h2 className="rubric border-b border-edge pb-2">
-                    {group === 'Datasheets' && items.every((item) => item.fuzzy) ? 'Close matches' : group}
-                  </h2>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {items.slice(0, visibleCount).map((result) => (
-                      <Link
-                        key={result.id}
-                        to={result.href}
-                        className="flex min-w-0 items-center justify-between gap-2 border border-edge bg-panel px-3 py-3 hover:border-info"
-                      >
-                        <span className="min-w-0">
-                          <span className="block text-sm font-bold uppercase">{result.label}</span>
-                          <SearchResultDetail result={result} />
-                          <DatasheetMatchReasons query={settled} reasons={result.matchReasons} />
-                        </span>
-                        <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
-                      </Link>
-                    ))}
-                  </div>
-                  {items.length > visibleCount ? (
-                    <Button variant="outline" className="mt-2" onClick={() => setVisibleCount((count) => count + SEARCH_RESULT_BATCH_SIZE)}>
-                      Show more {group.toLowerCase()}
-                    </Button>
-                  ) : null}
-                </section>
-              )
-            })
+            <SearchResults results={results} query={settled} />
           ) : (
             <PageState headingLevel={2} title="No results found" explanation="Try another name or search term." />
           )}
