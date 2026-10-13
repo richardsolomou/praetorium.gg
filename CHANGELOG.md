@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.3
+
+### Patch Changes
+
+- 7854363: Restore stratagem text and counts on detachment references when battle timing is unsupported.
+
 ## 0.141.2
 
 ### Patch Changes
