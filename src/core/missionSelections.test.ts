@@ -429,6 +429,11 @@ describe('source-backed mission selections', () => {
     expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBe('The previous turn is still to be settled.')
   })
 
+  it('offers no nominations while the previous turn is still to be settled', () => {
+    const battle = state([ALICE, condemn], ...turns(6, ALICE), ...turns(6, BOB))
+    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices).toEqual([])
+  })
+
   it('keeps secret handoff ahead of nomination footer guidance', () => {
     const battle = state([ALICE, condemn], [ALICE, { kind: 'select-secret', secondary: beacon }], ...turns(5, ALICE))
     expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBe(
