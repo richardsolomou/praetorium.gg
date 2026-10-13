@@ -214,6 +214,7 @@ for (const width of [390, 1280]) {
 test('detachment rule names, effect text, and weapon traits explain their matches', async ({ page }) => {
   for (const [query, reason] of [
     ['Against All Odds', 'Against All Odds detachment rule'],
+    ['Defiant To The Last fight on death', 'Defiant To The Last stratagem'],
     ['Lone Operative Stealth', 'Praesidius enhancement'],
     ['one additional time during battle', 'Gilded Champion stratagem'],
   ] as const) {

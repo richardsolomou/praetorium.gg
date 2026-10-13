@@ -336,7 +336,14 @@ describe('global datasheet search', () => {
       dispositions: [],
       rules: [{ name: 'Masterful Tactics', description: 'You gain 1 CP in your Command phase.' }],
       upgrades: [{ name: 'Veteran Training', points: 10, description: null }],
-      enhancements: [{ name: 'Superior Creation', points: 25, description: 'The bearer can Advance and charge.', eligibility: null }],
+      enhancements: [
+        {
+          name: 'Superior Creation',
+          points: 25,
+          description: 'The bearer can declare a charge even if it Advanced this turn.',
+          eligibility: null,
+        },
+      ],
       stratagems: [
         {
           id: 'stratagem',
@@ -345,7 +352,7 @@ describe('global datasheet search', () => {
           type: null,
           phases: [],
           turn: null,
-          description: 'Models can fight on death.',
+          description: 'Each time a model is destroyed, that model can fight before it is removed.',
         },
       ],
     })

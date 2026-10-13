@@ -92,8 +92,8 @@ export function CombatResults({
               Each phase alone starts at the target’s current health. Together, melee attacks what survives shooting.
             </p>
             <div className="space-y-2">
-              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 px-2 text-xs text-dim @max-[20rem]:grid-cols-1">
-                <span className="@max-[20rem]:hidden" />
+              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2 px-2 text-xs text-dim @max-[17rem]:grid-cols-1">
+                <span className="@max-[17rem]:hidden" />
                 <div className="grid grid-cols-3 gap-2">
                   <span>Wounds</span>
                   <span>Models</span>
@@ -111,7 +111,7 @@ export function CombatResults({
                   key={title}
                   aria-label={title === 'Combined' ? 'Combined distributions' : `${title} estimate`}
                   aria-busy={updating && !failed}
-                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border border-edge bg-sunken px-2 py-1 @max-[20rem]:grid-cols-1"
+                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border border-edge bg-sunken px-2 py-1 @max-[17rem]:grid-cols-1"
                 >
                   <h3 className="text-xs font-semibold">
                     <span className="flex items-center gap-1">

@@ -182,7 +182,11 @@ function fieldMatch(wanted: readonly string[], value: string) {
 }
 
 const wordMatches = (wanted: string, candidate: string) =>
-  /^\d+$/.test(wanted) ? candidate === wanted : wanted === 'gain' ? candidate.startsWith(wanted) : candidate.includes(wanted)
+  /^\d+$/.test(wanted)
+    ? candidate === wanted
+    : wanted === 'gain'
+      ? candidate.startsWith(wanted)
+      : candidate.includes(wanted) || (wanted === 'death' && candidate === 'destroyed')
 
 const wordsIn = (value: string) => normalize(value).split(' ').filter(Boolean)
 
@@ -194,4 +198,6 @@ const normalize = (value: string) =>
     .toLocaleLowerCase()
     .replaceAll(/\b(\d+)\s*(?:cp|command points?)\b/g, '$1 cp')
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
+    .replaceAll(/\badvance\s+and\s+charge\b/g, 'advance charge')
+    .replaceAll(/\bfight(?:s|ing)?\s+on\s+death\b/g, 'fight death')
     .trim()
