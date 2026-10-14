@@ -67,7 +67,7 @@ Setup is one page in rules order under `StepRail`, a jump index highlighting the
 
 A manually tracked battle replaces each side's mission cards, stratagems and CP gain with primary, secondary and CP steps, and states its limits beside the battle facts. The Battle note field sits above the battle events in both modes.
 
-Keep recorded mission choices compact beneath the mission name. Show a guard or consecration beside its objective once, mark a removed operation marker with its round, and retain round, expiry, casualty and manual-tracking information.
+A mission choice opens by itself once when its moment arrives and offers Skip; it stays recordable from a button on its card while its moment lasts. Keep recorded mission choices compact beneath the mission name. Show a guard or consecration beside its objective once, mark a removed operation marker with its round, and retain round, expiry, casualty and manual-tracking information.
 
 Required prompts open one at a time. Minimize preserves local answers and exposes a persistent return control; battle-changing controls remain in place but disabled until parked dialogs are resumed or closed. Undo must preserve answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 

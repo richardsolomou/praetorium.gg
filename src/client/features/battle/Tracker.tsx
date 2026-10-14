@@ -31,7 +31,7 @@ import { armyRulesRequest } from './sideRules'
 import { type Side, type SideMission, sides } from '../../sides'
 import { battleSizeText, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
-import type { BattleView } from '../../../core/battleView'
+import type { BattleView, MissionChoiceView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, roundReminderMoment, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
 import { setNativeWatchBattle, useNativeWatchBattleAvailability } from '../../nativeBridge'
 import { watchBattle } from './watchBattle'
@@ -110,6 +110,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const [dismissalsReady, setDismissalsReady] = useState(false)
   const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
   const [promptMinimized, setPromptMinimized] = useState(false)
+  const [skippedChoices, setSkippedChoices] = useState<ReadonlySet<string>>(new Set())
   const minimizedDialogs = useRef<string[]>([])
   const registerMinimized = useCallback((id: string, minimized: boolean) => {
     const current = minimizedDialogs.current
@@ -401,7 +402,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     active.remainingSecondaries.length > 0
   const needsDrawAcknowledgement =
     active?.secondaryMode === 'tactical' && view.phase === 'command' && active.secondariesToReview.length > 0 && !view.drawAcknowledged
-  const missionChoice = view.missionChoices?.find((choice) => !isManualSelection(choice.kind))
+  const choiceKey = (choice: MissionChoiceView) => JSON.stringify([choice.playerId, choice.cardKey, choice.occurrence, choice.kind])
+  // Offered once as its moment arrives; a skipped choice stays on its card until the moment passes.
+  const missionChoice = view.missionChoices?.find(
+    (choice) => !isManualSelection(choice.kind) && choice.canChoose && !skippedChoices.has(choiceKey(choice)),
+  )
   const missedMoments = view.missedMoments ?? []
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
@@ -428,13 +433,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         ? 'Draw the active side’s secondary missions first.'
         : needsDrawAcknowledgement
           ? 'Review the active side’s new secondary missions first.'
-          : missionChoice
-            ? missionChoice.canChoose
-              ? 'Record the mission choices first.'
-              : 'Waiting for the opposing side’s mission choice.'
-            : activeNeedsReferences && deckUnknown
-              ? 'Loading the active side’s mission cards…'
-              : null
+          : activeNeedsReferences && deckUnknown
+            ? 'Loading the active side’s mission cards…'
+            : null
   const advanceBlocked = Boolean(blockReason)
   const advanceNow = () => {
     if (promptMinimized || advanceBlocked || !active) return
@@ -860,15 +861,15 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {!reminderPrompt && !prompt && missionChoice?.canChoose ? (
+        {!reminderPrompt && !prompt && missionChoice ? (
           <MissionSelectionDialog
-            key={`${missionChoice.playerId}:${missionChoice.cardKey}:${missionChoice.occurrence}`}
+            key={choiceKey(missionChoice)}
             view={view}
             choice={missionChoice}
-            deployment={deployment}
             pending={pending}
             send={send}
             reference={referenceFor(missionChoice.cardKey)}
+            onClose={() => setSkippedChoices((current) => new Set(current).add(choiceKey(missionChoice)))}
           />
         ) : null}
 

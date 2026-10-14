@@ -1,5 +1,5 @@
 import { attachedUnits, attachedUnitList } from './attachedUnits'
-import type { BattleState, Command, Phase, PlayerState, Secondary } from './battle'
+import type { BattleState, Command, PlayerState, Secondary } from './battle'
 import { playsSide, refuse, sameSide } from './battlePrimitives'
 
 export const MISSION_SELECTION_KINDS = [
@@ -11,10 +11,8 @@ export const MISSION_SELECTION_KINDS = [
   'sensor-sweep',
   'consecrate',
 ] as const
-export function missionSelectionRequiredMessage(phase: Phase) {
-  return `Record the mission choices before ending the ${phase === 'end' ? 'turn' : 'command phase'}. If the choice controls are missing, reconnect and refresh Praetorium.`
-}
 export type MissionSelectionKind = (typeof MISSION_SELECTION_KINDS)[number]
+/** Choices that stay open across a turn or more, so the board offers them without asking. */
 export const isManualSelection = (kind: MissionSelectionKind) => kind === 'beacon' || kind === 'sensor-sweep'
 export type MissionUnitRef = { playerId: string; unitKey: string; rosterSeq: number }
 export type MissionObjectiveRef = { key: string; name: string }
@@ -104,26 +102,18 @@ export function missionSelectionPrompts(state: BattleState, player: PlayerState,
   }
 }
 
-export function missionSelectionsDue(state: BattleState, player: PlayerState): MissionSelectionPrompt[] {
+/** Choices a side can record now. Each is optional table tracking, so none holds up the turn. */
+export function openMissionSelections(state: BattleState, player: PlayerState): MissionSelectionPrompt[] {
   if (state.pendingSettlement) return []
   const cards = [...(player.primaryCard ? [player.primaryCard] : []), ...player.secondaries]
-  return cards.flatMap((card) =>
-    missionSelectionPrompts(state, player, card).filter(
-      (prompt) => !isManualSelection(prompt.kind) && !player.missionSelections.some((saved) => sameOccurrence(saved, prompt)),
-    ),
-  )
+  return cards.flatMap((card) => missionSelectionPrompts(state, player, card).filter((prompt) => selectionOpen(state, player, prompt)))
 }
 
-export function manualMissionSelections(state: BattleState, player: PlayerState): MissionSelectionPrompt[] {
-  const cards = [...(player.primaryCard ? [player.primaryCard] : []), ...player.secondaries]
-  return cards.flatMap((card) => missionSelectionPrompts(state, player, card).filter((prompt) => isManualSelection(prompt.kind)))
-}
-
-/** Whether a manual choice can still be recorded, so the board offers only usable controls. */
-export function manualSelectionOpen(state: BattleState, player: PlayerState, prompt: MissionSelectionPrompt) {
+function selectionOpen(state: BattleState, player: PlayerState, prompt: MissionSelectionPrompt) {
   const previous = player.missionSelections.find((saved) => sameOccurrence(saved, prompt))
   if (prompt.kind === 'beacon') return !previous?.beaconDestroyed
-  return !previous && remainingOperationMarkers(state).length > 1
+  if (prompt.kind === 'sensor-sweep') return !previous && remainingOperationMarkers(state).length > 1
+  return !previous
 }
 
 export function operationMarkers(state: BattleState): OperationMarker[] {

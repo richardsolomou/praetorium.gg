@@ -21,14 +21,7 @@ import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import { type Passenger, type TransportLoad, transportLoad, transportRule } from './transport'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
-import {
-  applyMissionSelection,
-  missionSelectionRefusal,
-  missionSelectionsDue,
-  missionSelectionRequiredMessage,
-  recordBeaconDestruction,
-  type SavedMissionSelection,
-} from './missionSelections'
+import { applyMissionSelection, missionSelectionRefusal, recordBeaconDestruction, type SavedMissionSelection } from './missionSelections'
 
 /** The phases of a battle round, in the order 11th edition plays them. */
 export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
@@ -1476,7 +1469,6 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         return refuse('draw-unreviewed', 'review the new secondary missions before ending the command phase')
       }
       if (state.advanceRequested) return refuse('advance-requested', 'the phase is already waiting to advance')
-      if (missionSelectionsOwed(state)) return refuse('mission-selection-timing', missionSelectionRequiredMessage(state.phase))
       return null
     }
     case 'cancel-advance': {
@@ -1503,7 +1495,6 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         return refuse('draw-unreviewed', 'review the new secondary missions before ending the command phase')
       }
       const due = scoringDue(state, player)
-      if (missionSelectionsOwed(state)) return refuse('mission-selection-timing', missionSelectionRequiredMessage(state.phase))
       if (due.length && !state.advanceRequested) return refuse('scoring-unreviewed', 'review mission scoring before ending the phase')
       if (due.length && !state.scoringAcknowledged) return refuse('scoring-unreviewed', 'finish mission scoring before ending the phase')
       const unresolvedTactical =
@@ -2556,11 +2547,6 @@ export function sideDispositionChoices(state: BattleState, side: number): string
 
 function sideRosters(state: BattleState, side: number) {
   return state.players.filter((player) => player.side === side).map((player) => player.roster)
-}
-
-/** Required mission choices any side still owes, including a start-of-battle choice owed by the side not taking the turn. */
-function missionSelectionsOwed(state: BattleState): boolean {
-  return state.players.some((player) => sideCaptain(state, player.side).id === player.id && missionSelectionsDue(state, player).length > 0)
 }
 
 export function sideCaptain(state: BattleState, side: number): PlayerState {

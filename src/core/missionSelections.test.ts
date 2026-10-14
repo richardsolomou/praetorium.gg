@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand } from './battle'
 import { ALICE, BOB, NAMES, PLAYERS, advance, attachedRoster, builtRoster, log, turns } from './battle.fixtures'
-import { missionSelectionsDue, missionUnitCandidates, operationMarkers, savedMissionUnitStatus } from './missionSelections'
+import { openMissionSelections, missionUnitCandidates, operationMarkers, savedMissionUnitStatus } from './missionSelections'
 import { battleView } from './battleView'
 import { appendLocalCommand, localBattleView, visibleBattleLog } from './offlineBattle'
 import { commandSchema } from './commands'
@@ -44,7 +44,7 @@ const state = (...extra: [string, Command][]) => reduceBattle(PLAYERS, history(e
 
 describe('source-backed mission selections', () => {
   it('asks for one start-of-turn nomination when the verified primary is prepared', () => {
-    expect(missionSelectionsDue(state(), state().players[0]!)).toEqual([
+    expect(openMissionSelections(state(), state().players[0]!)).toEqual([
       { cardKey: 'punishment', cardName: 'Punishment', kind: 'punishment', occurrence: 4, chooserSide: 0 },
     ])
   })
@@ -243,12 +243,12 @@ describe('source-backed mission selections', () => {
     if (prep.kind !== 'set-prep' || !prep.primary) throw new Error('expected prepared primary')
     delete prep.primary.selection
     const battle = reduceBattle(PLAYERS, entries)
-    expect(missionSelectionsDue(battle, battle.players[0]!)).toEqual([])
+    expect(openMissionSelections(battle, battle.players[0]!)).toEqual([])
   })
 
-  it('does not block the turn for a manually tracked Beacon', () => {
+  it('offers a held Beacon as an open choice', () => {
     const battle = state([ALICE, { kind: 'draw-secondary', secondary: beacon }], [ALICE, condemn])
-    expect(missionSelectionsDue(battle, battle.players[0]!)).toEqual([])
+    expect(openMissionSelections(battle, battle.players[0]!).map((prompt) => prompt.kind)).toEqual(['beacon'])
   })
 
   it('freezes the selected group name and original membership in the saved flow', () => {
@@ -394,37 +394,21 @@ describe('source-backed mission selections', () => {
     ).toBe('mission-selection-owner')
   })
 
-  it('blocks phase advance after draw review until required choices are recorded', () => {
+  it.each(['request-advance', 'advance'] as const)('lets %s end the phase with choices unrecorded', (kind) => {
     const battle = state([ALICE, { kind: 'draw-secondaries', secondaries: [guard, target] }], [ALICE, { kind: 'acknowledge-draw' }])
-    expect(commandRefusal(battle, ALICE, { kind: 'advance' })?.code).toBe('mission-selection-timing')
+    expect(commandRefusal(battle, ALICE, { kind })).toBeNull()
   })
 
-  it.each(['request-advance', 'advance'] as const)('gives an older %s caller refresh guidance without changing the battle', (kind) => {
+  it('leaves the footer free of unrecorded choices', () => {
     const battle = state([ALICE, { kind: 'draw-secondaries', secondaries: [guard, target] }], [ALICE, { kind: 'acknowledge-draw' }])
-    const original = structuredClone(battle)
-    const refusal = commandRefusal(battle, ALICE, { kind })
-    expect({ refusal, battle }).toEqual({
-      refusal: {
-        code: 'mission-selection-timing',
-        message:
-          'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
-      },
-      battle: original,
-    })
+    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBeNull()
   })
 
-  it('projects refresh guidance through the existing footer field for a visible nomination', () => {
-    const battle = state([ALICE, { kind: 'draw-secondaries', secondaries: [guard, target] }], [ALICE, { kind: 'acknowledge-draw' }])
-    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBe(
-      'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
-    )
-  })
-
-  it('keeps the draw requirement ahead of nomination footer guidance', () => {
+  it('keeps the draw requirement in the footer', () => {
     expect(battleView({ token: 'test' }, NAMES, state(), ALICE).advancePrompt).toBe('The active side has secondary missions to draw.')
   })
 
-  it('keeps previous-turn settlement ahead of nomination footer guidance', () => {
+  it('keeps previous-turn settlement in the footer', () => {
     const battle = state([ALICE, condemn], ...turns(6, ALICE), ...turns(6, BOB))
     expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBe('The previous turn is still to be settled.')
   })
@@ -434,7 +418,7 @@ describe('source-backed mission selections', () => {
     expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices).toEqual([])
   })
 
-  it('keeps secret handoff ahead of nomination footer guidance', () => {
+  it('keeps secret handoff in the footer', () => {
     const battle = state([ALICE, condemn], [ALICE, { kind: 'select-secret', secondary: beacon }], ...turns(5, ALICE))
     expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBe(
       'The active side has a secret mission to reveal or discard.',
@@ -450,7 +434,7 @@ describe('source-backed mission selections', () => {
     expect(battleView({ token: 'test' }, NAMES, reduceBattle(PLAYERS, entries), ALICE).advancePrompt).toBeNull()
   })
 
-  it('projects the existing footer guidance to the opposing target chooser', () => {
+  it('offers the opposing side its target choice without holding up the turn', () => {
     const battle = state(
       [ALICE, { kind: 'draw-secondaries', secondaries: [guard, target] }],
       [ALICE, { kind: 'acknowledge-draw' }],
@@ -462,13 +446,12 @@ describe('source-backed mission selections', () => {
       message: view.advancePrompt,
       canChoose: view.missionChoices?.find((choice) => choice.kind === 'tempting-target')?.canChoose,
     }).toEqual({
-      message:
-        'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
+      message: null,
       canChoose: true,
     })
   })
 
-  it('does not expose a hidden nomination through the footer to the opponent or spectator', () => {
+  it('does not offer a hidden mission’s choice to the opponent or spectator', () => {
     let entries = history()
     const prep = entries[2]!.command
     if (prep.kind !== 'set-prep' || !prep.primary) throw new Error('expected prepared primary')
@@ -482,11 +465,11 @@ describe('source-backed mission selections', () => {
     ] as Command[])
       entries = appendLocalCommand(players, entries, ALICE, command, entries.length)
     const battle = reduceBattle(PLAYERS, entries)
-    expect([ALICE, BOB, 'spectator'].map((viewer) => battleView({ token: 'test' }, NAMES, battle, viewer).advancePrompt)).toEqual([
-      'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
-      null,
-      null,
-    ])
+    expect(
+      [ALICE, BOB, 'spectator'].map((viewer) =>
+        battleView({ token: 'test' }, NAMES, battle, viewer).missionChoices?.some((choice) => choice.cardKey === guard.key),
+      ),
+    ).toEqual([true, false, false])
   })
 
   it('clears nomination work after saving each choice through the offline command flow', () => {
@@ -515,7 +498,7 @@ describe('source-backed mission selections', () => {
 
   it('undoing a saved choice makes that occurrence due again', () => {
     const battle = state([ALICE, condemn], [ALICE, { kind: 'undo', target: 5 }])
-    expect(missionSelectionsDue(battle, battle.players[0]!).map((prompt) => prompt.cardKey)).toEqual(['punishment'])
+    expect(openMissionSelections(battle, battle.players[0]!).map((prompt) => prompt.cardKey)).toEqual(['punishment'])
   })
 
   it('expires condemned units only at the next start of the nominating side’s turn', () => {
@@ -740,23 +723,13 @@ const locateBattle = (...extra: [string, Command][]) =>
 
 describe('Locate and Deny operation markers', () => {
   it('asks the Locate and Deny side for its markers at the start of the battle when the opponent takes the first turn', () => {
-    expect(missionSelectionsDue(locateBattle(), locateBattle().players[0]!)).toEqual([
+    expect(openMissionSelections(locateBattle(), locateBattle().players[0]!)).toEqual([
       { cardKey: locate.key, cardName: locate.name, kind: 'locate-and-deny', occurrence: 5, chooserSide: 0 },
     ])
   })
 
-  it('stops the first turn leaving its Command phase until the markers are placed', () => {
-    expect(commandRefusal(locateBattle(), BOB, { kind: 'advance' })?.code).toBe('mission-selection-timing')
-  })
-
-  it('opens the first turn once the markers are placed', () => {
-    expect(commandRefusal(locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')]), BOB, { kind: 'advance' })).toBeNull()
-  })
-
-  it('shows the footer guidance to the player whose turn is waiting', () => {
-    expect(battleView({ token: 'test' }, NAMES, locateBattle(), BOB).advancePrompt).toBe(
-      'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
-    )
+  it('lets the first turn leave its Command phase before the markers are placed', () => {
+    expect(commandRefusal(locateBattle(), BOB, { kind: 'advance' })).toBeNull()
   })
 
   it('refuses the opposing side placing Locate and Deny markers', () => {
@@ -808,13 +781,13 @@ describe('Locate and Deny operation markers', () => {
     const undone = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')], [ALICE, { kind: 'undo', target: 6 }])
     expect({
       repeated: commandRefusal(placed, ALICE, markers('a', 'b', 'c', 'd', 'e'))?.code,
-      due: missionSelectionsDue(undone, undone.players[0]!).map((prompt) => prompt.kind),
+      due: openMissionSelections(undone, undone.players[0]!).map((prompt) => prompt.kind),
     }).toEqual({ repeated: 'mission-selection-recorded', due: ['locate-and-deny'] })
   })
 
   it('does not ask for markers again after the opening turn', () => {
     const battle = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')], ...turns(6, BOB))
-    expect(missionSelectionsDue(battle, battle.players[0]!)).toEqual([])
+    expect(openMissionSelections(battle, battle.players[0]!)).toEqual([])
   })
 
   it('does not award victory points for placing markers', () => {
@@ -826,12 +799,11 @@ describe('Locate and Deny operation markers', () => {
 describe('Sensor Sweep', () => {
   const swept = (...extra: [string, Command][]) => locateBattle([ALICE, markers('a', 'b', 'c')], ...turns(5, BOB), ...extra)
 
-  it('offers the Extract Relic side a manual sweep at the end of its turn without blocking it', () => {
+  it('offers the Extract Relic side a sweep at the end of its turn', () => {
     const view = battleView({ token: 'test' }, NAMES, swept(), BOB)
-    expect({
-      due: missionSelectionsDue(swept(), swept().players[1]!),
-      offered: view.missionChoices?.map((choice) => [choice.kind, choice.canChoose, choice.markers?.map((marker) => marker.key)]),
-    }).toEqual({ due: [], offered: [['sensor-sweep', true, ['a', 'b', 'c']]] })
+    expect(view.missionChoices?.map((choice) => [choice.kind, choice.canChoose, choice.markers?.map((marker) => marker.key)])).toEqual([
+      ['sensor-sweep', true, ['a', 'b', 'c']],
+    ])
   })
 
   it('removes the chosen opposing marker', () => {
@@ -894,9 +866,9 @@ describe('Sensor Sweep', () => {
     expect(commandRefusal(battle, ALICE, sweep('b', 13, locate.key))?.code).toBe('mission-selection-count')
   })
 
-  it('withdraws the sweep control once only one operation marker remains', () => {
+  it('withdraws the sweep once only one operation marker remains', () => {
     const battle = locateBattle([ALICE, markers('a', 'b')], ...turns(5, BOB), [BOB, sweep('a', 5)], [BOB, advance()], ...turns(5, ALICE))
-    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices?.map((choice) => choice.canChoose)).toEqual([false])
+    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices).toEqual([])
   })
 
   it('undoing a sweep restores the marker', () => {
@@ -956,20 +928,17 @@ describe('Consecrate', () => {
   const atEnd = (...extra: [string, Command][]) => consecrateBattle(...turns(5, ALICE), ...extra)
 
   it('does not ask for consecrations at the start of the turn', () => {
-    expect(missionSelectionsDue(consecrateBattle(), consecrateBattle().players[0]!)).toEqual([])
+    expect(openMissionSelections(consecrateBattle(), consecrateBattle().players[0]!)).toEqual([])
   })
 
   it('asks for consecrations at the end of the own turn', () => {
-    expect(missionSelectionsDue(atEnd(), atEnd().players[0]!)).toEqual([
+    expect(openMissionSelections(atEnd(), atEnd().players[0]!)).toEqual([
       { cardKey: consecrate.key, cardName: consecrate.name, kind: 'consecrate', occurrence: 4, chooserSide: 0 },
     ])
   })
 
-  it.each(['request-advance', 'advance'] as const)('refuses %s out of the turn until consecrations are recorded', (kind) => {
-    expect(commandRefusal(atEnd(), ALICE, { kind })).toEqual({
-      code: 'mission-selection-timing',
-      message: 'Record the mission choices before ending the turn. If the choice controls are missing, reconnect and refresh Praetorium.',
-    })
+  it.each(['request-advance', 'advance'] as const)('lets %s end the turn with consecrations unrecorded', (kind) => {
+    expect(commandRefusal(atEnd(), ALICE, { kind })).toBeNull()
   })
 
   it('permits recording no consecration because it is optional', () => {
@@ -1059,7 +1028,7 @@ describe('Consecrate', () => {
     const undone = atEnd([ALICE, consecration([])], [ALICE, { kind: 'undo', target: 10 }])
     expect({
       repeated: commandRefusal(recorded, ALICE, consecration([]))?.code,
-      due: missionSelectionsDue(undone, undone.players[0]!).map((prompt) => prompt.kind),
+      due: openMissionSelections(undone, undone.players[0]!).map((prompt) => prompt.kind),
     }).toEqual({ repeated: 'mission-selection-recorded', due: ['consecrate'] })
   })
 
