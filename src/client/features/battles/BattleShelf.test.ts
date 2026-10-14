@@ -47,7 +47,7 @@ function render(overrides: Partial<Battle> = {}, loaded = true) {
   ).replaceAll(/<[^>]+>/g, '')
 }
 
-describe('battle card battlefield label', () => {
+describe('battle row battlefield label', () => {
   it('shows the published name for a UUID', () => {
     expect(render()).toContain('1000 pts · Dawn Of War')
   })
@@ -61,7 +61,7 @@ describe('battle card battlefield label', () => {
     ['an unknown deployment', 'missing-deployment', true],
     ['no deployment', null, true],
   ])('omits the battlefield when there is %s', (_, deploymentId, loaded) => {
-    expect(render({ deploymentId }, loaded)).toMatch(/1000 ptsAAlice/)
+    expect(render({ deploymentId }, loaded)).toContain('1000 pts1 Jan 1970')
   })
 
   it('does not repeat the finished status as completed', () => {

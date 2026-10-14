@@ -21,7 +21,7 @@ export type HomeRoster = {
  * summary: the library is where a list is read in full, printed, shared or deleted,
  * and this is only the way back into the one being worked on.
  */
-export function HomeRosters({ rosters, count }: { rosters: readonly HomeRoster[]; count: number }) {
+export function HomeRosters({ rosters, count, changed }: { rosters: readonly HomeRoster[]; count: number; changed: number }) {
   return (
     <section data-home-rosters>
       <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
@@ -58,10 +58,15 @@ export function HomeRosters({ rosters, count }: { rosters: readonly HomeRoster[]
           Build a list from the army data, or import one from another app.
         </p>
       )}
-      <p className="mt-2">
+      <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <Link to="/rosters" className="eyebrow inline-flex items-center gap-1 text-info hover:text-parchment">
           All my rosters <ChevronRight className="size-3.5" />
         </Link>
+        {changed ? (
+          <Link to="/rosters" search={{ updates: 'changed' }} className="text-xs font-semibold text-discarded hover:text-bone">
+            {changed} {changed === 1 ? 'list' : 'lists'} changed by a data update
+          </Link>
+        ) : null}
       </p>
     </section>
   )

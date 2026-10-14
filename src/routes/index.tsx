@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Home } from '../client/features/home/Home'
+import { armySlugs } from '../client/features/home/HomeArmyUpdates'
 import { canonicalLink, siteStructuredData } from '../client/linkPreview'
 import {
+  armyUpdatesQuery,
   battlesQuery,
   factionIndexQuery,
   friendBattlesQuery,
@@ -9,6 +11,7 @@ import {
   homeRostersQuery,
   leaguesQuery,
   meQuery,
+  onboardingQuery,
   publicBattlesQuery,
   standingsQuery,
 } from '../client/queries'
@@ -28,20 +31,31 @@ export const Route = createFileRoute('/')({
     }
     await Promise.all([
       timed('publicBattles', context.queryClient.infiniteQuery({ ...publicBattlesQuery(), staleTime: 'static' })),
-      timed('me', context.queryClient.query({ ...meQuery(), staleTime: 'static' })).then((me) =>
-        Promise.all(
-          me
-            ? [
-                timed('myBattles', context.queryClient.infiniteQuery({ ...battlesQuery(), staleTime: 'static' })),
-                timed('friendBattles', context.queryClient.infiniteQuery({ ...friendBattlesQuery(), staleTime: 'static' })),
-                timed('homeRosters', context.queryClient.query({ ...homeRostersQuery(), staleTime: 'static' })),
-                timed('factionIndex', context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })),
-                timed('leagues', context.queryClient.query({ ...leaguesQuery(), staleTime: 'static' })),
-                timed('friendships', context.queryClient.query({ ...friendshipsQuery(), staleTime: 'static' })),
-              ]
-            : [timed('standings', context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }))],
-        ),
-      ),
+      timed('me', context.queryClient.query({ ...meQuery(), staleTime: 'static' })).then((me): Promise<unknown> => {
+        if (!me) return timed('standings', context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }))
+        const rosters = timed('homeRosters', context.queryClient.query({ ...homeRostersQuery(), staleTime: 'static' }))
+        const factions = timed('factionIndex', context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' }))
+        return Promise.all([
+          timed('myBattles', context.queryClient.infiniteQuery({ ...battlesQuery(), staleTime: 'static' })),
+          timed('friendBattles', context.queryClient.infiniteQuery({ ...friendBattlesQuery(), staleTime: 'static' })),
+          Promise.all([rosters, factions]).then(([home, index]) => {
+            const armies = armySlugs(home.rosters.map(({ roster }) => index?.factions.find((faction) => faction.id === roster.catalogueId)))
+            // A side panel the page reads fine without; the client asks again rather than the page failing.
+            return armies.length
+              ? timed(
+                  'armyUpdates',
+                  context.queryClient.query({ ...armyUpdatesQuery(armies), staleTime: 'static' }).catch(() => null),
+                )
+              : null
+          }),
+          timed('leagues', context.queryClient.query({ ...leaguesQuery(), staleTime: 'static' })),
+          timed('friendships', context.queryClient.query({ ...friendshipsQuery(), staleTime: 'static' })),
+          timed(
+            'onboarding',
+            context.queryClient.query({ ...onboardingQuery(), staleTime: 'static' }).catch(() => null),
+          ),
+        ])
+      }),
     ])
     if (import.meta.env.SSR && performance.now() - startedAt > 1000) {
       console.warn({ event: 'slow_home_loader', duration_ms: Math.round(performance.now() - startedAt), queries_ms: durations })

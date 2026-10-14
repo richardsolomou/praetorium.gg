@@ -4,7 +4,7 @@ Praetorium uses a compact, dark interface. The roster builder is dense; the batt
 
 ## Scope
 
-Praetorium covers catalogue-backed lists, combat comparisons, friend and practice battles tracked with mission guidance or by hand, leagues with sealed rosters and a results table, and a public rules reference drawn from community data. The home page shows relevant games and lists, public activity, and the leaderboard. Players control who may watch their battles.
+Praetorium covers catalogue-backed lists, combat comparisons, friend and practice battles tracked with mission guidance or by hand, leagues with sealed rosters and a results table, and a public rules reference drawn from community data. The home page shows relevant games and lists, the player's record, data updates to their armies, public activity, and the leaderboard. Players control who may watch their battles.
 
 It does not include pairings, brackets, schedules, locations, chat, matchmaking, rules this project wrote itself, or model positions.
 

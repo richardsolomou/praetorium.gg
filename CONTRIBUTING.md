@@ -28,6 +28,6 @@ Browser tests wait for page elements rather than `networkidle` on live battle pa
 
 Use a conventional commit title and the [pull request template](.github/pull_request_template.md). Branches receive a disposable [preview](docs/development/pr-previews.md).
 
-Released application changes need a `pnpm changeset` entry for `praetorium.gg`: `minor` for a new capability, `patch` for a fix, and one imperative sentence describing the player-visible change. Documentation, tests, refactors, and tooling-only changes need no changeset. Merging a changeset to `main` triggers the version update, changelog, tag, and GitHub Release in a release commit on `main`, without a release pull request; [Hosted deployment](docs/deployment.md#delivery) describes it.
+A change players can notice needs a `pnpm changeset` entry for `praetorium.gg`: `minor` for a new capability, `patch` for a fix, and one sentence saying what a player sees, not how it was done. What's new and the update notice show these sentences to players. Changes players cannot notice need no changeset and deploy on merge without one: documentation, tests, refactors, tooling, CI, deployment and images, analytics and error reporting, and server internals such as caching, memory, or query counts. Merging a changeset to `main` triggers the version update, changelog, tag, and GitHub Release in a release commit on `main`, without a release pull request; [Hosted deployment](docs/deployment.md#delivery) describes it.
 
 Report vulnerabilities through [SECURITY.md](SECURITY.md).

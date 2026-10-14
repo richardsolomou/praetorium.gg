@@ -20,7 +20,7 @@ import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { battlesQuery, gameReferencesQuery, leagueBattlesFrom, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { HomeFeed } from '../home/HomeFeed'
+import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
 import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, ViewRosterButton } from './LeagueEntrants'
@@ -283,8 +283,7 @@ export function LeagueEventView({
             <section>
               {eventBattles.length ? (
                 <>
-                  {/* One line a game, as the home page lists games to glance at; the full table is a click away. */}
-                  <HomeFeed title="Battles" battles={eventBattles} />
+                  <BattleShelf title="Battles" battles={eventBattles} />
                   {battleHistory.hasNextPage ? (
                     <Button
                       className="mt-2"

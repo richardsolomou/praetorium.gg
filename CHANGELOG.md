@@ -19,22 +19,13 @@
 
 ### Patch Changes
 
-- 94a93a9: Battle actions read the battle from the database once instead of up to three times.
-- 94a93a9: Battle actions and opponents' moves appear faster: each update now waits for one server round trip instead of two.
-- 94a93a9: Open pages no longer reload all their data every four minutes when the live connection renews, and an open battle no longer reloads whenever a move is made in any other battle.
-- 94a93a9: Spectators' battle pages stop repeatedly asking for a live connection they are not allowed, and keep updating every five seconds instead.
+- 94a93a9: Battle actions and your opponent's moves appear faster.
+- 94a93a9: Open pages no longer reload in the background every few minutes, and an open battle no longer reloads when someone moves in another battle.
+- 94a93a9: Watching someone else's battle keeps it up to date every five seconds.
 
 ## 0.143.5
 
-### Patch Changes
-
-- 00a523f: Fix the ARM web image failing to start because it carried the x86 database driver.
-
 ## 0.143.4
-
-### Patch Changes
-
-- 77660da: Publish the web image for ARM servers as well as x86.
 
 ## 0.143.3
 
@@ -53,7 +44,7 @@
 
 ### Patch Changes
 
-- 2e1bf41: Battle actions keep working after a site update without reloading the page; connected actions no longer turn into a sync conflict that froze the battle.
+- 2e1bf41: Battle actions keep working after a site update without reloading the page, instead of freezing the battle.
 
 ## 0.143.0
 
@@ -116,30 +107,19 @@
 
 ## 0.141.14
 
-### Patch Changes
-
-- 6d00647: Count synced roster creation and deletion in product analytics without repeating events on retries.
-- 287d195: Pages that fail with "Something went wrong" are now reported so the failure can be fixed.
-
 ## 0.141.13
 
 ### Patch Changes
 
-- 0f4ba22: Stop faction pages and the unit picker from pausing for seconds after a release by preparing every army in the background between requests.
+- 0f4ba22: Faction pages and the unit picker no longer pause for seconds after a site update.
 
 ## 0.141.12
 
 ### Patch Changes
 
-- 86dc6f4: Opening a rules version's imported faction pages no longer stalls other pages while its reference data is prepared.
+- 86dc6f4: Opening an older rules version's faction pages no longer slows other pages down.
 
 ## 0.141.11
-
-### Patch Changes
-
-- 0fa2f60: Production deploys point catalogue discovery at the snapshot they serve.
-- 1c0f22f: Catalogue source pins, corrections and compatibility metadata live in `catalogue/`, replacing the separate catalogue repository.
-- 0fa2f60: A pull request that changes `catalogue/` publishes a candidate snapshot and pins it on its branch.
 
 ## 0.141.10
 
@@ -168,23 +148,9 @@
 
 ## 0.141.6
 
-### Patch Changes
-
-- 2449f7a: Catalogue materialization reuses Battlemaster layouts cached for the pinned revision when `CATALOGUE_BATTLEMASTER_CACHE` is set.
-- 2449f7a: `pnpm catalogue:history` compiles the published and new catalogues at the same time.
-
 ## 0.141.5
 
-### Patch Changes
-
-- 30093d7: Share each compiled catalogue runtime on the catalogue mirror under a key naming its inputs, so builds and deployments download it instead of compiling.
-
 ## 0.141.4
-
-### Patch Changes
-
-- 5d8c497: Reuse the compiled catalogue runtime across builds and browser-test stacks from the shared platform cache.
-- 87039bd: Answer readiness as soon as the reference, search and simulator projections load; each faction's construction index is built by its first request instead of at startup.
 
 ## 0.141.3
 
@@ -209,7 +175,7 @@
 
 ### Minor Changes
 
-- b73ddab: Find detachments by rule, enhancement, upgrade, and stratagem names and effects, including common advance-and-charge and fight-on-death phrasing. Search uses a 250 ms debounce and virtualized results so every match stays reachable without Show more.
+- b73ddab: Find detachments by rule, enhancement, upgrade, and stratagem names and effects, including common advance-and-charge and fight-on-death phrasing, with every match reachable by scrolling.
 
   Prevent simulator breakdown values from overflowing on narrow phones.
 
@@ -259,7 +225,6 @@
 
 ### Patch Changes
 
-- fa3ddb5: Record clicks that get no response, so controls that look broken show up in analytics.
 - fa3ddb5: Start new leagues with automatic entry, since the private link already decides who can join.
 - fa3ddb5: Tidy league cards and pages: one status in place of rows of chips, a status card with a step checklist in the side column, and a lighter readiness panel.
 - fa3ddb5: Simplify the league settings dialog to its name, format, points and whether you play, with everything else under More options.
@@ -272,7 +237,7 @@
 
 ### Patch Changes
 
-- 38d2754: Reduce iOS reloads caused by memory pressure when restoring cached reference data, and defer unused battle data during online roster edits.
+- 38d2754: The iPhone app reloads less often when opening saved reference data or editing a roster.
 
 ## 0.137.0
 
@@ -281,10 +246,6 @@
 - 23cea62: Allow league rosters to use preview rules alongside released and archived rules.
 
 ## 0.136.3
-
-### Patch Changes
-
-- 6b8962b: Reduce server memory use and prepare catalogue references before deployment.
 
 ## 0.136.2
 

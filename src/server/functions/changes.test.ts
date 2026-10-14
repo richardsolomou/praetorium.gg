@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import type { CanonicalCatalogue } from '../../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../../core/catalogueHistory'
-import { catalogueChangeLog, referenceChanges } from './changes'
+import { armyUpdates, catalogueChangeLog, referenceChanges } from './changes'
 
 const mocks = vi.hoisted(() => ({ canonicalCatalogueFor: vi.fn(), catalogueHistoryFor: vi.fn() }))
 vi.mock('@tanstack/react-start', () => {
@@ -38,4 +38,30 @@ it.each(['faction', 'reference'] as const)('shows inherited edition history on i
     }) => Promise<unknown>
     expect(await invoke({ data: { faction, kind: 'detachment', slug: 'inherited' } })).toEqual([{ recordedAt: 2, change }])
   }
+})
+
+type ArmyUpdates = (input: {
+  data: { factions: string[] }
+}) => Promise<{ slug: string; recordedAt: number; anchor: string; changes: number }[]>
+type ChangeLog = (input: { data: { faction: string } }) => Promise<{ updates: { anchor: string }[] }>
+
+const later: CatalogueHistoryEntry = {
+  from: 'later',
+  recordedAt: 5,
+  revisions: { [faction]: 'b' },
+  changes: { factions: [{ catalogueId: faction, faction: 'Parent', changes: [change, change] }], omitted: 3 },
+}
+
+it("names an army's newest update as its updates page addresses it, counting what the update left unlisted", async () => {
+  mocks.catalogueHistoryFor.mockResolvedValue([later, ...history])
+  mocks.canonicalCatalogueFor.mockResolvedValue(canonical)
+  const [newest] = await (armyUpdates as unknown as ArmyUpdates)({ data: { factions: [faction] } })
+  const [page] = (await (catalogueChangeLog as unknown as ChangeLog)({ data: { faction } })).updates
+  expect(newest).toEqual({ slug: faction, recordedAt: 5, anchor: page!.anchor, changes: 5 })
+})
+
+it('leaves out an army no update has reached', async () => {
+  mocks.catalogueHistoryFor.mockResolvedValue(history)
+  mocks.canonicalCatalogueFor.mockResolvedValue(canonical)
+  expect(await (armyUpdates as unknown as ArmyUpdates)({ data: { factions: ['another~faction'] } })).toEqual([])
 })

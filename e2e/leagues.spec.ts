@@ -920,7 +920,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
   await owner.goto(leagueUrl.toString())
   await eventLoaded(owner)
-  await expect(owner.locator('[data-home-feed="Battles"]')).toContainText(entrantName)
+  await expect(owner.locator('[data-battle-shelf="Battles"]')).toContainText(entrantName)
 
   await ownerContext.close()
   await entrantContext.close()

@@ -1,16 +1,14 @@
 import { Link } from '@tanstack/react-router'
 import { BookOpen, Calculator, ChevronRight, ListChecks, Map as MapIcon, Shield } from 'lucide-react'
 
-/** The builder, said the way its reader can use it: a visitor keeps a list by signing up, a player already does. */
-const builder = (signedIn: boolean) => ({
-  icon: ListChecks,
-  title: 'Build a roster',
-  text: signedIn ? 'Points and legality checked as you build.' : 'Points and legality as you build. Sign up to save it to your account.',
-  link: '/rosters' as const,
-  action: signedIn ? 'Open the builder' : 'Try the builder',
-})
-
 const TOOLS = [
+  {
+    icon: ListChecks,
+    title: 'Build a roster',
+    text: 'Points and legality as you build. Sign up to save it to your account.',
+    link: '/rosters' as const,
+    action: 'Try the builder',
+  },
   {
     icon: Calculator,
     title: 'Simulate a fight',
@@ -47,15 +45,14 @@ const TOOLS = [
  * Every tool here works without an account, so a visitor is offered something to
  * do rather than only something to sign up for. Rows rather than a grid of
  * matching cards: each is a door, and a door is read by its name. A signed-in
- * player with anything on their home page is not shown this, because every link
- * in it is already in their navigation.
+ * player is not shown this, because every link in it is already in their navigation.
  */
-export function HomeIntro({ title, signedIn = false }: { title: string; signedIn?: boolean }) {
+export function HomeIntro() {
   return (
     <section>
-      <h2 className="text-2xl leading-none sm:text-3xl">{title}</h2>
+      <h2 className="text-2xl leading-none sm:text-3xl">Try it before you sign up</h2>
       <ul className="mt-6 grid border-t border-edge lg:grid-cols-2 lg:gap-x-10">
-        {[builder(signedIn), ...TOOLS].map(({ icon: Icon, title: name, text, link, action }) => (
+        {TOOLS.map(({ icon: Icon, title: name, text, link, action }) => (
           <li key={name} className="min-w-0 border-b border-edge">
             <Link
               to={link}

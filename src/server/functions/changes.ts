@@ -5,6 +5,7 @@ import type { CatalogueChange } from '../../core/catalogueChanges'
 import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { factionHistory, indexedUpdate, referenceHistory, referencePath } from '../catalogueChangeLog'
+import { historyAnchor } from '../catalogueHistory'
 import { rpc } from '../rpc'
 import { parseReleaseNotes } from '../../core/releaseNotes'
 import changelog from '../../../CHANGELOG.md?raw'
@@ -46,6 +47,39 @@ export const referenceChanges = createServerFn({ method: 'GET' })
       const history = (await instance.catalogueHistoryFor()) ?? []
       const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
       return canonical ? referenceHistory(history, canonical, referencePath(data)).slice(0, REFERENCE_CHANGES) : []
+    }),
+  )
+
+/** How many armies the home page asks after, which is at most one per list it shows. */
+export const ARMY_UPDATE_FACTIONS = 5
+
+/**
+ * The newest data update that reached each named faction, with only the count of its changes:
+ * the home page points at the faction's updates page rather than carrying them.
+ */
+export const armyUpdates = createServerFn({ method: 'GET' })
+  .validator(z.object({ factions: z.array(z.string().max(200)).max(ARMY_UPDATE_FACTIONS) }))
+  .handler(({ data }) =>
+    rpc(async () => {
+      const instance = app()
+      const history = (await instance.catalogueHistoryFor()) ?? []
+      if (!history.length) return []
+      const newest = await Promise.all(
+        data.factions.map(async (slug) => {
+          const canonical = await instance.canonicalCatalogueFor(slug)
+          const entry = canonical ? historyPage(factionHistory(history, canonical, slug), 1).entries[0] : undefined
+          if (!entry) return []
+          return [
+            {
+              slug,
+              recordedAt: entry.recordedAt,
+              anchor: historyAnchor(entry),
+              changes: entry.changes.factions.reduce((total, faction) => total + faction.changes.length, entry.changes.omitted),
+            },
+          ]
+        }),
+      )
+      return newest.flat()
     }),
   )
 
