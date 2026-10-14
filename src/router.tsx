@@ -1,6 +1,7 @@
 import { createRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { createQueryClient, errorMessage } from './client/queryClient'
+import { reportRouteError } from './client/routeErrors'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
 
@@ -17,6 +18,7 @@ export function getRouter() {
         <p className="mt-2 text-sm text-dim">{errorMessage(error)}</p>
       </main>
     ),
+    defaultOnCatch: reportRouteError,
   })
   setupRouterSsrQueryIntegration({ router, queryClient })
   return router
