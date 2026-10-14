@@ -13,6 +13,7 @@ import {
   modelCount,
   ordered,
   orderedModelWargear,
+  poolChangeUpdates,
   poolHandlers,
   relativeSpread,
   orderedChoices,
@@ -539,6 +540,26 @@ describe('dividing a group between its options', () => {
 
     expect(update({ blaster: 2, carbine: 1 })).toEqual({ blaster: 1, carbine: 2 })
   })
+
+  describe('applying a press across a squad and a group nested under it', () => {
+    const squad = { ...choice([{ ...option('boltgun', 3, 3), default: true }], 3), key: 'squad' }
+    const special = { ...choice([option('melta', 1, 2)], 2, true), key: 'squad/special' }
+    const updates = (change: [string, Record<string, number>][]) =>
+      Object.fromEntries(poolChangeUpdates(change, [squad, special]).map(([key, update]) => [key, update({ boltgun: 3, melta: 1 })]))
+
+    it('lets the squad take back a body its nested specialist freed beyond the cap it was priced with', () => {
+      expect(
+        updates([
+          ['squad/special', { melta: 0 }],
+          ['squad', { boltgun: 4 }],
+        ]).squad,
+      ).toEqual({ boltgun: 4 })
+    })
+
+    it('keeps the priced cap when nothing nested was freed', () => {
+      expect(updates([['squad', { boltgun: 4 }]]).squad).toBeNull()
+    })
+  })
 })
 
 describe('putting a weapon down on a model card', () => {
@@ -633,6 +654,162 @@ describe('putting a weapon down on a model card', () => {
     expect(handlers.spend(model.rows[1]!)).toEqual([['models', { 'coils-beamer': 1, coils: 0 }]])
     expect(handlers.free(model.rows[2]!)).toEqual([['models', { 'coils-caster': 1, coils: 2 }]])
     expect(handlers.spend(model.rows[0]!)).toEqual([['models', { 'claws-caster': 1, 'coils-caster': 1 }]])
+  })
+})
+
+describe('a weapon that brings its model into the squad', () => {
+  type Counts = Record<string, number>
+  const held = (group: LoadoutChoice) => group.options.reduce((total, entry) => total + entry.count, 0)
+  const armed = (id: string, count: number, max: number, pieces: string[], isDefault = false) => ({
+    ...option(id, count, max),
+    pieces,
+    ...(isDefault ? { default: true } : {}),
+  })
+  const countsOf = (group: LoadoutChoice) => Object.fromEntries(group.options.map((entry) => [entry.id, entry.count]))
+  /** The counts every group holds once a press is saved, which is what the next press reads. */
+  const saved = (choices: readonly LoadoutChoice[], change: ReturnType<ReturnType<typeof poolHandlers>['spend']>) =>
+    choices.map((group) => {
+      const counts: Counts | undefined = change?.find(([key]) => key === group.key)?.[1]
+      return counts
+        ? {
+            ...group,
+            options: group.options.map((entry) => (Object.hasOwn(counts, entry.id) ? { ...entry, count: counts[entry.id]! } : entry)),
+          }
+        : group
+    })
+
+  describe('a scout squad arming the carrier its heavy weapon needs', () => {
+    const squad: LoadoutChoice = {
+      ...choice(
+        [
+          armed('boltgun', 4, 4, ['Boltgun'], true),
+          armed('shotgun', 0, 4, ['Astartes Shotgun']),
+          armed('knife', 0, 4, ['Combat Knife']),
+          armed('heavy', 0, 1, ['Heavy Bolter']),
+          armed('sniper', 0, 1, ['Scout Sniper Rifle']),
+        ],
+        4,
+      ),
+      key: 'scouts',
+    }
+    const heavyWeapon: LoadoutChoice = {
+      ...choice([option('bolter', 0, 1), option('missile', 0, 1)], 1),
+      key: 'scouts/heavy/weapon',
+      carried: true,
+      owner: { id: 'heavy', name: 'Scout w/ Heavy Weapon', profile: null },
+    }
+    const row = (name: string, choiceKey: string, optionId: string) => ({ name, choiceKey, optionId })
+    const model: LoadoutModel = {
+      name: 'Scout Squad',
+      fixed: [],
+      members: squad.options.map((entry) => ({ id: entry.id, choiceKey: 'scouts', baseCount: 0 })),
+      rows: [
+        row('Boltgun', 'scouts', 'boltgun'),
+        row('Astartes Shotgun', 'scouts', 'shotgun'),
+        row('Combat Knife', 'scouts', 'knife'),
+        row('Heavy Bolter', heavyWeapon.key, 'bolter'),
+        row('Missile Launcher', heavyWeapon.key, 'missile'),
+        row('Scout Sniper Rifle', 'scouts', 'sniper'),
+      ],
+    }
+    const weapons = [
+      weapon('Boltgun', 'Ranged Weapons'),
+      weapon('Astartes Shotgun', 'Ranged Weapons'),
+      weapon('Combat Knife', 'Melee Weapons'),
+      weapon('Heavy Bolter', 'Ranged Weapons'),
+      weapon('Missile Launcher', 'Ranged Weapons'),
+      weapon('Scout Sniper Rifle', 'Ranged Weapons'),
+    ]
+    const press = (choices: readonly LoadoutChoice[], name: string, action: 'spend' | 'free') =>
+      saved(choices, poolHandlers(model, choices, weapons)[action](model.rows.find((candidate) => candidate.name === name)!))
+    const armedSquad = ['Combat Knife', 'Combat Knife', 'Scout Sniper Rifle', 'Missile Launcher'].reduce(
+      (choices, name) => press(choices, name, 'spend'),
+      [squad, heavyWeapon],
+    )
+
+    it('saves the carrier in place of a default scout', () => {
+      expect(countsOf(armedSquad[0]!)).toEqual({ boltgun: 0, shotgun: 0, knife: 2, heavy: 1, sniper: 1 })
+    })
+
+    it('takes a later weapon from a squadmate the build still holds', () => {
+      expect(countsOf(press(armedSquad, 'Astartes Shotgun', 'spend')[0]!)).toEqual({
+        boltgun: 0,
+        shotgun: 1,
+        knife: 1,
+        heavy: 1,
+        sniper: 1,
+      })
+    })
+
+    it('sends the carrier away with his weapon and returns a default scout', () => {
+      const putDown = press(armedSquad, 'Missile Launcher', 'free')
+      expect(putDown.map(countsOf)).toEqual([
+        { boltgun: 1, shotgun: 0, knife: 2, heavy: 0, sniper: 1 },
+        { bolter: 0, missile: 0 },
+      ])
+    })
+  })
+
+  describe('a plague marine squad adding specialists filed under its own group', () => {
+    const size = 4
+    const marines: LoadoutChoice = {
+      ...choice(
+        [armed('boltgun', size, size, ['Plague knives', 'Boltgun'], true), armed('spewer', 0, 1, ['Plague spewer', 'Plague knives'])],
+        size,
+      ),
+      key: 'marines',
+    }
+    const special: LoadoutChoice = {
+      ...choice([armed('melta', 0, 2, ['Plague knives', 'Meltagun']), armed('plasma', 0, 2, ['Plasma gun', 'Plague knives'])], 2, true),
+      key: 'marines/special',
+    }
+    const model: LoadoutModel = {
+      name: 'Plague Marine',
+      fixed: [],
+      members: [...marines.options, ...special.options].map((entry) => ({
+        id: entry.id,
+        choiceKey: marines.options.includes(entry) ? 'marines' : 'marines/special',
+        baseCount: 0,
+      })),
+      rows: [
+        { name: 'Boltgun', choiceKey: 'marines', optionId: 'boltgun' },
+        { name: 'Plague spewer', choiceKey: 'marines', optionId: 'spewer' },
+        { name: 'Meltagun', choiceKey: 'marines/special', optionId: 'melta' },
+        { name: 'Plasma gun', choiceKey: 'marines/special', optionId: 'plasma' },
+      ],
+    }
+    // The squad's group offers, and caps its default at, the room its nested specialists leave, as the build reports it.
+    const press = (choices: readonly LoadoutChoice[], name: string, action: 'spend' | 'free') => {
+      const [squad, specialists] = saved(choices, poolHandlers(model, choices, [])[action](model.rows.find((row) => row.name === name)!))
+      const room = size - held(specialists!)
+      return [{ ...squad!, room, options: squad!.options.map((entry) => (entry.default ? { ...entry, max: room } : entry)) }, specialists!]
+    }
+    const sequence = [
+      ['Meltagun', 'spend'],
+      ['Plasma gun', 'spend'],
+      ['Plague spewer', 'spend'],
+      ['Meltagun', 'free'],
+      ['Plasma gun', 'free'],
+    ] as const
+    const steps: LoadoutChoice[][] = [[marines, special]]
+    for (const [name, action] of sequence) steps.push(press(steps.at(-1)!, name, action))
+
+    it.each(sequence.map(([name, action], at) => [`${action} ${name}`, at + 1] as const))('keeps the squad its size after %s', (_, at) => {
+      expect(held(steps[at]![0]!) + held(steps[at]![1]!)).toBe(size)
+    })
+
+    it('takes a default marine for each specialist', () => {
+      expect(countsOf(steps[2]![0]!)).toEqual({ boltgun: 2, spewer: 0 })
+    })
+
+    it('returns the body to the default loadout though its cap only grows once the specialist is gone', () => {
+      const putDown = press(press([marines, special], 'Meltagun', 'spend'), 'Meltagun', 'free')
+      expect(countsOf(putDown[0]!)).toEqual({ boltgun: size, spewer: 0 })
+    })
+
+    it('returns a default marine for each specialist put down', () => {
+      expect(countsOf(steps[5]![0]!)).toEqual({ boltgun: 3, spewer: 1 })
+    })
   })
 })
 
@@ -738,13 +915,13 @@ it.each([
   ).toEqual(
     action === 'restore'
       ? [
-          ['models', { regular: 3 - specialists }],
+          ['models', { regular: 3 - specialists, specialist: specialists + 1 }],
           ['models/specialist/ranged', { cannon: specialists + 1 }],
           ['models/specialist/melee', { blade: specialists + 1 }],
         ]
       : [
           ['models/specialist/ranged', { cannon: specialists - 1 }],
-          ['models', { regular: 5 - specialists }],
+          ['models', { regular: 5 - specialists, specialist: specialists - 1 }],
           ['models/specialist/melee', { blade: specialists - 1 }],
         ],
   )

@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest'
-import { unavailableRosterSelections } from './rosterSelections'
+import { describe, expect, it } from 'vitest'
+import { builtPickSelections, unavailableRosterSelections } from './rosterSelections'
 
 const units = [{ key: 0, choices: [{ key: 'weapons', options: [{ id: 'bolter' }] }], toggles: [{ key: 'warlord' }] }]
 
@@ -50,6 +50,74 @@ it('reports a positive count independently of zero entries in the same spread', 
   expect(unavailableRosterSelections([{ entryId: 'unit', spreads: { removedGroup: { unselected: 0, selected: 1 } } }], units)).toEqual([
     { pickIndex: 0, entryId: 'unit', kind: 'spread', key: 'removedGroup', optionId: 'selected' },
   ])
+})
+
+describe('saved selections rewritten to the built unit', () => {
+  const squad = {
+    key: 'squad',
+    chosen: 'boltgun',
+    room: 4,
+    options: [
+      { id: 'boltgun', count: 3 },
+      { id: 'knife', count: 1 },
+    ],
+  }
+  const arms = {
+    key: 'arms',
+    chosen: 'devourers',
+    room: 1,
+    options: [
+      { id: 'devourers', count: 1 },
+      { id: 'claws', count: 0 },
+    ],
+  }
+  const unit = { choices: [squad, arms] }
+
+  it('returns a pick that already agrees unchanged', () => {
+    const pick = { entryId: 'unit', choices: { arms: 'devourers' }, spreads: { squad: { boltgun: 3, knife: 1 } } }
+    expect(builtPickSelections(pick, unit)).toBe(pick)
+  })
+
+  it('rewrites saved counts the build does not hold to the built counts', () => {
+    expect(builtPickSelections({ entryId: 'unit', spreads: { squad: { boltgun: 4, knife: 1 } } }, unit).spreads).toEqual({
+      squad: { boltgun: 3, knife: 1 },
+    })
+  })
+
+  it('accepts saved counts that name only some of the group’s options', () => {
+    const pick = { entryId: 'unit', spreads: { squad: { knife: 1 } } }
+    expect(builtPickSelections(pick, unit)).toBe(pick)
+  })
+
+  it('keeps counts remembered under an option the build does not offer', () => {
+    const remembered = { 'squad/heavy/weapon': { missile: 1 } }
+    expect(builtPickSelections({ entryId: 'unit', spreads: { ...remembered, squad: { boltgun: 4 } } }, unit).spreads).toMatchObject(
+      remembered,
+    )
+  })
+
+  it('keeps a choice remembered under an option the build does not offer', () => {
+    const pick = { entryId: 'unit', choices: { 'arms/claws/grip': 'left' } }
+    expect(builtPickSelections(pick, unit)).toBe(pick)
+  })
+
+  it('drops a choice that is also saved as counts', () => {
+    expect(
+      builtPickSelections({ entryId: 'unit', choices: { arms: 'claws' }, spreads: { arms: { devourers: 1, claws: 0 } } }, unit).choices,
+    ).toEqual({})
+  })
+
+  it('rewrites a single choice the build replaced to the option it holds', () => {
+    expect(builtPickSelections({ entryId: 'unit', choices: { arms: 'claws' } }, unit).choices).toEqual({ arms: 'devourers' })
+  })
+
+  it('removes a single choice the build let go of', () => {
+    expect(builtPickSelections({ entryId: 'unit', choices: { arms: 'claws' } }, { choices: [{ ...arms, chosen: '' }] }).choices).toEqual({})
+  })
+
+  it('leaves the counts alone when only a choice disagrees', () => {
+    expect(builtPickSelections({ entryId: 'unit', choices: { arms: 'claws' } }, unit)).not.toHaveProperty('spreads')
+  })
 })
 
 const wargear = {

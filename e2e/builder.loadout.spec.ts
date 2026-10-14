@@ -668,6 +668,57 @@ test('a squad can take the heavy weapon its datasheet offers', async ({ page }) 
   await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
 })
 
+test('a plague marine squad still puts a weapon down after taking a special weapon', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await add(page, 'Plague Marines')
+  const card = page.locator('[data-unit="Plague Marines"]')
+  await card.getByRole('button', { name: /^Plague Marines/ }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const marines = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
+  const press = (name: string) => waitForRosterSave(page, () => marines.getByRole('button', { name, exact: true }).click())
+  const count = (name: string) => marines.getByLabel(`${name} count`, { exact: true })
+  for (const name of ['More Bubotic weapons', 'More Bubotic weapons', 'More Heavy plague weapon', 'More Plague spewer']) await press(name)
+  await expect(count('Boltgun')).toHaveText('0')
+
+  // The meltagun marine takes a bubotic marine's place, and that is what the squad saves.
+  await press('More Meltagun')
+  await expect(count('Bubotic weapons')).toHaveText('1')
+  await expect(marines.getByLabel('Plague Marine models', { exact: true })).toHaveText('4')
+
+  await page.reload()
+  await card.getByRole('button', { name: /^Plague Marines/ }).click()
+  await press('Fewer Bubotic weapons')
+  await expect(count('Bubotic weapons')).toHaveText('0')
+  await expect(count('Boltgun')).toHaveText('1')
+  await expect(count('Meltagun')).toHaveText('1')
+})
+
+test('a squad with chosen loadouts is priced at the size it shrinks to', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await add(page, 'Plague Marines')
+  const card = page.locator('[data-unit="Plague Marines"]')
+  await card.getByRole('button', { name: /^Plague Marines/ }).click()
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const marines = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
+  const total = page.locator('[data-stat="points"]')
+  await expect(total).toHaveText(/^\d+\/2000$/)
+  const fivePoints = await total.innerText()
+
+  for (let model = 5; model < 10; model++)
+    await waitForRosterSave(page, () => page.getByRole('button', { name: 'More models in Plague Marines' }).click())
+  await expect(marines.getByLabel('Plague Marine models', { exact: true })).toHaveText('9')
+  await waitForRosterSave(page, () => marines.getByRole('button', { name: 'More Plague spewer', exact: true }).click())
+  for (let model = 10; model > 5; model--)
+    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Fewer models in Plague Marines' }).click())
+
+  await expect(marines.getByLabel('Plague Marine models', { exact: true })).toHaveText('4')
+  await expect(marines.getByLabel('Plague spewer count', { exact: true })).toHaveText('1')
+  await expect(total).toHaveText(fivePoints)
+})
+
 test('a composite heavy weapon keeps the model armed and can be put back', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)

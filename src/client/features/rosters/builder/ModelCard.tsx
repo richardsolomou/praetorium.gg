@@ -13,7 +13,7 @@ import {
   orderedModelWargear,
   type PoolChange,
   poolHandlers,
-  relativeSpread,
+  poolChangeUpdates,
   replacementChoice,
   sameWeapon,
   showLoadoutEntry,
@@ -74,13 +74,7 @@ export function ModelCard({
   const count = modelCount(model, choices)
   const { spend, free } = poolHandlers(model, choices, weapons)
   const press = (changes: PoolChange | null) =>
-    changes
-      ? () =>
-          changes.forEach(([key, counts]) => {
-            const choice = choices.find((candidate) => candidate.key === key)
-            if (choice) onSpread(key, relativeSpread(choice, counts))
-          })
-      : undefined
+    changes ? () => poolChangeUpdates(changes, choices).forEach(([key, update]) => onSpread(key, update)) : undefined
 
   /**
    * How many of this card there are, where the card is one option of a group.
