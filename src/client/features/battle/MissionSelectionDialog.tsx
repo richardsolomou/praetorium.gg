@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import type { MissionObjectiveRef, MissionSelection } from '../../../core/missionSelections'
-import { KOTC_MATCHUP_ID, type Deployment } from '../../../contracts/terrain'
+import { KOTC_MATCHUP_ID } from '../../../contracts/terrain'
 import { isKotcLimit, type Command } from '../../../core/battle'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
-import { terrainMatchupIds, terrainReferencesQuery } from '../../queries'
+import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../../queries'
+import { deploymentFor } from '../../battleSummary'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { deploymentObjectiveMarkers, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
@@ -21,19 +22,20 @@ import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoL
 export function MissionSelectionDialog({
   view,
   choice,
-  deployment,
   pending,
   send,
   reference,
   onClose,
+  onRecorded,
 }: {
   view: BattleView
   choice: MissionChoiceView
-  deployment: Deployment | null
   pending: boolean
   send: (command: Command) => void
   reference?: ReferenceCard
-  onClose?: () => void
+  onClose: () => void
+  /** For a choice that stays open once recorded, such as a Beacon that can be moved. */
+  onRecorded?: () => void
 }) {
   const manualId = useId()
   const noteId = useId()
@@ -44,8 +46,8 @@ export function MissionSelectionDialog({
   )
   const [openedAt] = useState(latest?.seq ?? 0)
   useEffect(() => {
-    if (latest && latest.seq > openedAt) onClose?.()
-  }, [latest, openedAt, onClose])
+    if (latest && latest.seq > openedAt) onRecorded?.()
+  }, [latest, openedAt, onRecorded])
   const [selected, setSelected] = useState<string[]>([])
   const [fallback, setFallback] = useState(false)
   const [qualified, setQualified] = useState(false)
@@ -72,6 +74,7 @@ export function MissionSelectionDialog({
   const query = terrainReferencesQuery(matchups)
   const terrain = useQuery({ ...query, enabled: Boolean(view.settings.terrainLayoutId) && query.enabled })
   const layout = battlefieldLayout(view.settings.terrainLayoutId, terrain.data?.layouts)
+  const deployment = deploymentFor(view.deploymentId, useQuery(deploymentsQuery()).data)
   const objectives: MissionObjectiveRef[] =
     !deployment || (view.settings.terrainLayoutId && !layout)
       ? []
@@ -157,18 +160,16 @@ export function MissionSelectionDialog({
         open
         minimizedLabel={choice.cardName}
         onOpenChange={(open) => {
-          if (!open) onClose?.()
+          if (!open) onClose()
         }}
       >
-        <BattleDialogContent showCloseButton={Boolean(onClose)} minimizeDisabled={pending}>
+        <BattleDialogContent minimizeDisabled={pending}>
           <DialogHeader>
             <DialogTitle>{choice.cardName} · choices</DialogTitle>
             <DialogDescription>
-              {choice.kind === 'beacon'
-                ? 'Manual tracking. Check the card’s timing and eligibility at the table. This records a choice without awarding points.'
-                : choice.kind === 'sensor-sweep'
-                  ? 'Record a completed Sensor Sweep. This removes the chosen operation marker without awarding points.'
-                  : 'Record the choice at the table. Scoring still needs your confirmation.'}
+              {choice.kind === 'sensor-sweep'
+                ? 'Optional. Removes the chosen operation marker; scoring still asks you separately.'
+                : 'Optional. Keeps the choice on the card for reference; scoring still asks you separately.'}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -221,7 +222,7 @@ export function MissionSelectionDialog({
                         key={unit.value}
                         variant={selected.includes(unit.value) ? 'default' : 'outline'}
                         aria-pressed={selected.includes(unit.value)}
-                        className="h-auto justify-start whitespace-normal"
+                        className="h-auto min-h-10 justify-start py-2 whitespace-normal"
                         disabled={pending || (!selected.includes(unit.value) && selected.length >= (fallback ? 1 : 3))}
                         onClick={() => {
                           setQualified(false)
@@ -271,27 +272,32 @@ export function MissionSelectionDialog({
                 {choice.kind === 'tempting-target' ? (
                   <>
                     {objectives.length ? (
-                      <SearchableSelect
-                        ariaLabel="Tempting target objective"
-                        groups={[
-                          { label: 'Objectives', items: objectives.map((candidate) => ({ value: candidate.key, label: candidate.name })) },
-                        ]}
-                        value={objective}
-                        onValueChange={(key) => {
-                          setObjective(key)
-                          setNotHome(false)
-                          setNoMansLand(false)
-                        }}
-                        placeholder="Choose an objective"
-                        disabled={pending}
-                      />
+                      <fieldset aria-label="Tempting target objective" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {objectives.map((candidate) => (
+                          <Button
+                            key={candidate.key}
+                            variant={objective === candidate.key ? 'default' : 'outline'}
+                            aria-pressed={objective === candidate.key}
+                            disabled={pending}
+                            onClick={() => {
+                              setObjective(candidate.key)
+                              setNotHome(false)
+                              setNoMansLand(false)
+                            }}
+                          >
+                            {candidate.name}
+                          </Button>
+                        ))}
+                      </fieldset>
                     ) : null}
-                    <FactSwitch label="This is not a home objective" checked={notHome} disabled={pending} onChange={setNotHome} />
                     <FactSwitch
-                      label="This objective is within No Man’s Land"
-                      checked={noMansLand}
-                      disabled={pending}
-                      onChange={setNoMansLand}
+                      label="It is in No Man’s Land and not a home objective"
+                      checked={notHome && noMansLand}
+                      disabled={pending || !pickedObjective}
+                      onChange={(next) => {
+                        setNotHome(next)
+                        setNoMansLand(next)
+                      }}
                     />
                   </>
                 ) : (
@@ -324,7 +330,7 @@ export function MissionSelectionDialog({
                     {[...objectives, ...manualObjectives]
                       .filter((candidate) => !consecrated.has(candidate.key))
                       .map((candidate) => (
-                        <div key={candidate.key} className="space-y-1">
+                        <div key={candidate.key} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-center gap-3">
                           <p className="eyebrow">{candidate.name}</p>
                           {chooseUnit(
                             guards[candidate.key] ?? '',
@@ -345,16 +351,13 @@ export function MissionSelectionDialog({
                     {choice.kind === 'consecrate' && Object.values(guards).some(Boolean) ? (
                       <>
                         <FactSwitch
-                          label="Each chosen unit destroyed a unit since it last consecrated and is within range of its objective"
-                          checked={qualified}
+                          label="Each unit destroyed a unit since it last consecrated, is within range of its objective, and none of these is my home objective"
+                          checked={qualified && notHome}
                           disabled={pending}
-                          onChange={setQualified}
-                        />
-                        <FactSwitch
-                          label="None of these objectives is my home objective"
-                          checked={notHome}
-                          disabled={pending}
-                          onChange={setNotHome}
+                          onChange={(next) => {
+                            setQualified(next)
+                            setNotHome(next)
+                          }}
                         />
                       </>
                     ) : null}
@@ -477,6 +480,9 @@ export function MissionSelectionDialog({
           </DialogBody>
           <DialogFooter>
             <UndoLatestButton disabled={pending || view.undoable === null} onClick={undo.request} />
+            <Button variant="outline" disabled={pending} onClick={onClose}>
+              Skip
+            </Button>
             <Button
               disabled={pending || !selection}
               onClick={() => {

@@ -266,8 +266,12 @@ test('a failed unit-limit check can be retried without losing the roster', async
   await page.getByLabel('Add a unit').fill('Overlord')
   await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeDisabled()
   await page.unroute('**/_serverFn/**')
-  await page.getByRole('button', { name: 'Retry', exact: true }).click()
-  await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
+  // The search above queues its own price check, which can land first and clear the failure.
+  const retry = page.getByRole('button', { name: 'Retry', exact: true })
+  await expect(async () => {
+    if (await retry.isVisible()) await retry.click({ timeout: 1_000 })
+    await expect(page.locator('[data-unit="Immortals"]')).toBeVisible({ timeout: 1_000 })
+  }).toPass()
   await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
 })
 

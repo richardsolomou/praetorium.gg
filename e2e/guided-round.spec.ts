@@ -37,10 +37,11 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   if ((await side.getByRole('button', { name: 'Read A Tempting Target', exact: true, includeHidden: true }).count()) > 0) {
     await expect(target).toBeVisible()
     test.info().annotations.push({ type: 'Replacement nomination', description: 'Opponent chose the centre objective at the table.' })
-    await target.getByRole('combobox', { name: 'Tempting target objective', exact: true }).click()
-    await opponent.getByRole('option', { name: 'Centre objective', exact: true }).click()
-    await target.getByRole('switch', { name: 'This is not a home objective', exact: true }).click()
-    await target.getByRole('switch', { name: 'This objective is within No Man’s Land', exact: true }).click()
+    await target
+      .getByRole('group', { name: 'Tempting target objective', exact: true })
+      .getByRole('button', { name: 'Centre objective', exact: true })
+      .click()
+    await target.getByRole('switch', { name: 'It is in No Man’s Land and not a home objective', exact: true }).click()
     await target.getByRole('button', { name: 'Record choice', exact: true }).click()
     await expect(target).toBeHidden()
   } else if ((await side.getByRole('button', { name: 'Read Burden Of Trust', exact: true, includeHidden: true }).count()) > 0) {

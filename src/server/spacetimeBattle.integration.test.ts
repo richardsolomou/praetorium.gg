@@ -36,15 +36,6 @@ it.skipIf(!url || !database || !token)('serializes mission nominations and resto
       expect((await send(by, (await operator.battleForOperator(battleId)).log.length, command)).result).toMatchObject({
         outcome: 'appended',
       })
-    for (const kind of ['request-advance', 'advance'] as const) {
-      expect((await send(creatorId, 4, { kind })).result).toEqual({
-        outcome: 'refused',
-        code: 'mission-selection-timing',
-        reason:
-          'Record the mission choices before ending the command phase. If the choice controls are missing, reconnect and refresh Praetorium.',
-      })
-      expect((await operator.battleForOperator(battleId)).log).toHaveLength(4)
-    }
     const nomination: Command = {
       kind: 'select-mission',
       cardKey: 'punishment',

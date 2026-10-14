@@ -34,11 +34,7 @@ import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
 import {
   consecratedObjectives,
-  isManualSelection,
-  manualMissionSelections,
-  manualSelectionOpen,
-  missionSelectionRequiredMessage,
-  missionSelectionsDue,
+  openMissionSelections,
   missionUnitCandidates,
   remainingOperationMarkers,
   savedMissionUnitStatus,
@@ -255,14 +251,12 @@ export function battleView(
       : state.players
           .filter((player) => sideCaptain(state, player.side).id === player.id)
           .flatMap((player) =>
-            [...missionSelectionsDue(state, player), ...manualMissionSelections(state, player)]
+            openMissionSelections(state, player)
               .filter((prompt) => mayNameCard(state, viewerId, player, prompt.cardKey))
               .map((prompt) => ({
                 ...prompt,
                 playerId: player.id,
-                canChoose:
-                  playsSide(state, viewerId, prompt.chooserSide) &&
-                  (!isManualSelection(prompt.kind) || manualSelectionOpen(state, player, prompt)),
+                canChoose: playsSide(state, viewerId, prompt.chooserSide),
                 units: missionUnitCandidates(
                   state,
                   prompt.kind === 'punishment'
@@ -428,14 +422,6 @@ function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
   if (owed === 'settlement') return 'The previous turn is still to be settled.'
   if (owed === 'cards') return 'The active side has secondary missions to draw.'
   if (owed === 'secret') return 'The active side has a secret mission to reveal or discard.'
-  if (
-    state.players.some(
-      (captain) =>
-        sideCaptain(state, captain.side).id === captain.id &&
-        missionSelectionsDue(state, captain).some((choice) => mayNameCard(state, viewerId, captain, choice.cardKey)),
-    )
-  )
-    return missionSelectionRequiredMessage(state.phase)
   if (state.phase !== 'end') return null
   const unscored = player.secondaries.filter(
     (secondary) =>
