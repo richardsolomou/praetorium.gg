@@ -1,12 +1,14 @@
 export type ReleaseNote = { version: string; changes: string[] }
 
-/** The newest app releases in a Changesets changelog, each change without its commit prefix. */
+/**
+ * The newest app releases in a Changesets changelog that have any entries, each change
+ * without its commit prefix.
+ */
 export function parseReleaseNotes(changelog: string, limit: number): ReleaseNote[] {
   const releases: ReleaseNote[] = []
   for (const line of changelog.split('\n')) {
     const heading = /^## (\d+\.\d+\.\d+)\s*$/.exec(line)
     if (heading) {
-      if (releases.length === limit) break
       releases.push({ version: heading[1]!, changes: [] })
       continue
     }
@@ -17,5 +19,5 @@ export function parseReleaseNotes(changelog: string, limit: number): ReleaseNote
       changes[changes.length - 1] = `${changes.at(-1)} ${line.trim()}`
     }
   }
-  return releases
+  return releases.filter((release) => release.changes.length).slice(0, limit)
 }

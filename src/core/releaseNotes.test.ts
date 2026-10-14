@@ -34,3 +34,8 @@ it('reads each release with its changes, without commit prefixes', () => {
 it('stops at the requested number of releases', () => {
   expect(parseReleaseNotes(changelog, 1).map((release) => release.version)).toEqual(['0.133.1'])
 })
+
+it('skips a release with no changes for players', () => {
+  const quiet = changelog.replace('## 0.133.0', '## 0.133.2\n\n### Patch Changes\n\n## 0.133.0')
+  expect(parseReleaseNotes(quiet, 2).map((release) => release.version)).toEqual(['0.133.1', '0.133.0'])
+})
