@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.142.0
+
+### Minor Changes
+
+- 7e2de05: Set battle alerts for your detachment rules from the new Detachment rules row on any unit's datasheet in the roster builder.
+
 ## 0.141.20
 
 ### Patch Changes
