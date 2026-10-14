@@ -207,6 +207,11 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     padding-bottom: 0;
   }
 
+  /* Battle prompts are non-modal here, so nothing else stops a swipe on one scrolling the page behind it. */
+  html:has([data-battle-dialog-content]) {
+    overflow: hidden;
+  }
+
   html:not([data-native-app='true']) [data-web-app-chrome] {
     display: none;
   }
