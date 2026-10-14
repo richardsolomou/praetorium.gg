@@ -1,11 +1,14 @@
-import { expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { bookOf } from '../../src/server/catalogue.fixtures'
 import type { SpacetimeOperator } from '../../src/server/spacetimeOperator'
+import type { LoadedRules } from '../../src/shared/rules'
 import {
   fetchProductionRosters,
   boundedResponseText,
   compareRosterAudits,
   importedRosterId,
   importProductionRosters,
+  normaliseProductionRosters,
   productionRosterSnapshotSchema,
   rosterAuditBaselineSchema,
   type ProductionRosterSnapshot,
@@ -285,4 +288,77 @@ it('uses an atomic insert so an edit racing the import cannot be overwritten', a
   const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({ outcome: 'conflict', message: 'concurrent edit' }))
   const imported = await importProductionRosters(snapshot, 'local-account', { roster: async () => undefined, syncRoster })
   expect([imported, syncRoster.mock.calls[0]![0].expectedVersion]).toEqual([0, null])
+})
+
+describe('normalising saved loadouts', () => {
+  const model = (id: string, max: number) => ({
+    id,
+    name: id,
+    type: 'model' as const,
+    constraints: [{ id: `${id}-max`, type: 'max' as const, value: max, field: 'selections', scope: 'parent' }],
+  })
+  const loaded = bookOf({
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            ...model('sergeant', 1),
+            constraints: [
+              { id: 'sergeant-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              ...model('sergeant', 1).constraints,
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'troopers',
+            name: 'Troopers',
+            defaultSelectionEntryId: 'rifle',
+            constraints: [
+              { id: 'troopers-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'troopers-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [model('rifle', 4), model('gunner', 1)],
+          },
+        ],
+      },
+    ],
+  })
+  const rules = {
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map(),
+    factionRestrictions: new Map(),
+  } as Partial<LoadedRules> as LoadedRules
+  const normalised = (spreads: Record<string, Record<string, number>>, choices?: Record<string, string>) =>
+    normaliseProductionRosters(
+      {
+        ...snapshot,
+        rosters: [{ ...roster, catalogueId: 'cat', detachmentIds: [], picks: [{ entryId: 'squad', models: 5, spreads, choices }] }],
+      },
+      () => loaded,
+      () => rules,
+    )[0]!
+
+  it('rewrites a squad saved one body over to the counts it is built with', () => {
+    expect(normalised({ troopers: { rifle: 4, gunner: 1 } }).write?.picks[0]?.spreads).toEqual({ troopers: { rifle: 3, gunner: 1 } })
+  })
+
+  it('leaves a squad whose saved counts are what it is built with', () => {
+    expect(normalised({ troopers: { rifle: 3, gunner: 1 } }).status).toBe('unchanged')
+  })
+
+  it('names each rewritten group the way the loadout pane does', () => {
+    expect(normalised({ troopers: { rifle: 4, gunner: 1 } }).units[0]?.changes[0]?.summary).toBe(
+      'Troopers: rifle ×4, gunner ×1 → rifle ×3, gunner ×1',
+    )
+  })
+
+  it('keeps counts remembered under a group the build does not offer', () => {
+    const remembered = { 'composition/two/troopers': { rifle: 2 } }
+    expect(normalised({ ...remembered, troopers: { rifle: 4, gunner: 1 } }).write?.picks[0]?.spreads).toMatchObject(remembered)
+  })
 })

@@ -19,11 +19,64 @@ function emptied(spreads: Record<string, Record<string, number>> | undefined, ke
   return entries.length === Object.keys(spreads).length ? spreads : Object.fromEntries(entries)
 }
 
+/**
+ * A group saved as one chosen option or as counts, never both: spreads apply after
+ * choices, so a stale spread silently overruled the option just chosen.
+ */
+function without<T>(entries: Record<string, T> | undefined, key: string) {
+  if (!entries || !Object.hasOwn(entries, key)) return entries
+  const { [key]: _removed, ...rest } = entries
+  return rest
+}
+
 /** Only what an edit needs to read back off the priced list. */
 type SizedUnit = {
   size: { models: number; min: number; max: number; options?: number[] }
   toggles: { key: string; name: string }[]
-  choices: { key: string; name?: string; options: { id: string; name?: string; count: number }[] }[]
+  choices: {
+    key: string
+    name?: string
+    optional?: boolean
+    options: { id: string; name?: string; count: number; min?: number; default?: boolean }[]
+  }[]
+  models?: { members: { choiceKey: string | null }[] }[]
+}
+
+/**
+ * Saved model counts moved with the squad's size, so they still describe every body.
+ *
+ * Counts start from what the unit was built with, which is what the player saw. A
+ * squad grows into its default loadout and shrinks out of it first, then out of the
+ * largest remaining loadout and finally out of specialists filed under it. Groups the
+ * pick never saved are left to the build.
+ */
+function resizedSpreads(unit: SizedUnit, saved: Record<string, Record<string, number>>, change: number) {
+  const bodies = unit.choices.filter((choice) =>
+    unit.models?.some((model) => model.members.some((member) => member.choiceKey === choice.key)),
+  )
+  const squad = bodies.find((choice) => !choice.optional && saved[choice.key])
+  if (!squad || !change) return saved
+  const counts = (choice: SizedUnit['choices'][number]) => Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
+  const next = { ...saved, [squad.key]: counts(squad) }
+  const ordered = (choice: SizedUnit['choices'][number]) =>
+    choice.options
+      .map((option) => ({ ...option, count: next[choice.key]?.[option.id] ?? option.count }))
+      .toSorted((one, other) => Number(Boolean(other.default)) - Number(Boolean(one.default)) || other.count - one.count)
+  if (change > 0) {
+    const receiver = ordered(squad)[0]
+    if (receiver) next[squad.key] = { ...next[squad.key], [receiver.id]: receiver.count + change }
+    return next
+  }
+  let removing = -change
+  for (const group of [squad, ...bodies.filter((choice) => choice.optional && choice.key.startsWith(`${squad.key}/`))]) {
+    for (const option of ordered(group)) {
+      const taken = Math.min(removing, Math.max(0, option.count - (option.min ?? 0)))
+      if (!taken) continue
+      next[group.key] = { ...(next[group.key] ?? counts(group)), [option.id]: option.count - taken }
+      removing -= taken
+    }
+  }
+  return next
 }
 
 export function canAddCopy(entryId: string, held: number, limits: ReadonlyMap<string, number | null>) {
@@ -182,9 +235,13 @@ export function pickEditor(
           : []
         const inside = (key: string) => compositions.some((choice) => key === choice.key || key.startsWith(`${choice.key}/`))
         const equipment = unit?.choices.filter((choice) => inside(choice.key) && !compositions.includes(choice)) ?? []
+        const sized = unit ? Math.min(Math.max(models, unit.size.min), unit.size.max) : models
         return {
           ...pick,
-          models: unit ? Math.min(Math.max(models, unit.size.min), unit.size.max) : models,
+          models: sized,
+          ...(unit && pick.spreads && !compositions.length
+            ? { spreads: resizedSpreads(unit, pick.spreads, sized - unit.size.models) }
+            : {}),
           ...(compositions.length
             ? {
                 choices: Object.fromEntries(Object.entries(pick.choices ?? {}).filter(([key]) => !inside(key))),
@@ -205,7 +262,7 @@ export function pickEditor(
         const choices = { ...pick.choices }
         if (optionId) choices[key] = optionId
         else delete choices[key]
-        return { ...pick, choices, spreads: optionId ? pick.spreads : emptied(pick.spreads, key) }
+        return { ...pick, choices, spreads: optionId ? without(pick.spreads, key) : emptied(pick.spreads, key) }
       }),
 
     /** How many of each option a group holds, leaving the unit's other groups alone. */
@@ -219,6 +276,7 @@ export function pickEditor(
         return {
           ...pick,
           models: pick.models ?? unit?.size.models,
+          choices: without(pick.choices, key),
           spreads: { ...pick.spreads, [key]: { ...current, ...counts } },
         }
       }),

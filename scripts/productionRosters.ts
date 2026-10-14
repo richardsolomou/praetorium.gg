@@ -8,13 +8,14 @@ import { loadRules } from '../src/server/rules'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, previewAccountId } from './seedPreview'
 import { inspectLocalDevPreview, localControlPort, readLocalDevPreview } from './localDevPreview'
-import { fetchProductionRostersOverSsh } from './lib/productionRosterSsh'
+import { fetchProductionRostersOverSsh, type RosterWriteOutcome, writeNormalisedRostersOverSsh } from './lib/productionRosterSsh'
 import {
   auditProductionRosters,
   compareRosterAudits,
   fetchProductionRosters,
   importProductionRosters,
   MAX_ROSTER_SNAPSHOT_BYTES,
+  normaliseProductionRosters,
   productionRosterSnapshotSchema,
   rosterAuditBaselineSchema,
 } from './lib/productionRosters'
@@ -42,19 +43,33 @@ async function readSnapshot(file: string) {
   return productionRosterSnapshotSchema.parse(JSON.parse(await readFile(file, 'utf8')))
 }
 
+const required = (name: string) => {
+  const value = process.env[name]
+  if (!value) throw new Error(`Missing ${name}`)
+  return value
+}
+
+function loadEditions(directory: string) {
+  const base = loadCatalogue(directory)
+  if (!base) throw new Error(`Catalogue unavailable: ${directory}`)
+  const rules = loadRules(directory, undefined, undefined, undefined, base.datacards)
+  return catalogueEditionLoaders(
+    directory,
+    () => base,
+    () => rules,
+  )
+}
+
 export async function productionRostersMain(args: string[]) {
-  const [command, snapshotFile = defaultSnapshot, catalogueDir, baselineFile] = args
-  if (!['fetch', 'import', 'audit'].includes(command ?? '') || args.length > (command === 'audit' ? 4 : 2)) {
+  const apply = args[0] === 'normalise' && args.at(-1) === '--apply'
+  const [command, snapshotFile = defaultSnapshot, catalogueDir, baselineFile] = apply ? args.slice(0, -1) : args
+  const maximum = command === 'audit' ? 4 : command === 'normalise' ? 2 + Number(apply) : 2
+  if (!['fetch', 'import', 'audit', 'normalise'].includes(command ?? '') || args.length > maximum) {
     throw new Error(
-      'Usage: productionRosters.ts fetch|import [snapshot.json] | audit [snapshot.json] [catalogue-directory] [baseline-report.json]',
+      'Usage: productionRosters.ts fetch|import [snapshot.json] | audit [snapshot.json] [catalogue-directory] [baseline-report.json] | normalise [snapshot.json] [--apply]',
     )
   }
   if (command === 'fetch') {
-    const required = (name: string) => {
-      const value = process.env[name]
-      if (!value) throw new Error(`Missing ${name}`)
-      return value
-    }
     const snapshot = process.env.PRODUCTION_SSH_HOST
       ? await fetchProductionRostersOverSsh(required('PRODUCTION_SSH_HOST'), required('PRODUCTION_WEB_SERVICE'))
       : await fetchProductionRosters({
@@ -87,18 +102,10 @@ export async function productionRostersMain(args: string[]) {
     )
     return
   }
-  const audit = (directory: string) => {
-    const base = loadCatalogue(directory)
-    if (!base) throw new Error(`Catalogue unavailable: ${directory}`)
-    const rules = loadRules(directory, undefined, undefined, undefined, base.datacards)
-    const editions = catalogueEditionLoaders(
-      directory,
-      () => base,
-      () => rules,
-    )
-    return auditProductionRosters(snapshot, editions.catalogueFor, editions.rulesFor)
-  }
-  const results = audit(path.resolve(catalogueDir ?? preview?.catalogueDir ?? process.env.CATALOGUE_DIR ?? 'catalogue-data'))
+  const directory = path.resolve(catalogueDir ?? preview?.catalogueDir ?? process.env.CATALOGUE_DIR ?? 'catalogue-data')
+  const editions = loadEditions(directory)
+  if (command === 'normalise') return normalise(snapshot, snapshotFile, directory, editions, apply)
+  const results = auditProductionRosters(snapshot, editions.catalogueFor, editions.rulesFor)
   if (baselineFile && (await stat(baselineFile)).size > MAX_ROSTER_SNAPSHOT_BYTES) throw new Error('Baseline report exceeds 64 MiB')
   const baseline = baselineFile ? rosterAuditBaselineSchema.parse(JSON.parse(await readFile(baselineFile, 'utf8'))) : undefined
   if (baseline && (baseline.fetchedAt !== snapshot.fetchedAt || JSON.stringify(baseline.source) !== JSON.stringify(snapshot.source)))
@@ -119,6 +126,56 @@ export async function productionRostersMain(args: string[]) {
   )
   if (baseline) console.log(`${regressions} rosters regressed against the baseline report`)
   if (regressions) process.exitCode = 1
+}
+
+async function normalise(
+  snapshot: z.infer<typeof productionRosterSnapshotSchema>,
+  snapshotFile: string,
+  directory: string,
+  editions: ReturnType<typeof loadEditions>,
+  apply: boolean,
+) {
+  const results = normaliseProductionRosters(snapshot, editions.catalogueFor, editions.rulesFor)
+  for (const result of results) {
+    if (result.status === 'skipped') console.log(`${result.id}: skipped, ${result.reason}`)
+    for (const unit of result.units)
+      for (const change of unit.changes) console.log(`${result.id}: ${unit.name} (#${unit.pickIndex}) ${change.summary}`)
+  }
+  const changed = results.filter((result) => result.status === 'changed')
+  const file = `${snapshotFile.replace(/\.json$/, '')}.normalise.json`
+  const report = { fetchedAt: snapshot.fetchedAt, source: snapshot.source, applied: apply, results, writes: [] as RosterWriteOutcome[] }
+  await writePrivateJson(file, report)
+  console.log(
+    `${results.length} rosters checked; ${changed.length} would change, all identical when rebuilt; ${results.filter((result) => result.status === 'skipped').length} skipped. Report: ${file}`,
+  )
+  if (!apply) return
+  const stored = new Map(snapshot.rosters.map((roster) => [roster.id, roster]))
+  const writes = changed.map((result) => {
+    const { catalogueId, detachmentIds, borrowedDetachmentId, picks } = stored.get(result.id)!
+    return {
+      id: result.id,
+      updatedAt: result.updatedAt,
+      expected: { catalogueId, detachmentIds, borrowedDetachmentId, picks },
+      write: result.write,
+    }
+  })
+  const revision = z.record(z.string(), z.string()).parse(JSON.parse(await readFile(path.join(directory, 'revision.json'), 'utf8')))
+  try {
+    await writeNormalisedRostersOverSsh(
+      required('PRODUCTION_SSH_HOST'),
+      required('PRODUCTION_WEB_SERVICE'),
+      revision,
+      writes,
+      (outcome) => {
+        report.writes.push(outcome)
+        console.log(`${outcome.id}: ${outcome.outcome}${outcome.reason ? `, ${outcome.reason}` : ''}`)
+      },
+    )
+  } finally {
+    await writePrivateJson(file, report)
+  }
+  const written = report.writes.filter((outcome) => outcome.outcome === 'written').length
+  console.log(`${written} of ${writes.length} rosters written. Report: ${file}`)
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === (await realpath(process.argv[1])))

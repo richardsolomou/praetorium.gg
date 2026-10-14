@@ -432,8 +432,13 @@ export function changeBy(update: SpreadUpdate | undefined, key: string, onSpread
   return update ? () => onSpread(key, update) : undefined
 }
 
-/** Turn a result drawn from the priced answer into the equivalent live change. */
-export function relativeSpread(choice: LoadoutChoice, wanted: SpreadCounts): SpreadUpdate {
+/**
+ * Turn a result drawn from the priced answer into the equivalent live change.
+ *
+ * `freed` bodies left groups nested under this one in the same press; caps were read
+ * against the smaller room the group had while they stood there, so they grow by it.
+ */
+export function relativeSpread(choice: LoadoutChoice, wanted: SpreadCounts, freed = 0): SpreadUpdate {
   const deltas = Object.fromEntries(
     Object.entries(wanted).map(([id, count]) => [id, count - (choice.options.find((option) => option.id === id)?.count ?? 0)]),
   )
@@ -441,10 +446,27 @@ export function relativeSpread(choice: LoadoutChoice, wanted: SpreadCounts): Spr
     const next = Object.fromEntries(Object.entries(deltas).map(([id, delta]) => [id, (counts[id] ?? 0) + delta]))
     const valid = Object.entries(next).every(([id, count]) => {
       const option = choice.options.find((candidate) => candidate.id === id)
-      return count >= 0 && count <= (option?.max ?? 0)
+      return count >= 0 && count <= (option?.max ?? 0) + freed
     })
     return valid ? next : null
   }
+}
+
+/** A press's group changes as live updates, each group given the room its nested groups freed. */
+export function poolChangeUpdates(change: PoolChange, choices: readonly LoadoutChoice[]): [string, SpreadUpdate][] {
+  const lowered = (key: string, counts: SpreadCounts) => {
+    const choice = choices.find((candidate) => candidate.key === key)
+    return Object.entries(counts).reduce(
+      (total, [id, count]) => total + Math.max(0, (choice?.options.find((option) => option.id === id)?.count ?? 0) - count),
+      0,
+    )
+  }
+  return change.flatMap(([key, counts]) => {
+    const choice = choices.find((candidate) => candidate.key === key)
+    if (!choice) return []
+    const freed = change.reduce((total, [other, held]) => total + (other.startsWith(`${key}/`) ? lowered(other, held) : 0), 0)
+    return [[key, relativeSpread(choice, counts, freed)]]
+  })
 }
 
 /** Whether an option is one of the bodies this card counts, rather than wargear on one. */
@@ -551,7 +573,68 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
         if (sibling) wanted.set(choice.key, { [sibling.id]: sibling.count + delta })
       }
     }
+    withSquadBodies(wanted, from, to)
     return [...wanted]
+  }
+
+  const carrierOf = (choice: LoadoutChoice) => {
+    const member = model.members.find((candidate) => candidate.id === choice.owner?.id && candidate.choiceKey)
+    const group = choices.find((candidate) => candidate.key === member?.choiceKey)
+    const option = group?.options.find((candidate) => candidate.id === member?.id)
+    return group && option ? { group, option } : null
+  }
+  const enclosingSquad = (key: string) =>
+    choices
+      .filter((candidate) => key.startsWith(`${candidate.key}/`) && model.members.some((member) => member.choiceKey === candidate.key))
+      .toSorted((one, other) => other.key.length - one.key.length)[0]
+
+  /**
+   * The squad group's own counts for a weapon that brings or takes a body with it.
+   *
+   * Arming an absent carrier, or adding a specialist filed in a group nested under the
+   * squad, puts a model in the squad that its group never counted; the build makes room
+   * by dropping a default model. Saving only the weapon left the stored squad one body
+   * over, so a later press folded against counts the build no longer showed.
+   */
+  const withSquadBodies = (wanted: Map<string, SpreadCounts>, from: readonly Entry[], to: readonly Entry[]) => {
+    const countIn = (group: LoadoutChoice, option: LoadoutOption) => wanted.get(group.key)?.[option.id] ?? option.count
+    const set = (group: LoadoutChoice, option: LoadoutOption, next: number) =>
+      wanted.set(group.key, { ...wanted.get(group.key), [option.id]: next })
+    const nested = new Map<LoadoutChoice, number>()
+    const pinned = new Set([...from, ...to].map((entry) => entry.option))
+    for (const [entry, delta] of [...from.map((one) => [one, -1] as const), ...to.map((one) => [one, 1] as const)]) {
+      const carrier = carrierOf(entry.choice)
+      if (carrier) {
+        const held = carrier.option.count
+        const taken = entry.choice.options.reduce((total, option) => total + countIn(entry.choice, option), 0)
+        // Each carrier holds one of a group it may not leave empty, so an optional carrier
+        // arrives with its weapon and leaves with it; an optional group only needs one there.
+        const target = entry.choice.optional ? Math.max(held, Math.min(taken, 1)) : carrier.option.min === 0 ? taken : Math.max(held, taken)
+        if (target === held) continue
+        set(carrier.group, carrier.option, target)
+        pinned.add(carrier.option)
+        nested.set(carrier.group, nested.get(carrier.group) ?? 0)
+        continue
+      }
+      const squad = addsModel(model, entry) ? enclosingSquad(entry.choice.key) : undefined
+      if (squad) nested.set(squad, (nested.get(squad) ?? 0) + delta)
+    }
+    for (const [squad, arriving] of nested) {
+      let excess = squad.options.reduce((total, option) => total + countIn(squad, option), 0) - (squad.room - arriving)
+      if (excess < 0 && squad.optional) continue
+      // Caps were read against the room before this change, so they grow with the room a leaving body frees.
+      const adjustable = squad.options
+        .filter((option) => !pinned.has(option))
+        .map((option) => ({ ...option, count: countIn(squad, option), max: option.max - Math.min(0, arriving) }))
+        .filter((option) => (excess > 0 ? option.count > option.min : option.count < option.max))
+        .toSorted(donorPriority)
+      for (const option of adjustable) {
+        if (!excess) break
+        const step = excess > 0 ? Math.min(excess, option.count - option.min) : Math.max(excess, option.count - option.max)
+        set(squad, option, option.count - step)
+        excess -= step
+      }
+    }
   }
   const sameSource = (one: Entry, other: Entry) => one.choice.key === other.choice.key && one.option.id === other.option.id
 

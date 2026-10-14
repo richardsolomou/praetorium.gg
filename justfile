@@ -36,6 +36,10 @@ rosters-import snapshot="data-dev/production-rosters.json":
 rosters-audit *args:
     pnpm exec tsx scripts/productionRosters.ts audit {{ args }}
 
+# Rewrite saved loadouts that disagree with their built units; --apply writes production
+rosters-normalise *args:
+    node --env-file-if-exists=.env.local --import tsx scripts/productionRosters.ts normalise {{ args }}
+
 # The native application against the local development service
 mobile *args:
     EXPO_PUBLIC_APP_URL="${EXPO_PUBLIC_APP_URL:-http://localhost:3000}" pnpm mobile -- {{ args }}

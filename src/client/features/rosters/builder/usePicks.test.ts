@@ -144,6 +144,98 @@ describe('consecutive counter presses', () => {
   })
 })
 
+describe('resizing a squad with saved model counts', () => {
+  type Unit = NonNullable<Parameters<typeof pickEditor>[1]['units'][number]>
+  const member = (choiceKey: string) => ({ choiceKey })
+  const resized = (unit: Unit, spreads: KeyedPick['spreads'], step: (models: number) => number, presses = 1) => {
+    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'cat', models: unit.size.models, spreads }]
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'cat', units: [unit] },
+      () => 1,
+    )
+    for (let press = 0; press < presses; press++) edit.resize(0, step)
+    return picks[0]
+  }
+  const eradicators: Unit = {
+    size: { models: 3, min: 3, max: 6 },
+    toggles: [],
+    choices: [
+      {
+        key: 'eradicators',
+        options: [
+          { id: 'rifle', count: 1, default: true },
+          { id: 'multi', count: 1 },
+        ],
+      },
+    ],
+    models: [{ members: [member('eradicators'), member('eradicators')] }],
+  }
+  const marines: Unit = {
+    size: { models: 10, min: 5, max: 10 },
+    toggles: [],
+    choices: [
+      {
+        key: 'marines',
+        options: [
+          { id: 'bubotic', count: 4 },
+          { id: 'heavy', count: 1 },
+          { id: 'boltgun', count: 2, default: true },
+          { id: 'spewer', count: 1 },
+        ],
+      },
+      { key: 'marines/special', optional: true, options: [{ id: 'melta', count: 1 }] },
+    ],
+    models: [{ members: [member('marines'), member('marines/special')] }],
+  }
+  const saved = (unit: Unit) =>
+    Object.fromEntries(
+      unit.choices.map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
+    )
+
+  it('grows the saved counts into the default loadout', () => {
+    expect(resized(eradicators, saved(eradicators), () => 6)?.spreads?.eradicators).toEqual({ rifle: 4, multi: 1 })
+  })
+
+  it('folds consecutive size presses against the counts the unit was built with', () => {
+    expect(resized(eradicators, saved(eradicators), (models) => models + 1, 3)?.spreads?.eradicators).toEqual({ rifle: 4, multi: 1 })
+  })
+
+  it('rebases saved counts that disagree with the build on what the build shows', () => {
+    expect(resized(eradicators, { eradicators: { rifle: 0, multi: 1 } }, () => 4)?.spreads?.eradicators).toEqual({ rifle: 2, multi: 1 })
+  })
+
+  it('shrinks out of the default loadout before the player’s picks', () => {
+    expect(resized(marines, saved(marines), () => 8)?.spreads?.marines).toEqual({ bubotic: 4, heavy: 1, boltgun: 0, spewer: 1 })
+  })
+
+  it('shrinks the largest remaining loadout once the default is gone', () => {
+    expect(resized(marines, saved(marines), () => 5)?.spreads?.marines).toEqual({ bubotic: 1, heavy: 1, boltgun: 0, spewer: 1 })
+  })
+
+  it('keeps specialists filed under the squad while it can shrink without them', () => {
+    expect(resized(marines, saved(marines), () => 5)?.spreads?.['marines/special']).toEqual({ melta: 1 })
+  })
+
+  it('removes specialists filed under the squad once nothing else is left', () => {
+    const crowded: Unit = {
+      ...marines,
+      size: { models: 3, min: 1, max: 10 },
+      choices: [
+        { key: 'marines', options: [{ id: 'boltgun', count: 1, default: true }] },
+        { key: 'marines/special', optional: true, options: [{ id: 'melta', count: 1 }] },
+      ],
+    }
+    expect(resized(crowded, saved(crowded), () => 1)?.spreads).toEqual({ marines: { boltgun: 0 }, 'marines/special': { melta: 0 } })
+  })
+
+  it('leaves a squad without saved counts to the build', () => {
+    expect(resized(eradicators, undefined, () => 6)?.spreads).toBeUndefined()
+  })
+})
+
 describe('datasheet roster caps', () => {
   const editWithLimit = (limit: number | null, initial: number) => {
     let picks: KeyedPick[] = Array.from({ length: initial }, (_, key) => ({ key, entryId: 'squad', catalogueId: 'imperium' }))
@@ -199,11 +291,32 @@ describe('clearing a choice', () => {
 
     expect(edited(spreads, (edit) => edit.choose(0, group, ''))?.spreads).toEqual({ members: { terminator: 4 } })
   })
+})
 
-  it('keeps the counts when a choice is made rather than cleared', () => {
-    const spreads = { [group]: { launcher: 1 } }
+/** Spreads apply after choices, so a group saved both ways silently ignored the option chosen. */
+describe('answering a group one way', () => {
+  it('drops the group’s counts when an option is chosen', () => {
+    expect(edited({ [group]: { launcher: 2, cannon: 0 } }, (edit) => edit.choose(0, group, 'cannon'))?.spreads).toEqual({})
+  })
 
-    expect(edited(spreads, (edit) => edit.choose(0, group, 'launcher'))?.spreads).toEqual(spreads)
+  it('keeps the selections remembered under the group’s options when an option is chosen', () => {
+    const spreads = { [group]: { launcher: 1 }, [nested]: { krak: 1 } }
+
+    expect(edited(spreads, (edit) => edit.choose(0, group, 'launcher'))?.spreads).toEqual({ [nested]: { krak: 1 } })
+  })
+
+  it('drops the chosen option when the group is counted instead', () => {
+    const { edit, pick } = harness()
+    edit.choose(0, 'weapons', 'blaster')
+    edit.spread(0, 'weapons', () => ({ blaster: 2, carbine: 1 }))
+    expect(pick()?.choices).toEqual({})
+  })
+
+  it('keeps choices for other groups when a group is counted', () => {
+    const { edit, pick } = harness()
+    edit.choose(0, 'banner', 'vexilla')
+    edit.spread(0, 'weapons', () => ({ blaster: 2, carbine: 1 }))
+    expect(pick()?.choices).toEqual({ banner: 'vexilla' })
   })
 })
 

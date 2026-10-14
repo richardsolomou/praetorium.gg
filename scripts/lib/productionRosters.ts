@@ -4,6 +4,8 @@ import { rosterPickSchema } from '../../src/core/commands'
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, pointsBudgetOf } from '../../src/core/battle'
 import { ROSTER_SOURCES } from '../../src/core/savedRoster'
 import { currentRosterIds } from '../../src/core/retiredCatalogueIds'
+import type { RosterPick } from '../../src/core/roster'
+import { builtPickSelections } from '../../src/core/rosterSelections'
 import { detachmentIds } from '../../src/server/rosterPersistence'
 import { calculateRosterPrice, savedRosterPriceInput, unavailablePriceSelections } from '../../src/shared/pricing'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
@@ -310,4 +312,105 @@ export async function importProductionRosters(
     imported++
   }
   return imported
+}
+
+type RosterPrice = NonNullable<ReturnType<typeof calculateRosterPrice>>
+type Selections = Pick<RosterPick, 'choices' | 'spreads'>
+
+/** Everything a player sees of a built roster, so a rewrite that changes any of it is refused. */
+const builtIdentity = (price: RosterPrice) =>
+  JSON.stringify({
+    points: price.points,
+    errors: price.errors,
+    detachmentError: price.detachmentError,
+    units: price.units.map((unit) => ({
+      key: unit.key,
+      models: unit.size.models,
+      points: unit.points,
+      wargear: unit.wargear,
+      groups: unit.choices.map((choice) => [choice.key, choice.options.map((option) => [option.id, option.count])]),
+    })),
+  })
+
+/** Each saved group a rewrite changes, named the way the loadout pane shows it. */
+function selectionChanges(before: Selections, after: Selections, unit: RosterPrice['units'][number] | undefined) {
+  const describe = (key: string, value: string | Record<string, number> | null) => {
+    const options = unit?.choices.find((choice) => choice.key === key)?.options ?? []
+    const name = (id: string) => options.find((option) => option.id === id)?.name ?? id
+    if (value === null) return 'nothing saved'
+    if (typeof value === 'string') return name(value)
+    const held = Object.entries(value).filter(([, count]) => count > 0)
+    return held.length ? held.map(([id, count]) => `${name(id)} ×${count}`).join(', ') : 'none'
+  }
+  const changed = <T extends string | Record<string, number>>(field: 'choices' | 'spreads') =>
+    [...new Set([...Object.keys(before[field] ?? {}), ...Object.keys(after[field] ?? {})])].flatMap((key) => {
+      const was = (before[field] as Record<string, T> | undefined)?.[key] ?? null
+      const now = (after[field] as Record<string, T> | undefined)?.[key] ?? null
+      if (JSON.stringify(was) === JSON.stringify(now)) return []
+      const group = unit?.choices.find((choice) => choice.key === key)?.name ?? key
+      return [{ field, key, group, before: was, after: now, summary: `${group}: ${describe(key, was)} → ${describe(key, now)}` }]
+    })
+  return [...changed<string>('choices'), ...changed<Record<string, number>>('spreads')]
+}
+
+export type NormalisedRoster = ReturnType<typeof normaliseProductionRosters>[number]
+
+/**
+ * Saved loadouts rewritten to what the app builds from them, roster by roster.
+ *
+ * A rewrite is kept only when the rebuilt roster is identical to the one players see
+ * today and normalising it again changes nothing; anything else is reported and left
+ * alone. It is computed on the IDs the app reads, so a roster whose saved IDs have a
+ * reviewed migration is written translated, as any save from the builder would.
+ */
+export function normaliseProductionRosters(
+  snapshot: ProductionRosterSnapshot,
+  catalogueFor: (id: string) => LoadedCatalogue | null,
+  rulesFor: (id: string) => LoadedRules | null,
+) {
+  return snapshot.rosters.map((stored) => {
+    const roster = currentRosterIds(stored)
+    const base = { id: stored.id, updatedAt: stored.updatedAt, migrated: JSON.stringify(roster) !== JSON.stringify(stored) }
+    const skipped = (reason: string, units: ReturnType<typeof unitChanges> = []) => ({
+      ...base,
+      status: 'skipped' as const,
+      reason,
+      units,
+      write: null,
+    })
+    const price = (picks: readonly RosterPick[]) =>
+      calculateRosterPrice(
+        savedRosterPriceInput({ ...roster, picks: [...picks] }),
+        catalogueFor(roster.catalogueId),
+        rulesFor(roster.catalogueId),
+      )
+    const normalise = (picks: readonly RosterPick[], built: RosterPrice) => {
+      const units = new Map(built.units.map((unit) => [unit.key, unit]))
+      return picks.map((pick, index) => {
+        const unit = units.get(index)
+        return unit ? builtPickSelections(pick, unit) : pick
+      })
+    }
+    const unitChanges = (picks: readonly RosterPick[], built: RosterPrice) =>
+      picks.flatMap((pick, pickIndex) => {
+        const unit = built.units.find((candidate) => candidate.key === pickIndex)
+        const changes = selectionChanges(roster.picks[pickIndex]!, pick, unit)
+        return changes.length ? [{ pickIndex, entryId: pick.entryId, name: unit?.name ?? pick.entryId, changes }] : []
+      })
+    const before = price(roster.picks)
+    if (!before) return skipped('catalogue unavailable')
+    const picks = normalise(roster.picks, before)
+    const units = unitChanges(picks, before)
+    if (!units.length) return { ...base, status: 'unchanged' as const, reason: null, units, write: null }
+    const after = price(picks)
+    if (!after || builtIdentity(after) !== builtIdentity(before)) return skipped('the rewrite would change the built roster', units)
+    if (normalise(picks, after).some((pick, index) => pick !== picks[index])) return skipped('a second pass would change it again', units)
+    const write = {
+      catalogueId: roster.catalogueId,
+      detachmentIds: roster.detachmentIds,
+      borrowedDetachmentId: roster.borrowedDetachmentId,
+      picks,
+    }
+    return { ...base, status: 'changed' as const, reason: null, units, write }
+  })
 }
