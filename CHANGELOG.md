@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.143.2
+
+### Patch Changes
+
+- aef5bc2: Units in reserves or embarked can now be set up on the battlefield during a battle from the army roster, so the combat simulator can target them.
+- 7c413f5: Changing two profile defaults or battle sharing choices in quick succession no longer snaps the second one back to its old value.
+
 ## 0.143.1
 
 ### Patch Changes
