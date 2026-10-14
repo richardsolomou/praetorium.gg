@@ -355,11 +355,13 @@ export class SpacetimeOperator {
       operationId?: string
       fingerprint?: string
       recordedAt?: number
+      /** The battle as the caller already read it; the product database still checks the sequence when it appends. */
+      snapshot?: Pick<z.infer<typeof battleSnapshot>, 'seats' | 'log'>
     },
     validateState?: (state: ReturnType<typeof reduceBattle>) => Refusal | null,
     resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
   ): Promise<{ result: SubmitResult; log: LoggedCommand[] }> {
-    const snapshot = await this.battleForOperator(input.battleId)
+    const snapshot = input.snapshot ?? (await this.battleForOperator(input.battleId))
     const fold = (log: LoggedCommand[]) =>
       reduceBattle(
         snapshot.seats.map((seat) => seat.id),

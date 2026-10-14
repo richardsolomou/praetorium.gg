@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { bookOf, points } from '../../server/catalogue.fixtures'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
-import { submit } from './battleFunctions'
+import { openBattle, submit } from './battleFunctions'
 import { ALICE, log, started, turns } from '../../core/battle.fixtures'
 
 const mocks = vi.hoisted(() => ({
@@ -11,12 +11,13 @@ const mocks = vi.hoisted(() => ({
   queue: vi.fn(),
   workspace: vi.fn(),
   submit: vi.fn(),
+  open: vi.fn(),
   changes: vi.fn(),
   saved: vi.fn(),
   remember: vi.fn(),
   sync: vi.fn(),
 }))
-vi.mock('../../server/functions', () => ({ submit: mocks.submit }))
+vi.mock('../../server/functions', () => ({ submit: mocks.submit, openBattle: mocks.open }))
 vi.mock('../../server/functions/offline', () => ({ battleWorkspace: mocks.workspace }))
 vi.mock('./construction', () => ({ localConstruction: mocks.construction }))
 vi.mock('./localRuntime', () => ({
@@ -152,6 +153,34 @@ it('downloads and saves authoritative automatic settlement before showing its sc
   expect({ answer, saved: mocks.remember.mock.calls }).toEqual({ answer: { result, screen }, saved: [[fresh, 'alice']] })
 })
 
+it('saves the history returned with a connected command without downloading it again', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  const fresh = { ...workspace, log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command]), serverSeq: 10 }
+  const screen = { kind: 'battle', view: { seq: 10 } }
+  mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen, workspace: fresh })
+  await submit(input)
+  expect({ downloads: mocks.workspace.mock.calls.length, saved: mocks.remember.mock.calls }).toEqual({
+    downloads: 0,
+    saved: [[fresh, 'alice']],
+  })
+})
+
+it('downloads a saved battle’s history while its screen loads', async () => {
+  prepare(80)
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  let answer = (_screen: unknown) => {}
+  mocks.open.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+  mocks.workspace.mockResolvedValue({ workspace, screen: { kind: 'battle', view: { seq: 0 } } })
+  const opened = openBattle({ data: { token: 'battle' } })
+  await vi.waitFor(() => expect(mocks.open).toHaveBeenCalled())
+  const downloadedFirst = mocks.workspace.mock.calls.length
+  answer({ kind: 'battle', view: { seq: 0 } })
+  await opened
+  expect(downloadedFirst).toBe(1)
+})
+
 it('does not show an automatic server advance when its offline history cannot download', async () => {
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
@@ -275,7 +304,7 @@ it('returns a competing connected defender choice without retaining a durable co
   const answer = await submit(input)
   expect({ answer, writes: mocks.submit.mock.calls, queued: mocks.queue.mock.calls }).toEqual({
     answer: authoritative,
-    writes: [[input]],
+    writes: [[{ data: { ...input.data, workspace: true } }]],
     queued: [],
   })
 })

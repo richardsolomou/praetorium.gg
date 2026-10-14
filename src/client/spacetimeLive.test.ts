@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   effects: [] as (() => void | (() => void))[],
   invalidateQueries: vi.fn(async () => {}),
+  getQueryData: vi.fn(),
   captureException: vi.fn(),
   useQuery: vi.fn(),
   sockets: [] as { connected?: (current: unknown) => void; failed?: (current: unknown, error: unknown) => void; applied?: () => void }[],
@@ -16,7 +17,7 @@ vi.mock('react', () => ({
 }))
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
-  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }),
+  useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, getQueryData: mocks.getQueryData }),
 }))
 vi.mock('posthog-js', () => ({ posthog: { captureException: mocks.captureException } }))
 vi.mock('./queries', () => ({
@@ -144,7 +145,7 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   mocks.sockets[0]!.failed!(null, new Event('error'))
   await vi.advanceTimersByTimeAsync(5_000)
   const socket = mocks.sockets[1]!
-  const signal = { onInsert: vi.fn(), onUpdate: vi.fn(), onDelete: vi.fn() }
+  const signal = { onInsert: vi.fn(), onUpdate: vi.fn(), onDelete: vi.fn(), iter: () => [].values() }
   const subscription = {
     onApplied: (callback: () => void) => {
       socket.applied = callback
@@ -190,4 +191,79 @@ it('captures a sustained guest token outage once', async () => {
       { operation: 'spacetime_realtime' },
     ],
   ])
+})
+
+const product = { mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' } as const
+const issued = (battleId: string | null = null) =>
+  vi.fn(async () => Response.json({ token: 'ticket', database: 'test', uri: 'https://praetorium.gg/spacetime/', battleId }))
+
+/** Connects the latest socket with these signal rows and applies its subscription. */
+function apply(rows: { product?: { scope: string; revision: bigint }[]; battle?: { battleId: string; seq: number }[] } = {}) {
+  const socket = mocks.sockets.at(-1)!
+  const table = (current: unknown[] = []) => ({ onInsert: vi.fn(), onUpdate: vi.fn(), onDelete: vi.fn(), iter: () => current.values() })
+  const subscription = {
+    onApplied: (callback: () => void) => {
+      socket.applied = callback
+      return subscription
+    },
+    onError: () => subscription,
+    subscribe: vi.fn(),
+  }
+  socket.connected!({
+    db: {
+      mySession: table(),
+      myBattleSignals: table(rows.battle),
+      myProductSignals: table(rows.product),
+      myAdminSignals: table(),
+      publicProductSignals: table(),
+    },
+    subscriptionBuilder: () => subscription,
+    reducers: { watchBattle: vi.fn(async () => {}) },
+  })
+  socket.applied!()
+}
+
+it('refreshes only the scopes that changed while a product connection was renewed', async () => {
+  vi.stubGlobal('fetch', issued())
+  useSpacetimeLiveProduct(product, true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply({
+    product: [
+      { scope: 'rosters', revision: 1n },
+      { scope: 'friends', revision: 4n },
+    ],
+  })
+  await vi.advanceTimersByTimeAsync(4 * 60_000)
+  mocks.invalidateQueries.mockClear()
+  apply({
+    product: [
+      { scope: 'rosters', revision: 2n },
+      { scope: 'friends', revision: 4n },
+    ],
+  })
+  const filters = mocks.invalidateQueries.mock.calls as unknown as [{ predicate?: (query: unknown) => boolean }][]
+  const refreshed = new Set(
+    filters.flatMap(([filter]) => ['roster-bootstrap', 'friendships'].filter((key) => filter.predicate?.({ queryKey: [key] }))),
+  )
+  expect([...refreshed]).toEqual(['roster-bootstrap'])
+})
+
+it('does not refetch a battle screen that already holds the sequence a renewed connection reports', async () => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
+  expect(mocks.invalidateQueries.mock.calls).not.toContainEqual([{ queryKey: ['battle', 'battle-token'] }])
+})
+
+it.each([401, 403, 404])('stops asking for a battle ticket the viewer is refused (HTTP %s)', async (status) => {
+  const fetch = vi.fn(async () => new Response(null, { status }))
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(5 * 60_000)
+  expect(fetch).toHaveBeenCalledOnce()
 })

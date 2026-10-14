@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { createBattle, submit } from './battles'
 import { createBattleSchema, submitSchema } from '../../contracts/schemas'
 
-const mocks = vi.hoisted(() => ({ capture: vi.fn(), createBattle: vi.fn(), submit: vi.fn() }))
+const mocks = vi.hoisted(() => ({ capture: vi.fn(), createBattle: vi.fn(), submit: vi.fn(), submitWithWorkspace: vi.fn() }))
 
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
@@ -16,7 +16,9 @@ vi.mock('../app', () => ({
 }))
 
 const invokeCreate = createBattle as unknown as (input: { data: ReturnType<typeof createBattleSchema.parse> }) => Promise<unknown>
-const invokeSubmit = submit as unknown as (input: { data: ReturnType<typeof submitSchema.parse> }) => Promise<unknown>
+const invokeSubmit = submit as unknown as (input: {
+  data: ReturnType<typeof submitSchema.parse> & { workspace?: boolean }
+}) => Promise<unknown>
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -82,4 +84,11 @@ it('reports no preset size for an automatically configured battle', async () => 
 it('reports a manually tracked battle', async () => {
   await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', casual: true, manual: true }) })
   expect(mocks.capture.mock.calls[0]?.[2]).toMatchObject({ manual: true })
+})
+
+it('answers a device with the battle history from the same submission', async () => {
+  const answer = { result: { outcome: 'appended' }, screen: { kind: 'battle' }, workspace: { serverSeq: 3 } }
+  mocks.submitWithWorkspace.mockResolvedValue(answer)
+  const data = { ...submitSchema.parse({ token: 'private-battle', expectedSeq: 2, command: { kind: 'reset-setup' } }), workspace: true }
+  expect({ answer: await invokeSubmit({ data }), plain: mocks.submit.mock.calls.length }).toEqual({ answer, plain: 0 })
 })

@@ -1,5 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import { app } from '../app'
+import type { PraetoriumService } from '../service'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
 import { submittedBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
@@ -187,13 +189,15 @@ export const deleteBattle = createServerFn({ method: 'POST' })
   )
 
 export const submit = createServerFn({ method: 'POST' })
-  .validator(submitSchema)
+  .validator(submitSchema.extend({ workspace: z.boolean().optional() }))
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
       const startedAt = performance.now()
       const command = await submittedBattleCommand(player.id, data.command)
-      const result = await app().service.submit(data.token, player.id, data.expectedSeq, command, await app().rulesFor())
+      const result: Awaited<ReturnType<PraetoriumService['submitWithWorkspace']>> = await app().service[
+        data.workspace ? 'submitWithWorkspace' : 'submit'
+      ](data.token, player.id, data.expectedSeq, command, await app().rulesFor())
       await app().telemetry.capture(player.id, 'battle_command_submitted', {
         command: command.kind,
         outcome: result.result.outcome,

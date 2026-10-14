@@ -101,9 +101,12 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
   if (workspace && owner && (!navigator.onLine || (await hasSyncableChanges(resource)))) return workspaceScreen(workspace, owner.id)
   try {
     const result = await cachedRead(['battle', args.data.token], async () => {
+      // A battle saved on this device is one this account sits in, so its history downloads alongside the screen.
+      const download = workspace && localEngine() ? battleWorkspace(args) : undefined
+      download?.catch(() => {})
       const screen = await server.openBattle(args)
       if (screen?.kind === 'battle' && localEngine()) {
-        const fresh = await battleWorkspace(args)
+        const fresh = await (download ?? battleWorkspace(args))
         await rememberBattle(fresh.workspace, owner?.id)
         if (await hasSyncableChanges(resource)) {
           const current = await localDocument<BattleWorkspace>(resource)
@@ -137,22 +140,22 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
   const answer =
     navigator.onLine && !(await hasSyncableChanges(resource))
-      ? await server.submit(args).catch((error: unknown) => {
+      ? await server.submit({ ...args, data: { ...args.data, workspace: true } }).catch((error: unknown) => {
           if (isFetchNetworkFailure(error)) return null
           throw error
         })
       : null
   if (answer) {
     if (answer.screen?.kind !== 'battle') return answer
-    const fresh = await battleWorkspace({ data: { token: args.data.token } })
-    await rememberBattle(fresh.workspace, owner.id)
+    const fresh = answer.workspace ?? (await battleWorkspace({ data: { token: args.data.token } })).workspace
+    await rememberBattle(fresh, owner.id)
     const current = await localDocument<BattleWorkspace>(resource)
     return {
       result: answer.result,
       screen:
-        current && (current.serverSeq > fresh.workspace.serverSeq || (await hasSyncableChanges(resource)))
+        current && (current.serverSeq > fresh.serverSeq || (await hasSyncableChanges(resource)))
           ? workspaceScreen(current, owner.id)
-          : fresh.screen,
+          : answer.screen,
     }
   }
   const workspace = await localDocument<BattleWorkspace>(resource)
