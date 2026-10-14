@@ -246,6 +246,18 @@ function UnitStatus({
           {unit.embarkedIn ? ` in ${transportLabel(units, unit.embarkedIn) ?? 'transport'}` : ''}
         </span>
       )}
+      {actionable && unit.formation !== 'battlefield' ? (
+        <Button
+          variant="outline"
+          size="xs"
+          className="shrink-0"
+          aria-label={`${unit.formation === 'embarked' ? 'Disembark' : 'Set up'} ${unit.name} on the battlefield`}
+          disabled={pending}
+          onClick={() => send({ kind: 'set-unit-formation', unitKey: unit.key, formation: 'battlefield', playerId })}
+        >
+          {unit.formation === 'embarked' ? 'Disembark' : 'Arrive'}
+        </Button>
+      ) : null}
       {unit.models > 1 ? (
         <Counter
           noun="models"

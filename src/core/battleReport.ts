@@ -164,6 +164,7 @@ function describe(
         const transport = transportLabel(player?.units ?? [], command.transportKey ?? '') ?? 'a transport'
         return `${who} embarks ${whose} ${unit} in ${transport}`
       }
+      if (command.formation === 'battlefield') return `${who} sets up ${whose} ${unit} on the battlefield`
       return `${who} places ${whose} ${unit} in ${titled(command.formation)}`
     }
     case 'set-painted':
