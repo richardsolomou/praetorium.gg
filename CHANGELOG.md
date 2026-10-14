@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.141.19
+
+### Patch Changes
+
+- cdc4f06: Impulsors, Land Raider Redeemers and the other Space Marine, Black Templars, Deathwatch and Orks transports whose datacards print the rule as an ability or in bold now accept embarked units, instead of refusing them for having no known model capacity.
+- cdc4f06: Transports now hold passengers to their printed rule: only the keywords it names can embark, excluded units such as Terminators in a Rhino are refused, larger models take their printed space, and extra allowances such as a Ghost Ark's character slot count separately. Battles created before this keep counting one space per model.
+
 ## 0.141.18
 
 ### Patch Changes
