@@ -10,6 +10,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  makeWarlord,
 } from './account'
 
 test('battle setup stays shared and does not wait for the other device', async ({ browser }) => {
@@ -210,7 +211,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
     )
   }
   await bob.locator('[data-unit="Lord of Virulence"]').getByRole('button', { name: 'Lord of Virulence', exact: true }).click()
-  await waitForRosterSave(bob, () => bob.getByRole('button', { name: 'Make Lord of Virulence Warlord' }).click())
+  await makeWarlord(bob, 'Lord of Virulence')
   await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, {
     faction: 'Necrons',
@@ -228,7 +229,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
     )
   }
   await alice.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
-  await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Make Overlord Warlord' }).click())
+  await makeWarlord(alice, 'Overlord')
   await befriend(alice, bob)
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)

@@ -11,6 +11,7 @@ import {
   takeTheTurn,
   uniqueName,
   waitForRosterSave,
+  makeWarlord,
 } from './account'
 
 const prompt = (page: Page) => page.getByRole('note', { name: 'Getting started' })
@@ -40,7 +41,7 @@ async function army(page: Page, name?: string) {
   await page.getByLabel('Add a unit').fill('Captain')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).click())
   await page.locator('[data-unit="Captain"]').click()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Make Captain Warlord', exact: true }).click())
+  await makeWarlord(page, 'Captain')
   return created
 }
 

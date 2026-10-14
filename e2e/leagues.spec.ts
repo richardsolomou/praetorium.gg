@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
-import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave, makeWarlord } from './account'
 import { productOperator, productSql, withAuthSql } from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
@@ -409,7 +409,7 @@ async function sealableRoster(page: Page, name: string, extraUnit?: string) {
   await page.getByLabel('Add a unit').fill('Skorpekh Lord')
   await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
   await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Make Skorpekh Lord Warlord' }).click())
+  await makeWarlord(page, 'Skorpekh Lord')
   if (!extraUnit) return
   await page.getByLabel('Add a unit').fill(extraUnit)
   await waitForRosterSave(page, () =>
@@ -595,6 +595,10 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   })
   await page.getByLabel('Add a unit').fill('Captain')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).first().click())
+  // The Captain becomes the Warlord on its own; the refused seal below needs a list without one.
+  await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Captain', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Remove Captain Warlord' })).toHaveAttribute('aria-pressed', 'true')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Remove Captain Warlord' }).click())
   await page.goto('/leagues')
   const create = await openLeagueCreation(page, { ownerPlays: true })
   await create.getByLabel('Name').fill(leagueName)
@@ -676,7 +680,7 @@ for (const { rules, status } of [
       .first()
       .click()
     await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
-    await waitForRosterSave(page, () => page.getByRole('button', { name: `Make ${unit} Warlord` }).click())
+    await makeWarlord(page, unit)
     const operator = await productOperator()
     const saved = (await operator.roster(new URL(page.url()).pathname.split('/').at(-1)!))!
     await page.goto('/leagues')
@@ -934,7 +938,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await owner.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
   await owner.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Mark of the Nekrosor' }).click())
-  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Make Skorpekh Lord Warlord' }).click())
+  await makeWarlord(owner, 'Skorpekh Lord')
 
   await owner.getByRole('button', { name: 'Roster actions' }).click()
   await owner.getByRole('menuitem', { name: 'Edit roster setup' }).click()

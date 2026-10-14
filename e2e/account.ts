@@ -563,3 +563,13 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
     await expect(result).toBeInViewport({ timeout: 100 })
   }).toPass({ timeout: 15000 })
 }
+
+/** The first eligible character a list adds is its Warlord already, so only another one needs choosing. */
+export async function makeWarlord(page: Page, unit: string) {
+  const make = page.getByRole('button', { name: `Make ${unit} Warlord`, exact: true })
+  const held = page.getByRole('button', { name: `Remove ${unit} Warlord`, exact: true })
+  await expect(make.or(held)).toBeVisible()
+  if (await make.isVisible()) await make.click()
+  await expect(held).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+}

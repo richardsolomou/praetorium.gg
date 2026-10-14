@@ -12,6 +12,7 @@ import {
   startBattle,
   uniqueName,
   waitForRosterSave,
+  makeWarlord,
 } from './account'
 import { productOperator, productSql, savedWork, withAuthSql } from './storage'
 
@@ -34,7 +35,7 @@ async function sealableRoster(page: Page, name: string) {
   await page.getByLabel('Add a unit').fill('Skorpekh Lord')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click())
   await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Make Skorpekh Lord Warlord' }).click())
+  await makeWarlord(page, 'Skorpekh Lord')
   return tokenOf(page.url())
 }
 
