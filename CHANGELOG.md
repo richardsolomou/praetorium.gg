@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.143.1
+
+### Patch Changes
+
+- 2e1bf41: Battle actions keep working after a site update without reloading the page; connected actions no longer turn into a sync conflict that froze the battle.
+
 ## 0.143.0
 
 ### Minor Changes
