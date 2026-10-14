@@ -20,6 +20,34 @@ import {
 } from './account'
 import { battleLog, productSql } from './storage'
 
+test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
+  await signUp(page, uniqueName('Opening prompt'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Opening prompt roster' })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page, undefined, false)
+  const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
+  await expect(prompt.getByRole('button', { name: 'Draw at random' })).toBeVisible()
+  expect(await page.evaluate(() => scrollY)).toBe(0)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect
+    .poll(() =>
+      prompt.evaluate(
+        (dialog, slot) => dialog.getBoundingClientRect().bottom - dialog.querySelector(slot)!.getBoundingClientRect().bottom,
+        '[data-slot="dialog-footer"]',
+      ),
+    )
+    .toBeLessThanOrEqual(1)
+  await page.mouse.move(195, 300)
+  await page.mouse.wheel(0, 800)
+  const settled = await page.evaluate(
+    () => new Promise<number>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY)))),
+  )
+  expect(settled).toBe(0)
+})
+
 test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page }) => {
   await signUp(page, uniqueName('Standard secondaries'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Standard scoring roster' })

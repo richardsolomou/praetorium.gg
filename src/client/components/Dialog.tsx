@@ -80,5 +80,5 @@ export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
 }
 
 export function DialogFooter({ className, ...props }: ComponentProps<typeof GeneratedDialogFooter>) {
-  return <GeneratedDialogFooter className={cn('m-0 shrink-0', className)} {...props} />
+  return <GeneratedDialogFooter className={cn('m-0 mt-auto shrink-0', className)} {...props} />
 }

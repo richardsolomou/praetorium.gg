@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { BattleUnavailable } from './BattleUnavailable'
 import { PageState } from '../../components/PageState'
 import { Setup } from './setup/Setup'
@@ -42,6 +42,13 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
     }
   }, [])
   const { send, attachSavedRoster, problem, pending } = useCommand(token, screen.view.seq)
+  const status = screen.view.status
+  const previousStatus = useRef(status)
+  // Setup and the tracker share a URL, so the scroll that reached Start battle would carry into the first turn.
+  useLayoutEffect(() => {
+    if (previousStatus.current === 'setup' && status !== 'setup') window.scrollTo(0, 0)
+    previousStatus.current = status
+  }, [status])
   if (screen.view.status === 'finished') return <FinishedBattle screen={screen} />
   if (screen.view.status === 'setup')
     return (
