@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.16
+
+### Patch Changes
+
+- eef80b9: The first eligible character added to a roster becomes its Warlord, and deleting the Warlord passes it to the next one added.
+
 ## 0.141.15
 
 ### Patch Changes
