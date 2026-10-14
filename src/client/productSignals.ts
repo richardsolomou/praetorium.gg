@@ -32,7 +32,8 @@ const queryFamilies = {
 
 const publicQueryFamilies = {
   collection: ['collection-profile'],
-  battles: ['public-battles', 'friend-battles', 'shared-battles', 'battle', 'report', 'player-profile', 'league-battles'],
+  // An open battle follows its own signal, or polls while it has none, so every command elsewhere does not refetch it.
+  battles: ['public-battles', 'friend-battles', 'shared-battles', 'player-profile', 'league-battles'],
   standings: ['standings', 'player-rankings'],
   rosters: ['player-rosters', 'shared-roster', 'roster-access', 'discovered-rosters'],
   leagues: ['leagues', 'league', 'league-roster', 'league-battles'],

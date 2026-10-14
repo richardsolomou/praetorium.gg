@@ -146,6 +146,12 @@ describe('battle submission refusals', () => {
   }
   const input = (command: Command) => ({ battleId: 'battle-1', userId: 'alice', expectedSeq: 0, command, now: 0 })
 
+  it('appends against a battle the caller already read without reading it again', async () => {
+    const { operator, request } = product('the battle is not running')
+    await operator.submit({ ...input({ kind: 'advance' }), snapshot })
+    expect(request.mock.calls.map(([url]) => (url as URL).pathname.split('/').at(-1))).toEqual(['submit_battle'])
+  })
+
   it('codes a domain refusal from the log the product database refused it against', async () => {
     const { operator } = product('the battle is not running')
     expect((await operator.submit(input({ kind: 'advance' }))).result).toEqual({

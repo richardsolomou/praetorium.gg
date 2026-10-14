@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   user: { id: 'actor', impersonatedBy: null as string | null },
   hasBattleOperation: vi.fn(),
   ownRoster: vi.fn(),
-  submit: vi.fn(),
+  submitWithWorkspace: vi.fn(),
   battleWorkspace: vi.fn(),
   catalogueFor: vi.fn(),
   catalogue: vi.fn(),
@@ -131,7 +131,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mocks.user = { id: 'actor', impersonatedBy: null }
   mocks.hasBattleOperation.mockResolvedValue(false)
-  mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 2 } })
+  mocks.submitWithWorkspace.mockResolvedValue({ result: { outcome: 'appended', seq: 2 } })
   mocks.battleWorkspace.mockResolvedValue({ workspace: { serverSeq: 2 } })
   mocks.catalogue.mockReturnValue({ index: { revision: 'rev' } })
   mocks.rulesFor.mockResolvedValue({})
@@ -149,7 +149,7 @@ it.each([401, 429, 503])('keeps temporary battle sync failures pending (HTTP %s)
 
 it('retains a battle deleted between validation and append as a refusal', async () => {
   mocks.hasBattleOperation.mockResolvedValue(true)
-  mocks.submit.mockRejectedValue(new Response('Battle deleted', { status: 404 }))
+  mocks.submitWithWorkspace.mockRejectedValue(new Response('Battle deleted', { status: 404 }))
   expect(await invoke({ data: input() })).toEqual({ outcome: 'refused', message: 'Battle deleted' })
 })
 
@@ -195,12 +195,12 @@ it('retries an accepted captured roster after its source was deleted without rec
   expect({
     result,
     recaptured: mocks.ownRoster.mock.calls.length + mocks.catalogueFor.mock.calls.length,
-    command: mocks.submit.mock.calls[0]?.[3],
+    command: mocks.submitWithWorkspace.mock.calls[0]?.[3],
   }).toEqual({ result: { outcome: 'applied', workspace: { serverSeq: 2 }, version: 2 }, recaptured: 0, command: data.command })
 })
 it('refuses a new captured roster attachment when the ownership evidence is missing', async () => {
   const result = await invoke({ data: input() })
-  expect({ result, writes: mocks.submit.mock.calls.length }).toEqual({
+  expect({ result, writes: mocks.submitWithWorkspace.mock.calls.length }).toEqual({
     result: { outcome: 'refused', message: 'You do not own the captured roster.' },
     writes: 0,
   })
@@ -216,7 +216,7 @@ it('rejects impersonated saved commands before accessing the battle', async () =
 })
 it('retains a stale local battle branch as a conflict instead of claiming an acknowledgement', async () => {
   mocks.hasBattleOperation.mockResolvedValue(true)
-  mocks.submit.mockResolvedValue({ result: { outcome: 'stale', seq: 3 } })
+  mocks.submitWithWorkspace.mockResolvedValue({ result: { outcome: 'stale', seq: 3 } })
   const result = await invoke({ data: input() })
   expect({ result, reads: mocks.battleWorkspace.mock.calls.length }).toEqual({
     result: {
@@ -236,7 +236,7 @@ it('records the version of the downloaded workspace when another command arrived
 it('retains offline scoring for review when the downloaded rules changed before sync', async () => {
   mocks.catalogue.mockReturnValue({ index: { revision: 'updated-rules' } })
   const result = await invoke({ data: { ...input(), command: { kind: 'score', category: 'primary', delta: 5 } } })
-  expect({ result, writes: mocks.submit.mock.calls.length }).toEqual({
+  expect({ result, writes: mocks.submitWithWorkspace.mock.calls.length }).toEqual({
     result: {
       outcome: 'conflict',
       message: 'Army or game rules changed while you were offline. Your battle history is saved on this device; review it before syncing.',
@@ -250,7 +250,7 @@ it('keeps a new offline command pending when authoritative rules are unavailable
   await expect(invoke({ data: { ...input(), command: { kind: 'score', category: 'primary', delta: 5 } } })).rejects.toMatchObject({
     status: 503,
   })
-  expect(mocks.submit).not.toHaveBeenCalled()
+  expect(mocks.submitWithWorkspace).not.toHaveBeenCalled()
 })
 
 it('keeps a new offline command pending when the authoritative catalogue is unavailable', async () => {
@@ -258,7 +258,7 @@ it('keeps a new offline command pending when the authoritative catalogue is unav
   await expect(invoke({ data: { ...input(), command: { kind: 'score', category: 'primary', delta: 5 } } })).rejects.toMatchObject({
     status: 503,
   })
-  expect(mocks.submit).not.toHaveBeenCalled()
+  expect(mocks.submitWithWorkspace).not.toHaveBeenCalled()
 })
 
 it('acknowledges an accepted command after a rules update without replaying its validation', async () => {
@@ -299,7 +299,7 @@ it('rejects an over-points captured roster even when its submitted snapshot clai
     }),
     id: 'roster',
   }
-  expect({ result: await invoke({ data: { ...data, capturedRoster } }), writes: mocks.submit.mock.calls.length }).toEqual({
+  expect({ result: await invoke({ data: { ...data, capturedRoster } }), writes: mocks.submitWithWorkspace.mock.calls.length }).toEqual({
     result: { outcome: 'refused', message: 'roster has 1001 points, over its 1000-point limit' },
     writes: 0,
   })

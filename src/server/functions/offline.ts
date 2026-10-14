@@ -203,18 +203,26 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
           }
         }
         const fingerprint = createHash('sha256').update(JSON.stringify(data)).digest('hex')
-        const { result } = await instance.service.submit(data.token, player.id, data.expectedSeq, command, rules, {
-          operationId: data.operationId,
-          fingerprint,
-          recordedAt: data.recordedAt,
-        })
+        const { result, workspace: appended } = await instance.service.submitWithWorkspace(
+          data.token,
+          player.id,
+          data.expectedSeq,
+          command,
+          rules,
+          {
+            operationId: data.operationId,
+            fingerprint,
+            recordedAt: data.recordedAt,
+          },
+        )
         if (result.outcome === 'stale')
           return {
             outcome: 'conflict' as const,
             message: 'Another device advanced this battle. Your offline history is saved; review both histories before continuing.',
           }
         if (result.outcome === 'refused') return { outcome: 'refused' as const, message: result.reason }
-        const { workspace } = await instance.service.battleWorkspace(data.token, player.id, await instance.battleReadRulesFor())
+        const workspace =
+          appended ?? (await instance.service.battleWorkspace(data.token, player.id, await instance.battleReadRulesFor())).workspace
         return { outcome: 'applied' as const, workspace, version: workspace.serverSeq }
       } catch (error) {
         return syncRefusal(error)

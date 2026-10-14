@@ -137,6 +137,14 @@ const PROFILE_BATTLE_PAGE = 25
  * from before its own command, or naming the wrong command to undo.
  */
 type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
+type SubmitArgs = [
+  token: string,
+  userId: string,
+  expectedSeq: number,
+  command: Command,
+  rules?: LoadedRules | null,
+  sync?: { operationId: string; fingerprint: string; recordedAt: number },
+]
 
 export class PraetoriumService {
   private readonly leagueService: LeagueService
@@ -979,15 +987,18 @@ export class PraetoriumService {
   ): Promise<{ workspace: BattleWorkspace; screen: SeatedScreen }> {
     const history = await this.mustFind(token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
-    if (history.log.length > 10_000) throw new Response('this battle exceeds the offline history limit', { status: 409 })
+    const workspace = this.workspace(history, userId)
+    if (!workspace) throw new Response('this battle exceeds the offline history limit', { status: 409 })
+    return { workspace, screen: this.seatedScreen(history, userId, rules) }
+  }
+
+  private workspace(history: BattleHistory, userId: string): BattleWorkspace | undefined {
+    if (history.log.length > 10_000) return undefined
     return {
-      workspace: {
-        ...history,
-        log: visibleBattleLog(history.players, history.log, userId),
-        serverSeq: history.log.at(-1)?.seq ?? 0,
-        serverNow: this.clock(),
-      },
-      screen: this.seatedScreen(history, userId, rules),
+      ...history,
+      log: visibleBattleLog(history.players, history.log, userId),
+      serverSeq: history.log.at(-1)?.seq ?? 0,
+      serverNow: this.clock(),
     }
   }
 
@@ -1005,22 +1016,37 @@ export class PraetoriumService {
     return history.log.some((entry) => entry.operationId === operationId && entry.by === userId)
   }
 
-  async submit(
-    token: string,
-    userId: string,
-    expectedSeq: number,
-    command: Command,
-    rules?: LoadedRules | null,
-    sync?: { operationId: string; fingerprint: string; recordedAt: number },
-  ): Promise<SubmitAnswer> {
-    const seats = await this.mustSeat(token, userId)
-    if (sync) command = restoreOpaqueBattleKeys(seats.players, (await this.mustFind(token)).log, command)
+  async submit(...args: SubmitArgs): Promise<SubmitAnswer> {
+    const [, userId, , , rules] = args
+    const { result, history } = await this.append(...args)
+    return { result, screen: this.seatedScreen(history, userId, rules) }
+  }
+
+  /** The answer with the submitting device's copy of the history, so it is saved without a second download. */
+  async submitWithWorkspace(...args: SubmitArgs): Promise<SubmitAnswer & { workspace?: BattleWorkspace }> {
+    const [, userId, , , rules] = args
+    const { result, history } = await this.append(...args)
+    return { result, screen: this.seatedScreen(history, userId, rules), workspace: this.workspace(history, userId) }
+  }
+
+  private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {
+    const history = await this.mustFind(token)
+    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
     if (command.kind === 'lock-league-rosters') throw new Response('league roster locks are created by the server', { status: 403 })
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.
     const { result, log } = await this.repository.submit(
-      { battleId: seats.battle.id, userId, expectedSeq, command, now: this.clock(), ...sync },
+      {
+        battleId: history.battle.id,
+        userId,
+        expectedSeq,
+        command,
+        now: this.clock(),
+        snapshot: { seats: history.players, log: history.log },
+        ...sync,
+      },
       (state) => {
         if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
         if (command.kind === 'set-prep' && state.status === 'playing') {
@@ -1070,7 +1096,7 @@ export class PraetoriumService {
         return { ...submitted, secondaries }
       },
     )
-    return { result, screen: this.seatedScreen({ ...seats, log }, userId, rules) }
+    return { result, history: { ...history, log } }
   }
 
   /** Opening a battle stream is an authorization decision. */

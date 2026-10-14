@@ -19,6 +19,7 @@ vi.mock('./localRuntime', () => ({
   localClient: () => client,
   localOwner: () => ({ id: mocks.owner }),
   localDocument: async () => workspace,
+  localEngine: () => null,
   hasLocalChanges: async () => false,
   hasSyncableChanges: async () => false,
 }))

@@ -81,9 +81,13 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
     if (!enabled) return
     return maintainSpacetimeConnection({
       issue: async () => {
-        const issued = await ticket(token)
-        const battleId = issued.battleId
-        return battleId ? { ...issued, battleId } : null
+        // A viewer who is not seated is refused every time, so the battle polls instead of asking again.
+        const issued = await ticket(token).catch((error: unknown) => {
+          if (error instanceof RealtimeHttpError && [401, 403, 404].includes(error.status)) return null
+          throw error
+        })
+        const battleId = issued?.battleId
+        return issued && battleId ? { ...issued, battleId } : null
       },
       open: (issued, failed, isCurrent, ready) => {
         const battleId = issued.battleId
@@ -106,7 +110,7 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
                 if (!isCurrent()) return
                 ready()
                 setSubscribed(true)
-                refresh()
+                refresh(Array.from(current.db.myBattleSignals.iter()).find((row) => row.battleId === battleId)?.seq)
                 void current.reducers.watchBattle({ battleId }).catch(report)
               })
               .onError((context) => failed(new Error(context.event?.message || 'Battle subscription failed')))
@@ -165,6 +169,21 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
 
   useEffect(() => {
     if (!config) return
+    // Revisions seen by earlier connections, so a reconnect refreshes only what changed while it was away.
+    const seen = { product: new Map<string, bigint>(), admin: new Map<string, bigint>(), public: new Map<string, bigint>() }
+    let synced = false
+    const catchUp = (
+      revisions: Map<string, bigint>,
+      rows: Iterable<{ scope: string; revision: bigint }>,
+      run: (scope?: string) => void,
+      first: boolean,
+    ) => {
+      if (first) run()
+      for (const { scope, revision } of rows) {
+        if (!first && revisions.get(scope) !== revision) run(scope)
+        revisions.set(scope, revision)
+      }
+    }
     return maintainSpacetimeConnection({
       // Session rotation deletes its row before the new cookie arrives; only a ticket 401 rechecks authentication.
       issue: signedIn
@@ -185,24 +204,22 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
             if (!isCurrent()) return
             let applied = false
             if (signedIn) current.db.mySession.onDelete(() => failed())
-            current.db.myProductSignals.onInsert((_context, row) => {
-              if (applied && signedIn) refresh(row.scope)
-            })
-            current.db.myProductSignals.onUpdate((_context, _old, row) => {
-              if (applied && signedIn) refresh(row.scope)
-            })
-            current.db.myAdminSignals.onInsert((_context, row) => {
-              if (applied && signedIn) refreshAdmin(row.scope)
-            })
-            current.db.myAdminSignals.onUpdate((_context, _old, row) => {
-              if (applied && signedIn) refreshAdmin(row.scope)
-            })
-            current.db.publicProductSignals.onInsert((_context, row) => {
-              if (applied) refreshPublic(row.scope)
-            })
-            current.db.publicProductSignals.onUpdate((_context, _old, row) => {
-              if (applied) refreshPublic(row.scope)
-            })
+            const signal =
+              (revisions: Map<string, bigint>, run: (scope?: string) => void, listening = true) =>
+              (row: { scope: string; revision: bigint }) => {
+                if (!applied || !listening) return
+                revisions.set(row.scope, row.revision)
+                run(row.scope)
+              }
+            const product = signal(seen.product, refresh, signedIn)
+            const admin = signal(seen.admin, refreshAdmin, signedIn)
+            const publicSignal = signal(seen.public, refreshPublic)
+            current.db.myProductSignals.onInsert((_context, row) => product(row))
+            current.db.myProductSignals.onUpdate((_context, _old, row) => product(row))
+            current.db.myAdminSignals.onInsert((_context, row) => admin(row))
+            current.db.myAdminSignals.onUpdate((_context, _old, row) => admin(row))
+            current.db.publicProductSignals.onInsert((_context, row) => publicSignal(row))
+            current.db.publicProductSignals.onUpdate((_context, _old, row) => publicSignal(row))
             current
               .subscriptionBuilder()
               .onApplied(() => {
@@ -210,9 +227,11 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
                 applied = true
                 ready()
                 setSubscribed(true)
-                if (signedIn) refresh()
-                if (signedIn) refreshAdmin()
-                refreshPublic()
+                const first = !synced
+                synced = true
+                if (signedIn) catchUp(seen.product, current.db.myProductSignals.iter(), refresh, first)
+                if (signedIn) catchUp(seen.admin, current.db.myAdminSignals.iter(), refreshAdmin, first)
+                catchUp(seen.public, current.db.publicProductSignals.iter(), refreshPublic, first)
               })
               .onError((context) => failed(new Error(context.event?.message || 'Product subscription failed')))
               .subscribe(

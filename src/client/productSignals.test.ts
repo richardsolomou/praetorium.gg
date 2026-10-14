@@ -33,19 +33,16 @@ it('refreshes both sides of a friendship without reloading saved rosters', async
   ).toEqual([true, true, true, true, false])
 })
 
-it('refreshes spectators and standings after a shared battle changes', async () => {
+it('refreshes battle feeds and standings after a shared battle changes without refetching an open battle', async () => {
   const client = new QueryClient()
-  for (const key of ['public-battles', 'battle', 'standings', 'home-rosters']) client.setQueryData([key], {})
+  for (const key of ['public-battles', 'battle', 'report', 'standings', 'home-rosters']) client.setQueryData([key], {})
 
   await invalidatePublicProductQueries(client, 'battles')
   await invalidatePublicProductQueries(client, 'standings')
 
-  expect(['public-battles', 'battle', 'standings', 'home-rosters'].map((key) => client.getQueryState([key])?.isInvalidated)).toEqual([
-    true,
-    true,
-    true,
-    false,
-  ])
+  expect(
+    ['public-battles', 'battle', 'report', 'standings', 'home-rosters'].map((key) => client.getQueryState([key])?.isInvalidated),
+  ).toEqual([true, false, false, true, false])
 })
 
 it('refreshes public roster and league readers without touching catalogue assets', async () => {
