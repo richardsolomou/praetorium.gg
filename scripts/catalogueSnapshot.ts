@@ -19,6 +19,7 @@ import { writeEditionCanonicalCatalogues } from '../src/server/catalogueEditions
 import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSources'
 import { disabledCatalogueSources } from '../src/server/catalogueSources'
 import releaseLock from '../catalogue.json' with { type: 'json' }
+import { catalogueTree } from './lib/catalogueTree'
 
 const root = path.join(import.meta.dirname, '..')
 const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
@@ -37,8 +38,8 @@ if (command === 'pack') {
     fs.rmSync(canonicalCataloguePath(directory), { force: true })
     fs.rmSync(editionCanonicalCataloguesPath(directory), { force: true })
   }
-  const authoringRevision = process.env.CATALOGUE_AUTHORING_REVISION ?? releaseLock.authoring.revision
-  if (!/^[a-f0-9]{40}$/.test(authoringRevision)) throw new Error('Catalogue authoring revision must be a full Git SHA')
+  const authoringRevision = process.env.CATALOGUE_AUTHORING_REVISION ?? catalogueTree(root)
+  if (!/^[a-f0-9]{40}$/.test(authoringRevision)) throw new Error('Catalogue authoring revision must be a full Git object ID')
   const packed = packCatalogueSnapshot(directory, archive, pointer, process.env.CATALOGUE_OBJECTS_DIR, authoringRevision)
   console.log(`${packed.id} ${archive}`)
 } else if (command === 'verify') {

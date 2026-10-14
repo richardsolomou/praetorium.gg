@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import recipe from '../.catalogue-authoring/catalogue/retained-profile-build.json' with { type: 'json' }
+import recipe from '../catalogue/retained-profile-build.json' with { type: 'json' }
 import { packCatalogueSnapshot, verifyInstalledSnapshot } from '../src/server/catalogueSnapshot'
 
 export function retainRosterCatalogue(source: string, icons: string, output: string) {

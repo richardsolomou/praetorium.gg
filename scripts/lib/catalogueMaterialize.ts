@@ -55,7 +55,7 @@ export async function materializeCatalogue(directory: string, sources = catalogu
   const staged = path.join(work, 'data')
   fs.mkdirSync(staged)
   const selected = options.source ? [options.source] : SNAPSHOT_SOURCE_NAMES.filter((name) => !disabled.has(name))
-  const patches = options.patchesDirectory ?? path.join(root, '.catalogue-authoring', 'catalogue', 'patches')
+  const patches = options.patchesDirectory ?? path.join(root, 'catalogue', 'patches')
   try {
     // Isolate git apply from the application checkout that contains the staging directory.
     execFileSync('git', ['init', '--quiet', staged], { stdio: 'pipe' })

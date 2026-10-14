@@ -123,7 +123,7 @@ The form must say that the app creates accounts. Provide `https://praetorium.gg/
 
 Set the target audience to 13 and over. The product has no chat, ads, purchases, gambling, matchmaking, or public player discovery. Answer the store questionnaires for the battle terminology and Warhammer 40,000 fantasy-combat references visible in the submitted screenshots. Do not choose a lower violence frequency than the review build shows.
 
-The catalogue and rules sources, licences, and attribution are recorded in the [catalogue repository](https://github.com/richardsolomou/praetorium-catalogue). Keep that source record and the in-product attribution available during review. The application is a list builder and live game tracker, not a source of rules written by this project or an official Games Workshop product.
+The catalogue and rules sources, licences, and attribution are recorded in [`catalogue/sources.json`](https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/sources.json). Keep that source record and the in-product attribution available during review. The application is a list builder and live game tracker, not a source of rules written by this project or an official Games Workshop product.
 
 ## Review access
 
@@ -137,7 +137,7 @@ Use these review notes after replacing the bracketed values:
 >
 > Supported social providers use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Account security → Permanently delete account. The application has no purchases, subscriptions, ads, or chat. Players can publish rosters and share battles.
 >
-> Praetorium uses community-maintained catalogue and rules data under the licences recorded at `https://github.com/richardsolomou/praetorium-catalogue`. It is unofficial and is not affiliated with or endorsed by Games Workshop.
+> Praetorium uses community-maintained catalogue and rules data under the licences recorded at `https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/sources.json`. It is unofficial and is not affiliated with or endorsed by Games Workshop.
 
 Provide the same review account under Play Console's App access section. Test the credentials immediately before submission and keep them active until both reviews and any appeal are complete.
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import rawSources from '../../.catalogue-authoring/catalogue/sources.json' with { type: 'json' }
+import rawSources from '../../catalogue/sources.json' with { type: 'json' }
 
 export const repositorySourceSchema = z.object({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),

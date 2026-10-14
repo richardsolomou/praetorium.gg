@@ -85,9 +85,7 @@ if (!published.length) throw new Error('the bucket lists no published snapshots'
 
 /** Each compiled source's clone, fetched once and kept for the next run. */
 function upstreamSources() {
-  const config = catalogueSourcesSchema.parse(
-    JSON.parse(fs.readFileSync(path.join(root, '.catalogue-authoring', 'catalogue', 'sources.json'), 'utf8')),
-  )
+  const config = catalogueSourcesSchema.parse(JSON.parse(fs.readFileSync(path.join(root, 'catalogue', 'sources.json'), 'utf8')))
   return CANONICAL_CATALOGUE_SOURCE_NAMES.map((name) => {
     const source = config[name]
     const directory = path.join(clonesRoot, source.repository.replace('/', '__'))

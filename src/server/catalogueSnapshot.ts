@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { zipSync, gzipSync, type Zippable } from 'fflate'
 import rawLock from '../../catalogue.json' with { type: 'json' }
-import rawRevocations from '../../.catalogue-authoring/catalogue/revocations.json' with { type: 'json' }
+import rawRevocations from '../../catalogue/revocations.json' with { type: 'json' }
 import {
   catalogueSources,
   disabledCatalogueSources,

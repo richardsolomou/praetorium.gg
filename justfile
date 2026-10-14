@@ -99,7 +99,7 @@ repository-backup destination:
 catalogue-check:
     pnpm catalogue:check
 
-# Build the pinned catalogue repository’s sources and corrections without changing the active snapshot
+# Build catalogue/'s pinned sources and corrections without changing the active snapshot
 catalogue-materialize *args:
     pnpm catalogue:materialize {{ args }}
 
