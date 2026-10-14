@@ -1,7 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
-import { DATACARDS_ATTRIBUTION, factionRestrictions, type LoadedDatacards, keywordAbilityDescriptions, loadDatacards } from './datacards'
+import {
+  DATACARDS_ATTRIBUTION,
+  factionRestrictions,
+  type LoadedDatacards,
+  keywordAbilityDescriptions,
+  loadDatacardsSteps,
+} from './datacards'
 import { type LoadedCards, coreFromDatacards } from './rulesCards'
 import { factionsFromDatacards } from './datacardFactions'
 import { dispositionsFromDatacards, missionCardsFromDatacards, missionsFromDatacards } from './datacardMissions'
@@ -11,23 +17,28 @@ import { fixedSecondaryCapsIn, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
 import { loadRuleDocuments } from './rulesCore'
 import { catalogueDirectory } from './catalogueIndex'
-import { missingArmyRulesFromCatalogue } from './catalogueArmyRules'
+import { missingArmyRulesFromCatalogueSteps } from './catalogueArmyRules'
 import { joinKey } from '../shared/rulesSource'
 import { type LoadedRules } from '../shared/rules'
+import { completeSteps, type Steps } from '../shared/steps'
 export * from '../shared/rules'
 const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
 const KOTC_ATTRIBUTION = 'King of the Colosseum battlefield diagrams provided by Play On Tabletop'
-export function loadRules(
+export function loadRules(...args: Parameters<typeof loadRulesSteps>): LoadedRules | null {
+  return completeSteps(loadRulesSteps(...args))
+}
+
+export function* loadRulesSteps(
   directory = catalogueDirectory(),
   battlemasterDirectory = path.join(directory, 'battlemaster'),
   iconDirectory = fs.existsSync(path.join(directory, 'icons')) ? path.join(directory, 'icons') : path.join(directory, 'faction-icons'),
   datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
   /** The cards the catalogue already read, so one snapshot is parsed once. */
   loadedDatacards?: LoadedDatacards,
-): LoadedRules | null {
-  const datacards = loadedDatacards ?? loadDatacards(datacardsDirectory)
+): Steps<LoadedRules | null> {
+  const datacards = loadedDatacards ?? (yield* loadDatacardsSteps(datacardsDirectory))
   const factions = factionsFromDatacards(datacards, iconDirectory)
-  const catalogueRules = missingArmyRulesFromCatalogue(path.join(directory, 'definitions'), datacards)
+  const catalogueRules = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
   const supplementalArmyRules = new Map(catalogueRules)
   for (const content of new Set(datacards.factions.values())) {
@@ -46,7 +57,9 @@ export function loadRules(
   // offers, and the ceiling it puts on a single fixed card.
   const packs = readMissionPacks(datacardsDirectory)
   const cards: LoadedCards = { ...coreFromDatacards(datacardsDirectory), ...missionCardsFromDatacards(packs) }
+  yield
   const { terrainLayouts, deployments } = terrainFromDatacards(packs, battlemasterDirectory)
+  yield
   const kotc = kotcTerrain(datacardsDirectory)
   if (kotc) {
     deployments.push(kotc.deployment)

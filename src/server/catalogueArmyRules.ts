@@ -5,20 +5,24 @@ import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type FactionContent, type LoadedDatacards } from './datacards'
 import { joinKey } from '../shared/rulesSource'
 import { readSharedJson } from './sharedJson'
+import type { Steps } from '../shared/steps'
 
-export function missingArmyRulesFromCatalogue(directory: string, datacards: LoadedDatacards) {
-  const found = new Map<string, { name: string; description: string }[]>()
+type RuleText = { name: string; description: string }
+
+export function* missingArmyRulesFromCatalogueSteps(directory: string, datacards: LoadedDatacards): Steps<Map<string, RuleText[]>> {
+  const found = new Map<string, RuleText[]>()
   if (!fs.existsSync(directory)) return found
-  const files = fs.readdirSync(directory).filter((file) => file.endsWith('.json'))
   const leafOf = (name: string) =>
     name
       .split(' - ')
       .at(-1)
       ?.replace(/ Library$| \(11e\)$/g, '') ?? ''
-  const catalogues = files.flatMap((file) => {
+  const catalogues: { name: string; catalogue: NonNullable<CatalogueFile['catalogue']> }[] = []
+  for (const file of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
     const parsed = readSharedJson(path.join(directory, file)) as CatalogueFile
-    return parsed.catalogue ? [{ name: leafOf(file.slice(0, -5)), catalogue: parsed.catalogue }] : []
-  })
+    if (parsed.catalogue) catalogues.push({ name: leafOf(file.slice(0, -5)), catalogue: parsed.catalogue })
+    yield
+  }
   const contents = new Map<string, Pick<FactionContent, 'name' | 'armyRules' | 'factionAbilityNames'>>(
     [...new Set(datacards.factions.values())].map((content) => [routeSlug(content.name), content]),
   )

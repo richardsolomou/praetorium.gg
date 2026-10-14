@@ -3,10 +3,11 @@ import { defaultSelection } from '../core/expand'
 import { routeSlug } from '../core/slug'
 import type { PickerUnit } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn } from './catalogue'
-import { unitsIn } from './cataloguePicker'
+import { unitSummaries, unitsIn } from './cataloguePicker'
 import { factionDisplayName } from './factionNames'
 import type { LoadedCatalogue } from './catalogueIndex'
 import type { LoadedRules } from './rules'
+import { type Steps, stepThrough } from './steps'
 
 const attachmentCache = new WeakMap<
   LoadedCatalogue,
@@ -57,6 +58,17 @@ export function pickerUnitsFor(
     alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
     search: datasheetSearchFieldsIn(loaded, catalogueId, unit.id),
   }))
+}
+
+/** Prepares what a faction's unpriced picker and reference list read, a datasheet per step. */
+export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): Steps<void> {
+  yield* stepThrough(unitSummaries(loaded, catalogueId, { factionCards: true }))
+  const units = yield* stepThrough(unitSummaries(loaded, catalogueId, { restrictions: pickerRestrictions(loaded, rules, catalogueId) }))
+  for (const unit of units) {
+    pickerAttachments(loaded, catalogueId, unit.id)
+    datasheetSearchFieldsIn(loaded, catalogueId, unit.id)
+    yield
+  }
 }
 
 /** The books whose picker lists a datasheet, which are the rosters a reference page can add it to. */

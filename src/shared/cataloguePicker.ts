@@ -11,12 +11,13 @@ import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
 import { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
+import { type Steps, type Stepwise, stepwise } from './steps'
 
 export type { UnitSummary } from '../contracts/catalogue'
 export { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
 
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
-const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, UnitSummary[]>>()
+const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, Stepwise<UnitSummary[]>>>()
 
 /** Restriction sets live on the rules snapshot, so identity is a stable cache key. */
 const restrictionsKeys = new WeakMap<FactionRestrictions, string>()
@@ -87,25 +88,24 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
  * whole of it costs a fraction of a second, which is a great deal cheaper than a
  * page that silently ends at the letter I.
  */
-export function unitsIn(
+export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: string, options: UnitListOptions = {}): UnitSummary[] {
+  return searchUnits(loaded, catalogueId, query.trim().toLowerCase(), unitSummaries(loaded, catalogueId, options).get())
+}
+
+type UnitListOptions = {
+  restrictions?: FactionRestrictions
+  factionCards?: boolean
+  battleSize?: number
+  waivedRules?: readonly string[]
+  detachmentIds?: readonly string[]
+}
+
+/** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
+export function unitSummaries(
   loaded: LoadedCatalogue,
   catalogueId: string,
-  query: string,
-  {
-    restrictions,
-    factionCards,
-    battleSize,
-    waivedRules = [],
-    detachmentIds = [],
-  }: {
-    restrictions?: FactionRestrictions
-    factionCards?: boolean
-    battleSize?: number
-    waivedRules?: readonly string[]
-    detachmentIds?: readonly string[]
-  } = {},
-): UnitSummary[] {
-  const wanted = query.trim().toLowerCase()
+  { restrictions, factionCards, battleSize, waivedRules = [], detachmentIds = [] }: UnitListOptions = {},
+): Stepwise<UnitSummary[]> {
   // A faction page lists what its cards list, where it has cards at all.
   const book = loaded.index.catalogues.get(catalogueId)
   const included = Boolean(factionCards && book && factionContentOf(loaded, book.name))
@@ -118,7 +118,31 @@ export function unitsIn(
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
   const cacheKey = `${JSON.stringify(detachments.chosen.map((option) => option.id))}:${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}`
   const cached = unitSummaryCache.get(loaded)?.get(cacheKey)
-  if (cached) return searchUnits(loaded, catalogueId, wanted, cached)
+  if (cached) return cached
+  const work = stepwise(() => summarizeUnits(loaded, catalogueId, { restrictions, included, battleSize, waivedRules, detachments }))
+  const entries = unitSummaryCache.get(loaded) ?? new Map<string, Stepwise<UnitSummary[]>>()
+  entries.set(cacheKey, work)
+  unitSummaryCache.set(loaded, entries)
+  return work
+}
+
+function* summarizeUnits(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  {
+    restrictions,
+    included,
+    battleSize,
+    waivedRules,
+    detachments,
+  }: {
+    restrictions?: FactionRestrictions
+    included: boolean
+    battleSize?: number
+    waivedRules: readonly string[]
+    detachments: ReturnType<typeof rosterDetachments>
+  },
+): Steps<UnitSummary[]> {
   const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
   const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
 
@@ -138,6 +162,7 @@ export function unitsIn(
     const ally = allied.get(id)
     if (ally?.name === 'Unaligned Forces') continue
     found.push({ id, name, group: groupOf(entry, target), alliedFaction: ally?.name ?? null, alliedOrder: ally?.order ?? -1 })
+    yield
   }
 
   const primary = found.filter((unit) => !unit.alliedFaction).toSorted((left, right) => left.name.localeCompare(right.name))
@@ -146,28 +171,25 @@ export function unitsIn(
     .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
   const size = battleSizeSelection(loaded.index, battleSize ?? null)
   const roster = [...(size ? [size] : []), ...detachments.selections]
-  const summaries = [...primary, ...allies].flatMap((unit) => {
+  const summaries: UnitSummary[] = []
+  for (const unit of [...primary, ...allies]) {
+    yield
     const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
     const facts = sheet ? { keywords: sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
-    if (facts && kotcUnitExclusions(facts, waivedRules).length) return []
+    if (facts && kotcUnitExclusions(facts, waivedRules).length) continue
     const formatLimit = facts ? formatDatasheetLimit(battleSize!, kotcDatasheetRepeatable(facts.keywords), waivedRules) : null
-    return [
-      {
-        id: unit.id,
-        slug: datasheetSlug(loaded, catalogueId, unit.id),
-        name: unit.name,
-        group: unit.group,
-        allied: Boolean(unit.alliedFaction),
-        alliedFaction: unit.alliedFaction,
-        points: priceOf(loaded, catalogueId, unit.id, roster),
-        limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), formatLimit),
-      },
-    ]
-  })
-  const entries = unitSummaryCache.get(loaded) ?? new Map<string, UnitSummary[]>()
-  entries.set(cacheKey, summaries)
-  unitSummaryCache.set(loaded, entries)
-  return searchUnits(loaded, catalogueId, wanted, summaries)
+    summaries.push({
+      id: unit.id,
+      slug: datasheetSlug(loaded, catalogueId, unit.id),
+      name: unit.name,
+      group: unit.group,
+      allied: Boolean(unit.alliedFaction),
+      alliedFaction: unit.alliedFaction,
+      points: priceOf(loaded, catalogueId, unit.id, roster),
+      limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), formatLimit),
+    })
+  }
+  return summaries
 }
 
 function searchUnits(loaded: LoadedCatalogue, catalogueId: string, query: string, units: UnitSummary[]) {

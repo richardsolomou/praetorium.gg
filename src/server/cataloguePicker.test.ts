@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from '../shared/catalogue'
 import { calculateRosterPrice } from '../shared/pricing'
-import { pickerUnitsFor } from '../shared/pickerUnits'
+import { pickerConstruction, pickerUnitsFor } from '../shared/pickerUnits'
 import { groupOfEntry, unitsIn } from '../shared/cataloguePicker'
 import { ability, bookOf, categories, offered, points, shelfOf, withCards } from './catalogue.fixtures'
 
@@ -55,6 +55,21 @@ describe('the shelf a datasheet is filed under', () => {
 })
 
 describe('the picker', () => {
+  it('lists every unit when a request reads a list the background build has started', () => {
+    const book = () =>
+      bookOf({
+        selectionEntries: [
+          { id: 'warriors', name: 'Necron Warriors', type: 'unit', costs: points(100) },
+          { id: 'immortals', name: 'Immortals', type: 'unit', costs: points(70) },
+        ],
+      })
+    const started = book()
+    const construction = pickerConstruction(started, null, 'cat')
+    construction.next()
+    construction.next()
+    expect(pickerUnitsFor(started, null, 'cat', '')).toEqual(pickerUnitsFor(book(), null, 'cat', ''))
+  })
+
   it('finds datasheets by keyword, ability, weapon and weapon keyword', () => {
     const book = bookOf({
       categoryEntries: [{ id: 'cryptek', name: 'Cryptek' }],

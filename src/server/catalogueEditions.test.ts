@@ -10,13 +10,25 @@ import type { LoadedRules } from './rules'
 import { ALICE, BOB, builtRoster, log } from '../core/battle.fixtures'
 import { reduceBattle } from '../core/battle'
 import { battleSummary } from '../shared/battleSummary'
+import { completeSteps } from '../shared/steps'
 
 const mocks = vi.hoisted(() => ({ loadCatalogue: vi.fn(), compile: vi.fn(), packaged: vi.fn(() => new Map()) }))
 vi.mock('./catalogueIndex', async (original) => ({
   ...(await original<typeof import('./catalogueIndex')>()),
   loadCatalogue: mocks.loadCatalogue,
+  *loadCatalogueSteps(...args: unknown[]) {
+    yield
+    return mocks.loadCatalogue(...args)
+  },
 }))
-vi.mock('./rules', async (original) => ({ ...(await original<typeof import('./rules')>()), loadRules: () => null }))
+vi.mock('./rules', async (original) => ({
+  ...(await original<typeof import('./rules')>()),
+  loadRules: () => null,
+  *loadRulesSteps() {
+    yield
+    return null
+  },
+}))
 vi.mock('./canonicalCatalogue', async (original) => ({
   ...(await original<typeof import('./canonicalCatalogue')>()),
   canonicalCatalogueFromSnapshotSteps: function* (...args: unknown[]) {
@@ -186,6 +198,17 @@ it('loads a named base edition from the root directory', () => {
   )
   selected.catalogueFor('codex~child')
   expect(mocks.loadCatalogue).toHaveBeenCalledWith(directory, composition.editions[0].edition)
+})
+
+it('shares an edition load in progress with a request for it', () => {
+  const loaded = versions(['child'])
+  mocks.loadCatalogue.mockClear()
+  const construction = loaded.construction()
+  construction.next()
+  construction.next()
+  loaded.catalogueFor('codex~child')
+  completeSteps(construction)
+  expect(mocks.loadCatalogue).toHaveBeenCalledTimes(1)
 })
 
 it('keeps saved catalogue IDs on their rules when another version becomes the default', () => {

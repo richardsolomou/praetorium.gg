@@ -4,16 +4,21 @@ import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { editionCatalogueFiles, type CatalogueEdition } from '../core/catalogueEdition'
 import { catalogueReferencePolicySchema, datacardExclusions } from '../core/catalogueReferencePolicy'
-import { loadDatacards } from './datacards'
+import { loadDatacardsSteps } from './datacards'
 import { catalogueSections } from './catalogueSections'
-import { loadMfm } from './mfm'
+import { loadMfmSteps } from './mfm'
 import { readSharedJson } from './sharedJson'
 import { type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
+import { completeSteps, type Steps } from '../shared/steps'
 export * from '../shared/catalogueIndex'
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
   return process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue')
 }
 export function loadCatalogue(directory = catalogueDirectory(), edition?: CatalogueEdition): LoadedCatalogue | null {
+  return completeSteps(loadCatalogueSteps(directory, edition))
+}
+
+export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: CatalogueEdition): Steps<LoadedCatalogue | null> {
   const definitions = path.join(directory, 'definitions')
   const revisionFile = path.join(directory, 'revision.json')
   if (!fs.existsSync(definitions) || !fs.existsSync(revisionFile)) return null
@@ -22,22 +27,27 @@ export function loadCatalogue(directory = catalogueDirectory(), edition?: Catalo
   if (!revision.definitions) return null
 
   const strings = new Map<string, string>()
-  const files = fs
-    .readdirSync(definitions)
-    .filter((name) => name.endsWith('.json'))
-    .map((name) => readSharedJson(path.join(definitions, name), strings) as CatalogueFile)
+  const files: CatalogueFile[] = []
+  for (const name of fs.readdirSync(definitions).filter((entry) => entry.endsWith('.json'))) {
+    files.push(readSharedJson(path.join(definitions, name), strings) as CatalogueFile)
+    yield
+  }
   if (!files.length) return null
 
   const selectedFiles = edition ? editionCatalogueFiles(files, edition) : files
+  yield
   const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }))
+  yield
   // The cards name sections they do not describe, and the catalogue is where those words are.
-  const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index), strings)
+  const datacards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index), strings)
   const policyFile = path.join(directory, 'reference-policy.json')
   const policy = fs.existsSync(policyFile) ? catalogueReferencePolicySchema.parse(JSON.parse(fs.readFileSync(policyFile, 'utf8'))) : null
+  const loaded = catalogueFromIndex(index, selectedFiles, datacards)
+  yield
   return {
-    ...catalogueFromIndex(index, selectedFiles, datacards),
+    ...loaded,
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
-    mfm: loadMfm(directory),
+    mfm: yield* loadMfmSteps(directory),
     ...(edition ? { edition } : {}),
   }
 }
