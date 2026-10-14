@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.143.8
+
+### Patch Changes
+
+- 3f96e16: Mission choices such as Burden of Trust guards, A Tempting Target and Punishment are now optional: skip them and keep playing, or record them later from the mission card.
+- 3f96e16: Tempting Target objectives are picked with one tap each, and its confirmations, like Consecrate's, are a single switch.
+
 ## 0.143.7
 
 ### Patch Changes
