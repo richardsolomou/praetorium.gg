@@ -51,3 +51,34 @@ it('reports a positive count independently of zero entries in the same spread', 
     { pickIndex: 0, entryId: 'unit', kind: 'spread', key: 'removedGroup', optionId: 'selected' },
   ])
 })
+
+const wargear = {
+  key: 0,
+  choices: [
+    { key: 'wargear', room: 1, chosen: 'bolter', options: [{ id: 'volkite' }, { id: 'bolter' }] },
+    { key: 'wargear/bolter/melee', room: 1, chosen: 'sword', options: [{ id: 'sword' }] },
+  ],
+  toggles: [],
+}
+
+it('ignores a choice saved under an either-or option the player switched away from', () => {
+  expect(
+    unavailableRosterSelections(
+      [{ entryId: 'lieutenant', choices: { wargear: 'bolter', 'wargear/bolter/melee': 'sword', 'wargear/volkite/fists': 'power-fist' } }],
+      [wargear],
+    ),
+  ).toEqual([])
+})
+
+it('still reports a removed option under the option the player holds', () => {
+  expect(unavailableRosterSelections([{ entryId: 'lieutenant', choices: { 'wargear/bolter/melee': 'removed' } }], [wargear])).toEqual([
+    { pickIndex: 0, entryId: 'lieutenant', kind: 'choice', key: 'wargear/bolter/melee', optionId: 'removed' },
+  ])
+})
+
+it('still reports a remembered selection under an option of a group a squad divides between', () => {
+  const squad = { key: 0, choices: [{ key: 'weapons', room: 5, chosen: '', options: [{ id: 'plasma' }] }], toggles: [] }
+  expect(unavailableRosterSelections([{ entryId: 'squad', spreads: { 'weapons/plasma/sight': { scope: 1 } } }], [squad])).toEqual([
+    { pickIndex: 0, entryId: 'squad', kind: 'spread', key: 'weapons/plasma/sight', optionId: 'scope' },
+  ])
+})

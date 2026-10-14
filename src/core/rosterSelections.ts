@@ -1,10 +1,23 @@
 import type { RosterPick } from './roster'
 
+type OfferedChoice = { key: string; room?: number; chosen?: string; options?: readonly { id: string }[] }
+
+/**
+ * Whether a saved selection sits under an either-or option the player switched away from.
+ * The builder keeps it so that switching back restores it; building the unit never reaches it.
+ */
+function rememberedUnderAnotherOption(key: string, offered: readonly OfferedChoice[]) {
+  return offered.some(
+    (choice) =>
+      choice.room === 1 && choice.options?.some((option) => option.id !== choice.chosen && key.startsWith(`${choice.key}/${option.id}/`)),
+  )
+}
+
 export function unavailableRosterSelections(
   picks: readonly RosterPick[],
   units: readonly {
     key: number
-    choices: readonly { key: string; options?: readonly { id: string }[] }[]
+    choices: readonly OfferedChoice[]
     toggles: readonly { key: string }[]
   }[],
   resolveOption?: (pickIndex: number, key: string, optionId: string) => { key: string; optionId: string } | null,
@@ -26,9 +39,11 @@ export function unavailableRosterSelections(
       const resolved = resolveOption?.(pickIndex, key, optionId)
       return choices.get(resolved?.key ?? key)?.has(resolved?.optionId ?? optionId)
     }
+    const applied = <V>(entries: Record<string, V> | undefined) =>
+      Object.entries(entries ?? {}).filter(([key]) => !rememberedUnderAnotherOption(key, unit.choices))
     return [
-      ...Object.entries(pick.choices ?? {}).flatMap(([key, id]) => (hasOption(key, id) ? [] : [problem('choice', key, id)])),
-      ...Object.entries(pick.spreads ?? {}).flatMap(([key, counts]) =>
+      ...applied(pick.choices).flatMap(([key, id]) => (hasOption(key, id) ? [] : [problem('choice', key, id)])),
+      ...applied(pick.spreads).flatMap(([key, counts]) =>
         Object.entries(counts).flatMap(([id, count]) => (count === 0 || hasOption(key, id) ? [] : [problem('spread', key, id)])),
       ),
       ...Object.entries(pick.toggles ?? {}).flatMap(([key, count]) => (count === 0 || toggles.has(key) ? [] : [problem('toggle', key)])),
