@@ -465,22 +465,14 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   }
   await bobConfirmation
   await bob.unroute('**/*')
-  await expect(bob.getByText('Review saved changes', { exact: true })).toBeVisible()
-  await bob.getByRole('dialog', { name: 'Discard tactical secondaries?' }).getByRole('button', { name: 'Minimize dialog' }).click()
-  await bob.getByRole('button', { name: 'Details', exact: true }).click()
-  const saved = bob.getByRole('dialog', { name: 'Saved changes' })
-  await saved.getByRole('button', { name: 'Use server version' }).click()
-  await bob.getByRole('alertdialog').getByRole('button', { name: 'Discard changes', exact: true }).click()
-  await expect(bob.getByRole('alertdialog')).toBeHidden()
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeVisible()
+  await expect(bob.getByText('Review saved changes', { exact: true })).toHaveCount(0)
   await expect(alice.getByRole('dialog', { name: `${bobName}’s secondary missions` })).toBeVisible()
   await expect(
     alice.getByRole('dialog', { name: `${bobName}’s secondary missions` }).getByRole('button', { name: 'Undo latest action' }),
   ).toBeEnabled()
   await takeTheTurn(alice)
   await expect(bob.getByRole('dialog', { name: 'Your secondary missions' })).toBeHidden()
-  // Using the server version leaves nothing to review, so the review closes itself.
-  await expect(saved).toBeHidden()
   const bobSecondaryCards = bob
     .locator('[data-panel="player"]')
     .filter({ hasText: 'Necrons' })

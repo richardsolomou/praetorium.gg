@@ -107,19 +107,6 @@ it('refuses a force-wide unit limit violation offline before saving a battle com
   expect(mocks.queue).not.toHaveBeenCalled()
 })
 
-it('refreshes a saved playing workspace that is older than the battle screen before returning a stale response', async () => {
-  prepare(80)
-  vi.stubGlobal('navigator', { onLine: true })
-  const savedHistory = log(...started())
-  const saved = { ...workspace, log: savedHistory, serverSeq: savedHistory.length }
-  const history = log(...started(), ...turns(2, ALICE))
-  const fresh = { ...workspace, log: history, serverSeq: history.length }
-  mocks.workspace.mockResolvedValue({ workspace: fresh })
-  mocks.document.mockResolvedValueOnce(saved).mockResolvedValueOnce(saved).mockResolvedValueOnce(fresh)
-  const answer = await submit({ data: { token: 'battle', expectedSeq: savedHistory.length + 1, command: { kind: 'advance' } } })
-  expect(answer.result).toEqual({ outcome: 'stale', seq: history.length })
-})
-
 it('keeps the newer battle screen when its full history has not downloaded offline', async () => {
   prepare(80)
   vi.stubGlobal('navigator', { onLine: false })
@@ -140,14 +127,14 @@ it('returns a competing connected automatic settlement as stale without saving a
   vi.stubGlobal('navigator', { onLine: true })
   const authoritative = { result: { outcome: 'stale', seq: input.data.expectedSeq + 1 }, screen: null }
   mocks.submit.mockResolvedValue(authoritative)
-  const result = await submit(input, { background: true })
+  const result = await submit(input)
   expect({ result, queued: mocks.queue.mock.calls }).toEqual({ result: authoritative, queued: [] })
 })
 
 it('saves an offline automatic settlement durably', async () => {
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: false })
-  await submit(input, { background: true })
+  await submit(input)
   expect(mocks.queue.mock.calls[0]?.[1]).toMatchObject({ expectedSeq: input.data.expectedSeq, command: input.data.command })
 })
 
@@ -159,7 +146,7 @@ it('downloads and saves authoritative automatic settlement before showing its sc
   const result = { outcome: 'appended', seq: 10 }
   mocks.submit.mockResolvedValue({ result, screen })
   mocks.workspace.mockResolvedValue({ workspace: fresh, screen })
-  const answer = await submit(input, { background: true })
+  const answer = await submit(input)
   expect({ answer, saved: mocks.remember.mock.calls }).toEqual({ answer: { result, screen }, saved: [[fresh, 'alice']] })
 })
 
@@ -168,7 +155,7 @@ it('does not show an automatic server advance when its offline history cannot do
   vi.stubGlobal('navigator', { onLine: true })
   mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
   mocks.workspace.mockRejectedValue(new Error('Disconnected before download'))
-  await expect(submit(input, { background: true })).rejects.toThrow('Disconnected before download')
+  await expect(submit(input)).rejects.toThrow('Disconnected before download')
   expect(mocks.queue).not.toHaveBeenCalled()
 })
 
@@ -185,7 +172,7 @@ it('preserves a local command saved while an automatic settlement response downl
   mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
   mocks.workspace.mockResolvedValue({ workspace: fresh, screen: { kind: 'battle', view: { seq: 10 } } })
   mocks.document.mockResolvedValue(current)
-  const answer = await submit(input, { background: true })
+  const answer = await submit(input)
   expect(answer.screen?.kind === 'battle' && answer.screen.view.seq).toBe(11)
 })
 
@@ -201,7 +188,7 @@ it('preserves a newer acknowledged battle while an automatic settlement response
   mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
   mocks.workspace.mockResolvedValue({ workspace: fresh, screen: { kind: 'battle', view: { seq: 10 } } })
   mocks.document.mockResolvedValue(current)
-  const answer = await submit(input, { background: true })
+  const answer = await submit(input)
   expect(answer.screen?.kind === 'battle' && answer.screen.view.seq).toBe(11)
 })
 
@@ -209,7 +196,7 @@ it('keeps automatic settlement behind existing local battle work while connected
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
   mocks.changes.mockResolvedValue(true)
-  await submit(input, { background: true })
+  await submit(input)
   expect(mocks.queue.mock.calls[0]?.[1]).toMatchObject({ expectedSeq: input.data.expectedSeq, command: input.data.command })
 })
 
@@ -223,7 +210,7 @@ it('submits connected automatic settlement authoritatively after pending player 
   })
   const authoritative = { result: { outcome: 'stale', seq: input.data.expectedSeq + 1 }, screen: null }
   mocks.submit.mockResolvedValue(authoritative)
-  const answer = await submit(input, { background: true })
+  const answer = await submit(input)
   expect({ answer, synced: mocks.sync.mock.calls.length, queued: mocks.queue.mock.calls }).toEqual({
     answer: authoritative,
     synced: 1,
@@ -231,18 +218,20 @@ it('submits connected automatic settlement authoritatively after pending player 
   })
 })
 
-it('saves a player’s connected settlement durably', async () => {
+it('submits a connected play command to the service without saving it on the device', async () => {
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
-  await submit(input)
-  expect(mocks.queue.mock.calls[0]?.[1]).toMatchObject({ expectedSeq: input.data.expectedSeq, command: input.data.command })
+  const authoritative = { result: { outcome: 'stale', seq: input.data.expectedSeq + 1 }, screen: null }
+  mocks.submit.mockResolvedValue(authoritative)
+  const answer = await submit({ data: { ...input.data, command: { kind: 'advance' } } })
+  expect({ answer, queued: mocks.queue.mock.calls }).toEqual({ answer: authoritative, queued: [] })
 })
 
 it('does not replay a connected automatic write after an uncertain network response', async () => {
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
   mocks.submit.mockRejectedValue(new Error('Response lost'))
-  await expect(submit(input, { background: true })).rejects.toThrow('Response lost')
+  await expect(submit(input)).rejects.toThrow('Response lost')
   expect(mocks.queue).not.toHaveBeenCalled()
 })
 
@@ -261,7 +250,7 @@ it('saves a connected automatic write on the device when the service never answe
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
   mocks.submit.mockRejectedValue(new TypeError('Failed to fetch'))
-  await submit(input, { background: true })
+  await submit(input)
   expect(mocks.queue).toHaveBeenCalledOnce()
 })
 

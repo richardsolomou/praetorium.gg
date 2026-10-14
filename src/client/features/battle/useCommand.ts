@@ -70,10 +70,7 @@ export function useCommand(token: string, seq: number) {
         if (!item) break
         seen.current = Math.max(seen.current, item.basedOn)
         try {
-          const { result, screen } = await submit(
-            { data: { token, expectedSeq: seen.current, command: item.command } },
-            { background: item.background },
-          )
+          const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
           const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
           if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
           queryClient.setQueryData(battleQuery(token).queryKey, screen)

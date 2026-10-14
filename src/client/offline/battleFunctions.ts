@@ -121,10 +121,7 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
   }
 }
 
-export async function submit(
-  args: Parameters<typeof server.submit>[0],
-  options?: { background?: boolean },
-): ReturnType<typeof server.submit> {
+export async function submit(args: Parameters<typeof server.submit>[0]): ReturnType<typeof server.submit> {
   const engine = localEngine()
   const owner = localOwner()
   const resource = `battle:${args.data.token}`
@@ -133,14 +130,11 @@ export async function submit(
     if (engine && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
     return server.submit(args)
   }
-  let workspace = await localDocument<BattleWorkspace>(resource)
-  const sharedSetup = workspace && localBattleState(workspace.players, workspace.log).status === 'setup'
-  const authoritative = options?.background || sharedSetup
-  if (authoritative && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
-  // A service that never answers is treated like no connection, so the choice is saved and synced later. If
+  if (navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
+  // A service that never answers is treated like no connection, so the command is saved and synced later. If
   // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
   const answer =
-    authoritative && navigator.onLine && !(await hasLocalChanges(resource))
+    navigator.onLine && !(await hasLocalChanges(resource))
       ? await server.submit(args).catch((error: unknown) => {
           if (isFetchNetworkFailure(error)) return null
           throw error
@@ -159,12 +153,7 @@ export async function submit(
           : fresh.screen,
     }
   }
-  workspace = await localDocument<BattleWorkspace>(resource)
-  if (navigator.onLine && (!workspace || (workspace.log.at(-1)?.seq ?? 0) < args.data.expectedSeq) && !(await hasLocalChanges(resource))) {
-    const fresh = await battleWorkspace({ data: { token: args.data.token } })
-    await rememberBattle(fresh.workspace, owner.id)
-    workspace = await localDocument<BattleWorkspace>(resource)
-  }
+  const workspace = await localDocument<BattleWorkspace>(resource)
   if (!workspace) throw new Error('Open this battle online once before making offline changes.')
   if (
     await engine.storage
