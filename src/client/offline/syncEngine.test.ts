@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyLocalState, type LocalOperation, type LocalState } from '../../contracts/localState'
-import { discardLocalResource, SyncEngine, type LocalStateStorage } from './syncEngine'
+import { discardLocalResource, hasSyncableWork, SyncEngine, type LocalStateStorage } from './syncEngine'
 
 function memory(initial = emptyLocalState('player')): LocalStateStorage {
   let state = structuredClone(initial)
@@ -304,4 +304,14 @@ it('retains dependent work for review instead of sending it after its prerequisi
     executed: ['roster:two'],
     retained: ['refused'],
   })
+})
+
+it.each([
+  ['pending', true],
+  ['conflict', false],
+  ['refused', false],
+] as const)('treats a resource whose first saved change is %s as syncable=%s', (status, syncable) => {
+  const state = emptyLocalState('player')
+  state.operations.push({ ...operation('battle:one'), status }, operation('battle:one'))
+  expect(hasSyncableWork(state, 'battle:one')).toBe(syncable)
 })

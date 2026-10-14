@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   workspace: vi.fn(),
   submit: vi.fn(),
   changes: vi.fn(),
+  saved: vi.fn(),
   remember: vi.fn(),
   sync: vi.fn(),
 }))
@@ -24,7 +25,8 @@ vi.mock('./localRuntime', () => ({
   localDocument: mocks.document,
   queueLocal: mocks.queue,
   localClient: vi.fn(),
-  hasLocalChanges: mocks.changes,
+  hasLocalChanges: mocks.saved,
+  hasSyncableChanges: mocks.changes,
   rememberBattle: mocks.remember,
   rememberDocument: vi.fn(),
   syncLocalWork: vi.fn(),
@@ -221,6 +223,16 @@ it('submits connected automatic settlement authoritatively after pending player 
 it('submits a connected play command to the service without saving it on the device', async () => {
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
+  const authoritative = { result: { outcome: 'stale', seq: input.data.expectedSeq + 1 }, screen: null }
+  mocks.submit.mockResolvedValue(authoritative)
+  const answer = await submit({ data: { ...input.data, command: { kind: 'advance' } } })
+  expect({ answer, queued: mocks.queue.mock.calls }).toEqual({ answer: authoritative, queued: [] })
+})
+
+it('submits a connected play command to the service while an earlier conflict awaits review', async () => {
+  const input = settlement()
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.saved.mockResolvedValue(true)
   const authoritative = { result: { outcome: 'stale', seq: input.data.expectedSeq + 1 }, screen: null }
   mocks.submit.mockResolvedValue(authoritative)
   const answer = await submit({ data: { ...input.data, command: { kind: 'advance' } } })

@@ -1,7 +1,7 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from '@playwright/test'
 import { createBattle, createRoster, signUp, uniqueName, setupStep, retryUntilVisible, attachRoster, startBattle, advance } from './account'
-import { productOperator, savedWork, withAuthSql } from './storage'
+import { battleLog, productOperator, savedWork, withAuthSql } from './storage'
 import { chooseCombatUnit } from './combat'
 
 test.use({ actionTimeout: 15_000 })
@@ -198,6 +198,44 @@ test('an offline practice battle and its commands survive reopening and sync tog
     kind: 'attach-roster',
     roster: { id: rosterId, name: 'Flight army' },
   })
+})
+
+test('a battle conflict awaiting review does not stop connected play', async ({ page, context }) => {
+  test.setTimeout(240_000)
+  const account = await signUp(page, uniqueName('Battle conflict'))
+  const operator = await productOperator()
+  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
+  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
+    id: string
+  }
+  await operator.saveRoster({
+    ...source,
+    id: crypto.randomUUID(),
+    userId: user.id,
+    name: 'Flight army',
+    automaticName: false,
+    now: Date.now(),
+  })
+  const url = await createBattle(page, { practice: true })
+  const token = new URL(url).pathname.split('/').at(-1)!
+  await attachRoster(page, 'Flight army')
+  await attachRoster(page, 'Flight army', { forPlayer: 'Practice Opponent' })
+  await startBattle(page)
+  await waitForOfflineApp(page)
+  const otherDevice = await battleLog(page)
+  await context.setOffline(true)
+  await advance(page)
+  await expect
+    .poll(async () => (await savedWork(page))?.operations.filter((operation) => operation.resource === `battle:${token}`).length)
+    .toBe(1)
+  await otherDevice.append(otherDevice.first, { kind: 'advance' })
+  await context.setOffline(false)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect(page.getByText('Review saved changes', { exact: true })).toBeVisible({ timeout: 30_000 })
+  const before = (await operator.battleByToken(token))!.log.length
+  await advance(page)
+  await expect(page.getByRole('heading', { name: 'shooting phase' })).toBeVisible()
+  expect((await operator.battleByToken(token))!.log.length).toBe(before + 1)
 })
 
 test('conflicting roster edits stay saved and export before choosing the server version', async ({ page, context }) => {
