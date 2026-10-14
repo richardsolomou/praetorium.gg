@@ -1,5 +1,22 @@
 # praetorium
 
+## 0.144.0
+
+### Minor Changes
+
+- c17890e: The battles page lists your own games, your friends' games or every public game, one whole list at a time, and the home page links to each.
+- c17890e: Your home page names the latest data updates to the armies in your rosters, and how many of your lists an update has changed.
+- c17890e: Battles show as compact fixture cards on the home page, the battles page, profiles and leagues, with every player at the table, their armies and the score between them.
+- c17890e: New players see a Getting started checklist on the home page that ticks off each step as they go.
+- c17890e: Your home page shows your record, win rate, current streak and leaderboard place under the greeting.
+- c17890e: Profiles show recent form, the army a player uses most and a clearer service record, and open on rosters for players who only build lists.
+
+### Patch Changes
+
+- 14179d1: The button that starts a new list now reads Create roster.
+- c17890e: The home page leads with your lists when you have no games, and only shows your record once you have played.
+- fb2d3b5: What's new and the update notice only list changes you can see in the app.
+
 ## 0.143.8
 
 ### Patch Changes
