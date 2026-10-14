@@ -1,6 +1,12 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { coalescedBy, invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
+import {
+  coalescedBy,
+  invalidateAdminProductQueries,
+  invalidateProductQueries,
+  invalidatePublicProductQueries,
+  invalidateSyncedQueries,
+} from './productSignals'
 
 it('refreshes the home roster shelf and saved lists after a roster signal without reloading catalogue data', async () => {
   const client = new QueryClient()
@@ -101,6 +107,72 @@ it('leaves standings to the standings signal when a seated player’s battle cha
   await invalidateProductQueries(client, 'battles')
 
   expect(['battles', 'standings', 'player-rankings'].map((key) => client.getQueryState([key])?.isInvalidated)).toEqual([true, false, false])
+})
+
+describe('refreshes after local work syncs', () => {
+  const invalidated = (client: QueryClient, keys: readonly (readonly unknown[])[]) =>
+    keys.map((key) => client.getQueryState(key)?.isInvalidated ?? false)
+  const seeded = (keys: readonly (readonly unknown[])[]) => {
+    const client = new QueryClient()
+    for (const key of keys) client.setQueryData(key, {})
+    return client
+  }
+
+  it('refreshes saved rosters and league entries after a roster save without reloading catalogue data, prices or settings', async () => {
+    const keys = [
+      ['roster-access', 'roster-1'],
+      ['saved-roster-summaries'],
+      ['outdated-league-entries', 'roster-1'],
+      ['units', 'faction', 2000],
+      ['price', 'faction'],
+      ['release'],
+      ['realtime-mode'],
+      ['notification-settings'],
+    ]
+    const client = seeded(keys)
+
+    await invalidateSyncedQueries(client, [{ id: crypto.randomUUID(), kind: 'saveRoster', resource: 'roster:roster-1' }])
+
+    expect(invalidated(client, keys)).toEqual([true, true, true, false, false, false, false, false])
+  })
+
+  it('refreshes once when the same acknowledgement is reported twice', async () => {
+    const client = seeded([['home-rosters']])
+    const operation = { id: crypto.randomUUID(), kind: 'saveRoster', resource: 'roster:roster-1' }
+    await invalidateSyncedQueries(client, [operation])
+    client.setQueryData(['home-rosters'], {})
+
+    await invalidateSyncedQueries(client, [operation])
+
+    expect(client.getQueryState(['home-rosters'])?.isInvalidated).toBe(false)
+  })
+
+  it('refreshes the synced battle and its report without refetching another open battle', async () => {
+    const keys = [['battle', 'battle-1'], ['report', 'battle-1'], ['battles'], ['battle', 'battle-2']]
+    const client = seeded(keys)
+
+    await invalidateSyncedQueries(client, [{ id: crypto.randomUUID(), kind: 'battleCommand', resource: 'battle:battle-1' }])
+
+    expect(invalidated(client, keys)).toEqual([true, true, true, false])
+  })
+
+  it('refreshes only the collection after a collection change', async () => {
+    const keys = [['collection'], ['collection-counts'], ['home-rosters'], ['favourite-factions']]
+    const client = seeded(keys)
+
+    await invalidateSyncedQueries(client, [{ id: crypto.randomUUID(), kind: 'setOwned', resource: 'query:["collection"]' }])
+
+    expect(invalidated(client, keys)).toEqual([true, true, false, false])
+  })
+
+  it('refreshes every product reader for an unknown saved operation but still not catalogue data', async () => {
+    const keys = [['home-rosters'], ['collection'], ['leagues'], ['faction-index']]
+    const client = seeded(keys)
+
+    await invalidateSyncedQueries(client, [{ id: crypto.randomUUID(), kind: 'futureAction', resource: 'future:1' }])
+
+    expect(invalidated(client, keys)).toEqual([true, true, true, false])
+  })
 })
 
 describe('coalesced signal refreshes', () => {

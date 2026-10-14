@@ -1,4 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
+import { MAX_LOCAL_OPERATIONS, type LocalOperation } from '../contracts/localState'
+import type { OfflineActionKind } from '../contracts/offlineActions'
 
 const queryFamilies = {
   rosters: [
@@ -17,6 +19,7 @@ const queryFamilies = {
     'discovered-rosters',
     'roster-loans',
     'rosters-lent-to-me',
+    'outdated-league-entries',
   ],
   collection: ['collection', 'collection-counts', 'collection-profile'],
   favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets'],
@@ -42,6 +45,77 @@ const publicQueryFamilies = {
 } as const
 
 export type ProductScope = keyof typeof queryFamilies
+
+const operationScopes = {
+  saveRoster: ['rosters'],
+  deleteRoster: ['rosters'],
+  battleCommand: ['battles'],
+  setOwned: ['collection'],
+  setCollectionModels: ['collection'],
+  setFavouriteFaction: ['favourites'],
+  setFavouriteDetachment: ['favourites'],
+  setFavouriteDatasheet: ['favourites'],
+  setPlayerDefaults: ['settings'],
+  setBattleAudience: ['settings'],
+  setPushNotifications: ['settings'],
+  updateOnboardingProgress: ['onboarding'],
+  requestFriend: ['friends'],
+  acceptFriend: ['friends'],
+  rejectFriend: ['friends'],
+  removeFriend: ['friends'],
+  acceptFriendInvite: ['friends', 'invites'],
+  createFriendInvite: ['invites'],
+  cancelFriendInvite: ['invites'],
+  createLeague: ['leagues'],
+  createLeagueEvent: ['leagues'],
+  joinLeague: ['leagues'],
+  addLeagueEntrants: ['leagues'],
+  admitLeagueEntries: ['leagues'],
+  moderateLeagueEntry: ['leagues'],
+  submitLeagueRoster: ['leagues'],
+  setLeagueTeamDisposition: ['leagues'],
+  revealLeague: ['leagues'],
+  unsealLeagueRoster: ['leagues'],
+  assignLeagueRosterRequirement: ['leagues'],
+  assignLeagueTeam: ['leagues'],
+  updateLeague: ['leagues'],
+  deleteLeague: ['leagues'],
+  deleteBattle: ['battles'],
+  createBattle: ['battles'],
+  createLeagueBattle: ['battles', 'leagues'],
+} as const satisfies Record<OfflineActionKind | 'saveRoster' | 'deleteRoster' | 'battleCommand', readonly ProductScope[]>
+
+const synced = new Set<string>()
+
+/**
+ * Refreshes what the synced operations could have changed on the server, once per operation.
+ *
+ * The sync engine and the sync status both report the same acknowledgement, so a second report is a no-op instead of
+ * cancelling the first refetch and starting it again. Catalogue reads and roster prices depend only on their inputs,
+ * so no sync refreshes them.
+ */
+export function invalidateSyncedQueries(queryClient: QueryClient, operations: readonly Pick<LocalOperation, 'id' | 'kind' | 'resource'>[]) {
+  const fresh = operations.filter(({ id }) => !synced.has(id))
+  if (!fresh.length) return Promise.resolve()
+  for (const { id } of fresh) synced.add(id)
+  for (const id of synced) if (synced.size > MAX_LOCAL_OPERATIONS) synced.delete(id)
+  const families = new Set<string>()
+  const exact: unknown[][] = []
+  for (const { kind, resource } of fresh) {
+    const scopes: readonly ProductScope[] =
+      kind in operationScopes ? operationScopes[kind as keyof typeof operationScopes] : (Object.keys(queryFamilies) as ProductScope[])
+    for (const scope of scopes) for (const key of queryFamilies[scope]) families.add(key)
+    if (resource.startsWith('battle:')) exact.push(['battle', resource.slice(7)], ['report', resource.slice(7)])
+    if (resource.startsWith('query:')) exact.push(JSON.parse(resource.slice(6)) as unknown[])
+  }
+  return queryClient.invalidateQueries(
+    {
+      predicate: ({ queryKey }) =>
+        families.has(queryKey[0] as string) || exact.some((key) => JSON.stringify(queryKey.slice(0, key.length)) === JSON.stringify(key)),
+    },
+    { cancelRefetch: false },
+  )
+}
 
 export function invalidateProductQueries(queryClient: QueryClient, scope?: string) {
   const families = scope && scope in queryFamilies ? queryFamilies[scope as ProductScope] : Object.values(queryFamilies).flat()

@@ -7,6 +7,7 @@ import { syncRoster, syncAction, syncBattleCommand } from '../../server/function
 import { SyncEngine, hasSyncableWork, type SyncAnswer, type LocalDocumentUpdate } from './syncEngine'
 import { nativeBridgeVersion, supportsNativeLocalState } from '../nativeBridge'
 import { localStateStorage } from './localStorage'
+import { invalidateSyncedQueries } from '../productSignals'
 
 export type LocalRoster = NonNullable<Awaited<ReturnType<typeof server.rosterAccess>>>['roster']
 export type RosterInput = Parameters<typeof server.saveRoster>[0]['data']
@@ -25,12 +26,12 @@ export function configureLocalRuntime(queryClient: QueryClient, project: (state:
     projected = stamp
     const previous = client?.getQueryData<LocalState>(['local-work'])
     const acknowledged =
-      previous?.owner === state.owner &&
-      previous.operations.some((operation) => !state.operations.some((current) => current.id === operation.id))
+      previous?.owner === state.owner
+        ? previous.operations.filter((operation) => !state.operations.some((current) => current.id === operation.id))
+        : []
     client?.setQueryData(['local-work'], state)
     project(state)
-    if (acknowledged)
-      void client?.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'local-work' && query.queryKey[0] !== 'me' })
+    if (client && acknowledged.length) void invalidateSyncedQueries(client, acknowledged)
   }
 }
 export function localClient() {

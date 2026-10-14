@@ -20,6 +20,7 @@ import type { LocalState } from '../../contracts/localState'
 import { saveRoster } from '../functions'
 import type { LocalRoster } from './localRuntime'
 import { discardLocalResource } from './syncEngine'
+import { invalidateSyncedQueries } from '../productSignals'
 
 export function SyncStatus() {
   const client = useQueryClient()
@@ -55,14 +56,16 @@ export function SyncStatus() {
         operationsPending = true
         await restoreLocalWork()
         if (navigator.onLine && document.visibilityState === 'visible') {
-          const before = (await localEngine()?.storage.read())?.operations.length ?? 0
+          const before = (await localEngine()?.storage.read())?.operations ?? []
           await syncLocalWork()
           if (!active) return
           failures = 0
           setProblem(null)
-          const after = (await localEngine()?.storage.read())?.operations.length ?? 0
-          if (before > after)
-            void client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'local-work' && query.queryKey[0] !== 'me' })
+          const after = new Set((await localEngine()?.storage.read())?.operations.map(({ id }) => id))
+          void invalidateSyncedQueries(
+            client,
+            before.filter(({ id }) => !after.has(id)),
+          )
         }
         operationsPending = Boolean((await localEngine()?.storage.read())?.operations.length)
       } catch (error) {
