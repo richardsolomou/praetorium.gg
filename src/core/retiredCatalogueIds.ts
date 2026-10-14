@@ -4,6 +4,7 @@ import rawRetainedRules from '../../catalogue/retained-roster-rules.json' with {
 import rawMigrations from '../../catalogue/roster-migrations.json' with { type: 'json' }
 import type { RosterPick } from './roster'
 import { catalogueEditionId, editionCatalogueId, editionFamilyId, picksForCatalogueEdition } from './catalogueEdition'
+import { foldedEditionIds, migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
 
 const replacementSchema = z.object({ id: z.string() })
 const optionSchema = z.object({ key: z.string(), id: z.string() })
@@ -35,6 +36,8 @@ const retainedRules = z
   .array(
     z.object({
       editionId: z.string(),
+      /** When the app first served the rules that replaced these: a roster last saved from then on was built on the newer rules. */
+      savedBefore: z.number().int().optional(),
       catalogueIds: z.array(z.string()),
       originalCatalogueIds: z.array(z.string()),
       detachments: z.array(z.string()),
@@ -85,6 +88,7 @@ export function savedCatalogueIds(current: readonly string[]) {
   const saved = new Set(current)
   for (const id of [...catalogues.keys(), ...migrationCatalogues.flatMap((map) => [...map.keys()])])
     if (wanted.has(currentCatalogueId(id))) saved.add(id)
+  for (const id of [...saved].flatMap((book) => foldedEditionIds(book))) saved.add(id)
   return [...saved]
 }
 
@@ -156,12 +160,26 @@ export function currentRosterIds<
     borrowedDetachmentId?: string | null
     picks?: readonly RosterPick[]
     units?: readonly RosterPick[]
+    updatedAt?: number
   },
->(roster: T): T {
+>(roster: T, folded = false): T {
+  // A folded rules version reads on the version it folded into, and never routes back to older rules.
+  if (onFoldedEdition(roster.catalogueId))
+    return currentRosterIds(
+      {
+        ...roster,
+        catalogueId: migratedEditionId(roster.catalogueId),
+        ...(roster.picks ? { picks: roster.picks.map((pick) => migratedEditionPick(pick, roster.catalogueId)) } : {}),
+        ...(roster.units ? { units: roster.units.map((pick) => migratedEditionPick(pick, roster.catalogueId)) } : {}),
+      },
+      true,
+    )
   const retained =
+    !folded &&
     !catalogueEditionId(roster.catalogueId) &&
     retainedRules.find(
       (rule) =>
+        (rule.savedBefore === undefined || roster.updatedAt === undefined || roster.updatedAt < rule.savedBefore) &&
         rule.catalogueIds.includes(roster.catalogueId) &&
         (rule.originalCatalogueIds.includes(roster.catalogueId) ||
           roster.detachmentIds.some((id) => rule.detachments.includes(id)) ||

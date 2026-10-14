@@ -30,7 +30,7 @@ import { catalogueChanges, type ChangeSource } from '../src/core/catalogueChange
 import { compiledChangeSource } from './lib/catalogueHistoryCompile'
 import type { WorkerResult } from './catalogueHistoryWorker'
 import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
-import { readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
+import { editionMfmVersions, readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
 
 const root = path.join(import.meta.dirname, '..')
 const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
@@ -90,7 +90,13 @@ try {
   const nextRevisions = revisionsIn(directory)
   const composition = readCatalogueComposition(directory)
   if (composition?.editions.length && !pointer) throw new Error('edition history requires a readable published snapshot')
-  if (pointer) validateEditionContinuity(readCatalogueComposition(previousDirectory), composition)
+  if (pointer) {
+    const previousComposition = readCatalogueComposition(previousDirectory)
+    validateEditionContinuity(previousComposition, composition, {
+      previous: editionMfmVersions(previousDirectory, previousComposition),
+      next: editionMfmVersions(directory, composition),
+    })
+  }
   const nextCompile = compileApart(
     directory,
     Object.keys(nextRevisions).filter((name) => isSnapshotSourceName(name)),

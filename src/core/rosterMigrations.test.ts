@@ -213,3 +213,23 @@ it('uses later retained Marine rules when no earlier removed gear was saved', ()
     }).catalogueId,
   ).toBe('legacy-profiles~470a-6daa-9014-12df')
 })
+
+it('does not read a list on MFM 1.4 rules when it was saved after the app served MFM 1.5', () => {
+  const roster = {
+    catalogueId: '470a-6daa-9014-12df',
+    detachmentIds: [],
+    picks: [{ entryId: '3c0a-10a9-8f84-26a3', spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }],
+    updatedAt: Date.UTC(2026, 9, 3),
+  }
+  expect(currentRosterIds(roster).catalogueId).toBe('470a-6daa-9014-12df')
+})
+
+it('reads a list with a removed detachment saved between MFM 1.5 and the codex on pre-codex MFM 1.5 rules', () => {
+  expect(
+    currentRosterIds({
+      catalogueId: '470a-6daa-9014-12df',
+      detachmentIds: ['profile-detachment-option-470a-6daa-9014-12df-41e6-d47c-5e68-e066'],
+      updatedAt: Date.UTC(2026, 9, 3),
+    }).catalogueId,
+  ).toBe('legacy-profiles~470a-6daa-9014-12df')
+})

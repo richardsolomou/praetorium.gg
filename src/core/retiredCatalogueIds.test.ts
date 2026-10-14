@@ -129,17 +129,30 @@ describe('retired catalogue ids', () => {
     expect(currentRosterIds(roster)).toEqual(roster)
   })
 
-  it('keeps an explicit conversion to current rules even with a removed saved choice', () => {
+  it('moves a roster on a folded MFM 1.5 version to the current rules, keeping a removed choice to reselect', () => {
     const roster = {
       catalogueId: 'current-rosters~470a-6daa-9014-12df',
       detachmentIds: ['9d23-833a-17cb-2d7d'],
       picks: [{ entryId: '3c0a-10a9-8f84-26a3', models: 5, spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }],
     }
-    expect(currentRosterIds(currentRosterIds(roster))).toEqual(roster)
+    expect(currentRosterIds(roster)).toEqual({ ...roster, catalogueId: '470a-6daa-9014-12df' })
+  })
+
+  it('never routes a roster from a folded version back to older rules', () => {
+    const roster = {
+      catalogueId: 'marine-main~470a-6daa-9014-12df',
+      detachmentIds: [],
+      picks: [{ entryId: '3c0a-10a9-8f84-26a3', spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }],
+    }
+    expect(currentRosterIds(roster).catalogueId).toBe('470a-6daa-9014-12df')
   })
 
   it('finds a saved book that reads as the current book it was replaced by', () => {
     expect(savedCatalogueIds([ultramarines.current])).toContain(ultramarines.retired)
+  })
+
+  it('finds a roster still stored on a rules version that folded into the current one', () => {
+    expect(savedCatalogueIds(['470a-6daa-9014-12df'])).toContain('marine-main~470a-6daa-9014-12df')
   })
 
   it('finds no other book for an ID nothing replaced', () => {

@@ -33,6 +33,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       catalogueId: row.catalogueId,
       detachmentIds: detachmentIds(row.detachmentId),
       borrowedDetachmentId: row.borrowedDetachmentId,
+      updatedAt: row.updatedAt,
       ...('picks' in row ? { picks: picksSchema.parse(JSON.parse(row.picks)) } : {}),
     })
     return {

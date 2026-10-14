@@ -3,6 +3,7 @@ import path from 'node:path'
 import { z } from 'zod'
 import { catalogueEditionSchema } from '../core/catalogueEdition'
 import { catalogueSourcesSchema, repositorySourceSchema } from './catalogueSources'
+import { loadMfm, mfmVersions } from './mfm'
 
 const sourceNames = ['definitions', 'points', 'datacards'] as const
 const relativeFile = z
@@ -84,7 +85,28 @@ export function readCatalogueComposition(directory: string): CatalogueCompositio
   return catalogueCompositionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
 }
 
-export function validateEditionContinuity(previous: CatalogueComposition | null, next: CatalogueComposition | null) {
+/** Each rules version's MFM version numbers, from the points data its snapshot directory holds. */
+export function editionMfmVersions(directory: string, composition: CatalogueComposition | null) {
+  return new Map(
+    (composition?.editions ?? [])
+      .filter((entry) => !entry.snapshot)
+      .map((entry) => [
+        entry.edition.id,
+        [...mfmVersions(loadMfm(entry.base ? directory : path.join(directory, 'editions', entry.edition.id)))].toSorted().join(', '),
+      ]),
+  )
+}
+
+/**
+ * A published rules version is one MFM version: fixes, codexes and GW's dated builds within it
+ * advance its sources in place, and only a new MFM version needs a new rules version. Retired
+ * versions keep their sources for the rosters and battles that still read them.
+ */
+export function validateEditionContinuity(
+  previous: CatalogueComposition | null,
+  next: CatalogueComposition | null,
+  mfm?: { previous: ReadonlyMap<string, string>; next: ReadonlyMap<string, string> },
+) {
   for (const prior of previous?.editions ?? []) {
     const { edition, snapshot } = prior
     const selected = next?.editions.find((entry) => entry.edition.id === edition.id)
@@ -99,8 +121,17 @@ export function validateEditionContinuity(previous: CatalogueComposition | null,
     }
     if (edition.catalogueIds.some((id) => !current.catalogueIds.includes(id)))
       throw new Error(`edition ${edition.id} cannot remove published faction identities`)
-    if (edition.status !== 'preview' && JSON.stringify(editionSources(previous, prior)) !== JSON.stringify(editionSources(next, selected)))
-      throw new Error(`rules version ${edition.id} has published rules; add a new version for source changes`)
+    if (edition.status === 'preview' || JSON.stringify(editionSources(previous, prior)) === JSON.stringify(editionSources(next, selected)))
+      continue
+    const [before, after] = [mfm?.previous.get(edition.id), mfm?.next.get(edition.id)]
+    if (edition.status === 'released' && before && before === after) continue
+    throw new Error(
+      edition.status === 'retired'
+        ? `rules version ${edition.id} is retired; keep its published sources for saved lists`
+        : before && after
+          ? `rules version ${edition.id} publishes MFM ${before}; add a new version for MFM ${after}`
+          : `rules version ${edition.id} has published rules; add a new version for source changes`,
+    )
   }
 }
 

@@ -53,6 +53,7 @@ it.skipIf(!existsSync(cli))(
         filter: (file) => !['node_modules', 'dist'].includes(path.basename(file)),
       })
       await cp('src/core', path.join(root, 'src/core'), { recursive: true })
+      await cp('catalogue', path.join(root, 'catalogue'), { recursive: true })
       await symlink(path.resolve('node_modules'), path.join(root, 'node_modules'), 'dir')
       await symlink(path.resolve('spacetimedb/node_modules'), path.join(root, 'spacetimedb/node_modules'), 'dir')
       await appendFile(path.join(root, 'spacetimedb/src/index.ts'), fixture)

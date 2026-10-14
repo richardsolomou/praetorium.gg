@@ -25,17 +25,18 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
     waivedRules: '[]',
     visibility: 'private',
     source: 'editable',
-    now: Date.now(),
+    // Saved before the app served MFM 1.5, so its MFM 1.4 gear keeps it on MFM 1.4.
+    now: Date.UTC(2026, 8, 20),
   })
   await page.goto(`/rosters/${id}`)
   const notice = page.locator('[data-roster-rules-notice]')
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await expect(notice).toContainText('This roster uses MFM 1.4 · 30 Sep 2026.')
+    await expect(notice).toContainText('This roster uses MFM 1.4.')
     await expect(page.locator('[data-unit="Scout Squad"]')).toContainText('Combat Knife')
     await notice.getByRole('button', { name: 'Convert rules version' }).click()
-    await expect(dialog.getByRole('combobox', { name: 'Rules version' })).toContainText('MFM 1.4 · 30 Sep 2026')
+    await expect(dialog.getByRole('combobox', { name: 'Rules version' })).toContainText('MFM 1.4')
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(dialog).toBeHidden()
   }
@@ -52,8 +53,8 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
     await page.setViewportSize({ width, height: 900 })
     await notice.getByRole('button', { name: 'Convert rules version' }).click()
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-    await expect(page.getByRole('option').first()).toHaveText('Current Space Marines points · 13 Oct 2026')
-    await page.getByRole('option', { name: 'Space Marines points · 13 Oct 2026 · Current', exact: true }).click()
+    await expect(page.getByRole('option').first()).toHaveText('Current MFM 1.5')
+    await page.getByRole('option', { name: 'MFM 1.5 · Current', exact: true }).click()
     await expect(dialog.getByRole('button', { name: 'Convert roster', exact: true })).toBeEnabled()
     if (width === 390) {
       await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -92,7 +93,8 @@ test('converts a retired Marine faction identity without discarding its generate
     waivedRules: '[]',
     visibility: 'private',
     source: 'editable',
-    now: Date.now(),
+    // Saved before the app served the codex, so its profile-era books keep it on the pre-codex rules.
+    now: Date.UTC(2026, 8, 20),
   })
   await page.goto(`/rosters/${id}`)
   const notice = page.locator('[data-roster-rules-notice]')
@@ -136,7 +138,7 @@ test('library and builder point a roster on earlier released rules at the curren
       })
       .then(() => id)
   }
-  const earlier = await save('Earlier Scouts', 'current-rosters~470a-6daa-9014-12df')
+  const earlier = await save('Earlier Scouts', 'legacy-rosters~470a-6daa-9014-12df')
   await save('Current Scouts', 'marine-points-1013~470a-6daa-9014-12df')
   await page.goto('/rosters')
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('Older rules')
@@ -148,28 +150,26 @@ test('library and builder point a roster on earlier released rules at the curren
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toBeVisible()
   await page.goto(`/rosters/${earlier}`)
   const notice = page.locator('[data-roster-rules-notice]')
-  await expect(notice).toContainText(
-    'This roster uses Space Marines codex · 3 Oct 2026. Space Marines points · 13 Oct 2026 is the current rules version.',
-  )
+  await expect(notice).toContainText('This roster uses MFM 1.4. MFM 1.5 is the current rules version.')
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
   await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
   await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'Space Marines points · 13 Oct 2026 · Current', exact: true }).click()
+  await page.getByRole('option', { name: 'MFM 1.5 · Current', exact: true }).click()
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(review.getByLabel('Roster change preview')).toContainText(/Scout Squad · 5 models · [\d →]+ pts/)
   await review.getByRole('button', { name: 'Cancel', exact: true }).click()
-  expect((await operator.roster(earlier))?.catalogueId).toBe('current-rosters~470a-6daa-9014-12df')
+  expect((await operator.roster(earlier))?.catalogueId).toBe('legacy-rosters~470a-6daa-9014-12df')
   await page.goto(`/rosters/${earlier}`)
   await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
   await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'Space Marines points · 13 Oct 2026 · Current', exact: true }).click()
+  await page.getByRole('option', { name: 'MFM 1.5 · Current', exact: true }).click()
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   await review.getByRole('switch', { name: /Keep the original/ }).click()
   await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
   await expect(page).not.toHaveURL(new RegExp(earlier))
   const variant = new URL(page.url()).pathname.split('/').at(-1)!
-  expect((await operator.roster(earlier))?.catalogueId).toBe('current-rosters~470a-6daa-9014-12df')
+  expect((await operator.roster(earlier))?.catalogueId).toBe('legacy-rosters~470a-6daa-9014-12df')
   expect(await operator.roster(variant)).toMatchObject({ catalogueId: 'marine-points-1013~470a-6daa-9014-12df', baseRosterId: earlier })
   await expect(notice).toHaveCount(0)
   await page.goto('/rosters')

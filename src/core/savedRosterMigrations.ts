@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
+import type { RosterPick } from './roster'
 
 function omitRetired(value: unknown, field: string): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value) || !(field in value)) return value
@@ -19,6 +21,7 @@ export function migrateSavedRoster(value: unknown): unknown {
 export function migrateStoredRoster<
   T extends {
     name: string
+    catalogueId: string
     automaticName?: boolean | null
     locked?: boolean | null
     detachmentId?: string | null
@@ -30,7 +33,11 @@ export function migrateStoredRoster<
     throw new Error('Saved roster exceeds migration limits')
   const picks = z.array(z.record(z.string(), z.unknown())).parse(JSON.parse(row.picks))
   const prep = row.prep ? z.record(z.string(), z.unknown()).parse(JSON.parse(row.prep)) : null
-  const migrated = migrateSavedRoster({ picks, prep }) as { picks: unknown; prep: unknown }
+  const folded = onFoldedEdition(row.catalogueId)
+  const migrated = migrateSavedRoster({
+    picks: folded ? picks.map((pick) => migratedEditionPick(pick as unknown as RosterPick, row.catalogueId)) : picks,
+    prep,
+  }) as { picks: unknown; prep: unknown }
   const detachments = row.detachmentId
     ? row.detachmentId.startsWith('[')
       ? z.array(z.string()).parse(JSON.parse(row.detachmentId))
@@ -38,6 +45,7 @@ export function migrateStoredRoster<
     : []
   return {
     ...row,
+    catalogueId: migratedEditionId(row.catalogueId),
     automaticName: row.automaticName ?? !row.name,
     locked: row.locked ?? false,
     detachmentId: JSON.stringify(detachments),

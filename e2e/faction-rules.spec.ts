@@ -125,7 +125,7 @@ test('faction links open current rules and version menus identify archives', { t
             .evaluate((chip) => chip.parentElement?.firstElementChild === chip),
         ).toBe(true)
         if (faction.name === 'Dark Angels') await page.screenshot({ path: `test-results/rules-status-menu-${width}.png` })
-        await expect(items.first()).toHaveText('Current Space Marines points · 13 Oct 2026')
+        await expect(items.first()).toHaveText('Current MFM 1.5')
         await expect(page.getByRole('menu')).not.toContainText('Previous rules')
         await page.keyboard.press('Escape')
         await expect(page.getByRole('menu')).toHaveCount(0)
@@ -141,7 +141,7 @@ test('faction links open current rules and version menus identify archives', { t
       await expect(page.getByRole('heading', { level: 1, name: faction.name, exact: true })).toBeVisible()
       await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
       if (faction.versions > 1) {
-        await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current Space Marines points · 13 Oct 2026')
+        await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current MFM 1.5')
         await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).click())
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveText('Current')
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
@@ -159,13 +159,15 @@ test('faction links open current rules and version menus identify archives', { t
   await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/mfm-1-4-2026-09-30$/)
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Archived MFM 1.4 · 30 Sep 2026')
+    await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Archived MFM 1.4')
     await expect(page.getByRole('combobox', { name: 'Rules version' }).locator('[data-rules-status="archived"]')).toHaveText('Archived')
     await expect(page.getByRole('combobox', { name: 'Rules version' }).locator('[data-rules-status="archived"]')).toHaveCSS('width', '72px')
     await expect(page.locator('main header [data-rules-version] .lucide-archive')).toBeVisible()
     await expect(page.locator('main header [data-rules-version]')).toHaveCSS('color', 'rgb(166, 176, 174)')
     await page.locator('main header [data-rules-version]').click()
-    await expect(page.getByRole('tooltip')).toContainText('Rules snapshot from 30 Sep 2026. MFM 1.4 was released on 2 Sep 2026.')
+    await expect(page.getByRole('tooltip')).toContainText(
+      'Munitorum Field Manual 1.4 rules, released on 2 Sep 2026, as captured on 30 Sep 2026.',
+    )
     await page.keyboard.press('Escape')
     await expect(page.getByRole('link', { name: /Datasheets/ })).toHaveAttribute(
       'href',
