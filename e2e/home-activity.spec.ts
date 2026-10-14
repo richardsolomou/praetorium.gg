@@ -21,8 +21,8 @@ async function featurePreviewBattle(page: Page, token: string) {
 test('shows the faction icon for an unqualified frozen army', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Historical faction'))
   await page.goto('/')
-  const battle = page.locator('[data-home-feed="Public games"] a[href="/battles/preview-league-battle-doubles"]')
-  const mark = battle.locator('[data-faction-mark="space-marines"]')
+  const battle = page.locator('[data-battle-shelf="Public games"] a[href="/battles/preview-league-battle-doubles"]')
+  const mark = battle.locator('[data-faction-mark="space-marines"]').first()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(mark).toBeVisible()
@@ -124,7 +124,7 @@ test('explains supported features before public activity and opens an account-fr
   ]) {
     await expect(features.getByRole('heading', { name, exact: true })).toBeVisible()
   }
-  const activity = page.locator('[data-home-feed="Public games"], [data-public-empty]')
+  const activity = page.locator('[data-battle-shelf="Public games"], [data-public-empty]')
   expect((await features.boundingBox())!.y).toBeLessThan((await activity.boundingBox())!.y)
   await features.getByRole('link', { name: 'Try a combat matchup' }).click()
 
@@ -262,8 +262,8 @@ test('omits the games shelf when the player has no active game', async ({ page }
   await page.goto('/')
 
   await expect(page.locator('[data-battle-shelf="Your game"], [data-battle-shelf="Your games"]')).toHaveCount(0)
-  await expect(page.getByText('No game in progress')).toBeVisible()
-  await expect(page.getByText('Nothing to review')).toBeVisible()
+  await expect(page.locator('[data-home-checklist]')).toBeVisible()
+  await expect(page.locator('[data-home-record], [aria-label="Loading your record"]')).toHaveCount(0)
   await expect(page.getByRole('main').getByText('Public games', { exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/home-no-active-game.png' })
 })
@@ -295,7 +295,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.getByRole('alertdialog').getByRole('button', { name: 'Concede battle' }).click()
     await expect(host.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
     await host.goto('/')
-    const idleHistory = host.locator('[data-home-played]')
+    const idleHistory = host.locator('[data-battle-shelf="Games you have played"]')
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
     expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
     await host.setViewportSize({ width: 390, height: 844 })
@@ -316,7 +316,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await expect(host.getByRole('contentinfo').getByRole('link', { name: 'Data updates' })).toHaveCount(1)
 
     const yours = host.locator('[data-battle-shelf="Your game"]')
-    const history = host.locator('[data-home-played]')
+    const history = host.locator('[data-battle-shelf="Games you have played"]')
     await expect(yours.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(1)
     await expect(yours.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(0)
     await expect(history.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)

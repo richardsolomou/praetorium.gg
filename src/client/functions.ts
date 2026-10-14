@@ -915,3 +915,5 @@ export const searchPlayers = (args: Parameters<typeof server.searchPlayers>[0]) 
   cachedRead(['player-search', args.data.query], () => server.searchPlayers(args))
 export const catalogueChangeLog = (args: Parameters<typeof server.catalogueChangeLog>[0]) =>
   cachedRead(['catalogue-changes', args.data.faction ?? null, args.data.before ?? null], () => server.catalogueChangeLog(args))
+export const armyUpdates = (args: Parameters<typeof server.armyUpdates>[0]) =>
+  cachedRead(['army-updates', args.data.factions], () => server.armyUpdates(args))

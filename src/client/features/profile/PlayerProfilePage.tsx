@@ -9,6 +9,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { AdminBadge } from '../../components/AdminBadge'
 import { SupporterBadge } from '../../components/SupporterBadge'
 import { PlayerRankings } from './PlayerRankings'
+import { ProfileForm } from './ProfileForm'
 import { PlayerRosters } from './PlayerRosters'
 import { PlayerCollection } from './PlayerCollection'
 import { recordSummary } from './recordSummary'
@@ -85,13 +86,25 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   const record = data?.record
   // A tab nothing would fill is not offered, and an address naming one falls back
   // to the record rather than an empty panel insisting the tab exists.
+  const lists = published?.rosters ?? []
+  // Many players only build lists. With no battle to count, their lists lead and the record is not offered.
+  const battled = Boolean(data?.facets.factions.length)
+  const rosterTab = lists.length ? [{ value: 'rosters' as const, label: 'Rosters', count: lists.length }] : []
   const tabs = [
-    { value: 'record' as const, label: 'Record', count: undefined },
-    { value: 'battles' as const, label: 'Battles', count: data?.played ?? 0 },
-    ...(published?.rosters.length ? [{ value: 'rosters' as const, label: 'Rosters', count: published.rosters.length }] : []),
+    ...(battled || !lists.length
+      ? [
+          { value: 'record' as const, label: 'Record', count: undefined },
+          { value: 'battles' as const, label: 'Battles', count: data?.played ?? 0 },
+          ...rosterTab,
+        ]
+      : rosterTab),
     ...(yourself || collection.data?.entries.length ? [{ value: 'collection' as const, label: 'Collection', count: undefined }] : []),
   ]
-  const tab = tabs.some((candidate) => candidate.value === search.tab) ? (search.tab as ProfileTab) : 'record'
+  const tab = tabs.some((candidate) => candidate.value === search.tab) ? (search.tab as ProfileTab) : tabs[0]!.value
+  const built = new Map<string, number>()
+  for (const roster of lists) built.set(roster.catalogueId, (built.get(roster.catalogueId) ?? 0) + 1)
+  const mostBuilt = [...built].toSorted((one, other) => other[1] - one[1])[0]?.[0]
+  const buildsMost = factions.data?.factions.find((faction) => faction.id === mostBuilt) ?? null
   return (
     <main className="w-full">
       <PageHeader
@@ -103,7 +116,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
           </span>
         }
         title={profile.name}
-        description={record ? recordSummary(record) : undefined}
+        description={record && (record.battles || !lists.length) ? recordSummary(record) : undefined}
         media={
           <PlayerAvatar
             name={profile.name}
@@ -111,7 +124,16 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
             className={`size-20 text-2xl ${profile.admin ? 'ring-2 ring-admin/70 ring-offset-3 ring-offset-panel' : profile.supporter ? 'ring-2 ring-supporter/60 ring-offset-3 ring-offset-panel' : ''}`}
           />
         }
-      />
+      >
+        {data ? (
+          <ProfileForm
+            battles={data.battles}
+            userId={userId}
+            rank={rankings?.overall ?? null}
+            lists={{ count: lists.length, main: buildsMost }}
+          />
+        ) : null}
+      </PageHeader>
       <PageContent>
         {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
         <Tabs

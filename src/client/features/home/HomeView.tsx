@@ -1,15 +1,19 @@
 import { Link } from '@tanstack/react-router'
+import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
+import type { OnboardingProgress } from '../../../core/onboarding'
 import type { Standing } from '../../../core/standings'
-import { FriendTables, PublicTables, RECENT, watchedTables } from './HomeFeed'
+import { type ArmyUpdate, HomeArmyUpdates } from './HomeArmyUpdates'
+import { HomeChecklist, settingUp } from './HomeChecklist'
+import { FriendTables, PublicTables, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
 import { HomeLeaders } from './HomeLeaders'
 import { HomeClosing, HomeFeatures, HomeIncluded } from './HomePitch'
-import { HomePlayed } from './HomePlayed'
+import { HomeRecord, type HomeRecordData } from './HomeRecord'
 import { type HomeRoster, HomeRosters } from './HomeRosters'
 import { HomeWaiting, type RosterDue } from './HomeWaiting'
 
@@ -24,6 +28,12 @@ export type HomeData = {
   rosterCount: number
   rostersDue: readonly RosterDue[]
   friendRequests: number
+  /** Saved lists a data update changed since they were saved. */
+  changedRosters: number
+  armyUpdates: readonly ArmyUpdate[]
+  /** Absent until it has been folded, which happens after the page is drawn; null when it could not be. */
+  record?: HomeRecordData | null
+  onboarding?: OnboardingProgress
   /** The head of the leaderboard, which only a visitor is shown. */
   leaders: { rows: readonly Standing[]; days: number } | null
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
@@ -31,8 +41,10 @@ export type HomeData = {
   notifications?: ReactNode
   /** Asking to delete one of the reader's own games, answered by `Home` and not here. */
   onDelete?: (battle: Battle) => void
-  more?: { pending: boolean; onShow: () => void } | null
 }
+
+/** How many finished games the page lists before pointing at the battles page. */
+const PLAYED = 10
 
 /** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
 export function HomeView({
@@ -44,53 +56,68 @@ export function HomeView({
   rosterCount,
   rostersDue,
   friendRequests,
+  changedRosters,
+  armyUpdates,
+  record,
+  onboarding,
   leaders,
   newBattle,
   notifications,
   onDelete,
-  more,
 }: HomeData) {
   const going = mine.filter((battle) => battle.status !== 'finished')
   const played = mine
     .filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some((player) => player.automated))
-    .slice(0, RECENT)
+    .slice(0, PLAYED)
   // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
   const hero = me ? undefined : open[0]
   const { friends: shownFriends, open: rest } = watchedTables(friends, open, hero)
-  // The tools appear for a player only when their table and everyone else's are
-  // empty, which is a new account on a new instance — otherwise the page would be
-  // a long scroll of nothing, under a menu they have not learned yet.
-  const bare = !going.length && !played.length && !shownFriends.length && !rest.length
-  const waiting = rostersDue.length + friendRequests
+  const checklist = !going.length && onboarding && settingUp(onboarding) ? <HomeChecklist progress={onboarding} /> : null
+  // Without a game going or played, the lists are what the player comes back for, so they lead.
+  const listsFirst = !going.length && !played.length
+  const rosterShelf = <HomeRosters rosters={rosters} count={rosterCount} changed={changedRosters} />
   if (me) {
-    const history = <HomePlayed played={played} viewerId={me.id} />
     return (
       <main className="w-full">
-        <Welcome name={me.name} going={going.length} waiting={waiting} newBattle={newBattle} />
+        <Welcome
+          name={me.name}
+          newBattle={newBattle}
+          // A player who only builds lists has no record to show, and a strip of dashes would say they are losing.
+          stats={onboarding?.completedTasks.includes('battle') ? <HomeRecord userId={me.id} data={record} /> : null}
+        />
         {notifications}
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
             lead={
               going.length ? (
                 <BattleShelf title={going.length === 1 ? 'Your game' : 'Your games'} battles={going} viewerId={me.id} onDelete={onDelete} />
-              ) : null
+              ) : (
+                (checklist ?? (listsFirst ? rosterShelf : null))
+              )
             }
             aside={
               <>
                 <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
-                <HomeRosters rosters={rosters} count={rosterCount} />
+                {listsFirst ? null : rosterShelf}
+                <HomeArmyUpdates updates={armyUpdates} />
               </>
             }
             rest={
               <>
-                {history}
-                <FriendTables battles={shownFriends} explain={!bare} />
-                <PublicTables battles={rest} signedIn more={more} />
+                {played.length ? (
+                  <div>
+                    <BattleShelf title="Games you have played" battles={played} viewerId={me.id} onDelete={onDelete} />
+                    <Link to="/battles" className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
+                      All my battles <ChevronRight className="size-3.5" />
+                    </Link>
+                  </div>
+                ) : null}
+                <FriendTables battles={shownFriends} explain={!checklist} />
+                <PublicTables battles={rest} signedIn />
               </>
             }
           />
-          {bare ? <HomeIntro title="Before your first game" signedIn /> : null}
         </div>
       </main>
     )
@@ -101,11 +128,11 @@ export function HomeView({
       <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
         <HomeFeatures />
         <HomeIncluded />
-        <HomeIntro title="Try it before you sign up" />
+        <HomeIntro />
         <Columns
           // A hero holding the only public battle is the shelf; an empty one under it would contradict it.
           // A visitor is shown that games are played here, not the archive of them.
-          lead={rest.length || !hero ? <PublicTables battles={rest.slice(0, RECENT)} signedIn={false} /> : null}
+          lead={rest.length || !hero ? <PublicTables battles={rest} signedIn={false} /> : null}
           aside={leaders ? <HomeLeaders rows={leaders.rows} days={leaders.days} /> : null}
         />
       </div>
@@ -122,31 +149,15 @@ export function HomeView({
  * of the page is one width: a second tall gradient panel would make one page look
  * like two.
  */
-function Welcome({ name, going, waiting, newBattle }: { name: string; going: number; waiting: number; newBattle?: ReactNode }) {
+function Welcome({ name, newBattle, stats }: { name: string; newBattle?: ReactNode; stats: ReactNode }) {
   const firstName = name.trim().split(/\s+/)[0]
   return (
     <section data-onboarding="home-activity" className="relative overflow-hidden border-b border-edge bg-panel">
       <div className="plot-grid" />
       <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 py-6 sm:px-6 sm:py-7">
-        <div>
+        <div className="w-full sm:w-auto">
           <h1 className="text-2xl leading-none sm:text-3xl">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</h1>
-          <p className="mt-3 text-sm text-dim">
-            {going ? (
-              <>
-                <span className="readout font-semibold text-bone">{going}</span> {going === 1 ? 'game' : 'games'} in progress
-              </>
-            ) : (
-              'No game in progress'
-            )}
-            <span className="mx-2 text-faint">·</span>
-            {waiting ? (
-              <>
-                <span className="readout font-semibold text-discarded">{waiting}</span> {waiting === 1 ? 'item' : 'items'} to review
-              </>
-            ) : (
-              'Nothing to review'
-            )}
-          </p>
+          {stats}
         </div>
         <div className="flex flex-wrap gap-2">
           {newBattle}

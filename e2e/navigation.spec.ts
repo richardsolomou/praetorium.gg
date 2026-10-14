@@ -610,7 +610,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   const widths: number[] = []
   for (const [path, heading] of [
     ['/rosters', 'My rosters'],
-    ['/battles', 'My battles'],
+    ['/battles', 'Battles'],
     ['/friends', 'Friends'],
   ]) {
     await page.goto(path)
@@ -817,7 +817,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('button', { name: 'Sort: Recently updated' })).toBeVisible()
   expect((await page.context().cookies()).some((cookie) => cookie.name === 'praetorium_roster_sort')).toBe(false)
   await page.screenshot({ path: 'test-results/roster-library.png', fullPage: true })
-  await page.getByRole('button', { name: 'Create editable roster' }).click()
+  await page.getByRole('button', { name: 'Create roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText(
@@ -926,7 +926,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.keyboard.press('Escape')
 
   await page.getByRole('link', { name: 'Battles' }).click()
-  await expect(page.getByRole('heading', { name: 'My battles' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
   await expect(page.getByText('No battles yet.')).toBeVisible()
   await page.getByRole('button', { name: 'New battle' }).click()
   await page.getByRole('combobox', { name: 'Opponent' }).click()
@@ -934,10 +934,10 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/?]+$/)
   await page.getByRole('link', { name: 'Battles' }).click()
-  await expect(page.locator('[data-battle-shelf="Setup"]')).toBeVisible()
+  await expect(page.locator('[data-battle-shelf="In progress"]')).toBeVisible()
   await expect(page.getByText('Practice Opponent').first()).toBeVisible()
   await page.screenshot({ path: 'test-results/battle-library.png', fullPage: true })
-  await page.locator('[data-battle-shelf="Setup"] article').click({ button: 'right' })
+  await page.locator('[data-battle-shelf="In progress"] article').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Delete battle' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete battle' }).click()
   await expect(page.getByText('No battles yet.')).toBeVisible()
@@ -962,7 +962,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('link', { name: /Intercessor Squad/ })).toHaveCount(0)
   await page.goto('/rosters')
   const darkAngelsSetup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(darkAngelsSetup, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+  await retryUntilVisible(darkAngelsSetup, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
   await darkAngelsSetup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Dark Angels')
   await page.getByRole('option', { name: 'Dark Angels', exact: true }).click()
@@ -988,7 +988,7 @@ test('a player can enter through the roster library and browse the product', asy
   expect(serverRenderedFavourites).toMatch(/data-shelf="Favourites"[\s\S]+data-faction="Necrons"/)
   await page.screenshot({ path: 'test-results/faction-index.png', fullPage: true })
   await page.getByRole('link', { name: 'Rosters' }).click()
-  await page.getByRole('button', { name: 'Create editable roster' }).click()
+  await page.getByRole('button', { name: 'Create roster', exact: true }).click()
   await page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).click()
   const favourites = page.getByRole('group').filter({ has: page.getByText('Favourites', { exact: true }) })
   await expect(favourites.getByRole('option').first()).toHaveText('Necrons')

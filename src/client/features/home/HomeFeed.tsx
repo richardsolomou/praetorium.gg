@@ -1,11 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { Users } from 'lucide-react'
+import { ChevronRight, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { battleStage } from '../../battleStage'
-import { summarySides, type SummarySide } from '../../battleSummary'
-import { FactionMark } from '../../components/FactionMark'
 import type { Battle } from '../battles/battle'
-import type { OnboardingTarget } from '../onboarding/onboarding'
+import { BattleShelf } from '../battles/BattleShelf'
 
 /** How much of a friends' or finished shelf is a reminder rather than an archive. */
 export const RECENT = 5
@@ -25,64 +22,6 @@ export function watchedTables(friends: readonly Battle[], open: readonly Battle[
 }
 
 /**
- * Other people's battles, one line each: where the game is, who is at the table, and the score.
- *
- * A game the reader is not sitting in is something to glance at and maybe open, so it
- * gets a line rather than the scoreboard card the reader's own games keep. The full
- * table is one click away on the battle itself.
- */
-export function HomeFeed({ title, battles, onboarding }: { title: string; battles: readonly Battle[]; onboarding?: OnboardingTarget }) {
-  if (!battles.length) return null
-  return (
-    <section data-onboarding={onboarding} data-home-feed={title}>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{title}</span>
-        <span className="readout">{battles.length}</span>
-      </p>
-      <ul className="divide-y divide-edge border-b border-edge">
-        {battles.map((battle) => {
-          const [ours, theirs] = summarySides(battle)
-          const stage = battleStage(battle.status)
-          return (
-            <li key={battle.token}>
-              <Link
-                to="/battles/$token"
-                params={{ token: battle.token }}
-                aria-label={`Watch ${battle.players.join(' versus ')}`}
-                // A phone reads the stage and score on one line and each side on its own below;
-                // a wider screen lays all four out along one line.
-                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 -mx-3 px-3 py-3 hover:bg-raised sm:grid-cols-[4.5rem_minmax(0,1fr)_auto_minmax(0,1fr)]"
-              >
-                <span className={`eyebrow ${stage.tint}`}>{stage.name}</span>
-                <Side side={ours} className="order-3 col-span-2 sm:order-none sm:col-span-1" />
-                <span className="readout order-2 justify-self-end text-sm sm:order-none sm:justify-self-auto">
-                  <span className="text-side-a">{ours?.score ?? 0}</span>
-                  <span className="text-faint"> – </span>
-                  <span className="text-side-b">{theirs?.score ?? 0}</span>
-                </span>
-                <Side side={theirs} className="order-4 col-span-2 sm:order-none sm:col-span-1 sm:flex-row-reverse sm:text-right" />
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
-  )
-}
-
-function Side({ side, className }: { side?: SummarySide; className: string }) {
-  const faction = side?.seats.find((seat) => seat.faction)?.faction
-  return (
-    <span className={`flex min-w-0 items-center gap-2 ${className}`}>
-      {faction ? (
-        <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-      ) : null}
-      <span className="truncate text-sm font-bold uppercase">{side?.seats.map((seat) => seat.player.name).join(' & ') || 'Unknown'}</span>
-    </span>
-  )
-}
-
-/**
  * The games this player's friends are in, or where friendships are kept.
  *
  * Friendships are in the account menu rather than the navigation, so an empty
@@ -90,11 +29,18 @@ function Side({ side, className }: { side?: SummarySide; className: string }) {
  * whether the player has any: a table of four friends who all play together has
  * no friend games either, because every one of them already has this reader in it.
  *
- * On a bare home page the section is gone, because the product introduction below it
- * says more to a new account than a third grey box would.
+ * Beside the first-game checklist the section is gone, because the checklist already
+ * names finding someone to play.
  */
 export function FriendTables({ battles, explain }: { battles: readonly Battle[]; explain: boolean }) {
-  if (battles.length) return <HomeFeed onboarding="home-friends" title="Friends' games" battles={battles} />
+  if (battles.length) {
+    return (
+      <div>
+        <BattleShelf onboarding="home-friends" title="Friends' games" battles={battles} />
+        <AllGames view="friends">All friends' games</AllGames>
+      </div>
+    )
+  }
   if (!explain) return null
   return (
     <section data-friends-empty>
@@ -109,16 +55,8 @@ export function FriendTables({ battles, explain }: { battles: readonly Battle[];
   )
 }
 
-/** Every battle anyone may watch. The server has already removed the reader's own. */
-export function PublicTables({
-  battles,
-  signedIn,
-  more,
-}: {
-  battles: readonly Battle[]
-  signedIn: boolean
-  more?: { pending: boolean; onShow: () => void } | null
-}) {
+/** Every battle anyone may watch, most recently active first. The server has already removed the reader's own. */
+export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]; signedIn: boolean }) {
   if (!battles.length) {
     return signedIn ? null : (
       <section data-public-empty>
@@ -131,12 +69,16 @@ export function PublicTables({
   }
   return (
     <div>
-      <HomeFeed onboarding="home-public" title="Public games" battles={battles} />
-      {more ? (
-        <Button variant="outline" size="sm" className="mt-2" disabled={more.pending} onClick={more.onShow}>
-          {more.pending ? 'Loading…' : 'Show more battles'}
-        </Button>
-      ) : null}
+      <BattleShelf onboarding="home-public" title="Public games" battles={battles.slice(0, RECENT)} />
+      <AllGames view="public">All public games</AllGames>
     </div>
+  )
+}
+
+function AllGames({ view, children }: { view: 'friends' | 'public'; children: string }) {
+  return (
+    <Link to="/battles" search={{ view }} className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
+      {children} <ChevronRight className="size-3.5" />
+    </Link>
   )
 }

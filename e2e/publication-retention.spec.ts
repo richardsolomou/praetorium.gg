@@ -19,8 +19,7 @@ import { productOperator, productSql, savedWork, withAuthSql } from './storage'
 test.setTimeout(300_000)
 
 const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1)!
-const playedCount = (page: Page) =>
-  page.locator('[data-service-record]').getByText('Played', { exact: true }).locator('..').locator('.figure')
+const playedCount = (page: Page) => page.locator('[data-service-record] [data-record-battles]')
 
 async function playerId(name: string) {
   const row = await withAuthSql(
@@ -130,8 +129,11 @@ async function deleteBattle(page: Page, url: string) {
 async function expectRecord(page: Page, userId: string, played: number) {
   await page.goto(`/users/${userId}`)
   const record = page.locator('[data-service-record]')
-  if (!played) await expect(record).toContainText('No finished battles here yet.')
-  else await expect(playedCount(page)).toHaveText(String(played))
+  if (!played) {
+    // A player with public lists and no visible battle opens on their rosters, without a record to count.
+    await expect(page.locator('[data-service-record], [data-player-rosters]').first()).toBeVisible()
+    await expect(record.locator('[data-record-battles]')).toHaveCount(0)
+  } else await expect(playedCount(page)).toHaveAttribute('data-record-battles', String(played))
 }
 
 test('saved roster deletion preserves its actual sealed and fielded copies until their containers are deleted', async ({ page }) => {
@@ -375,7 +377,7 @@ test('saved public results leave cached rankings and viewer records after audien
     await concede(owner)
     await expectRecord(anonymous, ownerId, 1)
     const standing = anonymous.locator('[data-rankings] a').filter({ hasText: 'Everyone' })
-    await expect(standing).toContainText('0 won · 0% · 1 battle')
+    await expect(standing).toContainText('0% · 1 battle')
 
     await owner.goto('/profile')
     await owner.getByRole('button', { name: /^Friends/ }).click()
@@ -388,18 +390,18 @@ test('saved public results leave cached rankings and viewer records after audien
     expect([preview.status(), preview.headers()['cache-control']]).toEqual([404, 'no-store'])
 
     await owner.getByRole('button', { name: /^Players only/ }).click()
-    await expect(friend.locator('[data-service-record]')).toContainText('No finished battles here yet.')
+    await expect(friend.locator('[data-record-battles]')).toHaveCount(0)
     await expectRecord(friend, ownerId, 0)
     await expectRecord(opponent, ownerId, 1)
     await friend.goto(battle)
     await expect(friend.getByRole('heading', { name: 'This battle is not open to you' })).toBeVisible()
     await owner.getByRole('button', { name: /^Anyone/ }).click()
     await expectRecord(anonymous, ownerId, 1)
-    await expect(standing).toContainText('0 won · 0% · 1 battle')
+    await expect(standing).toContainText('0% · 1 battle')
     await expectRecord(friend, ownerId, 1)
     await deleteBattle(owner, battle)
     await expect(standing).toHaveCount(0)
-    await expect(friend.locator('[data-service-record]')).toContainText('No finished battles here yet.')
+    await expect(friend.locator('[data-record-battles]')).toHaveCount(0)
     await expectRecord(anonymous, ownerId, 0)
     await expectRecord(opponent, ownerId, 0)
   } finally {

@@ -214,7 +214,7 @@ test('profile defaults apply to rosters while battles infer their format', async
 
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
   await expect(dialog.getByRole('combobox', { name: 'Battle size' })).toContainText('Incursion')
   await expect(dialog.locator('#setup-visibility')).toContainText('Public — listed on your profile')
   await page.keyboard.press('Escape')
@@ -374,8 +374,7 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
     ).toBeVisible()
 
     await recipient.goto('/')
-    await expect(recipient.getByText('1 item to review')).toBeVisible()
-    await expect(recipient.getByText('Needs your attention')).toBeVisible()
+    await expect(recipient.getByText('A player wants to be your friend')).toBeVisible()
     await recipient.goto('/friends')
     const incoming = recipient.locator('section').filter({ hasText: 'Friend requests' }).locator(`[data-person="${requesterName}"]`)
     await recipient.screenshot({ path: 'test-results/friend-request-reject.png' })
@@ -383,7 +382,8 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
 
     await expect(incoming).toHaveCount(0)
     await recipient.goto('/')
-    await expect(recipient.getByText('Nothing to review')).toBeVisible()
+    await expect(recipient.getByRole('heading', { name: 'Welcome back', exact: false })).toBeVisible()
+    await expect(recipient.getByText('Needs your attention')).toHaveCount(0)
     await requester.reload()
     await expect(requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`)).toHaveCount(
       0,

@@ -67,49 +67,19 @@ export function ServiceRecordPanel({
       </div>
       {record.battles ? (
         <div className="mt-2 space-y-3">
+          <Results record={record} />
           <Tallies
-            label="Totals"
+            label="Per battle"
             items={[
-              { label: 'Played', value: record.battles },
-              { label: 'Won', value: record.won, tint: 'text-achieved' },
-              { label: 'Drawn', value: record.drawn },
-              { label: 'Lost', value: record.lost, tint: 'text-rust' },
-            ]}
-          />
-          <Tallies
-            label="Win rates"
-            items={[
-              { label: 'Overall', value: percent(record.rate) },
-              // The count is in the label because one battle going first is a 100%
-              // that means nothing, and a reader should not have to take it on trust.
-              ...turnRate('Going first', record.goingFirst),
-              ...turnRate('Going second', record.goingSecond),
-            ]}
-          />
-          <Tallies
-            label="Victory points per battle"
-            items={[
-              { label: 'Overall', value: oneDecimal(record.averagePoints) },
-              { label: 'Winning', value: oneDecimal(record.averageInWins) },
-              { label: 'Losing', value: oneDecimal(record.averageInLosses) },
+              { label: 'Victory points', value: oneDecimal(record.averagePoints) },
+              { label: 'In wins', value: oneDecimal(record.averageInWins) },
+              { label: 'In losses', value: oneDecimal(record.averageInLosses) },
               { label: 'Behind when losing', value: oneDecimal(record.lossDifferential) },
               { label: 'Primary', value: oneDecimal(record.averagePrimary) },
               { label: 'Secondary', value: oneDecimal(record.averageSecondary) },
-            ]}
-          />
-          <Tallies
-            label="Win streaks"
-            items={[
-              { label: 'Current', value: record.currentStreak },
-              { label: 'Longest', value: record.longestStreak },
-            ]}
-          />
-          <Tallies
-            label="Command points"
-            items={[
-              { label: 'Spent per battle', value: oneDecimal(record.averageCpSpent) },
+              { label: 'CP spent', value: oneDecimal(record.averageCpSpent) },
               // A side that spent nothing has no rate to divide into, so the cell is absent rather than zero.
-              ...(record.pointsPerCp === null ? [] : [{ label: 'VP per CP spent', value: oneDecimal(record.pointsPerCp) }]),
+              ...(record.pointsPerCp === null ? [] : [{ label: 'VP per CP', value: oneDecimal(record.pointsPerCp) }]),
             ]}
           />
           <CareerTables record={record} />
@@ -216,14 +186,80 @@ function Tallies({ label, items }: { label: string; items: readonly TallyItem[] 
   return (
     <div>
       <p className="eyebrow">{label}</p>
-      <div className="mt-1 flex flex-wrap gap-2">
+      <dl className="mt-1 grid grid-cols-2 border-t border-l border-edge bg-panel sm:grid-cols-4">
         {items.map((item) => (
-          <div key={item.label} className="min-w-28 flex-1 border border-edge bg-panel p-3">
-            <p className="eyebrow truncate">{item.label}</p>
-            <p className={`figure mt-1 text-2xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</p>
+          <div key={item.label} className="min-w-0 border-r border-b border-edge px-3 py-2.5">
+            <dt className="eyebrow truncate text-faint">{item.label}</dt>
+            <dd className={`figure mt-1 text-xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</dd>
           </div>
         ))}
+      </dl>
+    </div>
+  )
+}
+
+/**
+ * The record's headline: how the battles went, as numbers and as one bar, beside the
+ * win rate split by turn order and the streak still running.
+ */
+function Results({ record }: { record: ServiceRecord }) {
+  const share = (count: number) => `${(count / record.battles) * 100}%`
+  return (
+    <div
+      data-record-battles={record.battles}
+      className="grid border border-edge bg-panel md:grid-cols-[1.4fr_1fr_1fr] md:divide-x md:divide-edge"
+    >
+      <div className="p-4">
+        <p className="eyebrow text-faint">
+          Results · {record.battles} {record.battles === 1 ? 'battle' : 'battles'}
+        </p>
+        <p className="figure mt-2 text-4xl leading-none font-bold">
+          <span className="text-achieved">{record.won}</span>
+          <span className="px-1 text-2xl text-faint">–</span>
+          <span className="text-dim">{record.drawn}</span>
+          <span className="px-1 text-2xl text-faint">–</span>
+          <span className="text-rust">{record.lost}</span>
+        </p>
+        <p className="eyebrow mt-1 text-faint">Won · drawn · lost</p>
+        <span className="mt-3 flex h-1.5 overflow-hidden bg-edge" aria-hidden>
+          <span className="bg-achieved" style={{ width: share(record.won) }} />
+          <span className="bg-dim" style={{ width: share(record.drawn) }} />
+          <span className="bg-rust" style={{ width: share(record.lost) }} />
+        </span>
       </div>
+      <div className="border-t border-edge p-4 md:border-t-0">
+        <p className="eyebrow text-faint">Win rate</p>
+        <p className="figure mt-2 text-4xl leading-none font-bold text-bone">{percent(record.rate)}</p>
+        <div className="mt-3 space-y-1.5">
+          <TurnSplit label="Going first" split={record.goingFirst} />
+          <TurnSplit label="Going second" split={record.goingSecond} />
+        </div>
+      </div>
+      <div className="border-t border-edge p-4 md:border-t-0">
+        <p className="eyebrow text-faint">Win streak</p>
+        <p className="figure mt-2 text-4xl leading-none font-bold text-bone">{record.currentStreak}</p>
+        <p className="mt-2 text-xs text-dim">
+          Longest <span className="readout text-bone">{record.longestStreak}</span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** A turn-order rate as a thin bar, with how many battles it rests on; absent when none were played that way. */
+function TurnSplit({ label, split }: { label: string; split: Split }) {
+  if (!split.battles) return null
+  return (
+    <div>
+      <p className="flex justify-between text-xs text-dim">
+        <span>
+          {label} <span className="text-faint">({split.battles})</span>
+        </span>
+        <span className="readout text-bone">{percent(split.rate)}</span>
+      </p>
+      <span className="mt-1 block h-1 bg-edge" aria-hidden>
+        <span className="block h-full bg-achieved" style={{ width: percent(split.rate) }} />
+      </span>
     </div>
   )
 }
@@ -238,101 +274,110 @@ const NAME_LINK = 'font-bold break-words uppercase hover:text-info'
  * wraps and the counts stay narrow.
  */
 function CareerTables({ record }: { record: ServiceRecord }) {
+  const missing = [
+    ...(record.stratagems.length ? [] : ['stratagems']),
+    ...(record.cards.length ? [] : ['secondary missions']),
+    ...(record.primaryMissions.length ? [] : ['primary missions']),
+    ...(record.opposingFactions.length ? [] : ['opposing factions']),
+  ]
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      <RecordTable
-        label="Stratagems"
-        note={record.stratagemsUsed > record.stratagems.length ? `Top ${record.stratagems.length} of ${record.stratagemsUsed}` : undefined}
-        empty="No stratagems were used in these battles."
-        rows={record.stratagems}
-        rowKey={(row) => row.key}
-        renderName={(row) =>
-          row.reference ? (
-            <FactionReferenceLink
-              to="/factions/$catalogueId/detachments/$detachmentId"
-              params={row.reference}
-              hash={`stratagem-${routeSlug(row.name)}`}
-              className={NAME_LINK}
-            >
-              {row.name}
-            </FactionReferenceLink>
-          ) : (
-            <span className="font-bold break-words uppercase">{row.name}</span>
-          )
-        }
-        columns={[
-          { label: 'Uses', cell: (row) => row.uses, tint: 'text-bone' },
-          { label: 'CP', cell: (row) => row.cp },
-        ]}
-      />
-      <div className="space-y-2">
+    <>
+      {missing.length ? <p className="text-xs text-faint">Not recorded in these battles: {missing.join(', ')}.</p> : null}
+      <div className="grid gap-3 lg:grid-cols-2">
         <RecordTable
-          label="Secondary missions"
-          empty="No secondary missions were held in these battles."
-          rows={record.cards}
+          label="Stratagems"
+          note={
+            record.stratagemsUsed > record.stratagems.length ? `Top ${record.stratagems.length} of ${record.stratagemsUsed}` : undefined
+          }
+          rows={record.stratagems}
           rowKey={(row) => row.key}
-          renderName={(row) => <CardName card={row} />}
+          renderName={(row) =>
+            row.reference ? (
+              <FactionReferenceLink
+                to="/factions/$catalogueId/detachments/$detachmentId"
+                params={row.reference}
+                hash={`stratagem-${routeSlug(row.name)}`}
+                className={NAME_LINK}
+              >
+                {row.name}
+              </FactionReferenceLink>
+            ) : (
+              <span className="font-bold break-words uppercase">{row.name}</span>
+            )
+          }
           columns={[
-            { label: 'Held', cell: (row) => row.held, tint: 'text-bone' },
-            { label: 'Scored', cell: (row) => row.scored },
-            { label: 'Avg VP', cell: (row) => oneDecimal(row.average), tint: 'text-info' },
+            { label: 'Uses', cell: (row) => row.uses, tint: 'text-bone' },
+            { label: 'CP', cell: (row) => row.cp },
           ]}
         />
-        {record.bestCard && record.worstCard ? (
-          <div className="flex flex-wrap gap-2">
-            <CardHighlight label="Best" card={record.bestCard} />
-            <CardHighlight label="Worst" card={record.worstCard} />
+        {record.cards.length ? (
+          <div className="space-y-2">
+            <RecordTable
+              label="Secondary missions"
+              rows={record.cards}
+              rowKey={(row) => row.key}
+              renderName={(row) => <CardName card={row} />}
+              columns={[
+                { label: 'Held', cell: (row) => row.held, tint: 'text-bone' },
+                { label: 'Scored', cell: (row) => row.scored },
+                { label: 'Avg VP', cell: (row) => oneDecimal(row.average), tint: 'text-info' },
+              ]}
+            />
+            {record.bestCard && record.worstCard ? (
+              <div className="flex flex-wrap gap-2">
+                <CardHighlight label="Best" card={record.bestCard} />
+                <CardHighlight label="Worst" card={record.worstCard} />
+              </div>
+            ) : null}
           </div>
         ) : null}
+        <RecordTable
+          label="Primary missions"
+          rows={record.primaryMissions}
+          rowKey={(row) => row.key}
+          renderName={(row) =>
+            row.reference ? (
+              <Link to="/missions/$packId/matchups/$you/$opponent" params={row.reference} className={NAME_LINK}>
+                {row.name}
+              </Link>
+            ) : (
+              <span className="font-bold break-words uppercase">{row.name}</span>
+            )
+          }
+          columns={[
+            { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
+            ...results,
+            { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' },
+          ]}
+        />
+        <RecordTable
+          label="Against factions"
+          rows={record.opposingFactions}
+          rowKey={(row) => row.faction.slug}
+          renderName={(row) => (
+            <FactionReferenceLink
+              to="/factions/$catalogueId"
+              params={{ catalogueId: row.faction.slug }}
+              className="flex min-w-0 items-center gap-2 hover:text-info"
+            >
+              <FactionMark
+                id={row.faction.slug}
+                name={row.faction.displayName}
+                edition={row.faction.edition}
+                icon={row.faction.icon}
+                size="sm"
+              />
+              <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
+            </FactionReferenceLink>
+          )}
+          columns={[
+            { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
+            ...results,
+            { label: 'Rate', cell: (row) => percent(row.rate) },
+          ]}
+        />
       </div>
-      <RecordTable
-        label="Primary missions"
-        empty="No primary missions were recorded in these battles."
-        rows={record.primaryMissions}
-        rowKey={(row) => row.key}
-        renderName={(row) =>
-          row.reference ? (
-            <Link to="/missions/$packId/matchups/$you/$opponent" params={row.reference} className={NAME_LINK}>
-              {row.name}
-            </Link>
-          ) : (
-            <span className="font-bold break-words uppercase">{row.name}</span>
-          )
-        }
-        columns={[
-          { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-          ...results,
-          { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' },
-        ]}
-      />
-      <RecordTable
-        label="Against factions"
-        empty="None of the armies faced in these battles name a faction."
-        rows={record.opposingFactions}
-        rowKey={(row) => row.faction.slug}
-        renderName={(row) => (
-          <FactionReferenceLink
-            to="/factions/$catalogueId"
-            params={{ catalogueId: row.faction.slug }}
-            className="flex min-w-0 items-center gap-2 hover:text-info"
-          >
-            <FactionMark
-              id={row.faction.slug}
-              name={row.faction.displayName}
-              edition={row.faction.edition}
-              icon={row.faction.icon}
-              size="sm"
-            />
-            <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
-          </FactionReferenceLink>
-        )}
-        columns={[
-          { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-          ...results,
-          { label: 'Rate', cell: (row) => percent(row.rate) },
-        ]}
-      />
-    </div>
+    </>
   )
 }
 
@@ -348,7 +393,6 @@ const results: Column<{ won: number; drawn: number; lost: number }>[] = [
 function RecordTable<T>({
   label,
   note,
-  empty,
   rows,
   rowKey,
   renderName,
@@ -356,19 +400,19 @@ function RecordTable<T>({
 }: {
   label: string
   note?: string
-  empty: string
   rows: readonly T[]
   rowKey: (row: T) => string
   renderName: (row: T) => ReactNode
   columns: readonly Column<T>[]
 }) {
+  if (!rows.length) return null
   return (
     <section data-record-table={label}>
       <p className="eyebrow flex items-baseline justify-between gap-2">
         <span>{label}</span>
         {note ? <span className="normal-case">{note}</span> : null}
       </p>
-      {rows.length ? (
+      {
         <table className="mt-1 w-full table-fixed border-collapse border border-edge bg-panel text-sm">
           <thead>
             <tr className="border-b border-edge text-left text-2xs tracking-wide text-faint uppercase">
@@ -399,9 +443,7 @@ function RecordTable<T>({
             ))}
           </tbody>
         </table>
-      ) : (
-        <p className="mt-1 border border-edge bg-panel p-3 text-sm text-dim">{empty}</p>
-      )}
+      }
     </section>
   )
 }
@@ -430,10 +472,6 @@ function CardHighlight({ label, card }: { label: string; card: CardRecord }) {
     </div>
   )
 }
-
-/** A turn-order rate, left out entirely when no battle has been played that way. */
-const turnRate = (label: string, split: Split): TallyItem[] =>
-  split.battles ? [{ label: `${label} (${split.battles})`, value: percent(split.rate) }] : []
 
 const percent = (rate: number) => `${Math.round(rate * 100)}%`
 

@@ -31,26 +31,29 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
         <span>Leaderboard</span>
         <span className="text-xs text-faint normal-case">Last {rankings.days} days</span>
       </p>
-      <div className="mt-2 space-y-2">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map(({ faction, place, of, standing }) => (
           <Link
             key={faction?.slug ?? 'overall'}
             to="/leaderboard"
             search={{ faction: faction?.slug }}
-            className="flex items-center justify-between gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
+            className="flex min-w-0 items-center gap-3 border border-edge bg-panel p-3 transition-colors hover:border-edge-strong hover:bg-raised"
           >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="chip readout shrink-0">
-                {place}/{of}
-              </span>
-              {faction ? (
-                <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-              ) : null}
-              <span className="truncate font-bold uppercase">{faction?.displayName ?? 'Everyone'}</span>
+            <span className="figure w-14 shrink-0 text-2xl leading-none font-bold text-bone">
+              #{place}
+              <span className="block text-2xs font-normal text-faint">of {of}</span>
             </span>
-            <span className="readout shrink-0 text-xs text-dim">
-              {standing.rating} · {standing.won} won · {Math.round(winRate(standing) * 100)}% · {standing.battles}{' '}
-              {standing.battles === 1 ? 'battle' : 'battles'}
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-center gap-1.5">
+                {faction ? (
+                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+                ) : null}
+                <span className="truncate text-sm font-bold uppercase">{faction?.displayName ?? 'Everyone'}</span>
+              </span>
+              <span className="readout mt-0.5 block truncate text-xs text-dim">
+                {standing.rating} rating · {Math.round(winRate(standing) * 100)}% · {standing.battles}{' '}
+                {standing.battles === 1 ? 'battle' : 'battles'}
+              </span>
             </span>
           </Link>
         ))}

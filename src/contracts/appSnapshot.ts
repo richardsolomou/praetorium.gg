@@ -3,7 +3,7 @@ import { migrateSavedLeague } from './savedLeagues'
 
 export const MAX_APP_SNAPSHOT_BYTES = 10_000_000
 export const MAX_APP_SNAPSHOT_QUERIES = 500
-export const PUBLIC_APP_QUERIES = new Set(['public-battles', 'standings', 'catalogue-changes', 'reference-changes'])
+export const PUBLIC_APP_QUERIES = new Set(['public-battles', 'standings', 'catalogue-changes', 'reference-changes', 'army-updates'])
 export const PUBLIC_REFERENCE_QUERIES = new Set([
   'faction',
   'faction-index',

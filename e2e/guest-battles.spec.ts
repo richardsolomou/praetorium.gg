@@ -20,10 +20,10 @@ test('a visitor browses public battles and opens a spectator view on a phone and
     await expect(page.getByRole('heading', { name: 'Public battles', exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Sign in to play' })).toHaveAttribute('href', '/sign-in?next=%2Fbattles')
     await expect(page.getByRole('button', { name: 'New battle', exact: true })).toHaveCount(0)
-    await expect(page.locator(`[data-battle-shelf="Active"] article > a[href="${battlePath}"]`)).toBeVisible()
+    await expect(page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`)).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
 
-    await page.locator(`[data-battle-shelf="Active"] article > a[href="${battlePath}"]`).click()
+    await page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`).click()
     await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toBeVisible()
     await expect(page.locator('[data-replay-timeline]')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Battle options' })).toHaveCount(0)
@@ -33,7 +33,7 @@ test('a visitor browses public battles and opens a spectator view on a phone and
   await host.getByRole('alertdialog').getByRole('button', { name: 'Concede battle' }).click()
   await expect(host.getByRole('region', { name: 'Battle scoreboard' })).toContainText('wins by concession')
   await page.goto('/battles')
-  await expect(page.locator(`[data-battle-shelf="Finished"] article > a[href="${battlePath}"]`)).toBeVisible()
+  await expect(page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`)).toBeVisible()
   await host.goto('/profile')
   for (const audience of ['Friends', 'Players only']) {
     const choice = host.getByRole('button', { name: new RegExp(`^${audience}`) })
@@ -47,7 +47,10 @@ test('a visitor browses public battles and opens a spectator view on a phone and
   await opponentContext.close()
 })
 
-test("a signed-in player's battles page lists their games, then friends' and public games once each", async ({ page, browser }) => {
+test("a signed-in player's battles page lists their own, their friends' or everyone's games, one list at a time", async ({
+  page,
+  browser,
+}) => {
   test.setTimeout(120_000)
   const hostContext = await browser.newContext()
   const guestContext = await browser.newContext()
@@ -61,39 +64,47 @@ test("a signed-in player's battles page lists their games, then friends' and pub
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await signUp(page, uniqueName('Battle reader'))
-  await createBattle(page, {
-    practice: true,
-    beforeCreate: async (dialog) => {
-      for (const width of [1440, 390]) {
-        await page.setViewportSize({ width, height: 900 })
-        await expect(dialog.getByRole('button', { name: 'Start battle' })).toBeVisible()
-        await expect(dialog).not.toContainText('Battles are public by default')
-        await expect(dialog).not.toContainText('One device can record the whole game')
-      }
-      await page.setViewportSize({ width: 1440, height: 900 })
-    },
-  })
+  const own = `[href="${
+    new URL(
+      await createBattle(page, {
+        practice: true,
+        beforeCreate: async (dialog) => {
+          for (const width of [1440, 390]) {
+            await page.setViewportSize({ width, height: 900 })
+            await expect(dialog.getByRole('button', { name: 'Start battle' })).toBeVisible()
+            await expect(dialog).not.toContainText('Battles are public by default')
+            await expect(dialog).not.toContainText('One device can record the whole game')
+          }
+          await page.setViewportSize({ width: 1440, height: 900 })
+        },
+      }),
+    ).pathname
+  }"]`
+  const sections = () => page.locator('main [data-battle-shelf], main [data-friends-empty]').evaluateAll((nodes) => nodes.length)
+  const views = page.getByRole('navigation', { name: 'Battles' })
   await page.goto('/battles')
-  const sections = () =>
-    page
-      .locator('main [data-battle-shelf], main [data-home-feed], main [data-friends-empty]')
-      .evaluateAll((nodes) =>
-        nodes.map((node) => node.getAttribute('data-battle-shelf') ?? node.getAttribute('data-home-feed') ?? "Friends' games"),
-      )
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await expect.poll(sections).toEqual(['Setup', "Friends' games", 'Public games'])
-    await expect(page.locator(`[data-home-feed="Public games"] a${watched}`)).toBeVisible()
+    await expect(page.locator(`[data-battle-shelf="In progress"] a${own}`)).toBeVisible()
+    await expect.poll(sections).toBe(1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
+  await views.getByRole('link', { name: 'Public games' }).click()
+  await expect(page).toHaveURL(/\/battles\?view=public$/)
+  await expect(page.locator(`[data-battle-shelf="Public games"] a${watched}`)).toBeVisible()
+  await expect(page.locator(`[data-battle-shelf="Public games"] a${own}`)).toHaveCount(0)
+
+  await views.getByRole('link', { name: "Friends' games" }).click()
+  await expect(page.locator('[data-friends-empty]')).toBeVisible()
+
   await befriend(page, host)
-  await page.goto('/battles')
+  await page.goto('/battles?view=friends')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await expect(page.locator(`[data-home-feed="Friends' games"] a${watched}`)).toBeVisible()
-    await expect(page.locator(`[data-home-feed="Public games"] a${watched}`)).toHaveCount(0)
+    await expect(page.locator(`[data-battle-shelf="Friends' games"] a${watched}`)).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
   }
   await hostContext.close()
   await guestContext.close()

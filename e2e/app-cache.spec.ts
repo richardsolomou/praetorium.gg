@@ -96,7 +96,7 @@ test(
     await reopened.goto(rosterPath)
     await expect(reopened.getByLabel('List name')).toHaveValue(roster)
     await reopened.goto('/battles')
-    await expect(reopened.getByRole('heading', { name: 'My battles', exact: true })).toBeVisible()
+    await expect(reopened.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
     await expect(reopened.getByRole('main').locator(`a[href="${battlePath}"]`).first()).toBeVisible()
     await reopened.goto(battlePath)
     await expect(reopened.getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()

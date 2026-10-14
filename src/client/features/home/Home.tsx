@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
+  armyUpdatesQuery,
   battlesFrom,
   battlesQuery,
   factionIndexQuery,
@@ -9,12 +10,17 @@ import {
   homeRostersQuery,
   leaguesQuery,
   meQuery,
+  onboardingQuery,
+  playerProfileQuery,
+  playerRankingsQuery,
   publicBattlesQuery,
+  savedRosterChangedIdsQuery,
   standingsQuery,
 } from '../../queries'
 import type { Battle } from '../battles/battle'
 import { CreateBattle } from '../battles/CreateBattle'
 import { DeleteBattleDialog } from '../battles/DeleteBattle'
+import { type ArmyUpdate, armySlugs } from './HomeArmyUpdates'
 import type { HomeRoster } from './HomeRosters'
 import { HomeView } from './HomeView'
 import { HomeNotifications } from './HomeNotifications'
@@ -31,16 +37,27 @@ export function Home() {
   const signedIn = Boolean(me)
   const { data: mine } = useInfiniteQuery({ ...battlesQuery(), enabled: signedIn })
   const { data: friends } = useInfiniteQuery({ ...friendBattlesQuery(), enabled: signedIn })
-  const { data: open, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(publicBattlesQuery())
+  const { data: open } = useInfiniteQuery(publicBattlesQuery())
   const { data: homeRosters } = useQuery({ ...homeRostersQuery(), enabled: signedIn })
   const { data: factions } = useQuery({ ...factionIndexQuery(), enabled: signedIn })
   const { data: leagues = [] } = useQuery({ ...leaguesQuery(), enabled: signedIn })
   const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: signedIn })
   const { data: standings } = useQuery({ ...standingsQuery(), enabled: !signedIn })
+  const { data: onboarding } = useQuery({ ...onboardingQuery(), enabled: signedIn })
+  // The record folds every battle the player has played, so it follows the page rather than holding it up.
+  const profile = useQuery({ ...playerProfileQuery(me?.id ?? ''), enabled: signedIn, staleTime: 60_000 })
+  const rankings = useQuery({ ...playerRankingsQuery(me?.id ?? ''), enabled: signedIn })
+  const { data: changedRosters = [] } = useQuery({ ...savedRosterChangedIdsQuery(), enabled: Boolean(homeRosters?.count) })
   const rosters: HomeRoster[] = (homeRosters?.rosters ?? []).map((entry) => ({
     ...entry,
     faction: factions?.factions.find((faction) => faction.id === entry.roster.catalogueId),
   }))
+  const armies = armySlugs(rosters.map((entry) => entry.faction))
+  const { data: newestUpdates = [] } = useQuery({ ...armyUpdatesQuery(armies), enabled: signedIn && armies.length > 0 })
+  const armyUpdates = newestUpdates.flatMap(({ slug, ...update }): ArmyUpdate[] => {
+    const faction = rosters.find((entry) => entry.faction?.slug === slug)?.faction
+    return faction ? [{ faction, ...update }] : []
+  })
   // An accepted entry with no list in it, before the reveal that would seal the event without it.
   const rostersDue = leagues
     .filter((league) => league.ownEntry?.status === 'accepted' && !league.ownEntry.submitted && !league.revealedAt)
@@ -57,11 +74,20 @@ export function Home() {
         rosterCount={signedIn ? (homeRosters?.count ?? 0) : 0}
         rostersDue={signedIn ? rostersDue : []}
         friendRequests={signedIn ? (friendships?.incoming.length ?? 0) : 0}
+        changedRosters={signedIn ? changedRosters.length : 0}
+        armyUpdates={signedIn ? armyUpdates : []}
+        record={
+          profile.isError
+            ? null
+            : profile.data && !rankings.isPending
+              ? { record: profile.data.record, rank: rankings.data?.overall ?? null }
+              : undefined
+        }
+        onboarding={signedIn ? onboarding : undefined}
         leaders={standings ? { rows: standings.overall.rows, days: standings.days } : null}
         newBattle={<CreateBattle />}
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
         onDelete={setDeleting}
-        more={hasNextPage ? { pending: isFetchingNextPage, onShow: () => void fetchNextPage() } : null}
       />
       <DeleteBattleDialog battle={deleting} onClose={() => setDeleting(null)} />
     </>
