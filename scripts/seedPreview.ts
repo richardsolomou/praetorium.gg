@@ -26,6 +26,10 @@ export const PREVIEW_ALLY_EMAIL = 'ally@praetorium.gg'
 const PREVIEW_ALLY_PASSWORD = 'ally-ally-ally-ally'
 export const PREVIEW_RIVAL_EMAIL = 'rival@praetorium.gg'
 const PREVIEW_RIVAL_PASSWORD = 'rival-rival-rival-rival'
+const PREVIEW_STRANGER_EMAIL = 'stranger@praetorium.gg'
+const PREVIEW_STRANGER_PASSWORD = 'stranger-stranger-stranger'
+const PREVIEW_WANDERER_EMAIL = 'wanderer@praetorium.gg'
+const PREVIEW_WANDERER_PASSWORD = 'wanderer-wanderer-wanderer'
 
 const PRACTICE_OPPONENTS = [
   { id: 'practice-opponent-1', name: 'Practice Opponent' },
@@ -265,11 +269,24 @@ export const PREVIEW_RIVAL_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_OPPONENT_ROSTERS[1]!, 'preview-rival-tyranids', false),
 ]
 
+/** Two players who know each other but not the preview login, so its public feed has strangers in it. */
+const PREVIEW_STRANGER_ROSTERS: readonly PreviewRoster[] = [
+  rosterCopy(PREVIEW_OPPONENT_ROSTERS[2]!, 'preview-stranger-aeldari'),
+  rosterCopy(PREVIEW_PLAYER_ROSTERS[0]!, 'preview-stranger-necrons'),
+]
+
+const PREVIEW_WANDERER_ROSTERS: readonly PreviewRoster[] = [
+  rosterCopy(PREVIEW_OPPONENT_ROSTERS[0]!, 'preview-wanderer-orks'),
+  rosterCopy(PREVIEW_PLAYER_ROSTERS[2]!, 'preview-wanderer-astra-militarum'),
+]
+
 export const PREVIEW_ACCOUNTS = [
   { email: PREVIEW_EMAIL, password: PREVIEW_PASSWORD, name: 'Preview Player', rosters: PREVIEW_ROSTERS },
   { email: PREVIEW_OPPONENT_EMAIL, password: PREVIEW_OPPONENT_PASSWORD, name: 'Preview Opponent', rosters: PREVIEW_OPPONENT_ROSTERS },
   { email: PREVIEW_ALLY_EMAIL, password: PREVIEW_ALLY_PASSWORD, name: 'Preview Ally', rosters: PREVIEW_ALLY_ROSTERS },
   { email: PREVIEW_RIVAL_EMAIL, password: PREVIEW_RIVAL_PASSWORD, name: 'Preview Rival', rosters: PREVIEW_RIVAL_ROSTERS },
+  { email: PREVIEW_STRANGER_EMAIL, password: PREVIEW_STRANGER_PASSWORD, name: 'Kieran Vale', rosters: PREVIEW_STRANGER_ROSTERS },
+  { email: PREVIEW_WANDERER_EMAIL, password: PREVIEW_WANDERER_PASSWORD, name: 'Sam Okafor', rosters: PREVIEW_WANDERER_ROSTERS },
 ] as const
 
 const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.rosters)
@@ -418,6 +435,9 @@ async function seedInto(
   for (const [index, left] of players.entries()) {
     for (const right of players.slice(index + 1)) await befriend(left, right)
   }
+  const strangerUserId = accountId(PREVIEW_STRANGER_EMAIL)
+  const wandererUserId = accountId(PREVIEW_WANDERER_EMAIL)
+  await befriend(strangerUserId, wandererUserId)
 
   for (const catalogueId of [PREVIEW_ROSTERS[0]!.catalogueId, PREVIEW_ROSTERS[4]!.catalogueId, PREVIEW_ROSTERS[6]!.catalogueId]) {
     await repository.addFavouriteFaction({ userId: previewUserId, catalogueId, now: now() })
@@ -431,6 +451,91 @@ async function seedInto(
     await repository.addToCollection({ userId: previewUserId, entryId, now: now() })
   }
 
+  // Created first, so they are the oldest public games and leave the newest to the preview login's own.
+  // A run of finished games so the strangers' profiles and records have a history to read.
+  const history: [number, number, number, number][] = [
+    [62, 48, 41, 55],
+    [70, 66, 38, 30],
+    [55, 71, 60, 64],
+    [80, 45, 52, 58],
+    [66, 60, 49, 61],
+    [74, 59, 35, 42],
+  ]
+  for (const [index, [kieranScore, samScore, kieranCp, samCp]] of history.entries()) {
+    const kieranFirst = index % 2 === 0
+    await createCasualBattle({
+      id: `preview-public-history-${index + 1}`,
+      token: `preview-public-history-${index + 1}`,
+      creatorId: kieranFirst ? strangerUserId : wandererUserId,
+      opponentIds: [kieranFirst ? wandererUserId : strangerUserId],
+      limit: 2_000,
+      rosters: kieranFirst
+        ? [
+            [strangerUserId, index % 3 ? 'preview-stranger-necrons' : 'preview-stranger-aeldari'],
+            [wandererUserId, index % 2 ? 'preview-wanderer-astra-militarum' : 'preview-wanderer-orks'],
+          ]
+        : [
+            [wandererUserId, index % 3 ? 'preview-wanderer-orks' : 'preview-wanderer-astra-militarum'],
+            [strangerUserId, index % 2 ? 'preview-stranger-aeldari' : 'preview-stranger-necrons'],
+          ],
+      tail: [
+        { kind: 'begin-battle', firstPlayerId: kieranFirst ? strangerUserId : wandererUserId },
+        { kind: 'score', category: 'primary', delta: kieranScore - Math.round(kieranCp / 2), playerId: strangerUserId },
+        { kind: 'score', category: 'secondary', delta: Math.round(kieranCp / 2), playerId: strangerUserId },
+        { kind: 'score', category: 'primary', delta: samScore - Math.round(samCp / 2), playerId: wandererUserId },
+        { kind: 'score', category: 'secondary', delta: Math.round(samCp / 2), playerId: wandererUserId },
+        { kind: 'end-battle', reason: 'conceded', concededBy: kieranScore > samScore ? wandererUserId : strangerUserId },
+      ],
+    })
+  }
+  await createCasualBattle({
+    id: 'preview-public-finished',
+    token: 'preview-public-finished',
+    creatorId: strangerUserId,
+    opponentIds: [wandererUserId],
+    limit: 2_000,
+    rosters: [
+      [strangerUserId, 'preview-stranger-aeldari'],
+      [wandererUserId, 'preview-wanderer-orks'],
+    ],
+    tail: [
+      { kind: 'begin-battle', firstPlayerId: strangerUserId },
+      { kind: 'score', category: 'primary', delta: 45, playerId: strangerUserId },
+      { kind: 'score', category: 'secondary', delta: 27, playerId: strangerUserId },
+      { kind: 'score', category: 'primary', delta: 40, playerId: wandererUserId },
+      { kind: 'score', category: 'secondary', delta: 21, playerId: wandererUserId },
+      { kind: 'end-battle', reason: 'conceded', concededBy: wandererUserId },
+    ],
+  })
+  await createCasualBattle({
+    id: 'preview-public-live',
+    token: 'preview-public-live',
+    creatorId: wandererUserId,
+    opponentIds: [strangerUserId],
+    limit: 2_000,
+    rosters: [
+      [wandererUserId, 'preview-wanderer-astra-militarum'],
+      [strangerUserId, 'preview-stranger-necrons'],
+    ],
+    tail: [
+      { kind: 'begin-battle', firstPlayerId: wandererUserId },
+      { kind: 'score', category: 'primary', delta: 15, playerId: wandererUserId },
+      { kind: 'score', category: 'primary', delta: 10, playerId: strangerUserId },
+      { kind: 'score', category: 'secondary', delta: 8, playerId: strangerUserId },
+    ],
+  })
+  await createCasualBattle({
+    id: 'preview-public-setup',
+    token: 'preview-public-setup',
+    creatorId: strangerUserId,
+    opponentIds: [wandererUserId],
+    limit: 2_000,
+    rosters: [
+      [strangerUserId, 'preview-stranger-necrons'],
+      [wandererUserId, 'preview-wanderer-orks'],
+    ],
+    tail: [{ kind: 'set-setup-step', step: 2 }],
+  })
   await createCasualBattle({
     id: 'preview-casual-incursion',
     token: 'preview-casual-incursion',
