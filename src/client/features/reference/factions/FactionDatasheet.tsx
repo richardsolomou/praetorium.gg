@@ -128,7 +128,7 @@ export function FactionDatasheet() {
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
         <UnitConfiguration onboarding="datasheet-config" sheet={sheet} rules={sheet.keywordRules} />
         <PointsChanges faction={faction} slug={sheet.slug} />
-        <TransportReference transport={sheet.transport} profiles={structured.transport} rules={sheet.keywordRules} />
+        <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
         {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
       </PageContent>
@@ -462,16 +462,21 @@ export function ProfileTable({
 export function TransportReference({
   transport,
   profiles,
+  abilities,
   rules,
 }: {
   transport: string | null
   profiles: readonly Pick<DisplayProfile, 'id'>[]
+  abilities: readonly Pick<DisplayAbility, 'name'>[]
   rules: KeywordRule[]
 }) {
   if (!transport) return null
+  const anchors = <ReferenceAnchors prefix="profile" ids={profiles.map((profile) => profile.id)} />
+  // Some sources print the rule as a TRANSPORT ability as well, which the abilities section already shows.
+  if (abilities.some((ability) => ability.name.toUpperCase() === 'TRANSPORT')) return anchors
   return (
     <section>
-      <ReferenceAnchors prefix="profile" ids={profiles.map((profile) => profile.id)} />
+      {anchors}
       <h2 className="rubric">Transport</h2>
       <div className="mt-2 border border-edge bg-panel p-3">
         <RuleText text={transport} rules={rules} className="mt-0" />
