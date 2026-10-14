@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.143.0
+
+### Minor Changes
+
+- 3659518: Battlefield maps shade each side's territory as well as its deployment zone.
+
+### Patch Changes
+
+- f38c2bf: Offer the Custodes preview stratagems In Auramite Clad, Vigil Unending, Superhuman Focus, and Gilded Champion in battle.
+- d9a3ed8: Show every stratagem in battle, including those for the other player's turn, when asked for the ones not playable now.
+
 ## 0.142.0
 
 ### Minor Changes
