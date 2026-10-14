@@ -75,6 +75,7 @@ export function kotcTerrain(directory: string): { deployment: Deployment; layout
           points: rectangle(0, BOARD_IN - depth, BOARD_IN, BOARD_IN).map(landscape),
         },
       ],
+      attackerTerritory: null,
       objectives: [],
     },
     layout: {

@@ -15,6 +15,7 @@ type BattlemasterLayout = {
     name?: string
     board?: { widthIn?: number; heightIn?: number }
     zones?: { role?: string; points?: Point[] }[]
+    territories?: { role?: string; points?: Point[] }[]
     objectives?: { center?: Point }[]
   }
 }
@@ -56,8 +57,11 @@ function battlemasterSlots(directory: string) {
         deployment.objectives?.flatMap((objective) =>
           objective.center && validPoint(objective.center) ? [boardPoint(objective.center)] : [],
         ) ?? []
+      const territory = deployment.territories?.length === 1 ? deployment.territories[0] : undefined
+      const territoryPoints = territory?.role === 'attacker' ? (territory.points ?? []) : []
+      const attackerTerritory = territoryPoints.length >= 3 && territoryPoints.every(validPoint) ? territoryPoints.map(boardPoint) : null
       if (zones.length === 2 && objectives.length === 5) {
-        const candidate: Deployment = { id: '', name: deployment.name, description: null, zones, objectives }
+        const candidate: Deployment = { id: '', name: deployment.name, description: null, zones, attackerTerritory, objectives }
         const deploymentKey = joinKey(deployment.name)
         const previous = deployments.get(deploymentKey)
         deployments.set(deploymentKey, previous === undefined || JSON.stringify(previous) === JSON.stringify(candidate) ? candidate : null)
@@ -87,6 +91,7 @@ export function terrainFromDatacards(packs: readonly MissionPack[], battlemaster
         name,
         description: null,
         zones: geometry?.zones ?? [],
+        attackerTerritory: geometry?.attackerTerritory ?? null,
         objectives: geometry?.objectives ?? [],
       })
     }

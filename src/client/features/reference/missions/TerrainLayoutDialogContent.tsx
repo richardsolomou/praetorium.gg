@@ -16,6 +16,7 @@ type Props = {
   deployment?: {
     name: string
     zones: { player: string; name: string; colour: string; points: { x: number; y: number }[] }[]
+    attackerTerritory?: { x: number; y: number }[] | null
     objectives: { x: number; y: number }[]
   }
   templates: TerrainTemplate[]
@@ -47,6 +48,15 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
             </span>
             Deployment zones
           </span>
+          {deployment?.attackerTerritory ? (
+            <span className="flex items-center gap-2">
+              <span className="flex size-3 overflow-hidden border border-edge">
+                <span className="w-1/2 bg-side-a/30" />
+                <span className="w-1/2 bg-side-b/30" />
+              </span>
+              Territories
+            </span>
+          ) : null}
           <span className="flex items-center gap-2">
             <span className="h-1 w-4 bg-achieved" /> Dense terrain
           </span>

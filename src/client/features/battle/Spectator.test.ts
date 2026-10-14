@@ -25,7 +25,7 @@ function render(patternId: string | null, textOnly = true) {
   const view = battleView({ token: 'test' }, NAMES, reduceBattle([ALICE, BOB], commands), '')
   const client = new QueryClient()
   client.setQueryData(deploymentsQuery().queryKey, [
-    { id: 'current-search-id', name: 'Search And Destroy', description: null, zones: [], objectives: [] },
+    { id: 'current-search-id', name: 'Search And Destroy', description: null, zones: [], attackerTerritory: null, objectives: [] },
   ])
   const markup = renderToStaticMarkup(
     createElement(

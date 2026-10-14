@@ -100,6 +100,15 @@ export function pointInPolygon(point: { x: number; y: number }, polygon: { x: nu
   return inside
 }
 
+/** The edges of a territory that cross the board rather than run along its edge. */
+export function territoryBoundary(territory: { x: number; y: number }[], board: TerrainGeometry['board']) {
+  const onEdge = (start: { x: number; y: number }, end: { x: number; y: number }) =>
+    [0, board.width].some((x) => start.x === x && end.x === x) || [0, board.height].some((y) => start.y === y && end.y === y)
+  return territory
+    .map((start, index) => [start, territory[(index + 1) % territory.length]!] as const)
+    .filter(([start, end]) => !onEdge(start, end) && (start.x !== end.x || start.y !== end.y))
+}
+
 export function svgPoints(points: { x: number; y: number }[]) {
   return points.map((point) => `${point.x},${point.y}`).join(' ')
 }

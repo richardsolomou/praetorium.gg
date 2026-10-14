@@ -16,6 +16,7 @@ import {
   type TerrainPiece,
   type TerrainTemplate,
   terrainMarkerPosition,
+  territoryBoundary,
 } from './terrainGeometry'
 
 export function TerrainBoard({
@@ -30,6 +31,7 @@ export function TerrainBoard({
   templates: TerrainTemplate[]
   deployment?: {
     zones: { player: string; name: string; points: { x: number; y: number }[] }[]
+    attackerTerritory?: { x: number; y: number }[] | null
     objectives: { x: number; y: number }[]
   }
   className?: string
@@ -81,6 +83,20 @@ export function TerrainBoard({
       <rect width={board.height} height={board.width} fill={`url(#${patternId}-major)`} />
       <g transform={upright}>
         <rect width={board.width} height={board.height} fill="none" stroke="currentColor" strokeWidth=".25" />
+        {deployment?.attackerTerritory ? (
+          <>
+            <path
+              d={`M 0 0 H ${board.width} V ${board.height} H 0 Z M ${svgPoints(deployment.attackerTerritory)} Z`}
+              fillRule="evenodd"
+              className="fill-side-b/10"
+            >
+              <title>Defender's territory</title>
+            </path>
+            <polygon points={svgPoints(deployment.attackerTerritory)} className="fill-side-a/10">
+              <title>Attacker's territory</title>
+            </polygon>
+          </>
+        ) : null}
         {deployment?.zones.map((zone) => (
           <polygon
             key={zone.name}
@@ -89,6 +105,20 @@ export function TerrainBoard({
             strokeWidth=".25"
           />
         ))}
+        {deployment?.attackerTerritory ? (
+          <path
+            d={territoryBoundary(deployment.attackerTerritory, board)
+              .map(([start, end]) => `M ${start.x} ${start.y} L ${end.x} ${end.y}`)
+              .join(' ')}
+            fill="none"
+            className="stroke-bone/60"
+            strokeWidth=".25"
+            strokeDasharray="0 .6"
+            strokeLinecap="round"
+          >
+            <title>Territory boundary</title>
+          </path>
+        ) : null}
         {layout.geometry ? (
           <ExactTerrainGeometry geometry={layout.geometry} detailed={detailed} />
         ) : (

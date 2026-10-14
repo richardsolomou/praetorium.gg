@@ -39,8 +39,8 @@ function render(overrides: Partial<Battle> = {}, loaded = true) {
   const client = new QueryClient()
   if (loaded)
     client.setQueryData(deploymentsQuery().queryKey, [
-      { id: dawnId, name: 'Dawn Of War', description: null, zones: [], objectives: [] },
-      { id: 'current-search-id', name: 'Search And Destroy', description: null, zones: [], objectives: [] },
+      { id: dawnId, name: 'Dawn Of War', description: null, zones: [], attackerTerritory: null, objectives: [] },
+      { id: 'current-search-id', name: 'Search And Destroy', description: null, zones: [], attackerTerritory: null, objectives: [] },
     ])
   return renderToStaticMarkup(
     createElement(QueryClientProvider, { client }, createElement(BattleShelf, { battles: [{ ...battle, ...overrides }] })),

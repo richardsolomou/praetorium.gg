@@ -169,7 +169,7 @@ it('connects a primary mission to its terrain and deployment records', () => {
     secondaries: [],
     missionTwists: new Map(),
     fixedSecondaryCaps: new Map(),
-    deployments: [{ id: 'deployment', name: 'Deployment', description: null, zones: [], objectives: [] }],
+    deployments: [{ id: 'deployment', name: 'Deployment', description: null, zones: [], attackerTerritory: null, objectives: [] }],
     terrainLayouts: [
       {
         id: 'layout',
