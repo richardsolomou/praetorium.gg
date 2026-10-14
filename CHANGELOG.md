@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.141.14
+
+### Patch Changes
+
+- 6d00647: Count synced roster creation and deletion in product analytics without repeating events on retries.
+- 287d195: Pages that fail with "Something went wrong" are now reported so the failure can be fixed.
+
 ## 0.141.13
 
 ### Patch Changes
