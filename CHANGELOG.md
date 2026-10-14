@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.143.7
+
+### Patch Changes
+
+- 899acbe: Swiping on a battle prompt on a phone no longer scrolls the battle page behind it.
+- 899acbe: Starting a battle opens the first turn at the top of the page instead of where setup was scrolled to.
+- 899acbe: Dialog actions stay at the bottom of the screen on phones, even before the dialog has anything to show.
+
 ## 0.143.6
 
 ### Patch Changes
