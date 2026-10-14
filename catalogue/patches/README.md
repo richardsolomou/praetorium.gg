@@ -25,5 +25,6 @@ The Custodes preview corrections carry rules wording, so they are commits on the
 - [`8c058fc`](https://github.com/richardsolomou/wh40k-11e/commit/8c058fc) adds the six provisional character attachment lists, checked on Warmind’s rendered codex pages and corroborated by GW’s detachment preview and Tabletop Battles’ review.
 - [`c56cacc`](https://github.com/richardsolomou/wh40k-11e/commit/c56cacc) links the Anathema Psykana army rule to Knight-Centura, Prosecutors, Vigilators, Witchseekers, and their Rhino.
 - [`91eb8ba`](https://github.com/richardsolomou/wh40k-11e/commit/91eb8ba) adds Warmind’s 23 base sizes or model footprints and the Anathema Psykana army rule card.
+- [`3c57378`](https://github.com/richardsolomou/wh40k-11e/commit/3c57378) gives five stratagems the turn their transcribed When line states, so battles can offer them. Honoured Interred stays out of battles: one turn value cannot express your Shooting phase plus either player's Fight phase.
 
 These are community preview evidence. Reconcile them with the released codex and its MFM before promoting the preview. [The integration tests](../../scripts/custodesAttachments.integration.test.ts) check every attachment pair, both reference directions, rules-version destinations, invalid attachments, every supplied or missing footprint, and the rule on all five Psykana datasheets.

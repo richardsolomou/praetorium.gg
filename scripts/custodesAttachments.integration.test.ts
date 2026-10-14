@@ -6,6 +6,9 @@ import { attachmentErrors, attachmentOf } from '../src/core/attach'
 import { nameOf } from '../src/core/catalogue'
 import { loadCatalogue, type LoadedCatalogue } from '../src/server/catalogueIndex'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
+import { factionsFromDatacards } from '../src/server/datacardFactions'
+import { loadDatacards } from '../src/server/datacards'
+import { routeSlug } from '../src/core/slug'
 import { datasheetIn } from '../src/shared/catalogue'
 
 const source = path.join(process.env.CATALOGUE_DIR ?? 'catalogue-data', 'editions', 'custodes-11e')
@@ -152,5 +155,29 @@ describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
         message: 'cannot support Witchseeker Squad, which is already supported by Knight-Centura',
       },
     ])
+  })
+
+  it.each([
+    ['Superhuman Focus', 'Emperor’s Chosen', 'either', undefined],
+    ['In Auramite Clad', 'Emperor’s Chosen', 'opponent-turn', ['shooting', 'fight']],
+    ['Vigil Unending', 'Lions of the Emperor', 'opponent-turn', ['shooting', 'fight']],
+    ['Gilded Champion', 'Auric Champions', 'either', undefined],
+  ])('offers %s from %s in battle with its printed timing', (name, detachment, turn, phases) => {
+    const pools = factionsFromDatacards(loadDatacards(path.join(source, 'datacards', '11th', 'gdc')), source).byDetachment
+    const card = pools
+      .get('adeptus-custodes')
+      ?.get(routeSlug(detachment))
+      ?.find((stratagem) => stratagem.name === name)
+    expect(card && { turn: card.turn, phases: card.phases }).toEqual({ turn, phases })
+  })
+
+  it('keeps Honoured Interred out of battle while one turn cannot express its timing', () => {
+    const pools = factionsFromDatacards(loadDatacards(path.join(source, 'datacards', '11th', 'gdc')), source).byDetachment
+    expect(
+      pools
+        .get('adeptus-custodes')
+        ?.get(routeSlug('Might of the Moritoi'))
+        ?.map((stratagem) => stratagem.name),
+    ).not.toContain('Honoured Interred')
   })
 })
