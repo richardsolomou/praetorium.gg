@@ -2,15 +2,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { catalogueEditionId, editionCatalogueId, editionLabel, rulesVersionLabel } from '../core/catalogueEdition'
-import { loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
+import { loadCatalogue, loadCatalogueSteps, type LoadedCatalogue } from './catalogueIndex'
 import { readCatalogueComposition } from './catalogueComposition'
-import { loadRules, type LoadedRules } from './rules'
+import { loadRules, loadRulesSteps, type LoadedRules } from './rules'
 import { factionsFor } from '../shared/factionReferences'
 import {
   CANONICAL_CATALOGUE_COMPILER_VERSION,
   CANONICAL_CATALOGUE_FORMAT,
   canonicalCatalogueFromSnapshotSteps,
-  completeSteps,
   completeStepsCooperatively,
   editionCanonicalCataloguesPath,
   type CanonicalCatalogueSteps,
@@ -21,7 +20,8 @@ import { routeSlug } from '../core/slug'
 import { compiledGlobalSearchIndex } from './globalSearch'
 import { combatUnitsFor } from './combatUnits'
 import type { CatalogueRuntime, RuntimeStartup } from './catalogueRuntime'
-import { pickerUnitsFor } from '../shared/pickerUnits'
+import { pickerConstruction } from '../shared/pickerUnits'
+import { completeSteps, type Steps, type Stepwise, stepThrough, stepwise } from '../shared/steps'
 
 export function catalogueEditionLoaders(
   directory: string,
@@ -44,19 +44,31 @@ export function catalogueEditionLoaders(
   let packaged: Map<string, CanonicalCatalogue> | undefined
   const packagedCanonical = (key: string) => (packaged ??= loadEditionCanonicalCatalogues(directory)).get(key)
   let factions: ReturnType<typeof factionsFor> | null | undefined
-  const context = (editionId: string) => {
-    const cached = cache.get(editionId)
-    if (cached) return cached
+  const loading = new Map<string, Stepwise<EditionContext>>()
+  const contextLoad = (editionId: string) => {
     const configuration = composition?.editions.find(({ edition }) => edition.id === editionId)
     if (!configuration) return null
-    const target = configuration.base ? directory : path.join(directory, 'editions', editionId)
-    const catalogue = loadCatalogue(target, configuration.edition)
-    if (!catalogue) throw new Error(`edition ${editionId} has no catalogue data`)
-    const rules = loadRules(target, path.join(directory, 'battlemaster'), path.join(directory, 'icons'), undefined, catalogue.datacards)
-    const result: EditionContext = { catalogue, rules, canonical: new Map() }
-    cache.set(editionId, result)
-    return result
+    const pending =
+      loading.get(editionId) ??
+      stepwise(function* () {
+        const target = configuration.base ? directory : path.join(directory, 'editions', editionId)
+        const catalogue = yield* loadCatalogueSteps(target, configuration.edition)
+        if (!catalogue) throw new Error(`edition ${editionId} has no catalogue data`)
+        const rules = yield* loadRulesSteps(
+          target,
+          path.join(directory, 'battlemaster'),
+          path.join(directory, 'icons'),
+          undefined,
+          catalogue.datacards,
+        )
+        const result: EditionContext = { catalogue, rules, canonical: new Map() }
+        cache.set(editionId, result)
+        return result
+      })
+    loading.set(editionId, pending)
+    return pending
   }
+  const context = (editionId: string) => cache.get(editionId) ?? contextLoad(editionId)?.get() ?? null
   const lookup = (catalogueId: string) => {
     const id = catalogueEditionId(catalogueId)
     if (!id) return null
@@ -198,17 +210,24 @@ export function catalogueEditionLoaders(
         ?.factions.filter((faction) => faction.isDefault)
         .map((faction) => faction.id),
     )
+  /** Loads every edition and, from a compiled runtime, each faction's picker and reference list, a step at a time. */
+  function* construction(): Steps<void> {
+    const original = base()
+    const originalRules = baseRules()
+    yield
+    if (runtime && original) for (const faction of original.factions) yield* pickerConstruction(original, originalRules, faction.id)
+    for (const { edition } of composition?.editions ?? []) {
+      const { catalogue, rules } = yield* stepThrough(contextLoad(edition.id)!)
+      if (runtime) for (const id of edition.catalogueIds) yield* pickerConstruction(catalogue, rules, editionCatalogueId(edition.id, id))
+    }
+  }
   return {
     /** Builds every construction index ahead of requests; benchmarks and audits measure a fully built instance. */
     prepare: () => {
-      const original = base()
-      const originalRules = baseRules()
-      if (runtime && original) for (const faction of original.factions) pickerUnitsFor(original, originalRules, faction.id, '')
-      for (const { edition, catalogue, rules } of editionContexts()) {
-        canonicalFor(editionCatalogueId(edition.id, edition.catalogueIds[0]!))
-        if (runtime) for (const id of edition.catalogueIds) pickerUnitsFor(catalogue, rules, editionCatalogueId(edition.id, id), '')
-      }
+      completeSteps(construction())
+      for (const { edition } of composition?.editions ?? []) canonicalFor(editionCatalogueId(edition.id, edition.catalogueIds[0]!))
     },
+    construction,
     resolve,
     factionFor,
     battleFactions: () => {

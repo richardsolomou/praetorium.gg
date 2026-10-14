@@ -4,7 +4,7 @@ import { globalSingleton } from 'ras-stack/server'
 import os from 'node:os'
 import { deploymentHost, serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
-import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRules } from './rules'
+import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRulesSteps } from './rules'
 import {
   catalogueBaseUrl,
   catalogueLock,
@@ -40,6 +40,7 @@ import { catalogueEditionLoaders } from './catalogueEditions'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { reportRuntimeMetrics } from './runtimeMetrics'
 import type { BattleFaction } from '../shared/battleSummary'
+import { type Steps, stepThrough, stepwise } from '../shared/steps'
 
 type App = {
   hotReloadToken?: object
@@ -83,6 +84,8 @@ type App = {
   githubSponsors: GithubSponsorRefresh
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
+  /** Builds what a faction's first request would otherwise build, a step at a time. */
+  construction: () => Steps<void>
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
@@ -146,19 +149,39 @@ const sync = {
   },
 }
 
+const SLICE_MS = 20
+const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve).unref())
+
 /**
- * Loads the projections every page needs after startup. A faction's construction index costs
- * up to a second on its first request and is kept for the process lifetime; building all ninety
- * ahead would stall every request behind it, so none are.
+ * Loads the projections every page needs, then resolves and builds each faction's construction
+ * index in the background. A faction costs seconds on a production replica, so the background
+ * build runs in slices that let requests in between, until a sync swap replaces these loaders.
  */
-export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits'>): Promise<void> {
-  await new Promise<void>((resolve) => setImmediate(resolve))
+export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>) {
+  await nextTurn()
   try {
     await instance.searchIndexFor()
     instance.canonicalCatalogue()
     instance.combatUnits()
+    // Every reference read keys its cache on this catalogue's revision, so the first one would otherwise load it.
+    instance.catalogue()
   } catch (error) {
     sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
+    return
+  }
+  const { construction } = instance
+  void inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
+    console.error('Catalogue construction failed:', error instanceof Error ? error.message : String(error))
+  })
+}
+
+async function inBackground(steps: Steps<void>, current: () => boolean) {
+  for (;;) {
+    await nextTurn()
+    if (!current()) return
+    const deadline = performance.now() + SLICE_MS
+    do if (steps.next().done) return
+    while (performance.now() < deadline)
   }
 }
 
@@ -167,11 +190,17 @@ const hotReloadToken = {}
 function catalogueLoaders(directory: string) {
   const runtime = productionCatalogueRuntime(directory)
   const catalogue = memoize(() => loadCatalogue(directory))
-  const rules = memoize(() => loadRules(directory, undefined, undefined, undefined, catalogue()?.datacards))
+  const baseRules = stepwise(() => loadRulesSteps(directory, undefined, undefined, undefined, catalogue()?.datacards))
+  const rules = baseRules.get
   const editions = catalogueEditionLoaders(directory, catalogue, rules, runtime)
+  function* construction() {
+    yield* stepThrough(baseRules)
+    yield* editions.construction()
+  }
   return {
     catalogue,
     editions,
+    construction,
     canonical: memoize(() => editions.canonicalCatalogue(runtime ? null : referenceCatalogue(directory, catalogue, rules))),
     rules,
     history: memoize(() => loadCatalogueHistory(directory)),
@@ -244,6 +273,7 @@ function useCatalogueLoaders(instance: App, directory: string) {
   instance.rules = next.rules
   instance.catalogueHistory = next.history
   instance.combatUnits = next.combatUnits
+  instance.construction = next.construction
   Object.assign(
     instance,
     catalogueReads(() => instance, next),
@@ -315,6 +345,7 @@ export function app(): App {
       rules: loaded.rules,
       catalogueHistory: loaded.history,
       combatUnits: loaded.combatUnits,
+      construction: loaded.construction,
       ...catalogueReads(() => instance, loaded),
       push: Boolean(push),
       sync: () => sync.state,

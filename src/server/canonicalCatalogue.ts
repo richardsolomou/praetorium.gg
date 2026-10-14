@@ -3,6 +3,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { z } from 'zod'
+import { completeSteps, type Steps } from '../shared/steps'
 import { structureDatasheetProfiles } from '../core/datasheetStructure'
 import { compareText } from '../core/text'
 import type {
@@ -353,17 +354,10 @@ function issuesFor(
 }
 
 /** A compile that pauses before each datasheet; a driver decides whether other work runs in between. */
-export type CanonicalCatalogueSteps = Generator<void, CanonicalCatalogue>
-
-export function completeSteps<T>(steps: Generator<void, T>): T {
-  for (;;) {
-    const step = steps.next()
-    if (step.done) return step.value
-  }
-}
+export type CanonicalCatalogueSteps = Steps<CanonicalCatalogue>
 
 /** Runs a compile one step per event-loop turn, so requests are served between datasheets. */
-export async function completeStepsCooperatively<T>(steps: Generator<void, T>): Promise<T> {
+export async function completeStepsCooperatively<T>(steps: Steps<T>): Promise<T> {
   for (;;) {
     const step = steps.next()
     if (step.done) return step.value

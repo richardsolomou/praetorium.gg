@@ -23,9 +23,18 @@ import {
   stringField,
   integerField,
 } from '../shared/datacards'
+import { completeSteps, type Steps } from '../shared/steps'
 export * from '../shared/datacards'
 const NO_SECTIONS: SectionProse = () => new Map()
 export function loadDatacards(directory: string, sections: SectionProse = NO_SECTIONS, strings?: Map<string, string>): LoadedDatacards {
+  return completeSteps(loadDatacardsSteps(directory, sections, strings))
+}
+
+export function* loadDatacardsSteps(
+  directory: string,
+  sections: SectionProse = NO_SECTIONS,
+  strings?: Map<string, string>,
+): Steps<LoadedDatacards> {
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
   const enhancements = new Map<string, Set<string>>()
@@ -51,18 +60,18 @@ export function loadDatacards(directory: string, sections: SectionProse = NO_SEC
       constructionDetachments: new Map(),
       enhancementPoints: new Map(),
     }
-  const files = fs
-    .readdirSync(directory)
-    .filter((entry) => entry.endsWith('.json'))
-    .map((fileName) => readSharedJson(path.join(directory, fileName), strings) as DatacardsFaction)
-    .filter(
-      (parsed): parsed is DatacardsFaction & { name: string } =>
-        typeof parsed.name === 'string' && Array.isArray(parsed.datasheets) && Array.isArray(parsed.detachments),
-    )
+  const files: (DatacardsFaction & { name: string })[] = []
+  for (const fileName of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
+    const parsed = readSharedJson(path.join(directory, fileName), strings) as DatacardsFaction
+    if (typeof parsed.name === 'string' && Array.isArray(parsed.datasheets) && Array.isArray(parsed.detachments))
+      files.push(parsed as DatacardsFaction & { name: string })
+    yield
+  }
   const datasheetNames = [
     ...new Set(files.flatMap((parsed) => records(parsed, 'datasheets').flatMap((entry) => localizedField(entry, 'name') ?? []))),
   ]
   for (const parsed of files) {
+    yield
     const content = factionContent(parsed.name, parsed, sections, datasheetNames)
     for (const key of datacardsFactionKeys(parsed.name)) factions.set(key, content)
     for (const rule of content.armyRules) remember(armyRules, routeSlug(rule.name), rule.description)
