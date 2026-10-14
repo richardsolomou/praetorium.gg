@@ -8,7 +8,28 @@ describe('a datasheet', () => {
     const rule = 'This model has a transport capacity of 12 Adeptus Astartes Infantry models.'
     book.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Rhino', card({ transport: rule })]])))
 
-    expect(unitBattleDetailsIn(book, 'cat', ['rhino'])).toEqual([{ entryId: 'rhino', transportRule: rule }])
+    expect(unitBattleDetailsIn(book, 'cat', ['rhino'])).toEqual([{ entryId: 'rhino', transportRule: rule, keywords: [] }])
+  })
+
+  it('reads the keywords a transport rule names for a battle snapshot', () => {
+    const book = bookOf({
+      selectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', categoryLinks: categories('Infantry', 'Battleline') }],
+    })
+
+    expect(unitBattleDetailsIn(book, 'cat', ['squad'])).toEqual([{ entryId: 'squad', keywords: ['Battleline', 'Infantry'] }])
+  })
+
+  it('reads battle details for a library unit through the army that fields it', () => {
+    const book = shelfOf(
+      {
+        name: 'Library',
+        library: true,
+        selectionEntries: [{ id: 'gun', name: 'Sentry Gun', type: 'unit', categoryLinks: categories('Vehicle') }],
+      },
+      { name: 'Army', catalogueLinks: [{ targetId: 'cat', importRootEntries: true }] },
+    )
+
+    expect(unitBattleDetailsIn(book, 'cat-1', ['gun'])).toEqual([{ entryId: 'gun', keywords: ['Vehicle'] }])
   })
 
   it('links same-named datasheets to their own faction references', () => {

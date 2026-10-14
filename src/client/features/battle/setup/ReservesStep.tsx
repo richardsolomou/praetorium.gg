@@ -6,11 +6,10 @@ import type { AttachedUnit } from '../../../../core/attachedUnits'
 import {
   canTransport,
   type Command,
-  embarkedModelCount,
   strategicReservePoints,
   strategicReserveSideTotals,
-  transportCapacity,
   transportLabel,
+  transportLoadOf,
   UNIT_FORMATIONS,
   unitFormationRefusal,
 } from '../../../../core/battle'
@@ -56,7 +55,7 @@ export function ReservesStep({ view, sides, send, problem, sentFrom, onSent }: P
       <SetupNote>
         {redeploy
           ? 'If an army rule lets you redeploy a unit after the first-turn roll, record that move here. It does not count towards the limit.'
-          : 'Anyone at the table can set each army’s reserves. Check special transport space costs and passenger restrictions on its datasheet.'}
+          : 'Anyone at the table can set each army’s reserves. Each transport takes only the passengers and space its printed rule allows.'}
       </SetupNote>
       <div className="grid gap-3 lg:grid-cols-2">
         {sides.map((side) => (
@@ -252,8 +251,13 @@ function TransportBoarding({
       !canTransport(unit.host) && !unit.joined.some(canTransport) && ![unit.host, ...unit.joined].some((member) => member.destroyed),
   )
   const canBoard = !transport.destroyed && transport.formation !== 'embarked'
-  const capacity = transportCapacity(transport.transportRule, transport.wargear)
-  const used = embarkedModelCount(army.units, transport.key)
+  const load = transportLoadOf(
+    transport,
+    army.units.filter((unit) => unit.embarkedIn === transport.key),
+  )
+  const aboard = Array.isArray(load)
+    ? `${load.map((pool) => (load.length === 1 ? `${pool.used}/${pool.capacity}` : `${pool.used}/${pool.capacity} ${pool.carries}`)).join(', ')} models`
+    : null
 
   return (
     <div className="mt-2 rounded-sm border border-edge px-2.5 py-2">
@@ -267,7 +271,7 @@ function TransportBoarding({
             <PopoverContent align="end" className="max-h-[min(28rem,70dvh)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto">
               <PopoverTitle>Embark in {name}</PopoverTitle>
               <PopoverDescription>
-                {capacity === null ? 'Model capacity unavailable for this roster.' : `${used}/${capacity} models aboard`}
+                {aboard === null ? 'Model capacity unavailable for this roster.' : `${aboard} aboard`}
               </PopoverDescription>
               <div className="space-y-1.5">
                 {candidates.map((unit) => {
@@ -312,7 +316,7 @@ function TransportBoarding({
         ) : null}
       </div>
       {transport.transportRule ? <RuleText text={transport.transportRule} className="mt-1 text-xs" /> : null}
-      <p className="mt-1 text-xs text-dim">{capacity === null ? 'Model capacity unavailable' : `${used}/${capacity} models embarked`}</p>
+      <p className="mt-1 text-xs text-dim">{aboard === null ? 'Model capacity unavailable' : `${aboard} embarked`}</p>
       {passengers.length ? (
         <p className="mt-2 text-xs text-bone">Embarked: {passengers.map((unit) => reserveUnitLabel(units, unit)).join(', ')}</p>
       ) : null}

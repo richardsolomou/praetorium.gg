@@ -16,6 +16,7 @@ import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import { ruleReferenceMatches, splitWeaponKeywords as weaponKeywordsOf } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
+import { matchesKeywordSelector, normalizeKeywordSelector } from '../core/keywords'
 import {
   datasheetIdBySlug,
   datasheetSlug,
@@ -70,12 +71,18 @@ export function woundsOf(profiles: readonly { type: string; values: readonly { n
 export function unitBattleDetailsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {
   return [...new Set(entryIds)].flatMap((entryId) => {
     const ownerId = loaded.index.catalogueOf.get(entryId) ?? catalogueId
-    const sheet = datasheetIn(loaded, ownerId, entryId)
-    const wounds = woundsOf(sheet?.profiles ?? [])
-    const transportRule = sheet?.transport ?? null
-    return wounds === null && !transportRule
-      ? []
-      : [{ entryId, ...(wounds === null ? {} : { wounds }), ...(transportRule ? { transportRule } : {}) }]
+    // A library unit fielded by an army resolves through that army's catalogue when not through its own.
+    const sheet = datasheetIn(loaded, ownerId, entryId) ?? datasheetIn(loaded, catalogueId, entryId)
+    if (!sheet) return []
+    const wounds = woundsOf(sheet.profiles)
+    return [
+      {
+        entryId,
+        ...(wounds === null ? {} : { wounds }),
+        ...(sheet.transport ? { transportRule: sheet.transport } : {}),
+        keywords: sheet.keywords,
+      },
+    ]
   })
 }
 
@@ -803,28 +810,6 @@ function unconditionalWeaponAbilityGrants(description: string) {
     })
   }
   return grants
-}
-
-const normalizeKeywordSelector = (value: string) =>
-  value
-    .replaceAll(/\^\^|\*\*/g, '')
-    .replaceAll(/[‐‑‒–—]/g, '-')
-    .replaceAll(/[^\p{L}\p{N}+'’-]+/gu, ' ')
-    .trim()
-    .toLowerCase()
-
-export function matchesKeywordSelector(selector: string, keywordNames: readonly string[]) {
-  const alternatives = selector
-    .replaceAll(/\^\^|\*\*/g, '')
-    .split(/\s+(?:and|or)\s+|\s*,\s*/iu)
-    .map(normalizeKeywordSelector)
-    .filter(Boolean)
-  const held = [...new Set(keywordNames.map(normalizeKeywordSelector).filter(Boolean))].toSorted(
-    (left, right) => right.length - left.length,
-  )
-  const covered = (remaining: string): boolean =>
-    held.some((keyword) => remaining === keyword || (remaining.startsWith(`${keyword} `) && covered(remaining.slice(keyword.length + 1))))
-  return alternatives.some(covered)
 }
 
 function grantedAbilitiesInAttachedUnit(

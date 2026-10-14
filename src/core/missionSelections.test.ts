@@ -85,7 +85,7 @@ describe('source-backed mission selections', () => {
       points: 100,
       models: 1,
       transport: true,
-      transportRule: 'This model has a transport capacity of 12 models.',
+      transportRule: 'This model has a transport capacity of 12 INFANTRY models.',
     })
     let entries = history(kind === 'guards' ? [[ALICE, { kind: 'draw-secondary', secondary: guard }]] : [])
     entries[kind === 'guards' ? 0 : 1]!.command = army

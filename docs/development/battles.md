@@ -58,7 +58,7 @@ Frozen unit notes are owner-only in the same reads: `battleView`, `visibleBattle
 
 Starting Strategic Reserves use one allowance per side, shared by allies. Deep Strike changes ingress, not membership in that allowance. Source-backed exemptions and post-deployment redeployments are separate. Check formations and battle start against frozen facts; incomplete source facts must not invent restrictions. `unitFormationRefusal` is the formation authority for `validate` and the setup controls, which disable each move it refuses and show its reason beside the control.
 
-Transport assignments name a unit in the same frozen army and clear when formation changes. Count joined leaders, existing passengers, and restored models against supported printed capacity and wargear conditions. Refuse an unreadable capacity; leave prose-only passenger restrictions and special space costs for the table.
+Transport assignments name a unit in the same frozen army and clear when formation changes. [`src/core/transport.ts`](../../src/core/transport.ts) reads the printed rule into allowances, exclusions and space costs, matched against each unit's keywords frozen with the roster; count joined leaders, existing passengers, and restored models against it. Refuse a rule with any sentence it cannot read, rather than enforcing part of it. Units frozen before keywords were recorded count one space per model in the first allowance.
 
 ## Prompts and replay
 

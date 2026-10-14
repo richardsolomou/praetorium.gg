@@ -214,6 +214,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 strategicReserveExempt: z.boolean().optional(),
                 transport: z.boolean().optional(),
                 transportRule: z.string().max(4_000).optional(),
+                keywords: z.array(z.string().max(100)).max(60).optional(),
               }),
             )
             .max(200),
