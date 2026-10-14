@@ -1,6 +1,4 @@
 import { createServerFn } from '@tanstack/react-start'
-import type { z } from 'zod'
-import { attachedUnitCount } from '../../core/attachedUnits'
 import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
@@ -10,7 +8,7 @@ import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, c
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
-import { rosterTelemetryProperties } from '../rosterTelemetry'
+import { captureRosterCreated, rosterTelemetryProperties } from '../rosterTelemetry'
 import { isRosterExchangeCode } from '../../core/rosterExchange'
 import { ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
@@ -268,17 +266,6 @@ export const savedRosterPrice = createServerFn({ method: 'GET' })
     }),
   )
 
-async function captureRosterCreated(userId: string, data: z.infer<typeof saveRosterSchema>, extra: { variant?: boolean } = {}) {
-  const instance = app()
-  await instance.telemetry.capture(userId, 'roster_created', {
-    ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor(data.catalogueId)),
-    unit_count: attachedUnitCount(data.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
-    source: data.source,
-    visibility: data.visibility,
-    ...extra,
-  })
-}
-
 export const saveRoster = createServerFn({ method: 'POST' })
   .validator(saveRosterSchema)
   .handler(({ data }) =>
@@ -286,7 +273,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
       const player = await requireUser()
       const { id, created, updatedAt } = await saveOwnedRoster(player.id, data)
       // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
-      if (created) await captureRosterCreated(player.id, data)
+      if (created) await captureRosterCreated(app(), player.id, data)
       return { id, updatedAt }
     }),
   )
@@ -298,7 +285,7 @@ export const copyRoster = createServerFn({ method: 'POST' })
       const player = await requireUser()
       const copied = await copySavedRoster(player.id, data.id, data.variant, data.setup)
       if (!copied) throw new Response('roster not found', { status: 404 })
-      await captureRosterCreated(player.id, copied.data, { variant: data.variant })
+      await captureRosterCreated(app(), player.id, copied.data, { variant: data.variant })
       return { id: copied.id }
     }),
   )

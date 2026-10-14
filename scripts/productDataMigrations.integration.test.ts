@@ -125,7 +125,7 @@ it.skipIf(!existsSync(cli))(
       const queued = { row, operationId: crypto.randomUUID(), fingerprint: 'a'.repeat(64), expectedVersion: 2, deleted: false }
       const saved = await store.syncRoster(queued)
       expect(await store.syncRoster(queued)).toEqual(saved)
-      expect(saved).toEqual({ outcome: 'applied', version: 3, deleted: false })
+      expect(saved).toEqual({ outcome: 'applied', version: 3, deleted: false, lifecycle: null })
       expect(await store.saveRoster({ ...fields, picks: '[]', now: 4 })).toBe('locked')
     } finally {
       if (server) await stopLocalChildren([server])

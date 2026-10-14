@@ -174,7 +174,79 @@ it.skipIf(!url || !database || !token)('replays a roster save after a lost respo
   const input = { row: JSON.stringify(row), operationId: randomUUID(), fingerprint, expectedVersion: null, deleted: false }
   try {
     const first = await operator.syncRoster(input)
-    expect(await operator.syncRoster(input)).toEqual(first)
+    expect({ first, retry: await operator.syncRoster(input) }).toEqual({
+      first: { outcome: 'applied', version: row.now, deleted: false, lifecycle: 'created' },
+      retry: { outcome: 'applied', version: row.now, deleted: false, lifecycle: null },
+    })
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
+it.skipIf(!url || !database || !token)('reports one lifecycle change for concurrent roster creation retries', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const row = rowFor(owner)
+  const input = { row: JSON.stringify(row), operationId: randomUUID(), fingerprint, expectedVersion: null, deleted: false }
+  try {
+    const results = await Promise.all([operator.syncRoster(input), operator.syncRoster(input)])
+    expect({
+      created: results.filter((result) => result.outcome === 'applied' && result.lifecycle === 'created').length,
+      retried: results.filter((result) => result.outcome === 'applied' && result.lifecycle === null).length,
+    }).toEqual({ created: 1, retried: 1 })
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
+it.skipIf(!url || !database || !token)('does not count ordinary synced edits as new rosters', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const row = rowFor(owner)
+  try {
+    await operator.saveRoster(row)
+    expect(
+      await operator.syncRoster({
+        row: JSON.stringify({ ...row, name: 'Edited army', now: row.now + 1 }),
+        operationId: randomUUID(),
+        fingerprint,
+        expectedVersion: row.now,
+        deleted: false,
+      }),
+    ).toEqual({ outcome: 'applied', version: row.now + 1, deleted: false, lifecycle: null })
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
+it.skipIf(!url || !database || !token)('counts a synced deletion once and retains its version on retry', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const row = rowFor(owner)
+  const input = {
+    row: JSON.stringify({ ...row, now: row.now + 1 }),
+    operationId: randomUUID(),
+    fingerprint,
+    expectedVersion: row.now,
+    deleted: true,
+  }
+  try {
+    await operator.saveRoster(row)
+    const first = await operator.syncRoster(input)
+    expect({ first, retry: await operator.syncRoster(input), roster: await operator.roster(row.id) }).toEqual({
+      first: { outcome: 'applied', version: row.now + 1, deleted: true, lifecycle: 'deleted' },
+      retry: { outcome: 'applied', version: row.now + 1, deleted: true, lifecycle: null },
+      roster: undefined,
+    })
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
+it.skipIf(!url || !database || !token)('does not count deletion of a roster that was never synced', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const row = rowFor(owner)
+  try {
+    expect(
+      await operator.syncRoster({ row: JSON.stringify(row), operationId: randomUUID(), fingerprint, expectedVersion: null, deleted: true }),
+    ).toEqual({ outcome: 'applied', version: row.now, deleted: true, lifecycle: null })
   } finally {
     await operator.deleteUserData(owner)
   }

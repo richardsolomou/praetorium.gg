@@ -1257,7 +1257,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
       return productJson({ outcome: 'refused', message: 'You do not own this roster.' })
     if (receipt?.operationId === parsed.operationId) {
       if (receipt.fingerprint !== parsed.fingerprint) throw new SenderError('Operation ID reused for a different edit')
-      return productJson({ outcome: 'applied', version: safeNumber(receipt.version), deleted: receipt.deleted })
+      return productJson({ outcome: 'applied', version: safeNumber(receipt.version), deleted: receipt.deleted, lifecycle: null })
     }
     const refusal = parsed.deleted ? null : lockedEdit(current, input)
     if (refusal) return productJson({ outcome: 'refused', message: refusal })
@@ -1266,6 +1266,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
         outcome: 'conflict',
         message: current ? 'This roster changed on another device.' : 'This roster was deleted on another device.',
       })
+    let lifecycle: 'created' | 'deleted' | null = null
     if (parsed.deleted) {
       if (current) {
         endLoans(tx, input.id)
@@ -1273,11 +1274,13 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
         touchProduct(tx, input.userId, 'rosters', 'onboarding')
         if (current.visibility !== 'private') touchPublic(tx, 'rosters')
         touchAdmin(tx)
+        lifecycle = 'deleted'
       }
     } else {
       const saved = saveRosterIn(tx, input)
       if (saved === 'forbidden') return productJson({ outcome: 'refused', message: 'You do not own this roster.' })
       if (saved === 'locked') return productJson({ outcome: 'refused', message: LOCKED_ROSTER_MESSAGE })
+      if (saved === 'inserted') lifecycle = 'created'
     }
     const version = parsed.deleted ? BigInt(input.now) : tx.db.rosters.id.find(input.id)!.updatedAt
     const next = {
@@ -1290,7 +1293,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     }
     if (receipt) tx.db.rosterSync.id.update(next)
     else tx.db.rosterSync.insert(next)
-    return productJson({ outcome: 'applied', version: safeNumber(version), deleted: parsed.deleted })
+    return productJson({ outcome: 'applied', version: safeNumber(version), deleted: parsed.deleted, lifecycle })
   })
 })
 

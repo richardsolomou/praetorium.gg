@@ -2,6 +2,21 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Command } from '../core/battle'
 import { SpacetimeOperator } from './spacetimeOperator'
 
+it('accepts roster sync acknowledgements from a module that predates lifecycle telemetry', async () => {
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', async () =>
+    Response.json(JSON.stringify({ outcome: 'applied', version: 123, deleted: false })),
+  )
+  expect(
+    await operator.syncRoster({
+      row: '{}',
+      operationId: crypto.randomUUID(),
+      fingerprint: 'a'.repeat(64),
+      expectedVersion: null,
+      deleted: false,
+    }),
+  ).toEqual({ outcome: 'applied', version: 123, deleted: false, lifecycle: null })
+})
+
 it('sends a session revocation to the selected database with the operator credential', async () => {
   const request = vi.fn(async () => new Response(null, { status: 200 }))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)

@@ -263,7 +263,7 @@ it.skipIf(!url || !database || !token)('saves edits again once unlocked and star
     expect(await store.saveRoster({ ...input, picks: '[]', now: input.now + 5 })).toBe('updated')
     expect({ original: (await store.roster(input.id))?.locked, copy: (await store.roster(copy))?.locked ?? null }).toEqual({
       original: false,
-      copy: null,
+      copy: false,
     })
   } finally {
     for (const id of [input.id, copy]) await store.deleteRoster(id, userId)
