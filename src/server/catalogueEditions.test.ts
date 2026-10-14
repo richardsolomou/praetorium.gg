@@ -19,7 +19,10 @@ vi.mock('./catalogueIndex', async (original) => ({
 vi.mock('./rules', async (original) => ({ ...(await original<typeof import('./rules')>()), loadRules: () => null }))
 vi.mock('./canonicalCatalogue', async (original) => ({
   ...(await original<typeof import('./canonicalCatalogue')>()),
-  compileCanonicalCatalogueFromSnapshot: mocks.compile,
+  canonicalCatalogueFromSnapshotSteps: function* (...args: unknown[]) {
+    yield
+    return mocks.compile(...args)
+  },
   loadEditionCanonicalCatalogues: mocks.packaged,
 }))
 
@@ -133,6 +136,40 @@ it('compiles an exact support faction on demand after preparing the advertised r
   }))
   loaded.canonicalFor('codex~child')
   expect(loaded.canonicalFor('codex~parent')!.datasheets.map((sheet) => sheet.catalogueId)).toEqual(['codex~parent'])
+})
+
+const compiledFactions = (catalogue: { factions: { id: string; name: string }[] }) => ({
+  datasheets: catalogue.factions.map((faction) => ({ id: faction.id, catalogueId: faction.id, faction: faction.name })),
+  detachments: [],
+  issues: [],
+})
+
+it('serves other requests while compiling an exact support faction', async () => {
+  const loaded = versions(['child'])
+  const order: string[] = []
+  mocks.compile.mockImplementation((catalogue) => {
+    order.push('compiled')
+    return compiledFactions(catalogue)
+  })
+  setImmediate(() => order.push('other request'))
+  await loaded.canonicalForRequest('codex~parent')
+  expect(order).toEqual(['other request', 'compiled'])
+})
+
+it('shares one compile between concurrent requests for the same support faction', async () => {
+  const loaded = versions(['child'])
+  mocks.compile.mockImplementation(compiledFactions)
+  const [first, second] = await Promise.all([loaded.canonicalForRequest('codex~parent'), loaded.canonicalForRequest('codex~parent')])
+  expect({ shared: first === second, compiles: mocks.compile.mock.calls.length }).toEqual({ shared: true, compiles: 1 })
+})
+
+it('compiles a support faction again after its compile failed', async () => {
+  const loaded = versions(['child'])
+  mocks.compile.mockImplementation(compiledFactions).mockImplementationOnce(() => {
+    throw new Error('compile failed')
+  })
+  await expect(loaded.canonicalForRequest('codex~parent')).rejects.toThrow('compile failed')
+  expect((await loaded.canonicalForRequest('codex~parent'))?.datasheets.map((sheet) => sheet.catalogueId)).toEqual(['codex~parent'])
 })
 
 it('loads a named base edition from the root directory', () => {
