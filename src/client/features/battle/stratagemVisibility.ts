@@ -15,10 +15,10 @@ function playableOnTurn(stratagem: StratagemTiming, ownTurn: boolean) {
   return true
 }
 
-export function stratagemVisibleNow(stratagem: StratagemTiming, phase: Phase, ownTurn: boolean, includeOtherPhases = false) {
-  return playableOnTurn(stratagem, ownTurn) && (includeOtherPhases || playableIn(stratagem, phase))
+export function stratagemVisibleNow(stratagem: StratagemTiming, phase: Phase, ownTurn: boolean, showAll = false) {
+  return showAll || (playableOnTurn(stratagem, ownTurn) && playableIn(stratagem, phase))
 }
 
-export function hiddenThisPhase(stratagems: readonly StratagemTiming[], phase: Phase, ownTurn: boolean) {
-  return stratagems.filter((stratagem) => playableOnTurn(stratagem, ownTurn) && !playableIn(stratagem, phase)).length
+export function hiddenNow(stratagems: readonly StratagemTiming[], phase: Phase, ownTurn: boolean) {
+  return stratagems.filter((stratagem) => !stratagemVisibleNow(stratagem, phase, ownTurn)).length
 }

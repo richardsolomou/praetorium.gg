@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { stratagemVisibleNow } from './stratagemVisibility'
+import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 
 describe('tracker stratagem visibility', () => {
   it('hides opponent-turn stratagems during your turn', () => {
@@ -10,7 +10,20 @@ describe('tracker stratagem visibility', () => {
     expect(stratagemVisibleNow({ turn: 'opponent-turn', phases: ['command'] }, 'command', false)).toBe(true)
   })
 
-  it('does not reveal wrong-turn stratagems when showing other phases', () => {
-    expect(stratagemVisibleNow({ turn: 'opponent-turn', phases: ['fight'] }, 'command', true, true)).toBe(false)
+  it('hides stratagems for another phase', () => {
+    expect(stratagemVisibleNow({ turn: 'either', phases: ['fight'] }, 'command', true)).toBe(false)
+  })
+
+  it('reveals your-turn stratagems during the opponent turn when showing all', () => {
+    expect(stratagemVisibleNow({ turn: 'your-turn', phases: ['command'] }, 'command', false, true)).toBe(true)
+  })
+
+  it('counts stratagems hidden by turn as well as by phase', () => {
+    const pool = [
+      { turn: 'your-turn', phases: ['shooting' as const] },
+      { turn: 'either', phases: ['fight' as const] },
+      { turn: 'opponent-turn', phases: ['shooting' as const] },
+    ]
+    expect(hiddenNow(pool, 'shooting', false)).toBe(2)
   })
 })

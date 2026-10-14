@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
-import { hiddenThisPhase, stratagemVisibleNow } from './stratagemVisibility'
+import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
 import { CARD, CARD_NAME } from './battleTints'
@@ -24,11 +24,11 @@ type Props = {
   writtenFor: (key: string) => StratagemText | undefined
 }
 
-/** Only what can be played right now, unless the player asks for the rest. */
+/** Only what can be played right now, unless the player asks for the rest; the rest show why they cannot be played. */
 export function Stratagems({ side, phase, coreKeys, actionable, pending, send, writtenFor }: Props) {
-  const [allPhases, setAllPhases] = useState(false)
+  const [showAll, setShowAll] = useState(false)
   if (!side.stratagems.length) return null
-  const otherPhases = hiddenThisPhase(side.stratagems, phase, side.isActive)
+  const hidden = hiddenNow(side.stratagems, phase, side.isActive)
 
   return (
     // The rule that separates these from the missions belongs to the layout that
@@ -45,7 +45,7 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
         </p>
       ) : null}
       {groups(side.stratagems, coreKeys).map((group) => {
-        const shown = group.items.filter((stratagem) => stratagemVisibleNow(stratagem, phase, side.isActive, allPhases))
+        const shown = group.items.filter((stratagem) => stratagemVisibleNow(stratagem, phase, side.isActive, showAll))
         if (!shown.length) return null
         return (
           <div key={group.label} className="space-y-1.5">
@@ -77,14 +77,14 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
           </div>
         )
       })}
-      {otherPhases && !allPhases ? (
-        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setAllPhases(true)}>
-          Show {otherPhases} for other phases
+      {hidden && !showAll ? (
+        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowAll(true)}>
+          Show {hidden} not playable now
         </Button>
       ) : null}
-      {allPhases ? (
-        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setAllPhases(false)}>
-          Only this phase
+      {showAll && hidden ? (
+        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowAll(false)}>
+          Only playable now
         </Button>
       ) : null}
     </section>

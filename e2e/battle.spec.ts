@@ -193,6 +193,21 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await expect(page.getByRole('dialog', { name: /^Scoring end of turn points/ })).toContainText('Primary mission')
 })
 
+test('showing every stratagem includes the ones for the other turn, refused', async ({ page }) => {
+  await signUp(page, uniqueName('Show all'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Show all roster' })
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await startBattle(page)
+
+  const waiting = page.locator('[data-panel="player"]').filter({ hasText: PRACTICE_OPPONENT })
+  const insaneBravery = waiting.getByRole('button', { name: 'Use Insane Bravery' })
+  await expect(insaneBravery).toHaveCount(0)
+  await waiting.getByRole('button', { name: /not playable now$/ }).click()
+  await expect(insaneBravery).toBeDisabled()
+})
+
 test('the final opponent-turn settlement completes before the battle ends', async ({ page }) => {
   await signUp(page, uniqueName('Final round'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Final round roster' })
