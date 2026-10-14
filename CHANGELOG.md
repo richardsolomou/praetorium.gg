@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.141.17
+
+### Patch Changes
+
+- a836312: Rosters on the superseded Space Marines codex versions move to the current MFM 1.5 rules, with the official codex points, and follow its later updates.
+- a836312: A list saved after the app moved to newer rules is no longer read on older rules because of the gear it holds.
+- a836312: Fixes, codexes and dated MFM builds now update the current rules version instead of adding a new one, and rules versions are named after their MFM version.
+
 ## 0.141.16
 
 ### Patch Changes
