@@ -15,6 +15,7 @@ import { requireUser } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { calculateRosterTotals } from '../../shared/pricing'
+import { captureRosterCreated } from '../rosterTelemetry'
 
 async function syncRefusal(error: unknown) {
   if (error instanceof Response && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 429)
@@ -70,7 +71,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
         copiedFromRosterId: data.roster.copiedFromRosterId ?? null,
         now: Date.now(),
       }
-      return instance.service.syncRoster({
+      const result = await instance.service.syncRoster({
         row: JSON.stringify(row),
         operationId: data.operationId,
         expectedVersion: data.expectedVersion,
@@ -79,6 +80,17 @@ export const syncRoster = createServerFn({ method: 'POST' })
           .update(JSON.stringify({ roster: data.roster, deleted: data.deleted }))
           .digest('hex'),
       })
+      if (result.outcome === 'applied') {
+        if (result.lifecycle === 'created')
+          await captureRosterCreated(
+            instance,
+            player.id,
+            data.roster,
+            data.roster.baseRosterId || data.roster.copiedFromRosterId ? { variant: Boolean(data.roster.baseRosterId) } : {},
+          )
+        else if (result.lifecycle === 'deleted') await instance.telemetry.capture(player.id, 'roster_deleted')
+      }
+      return result
     }),
   )
 

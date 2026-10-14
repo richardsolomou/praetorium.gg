@@ -192,7 +192,12 @@ it('rejects duplicate snapshot identities', () => {
 })
 
 it('imports every loadout and attachment unchanged into private local copies', async () => {
-  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({ outcome: 'applied', version: 2, deleted: false }))
+  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({
+    outcome: 'applied',
+    version: 2,
+    deleted: false,
+    lifecycle: 'created',
+  }))
   await importProductionRosters(snapshot, 'local-account', { roster: async () => undefined, syncRoster })
   expect(JSON.parse(syncRoster.mock.calls[0]![0].row)).toMatchObject({
     id: importedRosterId(roster.id),
@@ -222,7 +227,12 @@ it('stops on an ownership collision without overwriting another local account', 
 })
 
 it('preserves roster variant links under the imported IDs', async () => {
-  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({ outcome: 'applied', version: 2, deleted: false }))
+  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({
+    outcome: 'applied',
+    version: 2,
+    deleted: false,
+    lifecycle: 'created',
+  }))
   await importProductionRosters(
     {
       ...snapshot,
@@ -249,7 +259,12 @@ it('preserves roster variant links under the imported IDs', async () => {
 })
 
 it('imports a variant of a deleted production base as a standalone copy', async () => {
-  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({ outcome: 'applied', version: 2, deleted: false }))
+  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({
+    outcome: 'applied',
+    version: 2,
+    deleted: false,
+    lifecycle: 'created',
+  }))
   await importProductionRosters({ ...snapshot, rosters: [{ ...roster, baseRosterId: 'deleted' }] }, 'local-account', {
     roster: async () => undefined,
     syncRoster,

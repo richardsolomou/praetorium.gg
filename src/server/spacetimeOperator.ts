@@ -538,7 +538,12 @@ export class SpacetimeOperator {
   async syncRoster(input: { row: string; operationId: string; fingerprint: string; expectedVersion: number | null; deleted: boolean }) {
     return z
       .discriminatedUnion('outcome', [
-        z.object({ outcome: z.literal('applied'), version: z.number().int().nonnegative(), deleted: z.boolean() }),
+        z.object({
+          outcome: z.literal('applied'),
+          version: z.number().int().nonnegative(),
+          deleted: z.boolean(),
+          lifecycle: z.enum(['created', 'deleted']).nullable().default(null),
+        }),
         z.object({ outcome: z.enum(['conflict', 'refused']), message: z.string() }),
       ])
       .parse(await this.read('sync_roster', [JSON.stringify(input)]))
