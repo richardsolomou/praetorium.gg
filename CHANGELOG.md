@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.143.5
+
+### Patch Changes
+
+- 00a523f: Fix the ARM web image failing to start because it carried the x86 database driver.
+
 ## 0.143.4
 
 ### Patch Changes
