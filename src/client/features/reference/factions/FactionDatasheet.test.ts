@@ -83,9 +83,23 @@ it('anchors structured transport profiles beside transport prose', () => {
     createElement(TransportReference, {
       transport: 'Carries twelve models.',
       profiles: [{ id: 'capacity' }],
+      abilities: [],
       rules: [],
     }),
   )
 
   expect(markup).toContain('id="profile-capacity"')
+})
+
+it('leaves the transport rule to the abilities when they already print it', () => {
+  const markup = renderToStaticMarkup(
+    createElement(TransportReference, {
+      transport: 'Carries twelve models.',
+      profiles: [],
+      abilities: [{ name: 'TRANSPORT' }],
+      rules: [],
+    }),
+  )
+
+  expect(markup).not.toContain('Carries twelve models.')
 })
