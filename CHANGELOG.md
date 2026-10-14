@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.141.11
+
+### Patch Changes
+
+- 0fa2f60: Production deploys point catalogue discovery at the snapshot they serve.
+- 1c0f22f: Catalogue source pins, corrections and compatibility metadata live in `catalogue/`, replacing the separate catalogue repository.
+- 0fa2f60: A pull request that changes `catalogue/` publishes a candidate snapshot and pins it on its branch.
+
 ## 0.141.10
 
 ### Patch Changes
