@@ -9,8 +9,11 @@ import { factionsFor } from '../shared/factionReferences'
 import {
   CANONICAL_CATALOGUE_COMPILER_VERSION,
   CANONICAL_CATALOGUE_FORMAT,
-  compileCanonicalCatalogueFromSnapshot,
+  canonicalCatalogueFromSnapshotSteps,
+  completeSteps,
+  completeStepsCooperatively,
   editionCanonicalCataloguesPath,
+  type CanonicalCatalogueSteps,
   loadEditionCanonicalCatalogues,
 } from './canonicalCatalogue'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
@@ -124,7 +127,7 @@ export function catalogueEditionLoaders(
     const support = factionsFor(selected.catalogue, selected.rules).factions.find((faction) => faction.id === id)
     return support ? { ...support, isDefault: false } : null
   }
-  const canonical = (id: string) => {
+  const canonical = <T>(id: string, compile: (key: string, steps: () => CanonicalCatalogueSteps) => T) => {
     const catalogueId = resolve(id)
     const editionId = catalogueEditionId(catalogueId)
     const configured = composition?.editions.find(({ edition }) => edition.id === editionId)
@@ -136,25 +139,33 @@ export function catalogueEditionLoaders(
     if (baseEditions.has(catalogueId)) {
       const loaded = base()
       if (!loaded) return null
-      let result = baseCanonical.get(catalogueId) ?? packagedCanonical(`base:${catalogueId}`)
-      if (!result) {
-        result = compileCanonicalCatalogueFromSnapshot(
+      const ready = baseCanonical.get(catalogueId) ?? packagedCanonical(`base:${catalogueId}`)
+      if (ready) {
+        baseCanonical.set(catalogueId, ready)
+        return ready
+      }
+      return compile(`base:${catalogueId}`, function* () {
+        const result = yield* canonicalCatalogueFromSnapshotSteps(
           { ...loaded, factions: loaded.factions.filter((faction) => faction.id === catalogueId) },
           baseRules(),
           directory,
         )
-      }
-      baseCanonical.set(catalogueId, result)
-      return result
+        baseCanonical.set(catalogueId, result)
+        return result
+      })
     }
     const selected = lookup(catalogueId)
     if (!selected) return null
     const edition = selected.catalogue.edition!
     const advertised = new Set(edition.catalogueIds.map((bookId) => editionCatalogueId(edition.id, bookId)))
     const scope = advertised.has(catalogueId) ? '' : catalogueId
-    let result = selected.canonical.get(scope) ?? packagedCanonical(`${edition.id}:${scope}`)
-    if (!result) {
-      const compiled = compileCanonicalCatalogueFromSnapshot(
+    const ready = selected.canonical.get(scope) ?? packagedCanonical(`${edition.id}:${scope}`)
+    if (ready) {
+      selected.canonical.set(scope, ready)
+      return ready
+    }
+    return compile(`${edition.id}:${scope}`, function* () {
+      const compiled = yield* canonicalCatalogueFromSnapshotSteps(
         {
           ...selected.catalogue,
           factions: selected.catalogue.factions.filter((faction) => (scope ? faction.id === scope : advertised.has(faction.id))),
@@ -165,14 +176,21 @@ export function catalogueEditionLoaders(
           : path.join(directory, 'editions', edition.id),
       )
       const label = (faction: string) => `${faction} · ${editionLabel(edition)}`
-      result = {
+      const result = {
         ...compiled,
         datasheets: compiled.datasheets.map((sheet) => ({ ...sheet, faction: label(sheet.faction) })),
         detachments: compiled.detachments.map((detachment) => ({ ...detachment, faction: label(detachment.faction) })),
       }
-    }
-    selected.canonical.set(scope, result)
-    return result
+      selected.canonical.set(scope, result)
+      return result
+    })
+  }
+  const canonicalFor = (id: string) => canonical(id, (_key, steps) => completeSteps(steps()))
+  const compiling = new Map<string, Promise<CanonicalCatalogue>>()
+  const compileCooperatively = (key: string, steps: () => CanonicalCatalogueSteps) => {
+    const pending = compiling.get(key) ?? completeStepsCooperatively(steps()).finally(() => compiling.delete(key))
+    compiling.set(key, pending)
+    return pending
   }
   const defaults = () =>
     new Set(
@@ -187,7 +205,7 @@ export function catalogueEditionLoaders(
       const originalRules = baseRules()
       if (runtime && original) for (const faction of original.factions) pickerUnitsFor(original, originalRules, faction.id, '')
       for (const { edition, catalogue, rules } of editionContexts()) {
-        canonical(editionCatalogueId(edition.id, edition.catalogueIds[0]!))
+        canonicalFor(editionCatalogueId(edition.id, edition.catalogueIds[0]!))
         if (runtime) for (const id of edition.catalogueIds) pickerUnitsFor(catalogue, rules, editionCatalogueId(edition.id, id), '')
       }
     },
@@ -210,7 +228,9 @@ export function catalogueEditionLoaders(
       const id = catalogueId ? resolve(catalogueId) : null
       return id && catalogueEditionId(id) ? (lookup(id)?.rules ?? null) : baseRules()
     },
-    canonicalFor: canonical,
+    canonicalFor,
+    /** Compiles a missing catalogue between other requests, sharing one compile among concurrent reads of it. */
+    canonicalForRequest: async (id: string) => canonical(id, compileCooperatively),
     /** Every edition catalogue compiled or read so far, keyed as the snapshot packages them. */
     canonicalEntries: () => [
       ...[...baseCanonical].map(([catalogueId, catalogue]) => [`base:${catalogueId}`, catalogue] as const),
@@ -266,7 +286,7 @@ export function catalogueEditionLoaders(
         issues: primary.issues.filter((issue) => !baseEditions.has(issue.catalogueId)),
       }
       for (const { edition } of editionContexts()) {
-        const compiled = canonical(editionCatalogueId(edition.id, edition.catalogueIds[0]!))!
+        const compiled = canonicalFor(editionCatalogueId(edition.id, edition.catalogueIds[0]!))!
         const ids = new Set(edition.catalogueIds.map((id) => editionCatalogueId(edition.id, id)))
         result.datasheets.push(...compiled.datasheets.filter((sheet) => ids.has(sheet.catalogueId)))
         result.detachments.push(...compiled.detachments.filter((detachment) => ids.has(detachment.catalogueId)))

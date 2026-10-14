@@ -186,7 +186,7 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
     catalogueFor: async (catalogueId: string) => versions().catalogueFor(catalogueId),
     canonicalCatalogueFor: async (catalogueId?: string) => {
       if (catalogueId) {
-        const selected = versions().canonicalFor(catalogueId)
+        const selected = await versions().canonicalForRequest(catalogueId)
         if (selected || catalogueEditionId(versions().resolve(catalogueId))) return selected
       }
       return getInstance().canonicalCatalogue()

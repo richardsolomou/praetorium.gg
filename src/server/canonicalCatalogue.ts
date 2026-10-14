@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { z } from 'zod'
 import { structureDatasheetProfiles } from '../core/datasheetStructure'
 import { compareText } from '../core/text'
@@ -351,15 +352,39 @@ function issuesFor(
   return issues
 }
 
-export function compileCanonicalCatalogue(
+/** A compile that pauses before each datasheet; a driver decides whether other work runs in between. */
+export type CanonicalCatalogueSteps = Generator<void, CanonicalCatalogue>
+
+export function completeSteps<T>(steps: Generator<void, T>): T {
+  for (;;) {
+    const step = steps.next()
+    if (step.done) return step.value
+  }
+}
+
+/** Runs a compile one step per event-loop turn, so requests are served between datasheets. */
+export async function completeStepsCooperatively<T>(steps: Generator<void, T>): Promise<T> {
+  for (;;) {
+    const step = steps.next()
+    if (step.done) return step.value
+    await yieldToEventLoop()
+  }
+}
+
+export function compileCanonicalCatalogue(loaded: LoadedCatalogue, revisions: Record<string, string>, rules: LoadedRules | null = null) {
+  return completeSteps(canonicalCatalogueSteps(loaded, revisions, rules))
+}
+
+export function* canonicalCatalogueSteps(
   loaded: LoadedCatalogue,
   revisions: Record<string, string>,
   rules: LoadedRules | null = null,
-): CanonicalCatalogue {
+): CanonicalCatalogueSteps {
   const datasheets: CanonicalDatasheet[] = []
   const issues: CanonicalCatalogueIssue[] = []
   for (const faction of loaded.factions) {
     for (const entryId of datasheetsOf(loaded.index, faction.id)) {
+      yield
       const entry = loaded.index.definitions.get(entryId)
       if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
       const projected = datasheetIn(loaded, faction.id, entryId)
@@ -555,10 +580,18 @@ export function compileCanonicalCatalogueFromSnapshot(
   rules: LoadedRules | null,
   directory = catalogueDirectory(),
 ) {
+  return completeSteps(canonicalCatalogueFromSnapshotSteps(loaded, rules, directory))
+}
+
+export function* canonicalCatalogueFromSnapshotSteps(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null,
+  directory = catalogueDirectory(),
+): CanonicalCatalogueSteps {
   const revisionFile = path.join(directory, 'revision.json')
   const revisions = JSON.parse(fs.readFileSync(revisionFile, 'utf8')) as Record<string, string>
   delete revisions.rules
-  return compileCanonicalCatalogue(loaded, revisions, rules)
+  return yield* canonicalCatalogueSteps(loaded, revisions, rules)
 }
 
 export function readCanonicalCatalogue(file: string): CanonicalCatalogue {

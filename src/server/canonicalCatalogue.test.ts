@@ -6,7 +6,9 @@ import { ability, bookOf, card, categories, points, withCards } from './catalogu
 import {
   CANONICAL_CATALOGUE_COMPILER_VERSION,
   CANONICAL_CATALOGUE_FORMAT,
+  canonicalCatalogueSteps,
   compileCanonicalCatalogue,
+  completeStepsCooperatively,
   compileCanonicalCatalogueFromSnapshot,
   compileCanonicalRuleDocuments,
   loadCanonicalCatalogue,
@@ -15,41 +17,40 @@ import {
   referenceCatalogue,
 } from './canonicalCatalogue'
 import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from './datacards'
+import type { SelectionEntry } from '../core/catalogue'
 import { type LoadedRules, RULES_DATA_ATTRIBUTION } from './rules'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
 
-function catalogue() {
-  const loaded = bookOf({
-    selectionEntries: [
-      {
-        id: 'squad',
-        name: 'Squad',
-        type: 'unit',
-        costs: points(100),
-        categoryLinks: categories('Infantry', 'Battleline'),
-        profiles: [
-          {
-            id: 'unit',
-            name: 'Squad',
-            typeName: 'Unit',
-            characteristics: [
-              { name: 'T', $text: '4' },
-              { name: 'Future stat', $text: '2+' },
-            ],
-          },
-        ],
-        selectionEntries: [
-          {
-            id: 'gun',
-            name: 'Rifle',
-            type: 'upgrade',
-            profiles: [{ id: 'weapon', name: 'Rifle', typeName: 'Ranged Weapons', characteristics: [{ name: 'A', $text: '2' }] }],
-          },
-        ],
-      },
-    ],
-  })
+const squad: SelectionEntry = {
+  id: 'squad',
+  name: 'Squad',
+  type: 'unit',
+  costs: points(100),
+  categoryLinks: categories('Infantry', 'Battleline'),
+  profiles: [
+    {
+      id: 'unit',
+      name: 'Squad',
+      typeName: 'Unit',
+      characteristics: [
+        { name: 'T', $text: '4' },
+        { name: 'Future stat', $text: '2+' },
+      ],
+    },
+  ],
+  selectionEntries: [
+    {
+      id: 'gun',
+      name: 'Rifle',
+      type: 'upgrade',
+      profiles: [{ id: 'weapon', name: 'Rifle', typeName: 'Ranged Weapons', characteristics: [{ name: 'A', $text: '2' }] }],
+    },
+  ],
+}
+
+function catalogue(selectionEntries = [squad]) {
+  const loaded = bookOf({ selectionEntries })
   const content = withCards('Test catalogue', new Map([['Squad', card({ composition: ['1 Squad'] })]]))
   loaded.factionContents.set('test-catalogue', content)
   loaded.datacards.factions.set('test-catalogue', content)
@@ -379,6 +380,18 @@ describe('canonical catalogue', () => {
         },
       }),
     ])
+  })
+
+  it('pauses before each datasheet so other work can run between them', () => {
+    const loaded = catalogue([squad, { ...squad, id: 'veterans', name: 'Veterans' }])
+    expect([...canonicalCatalogueSteps(loaded, revisions)]).toHaveLength(compileCanonicalCatalogue(loaded, revisions).datasheets.length)
+  })
+
+  it('compiles the same catalogue when run between other work', async () => {
+    const loaded = catalogue()
+    expect(await completeStepsCooperatively(canonicalCatalogueSteps(loaded, revisions))).toEqual(
+      compileCanonicalCatalogue(loaded, revisions),
+    )
   })
 
   it('is deterministic for the same source snapshot', () => {
