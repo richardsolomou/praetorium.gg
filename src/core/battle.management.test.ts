@@ -939,6 +939,26 @@ describe('deployment', () => {
     expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), ALICE).players[0]?.deployed).toBe(1)
   })
 
+  it('sets up a unit arriving from reserves during the battle', () => {
+    const history = log(
+      ...withUnits(),
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'battlefield' }],
+    )
+    expect(alice(reduceBattle(PLAYERS, history))?.units[0]?.formation).toBe('battlefield')
+  })
+
+  it('reports a unit arriving from reserves as set up on the battlefield', () => {
+    const history = log(
+      ...withUnits(),
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'strategic-reserves' }],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'battlefield' }],
+    )
+    expect(text(battleReport(NAMES, history))).toContain('Alice sets up their Intercessors on the battlefield')
+  })
+
   it('refuses to mark an already lost unit lost again', () => {
     const state = reduceBattle(
       PLAYERS,

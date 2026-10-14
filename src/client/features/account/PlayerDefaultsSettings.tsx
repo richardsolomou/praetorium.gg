@@ -26,7 +26,11 @@ export function PlayerDefaultsSettings() {
   const queryClient = useQueryClient()
   const save = useMutation({
     mutationFn: (next: PlayerDefaults) => setPlayerDefaults({ data: next }),
-    onSuccess: (next) => queryClient.setQueryData(playerDefaultsQuery().queryKey, next),
+    // A settings signal from an earlier press may still be refetching the old defaults.
+    onSuccess: async (next) => {
+      await queryClient.cancelQueries({ queryKey: playerDefaultsQuery().queryKey })
+      queryClient.setQueryData(playerDefaultsQuery().queryKey, next)
+    },
   })
   return (
     <section className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
