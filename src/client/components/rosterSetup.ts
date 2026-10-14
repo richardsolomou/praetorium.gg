@@ -29,3 +29,14 @@ export function dispositionsFor(
     ).values(),
   ]
 }
+
+type OfferedDetachment = { id: string; name: string; exclusiveWith?: readonly { id: string; limit: string }[] }
+
+/** Why the catalogue refuses this detachment beside the ones already taken, if it does. */
+export function detachmentConflict(detachment: OfferedDetachment, selected: readonly OfferedDetachment[]) {
+  for (const other of selected) {
+    const shared = detachment.exclusiveWith?.find((entry) => entry.id === other.id)
+    if (shared) return `An army can include only one ${shared.limit} detachment, and this army already has ${other.name}.`
+  }
+  return null
+}

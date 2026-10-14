@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Input } from '@/components/ui/input'
@@ -47,7 +48,7 @@ import { SearchField } from '../../components/SearchField'
 import { SearchableSelect, type SearchableGroup } from '../../components/SearchableSelect'
 import { factionSelectGroups } from './builder/factions'
 import { OptionalRulesDialog } from './OptionalRulesDialog'
-import { dispositionsFor, dispositionTone } from '../../components/rosterSetup'
+import { detachmentConflict, dispositionsFor, dispositionTone } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
@@ -60,6 +61,8 @@ type Detachment = {
   name: string
   points: number | null
   dispositions: readonly { id: string; name: string }[]
+  /** Absent from faction data cached before the catalogue named one-per-army detachment limits. */
+  exclusiveWith?: readonly { id: string; limit: string }[]
 }
 
 export type RosterSetupFaction = {
@@ -517,6 +520,7 @@ export function RosterSetupDialog({
         <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
           {availableDetachments.map((detachment) => {
             const chosen = draft.detachmentIds.includes(detachment.id)
+            const conflict = chosen || singleDetachment ? null : detachmentConflict(detachment, selected)
             return (
               <div
                 key={detachment.id}
@@ -573,14 +577,18 @@ export function RosterSetupDialog({
                     </span>
                   </span>
                 </button>
-                <button
-                  type="button"
-                  aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
-                  onClick={() => toggleDetachment(detachment.id)}
-                  className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
-                >
-                  {detachment.points ?? '—'} DP
-                </button>
+                {conflict ? (
+                  <UnavailableDetachment name={detachment.name} points={detachment.points} reason={conflict} />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
+                    onClick={() => toggleDetachment(detachment.id)}
+                    className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
+                  >
+                    {detachment.points ?? '—'} DP
+                  </button>
+                )}
               </div>
             )
           })}
@@ -844,5 +852,31 @@ export function RosterSetupDialog({
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/** Stays focusable and opens its reason on a tap, so a phone can still say why it cannot be chosen. */
+function UnavailableDetachment({ name, points, reason }: { name: string; points: number | null; reason: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger
+        closeOnClick={false}
+        render={
+          <button
+            type="button"
+            aria-disabled="true"
+            aria-label={`Select ${name}, unavailable`}
+            onClick={() => setOpen(true)}
+            className="grid w-20 shrink-0 cursor-not-allowed place-items-center border-l border-edge bg-sunken text-sm font-bold text-faint uppercase"
+          />
+        }
+      >
+        {points ?? '—'} DP
+      </TooltipTrigger>
+      <TooltipContent role="tooltip" side="bottom" className="max-w-60 text-xs">
+        {reason}
+      </TooltipContent>
+    </Tooltip>
   )
 }

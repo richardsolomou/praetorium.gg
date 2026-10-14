@@ -24,7 +24,7 @@ import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
 import { contextualUnitLimit, groupOfEntry, unitsIn } from './cataloguePicker'
-import { rosterDetachments } from './rosterDetachments'
+import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
 import { mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints } from './mfm'
@@ -600,15 +600,9 @@ function calculateRoster(
    */
   const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
-  // Profile-backed detachments use the DP budget above rather than a wrapper's
-  // single-selection constraint.
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
-    ...whole.errors.filter(
-      (error) =>
-        !(chosen.length > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')) &&
-        !selfContradictory.has(error),
-    ),
+    ...whole.errors.filter((error) => !isDetachmentWrapperLimit(error, chosen.length) && !selfContradictory.has(error)),
     ...attachmentErrors(data.units, loaded.index, pickedSelections),
     ...factionRestrictionViolations(restrictions, constructionUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
