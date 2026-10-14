@@ -35,7 +35,7 @@ Mission nominations fold from `select-mission` commands in `src/core/missionSele
 
 ## Deployment patterns
 
-Match layout names through pinned source references; missing or ambiguous geometry cannot start a battle. Keep deployment zones, objectives, footprints, walls, and roofs from the same layout. Battlemaster lite objective codes identify each objective terrain area; merge only the explicit `c1`/`c2` linked pair. Layout objectives replace generic deployment points. Terrain letters identify parts: anchor each badge to the matching transformed part, allowing roof placement while keeping walls and objectives clear. Leave ambiguous labels absent.
+Match layout names through pinned source references; missing or ambiguous geometry cannot start a battle. Keep deployment zones, territories, objectives, footprints, walls, and roofs from the same layout. Battlemaster gives only the attacker's territory; the rest of the board is the defender's, and a deployment without exactly one attacker territory shows none. Battlemaster lite objective codes identify each objective terrain area; merge only the explicit `c1`/`c2` linked pair. Layout objectives replace generic deployment points. Terrain letters identify parts: anchor each badge to the matching transformed part, allowing roof placement while keeping walls and objectives clear. Leave ambiguous labels absent.
 
 Placement arrows anchor to real outline corners; an angled footprint needs a second corner on a straight edge. Derive distances from board dimensions and format them with `terrainGeometry.ts` to the nearest eighth inch. Distinguish printed dimensions from approximate traced positions.
 

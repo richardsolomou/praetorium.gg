@@ -505,7 +505,9 @@ it('groups every tier when a later scoring row marks the tiers exclusive', () =>
 })
 
 it('keeps deployments named without inventing their missing polygons', () => {
-  expect(rules().deployments).toEqual([{ id: 'deploy-1', name: 'Tipping Point', description: null, zones: [], objectives: [] }])
+  expect(rules().deployments).toEqual([
+    { id: 'deploy-1', name: 'Tipping Point', description: null, zones: [], attackerTerritory: null, objectives: [] },
+  ])
 })
 
 it('keeps a layout unavailable when its exact terrain geometry is missing', () => {

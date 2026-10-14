@@ -15,6 +15,7 @@ const deployment: Deployment = {
   name: 'Hammer and Anvil',
   description: null,
   zones: [],
+  attackerTerritory: null,
   objectives: Array.from({ length: 5 }, (_, x) => ({ x, y: 22 })),
 }
 

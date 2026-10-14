@@ -340,3 +340,35 @@ describe('source-backed battlefield annotations', () => {
     expect(markup).not.toContain('marker-end=')
   })
 })
+
+describe('deployment territories', () => {
+  const westHalf = rectangle(0, 0, 30, 44)
+  const render = (attackerTerritory: { x: number; y: number }[] | null) =>
+    renderToStaticMarkup(
+      createElement(TerrainBoard, {
+        layout: { name: 'Test layout', pieces: [], geometry: { board, areas: [] } },
+        templates: [],
+        deployment: { zones: [], attackerTerritory, objectives: [] },
+      }),
+    )
+
+  it('shades the attacker territory', () => {
+    expect(render(westHalf)).toContain(
+      `<polygon points="0,0 30,0 30,44 0,44" class="fill-side-a/10"><title>Attacker&#x27;s territory</title>`,
+    )
+  })
+
+  it('shades the rest of the board as the defender territory', () => {
+    expect(render(westHalf)).toContain(
+      `<path d="M 0 0 H 60 V 44 H 0 Z M 0,0 30,0 30,44 0,44 Z" fill-rule="evenodd" class="fill-side-b/10"><title>Defender&#x27;s territory</title>`,
+    )
+  })
+
+  it('dots the line where the territories meet', () => {
+    expect(render(westHalf)).toContain(`<path d="M 30 0 L 30 44" fill="none" class="stroke-bone/60"`)
+  })
+
+  it('shades no territory when the deployment has none', () => {
+    expect(render(null)).not.toContain('territory')
+  })
+})

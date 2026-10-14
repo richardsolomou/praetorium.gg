@@ -9,6 +9,7 @@ import {
   portraitPoint,
   svgPoints,
   terrainMarkerPosition,
+  territoryBoundary,
 } from './terrainGeometry'
 
 const square = (x: number, y: number, size: number) => [
@@ -174,5 +175,74 @@ describe('placing measurement labels', () => {
     expect(occupied).toHaveLength(2)
     expect(occupied[1]!.left).toBeGreaterThanOrEqual(0)
     expect(occupied[1]!.top).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('dividing the board into territories', () => {
+  it('draws only the edge between the territories', () => {
+    expect(
+      territoryBoundary(
+        [
+          { x: 0, y: 0 },
+          { x: 26, y: 0 },
+          { x: 34, y: 44 },
+          { x: 0, y: 44 },
+        ],
+        board,
+      ),
+    ).toEqual([
+      [
+        { x: 26, y: 0 },
+        { x: 34, y: 44 },
+      ],
+    ])
+  })
+
+  it('draws a stepped boundary as each of its edges', () => {
+    expect(
+      territoryBoundary(
+        [
+          { x: 0, y: 0 },
+          { x: 20, y: 0 },
+          { x: 20, y: 22 },
+          { x: 30, y: 22 },
+          { x: 30, y: 44 },
+          { x: 0, y: 44 },
+        ],
+        board,
+      ),
+    ).toEqual([
+      [
+        { x: 20, y: 0 },
+        { x: 20, y: 22 },
+      ],
+      [
+        { x: 20, y: 22 },
+        { x: 30, y: 22 },
+      ],
+      [
+        { x: 30, y: 22 },
+        { x: 30, y: 44 },
+      ],
+    ])
+  })
+
+  it('ignores a repeated closing corner', () => {
+    expect(
+      territoryBoundary(
+        [
+          { x: 0, y: 44 },
+          { x: 0, y: 0 },
+          { x: 60, y: 44 },
+          { x: 0, y: 44 },
+        ],
+        board,
+      ),
+    ).toEqual([
+      [
+        { x: 0, y: 0 },
+        { x: 60, y: 44 },
+      ],
+    ])
   })
 })

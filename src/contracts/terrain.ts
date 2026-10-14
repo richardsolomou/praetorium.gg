@@ -39,6 +39,8 @@ export type Deployment = {
   name: string
   description: string | null
   zones: { player: string; name: string; colour: string; points: Point[] }[]
+  /** The rest of the board is the defender's territory. */
+  attackerTerritory: Point[] | null
   objectives: Point[]
 }
 
