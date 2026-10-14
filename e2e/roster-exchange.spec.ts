@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave, makeWarlord } from './account'
 import { add, attach, shot } from './builder.harness'
 
 const phone = { viewport: { width: 390, height: 844 } }
@@ -34,7 +34,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await add(sender, 'Overlord')
   await attach(sender, 'Overlord', 'Immortals')
   await sender.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
-  await sender.getByRole('button', { name: 'Make Overlord Warlord' }).click()
+  await makeWarlord(sender, 'Overlord')
   await sender
     .locator('[data-unit="Immortals"]')
     .getByRole('button', { name: /^Immortals/ })

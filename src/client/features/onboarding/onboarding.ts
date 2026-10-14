@@ -236,7 +236,8 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'roster',
     href: '/rosters',
     title: 'Choose your Warlord',
-    description: 'Eligible characters offer Warlord here. Check the list’s legality warnings before you bring it to a battle.',
+    description:
+      'The first eligible character you add becomes your Warlord; another can take it here. Check the list’s legality warnings before you bring it to a battle.',
     placement: 'bottom',
     next: 'roster-attachment',
     nextLabel: 'Next',

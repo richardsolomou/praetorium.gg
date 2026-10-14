@@ -79,7 +79,7 @@ import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitNote } from './builder/UnitNote'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
-import { type AttachLink, canAddCopy, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
+import { type AttachLink, canAddCopy, defaultWarlord, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
@@ -560,9 +560,15 @@ export function ListBuilder({
   const evaluatedAt = useRef(0)
   useLayoutEffect(() => {
     if (!priced || pricePending || pricedAt <= evaluatedAt.current) return
+    const regrouped = picks.length !== evaluatedPicks.current.size || picks.some((pick) => !evaluatedPicks.current.has(pick.key))
     evaluatedAt.current = pricedAt
     evaluatedPicks.current = new Map(picks.map((pick) => [pick.key, pick]))
-  }, [picks, pricePending, priced, pricedAt])
+    const warlord = editable && regrouped ? defaultWarlord(picks, priced.units) : null
+    if (warlord)
+      setPicks((current) =>
+        current.map((pick, at) => (at === warlord.index ? { ...pick, toggles: { ...pick.toggles, [warlord.toggle]: 1 } } : pick)),
+      )
+  }, [editable, picks, pricePending, priced, pricedAt, setPicks])
 
   const unitLimits = useMemo(
     () => new Map(!priceFailed ? priced?.unitLimits?.map((unit) => [unit.id, unit.limit]) : []),

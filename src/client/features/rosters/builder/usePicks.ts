@@ -85,6 +85,27 @@ export function usePicks(initial: readonly RosterPick[]) {
 }
 
 /**
+ * The pick to make Warlord when the list holds none: the eligible unit added first, which
+ * the ever-increasing keys record. Only asked when units arrive or leave, so a Warlord the
+ * player takes away deliberately stays away.
+ */
+export function defaultWarlord(
+  picks: readonly KeyedPick[],
+  units: readonly ({ toggles: readonly { key: string; name: string; selected?: boolean }[] } | undefined)[],
+) {
+  const warlords = units.map((unit) => unit?.toggles.find((toggle) => toggle.name === 'Warlord'))
+  if (warlords.some((toggle) => toggle?.selected)) return null
+  const eligible = warlords.flatMap((toggle, index) =>
+    toggle && picks[index] ? [{ index, toggle: toggle.key, key: picks[index].key }] : [],
+  )
+  const first = eligible.reduce<(typeof eligible)[number] | undefined>(
+    (earliest, entry) => (earliest && earliest.key < entry.key ? earliest : entry),
+    undefined,
+  )
+  return first ? { index: first.index, toggle: first.toggle } : null
+}
+
+/**
  * Every edit a player can make to the list.
  *
  * A plain factory rather than a hook, so it can be handed the priced list — which is

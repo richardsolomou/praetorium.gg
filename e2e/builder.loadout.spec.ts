@@ -311,7 +311,7 @@ test('a tank is armed but not crowned', async ({ page }) => {
     .locator('[data-unit="Captain"]')
     .getByRole('button', { name: /^Captain/ })
     .click()
-  await expect(page.getByRole('button', { name: 'Make Captain Warlord' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Remove Captain Warlord' })).toBeVisible()
   const melee = loadout.getByRole('group', { name: 'Captain Melee Weapon' })
   await expect(melee.getByRole('button', { name: 'Select Power fist', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(melee.getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
@@ -320,7 +320,7 @@ test('a tank is armed but not crowned', async ({ page }) => {
   )
 })
 
-test('a character can be marked as the warlord from its unit editor', async ({ page }) => {
+test('the first character added is the warlord, which its unit editor can hand on', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Overlord')
@@ -330,8 +330,6 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   await rosterCard.hover()
   await expect.poll(() => rosterButton.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(restingBackground)
   await rosterButton.click()
-  const warlord = page.getByRole('button', { name: 'Make Overlord Warlord' })
-  await warlord.click()
   await expect(page.getByRole('button', { name: 'Remove Overlord Warlord' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
   await page
@@ -369,6 +367,18 @@ test('a character can be marked as the warlord from its unit editor', async ({ p
   await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByText(/\d+x Warlord/)).toHaveCount(0)
+
+  // Deleting the Warlord passes it to the character added first.
+  await page.locator('[data-unit="Plasmancer"]').getByRole('button', { name: 'Unit actions for Plasmancer' }).click()
+  await page.getByRole('menuitem', { name: 'Delete unit' }).click()
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Remove Overlord Warlord' })).toHaveAttribute('aria-pressed', 'true')
+
+  // A Warlord the player takes away stays away.
+  await page.getByRole('button', { name: 'Remove Overlord Warlord' }).click()
+  await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect(page.getByRole('button', { name: 'Make Overlord Warlord' })).toHaveAttribute('aria-pressed', 'false')
 })
 
 test('an enhancement appears once and can be removed', async ({ page }) => {

@@ -14,6 +14,7 @@ import {
   takeTheTurn,
   uniqueName,
   waitForRosterSave,
+  makeWarlord,
 } from './account'
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
@@ -36,7 +37,7 @@ test('roster reminders cover selected rules and advances from another device', a
     .getByRole('button', { name: /^Plasmancer/ })
     .first()
     .click()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Make Plasmancer Warlord' }).click())
+  await makeWarlord(page, 'Plasmancer')
   const plasmancer = page.locator('[data-unit="Plasmancer"]')
 
   const enhancements = page.getByRole('group', { name: 'Plasmancer Enhancements' })
