@@ -169,6 +169,8 @@ export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCata
     sync.state = { status: 'failed', detail: error instanceof Error ? error.message : 'army data could not be loaded' }
     return
   }
+  // A browser-test stack opens a few factions, and building all of them starves the browsers sharing its runner.
+  if (process.env.LOCAL_TEST_MODE === 'true') return
   const { construction } = instance
   void inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
     console.error('Catalogue construction failed:', error instanceof Error ? error.message : String(error))

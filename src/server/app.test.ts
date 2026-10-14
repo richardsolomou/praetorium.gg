@@ -2,7 +2,10 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { warm } from './app'
 import type { Steps } from '../shared/steps'
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllEnvs()
+})
 
 const projections = (loaded: string[] = []) => ({
   searchIndexFor: async () => {
@@ -55,6 +58,14 @@ it('answers readiness before the construction indexes are built', async () => {
   const { progress, steps } = construction(1_000)
   await warm({ ...projections(), construction: steps })
   expect(progress.steps).toBeLessThan(1_000)
+})
+
+it('leaves construction indexes to their first request in a browser-test stack', async () => {
+  vi.stubEnv('LOCAL_TEST_MODE', 'true')
+  const { progress, steps } = construction(10)
+  await warm({ ...projections(), construction: steps })
+  await turns(5)
+  expect(progress.steps).toBe(0)
 })
 
 it('serves other work between construction steps', async () => {
