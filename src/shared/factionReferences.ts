@@ -8,6 +8,7 @@ import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from './rulesSource'
 import { detachmentPoints } from './detachmentPoints'
+import { exclusiveDetachments } from './rosterDetachments'
 import { mfmDetachmentFor, mfmVersions } from './mfm'
 import { catalogueEditionId } from '../core/catalogueEdition'
 
@@ -163,6 +164,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
         const { summary, detachments, referenceDetachments } = factionSummary(loaded, rules, faction)
         const content = factionContentOf(loaded, faction.name)
         const rulesId = rulesFaction(rules, routeSlug(faction.name))
+        const exclusive = exclusiveDetachments(loaded, faction.id)
         return {
           ...summary,
           armyRules: [
@@ -185,6 +187,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
               points: detachmentPoints(loaded, faction.id, detachment.id, reference),
               disposition: detachment.disposition,
+              exclusiveWith: exclusive.get(detachment.id) ?? [],
               dispositions: reference
                 ? reference.dispositions.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id }))
                 : detachment.disposition
