@@ -13,6 +13,7 @@ import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbiliti
 import { RuleText } from '../../../components/RuleText'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
+import type { ReminderSubject } from '../../../../core/reminders'
 
 type Props = {
   catalogueId: string
@@ -28,6 +29,7 @@ type Props = {
   onRelationshipSelect?: (entryId: string, name: string) => void
   onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] } | null) => void
   abilityReminders?: ReminderControls
+  detachmentRules?: readonly ReminderSubject[]
 }
 
 export function DatasheetPanel({
@@ -44,6 +46,7 @@ export function DatasheetPanel({
   onRelationshipSelect,
   onReferenceRoute,
   abilityReminders,
+  detachmentRules,
 }: Props) {
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
@@ -103,6 +106,7 @@ export function DatasheetPanel({
         rules={sheet.keywordRules}
         unitName={sheet.name}
         reminders={abilityReminders}
+        detachmentRules={detachmentRules}
       />
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
       {sheet.referenceRoute ? (
@@ -199,13 +203,15 @@ export function AbilitySummary({
   rules,
   unitName,
   reminders,
+  detachmentRules,
 }: {
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
   unitName: string
   reminders?: ReminderControls
+  detachmentRules?: readonly ReminderSubject[]
 }) {
-  return Object.entries(abilitySections).map(([kind, title]) => {
+  const sections = Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
     if (kind === 'core' || kind === 'faction') {
@@ -259,4 +265,23 @@ export function AbilitySummary({
       </section>
     )
   })
+  if (!detachmentRules?.length) return sections
+  const described = detachmentRules.flatMap((rule) => (rule.description ? [{ name: rule.name, description: rule.description }] : []))
+  return sections.toSpliced(
+    Object.keys(abilitySections).indexOf('faction') + 1,
+    0,
+    <section key="detachment">
+      <h2 className="rubric">
+        Detachment rules <span className="readout text-faint">{detachmentRules.length}</span>
+      </h2>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {detachmentRules.map((rule) => (
+          <span key={rule.id} className="inline-flex items-center gap-0.5">
+            <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
+            {reminders ? <ReminderButton subject={rule} unitName={unitName} controls={reminders} /> : null}
+          </span>
+        ))}
+      </div>
+    </section>,
+  )
 }
