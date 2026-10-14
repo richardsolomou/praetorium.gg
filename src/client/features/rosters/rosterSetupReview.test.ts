@@ -119,3 +119,19 @@ it('refuses to review a displayed server-only baseline that already changed', as
   mocks.load.mockResolvedValue({ ...source, name: 'Changed', updatedAt: 8 })
   await expect(reviewRosterSetup(source, setup)).rejects.toThrow('changed after your review')
 })
+
+it('drops alerts for the rules of a detachment the setup removes', async () => {
+  const alert = (key: string) => ({
+    key,
+    ability: 'Rule',
+    description: '',
+    timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
+  })
+  const prep = {
+    stratagems: [],
+    secondaries: [],
+    reminders: [alert('detachment:first/kept:army'), alert('detachment:second/dropped:army')],
+  }
+  const reviewed = await reviewRosterSetup({ ...source, prep }, setup)
+  expect(reviewed.candidate.prep?.reminders?.map((reminder) => reminder.key)).toEqual(['detachment:first/kept:army'])
+})

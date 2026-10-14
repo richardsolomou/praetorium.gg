@@ -245,6 +245,34 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(page.locator('[data-stat="round"]')).toHaveText('2')
 })
 
+test('a detachment rule alert covers the whole army and fires in battle', async ({ page }) => {
+  await signUp(page, uniqueName('Detachment alerts'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Detachment rule alerts' })
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click())
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
+  await page.getByLabel('Set alert for Cold Fervour').click()
+  const editor = page.getByRole('dialog', { name: 'Cold Fervour', exact: true })
+  await editor.getByRole('combobox', { name: 'When' }).first().click()
+  await page.getByRole('option', { name: 'Start of round', exact: true }).click()
+  await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Cold Fervour')
+  await page.reload()
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(page.getByLabel('Edit alert for Cold Fervour')).toBeVisible()
+
+  await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await chooseBattlefield(page)
+  await setupStep(page, 'Secondaries')
+  await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
+  await recordFirstTurn(page, PRACTICE_OPPONENT)
+  await page.getByRole('button', { name: 'Start battle' }).click()
+
+  const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
+  await expect(reminder.getByRole('heading', { name: 'Cold Fervour', exact: true })).toBeVisible()
+})
+
 for (const scenario of [
   {
     kind: 'first-round',

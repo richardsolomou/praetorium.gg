@@ -47,10 +47,30 @@ export type RosterReminder = z.infer<typeof rosterReminderSchema>
 
 export type ReminderSubject = { id?: string; kind: string; name: string; description?: string | null }
 
+/** Army and detachment rules apply to the whole army, so one alert covers every unit that shows them. */
+export function armyReminder(ability: ReminderSubject): boolean {
+  return ability.kind === 'faction' || ability.kind === 'detachment'
+}
+
 export function reminderKey(ability: ReminderSubject, unitIndex: number | null): string {
-  const owner = ability.kind === 'faction' ? 'army' : (unitIndex ?? 'reference')
+  const owner = armyReminder(ability) ? 'army' : (unitIndex ?? 'reference')
   const abilityKey = ability.kind === 'faction' ? routeSlug(ability.name) : (ability.id ?? routeSlug(ability.name))
   return `${ability.kind}:${abilityKey}:${owner}`
+}
+
+export function detachmentRuleSubject(
+  detachmentId: string,
+  rule: { name: string; description: string | null },
+): ReminderSubject & { kind: 'detachment' } {
+  return { id: `${detachmentId}/${routeSlug(rule.name)}`, kind: 'detachment', name: rule.name, description: rule.description }
+}
+
+/** Drops alerts for detachment rules the roster no longer fields. */
+export function remindersForDetachments(reminders: readonly RosterReminder[], detachmentIds: readonly string[]): RosterReminder[] {
+  return reminders.filter((reminder) => {
+    const [kind, ability = ''] = reminder.key.split(':')
+    return kind !== 'detachment' || detachmentIds.includes(ability.split('/')[0] ?? '')
+  })
 }
 
 export function suggestReminderWhileDestroyed(description: string): boolean {

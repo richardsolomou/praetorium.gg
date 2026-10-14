@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   reminderTimingCountsByUnit,
   reminderDue,
+  detachmentRuleSubject,
   reminderKey,
+  remindersForDetachments,
   remindersAfterUnitInserted,
   remindersAfterUnitRemoved,
   remindersDueAt,
@@ -153,6 +155,35 @@ describe('reminderDue', () => {
 it('keys faction abilities once for the army and datasheet abilities by unit', () => {
   expect(reminderKey({ id: 'faction-copy', kind: 'faction', name: 'Oath of Moment' }, 4)).toBe('faction:oath-of-moment:army')
   expect(reminderKey({ id: 'living-lightning-id', kind: 'datasheet', name: 'Living Lightning' }, 4)).toBe('datasheet:living-lightning-id:4')
+})
+
+it('keys a detachment rule once for the army by its detachment', () => {
+  expect(reminderKey(detachmentRuleSubject('c4ee-83c7', { name: 'Cold Fervour', description: null }), 4)).toBe(
+    'detachment:c4ee-83c7/cold-fervour:army',
+  )
+})
+
+describe('remindersForDetachments', () => {
+  const reminder = (key: string) => ({
+    key,
+    ability: 'Rule',
+    description: '',
+    timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
+  })
+
+  it('drops alerts for a detachment the roster no longer fields', () => {
+    expect(remindersForDetachments([reminder('detachment:removed/cold-fervour:army')], ['kept'])).toEqual([])
+  })
+
+  it('keeps alerts for a fielded detachment', () => {
+    const kept = reminder('detachment:kept/cold-fervour:army')
+    expect(remindersForDetachments([kept], ['kept'])).toEqual([kept])
+  })
+
+  it('keeps army and unit alerts', () => {
+    const others = [reminder('faction:reanimation-protocols:army'), reminder('datasheet:united-in-destruction:0')]
+    expect(remindersForDetachments(others, [])).toEqual(others)
+  })
 })
 
 it('describes configured timing in player-facing words', () => {

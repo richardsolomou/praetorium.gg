@@ -2,7 +2,7 @@ import type { Attachment } from './attach'
 import { attachmentRows } from './attachmentRows'
 import { customPointsBudget, type FormatRuleId, pointsBudgetOf, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
-import type { RosterReminder } from './reminders'
+import { remindersForDetachments, type RosterReminder } from './reminders'
 import type { UnitGroup } from './unitGroups'
 import { type CatalogueEdition, editionLabel } from './catalogueEdition'
 
@@ -76,18 +76,20 @@ export function rosterSnapshot(
     // log and the seat then keep saying that, whatever the library later folds.
     name: saved.name || priced.label,
     id: saved.id,
-    reminders: saved.reminders?.flatMap((reminder) => {
-      const unitIndex = reminder.unit?.index
-      const index = unitIndex === undefined ? 0 : priced.units.findIndex((unit) => unit.key === unitIndex)
-      if (index === -1) return []
-      return [
-        {
-          ...reminder,
-          ...(reminder.unit ? { unit: { ...reminder.unit, index } } : {}),
-          timings: reminder.timings.map((timing) => ({ ...timing })),
-        },
-      ]
-    }),
+    reminders:
+      saved.reminders &&
+      remindersForDetachments(saved.reminders, saved.detachmentIds).flatMap((reminder) => {
+        const unitIndex = reminder.unit?.index
+        const index = unitIndex === undefined ? 0 : priced.units.findIndex((unit) => unit.key === unitIndex)
+        if (index === -1) return []
+        return [
+          {
+            ...reminder,
+            ...(reminder.unit ? { unit: { ...reminder.unit, index } } : {}),
+            timings: reminder.timings.map((timing) => ({ ...timing })),
+          },
+        ]
+      }),
     remindersEnabled: saved.remindersEnabled ?? true,
     text: [
       `${priced.points} / ${pointsBudgetOf(saved)} pts`,

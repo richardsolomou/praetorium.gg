@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Calculator,
@@ -38,6 +38,8 @@ import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRule
 import type { RosterPick } from '../../../core/roster'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
+  armyReminder,
+  detachmentRuleSubject,
   reminderKey,
   reminderTimingCountsByUnit,
   remindersAfterUnitInserted,
@@ -53,6 +55,7 @@ import type { Datasheet } from '../../../contracts/catalogue'
 import { copyRoster, endRosterLoan, exportRoster, saveRoster, setRosterLocked } from '../../functions'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
+  detachmentDetailQuery,
   factionIndexQuery,
   factionQuery,
   invalidateSavedRosters,
@@ -269,6 +272,16 @@ export function ListBuilder({
     enabled: Boolean(catalogueId) && initialFaction?.id !== catalogueId,
   })
   const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
+  const detachmentRules = useQueries({
+    queries: detachmentIds.map((id) =>
+      detachmentDetailQuery(catalogueId, faction?.detachments.find((detachment) => detachment.id === id)?.slug ?? ''),
+    ),
+    combine: useCallback(
+      (details: { data?: { rules: { name: string; description: string | null }[] } | null }[]) =>
+        detachmentIds.flatMap((id, at) => details[at]?.data?.rules.map((rule) => detachmentRuleSubject(id, rule)) ?? []),
+      [detachmentIds],
+    ),
+  })
   const currentRules = currentRulesFor(catalogueId, factionIndex?.factions ?? [])
   // View mode simplifies the owner's roster cards and loadouts without taking away
   // their unit picker. Other readers still get the roster without builder controls.
@@ -789,17 +802,17 @@ export function ListBuilder({
   )
   const editReminder = useCallback(
     (subject: ReminderSubject, unitName: string) => {
-      if (subject.kind !== 'faction' && selected === null) return
-      const key = reminderKey(subject, subject.kind === 'faction' ? null : selected)
+      if (!armyReminder(subject) && selected === null) return
+      const key = reminderKey(subject, armyReminder(subject) ? null : selected)
       const existing = reminders.find((reminder) => reminder.key === key)
       setReminderDraft(
         existing ?? {
           key,
           ability: subject.name,
           description: subject.description ?? '',
-          ...(subject.kind === 'faction' || selected === null ? {} : { unit: { index: selected, name: unitName } }),
+          ...(armyReminder(subject) || selected === null ? {} : { unit: { index: selected, name: unitName } }),
           timings: suggestReminderTimings(subject.description ?? ''),
-          ...(subject.kind !== 'faction' && suggestReminderWhileDestroyed(subject.description ?? '') ? { whileDestroyed: true } : {}),
+          ...(!armyReminder(subject) && suggestReminderWhileDestroyed(subject.description ?? '') ? { whileDestroyed: true } : {}),
         },
       )
     },
@@ -808,10 +821,10 @@ export function ListBuilder({
   const reminderControls = useMemo(
     () => ({
       active: (subject: ReminderSubject) =>
-        reminders.some((reminder) => reminder.key === reminderKey(subject, subject.kind === 'faction' ? null : selected)),
+        reminders.some((reminder) => reminder.key === reminderKey(subject, armyReminder(subject) ? null : selected)),
       onSelect: editReminder,
       onRemove: (subject: ReminderSubject) => {
-        const key = reminderKey(subject, subject.kind === 'faction' ? null : selected)
+        const key = reminderKey(subject, armyReminder(subject) ? null : selected)
         setReminders((current) => current.filter((reminder) => reminder.key !== key))
       },
     }),
@@ -1069,6 +1082,7 @@ export function ListBuilder({
           onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
           onReferenceRoute={setReference}
           abilityReminders={building && selected !== null ? reminderControls : undefined}
+          detachmentRules={detachmentRules}
         />
       }
     />
@@ -1085,6 +1099,7 @@ export function ListBuilder({
       onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminderControls : undefined}
+      detachmentRules={preview ? undefined : detachmentRules}
     />
   )
 

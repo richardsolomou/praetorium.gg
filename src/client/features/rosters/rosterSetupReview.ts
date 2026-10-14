@@ -1,3 +1,4 @@
+import { remindersForDetachments } from '../../../core/reminders'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import { picksAfterSetupChange } from '../../../core/rosterSetup'
 import { requireReviewedRoster, type ReviewedServerSave } from '../../offline/reviewedRoster'
@@ -49,10 +50,13 @@ export async function reviewRosterSetup(source: RosterDraft | string, setup: Ros
     ...captured,
     ...structuredClone(setup),
     picks: changedFaction,
-    prep:
-      captured.prep && currentCatalogueFamilyId(captured.catalogueId) !== currentCatalogueFamilyId(setup.catalogueId)
-        ? { ...captured.prep, reminders: [] }
-        : captured.prep,
+    prep: captured.prep && {
+      ...captured.prep,
+      reminders:
+        currentCatalogueFamilyId(captured.catalogueId) !== currentCatalogueFamilyId(setup.catalogueId)
+          ? []
+          : remindersForDetachments(captured.prep.reminders ?? [], setup.detachmentIds),
+    },
   }
   const after = await priceSetup(candidate)
   if ((localOwner()?.id ?? null) !== ownerId) throw new Error('The account changed during this review.')
