@@ -134,9 +134,17 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
           cancelled.signal.throwIfAborted()
           const [name, file] = entries[next++]!
           const expected = await readFile(file)
-          const response = await request(new URL(`/assets/${name}`, origin), { cache: 'no-store', signal: signal() })
-          if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
-            throw new Error(`Asset route verification failed: ${name}`)
+          // Undici reports a dropped connection as a TypeError; one reset among hundreds of CDN reads must not fail a deploy.
+          for (let attempt = 1; ; attempt++) {
+            try {
+              const response = await request(new URL(`/assets/${name}`, origin), { cache: 'no-store', signal: signal() })
+              if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
+                throw new Error(`Asset route verification failed: ${name}`)
+              break
+            } catch (error) {
+              if (!(error instanceof TypeError) || attempt === 3) throw error
+            }
+          }
         }
       } catch (error) {
         cancelled.abort()

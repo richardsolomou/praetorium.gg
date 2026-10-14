@@ -120,3 +120,21 @@ it('publishes compressed reference bytes unchanged as an immutable binary asset'
     encoding: uploadedHeaders?.get('content-encoding'),
   }).toEqual({ bytes: Array.from(body), type: 'application/octet-stream', encoding: null })
 })
+
+it('retries a hosted asset read whose connection drops', async () => {
+  let resets = 0
+  const request: typeof fetch = async (url) => {
+    if ((url instanceof Request ? url.url : url.toString()).includes('deployment-probe-missing'))
+      return new Response(null, { status: 404, headers: { 'cache-control': 'no-store' } })
+    if (resets++ < 2) throw new TypeError('fetch failed', { cause: new Error('read ECONNRESET') })
+    return new Response('export const ready = true', { headers })
+  }
+  await expect(verifyWebAssetRoute([await assets()], 'https://app.test', request)).resolves.toBeUndefined()
+})
+
+it('fails a hosted asset read that keeps dropping', async () => {
+  const request: typeof fetch = async () => {
+    throw new TypeError('fetch failed', { cause: new Error('read ECONNRESET') })
+  }
+  await expect(verifyWebAssetRoute([await assets()], 'https://app.test', request)).rejects.toThrow('fetch failed')
+})
