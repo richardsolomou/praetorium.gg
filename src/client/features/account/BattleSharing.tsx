@@ -21,7 +21,9 @@ export function BattleSharing() {
   const queryClient = useQueryClient()
   const save = useMutation({
     mutationFn: (next: BattleAudience) => setBattleAudience({ data: { audience: next } }),
-    onSuccess: (next) => {
+    // A settings signal from an earlier press may still be refetching the old audience.
+    onSuccess: async (next) => {
+      await queryClient.cancelQueries({ queryKey: battleAudienceQuery().queryKey })
       queryClient.setQueryData(battleAudienceQuery().queryKey, next)
       void queryClient.invalidateQueries({ queryKey: publicBattlesQuery().queryKey })
       void queryClient.invalidateQueries({ queryKey: friendBattlesQuery().queryKey })
