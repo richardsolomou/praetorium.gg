@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.141.18
+
+### Patch Changes
+
+- ff8423e: Choosing an option for a weapon group that was previously counted now takes effect instead of keeping the old counts.
+- ff8423e: Resizing a squad with chosen loadouts now grows its default loadout and shrinks it first, so the squad keeps every model's weapons and is priced at its new size.
+- ff8423e: Arming a heavy weapon scout or a special weapon marine, or putting that weapon down again, now saves the squadmate it replaces or returns, so later weapon changes on that squad take effect.
+
 ## 0.141.17
 
 ### Patch Changes
