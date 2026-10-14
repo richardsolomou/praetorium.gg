@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.13
+
+### Patch Changes
+
+- 0f4ba22: Stop faction pages and the unit picker from pausing for seconds after a release by preparing every army in the background between requests.
+
 ## 0.141.12
 
 ### Patch Changes
