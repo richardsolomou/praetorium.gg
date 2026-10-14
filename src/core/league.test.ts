@@ -51,6 +51,14 @@ it('treats restored roster choices as the sealed list', () => {
   expect(matchesSealedLeagueRoster(savedLeagueRoster, sealedLeagueRoster)).toBe(true)
 })
 
+it('treats a list sealed on a rules version that folded into the current rules as the saved list', () => {
+  const sealed = {
+    ...sealedLeagueRoster,
+    built: { ...sealedLeagueRoster.built!, catalogueId: 'marine-main~army', picks: [{ entryId: 'unit', catalogueId: 'marine-main~ally' }] },
+  }
+  expect(matchesSealedLeagueRoster({ ...savedLeagueRoster, picks: [{ entryId: 'unit', catalogueId: 'ally' }] }, sealed)).toBe(true)
+})
+
 it('detects a different unit even when the roster name is unchanged', () => {
   expect(matchesSealedLeagueRoster({ ...savedLeagueRoster, picks: [{ entryId: 'other-unit' }] }, sealedLeagueRoster)).toBe(false)
 })

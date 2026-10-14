@@ -636,7 +636,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
 
 for (const { rules, status } of [
   { rules: 'Custodes codex · 17 Oct 2026 · Preview', status: 'preview' },
-  { rules: 'MFM 1.4 · 30 Sep 2026 · Archived', status: 'archived' },
+  { rules: 'MFM 1.4 · Archived', status: 'archived' },
 ]) {
   test(`seals ${status} rules rosters in a league and preserves the selected catalogue`, async ({ page }) => {
     const ownerName = uniqueName('Version owner')

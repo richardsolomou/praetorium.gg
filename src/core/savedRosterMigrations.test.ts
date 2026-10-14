@@ -3,6 +3,7 @@ import { migrateSavedRoster, migrateStoredRoster } from './savedRosterMigrations
 
 const row = {
   name: '',
+  catalogueId: 'necrons',
   detachmentId: 'awakened-dynasty',
   picks: '[{"entryId":"overlord","nickname":"Leader","note":"Hold home","choices":{"weapon":"staff"}}]',
   prep: '{"stratagems":[],"secondaries":[],"shareNotes":true,"remindersEnabled":false}',
@@ -25,6 +26,20 @@ it('preserves current metadata and ordered detachments on repeated upgrades', ()
   const current = { ...row, automaticName: false, locked: true, detachmentId: '["first","second"]' }
   const migrated = migrateStoredRoster(current)
   expect(migrateStoredRoster(migrated)).toEqual({ ...migrated, automaticName: false, locked: true, detachmentId: '["first","second"]' })
+})
+
+it('moves a stored roster on a folded rules version, and its allied picks, to the current rules once', () => {
+  const folded = {
+    ...row,
+    catalogueId: 'marine-main~470a-6daa-9014-12df',
+    picks: '[{"entryId":"captain","catalogueId":"marine-main~e0af-67df-9d63-8fb7"}]',
+  }
+  const migrated = migrateStoredRoster(folded)
+  expect({ catalogueId: migrated.catalogueId, picks: migrated.picks, again: migrateStoredRoster(migrated) }).toEqual({
+    catalogueId: '470a-6daa-9014-12df',
+    picks: '[{"entryId":"captain","catalogueId":"e0af-67df-9d63-8fb7"}]',
+    again: migrated,
+  })
 })
 
 it('refuses malformed picks instead of replacing a saved army', () => {

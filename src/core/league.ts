@@ -1,3 +1,4 @@
+import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
 import type { TableShape } from './tableShape'
 import type { FormatRuleId, Roster } from './battle'
@@ -199,11 +200,12 @@ export function matchesSealedLeagueRoster(
   return (
     !!built?.picks &&
     (!saved.name || saved.name === sealed.name) &&
-    saved.catalogueId === built.catalogueId &&
+    // A list sealed on a rules version that later folded into another is still the list saved now.
+    saved.catalogueId === migratedEditionId(built.catalogueId) &&
     saved.limit === built.limit &&
     saved.disposition === built.disposition &&
     JSON.stringify(saved.detachmentIds) === JSON.stringify(built.detachmentIds ?? []) &&
-    JSON.stringify(saved.picks) === JSON.stringify(built.picks) &&
+    JSON.stringify(saved.picks) === JSON.stringify(built.picks.map((pick) => migratedEditionPick(pick, built.catalogueId))) &&
     JSON.stringify(saved.waivedRules) === JSON.stringify(built.waivedRules ?? []) &&
     JSON.stringify(saved.reminders ?? []) === JSON.stringify(sealed.reminders ?? []) &&
     (saved.remindersEnabled ?? true) === (sealed.remindersEnabled ?? true)

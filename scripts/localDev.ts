@@ -258,6 +258,7 @@ async function main() {
     filter: (source) => !['node_modules', 'dist'].includes(path.basename(source)),
   })
   await cp('src/core', path.join(moduleRoot, 'src/core'), { recursive: true })
+  await cp('catalogue', path.join(moduleRoot, 'catalogue'), { recursive: true })
   await symlink(path.join(worktree, 'node_modules'), path.join(moduleRoot, 'node_modules'), 'dir')
   await symlink(path.join(worktree, 'spacetimedb/node_modules'), path.join(moduleRoot, 'spacetimedb/node_modules'), 'dir')
   await run(cli, ['build', '-p', path.join(moduleRoot, 'spacetimedb')])

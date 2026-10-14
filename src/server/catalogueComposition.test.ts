@@ -90,7 +90,44 @@ it.each(['released', 'retired'] as const)('keeps %s source pins unchanged when a
   previous.editions[0]!.sources.points = catalogueSources.points
   const next = structuredClone(previous)
   next.editions[0]!.sources.points = { ...catalogueSources.points, revision: 'a'.repeat(40) }
-  expect(() => validateEditionContinuity(previous, next)).toThrow('add a new version for source changes')
+  expect(() => validateEditionContinuity(previous, next)).toThrow(
+    status === 'retired' ? 'is retired; keep its published sources' : 'add a new version for source changes',
+  )
+})
+
+const mfm = (before: string, after: string) => ({
+  previous: new Map([['custodes-codex', before]]),
+  next: new Map([['custodes-codex', after]]),
+})
+
+it('lets a correction within the same MFM version update a released rules version', () => {
+  const previous = composition()
+  previous.editions[0]!.edition.status = 'released'
+  previous.editions[0]!.edition.releases = [{ at: 1, status: 'released' }]
+  previous.editions[0]!.sources.points = catalogueSources.points
+  const next = structuredClone(previous)
+  next.editions[0]!.sources.points = { ...catalogueSources.points, revision: 'a'.repeat(40) }
+  expect(() => validateEditionContinuity(previous, next, mfm('1.5', '1.5'))).not.toThrow()
+})
+
+it('needs a new rules version for a new MFM version', () => {
+  const previous = composition()
+  previous.editions[0]!.edition.status = 'released'
+  previous.editions[0]!.edition.releases = [{ at: 1, status: 'released' }]
+  previous.editions[0]!.sources.points = catalogueSources.points
+  const next = structuredClone(previous)
+  next.editions[0]!.sources.points = { ...catalogueSources.points, revision: 'a'.repeat(40) }
+  expect(() => validateEditionContinuity(previous, next, mfm('1.5', '1.6'))).toThrow('publishes MFM 1.5; add a new version for MFM 1.6')
+})
+
+it('keeps a retired rules version unchanged even within its MFM version', () => {
+  const previous = composition()
+  previous.editions[0]!.edition.status = 'retired'
+  previous.editions[0]!.edition.releases = [{ at: 1, status: 'retired' }]
+  previous.editions[0]!.sources.points = catalogueSources.points
+  const next = structuredClone(previous)
+  next.editions[0]!.sources.points = { ...catalogueSources.points, revision: 'a'.repeat(40) }
+  expect(() => validateEditionContinuity(previous, next, mfm('1.4', '1.4'))).toThrow('is retired; keep its published sources')
 })
 
 it('keeps inherited released rules unchanged when the root sources change', () => {
