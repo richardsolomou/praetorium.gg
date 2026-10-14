@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.143.6
+
+### Patch Changes
+
+- 94a93a9: Battle actions read the battle from the database once instead of up to three times.
+- 94a93a9: Battle actions and opponents' moves appear faster: each update now waits for one server round trip instead of two.
+- 94a93a9: Open pages no longer reload all their data every four minutes when the live connection renews, and an open battle no longer reloads whenever a move is made in any other battle.
+- 94a93a9: Spectators' battle pages stop repeatedly asking for a live connection they are not allowed, and keep updating every five seconds instead.
+
 ## 0.143.5
 
 ### Patch Changes
