@@ -66,7 +66,7 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
         },
       ],
     },
-    [{ entryId: 'unit', wounds: 3, transportRule: 'This model has a transport capacity of 12 models.' }],
+    [{ entryId: 'unit', wounds: 3, transportRule: 'This model has a transport capacity of 12 models.', keywords: ['Infantry'] }],
   )
 
   expect(roster.built).toMatchObject({
@@ -77,6 +77,7 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
         strategicReserveExempt: true,
         transport: true,
         transportRule: 'This model has a transport capacity of 12 models.',
+        keywords: ['Infantry'],
       }),
     ],
   })

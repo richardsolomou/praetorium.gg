@@ -718,6 +718,55 @@ it('adds dimensions to named flying bases', () => {
   )
 })
 
+it('reads a transport rule printed as a special ability', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'test.json'),
+    JSON.stringify({
+      name: 'Test',
+      datasheets: [
+        {
+          name: { en: 'Impulsor' },
+          abilities: {
+            special: [
+              {
+                name: { en: 'TRANSPORT' },
+                description: { en: 'This model has a <b>transport capacity</b> of 7 <k>Adeptus Astartes Infantry</k> models.' },
+              },
+            ],
+          },
+        },
+      ],
+      detachments: [],
+    }),
+  )
+
+  expect(loadDatacards(directory).factions.get('test')?.datasheetDetails.get('Impulsor')?.transport).toBe(
+    'This model has a **transport capacity** of 7 **Adeptus Astartes Infantry** models.',
+  )
+})
+
+it('reads transport rule markup as the markdown the app renders', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'test.json'),
+    JSON.stringify({
+      name: 'Test',
+      datasheets: [
+        {
+          name: { en: 'Corvus Blackstar' },
+          transport: { en: 'This model has a <b>transport capacity</b> of 12 <k>Deathwatch Infantry</k> models.' },
+        },
+      ],
+      detachments: [],
+    }),
+  )
+
+  expect(loadDatacards(directory).factions.get('test')?.datasheetDetails.get('Corvus Blackstar')?.transport).toBe(
+    'This model has a **transport capacity** of 12 **Deathwatch Infantry** models.',
+  )
+})
+
 it('reads card markup as the markdown the app renders', () => {
   expect(prose('Friendly <k>Tech-Priest</k> models have: \r<ul><li>4+ <b>InSv</b>.</li>\r<li><u>Feel No Pain 5+</u>.</li></ul>')).toBe(
     'Friendly **Tech-Priest** models have:\n\n- 4+ **InSv**.\n- Feel No Pain 5+.',

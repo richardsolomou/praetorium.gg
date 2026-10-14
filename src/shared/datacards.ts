@@ -710,6 +710,12 @@ function composition(value: unknown): { lines: string[]; loadout: string | null 
   }
   return { lines: lines.filter(Boolean), loadout: loose.filter(Boolean).join('\n\n') || null }
 }
+/** Codex-shaped entries print the transport rule as a special ability rather than in its own field. */
+function specialTransport(value: unknown): string | null {
+  const abilities: unknown = value && typeof value === 'object' ? (value as Record<string, unknown>).abilities : null
+  const transport = records(abilities, 'special').find((ability) => localizedField(ability, 'name')?.toUpperCase() === 'TRANSPORT')
+  return localizedField(transport, 'description')
+}
 function datasheetDetails(value: unknown): DatasheetDetails {
   const wargearGroups = records(value, 'wargearOptions').flatMap((group) => {
     const instruction = localizedField(group, 'instruction')
@@ -720,13 +726,14 @@ function datasheetDetails(value: unknown): DatasheetDetails {
     return instruction && options.length ? [{ instruction, options }] : []
   })
   const { lines, loadout } = composition(value)
+  const transport = localizedField(value, 'transport') ?? specialTransport(value)
   return {
     composition: lines,
     loadout: localizedField(value, 'loadout') || loadout,
     wargear: localizedList(value, 'wargear'),
     ...(wargearGroups.length ? { wargearGroups } : {}),
     baseSize: displayBaseSize(localizedField(value, 'baseSize')),
-    transport: localizedField(value, 'transport'),
+    transport: transport ? prose(transport) : null,
     points: records(value, 'points').flatMap((point) => {
       const models = stringField(point, 'models')
       const cost = stringField(point, 'cost')

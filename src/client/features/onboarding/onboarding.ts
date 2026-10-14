@@ -496,7 +496,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/battles',
     title: 'Set reserves and transports',
     description:
-      'Every unit starts on the battlefield unless your side changes it. Record units held in reserves or embarked in a transport, and check printed passenger restrictions at the table.',
+      'Every unit starts on the battlefield unless your side changes it. Record units held in reserves or embarked in a transport; each transport takes only the passengers its rule allows.',
     placement: 'bottom',
     next: 'battle-setup-deploy',
     nextLabel: 'Next',

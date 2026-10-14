@@ -18,6 +18,7 @@ import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
+import { type Passenger, type TransportLoad, transportLoad, transportRule } from './transport'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
 import {
@@ -168,6 +169,8 @@ type SubmittedUnit = {
   transport?: boolean
   /** The transport's printed rule, frozen with the roster. */
   transportRule?: string
+  /** The datasheet's keywords, which a transport's rule names to say who may ride; absent from older logs. */
+  keywords?: string[]
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
@@ -209,36 +212,27 @@ export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[]
   return matching.length > 1 ? `${transport.name} #${matching.findIndex((unit) => unit.key === key) + 1}` : transport.name
 }
 
-export function transportCapacity(rule: string | undefined, wargear?: readonly { name: string; count: number }[]): number | null {
-  if (!rule || /\btransport capacity (?:is |can be )?(?:reduced|increased|changed) to\b/i.test(rule)) return null
-  const capacities = [...rule.matchAll(/\btransport capacity of\s+(\d+)\b[^.!?]*\bmodels\b/gi)]
-  if (!capacities.length) return null
-  const conditions = [
-    ...rule.matchAll(
-      /\bIf this model is equipped with (?:a |an |the )?([^,]+), it has a transport capacity of\s+(\d+)\b[^.!?]*\bmodels\b/gi,
-    ),
-  ]
-  if (conditions.length !== capacities.length - 1 || (conditions.length && !wargear)) return null
-  const selected = conditions.filter((condition) =>
-    wargear?.some((piece) => piece.count > 0 && piece.name.toLowerCase() === condition[1]?.replaceAll('*', '').toLowerCase().trim()),
-  )
-  if (selected.length > 1) return null
-  const capacity = Number(selected[0]?.[2] ?? capacities[0]?.[1])
-  return Number.isSafeInteger(capacity) && capacity > 0 ? capacity : null
+/** What a transport holds if these passengers ride in it, or why they cannot. */
+export function transportLoadOf(
+  transport: Pick<UnitState, 'transportRule' | 'wargear'> | undefined,
+  passengers: readonly Passenger[],
+): TransportLoad | Refusal {
+  const rule = transportRule(transport?.transportRule, transport?.wargear)
+  return rule ? transportLoad(rule, passengers) : refuse('transport-capacity-unknown', 'this transport has no known model capacity')
 }
 
-export function embarkedModelCount(units: readonly Pick<UnitState, 'embarkedIn' | 'alive'>[], transportKey: string): number {
-  return units.reduce((models, unit) => models + (unit.embarkedIn === transportKey ? unit.alive : 0), 0)
-}
+const loadRefusal = (load: TransportLoad | Refusal): Refusal | null => (Array.isArray(load) ? null : load)
 
 function embarkedCapacityError(units: readonly UnitState[], unit: UnitState, nextAlive: number): Refusal | null {
   if (!unit.embarkedIn || nextAlive <= unit.alive) return null
   const transport = units.find((candidate) => candidate.key === unit.embarkedIn)
-  const capacity = transportCapacity(transport?.transportRule, transport?.wargear)
-  if (capacity === null) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
-  return embarkedModelCount(units, unit.embarkedIn) - unit.alive + nextAlive > capacity
-    ? refuse('transport-full', `this transport can carry at most ${capacity} models`)
-    : null
+  const aboard = units.filter((candidate) => candidate.embarkedIn === unit.embarkedIn)
+  return loadRefusal(
+    transportLoadOf(
+      transport,
+      aboard.map((candidate) => (candidate === unit ? { ...unit, alive: nextAlive } : candidate)),
+    ),
+  )
 }
 
 export const canTransport = (unit: Pick<UnitState, 'transport' | 'group'>): boolean => unit.transport === true || unit.group === 'transport'
@@ -279,11 +273,10 @@ export function unitFormationRefusal(
     if (attached.some((unit) => unit.key === transport.key || canTransport(unit)))
       return refuse('invalid-transport', 'a transport cannot embark in another transport')
     if (attached.some((unit) => unit.destroyed)) return refuse('invalid-transport', 'a destroyed unit cannot embark')
-    const capacity = transportCapacity(transport.transportRule, transport.wargear)
-    if (capacity === null) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
-    const aboard = embarkedModelCount(player.units, transport.key) - embarkedModelCount(attached, transport.key)
-    if (aboard + attached.reduce((models, unit) => models + unit.alive, 0) > capacity)
-      return refuse('transport-full', `this transport can carry at most ${capacity} models`)
+    const moving = new Set(attached.map((unit) => unit.key))
+    const aboard = player.units.filter((unit) => unit.embarkedIn === transport.key && !moving.has(unit.key))
+    const refusal = loadRefusal(transportLoadOf(transport, [...aboard, ...attached]))
+    if (refusal) return refusal
   } else if (command.transportKey) {
     return refuse('invalid-transport', 'only an embarked unit can name a transport')
   }
@@ -952,6 +945,7 @@ export type RefusalCode =
   | 'too-many-players'
   | 'transport-capacity-unknown'
   | 'transport-full'
+  | 'transport-ineligible'
   | 'undo-not-latest'
   | 'unit-unchanged'
   | 'unknown-command'
