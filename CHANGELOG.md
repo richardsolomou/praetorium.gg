@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.20
+
+### Patch Changes
+
+- af8c4aa: Datasheets that already print their transport rule as a Transport ability no longer repeat it in a separate Transport section.
+
 ## 0.141.19
 
 ### Patch Changes
