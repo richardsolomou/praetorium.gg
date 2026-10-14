@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.143.4
+
+### Patch Changes
+
+- 77660da: Publish the web image for ARM servers as well as x86.
+
 ## 0.143.3
 
 ### Patch Changes
