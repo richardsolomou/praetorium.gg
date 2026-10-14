@@ -26,14 +26,18 @@ async function recordEvents(page: Page) {
     ) as
       | {
           capture: (name: string, properties?: Record<string, unknown>) => void
+          captureException: (error: unknown, properties?: Record<string, unknown>) => void
         }
       | undefined
     if (!client) throw new Error('The telemetry chunk did not export the browser client')
-    client.capture = (name, properties) => {
+    const record = (name: string, properties?: Record<string, unknown>) =>
       void (
         window as unknown as { recordTelemetry: (name: string, properties?: Record<string, unknown>) => Promise<void> }
       ).recordTelemetry(name, properties)
-    }
+    client.capture = record
+    // The SDK drops exceptions until it is configured, which browser test stacks never do.
+    client.captureException = (error, properties) =>
+      record('$exception', { message: error instanceof Error ? error.message : String(error), ...properties })
   })
   return events
 }
@@ -160,6 +164,21 @@ test('cancelled creation forms report intent without submissions, and opening th
       { name: 'league_creation_started', properties: {} },
       { name: 'combat_simulator_opened', properties: { source: 'standalone' } },
     ])
+})
+
+test('a page that fails to load reports one exception from the error page', async ({ page }) => {
+  await page.route(/\/assets\/simulator-[^/]+\.js$/, (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: "throw new Error('Simulator failed to load')" }),
+  )
+  await page.goto('/')
+  const simulator = page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Simulator', exact: true })
+  await simulator.waitFor()
+  const events = await recordEvents(page)
+  await simulator.click()
+  await expect(page.getByRole('heading', { name: 'Something went wrong' })).toBeVisible()
+  await expect
+    .poll(() => events.filter((event) => event.name === '$exception'))
+    .toEqual([{ name: '$exception', properties: { message: 'Simulator failed to load', operation: 'route' } }])
 })
 
 test('a datasheet reader who starts a roster or the simulator is attributed to the reference page', async ({ page }) => {
