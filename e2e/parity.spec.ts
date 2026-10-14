@@ -41,7 +41,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await page.setViewportSize({ width: 390, height: 900 })
   await page.goto('/rosters')
   const creation = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(creation, () => page.getByRole('button', { name: 'Create editable roster' }).click())
+  await retryUntilVisible(creation, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
   await expect(creation.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(creation).toContainText('You, friends you lend it to, and seated players through a battle using this list')
   await creation.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()

@@ -7,7 +7,7 @@ for (const width of [390, 1280]) {
     await signUp(page, 'Dynasty')
     await page.goto('/rosters')
     const dialog = page.getByRole('dialog', { name: 'Create roster' })
-    await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create editable roster' }).first().click())
+    await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).first().click())
     await dialog.getByRole('combobox', { name: 'Faction' }).click()
     await page.getByPlaceholder('Search factions…').fill('Necrons')
     await page.getByRole('option', { name: 'Necrons', exact: true }).click()

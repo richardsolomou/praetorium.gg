@@ -194,7 +194,7 @@ test('the first-army guide explains Warlords, leader attachments, and reminders'
   await page.setViewportSize(desktop)
   await signUp(page, uniqueName('First Army Guide'))
   await launch(page, 'Build your first army')
-  await page.getByRole('button', { name: 'Create editable roster' }).click()
+  await page.getByRole('button', { name: 'Create roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await expect(prompt(page)).toContainText('Choose the army')
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
