@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.141.12
+
+### Patch Changes
+
+- 86dc6f4: Opening a rules version's imported faction pages no longer stalls other pages while its reference data is prepared.
+
 ## 0.141.11
 
 ### Patch Changes
