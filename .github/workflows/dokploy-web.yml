@@ -102,10 +102,14 @@ jobs:
           test -n "$DOKPLOY_APPLICATION_ID"
           test -n "$DOKPLOY_ENVIRONMENT_ID"
           test -n "$SPACETIME_OWNER_TOKEN"
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
       - name: Build and publish Node image
         id: image
         uses: richardsolomou/ras-stack/actions/publish-production-image@v1
         with:
+          platforms: linux/amd64,linux/arm64
           image: ghcr.io/${{ github.repository }}
           sha: ${{ inputs.revision || github.sha }}
           release-tag: ${{ inputs.environment }}

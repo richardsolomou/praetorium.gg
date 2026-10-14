@@ -1,4 +1,5 @@
-FROM node:24-bookworm-slim AS build
+# Every architecture shares one build, so hashed assets match across image variants; only production dependencies differ.
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN npm install --global pnpm@11.15.0
@@ -33,12 +34,24 @@ RUN --mount=type=cache,target=/root/.cache/praetorium/runtime \
         --directory .output/public --release-name praetorium-web --release-version "$GITHUB_SHA"; \
     fi; \
     find .output/public -type f -name '*.map' -delete
-ADD --checksum=sha256:d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831 https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.7.0-hotfix3/spacetime-x86_64-unknown-linux-gnu.tar.gz /tmp/spacetime.tar.gz
-RUN tar -xzf /tmp/spacetime.tar.gz -C /tmp spacetimedb-cli && /tmp/spacetimedb-cli build -p spacetimedb && CI=true pnpm install --filter praetorium.gg --prod --frozen-lockfile
+ADD --checksum=sha256:d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831 https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.7.0-hotfix3/spacetime-x86_64-unknown-linux-gnu.tar.gz /tmp/spacetime-amd64.tar.gz
+ADD --checksum=sha256:befd13f796d93d0c5b7c1751c73d15cfd0821990e95dd9059bf1563d344ba9ea https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.7.0-hotfix3/spacetime-aarch64-unknown-linux-gnu.tar.gz /tmp/spacetime-arm64.tar.gz
+ARG BUILDARCH
+RUN tar -xzf "/tmp/spacetime-$BUILDARCH.tar.gz" -C /tmp spacetimedb-cli && /tmp/spacetimedb-cli build -p spacetimedb && rm -rf node_modules
+
+FROM node:24-bookworm-slim AS dependencies
+RUN npm install --global pnpm@11.15.0
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches/ patches/
+COPY mobile/package.json mobile/package.json
+COPY spacetimedb/package.json spacetimedb/package.json
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store CI=true pnpm install --filter praetorium.gg --prod --frozen-lockfile
 
 FROM node:24-bookworm-slim
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
+COPY --from=dependencies --chown=node:node /app/node_modules /app/node_modules
 
 ARG GITHUB_SHA
 LABEL org.opencontainers.image.source="https://github.com/richardsolomou/praetorium.gg"
