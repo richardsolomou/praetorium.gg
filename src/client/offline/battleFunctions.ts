@@ -28,12 +28,14 @@ import {
   scoringCapError,
   withAuthoritativeAwards,
 } from '../../shared/battleRules'
+import { hasSyncableWork } from './syncEngine'
 import {
   localClient,
   localDocument,
   localEngine,
   localOwner,
   hasLocalChanges,
+  hasSyncableChanges,
   rememberBattle,
   queueLocal,
   attemptLocalSync,
@@ -96,14 +98,14 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
   const resource = `battle:${args.data.token}`
   const workspace = await localDocument<BattleWorkspace | null>(resource)
   if (workspace === null && (await hasLocalChanges(resource))) return { kind: 'unavailable' }
-  if (workspace && owner && (!navigator.onLine || (await hasLocalChanges(resource)))) return workspaceScreen(workspace, owner.id)
+  if (workspace && owner && (!navigator.onLine || (await hasSyncableChanges(resource)))) return workspaceScreen(workspace, owner.id)
   try {
     const result = await cachedRead(['battle', args.data.token], async () => {
       const screen = await server.openBattle(args)
       if (screen?.kind === 'battle' && localEngine()) {
         const fresh = await battleWorkspace(args)
         await rememberBattle(fresh.workspace, owner?.id)
-        if (await hasLocalChanges(resource)) {
+        if (await hasSyncableChanges(resource)) {
           const current = await localDocument<BattleWorkspace>(resource)
           if (current && localOwner()?.id === owner?.id) return workspaceScreen(current, owner!.id)
         }
@@ -127,14 +129,14 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   const resource = `battle:${args.data.token}`
   if (!engine || !owner || !localConstruction()) {
     // Commands this battle saved on the device go first, or this one overtakes them.
-    if (engine && navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
+    if (engine && navigator.onLine && (await hasSyncableChanges(resource))) await attemptLocalSync()
     return server.submit(args)
   }
-  if (navigator.onLine && (await hasLocalChanges(resource))) await attemptLocalSync()
+  if (navigator.onLine && (await hasSyncableChanges(resource))) await attemptLocalSync()
   // A service that never answers is treated like no connection, so the command is saved and synced later. If
   // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
   const answer =
-    navigator.onLine && !(await hasLocalChanges(resource))
+    navigator.onLine && !(await hasSyncableChanges(resource))
       ? await server.submit(args).catch((error: unknown) => {
           if (isFetchNetworkFailure(error)) return null
           throw error
@@ -148,7 +150,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     return {
       result: answer.result,
       screen:
-        current && (current.serverSeq > fresh.workspace.serverSeq || (await hasLocalChanges(resource)))
+        current && (current.serverSeq > fresh.workspace.serverSeq || (await hasSyncableChanges(resource)))
           ? workspaceScreen(current, owner.id)
           : fresh.screen,
     }
@@ -245,7 +247,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
 
 export async function battleReport(args: Parameters<typeof server.battleReport>[0]): ReturnType<typeof server.battleReport> {
   const workspace = await localDocument<BattleWorkspace>(`battle:${args.data.token}`)
-  return workspace && localOwner() && (!navigator.onLine || (await hasLocalChanges(`battle:${args.data.token}`)))
+  return workspace && localOwner() && (!navigator.onLine || (await hasSyncableChanges(`battle:${args.data.token}`)))
     ? foldReport(
         workspace.players,
         workspace.log,
@@ -348,7 +350,7 @@ export function projectBattles(state: LocalState) {
     if (!key.startsWith(`${state.owner}:`) || !state.documents[key.slice(state.owner.length + 1)]) projectedBattles.delete(key)
   for (const [resource, document] of Object.entries(state.documents)) {
     if (!resource.startsWith('battle:')) continue
-    if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
+    if (navigator.onLine && !hasSyncableWork(state, resource)) continue
     if (!constructionData()) return
     if (!document.data) {
       client.setQueryData(['battle', resource.slice(7)], { kind: 'unavailable' })

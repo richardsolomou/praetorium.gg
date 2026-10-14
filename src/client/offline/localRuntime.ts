@@ -4,7 +4,7 @@ import { offlineActionKind, offlineActionSchemas, type OfflineActionKind } from 
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import type * as server from '../../server/functions'
 import { syncRoster, syncAction, syncBattleCommand } from '../../server/functions/offline'
-import { SyncEngine, type SyncAnswer, type LocalDocumentUpdate } from './syncEngine'
+import { SyncEngine, hasSyncableWork, type SyncAnswer, type LocalDocumentUpdate } from './syncEngine'
 import { nativeBridgeVersion, supportsNativeLocalState } from '../nativeBridge'
 import { localStateStorage } from './localStorage'
 
@@ -215,6 +215,10 @@ export async function queueLocal(
 export async function hasLocalChanges(resource?: string) {
   const engine = localEngine()
   return engine ? (await engine.storage.read()).operations.some((operation) => !resource || operation.resource === resource) : false
+}
+export async function hasSyncableChanges(resource: string) {
+  const engine = localEngine()
+  return engine ? hasSyncableWork(await engine.storage.read(), resource) : false
 }
 export async function rememberBattle(workspace: BattleWorkspace, owner = localOwner()?.id) {
   await rememberDocument(`battle:${workspace.battle.token}`, workspace, workspace.serverSeq, owner)

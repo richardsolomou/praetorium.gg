@@ -96,3 +96,19 @@ it.each([false, true])('projects a battle that needs local rules while online=%s
   projectBattles(state)
   expect(client.getQueryData(['battle', 'token'])).toMatchObject({ kind: 'battle', view: { seq: saved.log.at(-1)!.seq } })
 })
+
+it('keeps the connected battle screen while an earlier conflict awaits review', () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  construction.data.mockReturnValue({})
+  const client = new QueryClient()
+  configureLocalRuntime(client, () => {})
+  client.setQueryData(['me'], { id: ALICE })
+  const screen = { kind: 'battle', view: { seq: 0 }, missions: [] }
+  client.setQueryData(['battle', 'token'], screen)
+  const state = emptyLocalState(ALICE)
+  state.documents['battle:token'] = { data: workspace(), serverVersion: 0 }
+  state.operations.push({ id: 'conflict', resource: 'battle:token', kind: 'battleCommand', input: {}, createdAt: 1, status: 'conflict' })
+  projectBattles(state)
+  expect(client.getQueryData(['battle', 'token'])).toBe(screen)
+})

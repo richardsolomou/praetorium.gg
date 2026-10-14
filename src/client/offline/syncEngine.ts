@@ -29,6 +29,11 @@ export function discardLocalResource(state: LocalState, resource: string): Local
   return { ...state, documents, operations }
 }
 
+/** Saved work for a resource that can still sync; a conflict awaiting review holds back everything queued after it. */
+export function hasSyncableWork(state: LocalState, resource: string) {
+  return state.operations.find((operation) => operation.resource === resource)?.status === 'pending'
+}
+
 const holderLock = (holder: string) => `praetorium-sync:${holder}`
 
 /** A window holds its lock until it closes or stops, so a lease whose lock nobody holds was abandoned mid-sync. */

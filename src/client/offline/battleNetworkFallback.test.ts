@@ -20,6 +20,7 @@ vi.mock('./localRuntime', () => ({
   localOwner: () => ({ id: mocks.owner }),
   localDocument: async () => workspace,
   hasLocalChanges: async () => false,
+  hasSyncableChanges: async () => false,
 }))
 afterEach(() => {
   vi.unstubAllGlobals()
