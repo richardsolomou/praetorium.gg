@@ -1,5 +1,40 @@
 # praetorium
 
+## 0.146.0
+
+### Minor Changes
+
+- 93bf720: Send feedback, with an optional screenshot, from any page without leaving it.
+
+### Patch Changes
+
+- 9c99942: A roster chooser with no list for the battle size offers to change the battle size.
+- 4e15ed2: A wargear count that cannot go higher says why, and every lit add button changes the loadout.
+- 8dc4616: A detachment address under a faction that borrows it opens the printing faction's page instead of nothing.
+- fb1107e: The compact roster export wraps inside its box on a phone instead of running past it.
+- b527577: Cthonian Beserks can take twin concussion gauntlets and mole launchers.
+- 8dc4616: The favourite heart on a faction's datasheet list has a full-size touch target, so tapping it no longer opens the datasheet.
+- 8300c50: Player defaults and public roster browsing keep working while an update rolls out.
+- 4e15ed2: Clicking a detachment card while setting up a roster selects it; its reference opens from the reference icon.
+- 8ad6cae: Error pages explain the problem in plain words and offer to try again, or to reload when a release has replaced the page's code.
+- b527577: Wolf Guard Headtakers keep their Hunting Wolves instead of reporting a saved choice as unavailable.
+- 7f6c6d5: Signed-in players' PostHog profiles carry their account name and email, so problems can be traced to who hit them.
+- fdfb98d: Imported lists keep the equipment nested under each model, plural Enhancements labels and the full model count of each squad.
+- b527577: The Deathwatch Indomitor Kill Team starts legal at 10 models.
+- 62d1742: A list that fails to import is sent to us in an automatic report so the importer can be fixed for it.
+- 20fd45c: Sealing a league roster says what is wrong with its Warlord and links to editing the list.
+- 8c40173: Releases no longer show a What's new banner; the What's new page still lists every change.
+- 8300c50: Older rosters open straight into the builder instead of briefly saying their army book was replaced, and a failed army read offers Try again.
+- 3a6d780: The simulator's Optimize names the rule that stopped it instead of reporting unsupported rules in general.
+- 9c99942: Choosing a roster over its points limit for a battle explains why and links to editing it.
+- 8ad6cae: Battles, leagues and profiles keep loading while a release adds new fields to them.
+- 4e15ed2: A unit holding a choice the current rules no longer offer can reset just that choice.
+- 4e15ed2: Opening a saved roster shows its outline while army data loads instead of flashing that the data is unavailable.
+- 4e15ed2: Sharing a roster shows its progress beside the header and copies the link once per click.
+- 3a6d780: The simulator's unit picker says units are still loading instead of finding no matches.
+- 8ad6cae: A bottom tab forgets a page that no longer exists instead of reopening it.
+- 3e0e703: A roster that has not synced yet opens in a new tab or after a reload instead of showing nothing here.
+
 ## 0.145.0
 
 ### Minor Changes
