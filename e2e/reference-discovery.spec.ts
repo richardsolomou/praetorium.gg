@@ -111,10 +111,10 @@ async function custodesRoster(page: Page, archived?: string) {
 }
 
 async function chooseDetachment(dialog: Locator, detachment: string) {
-  await expect(dialog.getByRole('button', { name: `Select ${detachment}`, exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: `Select ${detachment}`, exact: true, pressed: false })).toBeVisible()
   const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
   if (await unavailable.isVisible()) await unavailable.click()
-  await dialog.getByRole('button', { name: `Select ${detachment}`, exact: true }).click()
+  await dialog.getByRole('button', { name: `Select ${detachment}`, exact: true, pressed: false }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
 }

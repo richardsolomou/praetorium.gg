@@ -13,6 +13,7 @@ export function Stepper({
   onboarding,
   onAdd,
   onRemove,
+  addDescribedBy,
   choices,
   onChoose,
 }: {
@@ -23,6 +24,8 @@ export function Stepper({
   onboarding?: OnboardingTarget
   onAdd?: () => void
   onRemove?: () => void
+  /** The element saying why More is disabled. */
+  addDescribedBy?: string
   choices?: readonly number[]
   onChoose?: (count: number) => void
 }) {
@@ -51,12 +54,22 @@ export function Stepper({
           {loading ? <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" /> : (count ?? '—')}
         </span>
       )}
-      <CountButton label={`More ${label}`} onClick={onAdd} />
+      <CountButton label={`More ${label}`} onClick={onAdd} describedBy={addDescribedBy} />
     </span>
   )
 }
 
-export function CountButton({ label, decrease = false, onClick }: { label: string; decrease?: boolean; onClick?: () => void }) {
+export function CountButton({
+  label,
+  decrease = false,
+  onClick,
+  describedBy,
+}: {
+  label: string
+  decrease?: boolean
+  onClick?: () => void
+  describedBy?: string
+}) {
   const color = decrease
     ? 'border-destructive/60 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive dark:border-destructive/60 dark:bg-destructive/15 dark:hover:bg-destructive/25'
     : 'border-primary/60 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary dark:border-primary/60 dark:bg-primary/15 dark:hover:bg-primary/25'
@@ -66,6 +79,7 @@ export function CountButton({ label, decrease = false, onClick }: { label: strin
       size="icon-sm"
       className={`size-6 ${onClick ? color : ''}`}
       aria-label={label}
+      aria-describedby={describedBy}
       disabled={!onClick}
       onClick={onClick}
     >

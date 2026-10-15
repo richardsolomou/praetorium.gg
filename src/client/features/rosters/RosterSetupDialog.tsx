@@ -7,7 +7,7 @@ import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { type ReactNode, useEffect, useId, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
@@ -555,41 +555,27 @@ export function RosterSetupDialog({
                     />
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  aria-label={`View ${detachment.name} detachment reference`}
-                  className="flex min-w-0 flex-1 items-start p-3 text-left"
-                  onClick={() => {
-                    if (!faction) return
-                    setReference({
-                      catalogueId: faction.id,
-                      detachmentId: detachment.id,
-                      slug: detachment.slug,
-                      name: detachment.name,
-                    })
-                  }}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-bold uppercase">{detachment.name}</span>
-                    <span className="mt-2 flex flex-wrap gap-1">
-                      {detachment.dispositions.map((entry) => (
-                        <span key={entry.id} className={`chip ${dispositionTone(entry.id)}`}>
-                          {entry.name}
-                        </span>
-                      ))}
-                    </span>
-                  </span>
-                </button>
                 {conflict ? (
-                  <UnavailableDetachment name={detachment.name} points={detachment.points} reason={conflict} />
+                  <UnavailableDetachment name={detachment.name} reason={conflict}>
+                    <DetachmentSummary detachment={detachment} />
+                    <span className="grid w-20 shrink-0 place-items-center border-l border-edge bg-sunken text-sm font-bold text-faint uppercase">
+                      {detachment.points ?? '—'} DP
+                    </span>
+                  </UnavailableDetachment>
                 ) : (
                   <button
                     type="button"
-                    aria-label={`${chosen ? 'Remove' : 'Select'} ${detachment.name}`}
+                    aria-label={`Select ${detachment.name}`}
+                    aria-pressed={chosen}
                     onClick={() => toggleDetachment(detachment.id)}
-                    className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure hover:bg-azure/15'}`}
+                    className="group flex min-w-0 flex-1 items-stretch text-left hover:bg-raised"
                   >
-                    {detachment.points ?? '—'} DP
+                    <DetachmentSummary detachment={detachment} />
+                    <span
+                      className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure group-hover:bg-azure/15'}`}
+                    >
+                      {detachment.points ?? '—'} DP
+                    </span>
                   </button>
                 )}
               </div>
@@ -859,7 +845,22 @@ export function RosterSetupDialog({
 }
 
 /** Stays focusable and opens its reason on a tap, so a phone can still say why it cannot be chosen. */
-function UnavailableDetachment({ name, points, reason }: { name: string; points: number | null; reason: string }) {
+function DetachmentSummary({ detachment }: { detachment: Detachment }) {
+  return (
+    <span className="min-w-0 flex-1 p-3">
+      <span className="block font-bold uppercase">{detachment.name}</span>
+      <span className="mt-2 flex flex-wrap gap-1">
+        {detachment.dispositions.map((entry) => (
+          <span key={entry.id} className={`chip ${dispositionTone(entry.id)}`}>
+            {entry.name}
+          </span>
+        ))}
+      </span>
+    </span>
+  )
+}
+
+function UnavailableDetachment({ name, reason, children }: { name: string; reason: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
@@ -871,11 +872,11 @@ function UnavailableDetachment({ name, points, reason }: { name: string; points:
             aria-disabled="true"
             aria-label={`Select ${name}, unavailable`}
             onClick={() => setOpen(true)}
-            className="grid w-20 shrink-0 cursor-not-allowed place-items-center border-l border-edge bg-sunken text-sm font-bold text-faint uppercase"
+            className="flex min-w-0 flex-1 cursor-not-allowed items-stretch text-left"
           />
         }
       >
-        {points ?? '—'} DP
+        {children}
       </TooltipTrigger>
       <TooltipContent role="tooltip" side="bottom" className="max-w-60 text-xs">
         {reason}

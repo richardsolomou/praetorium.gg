@@ -168,6 +168,12 @@ export type SpreadCounts = Record<string, number>
 /** A counter press folded against the counts that the pick holds when it runs. */
 export type SpreadUpdate = (counts: SpreadCounts) => SpreadCounts | null
 
+/** The counts a press folds against: what the pick saved for the group over what was built. */
+export const pressedCounts = (choice: { options: readonly { id: string; count: number }[] }, saved?: SpreadCounts): SpreadCounts => ({
+  ...Object.fromEntries(choice.options.map((option) => [option.id, option.count])),
+  ...saved,
+})
+
 /** Prefer the catalogue's ordinary allocation before taking a specialist's place. */
 export const donorPriority = (left: LoadoutOption, right: LoadoutOption) =>
   Number(Boolean(right.default)) - Number(Boolean(left.default)) || right.count - left.count
@@ -386,14 +392,14 @@ const shedsSlot = (choice: LoadoutChoice) => choice.optional || takenIn(choice) 
  * option takes one off whichever option has the most to give. That is what the
  * datasheet says in words: each model may replace its blaster with a carbine.
  */
-export function spreadHandlers(choice: LoadoutChoice) {
+export function spreadHandlers(choice: LoadoutChoice, saved?: SpreadCounts) {
   const taken = takenIn(choice)
   const held = (counts: SpreadCounts, option: LoadoutOption) => counts[option.id] ?? 0
   const total = (counts: SpreadCounts) => choice.options.reduce((sum, option) => sum + held(counts, option), 0)
   const priority = (counts: SpreadCounts) => (left: LoadoutOption, right: LoadoutOption) =>
     Number(Boolean(right.default)) - Number(Boolean(left.default)) || held(counts, right) - held(counts, left)
-  const shown = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
-  const offered = (update: SpreadUpdate): SpreadUpdate | undefined => (update(shown) ? update : undefined)
+  const pressed = pressedCounts(choice, saved)
+  const offered = (update: SpreadUpdate): SpreadUpdate | undefined => (update(pressed) ? update : undefined)
 
   const more = (option: LoadoutOption) =>
     offered((counts) => {
@@ -425,6 +431,13 @@ export function spreadHandlers(choice: LoadoutChoice) {
     })
 
   return { taken, more, less }
+}
+
+/** Why a disabled add cannot take one more of an option, in the counts the player sees. */
+export function increaseBlocked(choice: LoadoutChoice, option: LoadoutOption) {
+  if (option.count >= option.max) return `Max ${option.max}`
+  const taken = takenIn(choice)
+  return taken >= choice.room ? `Group full: ${taken}/${choice.room}` : null
 }
 
 /** A press that folds a change into a group's live counts, or nothing to press. */

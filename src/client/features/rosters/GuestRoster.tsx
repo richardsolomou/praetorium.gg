@@ -25,7 +25,8 @@ import {
   writeGuestDraft,
 } from './guestDraft'
 import { ListBuilder } from './ListBuilder'
-import { RosterBody, RosterShell } from './RosterPresentation'
+import { RosterOutline } from './RosterPresentation'
+import { saveFailureReason } from './saveFailure'
 import { RosterSetupDialog } from './RosterSetupDialog'
 import { importedSetup, RosterImport } from './RosterImport'
 
@@ -243,7 +244,7 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
   const started = useRef(false)
   const [confirming, setConfirming] = useState(() => !guestSaveRequested(guest))
   const claim = useMutation({
-    onError: () => posthog.capture('guest_roster_save_failed', { reason: 'request' }),
+    onError: (error) => posthog.capture('guest_roster_save_failed', { reason: saveFailureReason(error) }),
     mutationFn: async (draft: GuestDraft) => {
       const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
       return saveRoster({ data: { ...claimInput(draft), visibility: defaults.rosterVisibility } })
@@ -308,19 +309,10 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
   )
 }
 
-/** The builder's outline, for the frames before this page knows which of its halves it is. */
 export function BuilderFrame() {
   return (
-    <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden" aria-busy>
-      <RosterShell>
-        <div className="h-24 border-b border-edge bg-panel" />
-        <RosterBody threeColumn>
-          <div className="hidden border-r border-edge min-[1300px]:block" />
-          <div className="flex-1" />
-          <div className="hidden border-l border-edge min-[1300px]:block" />
-        </RosterBody>
-        <div className="h-14 border-t border-edge bg-panel" />
-      </RosterShell>
+    <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
+      <RosterOutline />
     </main>
   )
 }

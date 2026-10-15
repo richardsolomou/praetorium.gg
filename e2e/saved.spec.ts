@@ -250,7 +250,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('button', { name: 'Remove Awakened Dynasty' }).click()
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
   await waitForRosterSave(page, () => confirmRosterSetup(setup))

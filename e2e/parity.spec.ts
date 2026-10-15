@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { confirmRosterSetup, chooseRosterDefault, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import { savedWork } from './storage'
 
 test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
   await signUp(page, uniqueName('Search roster'))
@@ -209,4 +210,48 @@ test('editable detail waits for public access to save before sharing', async ({ 
 
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByLabel('List name')).toHaveValue('Detail share')
+})
+
+test('copying a saved roster link reports progress beside the header and copies once per click', async ({ page }) => {
+  await signUp(page, uniqueName('Status sharer'))
+  await chooseRosterDefault(page, 'Unlisted')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Status share' })
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
+  let saves = 0
+  page.on('request', (request) => {
+    const body = request.postData()
+    if (request.method() === 'POST' && body?.includes('"visibility"') && body.includes('"picks"')) saves++
+  })
+  await page.evaluate(() => {
+    const copies: string[] = []
+    let releaseCopy: () => void = () => undefined
+    const held = new Promise<void>((resolve) => {
+      releaseCopy = resolve
+    })
+    Object.assign(window, { copies, releaseCopy })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          copies.push(text)
+          await held
+        },
+      },
+    })
+  })
+
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Copy link' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Copying link…' })).toBeVisible()
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Copy link' })).toHaveAttribute('aria-disabled', 'true')
+  await page.keyboard.press('Escape')
+  await page.evaluate(() => (window as unknown as { releaseCopy: () => void }).releaseCopy())
+
+  await expect(page.getByRole('status').filter({ hasText: 'Link copied.' })).toBeVisible()
+  const { origin, pathname } = new URL(page.url())
+  expect(await page.evaluate(() => (window as unknown as { copies: string[] }).copies)).toEqual([`${origin}${pathname}`])
+  expect(saves).toBe(0)
+  await expect(page.getByText('Link copied.')).toBeHidden()
 })

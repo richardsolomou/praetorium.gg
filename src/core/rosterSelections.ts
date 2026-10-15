@@ -51,6 +51,41 @@ export function unavailableRosterSelections(
   })
 }
 
+export type UnavailableSelection = ReturnType<typeof unavailableRosterSelections>[number]
+
+/**
+ * A pick without the selections reported unavailable at its position, leaving every
+ * other remembered choice alone. A report for another datasheet changes nothing, so a
+ * list reordered since the report cannot lose the wrong unit's choices.
+ */
+export function withoutUnavailableSelections<T extends Pick<RosterPick, 'entryId' | 'choices' | 'spreads' | 'toggles'>>(
+  pick: T,
+  pickIndex: number,
+  unavailable: readonly UnavailableSelection[],
+): T {
+  const dropped = unavailable.filter((problem) => problem.pickIndex === pickIndex && problem.entryId === pick.entryId)
+  if (!dropped.length) return pick
+  const choices = { ...pick.choices }
+  const spreads = { ...pick.spreads }
+  const toggles = { ...pick.toggles }
+  for (const { kind, key, optionId } of dropped) {
+    if (key === undefined) continue
+    if (kind === 'choice') delete choices[key]
+    if (kind === 'toggle') delete toggles[key]
+    if (kind === 'spread' && optionId !== undefined && spreads[key]) {
+      const { [optionId]: _removed, ...rest } = spreads[key]
+      if (Object.keys(rest).length) spreads[key] = rest
+      else delete spreads[key]
+    }
+  }
+  return {
+    ...pick,
+    ...(pick.choices ? { choices } : {}),
+    ...(pick.spreads ? { spreads } : {}),
+    ...(pick.toggles ? { toggles } : {}),
+  }
+}
+
 type BuiltChoice = { key: string; chosen: string; room: number; options: readonly { id: string; count: number }[] }
 
 /**

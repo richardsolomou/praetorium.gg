@@ -173,6 +173,7 @@ export function Loadout({
   const profile = primaryUnitProfile(sheet)
 
   const { models, loose } = divide(unit)
+  const saved = pickIndex === null ? undefined : picks[pickIndex]?.spreads
   const visibleLoose = showOptions
     ? loose
     : loose.filter((choice) => choice.options.some((option) => option.count || choice.chosen === option.id))
@@ -209,6 +210,7 @@ export function Loadout({
                   controlsDisabled={controlsDisabled}
                   showOptions={showOptions}
                   optionNote={optionNote}
+                  saved={saved}
                   {...described}
                 />
               ))}
@@ -254,6 +256,7 @@ export function Loadout({
                       showOptions={showOptions}
                       highlightSelection={showOptions}
                       optionNote={optionNote}
+                      saved={saved?.[choice.key]}
                     />
                   ) : (
                     <EitherChoice

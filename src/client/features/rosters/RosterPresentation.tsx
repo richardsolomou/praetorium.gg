@@ -230,11 +230,13 @@ type RosterShellProps = {
   children: ReactNode
   saving?: boolean
   saveError?: boolean
+  busy?: boolean
 }
 
-export function RosterShell({ children, saving, saveError }: RosterShellProps) {
+export function RosterShell({ children, saving, saveError, busy }: RosterShellProps) {
   return (
     <div
+      aria-busy={busy}
       data-roster-builder
       data-saving={saving}
       data-save-error={saveError}
@@ -242,6 +244,21 @@ export function RosterShell({ children, saving, saveError }: RosterShellProps) {
     >
       {children}
     </div>
+  )
+}
+
+/** The builder's outline, for the frames before its army data has loaded. */
+export function RosterOutline() {
+  return (
+    <RosterShell busy>
+      <div className="h-24 border-b border-edge bg-panel" />
+      <RosterBody threeColumn>
+        <div className="hidden border-r border-edge min-[1300px]:block" />
+        <div className="flex-1" />
+        <div className="hidden border-l border-edge min-[1300px]:block" />
+      </RosterBody>
+      <div className="h-14 border-t border-edge bg-panel" />
+    </RosterShell>
   )
 }
 

@@ -21,10 +21,10 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole('tooltip')).toHaveText(
       'An army can include only one Dynasty detachment, and this army already has Awakened Dynasty.',
     )
-    await expect(dialog.getByRole('button', { name: 'Remove Hand of the Dynasty' })).toHaveCount(0)
+    await expect(dialog.getByRole('button', { name: 'Select Hand of the Dynasty', exact: true })).toHaveCount(0)
     await page.screenshot({ path: `test-results/exclusive-detachments-${width}.png` })
 
-    await dialog.getByRole('button', { name: 'Remove Awakened Dynasty' }).click()
+    await dialog.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
     await expect(dialog.getByRole('button', { name: 'Select Hand of the Dynasty', exact: true })).toBeEnabled()
   })
 }

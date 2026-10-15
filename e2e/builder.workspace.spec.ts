@@ -649,8 +649,8 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await awakened.click()
   await cryptek.click()
 
-  await expect(dialog.getByRole('button', { name: 'Select Awakened Dynasty' })).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Remove Cryptek Conclave' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Select Awakened Dynasty', pressed: false })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true })).toBeVisible()
 
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)

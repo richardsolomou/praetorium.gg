@@ -354,3 +354,30 @@ test('a visitor draft built on the retired Marine codex opens and prices on the 
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toContainText(/\d+ pts/)
   await expect(page.getByText(/This army is not available|Army book replaced|no longer available/)).toHaveCount(0)
 })
+
+for (const width of [390, 1280]) {
+  test(`a detachment card selects from its name and opens its reference only from the reference icon at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/rosters')
+    await page.waitForLoadState('networkidle')
+    const setup = page.getByRole('region', { name: 'Create roster' })
+    await setup.getByRole('combobox', { name: 'Faction' }).click()
+    await page.getByPlaceholder('Search factions…').fill('Necrons')
+    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+    const card = setup.getByRole('button', { name: 'Select Awakened Dynasty', exact: true })
+    const reference = page.getByRole('dialog', { name: 'Awakened Dynasty' })
+
+    await card.getByText('Awakened Dynasty', { exact: true }).click()
+    await expect(card).toHaveAttribute('aria-pressed', 'true')
+    await expect(reference).toHaveCount(0)
+
+    await setup.getByRole('button', { name: 'View Awakened Dynasty detachment reference' }).click()
+    await expect(reference).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(reference).toBeHidden()
+    await expect(card).toHaveAttribute('aria-pressed', 'true')
+
+    await card.getByText('Awakened Dynasty', { exact: true }).click()
+    await expect(card).toHaveAttribute('aria-pressed', 'false')
+  })
+}

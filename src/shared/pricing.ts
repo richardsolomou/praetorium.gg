@@ -293,7 +293,8 @@ function adjustUnitPoints(
 
 function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
-  const unavailable = new Set(selectionProblems(data, picked, loaded).map((problem) => problem.pickIndex))
+  const problems = selectionProblems(data, picked, loaded)
+  const unavailable = new Set(problems.map((problem) => problem.pickIndex))
   return data.units.flatMap((saved, key) => {
     const unit = byKey.get(key)
     if (!unit)
@@ -304,8 +305,16 @@ function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof roster
           message: 'this saved datasheet is no longer available; choose a current unit',
         },
       ]
+    // Errors are said once per datasheet, so each carries what every copy needs reset.
     return unavailable.has(key)
-      ? [{ entryId: saved.entryId, entryName: unit.name, message: 'a saved choice is no longer available; reselect this unit’s options' }]
+      ? [
+          {
+            entryId: saved.entryId,
+            entryName: unit.name,
+            message: 'a saved choice is no longer available; reselect this unit’s options',
+            unavailable: problems.filter((problem) => problem.entryId === saved.entryId),
+          },
+        ]
       : []
   })
 }

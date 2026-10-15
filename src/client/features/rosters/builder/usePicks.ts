@@ -1,8 +1,9 @@
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
 import type { RosterPick } from '../../../../core/roster'
+import { type UnavailableSelection, withoutUnavailableSelections } from '../../../../core/rosterSelections'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { type KeyedPick, positionedAnnotatedPicks, positionedPicks } from '../rosterPicks'
-import type { SpreadUpdate } from './loadoutModel'
+import { pressedCounts, type SpreadUpdate } from './loadoutModel'
 
 /**
  * A group told to hold nothing holds nothing, however it came to be filled.
@@ -269,8 +270,7 @@ export function pickEditor(
     spread: (index: number, key: string, update: SpreadUpdate) =>
       editAt(index, (pick) => {
         const unit = context.units[index]
-        const served = unit?.choices.find((choice) => choice.key === key)?.options ?? []
-        const current = { ...Object.fromEntries(served.map((option) => [option.id, option.count])), ...pick.spreads?.[key] }
+        const current = pressedCounts(unit?.choices.find((choice) => choice.key === key) ?? { options: [] }, pick.spreads?.[key])
         const counts = update(current)
         if (!counts) return pick
         return {
@@ -304,6 +304,10 @@ export function pickEditor(
         const { note: _previous, ...rest } = pick
         return note.trim() ? { ...rest, note } : rest
       }),
+
+    /** Selections pricing reported unavailable, which the editor offers no option to clear. */
+    resetUnavailable: (unavailable: readonly UnavailableSelection[]) =>
+      setPicks((current) => current.map((pick, at) => withoutUnavailableSelections(pick, at, unavailable))),
 
     /** A new faction is a new list: nothing picked from the old book still applies. */
     clear: () => setPicks([]),

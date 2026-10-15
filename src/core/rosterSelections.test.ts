@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { builtPickSelections, unavailableRosterSelections } from './rosterSelections'
+import { builtPickSelections, unavailableRosterSelections, withoutUnavailableSelections } from './rosterSelections'
 
 const units = [{ key: 0, choices: [{ key: 'weapons', options: [{ id: 'bolter' }] }], toggles: [{ key: 'warlord' }] }]
 
@@ -149,4 +149,37 @@ it('still reports a remembered selection under an option of a group a squad divi
   expect(unavailableRosterSelections([{ entryId: 'squad', spreads: { 'weapons/plasma/sight': { scope: 1 } } }], [squad])).toEqual([
     { pickIndex: 0, entryId: 'squad', kind: 'spread', key: 'weapons/plasma/sight', optionId: 'scope' },
   ])
+})
+
+describe('resetting selections reported unavailable', () => {
+  const pick = {
+    entryId: 'unit',
+    choices: { weapons: 'old', relic: 'blade' },
+    spreads: { oldGroup: { bolter: 2 }, squad: { gone: 1, rifle: 4 } },
+    toggles: { oldWarlord: 1, warlord: 1 },
+  }
+  const unavailable = [
+    { pickIndex: 0, entryId: 'unit', kind: 'choice' as const, key: 'weapons', optionId: 'old' },
+    { pickIndex: 0, entryId: 'unit', kind: 'spread' as const, key: 'oldGroup', optionId: 'bolter' },
+    { pickIndex: 0, entryId: 'unit', kind: 'spread' as const, key: 'squad', optionId: 'gone' },
+    { pickIndex: 0, entryId: 'unit', kind: 'toggle' as const, key: 'oldWarlord' },
+  ]
+
+  it('drops exactly the reported selections and keeps every other remembered one', () => {
+    expect(withoutUnavailableSelections(pick, 0, unavailable)).toEqual({
+      entryId: 'unit',
+      choices: { relic: 'blade' },
+      spreads: { squad: { rifle: 4 } },
+      toggles: { warlord: 1 },
+    })
+  })
+
+  it('leaves a pick at another position unchanged', () => {
+    expect(withoutUnavailableSelections(pick, 1, unavailable)).toBe(pick)
+  })
+
+  it('leaves a different datasheet at the reported position unchanged', () => {
+    const other = { ...pick, entryId: 'other' }
+    expect(withoutUnavailableSelections(other, 0, unavailable)).toBe(other)
+  })
 })

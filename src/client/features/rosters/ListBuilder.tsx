@@ -89,7 +89,8 @@ import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
 import { RosterLoanDialog } from './RosterLoanDialog'
 import { encodeRosterExchange } from '../../../core/rosterExchange'
-import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
+import { RosterBody, RosterHeader, RosterOutline, RosterShell, RosterUnits } from './RosterPresentation'
+import { saveFailureReason } from './saveFailure'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
@@ -244,8 +245,6 @@ export function ListBuilder({
   const [lending, setLending] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
-  const [shareFeedback, setShareFeedback] = useState<'copied' | 'shared' | null>(null)
-  const [shareProblem, setShareProblem] = useState<string | null>(null)
   // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
   const workspacePath = initial.id ? `/rosters/${initial.id}` : path
   const {
@@ -375,9 +374,9 @@ export function ListBuilder({
       if (!localEngine()) await invalidateSavedRosters(queryClient)
     },
     // What the row holds is unknown after a failure, so the next draft is sent whatever it is.
-    onError: () => {
+    onError: (error) => {
       lastSaved.current = null
-      posthog.capture('roster_save_failed', { reason: 'request' })
+      posthog.capture('roster_save_failed', { reason: saveFailureReason(error) })
     },
   })
 
@@ -647,21 +646,27 @@ export function ListBuilder({
       cancelled = true
     }
   }, [faction, frozen, frozenReference, preparePrint, priceLoading, pricePending, priced, print])
-  const shareRoster = async () => {
-    setShareProblem(null)
-    try {
-      if (editable) await save.mutateAsync()
-      const result = await shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
-      posthog.capture('roster_shared', { visibility_changed: false })
-      setShareFeedback(result)
-    } catch (error) {
-      posthog.captureException(error, { operation: 'roster_share' })
-      setShareProblem(errorMessage(error))
-    }
-  }
+  const share = useMutation({
+    mutationFn: async () => {
+      // The link opens the saved roster, so unsaved edits land before it is handed out.
+      if (editable && currentDraftKey !== lastApplied.current) await save.mutateAsync()
+      return shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
+    },
+    onSuccess: () => posthog.capture('roster_shared', { visibility_changed: false }),
+    onError: (error) => posthog.captureException(error, { operation: 'roster_share' }),
+  })
+  const { reset: resetShare } = share
+  useEffect(() => {
+    if (!share.isSuccess) return
+    const timer = setTimeout(resetShare, 4000)
+    return () => clearTimeout(timer)
+  }, [resetShare, share.isSuccess])
   const nativeShare = useNativeShare()
-  const shareLabel =
-    shareFeedback === 'shared' ? 'Link shared' : shareFeedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'
+  const shareItem = (
+    <DropdownMenuItem disabled={share.isPending} onClick={() => share.mutate()}>
+      <Link2 /> {nativeShare ? 'Share link' : 'Copy link'}
+    </DropdownMenuItem>
+  )
   const rosterLoading = !frozen && priceLoading && picks.length > 0
   const edit = useMemo(
     () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits }, allocateKey),
@@ -927,6 +932,7 @@ export function ListBuilder({
 
   // A frozen list carries everything its cards print, which is what lets an opponent
   // read it on an instance that has never loaded this catalogue.
+  if (!faction && !frozen && factionLoading) return <RosterOutline />
   if (!faction && !frozen) {
     const retired = Boolean(factionIndex && !factionIndex.factions.some((candidate) => candidate.id === catalogueId))
     return (
@@ -936,7 +942,7 @@ export function ListBuilder({
           <p className="mt-2 text-sm text-dim">
             {retired
               ? 'Choose a current faction and detachment to rebuild this roster.'
-              : 'Army data is still loading. Try this page again shortly.'}
+              : 'Army data could not be loaded. Try this page again shortly.'}
           </p>
           {retired && editable ? <Button onClick={openSetup}>Choose current faction</Button> : null}
         </div>
@@ -1204,11 +1210,7 @@ export function ListBuilder({
                   <DropdownMenuSeparator />
                   {testTargets}
                   <DropdownMenuSeparator />
-                  {visibility !== 'private' ? (
-                    <DropdownMenuItem onClick={() => void shareRoster()}>
-                      <Link2 /> {shareLabel}
-                    </DropdownMenuItem>
-                  ) : null}
+                  {visibility !== 'private' ? shareItem : null}
                   <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                     <Download /> Export text
                   </DropdownMenuItem>
@@ -1289,11 +1291,7 @@ export function ListBuilder({
                   {!frozen ? <DropdownMenuSeparator /> : null}
                   {testTargets}
                   <DropdownMenuSeparator />
-                  {visibility !== 'private' && !battle ? (
-                    <DropdownMenuItem onClick={() => void shareRoster()}>
-                      <Link2 /> {shareLabel}
-                    </DropdownMenuItem>
-                  ) : null}
+                  {visibility !== 'private' && !battle ? shareItem : null}
                   <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                     <Download /> Export text
                   </DropdownMenuItem>
@@ -1342,11 +1340,23 @@ export function ListBuilder({
             The variant could not be created. Try again.
           </p>
         ) : null}
-        {shareProblem ? (
+        {share.isError ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
-            Could not share the link: {shareProblem}
+            Could not share the link: {errorMessage(share.error)}
           </p>
-        ) : null}
+        ) : (
+          <output className="mt-1 block text-xs text-dim empty:hidden">
+            {share.isPending
+              ? nativeShare
+                ? 'Sharing link…'
+                : 'Copying link…'
+              : share.data === 'shared'
+                ? 'Link shared.'
+                : share.data === 'copied'
+                  ? 'Link copied.'
+                  : null}
+          </output>
+        )}
         {exchange.isError ? (
           <p role="alert" className="mt-1 text-xs text-destructive">
             Could not make an exchange code: {errorMessage(exchange.error)}
@@ -1701,6 +1711,7 @@ export function ListBuilder({
             : undefined
         }
         errors={priced?.errors ?? []}
+        onResetOptions={pricePending ? undefined : edit.resetUnavailable}
         unhandled={priced?.unhandled ?? []}
         frozen={Boolean(frozen)}
         waivers={waivers}
