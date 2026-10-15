@@ -184,7 +184,9 @@ async function configure(value: Credentials) {
     ownerToken: value.owner.token,
     operatorToken: value.operator.token,
   })
-  console.log(`Product data migration: ${migrated.rosters} rosters, ${migrated.collection} favourites`)
+  console.log(
+    `Product data migration: ${migrated.rosters} rosters, ${migrated.collection} favourites, ${migrated.journal_games + migrated.journal_events} journal rows deleted`,
+  )
 }
 
 async function main() {

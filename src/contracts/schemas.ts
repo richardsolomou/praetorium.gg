@@ -365,7 +365,6 @@ export const detachmentRulesSchema = z.object({
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
 export const rosterIdSchema = z.object({ id })
-export const journalIdSchema = z.object({ id })
 /** `setup` saves a reviewed rules-version conversion as a variant, leaving the original as it was. */
 export const copyRosterSchema = z
   .object({ id, variant: z.boolean(), setup: saveRosterSchema.optional() })
@@ -380,6 +379,7 @@ export const rosterIdsSchema = z.object({
 export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({ before: rosterDiscoveryCursorSchema.nullable().default(null) })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
+export const rosterArchiveSchema = z.object({ id, archived: z.boolean() })
 export const rosterLoanSchema = z.object({ id, borrowerId: id })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })

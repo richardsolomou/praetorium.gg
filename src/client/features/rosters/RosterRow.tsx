@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import {
+  Archive,
+  ArchiveRestore,
   Copy,
   Download,
   EllipsisVertical,
@@ -213,6 +215,17 @@ function RosterActionItems({
         ) : (
           <>
             <Lock /> Lock roster
+          </>
+        )}
+      </Item>
+      <Item disabled={actions.archive.isPending} onClick={() => actions.archive.mutate({ id: roster.id, archived: !roster.archived })}>
+        {roster.archived ? (
+          <>
+            <ArchiveRestore /> Unarchive
+          </>
+        ) : (
+          <>
+            <Archive /> Archive
           </>
         )}
       </Item>

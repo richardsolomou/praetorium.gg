@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { Compass, ScrollText } from 'lucide-react'
+import { ChevronDown, Compass, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { currentRulesFor } from '../../../core/currentRules'
 import {
@@ -105,10 +106,16 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     savedResult.isPending || (needsFactions && availableResult.isPending) || (search.updates === 'changed' && changedResult.isPending)
   const libraryError =
     savedResult.isError || (needsFactions && availableResult.isError) || (search.updates === 'changed' && changedResult.isError)
-  const visible = variantGroups(shown).slice(0, visibleCount)
-  const groups = variantCards(visible)
+  const active = shown.filter((roster) => !roster.archived)
+  const archived = shown.filter((roster) => roster.archived)
+  const [archivedOpen, setArchivedOpen] = useState(false)
+  const visible = variantGroups(active).slice(0, visibleCount)
+  const archivedVisible = archivedOpen ? variantGroups(archived) : []
+  const cards = variantCards([...visible, ...archivedVisible])
+  const groups = cards.filter(({ head }) => head.index < visible.length)
+  const archivedGroups = cards.filter(({ head }) => head.index >= visible.length)
   const pages = useRosterPages(
-    visible.map(({ roster }) => roster.id),
+    [...visible, ...archivedVisible].map(({ roster }) => roster.id),
     Boolean(me && savedResult.isSuccess),
   )
   const pageResults = pages.results
@@ -140,6 +147,38 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
     visibility: roster.visibility,
   })
+  const renderCard = ({ head, variants }: (typeof cards)[number]) => {
+    const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
+      <RosterRow
+        key={roster.id}
+        roster={roster}
+        layout={layout}
+        faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
+        points={pageById.get(roster.id)?.points}
+        label={pageById.get(roster.id)?.label}
+        dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
+        factionLoading={availableResult.isPending}
+        pointsLoading={pages.pending(index)}
+        problem={pageById.get(roster.id)?.problem ?? null}
+        differences={pageById.get(roster.id)?.differences}
+        updates={{ olderRules: olderRules(roster), changes: pageById.get(roster.id)?.changes ?? 0 }}
+        showVisibility={roster.visibility !== head.roster.visibility}
+        actions={actions}
+        origin={origin}
+        onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+        onConvert={() => setEditing({ rosterId: roster.id, draft: setupOf(roster), mode: 'convert' })}
+        onDelete={() => setDeleting(roster)}
+      />
+    )
+    return variants.length ? (
+      <div key={head.roster.id} data-roster-group className="border border-edge bg-panel">
+        {row(head, 'base')}
+        {variants.map((variant) => row(variant, 'variant'))}
+      </div>
+    ) : (
+      row(head, 'card')
+    )
+  }
 
   if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to see the army lists saved to your account." />
 
@@ -217,7 +256,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             ) : libraryError ? (
               <span className="readout">—</span>
             ) : (
-              <span className="readout">{shown.length}</span>
+              <span className="readout">{active.length}</span>
             )}
           </div>
           <div className="mt-2 space-y-3">
@@ -242,40 +281,9 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                 <output className="sr-only">Loading your rosters…</output>
                 <RosterLibrarySkeleton />
               </div>
-            ) : shown.length ? (
+            ) : active.length ? (
               <>
-                {groups.map(({ head, variants }) => {
-                  const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
-                    <RosterRow
-                      key={roster.id}
-                      roster={roster}
-                      layout={layout}
-                      faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
-                      points={pageById.get(roster.id)?.points}
-                      label={pageById.get(roster.id)?.label}
-                      dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
-                      factionLoading={availableResult.isPending}
-                      pointsLoading={pages.pending(index)}
-                      problem={pageById.get(roster.id)?.problem ?? null}
-                      differences={pageById.get(roster.id)?.differences}
-                      updates={{ olderRules: olderRules(roster), changes: pageById.get(roster.id)?.changes ?? 0 }}
-                      showVisibility={roster.visibility !== head.roster.visibility}
-                      actions={actions}
-                      origin={origin}
-                      onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
-                      onConvert={() => setEditing({ rosterId: roster.id, draft: setupOf(roster), mode: 'convert' })}
-                      onDelete={() => setDeleting(roster)}
-                    />
-                  )
-                  return variants.length ? (
-                    <div key={head.roster.id} data-roster-group className="border border-edge bg-panel">
-                      {row(head, 'base')}
-                      {variants.map((variant) => row(variant, 'variant'))}
-                    </div>
-                  ) : (
-                    row(head, 'card')
-                  )
-                })}
+                {groups.map(renderCard)}
                 {pageResults.some((result) => result.isError) ? (
                   <Button
                     variant="outline"
@@ -284,7 +292,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                     Retry roster points and legality
                   </Button>
                 ) : null}
-                {visible.length < shown.length ? (
+                {visible.length < active.length ? (
                   <Button
                     variant="outline"
                     disabled={pageResults.some((result) => !result.isSuccess)}
@@ -298,13 +306,31 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
               <PageState
                 headingLevel={2}
                 eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
-                title={saved.length ? 'No rosters match' : 'No rosters yet'}
-                explanation={saved.length ? 'No rosters match these filters.' : 'No rosters yet. Create one or bring one from another app.'}
+                title={archived.length ? 'Every roster here is archived' : saved.length ? 'No rosters match' : 'No rosters yet'}
+                explanation={
+                  archived.length
+                    ? 'Archived rosters are listed below.'
+                    : saved.length
+                      ? 'No rosters match these filters.'
+                      : 'No rosters yet. Create one or bring one from another app.'
+                }
                 icon={ScrollText}
               />
             )}
           </div>
         </section>
+        {!libraryPending && !libraryError && archived.length ? (
+          <Collapsible render={<section />} open={archivedOpen} onOpenChange={setArchivedOpen}>
+            <CollapsibleTrigger className="group rubric flex w-full items-baseline gap-3 border-b border-edge pb-2 text-left hover:text-bone">
+              <span className="mr-auto">Archived</span>
+              <span className="readout">{archived.length}</span>
+              <ChevronDown className="size-4 self-center transition-transform group-data-panel-open:rotate-180" aria-hidden />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-2 space-y-3">{archivedGroups.map(renderCard)}</div>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
         {lent.length ? (
           <section>
             <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
@@ -322,7 +348,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>This removes the saved roster. Frozen copies in battles and leagues are kept.</AlertDialogDescription>
+            <AlertDialogDescription>
+              {deleting?.archived
+                ? 'This removes the saved roster for good. Frozen copies in battles and leagues are kept.'
+                : 'Deleting removes the saved roster for good. Archiving moves it out of the way, and you can unarchive it later. Frozen copies in battles and leagues are kept either way.'}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -335,6 +365,16 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             >
               Delete roster
             </AlertDialogAction>
+            {deleting && !deleting.archived ? (
+              <AlertDialogAction
+                onClick={() => {
+                  actions.archive.mutate({ id: deleting.id, archived: true })
+                  setDeleting(null)
+                }}
+              >
+                Archive instead
+              </AlertDialogAction>
+            ) : null}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

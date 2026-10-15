@@ -49,7 +49,6 @@ import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type M
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { RosterService } from './services/rosterService'
-import { JournalService } from './services/journalService'
 import { SocialService, sortedFriends } from './services/socialService'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
 
@@ -149,7 +148,6 @@ type SubmitArgs = [
 export class PraetoriumService {
   private readonly leagueService: LeagueService
   private readonly rosterService: RosterService
-  private readonly journalService: JournalService
   private readonly socialService: SocialService
 
   constructor(
@@ -161,7 +159,6 @@ export class PraetoriumService {
   ) {
     this.leagueService = new LeagueService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
-    this.journalService = new JournalService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
   }
 
@@ -309,28 +306,12 @@ export class PraetoriumService {
     return this.rosterService.setRosterLocked(...args)
   }
 
+  setRosterArchived(...args: Parameters<RosterService['setRosterArchived']>) {
+    return this.rosterService.setRosterArchived(...args)
+  }
+
   deleteRoster(...args: Parameters<RosterService['deleteRoster']>) {
     return this.rosterService.deleteRoster(...args)
-  }
-
-  journal(...args: Parameters<JournalService['journal']>) {
-    return this.journalService.journal(...args)
-  }
-
-  saveJournalGame(...args: Parameters<JournalService['saveGame']>) {
-    return this.journalService.saveGame(...args)
-  }
-
-  deleteJournalGame(...args: Parameters<JournalService['deleteGame']>) {
-    return this.journalService.deleteGame(...args)
-  }
-
-  saveJournalEvent(...args: Parameters<JournalService['saveEvent']>) {
-    return this.journalService.saveEvent(...args)
-  }
-
-  deleteJournalEvent(...args: Parameters<JournalService['deleteEvent']>) {
-    return this.journalService.deleteEvent(...args)
   }
 
   usableRoster(...args: Parameters<RosterService['usableRoster']>) {

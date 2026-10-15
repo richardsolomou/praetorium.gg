@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router'
 import {
   Calculator,
   Boxes,
-  NotebookPen,
   Gavel,
   History,
   Sparkles,
@@ -76,9 +75,6 @@ export function NativeMorePage() {
               <>
                 <Link to="/collection" className={secondaryClass}>
                   <Boxes className="size-5 text-info" /> Collection
-                </Link>
-                <Link to="/journal" className={secondaryClass}>
-                  <NotebookPen className="size-5 text-info" /> Game journal
                 </Link>
                 <Link to="/friends" className={secondaryClass}>
                   <Users className="size-5 text-info" /> Friends

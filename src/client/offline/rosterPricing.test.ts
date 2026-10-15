@@ -64,6 +64,7 @@ const roster: LocalRoster = {
   baseRosterId: null,
   copiedFromRosterId: null,
   locked: false,
+  archived: false,
   prep: null,
   waivedRules: [],
   optionalRules: [],
@@ -248,6 +249,14 @@ it.each([0, 1, 2])('shows %s rosters on Home after a pending deletion and locall
     count,
     priced: Array.from({ length: count }, () => 80),
   })
+})
+
+it('leaves archived rosters off Home while local edits are pending', async () => {
+  pending({ ...roster, updatedAt: 2 })
+  mocks.summaries.mockResolvedValue([roster, { ...roster, id: 'shelved', archived: true }])
+  mocks.price.mockResolvedValue({ points: 80, errors: [], unhandled: [], label: 'Army' })
+  const home = await homeRosters()
+  expect({ count: home.count, ids: home.rosters.map((entry) => entry.roster.id) }).toEqual({ count: 1, ids: ['army'] })
 })
 
 it('rejects a pending roster bootstrap if the account changes during server pricing', async () => {

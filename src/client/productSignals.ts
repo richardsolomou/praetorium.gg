@@ -22,7 +22,6 @@ const queryFamilies = {
   ],
   collection: ['collection', 'collection-counts', 'collection-profile'],
   favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets'],
-  journal: ['journal'],
   friends: ['friendships', 'friend-battles', 'shared-battles', 'opponents', 'player-profile', 'player-search'],
   invites: ['friend-invite'],
   onboarding: ['onboarding'],

@@ -50,6 +50,7 @@ export function RosterCombatComparison({
 }) {
   const me = useQuery({ ...meQuery(), enabled: !sources })
   const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: !sources && Boolean(me.data) })
+  const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
   const factions = useQuery(factionIndexQuery())
   const catalogue = useQuery({ ...combatUnitsQuery(), enabled: !sources })
   const [storedTargets, setStoredTargets] = useState<{ key: string; targets: BenchmarkTarget[] | null } | null>(null)
@@ -80,7 +81,7 @@ export function RosterCombatComparison({
     ...(currentRoster
       ? [{ id: 'current', label: 'Current roster', catalogueId: currentRoster.catalogueId, load: async () => [currentRoster] }]
       : []),
-    ...(saved.data ?? []).map((roster) => ({
+    ...activeRosters.map((roster) => ({
       id: roster.id,
       catalogueId: roster.catalogueId,
       label: rosterTitle(
@@ -302,7 +303,7 @@ export function RosterCombatComparison({
       {!sources && !currentRoster && !me.isPending && !me.data ? (
         <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
       ) : null}
-      {!sources && me.data && saved.isSuccess && !saved.data.length && !currentRoster ? (
+      {!sources && me.data && saved.isSuccess && !activeRosters.length && !currentRoster ? (
         <p className="text-sm text-dim">Save or import two rosters to start comparing targets.</p>
       ) : null}
       {readError ? (

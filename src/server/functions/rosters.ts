@@ -24,6 +24,7 @@ import {
   rosterDiscoverySchema,
   rosterIdsSchema,
   rosterInBattleSchema,
+  rosterArchiveSchema,
   rosterLockSchema,
   rosterLoanSchema,
   rosterVisibilitySchema,
@@ -351,6 +352,17 @@ export const setRosterLocked = createServerFn({ method: 'POST' })
       const player = await requireUser()
       const saved = await app().service.setRosterLocked(player.id, data.id, data.locked)
       await app().telemetry.capture(player.id, 'roster_lock_updated', { locked: data.locked })
+      return saved
+    }),
+  )
+
+export const setRosterArchived = createServerFn({ method: 'POST' })
+  .validator(rosterArchiveSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const saved = await app().service.setRosterArchived(player.id, data.id, data.archived)
+      await app().telemetry.capture(player.id, 'roster_archive_updated', { archived: data.archived })
       return saved
     }),
   )
