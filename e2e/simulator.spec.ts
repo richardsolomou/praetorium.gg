@@ -179,6 +179,25 @@ test('the unit picker keeps only distinct faction contexts', async ({ page }) =>
   await expect(page.getByRole('option', { name: /^Impulsor, Space Marines,/ })).toBeVisible()
 })
 
+test('the unit picker says units are loading instead of finding no matches', async ({ page }) => {
+  const held = Promise.withResolvers<void>()
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'GET') await held.promise
+    await route.continue()
+  })
+  try {
+    await page.goto('/simulator')
+    await retryUntilVisible(page.getByPlaceholder('Search units…'), () =>
+      page.getByRole('combobox', { name: 'Attacker unit', exact: true }).click(),
+    )
+    await expect(page.getByText('Loading units…', { exact: true })).toBeVisible()
+    await expect(page.getByText('No matches.')).toHaveCount(0)
+  } finally {
+    held.resolve()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+})
+
 test('weapon switches leave profiles visible and shared modifiers can be overridden by phase', async ({ page }) => {
   await page.goto('/simulator')
   await matchup(page)

@@ -58,6 +58,8 @@ type Props = {
   onboarding?: OnboardingTarget
   /** Renders only the visible rows, for lists too long to mount at once. */
   virtualized?: boolean
+  /** Shown when no option matches, such as while the options are still loading. */
+  emptyText?: string
 }
 
 export function SearchableSelect({
@@ -77,6 +79,7 @@ export function SearchableSelect({
   trigger,
   onboarding,
   virtualized = false,
+  emptyText = 'No matches.',
 }: Props) {
   const options = useMemo(() => groups.flatMap((group) => group.items.map((option) => ({ ...option, group: group.label }))), [groups])
   const selected = options.find((option) => option.value === value) ?? null
@@ -131,7 +134,7 @@ export function SearchableSelect({
         className={cn('transition-none', trigger ? 'w-72 min-w-64 max-w-[calc(100vw-2rem)]' : undefined, popupClassName)}
       >
         <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
-        <ComboboxEmpty className="text-dim">No matches.</ComboboxEmpty>
+        <ComboboxEmpty className="text-dim">{emptyText}</ComboboxEmpty>
         <ComboboxList ref={list} className={virtualized ? 'max-h-none overflow-visible p-0' : undefined}>
           {virtualized ? (
             <VirtualOptions handle={virtual} selected={value} />
