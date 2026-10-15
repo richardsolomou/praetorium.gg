@@ -16,6 +16,8 @@ Keep contextual help brief. Player guides combine practical preparation, army ro
 
 Compact roster panes use browser history and stop above the application tabs. Closing a datasheet returns to the picker or roster that opened it; returning to the picker must leave its Close button usable. Verify the full picker → datasheet → picker → roster sequence. Required battle prompts leave application navigation reachable. At intermediate website widths, compact panes remain modal dialogs. [Mobile](mobile.md#shell-boundaries) owns native Back behavior.
 
+Send feedback opens one dialog over the current page wherever it is offered: the account menu on every layout, the website footer, the native More page and Support. Do not add another entry point to a surface that already has one. [Telemetry](telemetry.md#feedback) owns what it sends.
+
 Release notices use one compact sentence and a manual Refresh action, centred at the bottom above any application tabs. Match a supplied interface reference before adding copy or secondary actions.
 
 ## Components and styles
@@ -83,7 +85,7 @@ League cards lead with format and listing, then name and description or organize
 
 ## Other surfaces
 
-What's new and Data updates share the Updates navigation. Release panels pair their version with the recorded changes and highlight the installed version. Data-update panels retain native disclosures, faction fragment links and pagination; separate army names from their rules-version detail without changing the full accessible label. Additions are green, removals red and points changes amber. Verify both pages at phone and desktop widths in `e2e/update-pages.spec.ts`, alongside the release-notice and data-anchor journeys. Acknowledging the release notice hides it in every open window through the stored seen version's `storage` event.
+What's new and Data updates share the Updates navigation. Release panels pair their version with the recorded changes and highlight the installed version. Data-update panels retain native disclosures, faction fragment links and pagination; separate army names from their rules-version detail without changing the full accessible label. Additions are green, removals red and points changes amber. Verify both pages at phone and desktop widths in `e2e/update-pages.spec.ts`, alongside the release-notice and data-anchor journeys.
 
 Import new guide illustrations from client source with `?no-inline` so Vite emits hashed assets that deployment publishes before changing replicas.
 

@@ -1,4 +1,5 @@
 import { PROFILE_IMAGE_MAX_LENGTH } from '../../../authConfig'
+import { canvasBlob, dataUrl } from '../../imageFile'
 
 const INPUT_MAX_BYTES = 10_000_000
 const PROFILE_IMAGE_SIZES = [256, 192, 128]
@@ -39,20 +40,4 @@ export async function prepareProfileImage(file: File): Promise<string> {
   } finally {
     source.close()
   }
-}
-
-function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
-  return new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('The profile picture could not be prepared.'))), type, quality),
-  )
-}
-
-function dataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () =>
-      typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('The profile picture could not be read.'))
-    reader.onerror = () => reject(new Error('The profile picture could not be read.'))
-    reader.readAsDataURL(blob)
-  })
 }

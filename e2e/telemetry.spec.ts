@@ -25,7 +25,7 @@ async function recordEvents(page: Page) {
         typeof value.identify === 'function',
     ) as
       | {
-          capture: (name: string, properties?: Record<string, unknown>) => void
+          capture: (name: string, properties?: Record<string, unknown>) => unknown
           captureException: (error: unknown, properties?: Record<string, unknown>) => void
         }
       | undefined
@@ -34,7 +34,8 @@ async function recordEvents(page: Page) {
       void (
         window as unknown as { recordTelemetry: (name: string, properties?: Record<string, unknown>) => Promise<void> }
       ).recordTelemetry(name, properties)
-    client.capture = record
+    // A queued event is what the SDK returns, so callers that check it see a sent event.
+    client.capture = (name, properties) => (record(name, properties), { event: name, properties })
     // The SDK drops exceptions until it is configured, which browser test stacks never do.
     client.captureException = (error, properties) =>
       record('$exception', { message: error instanceof Error ? error.message : String(error), ...properties })
@@ -232,3 +233,93 @@ for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) 
       .toEqual([{ name: 'guest_roster_save_started', properties: { unit_count: units.length } }])
   })
 }
+
+const SCREENSHOT = {
+  name: 'screenshot.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'),
+}
+const SCREENSHOT_URL = /^http:\/\/[^/]+\/api\/feedback-screenshots\/[0-9a-f-]{36}$/
+
+test('feedback is sent as a survey response from the page the player is on', async ({ page }) => {
+  await page.goto('/factions')
+  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
+  const events = await recordEvents(page)
+  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
+  await retryUntilVisible(dialog, () => page.locator('[data-web-app-footer]').getByRole('button', { name: 'Send feedback' }).click())
+  await dialog.getByRole('button', { name: 'Idea' }).click()
+  await dialog.getByLabel('Message').fill('  Group factions by alliance  ')
+  await dialog.getByLabel('Email for a reply (optional)').fill('guest@example.com')
+  await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
+  await expect(dialog.getByRole('img', { name: 'Attached screenshot' })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+
+  await expect(dialog.getByRole('status')).toHaveText('Thanks, your feedback was sent.')
+  await expect(page).toHaveURL(/\/factions$/)
+  expect(events.filter((event) => event.name === 'survey sent')).toEqual([
+    {
+      name: 'survey sent',
+      properties: expect.objectContaining({
+        $survey_id: '01a14042-306c-0000-f070-c4fc0aadccf2',
+        $survey_completed: true,
+        '$survey_response_38c2962f-d6ad-4daf-95b9-1a7b540d24ed': 'Idea',
+        '$survey_response_1e9261de-1a9e-4465-b2a6-cc43acd873f4': 'Group factions by alliance',
+        '$survey_response_70a4cb45-54cf-44c4-aabf-bbdb555b9caf': 'guest@example.com',
+        screenshot_url: expect.stringMatching(SCREENSHOT_URL),
+      }),
+    },
+  ])
+  const screenshot = await page.request.get(events.find((event) => event.name === 'survey sent')!.properties.screenshot_url as string)
+  expect(screenshot.status()).toBe(401)
+})
+
+test('an administrator sends feedback without an email field and opens its screenshot', async ({ page }) => {
+  await page.goto('/sign-in')
+  // Filling before hydration submits the form natively and never signs in.
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Email').fill('preview@praetorium.gg')
+  await page.getByLabel('Password').fill('preview-preview-preview')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.waitForURL('/')
+  await page.goto('/factions')
+  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
+  const events = await recordEvents(page)
+  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
+  await retryUntilVisible(dialog, () => page.locator('[data-web-app-footer]').getByRole('button', { name: 'Send feedback' }).click())
+  await expect(dialog.getByLabel('Email for a reply (optional)')).toHaveCount(0)
+  await dialog.getByLabel('Message').fill('Attached the broken layout')
+  await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
+  await expect(dialog.getByRole('img', { name: 'Attached screenshot' })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+
+  await expect(dialog.getByRole('status')).toHaveText('Thanks, your feedback was sent.')
+  const sent = events.find((event) => event.name === 'survey sent')!
+  expect(sent.properties).not.toHaveProperty('$survey_response_70a4cb45-54cf-44c4-aabf-bbdb555b9caf')
+  const screenshot = await page.request.get(sent.properties.screenshot_url as string)
+  expect([screenshot.status(), screenshot.headers()['content-type'], screenshot.headers()['cache-control']]).toEqual([
+    200,
+    expect.stringMatching(/^image\/(?:webp|jpeg)$/),
+    'private, no-store',
+  ])
+})
+
+test('feedback that cannot be sent keeps the message and offers the issue tracker', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/factions')
+  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
+  const feedback = page.getByRole('menuitem', { name: 'Send feedback' })
+  await retryUntilVisible(dialog, async () => {
+    if (!(await feedback.isVisible())) await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu' }).click()
+    await feedback.click({ timeout: 1_000 })
+  })
+  await dialog.getByLabel('Message').fill('The list will not scroll')
+  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+
+  await expect(dialog.getByRole('alert').getByRole('link', { name: 'report it on GitHub' })).toHaveAttribute(
+    'href',
+    'https://github.com/richardsolomou/praetorium.gg/issues/new',
+  )
+  await expect(dialog.getByLabel('Message')).toHaveValue('The list will not scroll')
+  await expect(page).toHaveURL(/\/factions$/)
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+})

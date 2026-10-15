@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="12 October 2026">
+    <LegalPage title="Privacy policy" updated="15 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -51,6 +51,10 @@ export function PrivacyPolicy() {
           session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or
           the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security
           and administration screens are not recorded. Only signed-in visitors get an identified profile.
+        </p>
+        <p>
+          Feedback you send is stored in PostHog with its message, any email address you add for a reply, and the page and replay of the
+          visit you sent it from. A screenshot you attach is stored privately and only administrators can open it.
         </p>
       </LegalSection>
 
