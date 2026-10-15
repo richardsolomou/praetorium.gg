@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.147.0
+
+### Minor Changes
+
+- 78065fe: Archive a roster instead of deleting it. Archived rosters move to a collapsible section at the bottom of your roster library, stay off Home and out of the battle, league and simulator roster choosers, and come back with Unarchive.
+- 78065fe: The game journal is gone, and its saved games and events are deleted.
+
+### Patch Changes
+
+- 7aba302: Battle rows label a conceded or early finish as "Conceded" or "Finished early".
+- 7aba302: Battle rows show their battlefield as soon as the page appears instead of adding it a moment later.
+- 087891e: Home no longer shows a Getting started checklist; a new account's Home leads with its rosters.
+- 7aba302: The roster library shows only its loading placeholders, without a separate loading line above them.
+
 ## 0.146.1
 
 ### Patch Changes
