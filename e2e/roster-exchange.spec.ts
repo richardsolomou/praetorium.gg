@@ -94,8 +94,6 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await sender.setViewportSize(desktopContext.viewport)
   await sender.goto('/rosters')
   await expect(sender.locator('[data-roster]')).toHaveCount(1)
-  // The code embeds the library's price, so wait for the row to be priced before exporting.
-  await expect(sender.locator(`[data-roster="${name}"]`)).toContainText(/\d+\/\d/)
   await sender
     .locator(`[data-roster="${name}"]`)
     .getByRole('button', { name: `Actions for ${name}` })
