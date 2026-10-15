@@ -59,6 +59,70 @@ describe('catalogue coverage comparison', () => {
     expect(compareCatalogueCoverage(base, head, [], catalogue).lost).toEqual(lost)
   })
 
+  it.each([
+    {
+      scenario: 'keeps wargear whose count rises',
+      before: { models: ['Marine (2 rows, 1 fixed)'], wargear: ['Bolt pistol ×4'] },
+      after: { models: ['Marine (3 rows, 1 fixed)'], wargear: ['Bolt pistol ×5'] },
+      lost: [],
+    },
+    {
+      scenario: 'reports wargear whose count falls',
+      before: { models: ['Marine (2 rows, 1 fixed)'], wargear: ['Bolt pistol ×4'] },
+      after: { models: ['Marine (2 rows, 1 fixed)'], wargear: ['Bolt pistol ×3'] },
+      lost: ['example-faction / Example Unit roster wargear: Bolt pistol ×4'],
+    },
+    {
+      scenario: 'reports a model kind that loses fixed equipment while gaining rows',
+      before: { models: ['Marine (2 rows, 1 fixed)'], wargear: [] },
+      after: { models: ['Marine (3 rows, 0 fixed)'], wargear: [] },
+      lost: ['example-faction / Example Unit roster models: Marine (2 rows, 1 fixed)'],
+    },
+    {
+      scenario: 'reports wargear renamed along with its count',
+      before: { models: [], wargear: ['Bolt pistol ×4'] },
+      after: { models: [], wargear: ['Plasma pistol ×5'] },
+      lost: ['example-faction / Example Unit roster wargear: Bolt pistol ×4'],
+    },
+  ])('$scenario', ({ before, after, lost }) => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-count-coverage-'))
+    temporaryDirectories.push(root)
+    const catalogue = path.join(root, 'catalogue')
+    fs.mkdirSync(path.join(catalogue, 'datacards', '11th', 'gdc'), { recursive: true })
+    const snapshot = ({ models, wargear }: { models: string[]; wargear: string[] }) => [
+      {
+        name: 'Example Faction',
+        slug: 'example-faction',
+        armyRules: [],
+        detachments: [],
+        datasheets: [
+          {
+            name: 'Example Unit',
+            points: 80,
+            profiles: [],
+            abilities: [],
+            keywordRules: [],
+            attachments: [],
+            leaders: [],
+            composition: 0,
+            wargearOptions: 0,
+            keywords: 0,
+            loadout: false,
+            baseSize: false,
+            roster: { points: 80, models, wargear, choices: [], errors: [], deployment: [] },
+          },
+        ],
+      },
+    ]
+    const base = path.join(root, 'base.json')
+    const head = path.join(root, 'head.json')
+    fs.writeFileSync(base, JSON.stringify(snapshot(before)))
+    fs.writeFileSync(head, JSON.stringify(snapshot(after)))
+
+    expect(compareCatalogueCoverage(base, head, [], catalogue).lost).toEqual(lost)
+  })
+
   it('keeps a roster option when another option joins its group', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-choice-coverage-'))
