@@ -107,6 +107,33 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await expect(reopened.getByLabel('List name')).toHaveValue('Edited on the plane')
 })
 
+test('a roster still waiting to sync opens in a new tab and a missing one shows not found', async ({ page, context }) => {
+  test.setTimeout(240_000)
+  await signUp(page, uniqueName('Unsynced tab'))
+  await context.route('**/_serverFn/**', (route) =>
+    (route.request().postData() ?? '').includes('operationId') ? route.abort() : route.continue(),
+  )
+  await page.goto('/rosters')
+  const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
+  await dialog.getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByPlaceholder('Search factions…').fill('Necrons')
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await dialog.getByRole('button', { name: /^Select Awakened Dynasty$/ }).click()
+  const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
+  if ((await dispositions.count()) > 1) await dispositions.first().click()
+  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const name = await page.getByLabel('List name').inputValue()
+  expect(await (await productOperator()).roster(id)).toBeFalsy()
+  const tab = await context.newPage()
+  await tab.goto(`/rosters/${id}`)
+  await expect(tab.getByLabel('List name')).toHaveValue(name)
+  await tab.goto(`/rosters/${crypto.randomUUID()}`)
+  await expect(tab.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+})
+
 test('a lost save response retains its identity and later edits sync in order', async ({ page, context }) => {
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Intermittent connection'))

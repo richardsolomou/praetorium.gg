@@ -1,5 +1,5 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { createFileRoute, notFound, useRouter } from '@tanstack/react-router'
+import { useEffect, useMemo } from 'react'
 import { fieldedRoster } from '../client/features/rosters/fieldedRoster'
 import { RosterPage } from '../client/features/rosters/RosterPage'
 import {
@@ -83,7 +83,11 @@ export const Route = createFileRoute('/rosters/$id/')({
           if (fresh) seedBootstrap(fresh, context.queryClient.getQueryState(bootstrapOptions.queryKey)!.dataUpdatedAt)
         })
         .catch(() => {})
-    if (!bootstrap) throw notFound()
+    if (!bootstrap) {
+      // A roster made on a device that has not synced yet exists only in that browser's storage.
+      if (import.meta.env.SSR) return { editable: false, snapshot: false, onDevice: true }
+      throw notFound()
+    }
     const updatedAt = cachedUpdatedAt ?? context.queryClient.getQueryState(bootstrapOptions.queryKey)!.dataUpdatedAt
     seedBootstrap(bootstrap, updatedAt)
     const { editable, price } = bootstrap
@@ -105,7 +109,7 @@ export const Route = createFileRoute('/rosters/$id/')({
   head: ({ loaderData, match, params }) => {
     const preview = loaderData?.preview
     const exposure = loaderData?.exposure
-    if (!preview || !exposure) return loaderData?.snapshot ? { meta: [{ name: 'robots', content: 'noindex' }] } : {}
+    if (!preview || !exposure) return loaderData?.snapshot || loaderData?.onDevice ? { meta: [{ name: 'robots', content: 'noindex' }] } : {}
     const path = `/rosters/${params.id}`
     return pageHead(match.context.origin, {
       title: preview.title,
@@ -121,7 +125,7 @@ export const Route = createFileRoute('/rosters/$id/')({
 function RosterRoute() {
   const { id } = Route.useParams()
   const { battle, league, event, print, add } = Route.useSearch()
-  const { editable, snapshot, league: leagueSnapshot } = Route.useLoaderData()
+  const { editable, snapshot, league: leagueSnapshot, onDevice } = Route.useLoaderData()
   const navigate = Route.useNavigate()
   const requested = useMemo(
     () =>
@@ -130,6 +134,7 @@ function RosterRoute() {
         : undefined,
     [add, navigate],
   )
+  if (onDevice) return <DeviceRoster />
   return (
     <RosterPage
       id={id}
@@ -143,4 +148,12 @@ function RosterRoute() {
       requested={requested}
     />
   )
+}
+
+function DeviceRoster() {
+  const router = useRouter()
+  useEffect(() => {
+    void router.invalidate({ filter: (match) => match.routeId === Route.id })
+  }, [router])
+  return <RosterLoading />
 }
