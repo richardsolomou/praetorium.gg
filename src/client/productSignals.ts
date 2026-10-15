@@ -13,7 +13,6 @@ const queryFamilies = {
     'saved-roster-changed-ids',
     'roster-changes',
     'saved-roster-loadout-datasheets',
-    'saved-roster-price',
     'player-rosters',
     'player-profile',
     'discovered-rosters',
@@ -129,6 +128,17 @@ export function invalidatePublicProductQueries(queryClient: QueryClient, scope?:
       ? publicQueryFamilies[scope as keyof typeof publicQueryFamilies]
       : Object.values(publicQueryFamilies).flat()
   const keys = new Set<string>(families)
+  return queryClient.invalidateQueries({ predicate: (query) => keys.has(query.queryKey[0] as string) })
+}
+
+/**
+ * Refreshes every product query once, for a connection that cannot tell what changed before it arrived.
+ *
+ * Several query families sit in both the account and the public lists, so refreshing the two lists apart would
+ * fetch those twice, the second request cancelling the first.
+ */
+export function invalidateEveryProductQuery(queryClient: QueryClient, signedIn: boolean) {
+  const keys = new Set<string>([...Object.values(publicQueryFamilies).flat(), ...(signedIn ? Object.values(queryFamilies).flat() : [])])
   return queryClient.invalidateQueries({ predicate: (query) => keys.has(query.queryKey[0] as string) })
 }
 

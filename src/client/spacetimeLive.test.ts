@@ -209,18 +209,20 @@ function apply(rows: { product?: { scope: string; revision: bigint }[]; battle?:
     onError: () => subscription,
     subscribe: vi.fn(),
   }
+  const db = {
+    mySession: table(),
+    myBattleSignals: table(rows.battle),
+    myProductSignals: table(rows.product),
+    myAdminSignals: table(),
+    publicProductSignals: table(),
+  }
   socket.connected!({
-    db: {
-      mySession: table(),
-      myBattleSignals: table(rows.battle),
-      myProductSignals: table(rows.product),
-      myAdminSignals: table(),
-      publicProductSignals: table(),
-    },
+    db,
     subscriptionBuilder: () => subscription,
     reducers: { watchBattle: vi.fn(async () => {}) },
   })
   socket.applied!()
+  return db
 }
 
 it('refreshes only the scopes that changed while a product connection was renewed', async () => {
@@ -249,6 +251,53 @@ it('refreshes only the scopes that changed while a product connection was renewe
   expect([...refreshed]).toEqual(['roster-bootstrap'])
 })
 
+const refreshesOf = (key: string) =>
+  (mocks.invalidateQueries.mock.calls as unknown as [{ predicate?: (query: unknown) => boolean }][]).filter(([filter]) =>
+    filter.predicate?.({ queryKey: [key] }),
+  ).length
+
+it('refreshes a query both signal lists follow once when a product connection first opens', async () => {
+  vi.stubGlobal('fetch', issued())
+  useSpacetimeLiveProduct(product, true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply()
+  expect(refreshesOf('leagues')).toBe(1)
+})
+
+it('refreshes no account query when a signed-out connection first opens', async () => {
+  vi.stubGlobal('fetch', issued())
+  useSpacetimeLiveProduct(product, false)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply()
+  expect({ public: refreshesOf('public-battles'), account: refreshesOf('collection') }).toEqual({ public: 1, account: 0 })
+})
+
+it('ignores a signal row the first catch-up already read', async () => {
+  vi.stubGlobal('fetch', issued())
+  useSpacetimeLiveProduct(product, true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  const db = apply({ product: [{ scope: 'collection', revision: 3n }] })
+  mocks.invalidateQueries.mockClear()
+  const inserted = db.myProductSignals.onInsert.mock.calls[0]![0] as (context: unknown, row: unknown) => void
+  inserted({}, { scope: 'collection', revision: 3n })
+  expect(refreshesOf('collection')).toBe(0)
+})
+
+it('refreshes a scope whose signal moves after the catch-up', async () => {
+  vi.stubGlobal('fetch', issued())
+  useSpacetimeLiveProduct(product, true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  const db = apply({ product: [{ scope: 'collection', revision: 3n }] })
+  mocks.invalidateQueries.mockClear()
+  const updated = db.myProductSignals.onUpdate.mock.calls[0]![0] as (context: unknown, old: unknown, row: unknown) => void
+  updated({}, {}, { scope: 'collection', revision: 4n })
+  expect(refreshesOf('collection')).toBe(1)
+})
+
 it('does not refetch a battle screen that already holds the sequence a renewed connection reports', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
   mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
@@ -257,6 +306,19 @@ it('does not refetch a battle screen that already holds the sequence a renewed c
   await vi.advanceTimersByTimeAsync(0)
   apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
   expect(mocks.invalidateQueries.mock.calls).not.toContainEqual([{ queryKey: ['battle', 'battle-token'] }])
+})
+
+it('asks for an open battle again when its signal leaves, as it does when the battle is deleted', async () => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  const db = apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
+  mocks.invalidateQueries.mockClear()
+  const deleted = db.myBattleSignals.onDelete.mock.calls[0]![0] as (context: unknown, row: unknown) => void
+  deleted({}, { battleId: 'battle-id', seq: 7 })
+  expect(mocks.invalidateQueries.mock.calls).toContainEqual([{ queryKey: ['battle', 'battle-token'] }])
 })
 
 it.each([401, 403, 404])('stops asking for a battle ticket the viewer is refused (HTTP %s)', async (status) => {
