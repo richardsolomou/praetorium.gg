@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.146.1
+
+### Patch Changes
+
+- 500fede: Every feedback response, including automatic import failure reports, is emailed to the administrators.
+- c47f5bf: The Support page opens the feedback form in place, with the public issue tracker kept as the public alternative.
+
 ## 0.146.0
 
 ### Minor Changes
