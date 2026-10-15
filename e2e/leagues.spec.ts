@@ -639,7 +639,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
 })
 
 for (const { rules, status } of [
-  { rules: 'Custodes codex · 17 Oct 2026 · Preview', status: 'preview' },
+  { rules: undefined, status: 'current' },
   { rules: 'MFM 1.4 · Archived', status: 'archived' },
 ]) {
   test(`seals ${status} rules rosters in a league and preserves the selected catalogue`, async ({ page }) => {
@@ -699,11 +699,11 @@ for (const { rules, status } of [
     await revealEvent(page)
     await viewList(page, ownerName).click()
     await expect(page).toHaveURL(/\/rosters\/[^?]+\?league=/)
-    if (status === 'preview') await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', `Rules version: ${rules}`)
+    if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
     await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
     await page.reload()
     await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
-    if (status === 'preview') await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', `Rules version: ${rules}`)
+    if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
   })
 }
 

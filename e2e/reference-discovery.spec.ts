@@ -103,7 +103,7 @@ async function custodesRoster(page: Page, archived?: string) {
     const conversion = page.getByRole('dialog', { name: 'Convert rules version' })
     await conversion.getByRole('combobox', { name: 'Rules version' }).click()
     await page.getByRole('option', { name: archived, exact: true }).click()
-    await chooseDetachment(conversion, 'Aquilan Shield')
+    await chooseDetachment(conversion, 'Shield Host')
     await confirmRosterSetup(conversion)
     await expect(conversion).not.toBeVisible()
   }
@@ -111,6 +111,9 @@ async function custodesRoster(page: Page, archived?: string) {
 }
 
 async function chooseDetachment(dialog: Locator, detachment: string) {
+  await expect(dialog.getByRole('button', { name: `Select ${detachment}`, exact: true })).toBeVisible()
+  const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
+  if (await unavailable.isVisible()) await unavailable.click()
   await dialog.getByRole('button', { name: `Select ${detachment}`, exact: true }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
@@ -119,8 +122,8 @@ async function chooseDetachment(dialog: Locator, detachment: string) {
 test('reference roster choices distinguish saved rules versions', async ({ page }) => {
   await signUp(page, 'Rules chooser')
   const current = await custodesRoster(page)
-  const archived = await custodesRoster(page, 'Custodes codex · 17 Oct 2026 · Archived')
-  await page.goto('/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/allarus-custodians')
+  const archived = await custodesRoster(page, 'MFM 1.5 · Archived')
+  await page.goto('/factions/adeptus-custodes/rules/mfm-1-6/datasheets/allarus-custodians')
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Add to', exact: true }).click()
   await page
@@ -133,18 +136,18 @@ test('reference roster choices distinguish saved rules versions', async ({ page 
     await page.setViewportSize(viewport)
     await expect(chooser.getByRole('link')).toHaveCount(2)
     await expect(chooser.locator(`a[href^="${current}?"]`)).toContainText('MFM 1.6 · Current')
-    await expect(archivedChoice).toContainText('Custodes codex · 17 Oct 2026 · Archived')
+    await expect(archivedChoice).toContainText('MFM 1.5 · Archived')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: `test-results/reference-roster-chooser-${viewport.width}.png`, fullPage: true })
   }
   await page.setViewportSize(desktop)
-  await archivedChoice.click()
+  await chooser.locator(`a[href^="${current}?"]`).click()
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toBeVisible()
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await page.reload()
   for (const viewport of [desktop, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('180')
-    await expect(page.locator('[data-rules-version="custodes-11e"]')).toBeVisible()
+    await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
   }
 })
