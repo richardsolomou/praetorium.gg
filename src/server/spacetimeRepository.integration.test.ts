@@ -115,7 +115,7 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
           snapshot,
           now: now.getTime(),
         }),
-      ).toEqual({ outcome: 'sealed', format: '1v1', requiredLimit: 2_000, revealedIds: null })
+      ).toEqual({ outcome: 'sealed', format: '1v1', requiredLimit: 2_000 })
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([])
       await operator.saveRoster({ ...savedInput, name: `${name} changed in the same millisecond` })
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toHaveLength(1)
@@ -210,7 +210,6 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
       now: now.getTime(),
     })
     for (const seal of seals) await repository.joinLeague(fullLeagueToken, seal.userId, now.getTime(), 128)
-    const revealedBy = []
     for (const seal of seals) {
       const result = await repository.submitLeagueRoster({
         token: fullLeagueToken,
@@ -222,10 +221,10 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
         snapshot: seal.snapshot,
         now: now.getTime(),
       })
-      revealedBy.push(result.outcome === 'sealed' ? (result.revealedIds?.toSorted() ?? null) : result.outcome)
+      expect(result.outcome).toBe('sealed')
     }
-    // The last list into a full league opens every list without the organizer.
-    expect(revealedBy).toEqual([null, [creatorId, opponentId].toSorted()])
+    // Filling the last place leaves the lists sealed until someone reveals them.
+    expect((await repository.leagueByToken(fullLeagueToken, null))?.revealedAt).toBeNull()
   } finally {
     await operator.deleteUserData(opponentId)
     await operator.deleteBattle(battleId, creatorId)

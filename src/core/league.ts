@@ -169,15 +169,6 @@ export function mayRevealLeague(isOwner: boolean, entry: { status: LeagueEntrySt
   return isOwner || entry?.status === 'accepted'
 }
 
-/** Whether sealing this list opens every list without the organizer: a full event whose reveal checks all pass. */
-export function leagueRevealsItself(
-  event: { format: TableShape | null; rosterLimit: number | null; playerLimit: number | null },
-  entries: readonly LeagueRevealEntry[],
-) {
-  const accepted = entries.filter((entry) => entry.status === 'accepted').length
-  return event.playerLimit !== null && accepted === event.playerLimit && leagueRevealChecklist(event, entries).every((check) => check.done)
-}
-
 export function visibleLeagueEntries<T extends LeagueEntryView>(entries: readonly T[], organizer: boolean, viewerId: string | null) {
   return entries.filter((entry) => entry.status === 'accepted' || organizer || entry.userId === viewerId)
 }

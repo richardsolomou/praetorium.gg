@@ -862,7 +862,6 @@ async function seedInto(
           input.eventToken,
         )
       }
-      let revealed = false
       for (const entry of input.entries) {
         const saved = await repository.roster(entry.rosterId)
         if (!saved) throw new Error(`${entry.rosterId} was not saved`)
@@ -878,21 +877,19 @@ async function seedInto(
           now: now(),
         })
         if (result.outcome !== 'sealed') throw new Error(`${saved.name} could not be sealed: ${result.outcome}`)
-        revealed = result.revealedIds !== null
       }
-      // A pair whose lists chose different cards settles its one Force Disposition, which reveals a full event.
+      // A pair whose lists chose different cards settles its one Force Disposition before the reveal.
       for (const entry of input.entries) {
-        if (revealed || !entry.teamId) continue
+        if (!entry.teamId) continue
         const team = (await repository.leagueByToken(input.token, entry.userId, input.eventToken))?.entries.find(
           (candidate) => candidate.userId === entry.userId,
         )?.team
         if (!team || team.disposition || !team.choices[0]) continue
         const result = await repository.setLeagueTeamDisposition(input.token, entry.userId, team.choices[0], now(), input.eventToken)
         if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Force Disposition: ${result.outcome}`)
-        revealed = result.revealedIds !== null
       }
-      // Every seeded event fills its places, so its last list reveals it.
-      if (!revealed) throw new Error(`${input.name} was not revealed by its last list`)
+      const reveal = await repository.revealLeague(input.token, input.ownerId, now(), input.eventToken)
+      if (reveal.outcome !== 'revealed') throw new Error(`${input.name} could not be revealed: ${reveal.outcome}`)
     }
     if (await repository.battleByToken(input.battle.token)) return
     const battleRosters = input.entries.map((entry) => [entry.userId, entry.rosterId] as const)

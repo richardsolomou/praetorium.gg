@@ -506,7 +506,6 @@ export class SpacetimeRepository {
           outcome: z.literal('sealed'),
           format: z.enum(['1v1', '2v1', '2v2']).nullable(),
           requiredLimit: z.number().nullable(),
-          revealedIds: z.array(z.string()).nullable(),
         }),
         z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit']) }),
         z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(['1v1', '2v1', '2v2']).nullable() }),
@@ -518,10 +517,7 @@ export class SpacetimeRepository {
   setLeagueTeamDisposition(token: string, ownerId: string, disposition: string, now: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'set-team-disposition', token, ownerId, disposition, now, eventToken: eventToken ?? '' },
-      z.union([
-        z.object({ outcome: z.literal('chosen'), revealedIds: z.array(z.string()).nullable() }),
-        z.object({ outcome: z.enum(['missing', 'closed', 'not-offered']) }),
-      ]),
+      z.union([z.object({ outcome: z.literal('chosen') }), z.object({ outcome: z.enum(['missing', 'closed', 'not-offered']) })]),
     )
   }
 

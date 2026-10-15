@@ -551,7 +551,7 @@ test('an admin the owner chooses runs the league but cannot delete it', async ({
   await Promise.all([ownerContext.close(), adminContext.close()])
 })
 
-test('a full league opens every list when its last place seals one', async ({ browser }) => {
+test('a full league keeps its lists sealed until someone reveals them', async ({ browser }) => {
   const [ownerContext, opponentContext] = await Promise.all([browser.newContext(), browser.newContext()])
   const [owner, opponent] = await Promise.all([ownerContext.newPage(), opponentContext.newPage()])
   const ownerName = uniqueName('FullOwner')
@@ -574,11 +574,11 @@ test('a full league opens every list when its last place seals one', async ({ br
   await expect(opponent.getByRole('dialog', { name: 'Seal a roster' })).toBeVisible()
   await chooseRosterToSeal(opponent, 'Full opponent list')
 
-  await expect(leagueHeader(opponent)).toContainText('Lists revealed')
-  await expect(opponent.locator('[data-entry-status]')).toContainText(`Still to play: ${ownerName}.`)
+  // Filling the last place does not open the lists; someone playing still chooses to.
+  await expect(opponent.getByRole('heading', { name: 'Your list is sealed' })).toBeVisible()
+  await expect(leagueHeader(opponent)).not.toContainText('Lists revealed')
   await owner.reload()
-  await expect(leagueHeader(owner)).toContainText('Lists revealed')
-  await expect(owner.locator(`[data-army="${opponentName}"]`)).toContainText(/\b1 unit\b/)
+  await expect(owner.getByRole('button', { name: 'Reveal all lists' })).toBeEnabled()
 
   await Promise.all([ownerContext.close(), opponentContext.close()])
 })
@@ -1707,7 +1707,6 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(create.getByRole('button', { name: 'Create league' })).toBeDisabled()
   await create.getByLabel('Player limit').fill('4')
   await expect(create.getByRole('button', { name: 'Create league' })).toBeEnabled()
-  // Two spare places keep the event sealed for the checks before the reveal; a full one reveals itself.
   await create.getByLabel('Player limit').fill('6')
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
@@ -1841,7 +1840,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await owner.unrouteAll({ behavior: 'wait' })
   await expect(team(1).locator('[data-person]')).toHaveCount(2)
 
-  // Two of the six places are still open, so the panel says everyone in has sealed and leaves the reveal to a person.
+  // Two of the six places are still open, so the panel says everyone in has sealed.
   await expect(owner.getByRole('heading', { name: 'Everyone in has sealed' })).toBeVisible()
   await owner.getByRole('button', { name: 'Reveal all lists' }).click()
   const reveal = owner.getByRole('alertdialog', { name: 'Reveal every list?' })
