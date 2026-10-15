@@ -88,7 +88,8 @@ export function localStateStorage(owner: string): LocalStateStorage {
       if (supportsNativeLocalState())
         return nativeWrite(owner, async () => {
           for (let attempt = 0; attempt < 5; attempt++) {
-            const saved = await readStoredState(owner)
+            // The shell refuses a write made against a stale revision, so only a retry needs the shell's copy.
+            const saved = await readStoredState(owner, attempt === 0)
             const current = verify(saved)
             const changed = change(current)
             if (changed === current) return current
@@ -108,18 +109,25 @@ export function localStateStorage(owner: string): LocalStateStorage {
           throw new Error('Another window is saving changes. Try again.')
         })
       let result!: StoredState
+      let kept: LocalState | undefined
       await update<StoredState>(
         `work:${owner}`,
         (saved) => {
           const previous = saved ?? { epoch: crypto.randomUUID(), state: null }
           const current = verify(previous)
-          const next = { ...change(current), revision: current.revision + 1 }
+          const changed = change(current)
+          if (changed === current) {
+            kept = current
+            return previous
+          }
+          const next = { ...changed, revision: current.revision + 1 }
           if (!parseLocalState(next)) throw new Error('Saved work exceeds this device’s storage limit.')
           result = { epoch: previous.epoch, state: next }
           return result
         },
         store,
       )
+      if (kept) return kept
       notify(owner, result)
       return result.state!
     },

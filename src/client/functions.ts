@@ -316,15 +316,14 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
   try {
     const result = await cachedRead(['roster-bootstrap', args.data.id, args.data.battle ?? null], () => server.rosterBootstrap(args))
     if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
-      const saved = await rememberDocument(
-        resource,
-        result?.roster ?? null,
-        result?.roster.updatedAt ?? null,
-        owner,
-        local?.updatedAt ?? null,
+      const current = await localDocument<LocalRoster | null>(resource)
+      // Saved without waiting: a save queues behind every other one this device makes, and its own guards keep a newer copy.
+      void rememberDocument(resource, result?.roster ?? null, result?.roster.updatedAt ?? null, owner, local?.updatedAt ?? null).catch(
+        () => {},
       )
-      if (saved && saved.serverVersion !== (result?.roster.updatedAt ?? null)) {
-        const retained = await fromLocal(saved.data as LocalRoster | null, result?.changes ?? [])
+      // A copy saved since the request started is newer than an answer that predates it.
+      if (current && (result ? current.updatedAt > result.roster.updatedAt : current.updatedAt !== local?.updatedAt)) {
+        const retained = await fromLocal(current, result?.changes ?? [])
         localClient()?.setQueryData(['roster-bootstrap', args.data.id, args.data.battle ?? null], retained)
         return retained
       }
