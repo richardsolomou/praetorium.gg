@@ -972,7 +972,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await expect(header.getByRole('link', { name: 'Strike Force' })).toHaveCount(0)
   await expect(header.getByRole('link', { name: /Cursed Legion · \d DP/ })).toHaveAttribute(
     'href',
-    '/factions/necrons/rules/mfm-1-5/detachments/cursed-legion',
+    '/factions/necrons/rules/mfm-1-6/detachments/cursed-legion',
   )
   await expect(header.getByRole('link', { name: 'Purge the Foe', exact: true })).toHaveAttribute(
     'href',

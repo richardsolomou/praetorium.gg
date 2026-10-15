@@ -4,7 +4,7 @@ import { routeSlug } from './slug'
 type ReferenceFaction = {
   id: string
   displayName: string
-  edition?: { id: string; slug?: string } | null
+  edition?: { id: string; slug?: string; name?: string } | null
   rulesSlug?: string
   isDefault?: boolean
 }
@@ -25,6 +25,14 @@ export function referenceFactionId(factions: readonly ReferenceFaction[], slug: 
   )
   if (selected) return selected.id
   const matching = factions.filter((faction) => routeSlug(faction.displayName) === slug)
+  // A superseded root MFM path opens the rules version named for that MFM, or else the current rules.
+  if (/^mfm-\d+(?:-\d+)*$/.test(rules))
+    return (
+      (
+        matching.find((faction) => faction.edition?.name && routeSlug(faction.edition.name) === rules) ??
+        matching.find((faction) => faction.isDefault !== false)
+      )?.id ?? null
+    )
   const family = matching.find((faction) => !catalogueEditionId(faction.id)) ?? matching.find((faction) => faction.isDefault)
   if (!family) return null
   if (rules === editionFamilyId(family.id)) return editionFamilyId(family.id)

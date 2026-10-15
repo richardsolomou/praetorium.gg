@@ -83,3 +83,16 @@ it('gives root MFM rules a readable version path', () => {
 it('resolves root MFM paths without treating their slug as an edition ID', () => {
   expect(referenceFactionId([{ ...base, rulesSlug: 'mfm-1-5' }], 'adeptus-custodes', 'mfm-1-5')).toBe(base.id)
 })
+
+it('opens the current rules from a superseded root MFM path', () => {
+  expect(referenceFactionId([{ ...base, rulesSlug: 'mfm-1-6' }, preview], 'adeptus-custodes', 'mfm-1-5')).toBe(base.id)
+})
+
+it('opens the archived rules version named for a superseded root MFM path', () => {
+  const archived = { ...preview, id: 'mfm15~book', edition: { id: 'mfm15', slug: 'mfm-1-5-2026-10-13', name: 'MFM 1.5' } }
+  expect(referenceFactionId([{ ...base, rulesSlug: 'mfm-1-6' }, archived], 'adeptus-custodes', 'mfm-1-5')).toBe(archived.id)
+})
+
+it('finds no rules for a superseded root MFM path of another faction', () => {
+  expect(referenceFactionId([{ ...base, rulesSlug: 'mfm-1-6' }], 'necrons', 'mfm-1-5')).toBeNull()
+})

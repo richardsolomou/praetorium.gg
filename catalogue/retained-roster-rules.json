@@ -310,5 +310,18 @@
         }
       ]
     ]
+  },
+  {
+    "editionId": "marine-points-1013",
+    "savedBefore": 1792067002000,
+    "catalogueIds": ["1f19-6509-d906-ca10"],
+    "originalCatalogueIds": ["1f19-6509-d906-ca10"],
+    "detachments": [],
+    "aliases": {
+      "catalogues": {},
+      "detachments": {},
+      "datasheets": {}
+    },
+    "selectionGroups": []
   }
 ]

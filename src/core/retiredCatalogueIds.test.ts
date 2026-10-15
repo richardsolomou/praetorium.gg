@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { migrateStoredRoster } from './savedRosterMigrations'
 import {
   currentCatalogueId,
   currentCatalogueFamilyId,
@@ -145,6 +146,46 @@ describe('retired catalogue ids', () => {
       picks: [{ entryId: '3c0a-10a9-8f84-26a3', spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }],
     }
     expect(currentRosterIds(roster).catalogueId).toBe('470a-6daa-9014-12df')
+  })
+
+  it('moves a Marine roster on MFM 1.5 to the current rules', () => {
+    expect(currentRosterIds({ catalogueId: 'marine-points-1013~470a-6daa-9014-12df', detachmentIds: [] }).catalogueId).toBe(
+      '470a-6daa-9014-12df',
+    )
+  })
+
+  it.each([undefined, 0])('moves a Custodes preview roster last saved at %s to the current codex', (updatedAt) => {
+    expect(currentRosterIds({ catalogueId: 'custodes-11e~1f19-6509-d906-ca10', detachmentIds: [], updatedAt }).catalogueId).toBe(
+      'mfm-1-6~1f19-6509-d906-ca10',
+    )
+  })
+
+  it('keeps a Custodes preview roster on the current codex after its stored row is migrated', () => {
+    const row = migrateStoredRoster({ name: '', catalogueId: 'custodes-11e~1f19-6509-d906-ca10', picks: '[]' })
+    expect(currentRosterIds({ catalogueId: row.catalogueId, detachmentIds: [], updatedAt: 0 }).catalogueId).toBe(
+      'mfm-1-6~1f19-6509-d906-ca10',
+    )
+  })
+
+  it('keeps an index Custodes roster on MFM 1.5 where it was saved', () => {
+    expect(currentRosterIds({ catalogueId: 'marine-points-1013~1f19-6509-d906-ca10', detachmentIds: [] }).catalogueId).toBe(
+      'marine-points-1013~1f19-6509-d906-ca10',
+    )
+  })
+
+  it.each([
+    [1792067001999, 'marine-points-1013~1f19-6509-d906-ca10'],
+    [1792067002000, '1f19-6509-d906-ca10'],
+  ])('reads a Custodes roster last saved at %i on %s', (updatedAt, catalogueId) => {
+    expect(currentRosterIds({ catalogueId: '1f19-6509-d906-ca10', detachmentIds: [], updatedAt }).catalogueId).toBe(catalogueId)
+  })
+
+  it('finds a Custodes preview roster that reads as the current codex', () => {
+    expect(savedCatalogueIds(['mfm-1-6~1f19-6509-d906-ca10'])).toContain('custodes-11e~1f19-6509-d906-ca10')
+  })
+
+  it('finds no folded MFM 1.5 Custodes roster for the current codex', () => {
+    expect(savedCatalogueIds(['1f19-6509-d906-ca10'])).not.toContain('marine-points-1013~1f19-6509-d906-ca10')
   })
 
   it('finds a saved book that reads as the current book it was replaced by', () => {

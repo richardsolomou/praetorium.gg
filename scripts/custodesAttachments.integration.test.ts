@@ -4,21 +4,26 @@ import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { attachmentErrors, attachmentOf } from '../src/core/attach'
 import { nameOf } from '../src/core/catalogue'
+import { battleSizeSelection, rosterLimit } from '../src/core/evaluate'
 import { loadCatalogue, type LoadedCatalogue } from '../src/server/catalogueIndex'
-import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { factionsFromDatacards } from '../src/server/datacardFactions'
 import { loadDatacards } from '../src/server/datacards'
 import { routeSlug } from '../src/core/slug'
 import { datasheetIn } from '../src/shared/catalogue'
+import { isMatchedPlayDatasheet } from '../src/shared/catalogueUnit'
+import { rosterDetachments } from '../src/shared/rosterDetachments'
 
-const source = path.join(process.env.CATALOGUE_DIR ?? 'catalogue-data', 'editions', 'custodes-11e')
+const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
+const catalogueId = '1f19-6509-d906-ca10'
+// Current rules route references by faction rather than book.
+const route = 'adeptus-custodes'
 const guards = ['Custodian Guard Sodality', 'Sentinel Guard Sodality', 'Custodian Wardens']
 const terminators = [
   'Allarus Custodians',
   'Aquilon Terminators with Solarite Power Gauntlets',
   'Aquilon Terminators with Solarite Power Talons',
 ]
-// The rule wording lives on the preview fork branch; the digest pins it without copying it here.
+// The rule wording lives on the codex fork branch; the digest pins it without copying it here.
 const anathemaPsykana = 'b4bb5c2717920f4ba1a3b9c806931629d594874b97bbed315898bc8143a7df4f'
 const digest = (text: string | null | undefined) => text && createHash('sha256').update(text).digest('hex')
 const attachments = [
@@ -30,20 +35,15 @@ const attachments = [
   { name: 'Knight-Centura', kind: 'support', targets: ['Prosecutor Squad', 'Vigilator Squad', 'Witchseeker Squad'] },
 ] as const
 
-describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
+describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
   let loaded: LoadedCatalogue
-  let catalogueId: string
   const unit = (name: string) =>
     [...loaded.index.datasheets.get(catalogueId)!]
       .map((id) => loaded.index.definitions.get(id)!)
       .find((entry) => nameOf(entry, loaded.index.definitions) === name)!
 
   beforeAll(() => {
-    const edition = readCatalogueComposition(path.resolve('catalogue'))!.editions.find(
-      ({ edition: candidate }) => candidate.id === 'custodes-11e',
-    )!.edition
-    loaded = loadCatalogue(source, edition)!
-    catalogueId = `custodes-11e~${edition.catalogueIds[0]}`
+    loaded = loadCatalogue(source)!
   })
 
   it.each([
@@ -89,7 +89,7 @@ describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
     },
   )
 
-  it('includes Anathema Psykana in the preview army rules', () => {
+  it('includes Anathema Psykana in the army rules', () => {
     expect(
       digest(
         [...loaded.factionContents.values()]
@@ -103,10 +103,10 @@ describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
     expect(attachmentOf(unit(name), loaded.index)).toEqual({ kind, targets })
   })
 
-  it.each(attachments)('keeps $name reference attachments in the preview rules version', ({ name, kind, targets }) => {
+  it.each(attachments)('keeps $name reference attachments in the current rules version', ({ name, kind, targets }) => {
     expect(
       datasheetIn(loaded, catalogueId, unit(name).id)!.attachments.map((entry) => [entry.kind, entry.name, entry.route?.catalogueId]),
-    ).toEqual(targets.map((target) => [kind, target, catalogueId]))
+    ).toEqual(targets.map((target) => [kind, target, route]))
   })
 
   it.each(attachments.flatMap(({ name, targets }) => targets.map((target) => ({ name, target }))))(
@@ -117,10 +117,49 @@ describe.skipIf(!fs.existsSync(source))('Custodes preview corrections', () => {
       const reference = datasheetIn(loaded, catalogueId, host.id)!
       expect({
         errors: attachmentErrors([{ entryId: leader.id, attachedTo: 1 }, { entryId: host.id }], loaded.index),
-        inverse: [...reference.leaders, ...reference.supporters].some(
-          (entry) => entry.name === name && entry.route?.catalogueId === catalogueId,
-        ),
+        inverse: [...reference.leaders, ...reference.supporters].some((entry) => entry.name === name && entry.route?.catalogueId === route),
       }).toEqual({ errors: [], inverse: true })
+    },
+  )
+
+  it.each([
+    ['Trajann Valoris', 2000, 1],
+    ['Allarus Custodians', 1000, 2],
+    ['Allarus Custodians', 2000, 3],
+    ['Custodian Guard Sodality', 1000, 4],
+    ['Custodian Guard Sodality', 2000, 6],
+    ['Anathema Psykana Rhino', 2000, 6],
+    ['Prosecutor Squad', 2000, 3],
+  ] as const)('limits %s to the MFM unit limit at %i points', (name, size, limit) => {
+    expect(
+      rosterLimit(unit(name), loaded.index, {
+        primaryCatalogueId: catalogueId,
+        mustering: true,
+        roster: [battleSizeSelection(loaded.index, size)!],
+      }),
+    ).toBe(limit)
+  })
+
+  it.each([
+    [1000, 4],
+    [2000, 6],
+  ])('gives Prosecutor Squads the Battleline unit limit under Null Maiden Vigil at %i points', (size, limit) => {
+    const vigil = [...loaded.index.definitions.values()].find((entry) => entry.name === 'Null Maiden Vigil')!
+    const roster = [battleSizeSelection(loaded.index, size)!, ...rosterDetachments(loaded, catalogueId, [vigil.id]).selections]
+    expect(rosterLimit(unit('Prosecutor Squad'), loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })).toBe(limit)
+  })
+
+  it.each([
+    ['Aleya [Legends]', ['Prosecutor Squad', 'Vigilator Squad', 'Witchseeker Squad']],
+    ['Valerian [Legends]', ['Custodian Guard Sodality', 'Custodian Wardens', 'Sentinel Guard Sodality']],
+  ])('lets %s lead the codex units MFM 1.6 lists', (name, targets) => {
+    expect(attachmentOf(unit(name), loaded.index)?.targets).toEqual(targets)
+  })
+
+  it.each(['Aleya [Legends]', 'Valerian [Legends]', 'Venerable Contemptor Dreadnought [Legends]', 'Venerable Land Raider [Legends]'])(
+    'keeps %s out of matched play',
+    (name) => {
+      expect(isMatchedPlayDatasheet(loaded.index, unit(name))).toBe(false)
     },
   )
 

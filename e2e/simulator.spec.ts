@@ -1705,11 +1705,9 @@ test('imported leaders retain their faction mark and compact loadout control', a
     .first()
     .click()
   const captain = attacker.locator('[data-combat-member]').nth(1)
-  await expect(captain.locator('[data-faction-mark="marine-points-1013~e0af-67df-9d63-8fb7"]')).toBeVisible()
+  await expect(captain.locator('[data-faction-mark="mfm-1-6~e0af-67df-9d63-8fb7"]')).toBeVisible()
   await expect(
-    attacker
-      .getByRole('combobox', { name: 'Attacker unit', exact: true })
-      .locator('[data-faction-mark="marine-points-1013~470a-6daa-9014-12df"]'),
+    attacker.getByRole('combobox', { name: 'Attacker unit', exact: true }).locator('[data-faction-mark="mfm-1-6~470a-6daa-9014-12df"]'),
   ).toBeVisible()
   const loadout = captain.getByRole('button', { name: /loadout$/ })
   await expect(loadout).toHaveText('')

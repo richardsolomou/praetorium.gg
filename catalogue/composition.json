@@ -1,23 +1,55 @@
 {
   "format": "praetorium.catalogue-composition.v1",
-  "overlays": [],
+  "overlays": [
+    {
+      "source": "definitions",
+      "repository": "richardsolomou/wh40k-11e",
+      "branch": "feat/custodes-codex",
+      "revision": "67b3e5b1fc0e14bf4ea939e00232c658c808581c",
+      "license": null,
+      "attribution": "Custodes codex transcribed from orpheax/custobuilder and checked against scanned codex pages, maintained in the Praetorium fork.",
+      "files": ["Imperium - Adeptus Custodes.json"]
+    },
+    {
+      "source": "datacards",
+      "repository": "richardsolomou/wh40k-11e",
+      "branch": "feat/custodes-codex",
+      "revision": "67b3e5b1fc0e14bf4ea939e00232c658c808581c",
+      "license": null,
+      "attribution": "Custodes codex transcribed from orpheax/custobuilder and checked against scanned codex pages, maintained in the Praetorium fork.",
+      "path": "11th/gdc",
+      "files": ["11th/gdc/adeptuscustodes.json"]
+    }
+  ],
   "editions": [
     {
       "edition": {
         "id": "custodes-11e",
         "name": "Custodes codex · 17 Oct 2026",
         "slug": "custodes-codex-2026-10-17",
-        "status": "preview",
+        "status": "retired",
         "default": false,
         "catalogueIds": ["1f19-6509-d906-ca10"],
         "releases": [
           {
             "at": 1791660480000,
             "status": "preview"
+          },
+          {
+            "at": 1792063898000,
+            "status": "retired"
           }
         ]
       },
       "sources": {
+        "definitions": {
+          "repository": "richardsolomou/wh40k-11e",
+          "branch": "main",
+          "license": null,
+          "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
+          "revision": "8b50fc3240e29c6ab0e254f75bcefa8cce8ce0ef",
+          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
+        },
         "points": {
           "repository": "BSData/wh40k-11e-mfm",
           "branch": "main",
@@ -27,6 +59,15 @@
           "attribution": "Copyright 2026 BSData",
           "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
           "revision": "8e0e635674018969fdcfaa64e83d4153ebefad70"
+        },
+        "datacards": {
+          "repository": "game-datacards/datasources",
+          "branch": "main",
+          "path": "11th/gdc",
+          "license": null,
+          "attribution": "Data provided by game-datacards",
+          "description": "Game Datacards data for Warhammer 40,000 11th edition, including factions, core rules, missions, and layouts.",
+          "revision": "9c0762c8311db122c0faa9a3a09ef891c3c2d782"
         }
       },
       "overlays": [
@@ -246,6 +287,15 @@
           "attribution": "Copyright 2026 BSData",
           "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
           "revision": "8e0e635674018969fdcfaa64e83d4153ebefad70"
+        },
+        "datacards": {
+          "repository": "game-datacards/datasources",
+          "branch": "main",
+          "path": "11th/gdc",
+          "license": null,
+          "attribution": "Data provided by game-datacards",
+          "description": "Game Datacards data for Warhammer 40,000 11th edition, including factions, core rules, missions, and layouts.",
+          "revision": "9c0762c8311db122c0faa9a3a09ef891c3c2d782"
         }
       },
       "overlays": []
@@ -306,13 +356,64 @@
         "id": "marine-points-1013",
         "slug": "space-marines-points-2026-10-13",
         "name": "MFM 1.5",
-        "description": "The current Munitorum Field Manual 1.5 rules, including the Space Marines codex and every dated MFM 1.5 update.",
-        "status": "released",
-        "default": true,
-        "catalogueIds": ["2261-79a5-19d9-1668", "470a-6daa-9014-12df", "4ef9-15ce-e3e6-36de", "e0af-67df-9d63-8fb7"],
+        "description": "Munitorum Field Manual 1.5 rules, including the Space Marines codex, every dated MFM 1.5 update and the index Adeptus Custodes, as published until MFM 1.6.",
+        "status": "retired",
+        "default": false,
+        "catalogueIds": ["2261-79a5-19d9-1668", "470a-6daa-9014-12df", "4ef9-15ce-e3e6-36de", "e0af-67df-9d63-8fb7", "1f19-6509-d906-ca10"],
         "releases": [
           {
             "at": 1791849600000,
+            "status": "released"
+          },
+          {
+            "at": 1792063898000,
+            "status": "retired"
+          }
+        ]
+      },
+      "sources": {
+        "definitions": {
+          "repository": "richardsolomou/wh40k-11e",
+          "branch": "main",
+          "license": null,
+          "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
+          "revision": "8b50fc3240e29c6ab0e254f75bcefa8cce8ce0ef",
+          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
+        },
+        "points": {
+          "repository": "richardsolomou/wh40k-11e-mfm",
+          "branch": "main",
+          "path": "data",
+          "license": "MIT",
+          "licenseUrl": "https://github.com/BSData/wh40k-11e-mfm/blob/main/LICENSE",
+          "attribution": "Copyright 2026 BSData",
+          "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
+          "revision": "8355616f483c15b3ff212953e10deddde7079fa1"
+        },
+        "datacards": {
+          "repository": "game-datacards/datasources",
+          "branch": "main",
+          "path": "11th/gdc",
+          "license": null,
+          "attribution": "Data provided by game-datacards",
+          "description": "Game Datacards data for Warhammer 40,000 11th edition, including factions, core rules, missions, and layouts.",
+          "revision": "9c0762c8311db122c0faa9a3a09ef891c3c2d782"
+        }
+      },
+      "overlays": []
+    },
+    {
+      "edition": {
+        "id": "mfm-1-6",
+        "slug": "mfm-1-6",
+        "name": "MFM 1.6",
+        "description": "The current Munitorum Field Manual 1.6 rules, released on 14 Oct 2026, including the Space Marines and Adeptus Custodes codexes.",
+        "status": "released",
+        "default": true,
+        "catalogueIds": ["2261-79a5-19d9-1668", "470a-6daa-9014-12df", "4ef9-15ce-e3e6-36de", "e0af-67df-9d63-8fb7", "1f19-6509-d906-ca10"],
+        "releases": [
+          {
+            "at": 1792063898000,
             "status": "released"
           }
         ]

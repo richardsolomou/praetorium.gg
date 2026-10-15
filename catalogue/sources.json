@@ -4,7 +4,7 @@
     "branch": "main",
     "license": null,
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
-    "revision": "8b50fc3240e29c6ab0e254f75bcefa8cce8ce0ef",
+    "revision": "d506fcc0ee4b4babdda03e71dffd4e1e3cf5bcbf",
     "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
   },
   "points": {
@@ -14,8 +14,8 @@
     "license": "MIT",
     "licenseUrl": "https://github.com/BSData/wh40k-11e-mfm/blob/main/LICENSE",
     "attribution": "Copyright 2026 BSData",
-    "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
-    "revision": "8355616f483c15b3ff212953e10deddde7079fa1"
+    "description": "Munitorum Field Manual 1.6 prices for units, detachments, enhancements, and upgrades.",
+    "revision": "6eed7b100ae508c1faa76a42bf7b55ecabb59107"
   },
   "datacards": {
     "repository": "game-datacards/datasources",

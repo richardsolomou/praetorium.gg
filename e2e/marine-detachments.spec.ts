@@ -43,6 +43,7 @@ for (const width of [390, 1440]) {
       'space-marines-codex-2026-10-12',
       'space-marines-codex-2026-10-13',
       'space-marines-points-2026-10-13',
+      'mfm-1-6',
     ]) {
       await page.goto(`/factions/salamanders/rules/${version}`)
       await page

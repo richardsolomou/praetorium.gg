@@ -50,7 +50,7 @@ export function mfmDetachment(index: MfmIndex | null | undefined, faction: strin
   return null
 }
 export function mfmEnhancementPoints(detachment: NonNullable<ReturnType<typeof mfmDetachment>>, name: string) {
-  const key = (value: string) => joinKey(value.replace(/\s*\((?:aura|upgrade)\)/gi, ''))
+  const key = (value: string) => joinKey(value.replace(/\s*\((?:aura|upgrade|one per army)\)/gi, ''))
   const matched = detachment.enhancements?.filter((enhancement) => key(enhancement.name) === key(name)) ?? []
   return matched.length === 1 ? matched[0]!.points : null
 }
