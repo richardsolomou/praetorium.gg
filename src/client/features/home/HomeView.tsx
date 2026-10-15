@@ -7,7 +7,6 @@ import { BattleShelf } from '../battles/BattleShelf'
 import type { OnboardingProgress } from '../../../core/onboarding'
 import type { Standing } from '../../../core/standings'
 import { type ArmyUpdate, HomeArmyUpdates } from './HomeArmyUpdates'
-import { HomeChecklist, settingUp } from './HomeChecklist'
 import { FriendTables, PublicTables, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
@@ -73,7 +72,6 @@ export function HomeView({
   // print it again two inches further down.
   const hero = me ? undefined : open[0]
   const { friends: shownFriends, open: rest } = watchedTables(friends, open, hero)
-  const checklist = !going.length && onboarding && settingUp(onboarding) ? <HomeChecklist progress={onboarding} /> : null
   // Without a game going or played, the lists are what the player comes back for, so they lead.
   const listsFirst = !going.length && !played.length
   const rosterShelf = <HomeRosters rosters={rosters} count={rosterCount} changed={changedRosters} />
@@ -92,9 +90,9 @@ export function HomeView({
             lead={
               going.length ? (
                 <BattleShelf title={going.length === 1 ? 'Your game' : 'Your games'} battles={going} viewerId={me.id} onDelete={onDelete} />
-              ) : (
-                (checklist ?? (listsFirst ? rosterShelf : null))
-              )
+              ) : listsFirst ? (
+                rosterShelf
+              ) : null
             }
             aside={
               <>
@@ -113,7 +111,7 @@ export function HomeView({
                     </Link>
                   </div>
                 ) : null}
-                <FriendTables battles={shownFriends} explain={!checklist} />
+                <FriendTables battles={shownFriends} />
                 <PublicTables battles={rest} signedIn />
               </>
             }
