@@ -46,3 +46,42 @@ export function feedbackSurveyEvent({
     },
   }
 }
+
+const IMPORT_FAILURES = {
+  request: 'roster import failed (the request did not complete)',
+  catalogue_unmatched: 'roster import failed (no faction matched)',
+  review_required: 'roster import needed review',
+} as const
+const INPUT_KINDS = { text: 'pasted text', 'exchange-code': 'exchange code' } as const
+
+/** The SDK cuts any string property at 65,535 characters; the message is sent twice, well inside the 1 MB event limit. */
+export const IMPORT_REPORT_MAX_LENGTH = 60_000
+
+/** A feedback response the import files by itself, carrying the exact input so the failure can be reproduced. */
+export function importFailureReport({
+  reason,
+  inputKind,
+  unknown,
+  unplaced,
+  input,
+}: {
+  reason: keyof typeof IMPORT_FAILURES
+  inputKind: keyof typeof INPUT_KINDS
+  unknown: readonly { name: string; reason: string }[]
+  unplaced: readonly { unit: string; choices: readonly { name: string; reason: string }[] }[]
+  input: string
+}) {
+  const header = [
+    `Automatic report: ${IMPORT_FAILURES[reason]} from ${INPUT_KINDS[inputKind]}.`,
+    `Unmatched: ${unknown.length}. Units with unplaced choices: ${unplaced.length}.`,
+    ...unknown.map(({ name, reason: why }) => `- Could not match ${name}: ${why}`),
+    ...unplaced.flatMap(({ unit, choices }) => choices.map(({ name, reason: why }) => `- ${unit}: could not place ${name}: ${why}`)),
+    '',
+    'Input:',
+    '',
+  ].join('\n')
+  const room = Math.max(0, IMPORT_REPORT_MAX_LENGTH - header.length)
+  const message = header + (input.length > room ? `${input.slice(0, room)}\n[truncated ${input.length - room} characters]` : input)
+  const { event, properties } = feedbackSurveyEvent({ kind: 'Problem', message })
+  return { event, properties: { ...properties, automatic: true, source: 'import_failure' } }
+}

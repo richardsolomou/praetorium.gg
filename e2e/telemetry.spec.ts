@@ -99,7 +99,19 @@ test('an unmatched import reports one failed attempt and no completed save', asy
       { name: 'roster_import_started', properties: { input: 'text' } },
       { name: 'roster_import_submitted', properties: { input: 'text' } },
       { name: 'roster_import_failed', properties: { reason: 'catalogue_unmatched', input: 'text' } },
+      {
+        name: 'survey sent',
+        properties: expect.objectContaining({
+          $survey_id: '01a14042-306c-0000-f070-c4fc0aadccf2',
+          '$survey_response_38c2962f-d6ad-4daf-95b9-1a7b540d24ed': 'Problem',
+          automatic: true,
+          source: 'import_failure',
+        }),
+      },
     ])
+  expect(events.at(-1)!.properties['$survey_response_1e9261de-1a9e-4465-b2a6-cc43acd873f4']).toMatch(
+    /^Automatic report: roster import failed \(no faction matched\) from pasted text\.\n[\s\S]*\nInput:\nprivate unmatched roster$/,
+  )
 })
 
 test('a connected legacy shell import reports saving only after the write succeeds, including a retry', async ({ page }) => {
