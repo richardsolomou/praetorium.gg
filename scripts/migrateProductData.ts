@@ -16,6 +16,4 @@ const totals = await migrateProductData({
   accessClientId: process.env.SPACETIME_ACCESS_CLIENT_ID,
   accessClientSecret: process.env.SPACETIME_ACCESS_CLIENT_SECRET,
 })
-console.log(
-  `Migrated ${totals.rosters} saved rosters and ${totals.collection} datasheet favourites; deleted ${totals.journal_games} journal games and ${totals.journal_events} journal events`,
-)
+console.log(`Migrated ${totals.rosters} saved rosters and ${totals.collection} datasheet favourites`)

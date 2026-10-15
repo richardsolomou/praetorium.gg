@@ -149,36 +149,6 @@ const rosterLoans = table(
   },
 )
 
-const journalGames = table(
-  { name: 'journal_games' },
-  {
-    id: t.string().primaryKey(),
-    userId: t.string().index('btree'),
-    eventId: t.option(t.string()),
-    playedOn: t.string(),
-    factionId: t.option(t.string()),
-    army: t.option(t.string()),
-    opponentName: t.option(t.string()),
-    opponentFactionId: t.option(t.string()),
-    score: t.option(t.u32()),
-    opponentScore: t.option(t.u32()),
-    result: t.string(),
-    notes: t.option(t.string()),
-    createdAt: t.u64(),
-    updatedAt: t.u64(),
-  },
-)
-
-const journalEvents = table(
-  { name: 'journal_events' },
-  {
-    id: t.string().primaryKey(),
-    userId: t.string().index('btree'),
-    name: t.string(),
-    createdAt: t.u64(),
-  },
-)
-
 const leagues = table(
   { name: 'leagues' },
   {
@@ -377,8 +347,6 @@ export const productTables = {
   commands,
   rosters,
   rosterLoans,
-  journalGames,
-  journalEvents,
   leagues,
   leagueEvents,
   leagueEventEntries,
