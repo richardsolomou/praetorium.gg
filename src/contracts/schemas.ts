@@ -190,7 +190,7 @@ export const battlesPageSchema = z.object({
 })
 export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const playerDefaultsSchema = z
-  .strictObject({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
+  .object({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
   .refine(isPlayerDefaults, 'choose a supported battle size')
 export const pushPreferenceSchema = z.object({ enabled: z.boolean() })
 export const pushDeviceSchema = z.object({ token: pushTokenSchema, platform: z.enum(PUSH_PLATFORMS) })

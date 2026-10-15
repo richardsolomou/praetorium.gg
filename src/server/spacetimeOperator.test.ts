@@ -252,3 +252,19 @@ it('reads onboarding carrying a fact added after this build', async () => {
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
   expect((await operator.onboardingProgress('user')).welcomed).toBe(true)
 })
+
+it('reads player defaults carrying a field added after this build', async () => {
+  const stored = { rosterVisibility: 'private', battleSize: 1000, fieldFromALaterRelease: true }
+  const request = vi.fn(async () => Response.json(JSON.stringify(stored)))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect((await operator.playerDefaults('user')).battleSize).toBe(1000)
+})
+
+it('reads a roster discovery cursor carrying a field added after this build', async () => {
+  const page = { rows: [], nextCursor: { at: 1, id: 'roster', fieldFromALaterRelease: 1 } }
+  const request = vi.fn(async () => Response.json(JSON.stringify(page)))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect((await operator.discoverRosters({ catalogueIds: null, detachmentIds: null, before: null, limit: 24 })).nextCursor?.id).toBe(
+    'roster',
+  )
+})

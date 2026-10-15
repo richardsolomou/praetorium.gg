@@ -107,6 +107,7 @@ import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { type CatalogueEdition, rulesVersionDetails } from '../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
+import { armyAvailability } from './armyAvailability'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
@@ -267,11 +268,12 @@ export function ListBuilder({
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
-  const { data: loadedFaction, isLoading: factionLoading } = useQuery({
+  const factionRead = useQuery({
     ...factionQuery(catalogueId),
     enabled: Boolean(catalogueId) && initialFaction?.id !== catalogueId,
   })
-  const faction = loadedFaction ?? (initialFaction?.id === catalogueId ? initialFaction : null)
+  const { isLoading: factionLoading } = factionRead
+  const faction = factionRead.data ?? (initialFaction?.id === catalogueId ? initialFaction : null)
   const detachmentRules = useQueries({
     queries: detachmentIds.map((id) =>
       detachmentDetailQuery(catalogueId, faction?.detachments.find((detachment) => detachment.id === id)?.slug ?? ''),
@@ -932,9 +934,16 @@ export function ListBuilder({
 
   // A frozen list carries everything its cards print, which is what lets an opponent
   // read it on an instance that has never loaded this catalogue.
-  if (!faction && !frozen && factionLoading) return <RosterOutline />
-  if (!faction && !frozen) {
-    const retired = Boolean(factionIndex && !factionIndex.factions.some((candidate) => candidate.id === catalogueId))
+  const army = frozen
+    ? 'ready'
+    : armyAvailability(
+        catalogueId,
+        { status: factionRead.status, faction },
+        factionIndex?.factions.map((candidate) => candidate.id),
+      )
+  if (army === 'loading') return <RosterOutline />
+  if (army !== 'ready') {
+    const retired = army === 'replaced'
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
         <div>
@@ -942,9 +951,14 @@ export function ListBuilder({
           <p className="mt-2 text-sm text-dim">
             {retired
               ? 'Choose a current faction and detachment to rebuild this roster.'
-              : 'Army data could not be loaded. Try this page again shortly.'}
+              : 'Army data could not be loaded. Your roster is unchanged.'}
           </p>
           {retired && editable ? <Button onClick={openSetup}>Choose current faction</Button> : null}
+          {retired ? null : (
+            <Button className="mt-4" onClick={() => void factionRead.refetch()}>
+              Try again
+            </Button>
+          )}
         </div>
         {setupDialog}
       </div>

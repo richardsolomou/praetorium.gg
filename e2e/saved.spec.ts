@@ -9,7 +9,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { productOperator, withAuthSql } from './storage'
+import { productOperator, productSql, withAuthSql } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -430,6 +430,25 @@ test('a visitor opening the roster library is given the builder instead', async 
 
   await expect(page.getByRole('region', { name: 'Create roster' })).toBeVisible()
   await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
+})
+
+test('a roster saved on the root ID of a current book opens its builder from the first frame', async ({ browser, page }) => {
+  await signUp(page, 'Root book')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Root book roster' })
+  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const [stored] = await productSql<{ catalogue_id: string }>`SELECT catalogue_id FROM rosters WHERE id = ${id}`
+  await productSql`UPDATE rosters SET catalogue_id = ${stored.catalogue_id.split('~').at(-1)!} WHERE id = ${id}`
+
+  const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
+  const firstFrame = await firstFrameContext.newPage()
+  await firstFrame.goto(`/rosters/${id}`)
+  await expect(firstFrame.getByLabel('List name')).toHaveValue('Root book roster')
+  await expect(firstFrame.getByText('Army book replaced')).toHaveCount(0)
+  await firstFrameContext.close()
+
+  await page.reload()
+  await expect(page.getByLabel('List name')).toHaveValue('Root book roster')
+  await expect(page.getByText('Army book replaced')).toHaveCount(0)
 })
 
 test('a failed roster library read is not shown as an empty library', async ({ page }) => {

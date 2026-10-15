@@ -151,8 +151,7 @@ async function accessToRoster(data: { id: string; battle?: string }) {
 async function accessibleRoster(data: { id: string; battle?: string }) {
   const access = await accessToRoster(data)
   if (!access) return null
-  const faction = (await app().factionsFor())?.factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null
-  return { ...access, faction }
+  return { ...access, faction: await app().factionFor(access.roster.catalogueId) }
 }
 
 export const rosterAccess = createServerFn({ method: 'GET' })
@@ -242,8 +241,11 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
     rpc(async () => {
       const access = await accessToRoster(data)
       if (!access) return null
-      const [navigation, price] = await Promise.all([app().factionsFor(), cachedRosterPrice(access.roster, access.editable)])
-      const faction = navigation?.factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null
+      // The faction index omits exact root IDs a saved roster may still carry, so resolve the book as the builder would.
+      const [faction, price] = await Promise.all([
+        app().factionFor(access.roster.catalogueId),
+        cachedRosterPrice(access.roster, access.editable),
+      ])
       return { ...access, faction, price, changes: await changesSinceSaved(access.roster, price) }
     }),
   )
