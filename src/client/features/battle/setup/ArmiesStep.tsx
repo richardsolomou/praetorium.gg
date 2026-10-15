@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,10 +21,11 @@ import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../../querie
 import type { Army, Side } from '../../../sides'
 import { ArmyIdentity } from '../ArmyIdentity'
 import { RosterChoices } from '../../rosters/RosterChoices'
+import type { RosterProblem } from '../../rosters/RosterSummary'
 import { LentRosterList, type LentRoster } from '../../rosters/LentRosters'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
 import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
-import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
+import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 
 type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
 type Props = {
@@ -52,6 +53,8 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
    * opponent is facing it, so the player who brings it says so on purpose.
    */
   const [confirming, setConfirming] = useState<SavedRoster | null>(null)
+  /** A chosen list the library already prices over its limit, held back instead of sent for the server to refuse. */
+  const [overLimit, setOverLimit] = useState<SavedRoster | null>(null)
   const rosterQuery = useQuery(savedRosterSummariesQuery())
   const saved = rosterQuery.data ?? []
   const lentQuery = useQuery(rostersLentToMeQuery())
@@ -210,8 +213,9 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
         selectedId={choosing?.rosterId ?? null}
         loading={rosterQuery.isPending}
         pending={pending}
-        onChoose={(savedRoster) => {
-          if (rosterWaivers(savedRoster).length) setConfirming(savedRoster)
+        onChoose={(savedRoster, rosterProblem) => {
+          if (rosterProblem === 'over-limit') setOverLimit(savedRoster)
+          else if (rosterWaivers(savedRoster).length) setConfirming(savedRoster)
           else void attach(savedRoster)
         }}
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
@@ -249,6 +253,33 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={overLimit !== null} onOpenChange={(open) => !open && setOverLimit(null)}>
+        <AlertDialogContent className="border-destructive/50 sm:max-w-lg [&>*]:min-w-0">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <TriangleAlert className="size-5 shrink-0" aria-hidden />
+              This list is over its points limit
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {overLimit ? `${overLimit.name || 'It'} costs more than its ${pointsBudgetOf(overLimit)}-point limit.` : null} Fix it before
+              bringing it to a battle.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:flex-wrap">
+            {overLimit ? (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                className="sm:mr-auto"
+                render={<Link to="/rosters/$id" params={{ id: overLimit.id }} />}
+              >
+                <Pencil /> Edit roster
+              </Button>
+            ) : null}
+            <AlertDialogCancel>Choose another</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -279,11 +310,21 @@ function RosterChooser({
   selectedId: string | null
   loading: boolean
   pending: boolean
-  onChoose: (roster: SavedRoster) => void
+  onChoose: (roster: SavedRoster, problem?: RosterProblem | null) => void
   error: string | null
 }) {
+  const changingSize = useRef(false)
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      // After the close, so the dialog's own focus return to its trigger does not take it back.
+      onOpenChangeComplete={(opened) => {
+        if (opened || !changingSize.current) return
+        changingSize.current = false
+        document.getElementById(BATTLE_SIZE_CONTROL)?.focus()
+      }}
+    >
       <DialogContent size="md">
         <DialogHeader>
           <DialogTitle className="text-2xl">
@@ -324,13 +365,27 @@ function RosterChooser({
                     ? `None of your ${savedCount} saved rosters is built for ${requiredLimit} points.`
                     : 'You do not have a saved roster yet.'}
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
-                >
-                  Open your roster library
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {savedCount > 0 && requiredLimit !== null ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        changingSize.current = true
+                        onOpenChange(false)
+                      }}
+                    >
+                      Choose a different battle size
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
+                  >
+                    Open your roster library
+                  </Button>
+                </div>
               </div>
             )}
           </div>

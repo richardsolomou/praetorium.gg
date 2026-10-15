@@ -62,6 +62,9 @@ export function SetupSidePanel({ side, children, className = '' }: { side: Side;
 export const CHOSEN = 'border-parchment bg-parchment/10 ring-1 ring-parchment'
 export const CHOOSABLE = 'border-edge hover:border-edge-strong'
 
+/** The battle size control, which the roster chooser hands focus to when no list fits the size. */
+export const BATTLE_SIZE_CONTROL = 'battle-size'
+
 /**
  * Names a force disposition the way the pack does.
  *

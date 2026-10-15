@@ -21,7 +21,7 @@ import { SearchableSelect, type SearchableGroup } from '../../../components/Sear
 import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './ArmiesStep'
-import { CHOOSABLE, CHOSEN, DispositionChip, SetupPanel, useDispositionNames } from './chrome'
+import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupPanel, useDispositionNames } from './chrome'
 import { TwistChoice } from './TwistChoice'
 import { DefenderStep } from './DefenderStep'
 import { FirstTurnStep } from './FirstTurnStep'
@@ -357,11 +357,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
                     </>
                   ) : (
                     <>
-                      <Label htmlFor="battle-size" className="eyebrow">
+                      <Label htmlFor={BATTLE_SIZE_CONTROL} className="eyebrow">
                         Battle size
                       </Label>
                       <SearchableSelect
-                        id="battle-size"
+                        id={BATTLE_SIZE_CONTROL}
                         ariaLabel="Battle size"
                         groups={SIZE_OPTIONS}
                         value={view.settings.limit === null ? '' : String(view.settings.limit)}
