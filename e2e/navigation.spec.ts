@@ -111,7 +111,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const loadingPage = await loadingContext.newPage()
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
-  await loadingPage.goto('/factions/necrons/datasheets/overlord')
+  await loadingPage.goto('/factions/necrons/datasheets/overlord', { waitUntil: 'domcontentloaded' })
   await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
   await expect(loadingPage.locator('[data-mobile-app-header]')).toBeVisible()
   await expect(loadingPage.locator('[data-native-app-header]')).toHaveCount(0)

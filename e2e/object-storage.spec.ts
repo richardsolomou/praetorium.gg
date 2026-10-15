@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { signUp, uniqueName } from './account'
 import { baseURL } from './stackEnv'
 import { withAuthSql } from './storage'

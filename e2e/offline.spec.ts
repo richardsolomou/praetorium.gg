@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { scrollSearchResultIntoView, signUp, uniqueName } from './account'
 
 // The offline downloads mount once in the app shell, so the home page stands for every route.

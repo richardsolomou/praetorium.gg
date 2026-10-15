@@ -11,12 +11,13 @@ import {
   deleteRoster,
   exportRoster,
   saveRoster,
+  savedRosterPage,
   setRosterArchived,
   setRosterLocked,
   setRosterVisibility,
   sharedRoster,
 } from '../../functions'
-import { invalidateSavedRosters, priceQuery, savedRosterSummariesQuery } from '../../queries'
+import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
 import type { RosterSetupReview } from './rosterSetupReview'
@@ -96,24 +97,10 @@ export function useRosterActions(origin: string) {
   })
 
   const exchange = useMutation({
+    // Priced now rather than from the library row, which a restored cache can show out of date.
     mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
-      const roster = await load(summary)
+      const [roster, [priced]] = await Promise.all([load(summary), savedRosterPage({ data: { ids: [summary.id] } })])
       const name = roster.name || title
-      // Priced from the list just loaded: the library row's total can be a restored snapshot from before the last save.
-      const priced = await queryClient
-        .query(
-          priceQuery(
-            roster.catalogueId,
-            roster.detachmentIds,
-            roster.disposition,
-            roster.limit,
-            roster.picks,
-            roster.waivedRules,
-            roster.borrowedDetachmentId,
-            roster.optionalRules,
-          ),
-        )
-        .catch(() => null)
       return { name, code: await encodeRosterExchange({ ...roster, name, points: priced?.points ?? null }) }
     },
     onSuccess: (code) => setExchangeCode(code),

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 
 const cases = [
   { faction: 'drukhari', sheet: 'venom', ability: 'Twin Linked', body: /wound roll/i },

@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.147.2
+
+### Patch Changes
+
+- 7efc667: On iPhone, swipe from the left edge to go back from a detail screen to the screen that opened it in the same tab.
+
+## 0.147.1
+
+### Patch Changes
+
+- 1296537: An exchange code made from the roster library carries the roster's current points, not a price the library had cached.
+
 ## 0.147.0
 
 ### Minor Changes

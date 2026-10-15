@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { createBattle, createRoster, signUp, uniqueName, setupStep, retryUntilVisible, attachRoster, startBattle, advance } from './account'
 import { battleLog, productOperator, savedWork, withAuthSql } from './storage'
 import { chooseCombatUnit } from './combat'

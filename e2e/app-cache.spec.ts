@@ -1,5 +1,5 @@
 import { PUBLIC_APP_QUERIES } from '../src/contracts/appSnapshot'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { createBattle, createRoster, PRACTICE_OPPONENT, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 
 async function savedState(page: Page) {

@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './test'
 import { decodeSimulatorState, encodeSimulatorState, type SimulatorState } from '../src/contracts/simulatorState'
 import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { chooseCombatUnit, openCombatControls } from './combat'

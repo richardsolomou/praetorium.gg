@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import manifest from '../package.json' with { type: 'json' }
 import { expectNoHorizontalOverflow } from './builder.harness'
 

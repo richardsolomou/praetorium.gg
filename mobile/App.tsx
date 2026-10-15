@@ -1,4 +1,5 @@
 import { isWatchCompanionAvailable, publishWatchBattle, subscribeWatchAvailability } from './src/watchCompanion'
+import { canGateBackSwipe, setBackSwipe } from './src/webSwipe'
 import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './src/offlineReferenceStorage'
 import { readLocalState, storeLocalState } from './src/localStateStorage'
 import { appSnapshotScript, storeAppSnapshot } from './src/appSnapshotStorage'
@@ -158,6 +159,7 @@ function AppShell() {
   const [initialSnapshotScript] = useState(appSnapshotScript)
   const snapshotScript = useRef(initialSnapshotScript)
   const [historyBack, setHistoryBack] = useState(false)
+  const [backSwipeGated, setBackSwipeGated] = useState(canGateBackSwipe)
   const authOpen = useRef(false)
   const battleAwake = useRef(false)
   const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
@@ -457,6 +459,14 @@ function AppShell() {
     return () => subscription.remove()
   }, [historyBack, offlineView])
 
+  const gateBackSwipe = useCallback(() => {
+    if (!backSwipeGated) return
+    void setBackSwipe(historyBack).then((gated) => {
+      if (!gated) setBackSwipeGated(false)
+    })
+  }, [backSwipeGated, historyBack])
+  useEffect(gateBackSwipe, [gateBackSwipe])
+
   useEffect(() => {
     let active = true
     // A notification the player tapped to launch the application is its first page,
@@ -640,7 +650,7 @@ function AppShell() {
           injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript.current}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
-          allowsBackForwardNavigationGestures={false}
+          allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
           allowsLinkPreview={false}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
@@ -653,6 +663,7 @@ function AppShell() {
             commitShell(webNavigationStarted(shellRef.current, Platform.OS, nativeEvent.loading))
           }}
           onLoad={({ nativeEvent }) => {
+            gateBackSwipe()
             webView.current?.injectJavaScript(nativeWatchCapabilityScript(isWatchCompanionAvailable()))
             mainFrameUrl.current = nativeEvent.url
             finishWebLoad(nativeEvent.url)

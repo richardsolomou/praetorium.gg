@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName, waitForRosterSave } from './account'
 
 test('an army is read and its losses recorded without leaving the battle', async ({ page }) => {

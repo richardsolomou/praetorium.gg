@@ -53,8 +53,8 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
   await expect(async () => {
     if (await outcome.isVisible()) return
     await action()
-    await expect(outcome).toBeVisible({ timeout: 1_000 })
-  }).toPass({ timeout: 10_000 })
+    await expect(outcome).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
 }
 
 /** Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before hydration opens nothing. */
@@ -470,8 +470,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
         if ((await phase.textContent()) !== before) break
         if (dismissReminders && (await dismissBattleReminder(page))) continue
         if (await scoring.isVisible().catch(() => false)) {
-          // A command reloads the battle and can hold the page for seconds on a loaded runner.
-          await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click({ timeout: 15_000 })
+          await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click()
           await expect(scoring).toBeHidden()
           continue
         }

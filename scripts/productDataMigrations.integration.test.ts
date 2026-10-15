@@ -35,14 +35,6 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
   const key = JSON.stringify([base.userId, 'duplicate'])
   ctx.db.favouriteDatasheets.key.delete(key)
   ctx.db.favouriteDatasheets.insert({ key, userId: base.userId, entryId: 'duplicate', at: 9n })
-  ctx.db.journalGames.id.delete('journal-game')
-  ctx.db.journalGames.insert({
-    id: 'journal-game', userId: base.userId, eventId: 'journal-event', playedOn: '2026-10-01', factionId: undefined, army: undefined,
-    opponentName: undefined, opponentFactionId: undefined, score: undefined, opponentScore: undefined, result: 'win', notes: undefined,
-    createdAt: 1n, updatedAt: 1n,
-  })
-  ctx.db.journalEvents.id.delete('journal-event')
-  ctx.db.journalEvents.insert({ id: 'journal-event', userId: base.userId, name: 'Event', createdAt: 1n })
 })
 `
 
@@ -101,7 +93,7 @@ it.skipIf(!existsSync(cli))(
       const stranger = (await (await fetch(`${url}/v1/identity`, { method: 'POST' })).json()) as { token: string }
       await expect(send('/call/migrate_product_data', '["rosters",["old"]]', stranger.token)).rejects.toThrow('Operator required')
       await send('/call/seed_migration_fixture', '[false]')
-      expect(await migrateProductData(source)).toEqual({ rosters: 2, collection: 2, journal_games: 1, journal_events: 1 })
+      expect(await migrateProductData(source)).toEqual({ rosters: 2, collection: 2 })
       expect(await rawRoster('old')).toEqual({
         ...before,
         automaticName: true,
@@ -110,7 +102,7 @@ it.skipIf(!existsSync(cli))(
         picks: '[{"entryId":"unit","note":"Hold home"}]',
         prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
       })
-      expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0, journal_games: 0, journal_events: 0 })
+      expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0 })
       const store = new SpacetimeOperator(url, database, identity.token)
       expect(await store.collectionProfile('migration-owner', null)).toEqual({
         published: true,

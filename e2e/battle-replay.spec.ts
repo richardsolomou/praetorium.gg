@@ -165,11 +165,15 @@ test('a spectator scrubs back through a live battle and returns to the latest ev
   await expect(page.getByText('Watching live')).toBeVisible()
 })
 
+/** Steps one entry at a time, waiting for each to render, so the read never sees the step before. */
 async function scrubToRound(slider: Locator, round: number) {
   await rewind(slider)
+  await expect(slider).toHaveValue((await slider.getAttribute('min')) ?? '0')
   for (let step = 0; step < 300; step++) {
     if ((await slider.getAttribute('aria-valuetext'))?.startsWith(`Round ${round},`)) return
+    const value = await slider.inputValue()
     await slider.press('ArrowRight')
+    await expect(slider).not.toHaveValue(value)
   }
   throw new Error(`the timeline never reached round ${round}`)
 }

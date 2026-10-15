@@ -95,14 +95,11 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await sender.setViewportSize(desktopContext.viewport)
   await sender.goto('/rosters')
   await expect(sender.locator('[data-roster]')).toHaveCount(1)
-  const libraryExchange = sender.getByRole('menuitem', { name: 'Exchange code' })
-  await retryUntilVisible(libraryExchange, () =>
-    sender
-      .locator(`[data-roster="${name}"]`)
-      .getByRole('button', { name: `Actions for ${name}` })
-      .click(),
-  )
-  await libraryExchange.click()
+  await sender
+    .locator(`[data-roster="${name}"]`)
+    .getByRole('button', { name: `Actions for ${name}` })
+    .click()
+  await sender.getByRole('menuitem', { name: 'Exchange code' }).click()
   await expect(sender.getByRole('dialog', { name: 'Exchange code' }).getByLabel('Exchange code')).toHaveText(code)
 
   // A visitor opens the same link and gets a local draft, no account involved.

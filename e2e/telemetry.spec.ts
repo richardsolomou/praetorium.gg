@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, test } from './test'
 import { retryUntilVisible, signUp, uniqueName } from './account'
 import { add } from './builder.harness'
 

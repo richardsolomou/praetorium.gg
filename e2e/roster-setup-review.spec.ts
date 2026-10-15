@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { chooseRosterAction, confirmRosterSetup, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
