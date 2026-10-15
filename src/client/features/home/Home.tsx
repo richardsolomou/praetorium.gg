@@ -44,7 +44,6 @@ export function Home() {
   const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: signedIn })
   const { data: standings } = useQuery({ ...standingsQuery(), enabled: !signedIn })
   const { data: onboarding } = useQuery({ ...onboardingQuery(), enabled: signedIn })
-  // The record folds every battle the player has played, so it follows the page rather than holding it up.
   const profile = useQuery({ ...playerProfileQuery(me?.id ?? ''), enabled: signedIn, staleTime: 60_000 })
   const rankings = useQuery({ ...playerRankingsQuery(me?.id ?? ''), enabled: signedIn })
   const { data: changedRosters = [] } = useQuery({ ...savedRosterChangedIdsQuery(), enabled: Boolean(homeRosters?.count) })
