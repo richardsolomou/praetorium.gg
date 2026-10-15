@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.144.4
+
+### Patch Changes
+
+- 71407ac: Seat the only possible league matchup when starting a 1v1, 2v1 or 2v2 battle.
+- 71407ac: Pick the only two league entrants left to pair by default.
+- 71407ac: Let league entrants open their own sealed list before the reveal.
+- 71407ac: End league entrant rows with the solo and allied size toggle, after the view and remove icons.
+
 ## 0.144.3
 
 ### Patch Changes
