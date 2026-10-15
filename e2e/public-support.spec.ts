@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 
 for (const pageDetails of [
   { path: '/support', heading: 'Support' },

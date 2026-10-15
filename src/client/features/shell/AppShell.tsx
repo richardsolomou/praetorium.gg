@@ -173,6 +173,8 @@ export function AppShell() {
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(restoreTextSize, [])
+  // Browser tests wait for this before interacting: a click before hydration does nothing.
+  useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

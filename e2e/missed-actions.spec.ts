@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { advance, attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName } from './account'
 
 /** Narrow screens show one column at a time behind the battle tabs. */

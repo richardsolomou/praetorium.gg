@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test'
 import { attachRoster, createBattle, PRACTICE_OPPONENT, setupStep, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { signUp, uniqueName } from './account'
 
 test.use({ launchOptions: { args: ['--enable-blink-features=WebMCP,WebMCPTesting'] } })

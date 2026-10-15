@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './test'
 import { retryUntilVisible, signUp } from './account'
 
 for (const width of [390, 1280]) {
