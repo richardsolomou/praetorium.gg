@@ -82,6 +82,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitNote } from './builder/UnitNote'
+import { UnitPhoto } from './builder/UnitPhoto'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { type AttachLink, canAddCopy, defaultWarlord, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
@@ -1090,6 +1091,7 @@ export function ListBuilder({
           <UnitNote note={selectedPick.note} onChange={(value) => edit.annotate(selected, value)} />
         ) : undefined
       }
+      footer={optimisticUnit ? <UnitPhoto entryId={optimisticUnit.entryId} name={optimisticUnit.name} /> : undefined}
       reference={
         <DatasheetPanel
           catalogueId={datasheetCatalogueId}

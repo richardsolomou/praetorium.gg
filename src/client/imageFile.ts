@@ -12,3 +12,44 @@ export function dataUrl(blob: Blob) {
     reader.readAsDataURL(blob)
   })
 }
+
+/**
+ * Downscales and re-encodes an image until it fits `maxBytes`, trying each longest edge at each quality, WebP first.
+ * Re-encoding also drops any metadata the original carried, such as where a photo was taken.
+ */
+export async function shrinkImage(
+  file: Blob,
+  { edges, qualities, maxBytes, noun }: { edges: readonly number[]; qualities: readonly number[]; maxBytes: number; noun: string },
+): Promise<string> {
+  let source: ImageBitmap
+  try {
+    source = await createImageBitmap(file)
+  } catch {
+    throw new Error(`That image could not be read. Attach a PNG, JPEG or WebP ${noun}.`)
+  }
+
+  try {
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error(`This browser cannot prepare the ${noun}.`)
+
+    let type = 'image/webp'
+    for (const edge of edges) {
+      const scale = Math.min(1, edge / Math.max(source.width, source.height))
+      canvas.width = Math.max(1, Math.round(source.width * scale))
+      canvas.height = Math.max(1, Math.round(source.height * scale))
+      context.drawImage(source, 0, 0, canvas.width, canvas.height)
+      for (const quality of qualities) {
+        let blob = await canvasBlob(canvas, type, quality)
+        if (type === 'image/webp' && blob.type !== type) {
+          type = 'image/jpeg'
+          blob = await canvasBlob(canvas, type, quality)
+        }
+        if (blob.size <= maxBytes) return await dataUrl(blob)
+      }
+    }
+    throw new Error(`That ${noun} could not be made small enough.`)
+  } finally {
+    source.close()
+  }
+}

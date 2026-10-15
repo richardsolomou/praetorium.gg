@@ -14,6 +14,7 @@ import {
   userSchema,
 } from '../../contracts/schemas'
 import { unlinkSignInMethod } from '../signInMethods'
+import { collectionPhotoIdSchema } from '../../contracts/collection'
 
 /** Every administrator action is counted under one event, named by what was done. */
 const track = (actorId: string, action: AdminAction) => app().telemetry.capture(actorId, 'admin_action', { action })
@@ -204,6 +205,17 @@ export const deleteBattleAsAdmin = createServerFn({ method: 'POST' })
       const current = await requireAdmin()
       found(await app().service.deleteBattleAsAdmin(data.battle), 'that battle does not exist')
       await track(current.id, 'battle-deleted')
+      return null
+    }),
+  )
+
+export const removeCollectionPhotoAsAdmin = createServerFn({ method: 'POST' })
+  .validator(collectionPhotoIdSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const current = await requireAdmin()
+      await app().collectionPhotos.removeById(data.photoId)
+      await track(current.id, 'collection-photo-removed')
       return null
     }),
   )

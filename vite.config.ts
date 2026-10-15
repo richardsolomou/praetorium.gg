@@ -1,5 +1,5 @@
 import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import path from 'node:path'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import tailwindcss from '@tailwindcss/vite'
@@ -24,6 +24,23 @@ export function webSourceMapPlugins(env: NodeJS.ProcessEnv) {
       },
     }),
   ]
+}
+
+/**
+ * Nitro's development server answers every `sec-fetch-dest: image` request without an explicit Nitro route as a
+ * static file, so an `<img>` never reaches an application image route; production serves them normally.
+ */
+function applicationImageRoutes(): Plugin {
+  return {
+    name: 'praetorium:application-image-routes',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((request, _response, next) => {
+        if (request.url?.startsWith('/api/collection-photos/')) delete request.headers['sec-fetch-dest']
+        next()
+      })
+    },
+  }
 }
 
 export default defineConfig(({ mode }) => {
@@ -59,6 +76,7 @@ export default defineConfig(({ mode }) => {
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
     plugins: [
+      applicationImageRoutes(),
       tanstackStart({ serverFns: { disableCsrfMiddlewareWarning: true } }),
       nitro({
         ...(process.env.LOCAL_BUILD_DIR

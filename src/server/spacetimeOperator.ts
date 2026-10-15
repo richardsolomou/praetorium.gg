@@ -47,7 +47,13 @@ const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true,
   unitCount: z.number().int().nonnegative(),
 })
 const lentRosterRow = rosterSummaryRow.extend({ ownerId: z.string(), lentAt: z.number().int() })
-const collectionRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int(), models: z.number().int() })
+const collectionRow = z.object({
+  userId: z.string(),
+  entryId: z.string(),
+  at: z.number().int(),
+  models: z.number().int(),
+  photoId: z.uuid().optional(),
+})
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.object({
@@ -621,6 +627,43 @@ export class SpacetimeOperator {
 
   async setCollectionModels(input: { userId: string; entryId: string; models: number; now: number }) {
     await this.call('set_collection_models', [input.userId, input.entryId, input.models, input.now])
+  }
+
+  async setCollectionPhoto(input: { userId: string; entryId: string; photoId: string; now: number }) {
+    await this.call('set_collection_photo', [input.userId, input.entryId, input.photoId, input.now])
+  }
+
+  async removeCollectionPhoto(userId: string, entryId: string) {
+    await this.call('remove_collection_photo', [userId, entryId])
+  }
+
+  async collectionPhoto(photoId: string, viewerId: string | null) {
+    return z
+      .object({ userId: z.string(), entryId: z.string() })
+      .nullable()
+      .parse(await this.read('collection_photo', [photoId, viewerId === null ? { none: [] } : { some: viewerId }]))
+  }
+
+  async datasheetPhotos(entryId: string, viewerId: string | null, limit: number) {
+    return z
+      .array(z.object({ photoId: z.uuid(), userId: z.string(), at: z.number().int() }))
+      .max(100)
+      .parse(await this.read('datasheet_photos', [entryId, viewerId === null ? { none: [] } : { some: viewerId }, limit]))
+  }
+
+  async removeCollectionPhotoById(photoId: string) {
+    await this.call('remove_collection_photo_by_id', [photoId])
+  }
+
+  async collectionPhotoDeletions(limit: number) {
+    return z
+      .array(z.string())
+      .max(1_000)
+      .parse(await this.read('collection_photo_deletions', [limit]))
+  }
+
+  async clearCollectionPhotoDeletions(photoIds: readonly string[]) {
+    await this.call('clear_collection_photo_deletions', [photoIds])
   }
 
   async favouriteFactionsByUser(userId: string) {

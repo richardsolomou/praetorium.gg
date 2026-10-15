@@ -35,3 +35,11 @@ it('rejects paths outside the local object directory', async () => {
   const objects = await bucket()
   await expect(objects.put('../auth.sqlite', new Uint8Array([1]))).rejects.toThrow('Invalid local object key')
 })
+
+it('deletes an object and treats a second deletion as done', async () => {
+  const objects = await bucket()
+  await objects.put('collection-photos/one', new Uint8Array([1]))
+  await objects.delete('collection-photos/one')
+  await objects.delete('collection-photos/one')
+  expect(await objects.get('collection-photos/one')).toBeNull()
+})

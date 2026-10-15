@@ -701,6 +701,34 @@ export class SpacetimeRepository {
     return this.product.setCollectionModels(...args)
   }
 
+  setCollectionPhoto(...args: Parameters<SpacetimeOperator['setCollectionPhoto']>) {
+    return this.product.setCollectionPhoto(...args)
+  }
+
+  removeCollectionPhoto(...args: Parameters<SpacetimeOperator['removeCollectionPhoto']>) {
+    return this.product.removeCollectionPhoto(...args)
+  }
+
+  collectionPhoto(...args: Parameters<SpacetimeOperator['collectionPhoto']>) {
+    return this.product.collectionPhoto(...args)
+  }
+
+  datasheetPhotos(...args: Parameters<SpacetimeOperator['datasheetPhotos']>) {
+    return this.product.datasheetPhotos(...args)
+  }
+
+  removeCollectionPhotoById(...args: Parameters<SpacetimeOperator['removeCollectionPhotoById']>) {
+    return this.product.removeCollectionPhotoById(...args)
+  }
+
+  collectionPhotoDeletions(...args: Parameters<SpacetimeOperator['collectionPhotoDeletions']>) {
+    return this.product.collectionPhotoDeletions(...args)
+  }
+
+  clearCollectionPhotoDeletions(...args: Parameters<SpacetimeOperator['clearCollectionPhotoDeletions']>) {
+    return this.product.clearCollectionPhotoDeletions(...args)
+  }
+
   favouriteFactionsByUser(...args: Parameters<SpacetimeOperator['favouriteFactionsByUser']>) {
     return this.product.favouriteFactionsByUser(...args)
   }

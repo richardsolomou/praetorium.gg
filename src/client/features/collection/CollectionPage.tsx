@@ -13,6 +13,7 @@ import { SignInRequired } from '../../components/SignInRequired'
 import { collectionCountsQuery, collectionQuery, combatUnitsQuery, factionIndexQuery, fieldedDatasheetsQuery, meQuery } from '../../queries'
 import { useCollectionMutation } from '../../useCollection'
 import { CollectionCount } from './CollectionCount'
+import { CollectionPhoto } from './CollectionPhoto'
 import { RemoveFromCollection } from './RemoveFromCollection'
 
 type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
@@ -175,6 +176,7 @@ export function CollectionPage() {
                         >
                           {sheet.name}
                         </FactionReferenceLink>
+                        <CollectionPhoto entryId={sheet.id} name={sheet.name} />
                         <CollectionCount entryId={sheet.id} name={sheet.name} />
                         <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
                       </li>

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { setCollectionModels, setOwned } from './functions'
-import { collectionCountsQuery, collectionQuery } from './queries'
+import { prepareCollectionPhoto } from './features/collection/preparePhoto'
+import { removeCollectionPhoto, setCollectionModels, setOwned, uploadCollectionPhoto } from './functions'
+import { collectionCountsQuery, collectionPhotosQuery, collectionQuery } from './queries'
 import { localEngine } from './offline/localRuntime'
 
 export function useCollectionMutation() {
@@ -59,5 +60,21 @@ export function useCollectionCountMutation() {
     onSettled: (_data, _error, _input, context) => {
       if (!context?.durable) return queryClient.invalidateQueries({ queryKey })
     },
+  })
+}
+
+/** Adds, replaces or, with no file, removes a datasheet's photo; photos need a connection, so they are never queued. */
+export function useCollectionPhotoMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ entryId, file }: { entryId: string; file: File | null }) => {
+      if (!file) return removeCollectionPhoto({ data: { entryId } })
+      return uploadCollectionPhoto({ data: { entryId, image: await prepareCollectionPhoto(file) } })
+    },
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: collectionPhotosQuery().queryKey }),
+        queryClient.invalidateQueries({ queryKey: ['collection-profile'] }),
+      ]),
   })
 }

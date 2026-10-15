@@ -35,6 +35,7 @@ export type AdminAction =
   | 'password-reset-sent'
   | 'profile-renamed'
   | 'profile-image-removed'
+  | 'collection-photo-removed'
   | 'verification-sent'
   | 'email-verified'
   | 'sign-in-method-unlinked'

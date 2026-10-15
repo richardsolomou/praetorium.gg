@@ -21,6 +21,8 @@ import { localAuthDatabase } from './localAuthDatabase'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 import { storeProfileImageFromUrl } from './avatarStorage'
+import { collectionPhotoStore, type CollectionPhotoStore } from './collectionPhotos'
+import { privateObjects } from './privateImages'
 import { profileUpdate } from './profile'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
@@ -46,6 +48,7 @@ type App = {
   hotReloadToken?: object
   health: () => Promise<void>
   service: PraetoriumService
+  collectionPhotos: CollectionPhotoStore
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
   catalogueFor: (catalogueId: string) => Promise<LoadedCatalogue | null>
@@ -308,6 +311,7 @@ export function app(): App {
       accounts.replaceGithubSponsors(sponsors),
     )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
+    const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     let ready = Promise.resolve()
     const loaded = catalogueLoaders(catalogueDataDirectory)
     const authOptions = {
@@ -348,6 +352,7 @@ export function app(): App {
       catalogueHistory: loaded.history,
       combatUnits: loaded.combatUnits,
       construction: loaded.construction,
+      collectionPhotos,
       ...catalogueReads(() => instance, loaded),
       push: Boolean(push),
       sync: () => sync.state,
@@ -372,6 +377,11 @@ export function app(): App {
       refreshSponsors()
       setInterval(refreshSponsors, 60 * 60 * 1000).unref()
     }
+    const drainPhotoDeletions = () =>
+      void collectionPhotos.drainDeletions().catch((error: unknown) => {
+        console.error('Collection photo deletion failed:', error instanceof Error ? error.message : String(error))
+      })
+    setInterval(drainPhotoDeletions, 10 * 60 * 1000).unref()
     if (process.env.NODE_ENV === 'production')
       reportRuntimeMetrics((name, value, options) => void telemetry.metrics.gauge(name, value, options), {
         instance: os.hostname(),

@@ -15,7 +15,10 @@ export function collectionDatasheets(factions: readonly CollectionFaction[]) {
   return sheets
 }
 
-export function groupCollection(entries: readonly { entryId: string; models: number }[], factions: readonly CollectionFaction[]) {
+export function groupCollection(
+  entries: readonly { entryId: string; models: number; photoId?: string }[],
+  factions: readonly CollectionFaction[],
+) {
   const sheets = collectionDatasheets(factions)
   const groups = new Map<
     string | null,
@@ -23,7 +26,7 @@ export function groupCollection(entries: readonly { entryId: string; models: num
       catalogueId: string | null
       name: string
       models: number
-      entries: { entryId: string; slug: string | null; name: string; models: number }[]
+      entries: { entryId: string; slug: string | null; name: string; models: number; photoId?: string }[]
     }
   >()
   for (const entry of entries) {

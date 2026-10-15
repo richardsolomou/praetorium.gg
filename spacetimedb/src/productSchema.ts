@@ -250,6 +250,21 @@ const collection = table(
   },
 )
 
+/** One photo per collection row, keyed like it; `photoId` names the private object. */
+const collectionPhotos = table(
+  { name: 'collection_photo' },
+  {
+    photoId: t.string().primaryKey(),
+    key: t.string().unique(),
+    userId: t.string().index('btree'),
+    entryId: t.string().index('btree'),
+    at: t.u64(),
+  },
+)
+
+/** Photos whose rows are gone and whose stored objects the web server has still to delete. */
+const collectionPhotoDeletions = table({ name: 'collection_photo_deletion' }, { photoId: t.string().primaryKey() })
+
 const favouriteFactions = table(
   { name: 'favourite_factions' },
   {
@@ -356,6 +371,8 @@ export const productTables = {
   collection,
   collectionSharing,
   collectionStock,
+  collectionPhotos,
+  collectionPhotoDeletions,
   favouriteFactions,
   practiceOpponents,
   favouriteDetachments,

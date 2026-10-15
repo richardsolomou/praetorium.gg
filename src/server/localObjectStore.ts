@@ -49,5 +49,8 @@ export function localObjectStore(root: string) {
         await rm(temporary, { force: true })
       }
     },
+    async delete(key: string) {
+      await rm(objectPath(root, key), { force: true })
+    },
   }
 }
