@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.144.6
+
+### Patch Changes
+
+- 1359ab9: Open Home after signing in to the mobile app, instead of showing "Something went wrong".
+
 ## 0.144.5
 
 ### Patch Changes
