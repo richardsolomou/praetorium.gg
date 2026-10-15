@@ -446,6 +446,29 @@ it('uses the GitHub mirror when R2 cannot find the pinned archive', async () => 
   expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
 })
 
+it('downloads the archive again when the connection drops mid-body', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-dropped-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
+  let attempts = 0
+  globalThis.fetch = async () => {
+    attempts += 1
+    if (attempts > 1) return new Response(fs.readFileSync(archive))
+    const bytes = fs.readFileSync(archive)
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes.subarray(0, 64))
+        controller.error(new TypeError('terminated'))
+      },
+    })
+    return new Response(body)
+  }
+  const installed = path.join(root, 'installed')
+  await fetchSnapshot(installed, 'https://r2.example.test', pointer)
+  expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
+})
+
 it('does not hide checksum failures by trying a different mirror', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-corrupt-'))
   roots.push(root)
