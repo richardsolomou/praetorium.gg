@@ -28,6 +28,19 @@ const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).
 const head = (repository: string, branch: string) =>
   execFileSync('gh', ['api', `repos/${repository}/commits/${branch}`, '--jq', '.sha'], { encoding: 'utf8' }).trim()
 
+/** A dropped connection fails CI otherwise; downloads are verified by hash, so another attempt is safe. */
+async function withRetries<T>(download: () => Promise<T>) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await download()
+    } catch (error) {
+      if (attempt === 3) throw error
+      console.log(`Catalogue download failed (${error instanceof Error ? error.message : String(error)}); retrying`)
+      await new Promise((done) => setTimeout(done, attempt * 2_000))
+    }
+  }
+}
+
 async function responseBytes(url: string) {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`${url} answered ${response.status}`)
@@ -119,12 +132,12 @@ if (argument === '--check') {
   const cacheRoot = catalogueCacheRoot('catalogues')
   if (!cacheRoot) {
     const fetch = argument === '--latest' ? fetchCurrentSnapshot : fetchPinnedSnapshot
-    await fetch(dataDirectory, base, (message) => console.log(message))
+    await withRetries(() => fetch(dataDirectory, base, (message) => console.log(message)))
   } else {
-    const pointer = argument === '--latest' ? await fetchCurrentPointer(base) : catalogueLock.pointer
+    const pointer = argument === '--latest' ? await withRetries(() => fetchCurrentPointer(base)) : catalogueLock.pointer
     const cached = path.join(cacheRoot, pointer.id)
     const fetch = argument === '--latest' ? fetchCurrentSnapshot : fetchPinnedSnapshot
-    await fetch(cached, base, (message) => console.log(message))
+    await withRetries(() => fetch(cached, base, (message) => console.log(message)))
     activateCachedSnapshot(dataDirectory, cached)
     console.log(`catalogue-data -> ${cached}`)
   }

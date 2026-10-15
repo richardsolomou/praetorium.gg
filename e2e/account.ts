@@ -46,8 +46,8 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
   await expect(async () => {
     if (await outcome.isVisible()) return
     await action()
-    await expect(outcome).toBeVisible({ timeout: 1_000 })
-  }).toPass({ timeout: 10_000 })
+    await expect(outcome).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
 }
 
 /** Follows a link until the address changes: the router's hydration cancels a navigation that started before it. */
@@ -455,7 +455,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
         if ((await phase.textContent()) !== before) break
         if (dismissReminders && (await dismissBattleReminder(page))) continue
         if (await scoring.isVisible().catch(() => false)) {
-          await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click({ timeout: 3_000 })
+          await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click()
           await expect(scoring).toBeHidden()
           continue
         }

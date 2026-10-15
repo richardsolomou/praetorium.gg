@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './test'
 import { chooseUnit, confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 

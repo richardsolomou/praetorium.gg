@@ -11,6 +11,7 @@ import {
   deleteRoster,
   exportRoster,
   saveRoster,
+  savedRosterPage,
   setRosterArchived,
   setRosterLocked,
   setRosterVisibility,
@@ -96,10 +97,11 @@ export function useRosterActions(origin: string) {
   })
 
   const exchange = useMutation({
-    mutationFn: async ({ roster: summary, title, points }: { roster: SavedRoster; title: string; points: number | null }) => {
-      const roster = await load(summary)
+    // Priced now rather than from the library row, which a restored cache can show out of date.
+    mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
+      const [roster, [priced]] = await Promise.all([load(summary), savedRosterPage({ data: { ids: [summary.id] } })])
       const name = roster.name || title
-      return { name, code: await encodeRosterExchange({ ...roster, name, points }) }
+      return { name, code: await encodeRosterExchange({ ...roster, name, points: priced?.points ?? null }) }
     },
     onSuccess: (code) => setExchangeCode(code),
   })

@@ -97,7 +97,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, points: points ?? null, actions, origin, onEdit, onConvert, onDelete }
+  const items = { roster, title, actions, origin, onEdit, onConvert, onDelete }
 
   return (
     <ContextMenu>
@@ -169,7 +169,6 @@ function RosterActionItems({
   Separator,
   roster,
   title,
-  points,
   actions,
   origin,
   onEdit,
@@ -182,7 +181,6 @@ function RosterActionItems({
   roster: SavedRoster
   /** What the library calls this list, so an export and a share sheet say the same. */
   title: string
-  points: number | null
   actions: RosterActions
   origin: string
   onEdit: () => void
@@ -251,7 +249,7 @@ function RosterActionItems({
       <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
         <Download /> Export text
       </Item>
-      <Item disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title, points })}>
+      <Item disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title })}>
         <QrCode /> Exchange code
       </Item>
       <Item onClick={() => actions.print(roster.id)}>

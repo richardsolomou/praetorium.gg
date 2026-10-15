@@ -371,8 +371,6 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     if (leagueId) touchLeague(ctx, leagueId, eventId)
   }
   for (const row of Array.from(ctx.db.collection.userId.filter(userId))) ctx.db.collection.key.delete(row.key)
-  for (const row of Array.from(ctx.db.journalGames.userId.filter(userId))) ctx.db.journalGames.id.delete(row.id)
-  for (const row of Array.from(ctx.db.journalEvents.userId.filter(userId))) ctx.db.journalEvents.id.delete(row.id)
   for (const row of Array.from(ctx.db.collectionStock.userId.filter(userId))) ctx.db.collectionStock.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
@@ -929,19 +927,11 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
   ctx.withTx((tx) => {
     requireOperator(tx)
     const { table: entity, keys } = z
-      .object({
-        table: z.enum(['rosters', 'collection', 'journal_games', 'journal_events']),
-        keys: z.array(z.string().min(1).max(512)).max(20),
-      })
+      .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
       .parse(input)
     let changed = 0
     for (const key of keys) {
-      // The journal is retired; its rows are deleted so a later module can drop the tables.
-      if (entity === 'journal_games') {
-        if (tx.db.journalGames.id.delete(key)) changed++
-      } else if (entity === 'journal_events') {
-        if (tx.db.journalEvents.id.delete(key)) changed++
-      } else if (entity === 'rosters') {
+      if (entity === 'rosters') {
         const row = tx.db.rosters.id.find(key)
         if (!row) continue
         const migrated = migrateStoredRoster(row)
