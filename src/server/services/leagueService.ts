@@ -8,7 +8,7 @@ import {
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
   LEAGUE_TEAM_ROSTER_LIMITS,
-  readsAlliedLeagueRoster,
+  readsSealedLeagueRoster,
   isLeagueOrganizer,
   visibleLeagueEntries,
   type LeagueAdmission,
@@ -341,15 +341,15 @@ export class LeagueService {
   /**
    * One entrant's sealed list, from the newest event this reader may read it in.
    *
-   * Reveal opens a snapshot to everyone who can open the league; before it, an ally reads
-   * the list they will field a force beside, and nobody else does.
+   * Reveal opens a snapshot to everyone who can open the league; before it, only its owner and
+   * an ally who will field a force beside it read it.
    */
   async leagueRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
     const candidates = await this.repository.leagueRosters(token, userId, eventToken, readerId)
     const readable = candidates.find(
       (candidate) =>
         candidate.revealedAt !== null ||
-        readsAlliedLeagueRoster(candidate.format, candidate.rosterLimit, candidate.reader, candidate.sealed),
+        readsSealedLeagueRoster(candidate.format, candidate.rosterLimit, candidate.reader, candidate.sealed),
     )
     if (!readable) return null
     const { reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster } = parseRosterSnapshot(readable.snapshot)

@@ -14,7 +14,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { GAME_SIZES } from '../../../core/battle'
-import { leagueRegistrationFull, leagueTableShape, readsAlliedLeagueRoster, type LeagueEntryView } from '../../../core/league'
+import {
+  leagueRegistrationFull,
+  leagueTableShape,
+  readsAlliedLeagueRoster,
+  readsSealedLeagueRoster,
+  type LeagueEntryView,
+} from '../../../core/league'
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
@@ -146,10 +152,9 @@ export function LeagueEventView({
             entry.sealedLimit === ownEntry.sealedLimit,
         )
       : sealedEntrants
-  // Before the reveal, an ally reads the list they will field beside.
   const revealed = Boolean(league.revealedAt)
   const readsRoster = (entry: LeagueEntryView) =>
-    entry.submitted && readsAlliedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry)
+    entry.submitted && readsSealedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry)
   const allies =
     ownEntry && !league.revealedAt
       ? accepted.filter((entry) => readsAlliedLeagueRoster(league.format, league.rosterLimit, entry, ownEntry))
@@ -189,13 +194,14 @@ export function LeagueEventView({
   })
   const problem = join.error ?? (league.format === '2v1' || league.format === '2v2' ? null : battle.error)
   const sealWaivers = sealing ? rosterWaivers(sealing) : []
-  // Before the reveal a row offers only an ally's list; once the lists are out, the cards carry every one.
-  const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, revealed), controls?: ReactNode) => (
+  // Before the reveal a row offers only your own or an ally's list; once the lists are out, the cards carry every one.
+  const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, revealed), controls?: ReactNode, last?: ReactNode) => (
     <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={detail}>
       {controls}
       {!revealed && readsRoster(entry) ? (
         <ViewRosterButton token={token} eventToken={league.eventToken} userId={entry.userId} label={label(entry)} />
       ) : null}
+      {last}
     </EntrantRow>
   )
   // A pair names the card it sealed once the reader may see it: its own members before the reveal, everyone after.

@@ -32,8 +32,8 @@ import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueE
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { entrantGroups, formatNames, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 
-/** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`. */
-export type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode) => ReactNode
+/** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`, and `last` closes the row. */
+export type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
 
 /** The organizer's view of who is in an open event: requests to answer, entrants to size, pair or remove, and who was turned away. */
 export function OrganizerEntrants({ league, token, row }: { league: League; token: string; row: EntrantRowRenderer }) {
@@ -42,7 +42,8 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
   const [removing, setRemoving] = useState<LeagueEntryView | null>(null)
   const [reassigning, setReassigning] = useState<{ entry: LeagueEntryView; requiredLimit: number } | null>(null)
   const [clearing, setClearing] = useState<{ userIds: string[]; sealed: LeagueEntryView[] } | null>(null)
-  const [picked, setPicked] = useState<string[]>([])
+  // Null until the organizer ticks a box, so the only two players left to pair start picked.
+  const [picked, setPicked] = useState<string[] | null>(null)
 
   const moderate = useMutation({
     mutationFn: (input: { userId: string; status: 'accepted' | 'rejected' }) =>
@@ -68,7 +69,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
     mutationFn: (userIds: string[]) => assignLeagueTeam({ data: { token, eventToken, userIds } }),
     onSuccess: async () => {
       setClearing(null)
-      setPicked([])
+      setPicked(null)
       await refresh()
     },
   })
@@ -87,7 +88,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
   const groups = entrantGroups(league, accepted, (members) => formatNames(members.map(label))).sort((one, other) => rank(one) - rank(other))
   // A picked player who was paired or removed since is dropped, so the picker never holds a place for a row it no longer shows.
   const unpairedIds = new Set(groups.filter(pairPool).flatMap((group) => group.entries.map((entry) => entry.userId)))
-  const pickedLive = picked.filter((id) => unpairedIds.has(id))
+  const pickedLive = picked ? picked.filter((id) => unpairedIds.has(id)) : unpairedIds.size === 2 ? [...unpairedIds] : []
   const openPlaces = league.playerLimit === null ? pending.length : Math.max(0, league.playerLimit - accepted.length)
 
   const requestAssignment = (entry: LeagueEntryView, requiredLimit: number) => {
@@ -142,11 +143,11 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
         onAssign={(next) => requestAssignment(entry, next === 'solo' ? league.rosterLimit! : alliedLeagueRosterLimit(league.rosterLimit!))}
       />
     ) : null
-  const controls = (entry: LeagueEntryView, pick?: ReactNode) => (
+  // Remove and the size toggle close the row, after any view icon, so the toggle lines up across rows; refusals wrap below it.
+  const last = (entry: LeagueEntryView) => (
     <>
-      {pick}
-      {sizeToggle(entry)}
       {removeButton(entry)}
+      {sizeToggle(entry)}
       {reassigning ? null : rowError(assign.error, assign.variables?.userId, entry)}
       {moderateError(entry)}
     </>
@@ -188,11 +189,13 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
               pairing ? (
                 <Button
                   size="sm"
-                  className="pointer-coarse:h-11"
+                  className="max-w-full pointer-coarse:h-11"
                   disabled={pickedLive.length !== 2 || assignTeam.isPending}
                   onClick={() => requestTeam(pickedLive)}
                 >
-                  {pickedLive.length === 2 ? `Pair ${formatNames(pickedLive.map(nameOf))}` : 'Pick two to pair'}
+                  <span className="truncate">
+                    {pickedLive.length === 2 ? `Pair ${formatNames(pickedLive.map(nameOf))}` : 'Pick two to pair'}
+                  </span>
                 </Button>
               ) : group.teamId ? (
                 <Button
@@ -209,7 +212,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
             }
           >
             <EntrantList>
-              {group.entries.map((entry) => row(entry, sealStatus(entry, false), controls(entry, pairing ? pickBox(entry) : undefined)))}
+              {group.entries.map((entry) => row(entry, sealStatus(entry, false), pairing ? pickBox(entry) : undefined, last(entry)))}
             </EntrantList>
             {pairing && assignTeam.error && clearing === null ? (
               <p role="alert" className="mt-2 text-sm text-destructive">
@@ -221,7 +224,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
       })}
     </div>
   ) : (
-    <EntrantList>{accepted.map((entry) => row(entry, sealStatus(entry, false), controls(entry)))}</EntrantList>
+    <EntrantList>{accepted.map((entry) => row(entry, sealStatus(entry, false), undefined, last(entry)))}</EntrantList>
   )
 
   return (
