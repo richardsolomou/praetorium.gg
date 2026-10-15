@@ -179,3 +179,27 @@ it("leaves an owner's price for the builder to ask when it lacks unit limits", a
     client.clear()
   }
 })
+
+it('defers a roster the server lacks to the browser, which may hold it unsynced', async () => {
+  vi.stubEnv('SSR', true)
+  const client = new QueryClient()
+  vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue(null)
+  try {
+    await expect(load(client)).resolves.toMatchObject({ onDevice: true })
+  } finally {
+    vi.unstubAllEnvs()
+    client.clear()
+  }
+})
+
+it('reports a roster missing from both the server and this device as not found', async () => {
+  vi.stubEnv('SSR', false)
+  const client = new QueryClient()
+  vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue(null)
+  try {
+    await expect(load(client)).rejects.toMatchObject({ isNotFound: true })
+  } finally {
+    vi.unstubAllEnvs()
+    client.clear()
+  }
+})

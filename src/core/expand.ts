@@ -57,14 +57,11 @@ export function expand(
     // Reserve room for options with their own minimum before the declared default
     // consumes the group's allowance. Mixed squads commonly put the ordinary
     // model first and a required sergeant later in the catalogue.
-    const reserved = available.reduce(
-      (total, child) => total + requiredCount(child.definition, index, options) * scaleOf(child.definition, index, carriers),
-      0,
-    )
+    const reserved = available.reduce((total, child) => total + insistedOn(child, index, depth - 1, carriers, options), 0)
     let remaining = Math.max(0, count - reserved)
     for (const child of ordered(target, available, index)) {
       const scale = scaleOf(child.definition, index, carriers)
-      const minimum = requiredCount(child.definition, index, options) * scale
+      const minimum = insistedOn(child, index, depth - 1, carriers, options)
       const cap = maximumCount(child.definition, index, options)
       const room = cap === null ? null : Math.max(0, cap * scale - minimum)
       const share = remaining > 0 ? (room === null ? remaining : Math.min(remaining, room)) : 0
@@ -106,6 +103,20 @@ export function expand(
   }
 
   return children.length ? { id, count, selections: children } : { id, count }
+}
+
+/**
+ * How many selections an option fills in its group whatever the group asks for.
+ * A subgroup without a minimum of its own still fills what its occupants require,
+ * as Squad Members does with "3 melta rifles" filed under a melta weapons group.
+ */
+function insistedOn(option: Option, index: CatalogueIndex, depth: number, carriers: number, options: DefaultOptions): number {
+  const own = requiredCount(option.definition, index, options) * scaleOf(option.definition, index, carriers)
+  const target = resolve(option.definition, index)
+  if (own > 0 || target.type !== undefined || depth <= 0) return own
+  return childrenOf(target, index)
+    .filter((child) => !hiddenByRules(child.definition, index, options))
+    .reduce((total, child) => total + insistedOn(child, index, depth - 1, carriers, options), 0)
 }
 
 /**

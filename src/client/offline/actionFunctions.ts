@@ -1,4 +1,4 @@
-import { leagueWarlords } from '../../core/league'
+import { leagueWarlordRefusal, leagueWarlords } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
@@ -416,13 +416,9 @@ export async function submitLeagueRoster(
       roster.picks.map((pick) => pick.entryId),
     ),
   )
+  const doubles = league?.format === '2v2'
   const warlords = leagueWarlords([snapshot])
-  if (!warlords.eligible || (league?.format === '2v2' ? warlords.count > 1 : warlords.count !== 1))
-    throw new Error(
-      league?.format === '2v2'
-        ? 'a doubles team must seal exactly one Character or Epic Hero Warlord between both rosters'
-        : 'a league roster must seal exactly one Character or Epic Hero Warlord',
-    )
+  if (!warlords.eligible || (doubles ? warlords.count > 1 : warlords.count !== 1)) throw new Error(leagueWarlordRefusal(snapshot, doubles))
   await defer(
     'submitLeagueRoster',
     { ...args.data, capturedRoster: saveRosterSchema.parse(roster), catalogueRevision: construction.catalogue.index.revision },

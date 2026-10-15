@@ -3,6 +3,7 @@ import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WaiverWarning } from '../../components/FormatWaivers'
+import type { UnavailableSelection } from '../../../core/rosterSelections'
 import { advanceOnboarding } from '../onboarding/onboarding'
 
 type Props = {
@@ -20,7 +21,9 @@ type Props = {
   onRetrySave: () => void
   /** A visitor's way to keep the list, which takes them through signing up. */
   onSave?: () => void
-  errors: readonly { entryId: string; entryName: string; message: string }[]
+  errors: readonly { entryId: string; entryName: string; message: string; unavailable?: readonly UnavailableSelection[] }[]
+  /** Drops saved selections the editor cannot show, so they cannot be cleared there. */
+  onResetOptions?: (unavailable: readonly UnavailableSelection[]) => void
   unhandled: readonly string[]
   frozen: boolean
   waivers: ComponentProps<typeof WaiverWarning>['rules']
@@ -44,6 +47,7 @@ export function RosterBuilderFooter({
   onRetrySave,
   onSave,
   errors,
+  onResetOptions,
   unhandled,
   frozen,
   waivers,
@@ -122,8 +126,15 @@ export function RosterBuilderFooter({
       {!frozen && errors.length ? (
         <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
           {errors.slice(0, 8).map((error) => (
-            <li key={`${error.entryId}-${error.message}`}>
-              {error.entryName}: {error.message}
+            <li key={`${error.entryId}-${error.message}`} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1">
+                {error.entryName}: {error.message}
+              </span>
+              {editable && onResetOptions && error.unavailable?.length ? (
+                <Button variant="outline" size="xs" onClick={() => onResetOptions(error.unavailable ?? [])}>
+                  Reset options
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>

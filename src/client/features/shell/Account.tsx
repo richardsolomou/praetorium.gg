@@ -36,6 +36,7 @@ import { onboardingTasks, openOnboarding } from '../onboarding/onboarding'
 import { forgetThisDevice } from '../../pushNotifications'
 import { meQuery, onboardingQuery } from '../../queries'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { openFeedback } from '../feedback/FeedbackDialog'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
@@ -77,6 +78,11 @@ function AccountMenuItems() {
   const { me, onboarding, signOut } = useAccountControls()
   const onboardingResolved = onboarding ? resolvedOnboardingTasks(onboarding).size : 0
   const showOnboarding = onboarding && !onboardingComplete(onboarding)
+  const feedback = (
+    <DropdownMenuItem onClick={openFeedback}>
+      <MessageSquareWarning /> Send feedback
+    </DropdownMenuItem>
+  )
 
   return (
     <>
@@ -130,27 +136,19 @@ function AccountMenuItems() {
               <ShieldCheck /> Admin
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem
-            render={
-              <a
-                href="https://github.com/richardsolomou/praetorium.gg/issues"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Send feedback"
-              />
-            }
-          >
-            <MessageSquareWarning /> Send feedback
-          </DropdownMenuItem>
+          {feedback}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={signOut}>
             <LogOut /> Sign out
           </DropdownMenuItem>
         </>
       ) : (
-        <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path === '/sign-in' ? undefined : href }} />}>
-          <LogIn /> Sign in
-        </DropdownMenuItem>
+        <>
+          <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path === '/sign-in' ? undefined : href }} />}>
+            <LogIn /> Sign in
+          </DropdownMenuItem>
+          {feedback}
+        </>
       )}
     </>
   )

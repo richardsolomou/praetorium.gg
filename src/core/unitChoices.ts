@@ -183,7 +183,8 @@ function collectUnitChoices(
     minima.set(definition, value)
     return value
   }
-  const resizingGroup = sizeOf(selection, index).path.slice(0, -1)
+  const resizingPath = sizeOf(selection, index).path
+  const resizingGroup = resizingPath.slice(0, -1)
 
   // One deeper than the choices themselves: the catalogue writes the rule onto each
   // of the options it holds apart, which is a level below the group that offers them.
@@ -309,10 +310,16 @@ function collectUnitChoices(
         // A group's catalogue cap names its largest squad, which is not the room a
         // five-model squad currently has to divide between its loadouts.
         const resizesUnit = resizingGroup.length === here.length && resizingGroup.every((step, position) => step === here[position])
+        // A specialist joining the group the unit is sized by replaces one of the
+        // models that size counts, so their bodies above their own minimum are room too.
+        const sized = resizesUnit
+          ? choosable.find((option) => option.id === resizingPath.at(-1) && !adjustable.includes(option))
+          : undefined
+        const spare = sized ? Math.max(0, countOf(sized.id) - minimum(sized.definition) * scale) : 0
         const adjustableRoom = separate
           ? sum(adjustable.map(roomFor))
           : resizesUnit
-            ? heldRoom(adjustable, countOf)
+            ? heldRoom(adjustable, countOf) + spare
             : fixed && adjustable.some(variableMinimum)
               ? room - choosable.filter((option) => !adjustable.includes(option)).reduce((total, option) => total + countOf(option.id), 0)
               : fixed
@@ -320,6 +327,9 @@ function collectUnitChoices(
                 : room
         const maximumFor = (option: Option) => {
           if (independent) return roomFor(option)
+          if (sized && !repeating) {
+            return replacingMaximum(selection, here, option, countOf(option.id) + spare, resizingPath, index, options)
+          }
           if (!repeating) return legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options)
           return separate ? roomFor(option) : adjustableRoom
         }
@@ -468,6 +478,34 @@ function legalMaximum(
     const counts: Record<string, number> = { [option.id]: count }
     if (other) counts[other.id] = room - count
     const candidate = withSpread(selection, path.join('/'), counts)
+    const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
+      primaryCatalogueId: context.primaryCatalogueId,
+      modifierCache: context.modifierCache,
+    })
+    if (!errors.length) return count
+  }
+  return 0
+}
+
+/** The most of an option the unit accepts when each one added replaces a model at `sizePath`. */
+function replacingMaximum(
+  selection: Selection,
+  path: readonly string[],
+  option: Option,
+  ceiling: number,
+  sizePath: readonly string[],
+  index: CatalogueIndex,
+  context: EvaluateOptions,
+): number {
+  const targetId = resolve(option.definition, index).id
+  const optionPath = [...path, option.id]
+  const held = countAt(selection, optionPath)
+  const sized = countAt(selection, sizePath)
+  for (let count = ceiling; count >= 1; count--) {
+    const candidate = withCounts(selection, [
+      { path: optionPath, count },
+      { path: sizePath, count: sized - (count - held) },
+    ])
     const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
       primaryCatalogueId: context.primaryCatalogueId,
       modifierCache: context.modifierCache,

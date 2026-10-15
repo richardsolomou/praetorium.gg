@@ -1,12 +1,16 @@
 import { version } from '../../../../package.json'
+import { openFeedback } from '../feedback/FeedbackDialog'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Support() {
   return (
-    <LegalPage title="Support" updated="12 October 2026">
+    <LegalPage title="Support" updated="15 October 2026">
       <LegalSection title="Get help">
         <p>
-          Report a product problem in the{' '}
+          <button type="button" onClick={openFeedback} className="text-info hover:text-parchment">
+            Send feedback
+          </button>{' '}
+          from any page through the account menu; it records the page you were on. You can also report a problem in the{' '}
           <a href="https://github.com/richardsolomou/praetorium.gg/issues/new" className="text-info hover:text-parchment">
             public issue tracker
           </a>

@@ -1,14 +1,27 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { ROSTER_DISCOVERY_PAGE_SIZE, type RosterDiscoveryFilter } from '../../core/rosterDiscovery'
-import { discoverRosters } from './rosters'
+import { discoverRosters, rosterAccess } from './rosters'
 
-const mocks = vi.hoisted(() => ({ factionIndexFor: vi.fn(), discover: vi.fn(), assessments: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  factionIndexFor: vi.fn(),
+  factionFor: vi.fn(),
+  discover: vi.fn(),
+  access: vi.fn(),
+  assessments: vi.fn(),
+}))
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
   return { createServerFn: builder }
 })
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
-vi.mock('../app', () => ({ app: () => ({ factionIndexFor: mocks.factionIndexFor, service: { discoverRosters: mocks.discover } }) }))
+vi.mock('../app', () => ({
+  app: () => ({
+    factionIndexFor: mocks.factionIndexFor,
+    factionFor: mocks.factionFor,
+    service: { discoverRosters: mocks.discover, rosterAccess: mocks.access, copySource: async () => null },
+  }),
+}))
+vi.mock('../playerSession', () => ({ currentUserId: async () => null }))
 vi.mock('../rosterPrices', () => ({ cachedRosterAssessmentsFor: mocks.assessments }))
 
 type Discovered = { rosters: { roster: { id: string }; owner: { name: string }; points: number | null; problem: string | null }[] }
@@ -62,4 +75,11 @@ it("names each army's owner beside its points and legality", async () => {
 
 it('never sends unit notes to the reader', async () => {
   expect(JSON.stringify(await invoke({ data: { before: null } }))).not.toContain('Hold the left flank.')
+})
+
+it('opens a roster saved on an exact root book the faction index does not list', async () => {
+  mocks.access.mockResolvedValue({ roster: { id: 'roster', catalogueId: 'necrons-root' }, editable: false })
+  mocks.factionFor.mockImplementation(async (id: string) => (id === 'necrons-root' ? { id, name: 'Necrons' } : null))
+  const read = rosterAccess as unknown as (input: { data: { id: string } }) => Promise<{ faction: { name: string } | null }>
+  expect((await read({ data: { id: 'roster' } })).faction?.name).toBe('Necrons')
 })

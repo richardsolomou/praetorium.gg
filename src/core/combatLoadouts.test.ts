@@ -303,6 +303,18 @@ describe('loadout odds', () => {
       ),
     ).toThrow('Some loadouts change unit-wide rules. Optimization could not finish.')
   })
+  it('names the unsupported rule that stops an optimization', () => {
+    expect(() =>
+      optimizeLoadout(
+        {
+          candidates: [
+            { members: [{ pickIndex: 0, pick: { entryId: 'unit' }, sheet, models: 5, carriers: squad({ Boltgun: 4 }), rules: [] }] },
+          ],
+        },
+        scoring,
+      ),
+    ).toThrow('Boltgun: equipped weapons could not be matched to their models. Optimization could not finish.')
+  })
   it('refuses a loadout that changes the opponent’s calculated defences', () => {
     expect(() =>
       optimizeLoadout(

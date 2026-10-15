@@ -3,6 +3,7 @@ import {
   addsModel,
   changeBy,
   choiceRemoval,
+  increaseBlocked,
   type LoadoutChoice,
   type LoadoutModel,
   type LoadoutOption,
@@ -14,9 +15,11 @@ import {
   type PoolChange,
   poolHandlers,
   poolChangeUpdates,
+  pressedCounts,
   replacementChoice,
   sameWeapon,
   showLoadoutEntry,
+  type SpreadCounts,
   type SpreadUpdate,
   spreadHandlers,
   wholeSquadTakes,
@@ -48,6 +51,7 @@ export function ModelCard({
   controlsDisabled = false,
   showOptions = true,
   optionNote,
+  saved,
 }: {
   model: LoadoutModel
   choices: LoadoutChoice[]
@@ -64,6 +68,8 @@ export function ModelCard({
   controlsDisabled?: boolean
   showOptions?: boolean
   optionNote?: OptionNote
+  /** The pick's saved counts, which every press folds against. */
+  saved?: Record<string, SpreadCounts>
 }) {
   const optionOf = (choiceKey: string, optionId: string) => {
     const choice = choices.find((candidate) => candidate.key === choiceKey)
@@ -73,8 +79,13 @@ export function ModelCard({
 
   const count = modelCount(model, choices)
   const { spend, free } = poolHandlers(model, choices, weapons)
-  const press = (changes: PoolChange | null) =>
-    changes ? () => poolChangeUpdates(changes, choices).forEach(([key, update]) => onSpread(key, update)) : undefined
+  const press = (changes: PoolChange | null) => {
+    const updates = changes ? poolChangeUpdates(changes, choices) : []
+    const lands = updates.every(([key, update]) =>
+      update(pressedCounts(choices.find((choice) => choice.key === key) ?? { options: [] }, saved?.[key])),
+    )
+    return updates.length && lands ? () => updates.forEach(([key, update]) => onSpread(key, update)) : undefined
+  }
 
   /**
    * How many of this card there are, where the card is one option of a group.
@@ -86,7 +97,7 @@ export function ModelCard({
     if (!stands) return null
     const { choice, option } = stands
     if (choice.room > 1 || choice.carried) {
-      const handlers = spreadHandlers(choice)
+      const handlers = spreadHandlers(choice, saved?.[choice.key])
       return {
         onAdd: changeBy(handlers.more(option), choice.key, onSpread),
         onRemove: changeBy(handlers.less(option), choice.key, onSpread),
@@ -110,7 +121,14 @@ export function ModelCard({
           {stands ? optionNote?.(stands.choice.key, stands.option.id) : null}
         </span>
         {stands && counted ? (
-          <PoolStepper name={model.name} count={stands.option.count} editable={editable} disabled={controlsDisabled} {...counted} />
+          <PoolStepper
+            name={model.name}
+            count={stands.option.count}
+            editable={editable}
+            disabled={controlsDisabled}
+            blocked={increaseBlocked(stands.choice, stands.option)}
+            {...counted}
+          />
         ) : (
           <span className="readout normal-case text-dim" aria-label={`${model.name} models`}>
             {count}
@@ -208,6 +226,7 @@ export function ModelCard({
                     disabled={controlsDisabled}
                     onAdd={add}
                     onRemove={remove}
+                    blocked={sources.map((source) => increaseBlocked(source.choice, source.option)).find(Boolean)}
                   />
                 )
               }

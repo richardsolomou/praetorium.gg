@@ -1,0 +1,31 @@
+import { expect, it, vi } from 'vitest'
+import { importRoster } from '../functions'
+
+const mocks = vi.hoisted(() => ({ exchangeFaction: vi.fn() }))
+vi.mock('../../server/functions', () => ({ importRoster: async () => Promise.reject(new TypeError('Failed to fetch')) }))
+vi.mock('./runtime', () => ({
+  referenceData: () => ({
+    queries: [
+      { key: ['faction-index'], data: { factions: [{ id: 'mfm~necrons-root', name: 'Necrons', isDefault: true }] } },
+      { key: ['faction', 'necrons-root'], data: { id: 'necrons-root', name: 'Necrons' } },
+    ],
+  }),
+}))
+vi.mock('./construction', async (actual) => ({
+  ...(await actual<typeof import('./construction')>()),
+  constructionRead: (local: (data: unknown) => unknown) => Promise.resolve(local({ catalogue: {}, rules: null })),
+}))
+vi.mock('../../core/rosterExchange', async (actual) => ({
+  ...(await actual<typeof import('../../core/rosterExchange')>()),
+  isRosterExchangeCode: () => true,
+  decodeRosterExchange: async () => ({ catalogueId: 'necrons-root' }),
+}))
+vi.mock('../../shared/rosterFiles', async (actual) => ({
+  ...(await actual<typeof import('../../shared/rosterFiles')>()),
+  importRosterExchange: (_exchange: unknown, _catalogue: unknown, _rules: unknown, name: string) => mocks.exchangeFaction(name),
+}))
+
+it('imports an exchange code offline on an exact root book the faction index lists only qualified', async () => {
+  await importRoster({ data: { file: 'exchange code' } })
+  expect(mocks.exchangeFaction).toHaveBeenCalledWith('Necrons')
+})

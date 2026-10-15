@@ -6,6 +6,7 @@ import {
   controlledProfileCount,
   donorPriority,
   equippedWeaponProfiles,
+  increaseBlocked,
   type LoadoutChoice,
   type LoadoutModel,
   loadoutRowCount,
@@ -534,6 +535,11 @@ describe('dividing a group between its options', () => {
     expect(more?.({ ...held(group), ...first })).toEqual({ carbine: 2, blaster: 1 })
   })
 
+  it('offers no add that the counts the pick saved would refuse', () => {
+    const group = choice([option('blaster', 3, 3), option('carbine', 0, 1)], 3)
+    expect(spreadHandlers(group, { blaster: 2, carbine: 1 }).more(group.options[1]!)).toBeUndefined()
+  })
+
   it('turns a pooled result into the same change against newer counts', () => {
     const group = choice([option('blaster', 3, 3), option('carbine', 0, 3)], 3)
     const update = relativeSpread(group, { blaster: 2, carbine: 1 })
@@ -943,4 +949,21 @@ it.each([0, 1, 3])('retains the existing equipped-profile accounting for %s bund
       [{ options: [{ name: 'Rifle', count, pieceCounts: [{ name: 'Rifle', count }] }] }],
     ),
   ).toEqual([])
+})
+
+describe('why one more of an option cannot be added', () => {
+  it("names the option's own cap", () => {
+    const group = choice([option('blaster', 8, 10), option('special', 2, 2)], 10)
+    expect(increaseBlocked(group, group.options[1]!)).toBe('Max 2')
+  })
+
+  it('names a group with no room left', () => {
+    const group = choice([option('heavy', 1, 1), option('special', 2, 2), option('plasma', 0, 1)], 3)
+    expect(increaseBlocked(group, group.options[2]!)).toBe('Group full: 3/3')
+  })
+
+  it('names nothing while the option and its group both have room', () => {
+    const group = choice([option('blaster', 1, 3), option('carbine', 0, 3)], 3)
+    expect(increaseBlocked(group, group.options[1]!)).toBeNull()
+  })
 })

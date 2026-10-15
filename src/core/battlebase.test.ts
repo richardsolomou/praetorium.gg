@@ -90,6 +90,17 @@ describe('BattleBase text import', () => {
     expect(fromBattleBaseText(kingOfTheColosseumExport)?.units.map((unit) => unit.name)).toEqual(['Lokhust Lord', 'Immortals'])
   })
 
+  it('reads equipment nested under a model line', () => {
+    const parsed = fromBattleBaseText(
+      exportText.replace('    • 6x Close combat weapon\n    • 6x Gauss cannon', '    • 6x Lokhust Destroyer\n        ◦ 6x Gauss cannon'),
+    )
+
+    expect(parsed?.units[1]?.selections).toEqual([
+      { name: 'Lokhust Destroyer', count: 6 },
+      { name: 'Gauss cannon', count: 6 },
+    ])
+  })
+
   it('reads support attachments', () => {
     const parsed = fromBattleBaseText(
       exportText

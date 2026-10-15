@@ -73,6 +73,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await dialog.getByRole('button', { name: 'Compact', exact: true }).click()
   await expect(dialog.getByRole('button', { name: 'Copy text' })).toBeVisible()
   await expect(text).toContainText('10x Immortals')
+  await expect.poll(() => text.evaluate((element) => element.scrollWidth - element.clientWidth)).toBe(0)
   await dialog.getByRole('button', { name: 'Copy text' }).click()
   await expect(dialog.getByRole('button', { name: 'Copied' })).toBeVisible()
   const compact = await page.evaluate(() => navigator.clipboard.readText())

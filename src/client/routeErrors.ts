@@ -1,6 +1,6 @@
 import { CancelledError } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
-import { isFetchNetworkFailure } from './networkErrors'
+import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
 
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
@@ -15,4 +15,12 @@ export function mayReloadCancelledLoad(now = Date.now()) {
   if (recentReloads.length >= 3) return false
   recentReloads.push(now)
   return true
+}
+
+/** What a route error page tells the reader: its message when written for people, never a raw payload or markup. */
+export function routeErrorExplanation(error: unknown) {
+  if (isModuleLoadFailure(error)) return 'Praetorium has been updated since this page opened. Reload to continue.'
+  const message = error instanceof Error ? error.message.trim() : ''
+  if (message && message.length <= 200 && !/^[[{<]/.test(message)) return message
+  return 'This page could not load. Try again.'
 }

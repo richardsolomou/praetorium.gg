@@ -328,6 +328,7 @@ export function LeagueEventView({
         open={choosing}
         pending={submit.isPending}
         error={submit.error}
+        failedRosterId={submit.variables ?? null}
         requiredLimit={ownEntry?.requiredLimit ?? null}
         onClose={() => {
           if (submit.isPending) return

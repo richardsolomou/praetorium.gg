@@ -120,9 +120,9 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
         </span>
         {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
+        <ChevronRight className="ml-2 size-4 shrink-0 text-dim" aria-hidden />
       </FactionReferenceLink>
-      <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} />
-      <ChevronRight className="mr-2 size-4 shrink-0 text-dim" aria-hidden />
+      <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} className="size-11" />
     </div>
   )
 })

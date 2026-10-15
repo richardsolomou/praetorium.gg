@@ -14,6 +14,7 @@ import {
 } from './referenceService'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { ifNoneMatch } from './ifNoneMatch'
+import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'
 
 type ReferenceRecord = {
@@ -288,41 +289,4 @@ function problem(error: string, status: number) {
   return Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } })
 }
 
-type RateWindow = { startedAt: number; requests: number }
-const rateWindows = new Map<string, RateWindow>()
-const RATE_WINDOW_MS = 60_000
-const RATE_BUCKET_MAX = 10_000
-
-export function referenceRateLimit(request: Request, limit: number) {
-  const now = Date.now()
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  const key = forwarded || 'unknown'
-  const current = rateWindows.get(key)
-  if (current && now - current.startedAt < RATE_WINDOW_MS) {
-    current.requests += 1
-    if (current.requests <= limit) return null
-    return rateLimitResponse(windowRetryAfter(current, now))
-  }
-  if (current) rateWindows.delete(key)
-  if (rateWindows.size >= RATE_BUCKET_MAX) {
-    for (const [bucketKey, value] of rateWindows) if (now - value.startedAt >= RATE_WINDOW_MS) rateWindows.delete(bucketKey)
-  }
-  if (rateWindows.size >= RATE_BUCKET_MAX) {
-    const retryAt = Math.min(...[...rateWindows.values()].map((window) => window.startedAt + RATE_WINDOW_MS))
-    return rateLimitResponse(Math.max(1, Math.ceil((retryAt - now) / 1000)))
-  }
-  rateWindows.set(key, { startedAt: now, requests: 1 })
-  return null
-}
-
-const windowRetryAfter = (window: RateWindow, now: number) => Math.ceil((window.startedAt + RATE_WINDOW_MS - now) / 1000)
-
-function rateLimitResponse(retryAfter: number) {
-  return Response.json(
-    { error: 'too many reference requests' },
-    {
-      status: 429,
-      headers: { 'Cache-Control': 'no-store', 'Retry-After': String(retryAfter) },
-    },
-  )
-}
+export const referenceRateLimit = fixedWindowRateLimit('too many reference requests')

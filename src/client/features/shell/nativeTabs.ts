@@ -62,6 +62,13 @@ export function rememberTab(href: string, options: { scrollY?: number; regions?:
   sessionStorage.setItem(`${TAB_PREFIX}${location.section}`, JSON.stringify(memory))
 }
 
+/** Drops a tab's memory of a location that no longer exists, so the tab reopens at its section root. */
+export function forgetTab(href: string) {
+  const location = tabLocation(href)
+  if (!location || typeof window === 'undefined') return
+  if (stored(location.section)?.href === location.href) sessionStorage.removeItem(`${TAB_PREFIX}${location.section}`)
+}
+
 export function recallTab(section: NativeSection) {
   return stored(section)
 }

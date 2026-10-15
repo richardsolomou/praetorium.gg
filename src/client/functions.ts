@@ -174,7 +174,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
   if (isRosterExchangeCode(args.data.file)) {
     const exchange = await decodeRosterExchange(args.data.file)
     if (!factions) return server.importRoster(args)
-    const faction = factions.find((candidate) => candidate.id === exchange.catalogueId)
+    const faction = savedFaction(exchange.catalogueId, factions)
     return constructionRead(
       ({ catalogue, rules }) => {
         if (!faction) throw new Error(ROSTER_EXCHANGE_RULES_UNAVAILABLE)
@@ -188,11 +188,10 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
   if (!factions) return server.importRoster(args)
   const stated = importRosterFaction(args.data.file)
   const statedId = importRosterCatalogueId(args.data.file)
-  const faction = stated
-    ? factions.find(
-        (candidate) => matchesImportFaction(stated, candidate.name) && (statedId ? candidate.id === statedId : candidate.isDefault),
-      )
-    : null
+  const candidates = statedId
+    ? [savedFaction(statedId, factions)].filter((found) => found !== undefined)
+    : factions.filter((found) => found.isDefault)
+  const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate.name)) : null
   return constructionRead(
     ({ catalogue, rules }) => {
       if (statedId && !faction) throw new Error('The exported codex version is not available.')
@@ -207,6 +206,11 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
     faction?.id,
     args.signal,
   )
+}
+
+/** Exact root IDs are absent from the faction index, so a book read for a roster answers first. */
+function savedFaction(id: string, factions: { id: string; name: string }[]) {
+  return factionFor(id) ?? factions.find((candidate) => candidate.id === id)
 }
 
 function factionFor(id: string) {

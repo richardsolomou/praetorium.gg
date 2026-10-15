@@ -18,11 +18,11 @@ import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
-import { WhatsNewNotice } from './WhatsNew'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
+import { FeedbackDialog, openFeedback } from '../feedback/FeedbackDialog'
 import { meQuery } from '../../queries'
 import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
 import { restoreTextSize } from '../../textSize'
@@ -182,7 +182,7 @@ export function AppShell() {
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
         <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
           <TooltipProvider delay={250} closeDelay={100}>
-            {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
+            {posthog && <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />}
             <GlobalSearchProvider>
               {/*
                * The bar spans the window and the page inside it decides its own width,
@@ -248,10 +248,10 @@ export function AppShell() {
                   state={location.state}
                 />
                 <OnboardingGuide />
+                <FeedbackDialog />
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
-                {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.
@@ -271,6 +271,9 @@ export function AppShell() {
                       <Link to="/support" className="transition-colors hover:text-bone">
                         Support
                       </Link>
+                      <button type="button" onClick={openFeedback} className="transition-colors hover:text-bone">
+                        Send feedback
+                      </button>
                       <Link to="/privacy" className="transition-colors hover:text-bone">
                         Privacy policy
                       </Link>

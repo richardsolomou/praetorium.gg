@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useId } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { RuleText } from '../../../components/RuleText'
@@ -7,8 +7,10 @@ import { WeaponProfiles } from '../../../components/DatasheetProfiles'
 import { weaponProfileGroups } from '../../../datasheet'
 import {
   defaultFirst,
+  increaseBlocked,
   type LoadoutChoice,
   type LoadoutOption,
+  type SpreadCounts,
   type SpreadUpdate,
   spreadHandlers,
   weaponProfilesFor,
@@ -39,7 +41,11 @@ const PROSE = 'text-xs'
 
 type Described = { abilities: Datasheet['abilities']; rules: Datasheet['keywordRules']; weapons: readonly WeaponProfileData[] }
 
-/** A row's share of the bodies its kind of model has, given and taken one at a time. */
+/**
+ * A row's share of the bodies its kind of model has, given and taken one at a time.
+ *
+ * A disabled button fires no hover, so why More is disabled is said beside it.
+ */
 export function PoolStepper({
   name,
   count,
@@ -47,6 +53,7 @@ export function PoolStepper({
   disabled = false,
   onAdd,
   onRemove,
+  blocked,
 }: {
   name: string
   count: number
@@ -54,7 +61,9 @@ export function PoolStepper({
   disabled?: boolean
   onAdd?: () => void
   onRemove?: () => void
+  blocked?: string | null
 }) {
+  const reasonId = useId()
   if (!editable) {
     return (
       <span className="chip readout" aria-label={`${name} count`}>
@@ -62,14 +71,26 @@ export function PoolStepper({
       </span>
     )
   }
-  return (
+  const reason = !disabled && !onAdd ? blocked : null
+  const stepper = (
     <Stepper
       label={name}
       count={count}
       onAdd={disabled ? undefined : onAdd}
       onRemove={disabled ? undefined : onRemove}
+      addDescribedBy={reason ? reasonId : undefined}
       countLabel={`${name} count`}
     />
+  )
+  return reason ? (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span id={reasonId} className="text-right text-2xs text-faint">
+        {reason}
+      </span>
+      {stepper}
+    </span>
+  ) : (
+    stepper
   )
 }
 
@@ -425,6 +446,7 @@ export function SpreadChoice({
   showOptions = true,
   highlightSelection = true,
   optionNote,
+  saved,
 }: Described & {
   choice: LoadoutChoice
   editable: boolean
@@ -433,8 +455,9 @@ export function SpreadChoice({
   showOptions?: boolean
   highlightSelection?: boolean
   optionNote?: OptionNote
+  saved?: SpreadCounts
 }) {
-  const { taken, more, less } = spreadHandlers(choice)
+  const { taken, more, less } = spreadHandlers(choice, saved)
   const press = (update: SpreadUpdate | undefined) => (update ? () => onSpread(choice.key, update) : undefined)
 
   return (
@@ -464,6 +487,7 @@ export function SpreadChoice({
                 disabled={controlsDisabled}
                 onAdd={press(more(option))}
                 onRemove={press(less(option))}
+                blocked={increaseBlocked(choice, option)}
               />
             </div>
             <OptionProfiles option={option} weapons={weapons} rules={rules} />

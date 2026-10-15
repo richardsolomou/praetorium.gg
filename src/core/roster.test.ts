@@ -2219,3 +2219,48 @@ describe('weapon capacity on required leaders', () => {
     })
   })
 })
+
+describe('specialists joining the models a unit is sized by', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'beserks',
+        name: 'Beserks',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'squad',
+            name: '5-10 Beserks',
+            constraints: [
+              { id: 'squad-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'squad-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'beserk',
+                name: 'Beserk',
+                type: 'model',
+                constraints: [
+                  { id: 'beserk-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                  { id: 'beserk-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+                ],
+              },
+              ...['gauntlets', 'launcher'].map((id) => ({
+                id,
+                name: `Beserk w/ ${id}`,
+                type: 'model' as const,
+                constraints: [{ id: `${id}-max`, type: 'max' as const, value: 2, field: 'selections', scope: 'parent' }],
+              })),
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers a specialist before the unit holds any', () => {
+    const built = buildUnit('beserks', index, 10)!
+    const choice = unitChoices('beserks', built.selection, index).find((candidate) => candidate.key === 'squad')
+    expect(choice?.options.find((option) => option.id === 'gauntlets')?.max).toBe(2)
+  })
+})

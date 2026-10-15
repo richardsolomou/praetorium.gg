@@ -9,7 +9,7 @@ import type { SavedRoster } from './rosterLibrary'
 import { useRosterPages } from './rosterPages'
 import { sortRosters } from './rosterSort'
 import { type RosterRowLayout, rosterRowFrame } from './RosterRow'
-import { RosterSummary, RosterVariantSummary, rosterTitle } from './RosterSummary'
+import { type RosterProblem, RosterSummary, RosterVariantSummary, rosterTitle } from './RosterSummary'
 
 /**
  * Saved lists to choose one of, drawn the way the library draws them: each base on a
@@ -26,7 +26,8 @@ export function RosterChoices({
   rosters: readonly SavedRoster[]
   selectedId: string | null
   disabled?: boolean
-  onSelect: (roster: SavedRoster) => void
+  /** Passes what the library already knows is wrong with the list, if its row has been priced. */
+  onSelect: (roster: SavedRoster, problem: RosterProblem | null) => void
 }) {
   const [shownCount, setShownCount] = useState(ROSTER_LIBRARY_BATCH_SIZE)
   const { data: available, isPending: factionsLoading } = useQuery(factionIndexQuery())
@@ -60,7 +61,7 @@ export function RosterChoices({
         data-roster={rosterTitle(roster, faction, page?.label)}
         data-variant={layout === 'variant' || undefined}
         disabled={disabled}
-        onClick={() => onSelect(roster)}
+        onClick={() => onSelect(roster, summary.problem)}
         className={`flex w-full items-center gap-2 p-2 text-left disabled:cursor-wait disabled:opacity-70 ${rosterRowFrame[layout]} ${
           selected ? 'bg-raised ring-1 ring-parchment ring-inset' : ''
         }`}

@@ -10,7 +10,7 @@ export type RulesVersionStatus = (typeof RULES_VERSION_STATUSES)[number]
 
 const id = z.string().min(1).max(128)
 
-export const rosterDiscoveryCursorSchema = z.strictObject({ at: z.number().int().nonnegative(), id })
+export const rosterDiscoveryCursorSchema = z.object({ at: z.number().int().nonnegative(), id })
 export type RosterDiscoveryCursor = z.infer<typeof rosterDiscoveryCursorSchema>
 
 /** A faction family (`currentCatalogueFamilyId`), one detachment, and a rules-version status. */

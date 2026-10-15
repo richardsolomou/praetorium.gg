@@ -84,7 +84,7 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
               the builder before submitting this roster.
             </p>
           ) : null}
-          <pre className="whitespace-pre-wrap border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
+          <pre className="whitespace-pre-wrap wrap-anywhere border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
           {problem ? (
             <p role="alert" className="mt-3 text-sm text-destructive">
               {problem}

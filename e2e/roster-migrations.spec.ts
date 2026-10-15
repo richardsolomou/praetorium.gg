@@ -176,3 +176,39 @@ test('library and builder point a roster on earlier released rules at the curren
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('Older rules')
   await expect(page.locator('[data-roster="Earlier Scouts · 2"]')).not.toContainText('Older rules')
 })
+
+test('resets a saved choice the current rules no longer offer', async ({ page }) => {
+  const { email } = await signUp(page, 'Stale choice')
+  const user = await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string })
+  const id = crypto.randomUUID()
+  const operator = await productOperator()
+  await operator.saveRoster({
+    id,
+    userId: user.id,
+    name: 'Stale Scouts',
+    catalogueId: 'mfm-1-6~470a-6daa-9014-12df',
+    detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
+    disposition: 'priority-assets',
+    limit: 1000,
+    picks: JSON.stringify([{ entryId: '3c0a-10a9-8f84-26a3', models: 5, choices: { 'retired-group': 'retired-option' } }]),
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: Date.now(),
+  })
+  // Opened from the library, so this device holds the saved version its edit builds on.
+  await page.goto('/rosters')
+  await page.locator('[data-roster="Stale Scouts"]').getByRole('link').first().click()
+  await expect(page).toHaveURL(new RegExp(`/rosters/${id}$`))
+  const error = page.getByRole('listitem').filter({ hasText: 'Scout Squad: a saved choice is no longer available' })
+  await expect(error).toBeVisible()
+  await waitForRosterSave(page, () => error.getByRole('button', { name: 'Reset options', exact: true }).click())
+  await expect(error).toHaveCount(0)
+  await page.reload()
+  await expect(error).toHaveCount(0)
+  const [saved] = JSON.parse((await operator.roster(id))?.picks ?? '[]') as { models?: number; choices?: Record<string, string> }[]
+  expect(saved?.choices?.['retired-group']).toBeUndefined()
+  expect(saved?.models).toBe(5)
+})

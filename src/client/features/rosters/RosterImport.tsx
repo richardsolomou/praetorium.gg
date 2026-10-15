@@ -12,6 +12,7 @@ import { errorMessage } from '../../queryClient'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
 import { battleSizeLabel } from '../../../core/battle'
+import { importFailureReport } from '../feedback/feedback'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 type Matched<T> = T extends { catalogueId: string | null; source: string | null }
@@ -38,6 +39,12 @@ export function importedSetup(imported: MatchedImport, defaultLimit: number) {
 }
 
 const CODE_HASH = 'code='
+
+/** Files the failure as an automatic feedback response carrying the exact input, so it can be reproduced. */
+function reportImportFailure(report: Parameters<typeof importFailureReport>[0]) {
+  const { event, properties } = importFailureReport(report)
+  posthog.capture(event, properties, { send_instantly: true })
+}
 
 /** Each name the import refused, on its own line, so the player reads why rather than only what. */
 const explain = (unknown: readonly { name: string; reason: string }[]) =>
@@ -109,19 +116,35 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
     mutationFn: async (file: string): Promise<MatchedImport> => {
       const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
         posthog.capture('roster_import_failed', { reason: 'request', input: inputOf(file) })
+        reportImportFailure({ reason: 'request', inputKind: inputOf(file), unknown: [], unplaced: [], input: file })
         throw error
       })
       if (!matched(imported)) {
         posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: inputOf(file) })
+        reportImportFailure({
+          reason: 'catalogue_unmatched',
+          inputKind: inputOf(file),
+          unknown: imported.unknown,
+          unplaced: imported.unplaced,
+          input: file,
+        })
         throw new Error(explain(imported.unknown) || `Could not match ${imported.catalogueName || 'the faction'}`)
       }
       return imported
     },
-    onSuccess: (imported) => {
+    onSuccess: (imported, file) => {
       posthog.capture('roster_import_review_required', {
         missing_count: imported.unknown.length,
         unplaced_count: imported.unplaced.length,
       })
+      if (imported.unknown.length || imported.unplaced.length)
+        reportImportFailure({
+          reason: 'review_required',
+          inputKind: inputOf(file),
+          unknown: imported.unknown,
+          unplaced: imported.unplaced,
+          input: file,
+        })
     },
   })
 

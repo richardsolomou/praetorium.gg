@@ -168,6 +168,30 @@ const faction: CatalogueFile = {
           },
         ],
       },
+      {
+        id: 'assault-squad',
+        name: 'Assault Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'assault-models',
+            name: 'Models',
+            constraints: [
+              { id: 'assault-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'assault-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'assault-marines',
+                name: 'Assault Marines',
+                type: 'model',
+                profiles: [{ id: 'assault-marine-profile', name: 'Assault Marine', typeName: 'Unit' }],
+                constraints: [{ id: 'assault-marines-min', type: 'min', value: 5, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
     ],
   },
 }
@@ -419,6 +443,96 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.units[0]?.choices?.enhancements).toBe('relic')
+  })
+
+  it('places equipment nested under a model line', () => {
+    const imported = importRosterFile(
+      {
+        file: `List (100 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+    • 3x Tomb Blade
+        ◦ 3x Particle beamer
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.units[0]?.spreads?.['model/weapon']).toEqual({ blaster: 0, beamer: 3 })
+  })
+
+  it('matches an enhancement after a plural export label', () => {
+    const imported = importRosterFile(
+      {
+        file: `List (100 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Lokhust Lord (80 Points)
+    • Enhancements: Demanding Leader
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.units[0]?.choices?.enhancements).toBe('relic')
+  })
+
+  it('sizes a squad from the models its lines state', () => {
+    const imported = importRosterFile(
+      {
+        file: `List (100 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+BATTLELINE
+
+Intercessor Squad (160 Points)
+    • 1x Intercessor Sergeant
+    • 9x Intercessor
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.units[0]?.models).toBe(10)
+  })
+
+  it('recognises a model line by its datasheet stat-line name', () => {
+    const imported = importRosterFile(
+      {
+        file: `List (100 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Assault Squad (100 Points)
+    • 5x Assault Marine
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([])
   })
 
   it('names equipment the datasheet cannot place instead of defaulting silently', () => {

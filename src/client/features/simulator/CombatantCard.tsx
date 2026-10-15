@@ -135,6 +135,7 @@ export function CombatantCard({
       placeholder="Choose a unit"
       searchPlaceholder="Search units…"
       index={catalogueUnits.data ?? []}
+      emptyText={catalogueUnits.isPending ? 'Loading units…' : undefined}
       extraGroups={selectedOutsideIndex}
       value={pick ? unitValue(combatant.faction, pick.entryId) : ''}
       onValueChange={(value) => {

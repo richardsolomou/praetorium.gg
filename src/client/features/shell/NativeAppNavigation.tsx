@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useRouter } from '@tanstack/react-router'
+import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { BookOpen, Ellipsis, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType, type MouseEvent, type ReactNode } from 'react'
 import { setNativeAccount, setNativeHistoryBack, setNativeNavigation } from '../../nativeBridge'
@@ -7,7 +7,7 @@ import { historyStaysInSection, rememberHistorySection } from './nativeHistory'
 import { nativeNavigation, type NativeSection } from './nativeNavigation'
 import { meQuery } from '../../queries'
 import { restoreNativeTabScroll } from './nativeTabScroll'
-import { recallTab, rememberTab, tabLocation } from './nativeTabs'
+import { forgetTab, recallTab, rememberTab, tabLocation } from './nativeTabs'
 
 type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
 
@@ -53,6 +53,7 @@ export function NativeAppNavigation({
   const active = tabLocation(href)?.section
   const index = router.history.location.state.__TSR_index
   const staysInTab = Boolean(navigation.back?.preferHistory) && historyStaysInSection(index, navigation.section)
+  const notFound = useRouterState({ select: ({ matches }) => matches.some((match) => match.status === 'notFound' || match._notFound) })
   const moreActive = path === '/more' || (!PRIMARY_TABS.some(({ section }) => section === active) && path !== '/')
 
   useEffect(() => {
@@ -72,15 +73,21 @@ export function NativeAppNavigation({
     const usesApplicationNavigation =
       document.documentElement.dataset.nativeApp === 'true' || window.matchMedia('(max-width: 859px)').matches
     if (!usesApplicationNavigation) return
+    if (notFound) {
+      forgetTab(href)
+      return
+    }
     const memory = active ? recallTab(active) : null
     const followsHash = href.includes('#') && memory?.href !== href
     rememberTab(href, { state })
     if (followsHash) return
     if (!memory || memory.href !== href) return
     return restoreNativeTabScroll(memory.scrollY, memory.regions, SCROLL_REGIONS)
-  }, [active, href, state])
+  }, [active, href, notFound, state])
 
-  const rememberCurrentTab = () => rememberTab(href, { scrollY: window.scrollY, regions: regionScroll(), state })
+  const rememberCurrentTab = () => {
+    if (!notFound) rememberTab(href, { scrollY: window.scrollY, regions: regionScroll(), state })
+  }
 
   const openSection = (event: MouseEvent, section: NativeSection, to: string) => {
     if (event.defaultPrevented) return

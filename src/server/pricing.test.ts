@@ -159,6 +159,7 @@ it('marks an old selected wargear option as illegal instead of silently dropping
     entryId: 'current',
     entryName: 'Current unit',
     message: 'a saved choice is no longer available; reselect this unit’s options',
+    unavailable: [{ pickIndex: 0, entryId: 'current', kind: 'choice', key: 'old', optionId: 'weapon' }],
   })
 })
 

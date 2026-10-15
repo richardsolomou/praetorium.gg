@@ -341,7 +341,8 @@ export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScorin
       const inputs = PHASES.map((phase) => {
         const setup = scoring.phases[phase]
         const attack = attacks[phase]
-        if (!setup || !attack.base) throw new Error('Some loadouts contain unsupported rules. Optimization could not finish.')
+        if (!setup || !attack.base)
+          throw new Error(`${attack.plan.errors[0] ?? 'Some loadouts contain unsupported rules.'} Optimization could not finish.`)
         return (
           combatAttackInput(attack, setup.target, setup.options, setup.adjustment) ?? {
             target: setup.target,

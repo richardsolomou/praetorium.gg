@@ -56,7 +56,11 @@ export function sizeOf(base: Selection, index: CatalogueIndex): UnitSize {
   // itself is the body, so a unit with nothing beneath it still fields one.
   if (!total) return { min: 1, max: 1, models: 1, path: [] }
 
-  const flexible = groups.toSorted((left, right) => right.max - right.min - (left.max - left.min))[0]
+  // The squad a datasheet sizes is the group it must field; an optional one beside
+  // it, such as a pack of beasts, can span more without being what the size means.
+  const flexible = groups.toSorted(
+    (left, right) => Number(right.min > 0) - Number(left.min > 0) || right.max - right.min - (left.max - left.min),
+  )[0]
   if (!flexible) return { min: total, max: total, models: total, path: [] }
 
   const others = total - flexible.total

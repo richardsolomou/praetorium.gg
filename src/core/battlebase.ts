@@ -1,7 +1,7 @@
 import type { TextRoster, TextRosterUnit } from './textRoster'
 
 const unitHeader = /^(.*?)\s+\(\d[\d,]* Points?\)$/i
-const selection = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
+const selection = /^\s*[•◦]\s*(?:(\d+)x\s+)?(.+?)\s*$/
 const sectionHeading = /^(CHARACTERS?|BATTLELINE|DEDICATED TRANSPORTS|OTHER DATASHEETS|ALLIED UNITS)$/i
 
 export function fromBattleBaseText(input: string): TextRoster | null {

@@ -266,12 +266,30 @@ export function leagueTeams(
   })
 }
 
+const sealedWarlords = (snapshots: readonly Roster[]) =>
+  snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
+const warlordEligible = (unit: NonNullable<Roster['built']>['units'][number], legacy = false) =>
+  unit.warlordEligible ?? (legacy || unit.group === 'character' || unit.group === 'epic-hero')
+
 export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {
-  const selected = snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
-  return {
-    count: selected.length,
-    eligible: selected.every((unit) => unit.warlordEligible ?? (legacy || unit.group === 'character' || unit.group === 'epic-hero')),
-  }
+  const selected = sealedWarlords(snapshots)
+  return { count: selected.length, eligible: selected.every((unit) => warlordEligible(unit, legacy)) }
+}
+
+/**
+ * Explains why a roster's Warlords were refused at seal. Only call it after a refusal: a doubles list that passes alone was
+ * refused for its team, so its own count says whether the teammate's sealed list also has a Warlord or neither does.
+ */
+export function leagueWarlordRefusal(roster: Roster, doubles: boolean) {
+  const selected = sealedWarlords([roster])
+  const ineligible = selected.find((unit) => !warlordEligible(unit))
+  if (ineligible) return `${ineligible.name} can’t be your Warlord — only a Character or Epic Hero can`
+  if (selected.length > 1)
+    return `Choose one Warlord: ${new Intl.ListFormat('en', { type: 'conjunction' }).format(selected.map((unit) => unit.name))} are marked`
+  if (!doubles) return 'Choose a Warlord: this list has none'
+  return selected.length
+    ? 'Your teammate’s sealed list already has your team’s Warlord: remove this list’s Warlord'
+    : 'Neither of your team’s lists has a Warlord: choose one in this list'
 }
 
 /** What a roster card shows of a revealed list. */

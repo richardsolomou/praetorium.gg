@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
+import { openFeedback } from '../feedback/FeedbackDialog'
 
 type MoreLink = {
   description: string
@@ -89,9 +90,9 @@ export function NativeMorePage() {
                 <ShieldCheck className="size-5 text-info" /> Admin
               </Link>
             ) : null}
-            <a href="https://github.com/richardsolomou/praetorium.gg/issues" target="_blank" rel="noreferrer" className={secondaryClass}>
-              <MessageSquareWarning className="size-5 text-info" /> Feedback
-            </a>
+            <button type="button" onClick={openFeedback} className={`${secondaryClass} text-left`}>
+              <MessageSquareWarning className="size-5 text-info" /> Send feedback
+            </button>
           </div>
         </section>
       </PageContent>

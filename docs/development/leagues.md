@@ -34,7 +34,7 @@ Only accepted entrants with resolved size/team assignments may seal. Server subm
 
 Preview, released, and archived rules may be sealed. Submission prices the roster against its selected rules version and freezes that version's metadata with the roster. [Catalogue data](catalogue-data.md#composing-sources-and-publishing-rules-versions) owns the rules-version lifecycle.
 
-Outside doubles, every roster has one eligible Warlord. A first doubles roster may have zero or one; once both exist, the team must contain exactly one. Freeze source-backed eligibility rather than inferring it from names.
+Outside doubles, every roster has one eligible Warlord. A first doubles roster may have zero or one; once both exist, the team must contain exactly one. Freeze source-backed eligibility rather than inferring it from names. Both the local and server seal paths explain a refused Warlord through `leagueWarlordRefusal` in `src/core/league.ts`, which names the missing, extra, or ineligible unit.
 
 Saved edits never change `league_event_entries.roster_snapshot`. Before reveal, an entrant can replace it deliberately. Reassignment and doubles re-pairing clear every affected snapshot atomically; pairing a 2v1 ally keeps an allied-size list, since its Warlord is its own. Compare saved choices with the sealed copy to warn about changed unrevealed lists; restoration clears the warning.
 

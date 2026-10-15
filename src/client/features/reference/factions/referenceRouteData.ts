@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { notFound } from '@tanstack/react-router'
+import { notFound, redirect } from '@tanstack/react-router'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 import { breadcrumbMeta, datasheetPreview, detachmentPreview, pageHead } from '../../../linkPreview'
 import {
@@ -56,7 +56,12 @@ export async function loadFactionDetachment(queryClient: QueryClient, catalogueI
   ])
   if (!faction) throw notFound()
   const route = faction.detachments.find((detachment) => detachment.slug === detachmentId)?.referenceRoute
-  if (route && (route.catalogueId !== faction.slug || route.slug !== detachmentId)) throw notFound()
+  if (route && (route.catalogueId !== faction.slug || route.slug !== detachmentId))
+    throw redirect({
+      to: '/factions/$catalogueId/detachments/$detachmentId',
+      params: { catalogueId: route.catalogueId, detachmentId: route.slug },
+      replace: true,
+    })
   const detachment = await queryClient.query({ ...detachmentDetailQuery(faction.id, detachmentId), staleTime: 'static' })
   if (!detachment) throw notFound()
   return { detachment, faction }

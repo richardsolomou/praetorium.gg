@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="12 October 2026">
+    <LegalPage title="Privacy policy" updated="15 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -48,9 +48,15 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
-          session replays. Measurements include counts, durations and outcomes — never names, email addresses, list contents, search text or
-          the details of actions recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security
-          and administration screens are not recorded. Only signed-in visitors get an identified profile.
+          session replays. Measurements include counts, durations and outcomes — never list contents, search text or the details of actions
+          recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security and administration
+          screens are not recorded. Only signed-in visitors get an identified profile, which carries their account name and email address so
+          we can see who ran into a problem and reach them about it.
+        </p>
+        <p>
+          Feedback you send is stored in PostHog with its message, any email address you add for a reply, and the page and replay of the
+          visit you sent it from. A screenshot you attach is stored privately and only administrators can open it. When a list fails to
+          import, its text is sent to us in an automatic report so we can fix the importer.
         </p>
       </LegalSection>
 

@@ -191,3 +191,9 @@ test('faction links open current rules and version menus identify archives', { t
   await page.goto('/factions/dark-angels/rules/legacy-rosters/datasheets')
   await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/mfm-1-4-2026-09-30\/datasheets$/)
 })
+
+test('a detachment address under a faction that borrows it opens the printing faction’s page', { tag: '@catalogue' }, async ({ page }) => {
+  await page.goto('/factions/dark-angels/detachments/gladius-task-force')
+  await expect(page).toHaveURL(/\/factions\/space-marines\/rules\/[^/]+\/detachments\/gladius-task-force$/)
+  await expect(page.getByRole('heading', { name: 'Gladius Task Force', level: 1 })).toBeVisible()
+})
