@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.144.1
+
+### Patch Changes
+
+- ae6366f: Leave a battle page as soon as its battle is deleted, instead of waiting for the next refresh.
+- 3bd45a8: Price rosters faster by reusing the units a change didn't touch.
+- 4015934: Update how many copies of each unit you can add faster while you edit a roster.
+- ae6366f: Refresh your data once when live updates connect, instead of reloading the same screens several times.
+- 5c38f17: Serve reference pages faster to visitors who are not signed in.
+- 8c0170f: Open your own rosters without loading their points twice.
+- 8a5e4b9: Editing a roster no longer reloads the whole page's data after each change, so edits settle faster.
+
 ## 0.144.0
 
 ### Minor Changes
