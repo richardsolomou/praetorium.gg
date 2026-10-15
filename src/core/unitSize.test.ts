@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 import { buildUnit } from './roster'
-import { modelCountChoices, modelCountOf, unitSize } from './unitSize'
+import { modelCountChoices, modelCountOf, sizeOf, unitSize } from './unitSize'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
@@ -235,6 +235,45 @@ describe('how many models a unit may field', () => {
 
     const built = buildUnit('nested-squad', index, 6)!
     expect(modelCountOf(built.selection, index)).toBe(6)
+  })
+
+  it('keeps sizing the required squad once a wider optional group holds a model', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'pack-squad',
+          name: 'Pack squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'guard',
+              name: '3-6 Guard',
+              constraints: [
+                { id: 'guard-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                { id: 'guard-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [{ id: 'guardsman', name: 'Guardsman', type: 'model' }],
+            },
+            {
+              id: 'beasts',
+              name: 'Beasts',
+              constraints: [{ id: 'beasts-max', type: 'max', value: 6, field: 'selections', scope: 'parent' }],
+              selectionEntries: [{ id: 'beast', name: 'Beast', type: 'model' }],
+            },
+          ],
+        },
+      ],
+    })
+    const selection = {
+      id: 'pack-squad',
+      count: 1,
+      selections: [
+        { id: 'guard', count: 1, selections: [{ id: 'guardsman', count: 3 }] },
+        { id: 'beasts', count: 1, selections: [{ id: 'beast', count: 1 }] },
+      ],
+    }
+
+    expect(sizeOf(selection, index).path).toEqual(['guard', 'guardsman'])
   })
 
   it('clamps a size the data does not allow', () => {

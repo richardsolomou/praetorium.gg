@@ -297,6 +297,43 @@ describe('a group that requires selections', () => {
     expect(modelCountOf(defaultSelection('squad', index)!, index)).toBe(3)
   })
 
+  it('fills a fixed squad from the models its subgroups require before adding optional ones', () => {
+    const model = (id: string, min: number, max: number) => ({
+      id,
+      name: id,
+      type: 'model' as const,
+      constraints: [
+        ...(min ? [{ id: `${id}-min`, type: 'min' as const, value: min, field: 'selections', scope: 'parent' }] : []),
+        { id: `${id}-max`, type: 'max' as const, value: max, field: 'selections', scope: 'parent' },
+      ],
+    })
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'kill-team',
+          name: 'Kill team',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'members',
+              name: 'Squad members',
+              constraints: [
+                { id: 'members-min', type: 'min', value: 10, field: 'selections', scope: 'parent' },
+                { id: 'members-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntryGroups: [
+                { id: 'melta', name: 'Melta', selectionEntries: [model('rifle', 3, 3), model('heavy-melta', 0, 1)] },
+                { id: 'fists', name: 'Fists', selectionEntries: [model('fist', 3, 3)] },
+                { id: 'bolters', name: 'Bolters', selectionEntries: [model('bolter', 4, 4)] },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    expect(modelCountOf(defaultSelection('kill-team', index)!, index)).toBe(10)
+  })
+
   it('spreads the requirement across options that each allow only one', () => {
     const options = [
       { id: 'knife', name: 'Knife', max: 1 },
