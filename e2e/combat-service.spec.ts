@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
-import { signUp } from './account'
+import { retryUntilVisible, signUp } from './account'
 import { productOperator, withAuthSql } from './storage'
 
 async function countLocalCalculations(page: Page) {
@@ -67,8 +67,9 @@ test('a full roster matrix batches projections and uses the server without brows
     if (request.url().includes('/_serverFn/') && request.postData()?.includes('pickIndices')) projections++
     if (isCombatCalculationRequest(request) && response.status() === 200) calculations++
   })
-  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  const testTargets = page.getByRole('menuitem', { name: 'Test targets', exact: true })
+  await retryUntilVisible(testTargets, () => page.getByRole('button', { name: 'Roster actions', exact: true }).click())
+  await testTargets.click()
   const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('button', { name: 'Run all matchups' })).toBeEnabled()
   projections = 0
