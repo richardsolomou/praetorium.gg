@@ -33,6 +33,15 @@ import { refreshBattleFeed } from './refreshBattleFeed'
 import { prepareRosters } from './prepareRosters'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 
+/**
+ * Whether a refresh of saved screens asks for this query again. A roster price depends only on its key, which holds
+ * every input, so asking again repeats the costliest read for the same answer.
+ */
+export function refreshesSavedQuery(queryKey: readonly unknown[]) {
+  const family = String(queryKey[0])
+  return APP_SNAPSHOT_QUERIES.has(family) && family !== 'me' && family !== 'price'
+}
+
 export function AppPersistence() {
   const client = useQueryClient()
   const router = useRouter()
@@ -76,7 +85,7 @@ export function AppPersistence() {
         if (!active) return
         if (!pendingRefresh) accountChangePending = false
         await client.invalidateQueries({
-          predicate: (query) => APP_SNAPSHOT_QUERIES.has(String(query.queryKey[0])) && query.queryKey[0] !== 'me',
+          predicate: ({ queryKey }) => refreshesSavedQuery(queryKey),
         })
         if (!active || (client.getQueryData<{ id: string } | null>(['me'])?.id ?? null) !== (me?.id ?? null)) return
         await Promise.allSettled([
