@@ -39,6 +39,13 @@ async function bytes(response: Response) {
   return Buffer.concat(parts)
 }
 
+/**
+ * PostHog's build plugin stamps each chunk with a random id after its name is hashed,
+ * so two builds of unchanged code share a name and differ only in that id.
+ */
+const CHUNK_ID = /(_posthogChunkIds\[n\]="|\/\/# chunkId=)[0-9a-f-]{36}/g
+const withoutChunkId = (code: Buffer) => code.toString('utf8').replace(CHUNK_ID, '$1')
+
 class TransientResponse extends Error {}
 
 const transient = (response: Response) => response.status === 429 || response.status >= 500
@@ -105,7 +112,19 @@ export async function publishWebAssets(
             retryMs,
           )
           if (etag !== null) {
-            if (etag !== `"${createHash('md5').update(body).digest('hex')}"`) throw new Error(`Stored web asset differs: ${name}`)
+            if (etag === `"${createHash('md5').update(body).digest('hex')}"`) continue
+            const stored = await retryTransient(
+              async () => {
+                const existing = await storage.request(url, { signal: signal() })
+                if (transient(existing)) throw new TransientResponse(`Web asset storage answered ${existing.status}`)
+                if (!existing.ok) throw new Error(`Web asset storage read failed: ${name} (${existing.status})`)
+                return bytes(existing)
+              },
+              stopped,
+              retryMs,
+            )
+            // Clients may already hold the stored copy, so it stays; the same code under another chunk id is that copy.
+            if (withoutChunkId(stored) !== withoutChunkId(body)) throw new Error(`Stored web asset differs: ${name}`)
             continue
           }
           await retryTransient(
