@@ -178,8 +178,9 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
     await productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${league.eventId} AND user_id = ${userId}`,
   ).toEqual(sealedBefore)
 
+  // Its owner still reads the sealed copy before the reveal, after the saved roster is gone.
   await page.goto(`/rosters/${userId}?league=${league.token}&event=${league.eventToken}`)
-  await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
+  await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
   await page.goto(`/leagues/${league.token}`)
   const viewSealed = page.getByRole('button', { name: `View ${name}’s list`, exact: true })
   await expect(viewSealed).toHaveCount(0)
