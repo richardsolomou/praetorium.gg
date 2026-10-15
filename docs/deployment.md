@@ -8,6 +8,8 @@ Dokploy runs the web replicas. SQLite accounts/sessions share a production volum
 
 The Node server trusts Cloudflare's visitor header for proxying/rate limits. Restrict origin traffic to Cloudflare: direct callers could otherwise choose that header. Asset errors use `no-store` so a missing file cannot poison the browser or edge cache.
 
+Signed-out reference pages carry `Cache-Control: public, max-age=0, s-maxage=20` (`src/server/sharedPageCache.ts`), below the browser's 30-second query staleness so a cached page's hydrated data needs no refetch. A Cloudflare Cache Rule on the `praetorium.gg` host makes HTML eligible for cache except for requests carrying a `better-auth.` cookie or under `/_serverFn/` and `/api/`, with edge TTL set to use the origin's `Cache-Control` and bypass the cache when it is absent. Pages that read cookies while rendering, such as the roster library, and every signed-in response send no shared cache header. Nothing purges the edge after a deploy, so for up to 20 seconds a cached page can reference assets the deploy removed.
+
 ## Delivery
 
 Combat estimates use two worker threads per web replica, separate from the request event loop. Each worker has a 128 MiB old-generation heap limit; the pool bounds queued and running pairs and caches answers in memory per replica. `vite.seed.config.ts` builds the Node calculation worker alongside the preview seed entry, and the production image must contain `server/combat-calculation-worker.mjs` in its output directory. The offline browser worker remains in the saved application bundle. [Combat simulation](development/combat-simulation.md) owns calculation limits and cache behavior.

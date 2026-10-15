@@ -2,6 +2,7 @@ import { createMiddleware, createStart } from '@tanstack/react-start'
 import { canonicalHostMiddleware, serverFunctionIdentityMiddleware } from 'ras-stack/tanstack/middleware'
 import { serverTelemetry } from './adapters/posthog'
 import { crawlerRequestEvent } from './server/crawlerRequests'
+import { sharedPageCache } from './server/sharedPageCache'
 
 /** Records public page reads as `$http_log`, after the response is ready so the capture never delays it. */
 const crawlerRequestMiddleware = createMiddleware({ type: 'request' }).server(async ({ request, next }) => {
@@ -14,6 +15,14 @@ const crawlerRequestMiddleware = createMiddleware({ type: 'request' }).server(as
   return result
 })
 
+/** Lets Cloudflare hold signed-out reference pages briefly; its cache rule bypasses any request with a session. */
+const sharedPageCacheMiddleware = createMiddleware({ type: 'request' }).server(async ({ request, next }) => {
+  const result = await next()
+  const cacheControl = sharedPageCache(request, result.response)
+  if (cacheControl) result.response.headers.set('Cache-Control', cacheControl)
+  return result
+})
+
 export const startInstance = createStart(() => ({
   // Names each server function on its trace span and request metrics.
   functionMiddleware: [serverFunctionIdentityMiddleware()],
@@ -23,5 +32,6 @@ export const startInstance = createStart(() => ({
       pathsServedOnAnyHost: new Set(['/api/health']),
     })),
     crawlerRequestMiddleware,
+    sharedPageCacheMiddleware,
   ],
 }))
