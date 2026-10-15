@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.144.7
+
+### Patch Changes
+
+- f8e4911: Show your record and leaderboard place on the home page with the rest of the page, instead of after it loads.
+
 ## 0.144.6
 
 ### Patch Changes
