@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.147.2
+
+### Patch Changes
+
+- 7efc667: On iPhone, swipe from the left edge to go back from a detail screen to the screen that opened it in the same tab.
+
 ## 0.147.1
 
 ### Patch Changes
