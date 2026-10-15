@@ -16,7 +16,7 @@ import {
   setRosterVisibility,
   sharedRoster,
 } from '../../functions'
-import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
+import { invalidateSavedRosters, priceQuery, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
 import type { RosterSetupReview } from './rosterSetupReview'
@@ -96,10 +96,25 @@ export function useRosterActions(origin: string) {
   })
 
   const exchange = useMutation({
-    mutationFn: async ({ roster: summary, title, points }: { roster: SavedRoster; title: string; points: number | null }) => {
+    mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
       const roster = await load(summary)
       const name = roster.name || title
-      return { name, code: await encodeRosterExchange({ ...roster, name, points }) }
+      // Priced from the list just loaded: the library row's total can be a restored snapshot from before the last save.
+      const priced = await queryClient
+        .query(
+          priceQuery(
+            roster.catalogueId,
+            roster.detachmentIds,
+            roster.disposition,
+            roster.limit,
+            roster.picks,
+            roster.waivedRules,
+            roster.borrowedDetachmentId,
+            roster.optionalRules,
+          ),
+        )
+        .catch(() => null)
+      return { name, code: await encodeRosterExchange({ ...roster, name, points: priced?.points ?? null }) }
     },
     onSuccess: (code) => setExchangeCode(code),
   })

@@ -11,7 +11,7 @@ import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, q
 import { localConstruction } from './construction'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalRoster } from './localRuntime'
-import { cachedRead } from './reads'
+import { accountChanged, cachedRead } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
@@ -22,7 +22,7 @@ async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>)
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return local
   const result = await cachedRead(key, online, { updateCache: false })
   const saved = await rememberDocument(resource, result, null, owner, undefined, JSON.stringify({ data: local }))
-  if (localOwner()?.id !== owner) throw new Error('The account changed while loading this screen.')
+  if (localOwner()?.id !== owner) throw accountChanged()
   const retained = saved ? (saved.data as T) : result
   localClient()?.setQueryData(key, retained)
   return retained
