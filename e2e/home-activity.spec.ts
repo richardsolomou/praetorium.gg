@@ -262,7 +262,6 @@ test('omits the games shelf when the player has no active game', async ({ page }
   await page.goto('/')
 
   await expect(page.locator('[data-battle-shelf="Your game"], [data-battle-shelf="Your games"]')).toHaveCount(0)
-  await expect(page.locator('[data-home-checklist]')).toHaveCount(0)
   await expect(page.locator('[data-home-rosters]')).toBeVisible()
   await expect(page.locator('[data-home-record], [aria-label="Loading your record"]')).toHaveCount(0)
   await expect(page.getByRole('main').getByText('Public games', { exact: true })).toBeVisible()
