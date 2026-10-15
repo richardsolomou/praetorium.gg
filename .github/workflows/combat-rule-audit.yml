@@ -38,6 +38,8 @@ jobs:
           test -n "$S3_BUCKET"
           test -n "$S3_ENDPOINT"
           mkdir -p .combat-rule-cache
+          # One small object per judgment, so the CLI's default ten transfers spend minutes on round trips.
+          aws configure set default.s3.max_concurrent_requests 64
           aws s3 sync "s3://$S3_BUCKET/audits/combat-rule-judgments/v1/" .combat-rule-cache \
             --endpoint-url "$S3_ENDPOINT" --exclude '*' --include '*.json' --only-show-errors
       - name: Validate damage relevance questions

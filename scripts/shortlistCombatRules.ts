@@ -40,7 +40,16 @@ if (values.help) {
     concurrency: Number(values.concurrency),
     maxRequests: Number(values['max-requests']),
     signal: cancellation.signal,
-    client: new TypeSafeClient({ timeout: 15_000, retry: { maxRetries: 2, maxRetryAfterMs: 10_000 }, logLevel: 'off' }),
+    client: new TypeSafeClient({
+      timeout: 15_000,
+      // TypeSafe has answered a transient 499, which the SDK does not retry by default.
+      retry: {
+        maxRetries: 2,
+        maxRetryAfterMs: 10_000,
+        httpStatuses: new Set([408, 429, 499, ...Array.from({ length: 100 }, (_, index) => 500 + index)]),
+      },
+      logLevel: 'off',
+    }),
   })
   process.off('SIGINT', cancel)
   process.off('SIGTERM', cancel)

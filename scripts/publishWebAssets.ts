@@ -1,7 +1,8 @@
 import { readdir, readFile, lstat } from 'node:fs/promises'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import pRetry from 'p-retry'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 
 const CACHE = 'public, max-age=31536000, immutable'
@@ -38,15 +39,30 @@ async function bytes(response: Response) {
   return Buffer.concat(parts)
 }
 
+class TransientResponse extends Error {}
+
+const transient = (response: Response) => response.status === 429 || response.status >= 500
+
+/** Repeats one whole request, body included, when the network or the server failed rather than the bytes. */
+function retryTransient<T>(attempt: () => Promise<T>, stopped: AbortSignal, retryMs: number) {
+  return pRetry(attempt, {
+    retries: 3,
+    minTimeout: retryMs,
+    shouldRetry: ({ error }) =>
+      !stopped.aborted && (error instanceof TransientResponse || error instanceof TypeError || error.name === 'TimeoutError'),
+  })
+}
+
 export async function publishWebAssets(
   directories: string[],
   storage: { base: string; request: typeof fetch },
   publicRequest = fetch,
   publicBase = 'https://s3.praetorium.gg',
+  retryMs = 1_000,
 ) {
   const cancelled = new AbortController()
-  const deadline = AbortSignal.timeout(300_000)
-  const signal = () => AbortSignal.any([cancelled.signal, deadline, AbortSignal.timeout(30_000)])
+  const stopped = AbortSignal.any([cancelled.signal, AbortSignal.timeout(300_000)])
+  const signal = () => AbortSignal.any([stopped, AbortSignal.timeout(30_000)])
   const assets = new Map<string, string>()
   let total = 0
   for (const directory of directories) {
@@ -66,58 +82,85 @@ export async function publishWebAssets(
   if (!assets.size) throw new Error('No web assets found')
   const entries = [...assets]
   let next = 0
-  let failed = false
+  let uploaded = 0
   await Promise.all(
-    Array.from({ length: 4 }, async () => {
+    Array.from({ length: 8 }, async () => {
       try {
         while (next < entries.length) {
-          if (failed) return
+          stopped.throwIfAborted()
           const [name, file] = entries[next++]!
           const body = await readFile(file)
           const key = `web-assets/${name}`
           const url = new URL(key, storage.base)
-          const existing = await storage.request(url, { signal: signal() })
-          if (existing.status === 404) {
-            await existing.body?.cancel()
-            const uploaded = await storage.request(url, {
-              method: 'PUT',
-              body,
-              headers: { 'content-type': TYPES[path.extname(name)]!, 'cache-control': CACHE, 'if-none-match': '*' },
-              signal: signal(),
-            })
-            await uploaded.body?.cancel()
-            if (!uploaded.ok && uploaded.status !== 412) throw new Error(`Web asset upload failed: ${name} (${uploaded.status})`)
-          } else {
-            if (!existing.ok || !(await bytes(existing)).equals(body)) throw new Error(`Stored web asset differs: ${name}`)
+          // R2 answers a single-part object's MD5 as its ETag, so a stored asset is compared without downloading it.
+          const etag = await retryTransient(
+            async () => {
+              const existing = await storage.request(url, { method: 'HEAD', signal: signal() })
+              if (transient(existing)) throw new TransientResponse(`Web asset storage answered ${existing.status}`)
+              if (existing.status === 404) return null
+              if (!existing.ok) throw new Error(`Web asset storage read failed: ${name} (${existing.status})`)
+              return existing.headers.get('etag') ?? ''
+            },
+            stopped,
+            retryMs,
+          )
+          if (etag !== null) {
+            if (etag !== `"${createHash('md5').update(body).digest('hex')}"`) throw new Error(`Stored web asset differs: ${name}`)
+            continue
           }
+          await retryTransient(
+            async () => {
+              const response = await storage.request(url, {
+                method: 'PUT',
+                body,
+                headers: { 'content-type': TYPES[path.extname(name)]!, 'cache-control': CACHE, 'if-none-match': '*' },
+                signal: signal(),
+              })
+              await response.body?.cancel()
+              if (transient(response)) throw new TransientResponse(`Web asset upload answered ${response.status}`)
+              if (!response.ok && response.status !== 412) throw new Error(`Web asset upload failed: ${name} (${response.status})`)
+            },
+            stopped,
+            retryMs,
+          )
           for (const request of [storage.request, publicRequest]) {
-            const result = await request(request === storage.request ? url : `${publicBase}/${key}`, {
-              cache: 'no-store',
-              signal: signal(),
-            })
-            if (
-              !result.ok ||
-              result.headers.get('cache-control') !== CACHE ||
-              result.headers.get('content-type')?.split(';')[0] !== TYPES[path.extname(name)] ||
-              !(await bytes(result)).equals(body)
+            await retryTransient(
+              async () => {
+                const result = await request(request === storage.request ? url : `${publicBase}/${key}`, {
+                  cache: 'no-store',
+                  signal: signal(),
+                })
+                if (transient(result)) {
+                  await result.body?.cancel()
+                  throw new TransientResponse(`Web asset read answered ${result.status}`)
+                }
+                if (
+                  !result.ok ||
+                  result.headers.get('cache-control') !== CACHE ||
+                  result.headers.get('content-type')?.split(';')[0] !== TYPES[path.extname(name)] ||
+                  !(await bytes(result)).equals(body)
+                )
+                  throw new Error(`Web asset verification failed: ${name}`)
+              },
+              stopped,
+              retryMs,
             )
-              throw new Error(`Web asset verification failed: ${name}`)
           }
+          uploaded++
         }
       } catch (error) {
-        failed = true
         cancelled.abort()
         throw error
       }
     }),
   )
-  console.log(`Verified ${assets.size} shared web assets`)
+  console.log(`Verified ${assets.size} shared web assets (${uploaded} uploaded)`)
 }
 
-export async function verifyWebAssetRoute(directories: string[], origin: string, request = fetch) {
+export async function verifyWebAssetRoute(directories: string[], origin: string, request = fetch, retryMs = 1_000) {
   const cancelled = new AbortController()
-  const deadline = AbortSignal.timeout(180_000)
-  const signal = () => AbortSignal.any([cancelled.signal, deadline, AbortSignal.timeout(30_000)])
+  const stopped = AbortSignal.any([cancelled.signal, AbortSignal.timeout(180_000)])
+  const signal = () => AbortSignal.any([stopped, AbortSignal.timeout(30_000)])
   const assets = new Map<string, string>()
   for (const directory of directories) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -128,23 +171,25 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
   const entries = [...assets]
   let next = 0
   await Promise.all(
-    Array.from({ length: 4 }, async () => {
+    Array.from({ length: 8 }, async () => {
       try {
         while (next < entries.length) {
-          cancelled.signal.throwIfAborted()
+          stopped.throwIfAborted()
           const [name, file] = entries[next++]!
           const expected = await readFile(file)
-          // Undici reports a dropped connection as a TypeError; one reset among hundreds of CDN reads must not fail a deploy.
-          for (let attempt = 1; ; attempt++) {
-            try {
+          await retryTransient(
+            async () => {
               const response = await request(new URL(`/assets/${name}`, origin), { cache: 'no-store', signal: signal() })
+              if (transient(response)) {
+                await response.body?.cancel()
+                throw new TransientResponse(`Asset route answered ${response.status}: ${name}`)
+              }
               if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
                 throw new Error(`Asset route verification failed: ${name}`)
-              break
-            } catch (error) {
-              if (!(error instanceof TypeError) || attempt === 3) throw error
-            }
-          }
+            },
+            stopped,
+            retryMs,
+          )
         }
       } catch (error) {
         cancelled.abort()
@@ -152,10 +197,11 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
       }
     }),
   )
-  const missing = await request(new URL(`/assets/deployment-probe-missing-${randomUUID()}.js`, origin), {
-    cache: 'no-store',
-    signal: signal(),
-  })
+  const missing = await retryTransient(
+    () => request(new URL(`/assets/deployment-probe-missing-${randomUUID()}.js`, origin), { cache: 'no-store', signal: signal() }),
+    stopped,
+    retryMs,
+  )
   await missing.body?.cancel()
   if (missing.status !== 404 || missing.headers.get('cache-control') !== 'no-store') throw new Error('Asset misses must remain uncached')
 }
