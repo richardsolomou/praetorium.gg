@@ -20,7 +20,6 @@ import {
   rosterLoans,
   rostersLentToMe,
   savedRosterLoadoutDatasheets,
-  savedRosterPrice,
   savedRosterSummaries,
   savedRosterPage,
   sharedRoster,
@@ -177,23 +176,6 @@ export const priceQuery = (
     staleTime: SSR_STALE_TIME,
   })
 }
-
-export const savedRosterPriceQuery = (
-  id: string,
-  catalogueId: string,
-  detachmentIds: readonly string[],
-  disposition: string | null,
-  limit: number,
-  picked: readonly RosterPick[],
-  battle?: string,
-  waivedRules: readonly FormatRuleId[] = [],
-  borrowedDetachmentId: string | null = null,
-  optionalRules: readonly OptionalRuleId[] = [],
-) =>
-  queryOptions({
-    ...priceQuery(catalogueId, detachmentIds, disposition, limit, picked, waivedRules, borrowedDetachmentId, optionalRules),
-    queryFn: ({ signal }) => savedRosterPrice({ data: { id, ...(battle ? { battle } : {}) }, signal }),
-  })
 
 export const savedRosterSummariesQuery = () =>
   queryOptions({

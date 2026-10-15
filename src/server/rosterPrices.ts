@@ -78,24 +78,27 @@ export async function cachedRosterTotalsFor(rosters: readonly TotalsRoster[]) {
 const rosterPriceCache = new Map<string, ReturnType<typeof calculateRosterPrice>>()
 const ROSTER_PRICE_CACHE_LIMIT = 500
 
-export async function cachedRosterPrice(roster: {
-  id: string
-  updatedAt: Date | number
-  catalogueId: string
-  detachmentIds: string[]
-  disposition: string | null
-  limit: number
-  pointsBudget?: number | null
-  picks: Parameters<typeof calculateRosterPrice>[0]['units']
-  waivedRules: Parameters<typeof calculateRosterPrice>[0]['waivedRules']
-  optionalRules: Parameters<typeof calculateRosterPrice>[0]['optionalRules']
-  borrowedDetachmentId: string | null
-}) {
-  const key = await rosterRevisionKey(roster)
+export async function cachedRosterPrice(
+  roster: {
+    id: string
+    updatedAt: Date | number
+    catalogueId: string
+    detachmentIds: string[]
+    disposition: string | null
+    limit: number
+    pointsBudget?: number | null
+    picks: Parameters<typeof calculateRosterPrice>[0]['units']
+    waivedRules: Parameters<typeof calculateRosterPrice>[0]['waivedRules']
+    optionalRules: Parameters<typeof calculateRosterPrice>[0]['optionalRules']
+    borrowedDetachmentId: string | null
+  },
+  includeUnitLimits = false,
+) {
+  const key = `${await rosterRevisionKey(roster)}${includeUnitLimits ? ':unit-limits' : ''}`
   const cached = rosterPriceCache.get(key)
   if (cached !== undefined || rosterPriceCache.has(key)) return cached ?? null
   const [catalogue, rules] = await Promise.all([app().catalogueFor(roster.catalogueId), app().rulesFor(roster.catalogueId)])
-  const price = calculateRosterPrice(savedRosterPriceInput(roster), catalogue, rules)
+  const price = calculateRosterPrice({ ...savedRosterPriceInput(roster), includeUnitLimits }, catalogue, rules)
   if (rosterPriceCache.size >= ROSTER_PRICE_CACHE_LIMIT) {
     const oldest = rosterPriceCache.keys().next().value
     if (oldest !== undefined) rosterPriceCache.delete(oldest)

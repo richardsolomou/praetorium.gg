@@ -242,7 +242,7 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
     rpc(async () => {
       const access = await accessToRoster(data)
       if (!access) return null
-      const [navigation, price] = await Promise.all([app().factionsFor(), cachedRosterPrice(access.roster)])
+      const [navigation, price] = await Promise.all([app().factionsFor(), cachedRosterPrice(access.roster, access.editable)])
       const faction = navigation?.factions.find((candidate) => candidate.id === access.roster.catalogueId) ?? null
       return { ...access, faction, price, changes: await changesSinceSaved(access.roster, price) }
     }),
@@ -254,15 +254,6 @@ export const rosterChanges = createServerFn({ method: 'GET' })
     rpc(async () => {
       const roster = await app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
       return roster ? changesSinceSaved(roster, await cachedRosterPrice(roster)) : []
-    }),
-  )
-
-export const savedRosterPrice = createServerFn({ method: 'GET' })
-  .validator(rosterInBattleSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const roster = await app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
-      return roster ? cachedRosterPrice(roster) : null
     }),
   )
 
