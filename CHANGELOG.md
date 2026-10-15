@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.147.3
+
+### Patch Changes
+
+- 1dbe41c: The battle list drops a battle that was deleted while you were away instead of showing it until a reload.
+- 1dbe41c: Editing a roster straight after opening it from a link saves instead of reporting that it changed on another device.
+- eb88ca9: Feedback emails keep each detail on its own line and link their addresses.
+- 154ae55: Scrubbing a battle replay shows the scoreboard for the event you are on, not an outdated one.
+- 1dbe41c: Signing out while a page is loading reloads it for the signed-out view instead of showing an error.
+
 ## 0.147.2
 
 ### Patch Changes
