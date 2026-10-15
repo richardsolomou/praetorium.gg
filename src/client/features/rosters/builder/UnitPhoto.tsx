@@ -19,6 +19,7 @@ export function UnitPhoto({ entryId, name }: { entryId: string; name: string }) 
       </button>
       <figcaption className="mt-1 text-xs text-dim">{own ? 'Your models' : `From ${shared!.owner.name}’s collection`}</figcaption>
       <PhotoViewer
+        entryId={entryId}
         name={name}
         photo={viewing ? (own && me ? { photoId: own, owner: { id: me.id, name: me.name } } : shared!) : null}
         onClose={() => setViewing(false)}

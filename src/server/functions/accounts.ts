@@ -1,7 +1,7 @@
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
-import { collectionPhotoReportSchema, collectionPhotoSchema } from '../../contracts/collection'
+import { collectionPhotoLikeSchema, collectionPhotoReportSchema, collectionPhotoSchema } from '../../contracts/collection'
 import { collectionPhotoReportEmail } from '../collectionPhotos'
 import { app } from '../app'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
@@ -353,6 +353,17 @@ export const removeCollectionPhoto = createServerFn({ method: 'POST' })
 export const datasheetPhotos = createServerFn({ method: 'GET' })
   .validator(collectionPhotoSchema.pick({ entryId: true }))
   .handler(({ data }) => rpc(async () => app().collectionPhotos.gallery(data.entryId, await currentUserId())))
+
+export const likeCollectionPhoto = createServerFn({ method: 'POST' })
+  .validator(collectionPhotoLikeSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().collectionPhotos.like(player.id, data.photoId, data.liked)
+      await app().telemetry.capture(player.id, 'collection_photo_liked', { liked: data.liked })
+      return null
+    }),
+  )
 
 const reportRateLimit = fixedWindowRateLimit('too many photo reports')
 

@@ -646,9 +646,21 @@ export class SpacetimeOperator {
 
   async datasheetPhotos(entryId: string, viewerId: string | null, limit: number) {
     return z
-      .array(z.object({ photoId: z.uuid(), userId: z.string(), at: z.number().int() }))
+      .array(
+        z.object({
+          photoId: z.uuid(),
+          userId: z.string(),
+          at: z.number().int(),
+          likes: z.number().int().nonnegative(),
+          liked: z.boolean(),
+        }),
+      )
       .max(100)
       .parse(await this.read('datasheet_photos', [entryId, viewerId === null ? { none: [] } : { some: viewerId }, limit]))
+  }
+
+  async setCollectionPhotoLike(input: { userId: string; photoId: string; liked: boolean; now: number }) {
+    await this.call('set_collection_photo_like', [input.userId, input.photoId, input.liked, input.now])
   }
 
   async removeCollectionPhotoById(photoId: string) {

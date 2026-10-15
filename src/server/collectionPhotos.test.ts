@@ -27,8 +27,11 @@ function fakeRepository({ refuse = false } = {}) {
     },
     removeCollectionPhoto: async () => undefined,
     removeCollectionPhotoById: async () => undefined,
+    setCollectionPhotoLike: async () => undefined,
     datasheetPhotos: async (entryId: string) =>
-      [...photos].filter(([, photo]) => photo.entryId === entryId).map(([photoId, photo]) => ({ photoId, userId: photo.userId, at: 1 })),
+      [...photos]
+        .filter(([, photo]) => photo.entryId === entryId)
+        .map(([photoId, photo]) => ({ photoId, userId: photo.userId, at: 1, likes: 0, liked: false })),
     namesByIds: async (ids: readonly string[]) =>
       new Map(ids.filter((id) => id !== 'deleted').map((id) => [id, { id, name: `Player ${id}` }] as const)),
     collectionPhoto: async (photoId: string, viewerId: string | null) => {

@@ -717,6 +717,10 @@ export class SpacetimeRepository {
     return this.product.datasheetPhotos(...args)
   }
 
+  setCollectionPhotoLike(...args: Parameters<SpacetimeOperator['setCollectionPhotoLike']>) {
+    return this.product.setCollectionPhotoLike(...args)
+  }
+
   removeCollectionPhotoById(...args: Parameters<SpacetimeOperator['removeCollectionPhotoById']>) {
     return this.product.removeCollectionPhotoById(...args)
   }

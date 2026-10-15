@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { collectionPhotoPath } from '../../../../contracts/collection'
 import { datasheetPhotosQuery } from '../../../queries'
+import { PhotoLike } from '../../collection/PhotoLike'
 import { PhotoViewer, type SharedPhoto } from '../../collection/PhotoViewer'
 
 /**
- * Players' photos of this datasheet from their shared collections, newest first.
+ * Players' photos of this datasheet from their shared collections, most liked first.
  *
  * Read in the browser only: signed-out reference pages sit in a shared cache and name no player.
  */
@@ -24,7 +25,7 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
             <li key={photo.photoId}>
               <button
                 type="button"
-                className="group block w-full text-left"
+                className="group block w-full"
                 aria-label={`${name} from ${photo.owner.name}’s collection`}
                 onClick={() => setViewing(photo)}
               >
@@ -34,15 +35,18 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
                   loading="lazy"
                   className="aspect-square w-full border border-edge bg-sunken object-cover group-hover:border-info"
                 />
-                <span className="mt-1 block truncate text-xs text-dim group-hover:text-info">{photo.owner.name}</span>
               </button>
+              <div className="flex items-center justify-between gap-1">
+                <span className="min-w-0 truncate text-xs text-dim">{photo.owner.name}</span>
+                <PhotoLike entryId={entryId} photoId={photo.photoId} name={name} />
+              </div>
             </li>
           ))}
         </ul>
       ) : (
         <p className="mt-2 text-sm text-dim">No player photos yet. Add one of your own models from Add to › Collection.</p>
       )}
-      <PhotoViewer name={name} photo={viewing} onClose={() => setViewing(null)} />
+      <PhotoViewer entryId={entryId} name={name} photo={viewing} onClose={() => setViewing(null)} />
     </section>
   )
 }

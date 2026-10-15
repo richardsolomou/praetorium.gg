@@ -106,3 +106,40 @@ it.skipIf(!url || !database || !token)(
     }
   },
 )
+
+it.skipIf(!url || !database || !token)(
+  'ranks a datasheet’s photos by likes, counting each reader once and withdrawing a deleted reader’s like',
+  async () => {
+    const operator = new SpacetimeOperator(url!, database!, token!)
+    const entryId = `likes-${randomUUID()}`
+    const [older, newer, reader] = [randomUUID(), randomUUID(), randomUUID()]
+    const [olderPhoto, newerPhoto] = [randomUUID(), randomUUID()]
+    const gallery = async (viewerId: string | null) =>
+      (await operator.datasheetPhotos(entryId, viewerId, 12)).map(({ photoId, likes, liked }) => [photoId, likes, liked])
+    try {
+      for (const [userId, photoId, at] of [
+        [older, olderPhoto, 1],
+        [newer, newerPhoto, 2],
+      ] as const) {
+        await operator.setCollectionModels({ userId, entryId, models: 1, now: at })
+        await operator.setCollectionPhoto({ userId, entryId, photoId, now: at })
+      }
+      await expect(operator.setCollectionPhotoLike({ userId: older, photoId: olderPhoto, liked: true, now: 3 })).rejects.toThrow(
+        'your own photo',
+      )
+      await operator.setCollectionPhotoLike({ userId: reader, photoId: olderPhoto, liked: true, now: 3 })
+      await operator.setCollectionPhotoLike({ userId: reader, photoId: olderPhoto, liked: true, now: 4 })
+      expect(await gallery(reader)).toEqual([
+        [olderPhoto, 1, true],
+        [newerPhoto, 0, false],
+      ])
+      await operator.deleteUserData(reader)
+      expect(await gallery(null)).toEqual([
+        [newerPhoto, 0, false],
+        [olderPhoto, 0, false],
+      ])
+    } finally {
+      await Promise.all([operator.deleteUserData(older), operator.deleteUserData(newer), operator.deleteUserData(reader)])
+    }
+  },
+)

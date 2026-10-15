@@ -9,11 +9,22 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { removeCollectionPhotoAsAdmin, reportCollectionPhoto } from '../../functions'
 import { meQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { PhotoLike } from './PhotoLike'
 
 export type SharedPhoto = { photoId: string; owner: { id: string; name: string } }
 
 /** A player's photo at full size, which other signed-in players can report and administrators can remove. */
-export function PhotoViewer({ name, photo, onClose }: { name: string; photo: SharedPhoto | null; onClose: () => void }) {
+export function PhotoViewer({
+  entryId,
+  name,
+  photo,
+  onClose,
+}: {
+  entryId: string
+  name: string
+  photo: SharedPhoto | null
+  onClose: () => void
+}) {
   const queryClient = useQueryClient()
   const { data: me } = useQuery(meQuery())
   const [reporting, setReporting] = useState(false)
@@ -82,8 +93,11 @@ export function PhotoViewer({ name, photo, onClose }: { name: string; photo: Sha
             </p>
           ) : null}
         </DialogBody>
-        {photo && (reportable || me?.role === 'admin') ? (
+        {photo ? (
           <DialogFooter>
+            <span className="mr-auto">
+              <PhotoLike entryId={entryId} photoId={photo.photoId} name={name} />
+            </span>
             {me?.role === 'admin' ? (
               <Button
                 variant="ghost"

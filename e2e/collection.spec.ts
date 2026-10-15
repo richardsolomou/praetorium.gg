@@ -288,7 +288,8 @@ test('datasheet pages and rosters show shared photos, and a player sees their ow
 
   const builderContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const builder = await builderContext.newPage()
-  await signUp(builder, uniqueName('Photo builder'))
+  const builderName = uniqueName('Photo builder')
+  await signUp(builder, builderName)
   await builder.goto('/factions/necrons/datasheets/overlord')
   const gallery = builder.locator('[data-datasheet-photos]')
   const shared = gallery.getByRole('button', { name: `Overlord from ${sharer}’s collection`, exact: true })
@@ -315,5 +316,18 @@ test('datasheet pages and rosters show shared photos, and a player sees their ow
   await builder.goto(rosterUrl)
   await builder.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
   await expect(photo).toContainText('Your models')
+
+  await builder.goto('/factions/necrons/datasheets/overlord')
+  const owners = gallery.locator('li span.truncate')
+  await expect(owners).toHaveText([builderName, sharer])
+  const like = gallery.getByRole('button', { name: /^Like this photo of Overlord, 0 likes$/ })
+  await like.click()
+  await expect(owners).toHaveText([sharer, builderName])
+  await builder.reload()
+  await expect(gallery.getByRole('button', { name: 'Like this photo of Overlord, 1 like', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(owners).toHaveText([sharer, builderName])
   await builderContext.close()
 })

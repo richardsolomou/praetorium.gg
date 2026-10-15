@@ -259,6 +259,18 @@ const collectionPhotos = table(
     userId: t.string().index('btree'),
     entryId: t.string().index('btree'),
     at: t.u64(),
+    /** How many `collection_photo_like` rows name this photo, kept in the same transactions. */
+    likes: t.option(t.u32()).default(undefined),
+  },
+)
+
+const collectionPhotoLikes = table(
+  { name: 'collection_photo_like' },
+  {
+    key: t.string().primaryKey(),
+    photoId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    at: t.u64(),
   },
 )
 
@@ -373,6 +385,7 @@ export const productTables = {
   collectionStock,
   collectionPhotos,
   collectionPhotoDeletions,
+  collectionPhotoLikes,
   favouriteFactions,
   practiceOpponents,
   favouriteDetachments,

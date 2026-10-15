@@ -20,6 +20,8 @@ export const collectionPhotoSchema = z.object({ entryId: z.string().min(1).max(6
 
 export const collectionPhotoIdSchema = z.object({ photoId: z.uuid() })
 
+export const collectionPhotoLikeSchema = collectionPhotoIdSchema.extend({ liked: z.boolean() })
+
 export const collectionPhotoReportSchema = collectionPhotoIdSchema.extend({ reason: z.string().trim().max(500) })
 
 /** Where a collection photo is served; the route checks the owner still shares it on every read. */

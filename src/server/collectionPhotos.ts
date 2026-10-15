@@ -13,6 +13,7 @@ type PhotoRepository = Pick<
   | 'setCollectionPhoto'
   | 'removeCollectionPhoto'
   | 'removeCollectionPhotoById'
+  | 'setCollectionPhotoLike'
   | 'collectionPhoto'
   | 'datasheetPhotos'
   | 'collectionPhotoDeletions'
@@ -53,10 +54,14 @@ export function collectionPhotoStore(
     async gallery(entryId: string, viewerId: string | null) {
       const rows = await repository.datasheetPhotos(entryId, viewerId, DATASHEET_GALLERY_SIZE)
       const owners = await repository.namesByIds(rows.map((row) => row.userId))
-      return rows.flatMap(({ photoId, userId, at }) => {
+      return rows.flatMap(({ userId, ...photo }) => {
         const owner = owners.get(userId)
-        return owner ? [{ photoId, owner, at }] : []
+        return owner ? [{ ...photo, owner }] : []
       })
+    },
+
+    like(userId: string, photoId: string, liked: boolean) {
+      return repository.setCollectionPhotoLike({ userId, photoId, liked, now: clock() })
     },
 
     removeById(photoId: string) {
