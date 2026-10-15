@@ -1,5 +1,14 @@
 import { expect, test } from './test'
-import { confirmRosterSetup, chooseRosterDefault, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  chooseRosterAction,
+  confirmRosterSetup,
+  chooseRosterDefault,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 import { savedWork } from './storage'
 
 test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
@@ -8,8 +17,7 @@ test('roster visibility controls search indexing and public URL variants', async
   const path = new URL(page.url()).pathname
 
   const setAccess = async (name: string, value: string) => {
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+    await chooseRosterAction(page, 'Edit roster setup')
     const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
     await setup.getByRole('combobox', { name: 'Access' }).click()
     await page.getByRole('option', { name }).click()
@@ -82,8 +90,9 @@ test('a private roster can be shared and made private again', async ({ browser }
   const row = page.locator('[data-roster="Shareable roster"]')
 
   await page.setViewportSize({ width: 390, height: 900 })
-  await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-  await page.getByRole('menuitem', { name: 'Edit setup', exact: true }).click()
+  const libraryEdit = page.getByRole('menuitem', { name: 'Edit setup', exact: true })
+  await retryUntilVisible(libraryEdit, () => page.getByRole('button', { name: 'Actions for Shareable roster' }).click())
+  await libraryEdit.click()
   const librarySetup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await expect(librarySetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(librarySetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
@@ -115,8 +124,9 @@ test('a private roster can be shared and made private again', async ({ browser }
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(sharedUrl)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Copy link' })).toBeVisible()
+  await retryUntilVisible(page.getByRole('menuitem', { name: 'Copy link' }), () =>
+    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
+  )
   await page.keyboard.press('Escape')
   await page.evaluate(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
@@ -142,8 +152,9 @@ test('a private roster can be shared and made private again', async ({ browser }
   expect(preview.headers()['cache-control']).toBe('no-store')
 
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-  await page.getByRole('menuitem', { name: 'Make private' }).click()
+  const makePrivate = page.getByRole('menuitem', { name: 'Make private' })
+  await retryUntilVisible(makePrivate, () => page.getByRole('button', { name: 'Actions for Shareable roster' }).click())
+  await makePrivate.click()
   await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()

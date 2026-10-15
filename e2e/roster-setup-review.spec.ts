@@ -1,6 +1,6 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from '@playwright/test'
-import { confirmRosterSetup, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import { chooseRosterAction, confirmRosterSetup, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, withAuthSql } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
@@ -33,8 +33,7 @@ async function savedArmy(page: Page) {
   return { id, operator, source: (await operator.roster(id))! }
 }
 async function openSetup(page: Page) {
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseRosterAction(page, 'Edit roster setup')
   return page.getByRole('dialog', { name: 'Edit roster setup' })
 }
 async function shrink(page: Page) {
@@ -132,8 +131,9 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
   const { id, operator } = await savedArmy(page)
   await page.goto('/rosters')
   const row = page.locator('[data-roster="Reviewed army"]')
-  await row.getByRole('button', { name: 'Actions for Reviewed army' }).click()
-  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  const editSetup = page.getByRole('menuitem', { name: 'Edit setup' })
+  await retryUntilVisible(editSetup, () => row.getByRole('button', { name: 'Actions for Reviewed army' }).click())
+  await editSetup.click()
   let setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead', pressed: true }).click()
   await setup.getByRole('button', { name: 'Review changes' }).click()
@@ -154,8 +154,8 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
   await second.close()
   await page.reload()
   const renamed = page.locator('[data-roster="Concurrent edit"]')
-  await renamed.getByRole('button', { name: 'Actions for Concurrent edit' }).click()
-  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  await retryUntilVisible(editSetup, () => renamed.getByRole('button', { name: 'Actions for Concurrent edit' }).click())
+  await editSetup.click()
   setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead', pressed: true }).click()
   await confirmRosterSetup(setup)

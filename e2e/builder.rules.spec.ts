@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { createRoster, signUp, waitForRosterSave } from './account'
-import { shot, expectNoHorizontalOverflow, openBuilder, add, attach } from './builder.harness'
+import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
   await openBuilder(page, 'Necrons', /Cursed Legion/)
@@ -453,9 +453,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await add(page, 'Overlord')
   const second = page.locator('[data-unit="Overlord"]').nth(1)
   await expect(second).toBeVisible()
-  await second.getByRole('button', { name: 'Attach Overlord to unit' }).click()
-  await expect(page.getByRole('menu').getByRole('menuitem', { name: 'Immortals', exact: true })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await expectNotAttachable(second, 'Overlord', 'Immortals')
 
   // One relic, one army. The catalogue says so itself, and it is the player's to undo.
   await second.getByRole('button', { name: 'Overlord', exact: true }).click()

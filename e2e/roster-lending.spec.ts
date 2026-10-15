@@ -1,11 +1,20 @@
 import { expect, test } from './test'
-import { attachRoster, befriend, chooseRosterDefault, createBattle, createRoster, signUp, uniqueName } from './account'
+import {
+  attachRoster,
+  befriend,
+  chooseRosterAction,
+  chooseRosterDefault,
+  createBattle,
+  createRoster,
+  followLink,
+  signUp,
+  uniqueName,
+} from './account'
 import type { Page } from '@playwright/test'
 
 async function setLoan(owner: Page, rosterUrl: string, borrowerName: string, lent: boolean) {
   await owner.goto(rosterUrl)
-  await owner.getByRole('button', { name: 'Roster actions' }).click()
-  await owner.getByRole('menuitem', { name: 'Lend to a friend' }).click()
+  await chooseRosterAction(owner, 'Lend to a friend')
   const dialog = owner.getByRole('dialog', { name: 'Lend to a friend' })
   const loan = dialog.getByRole('switch', { name: `Lend to ${borrowerName}` })
   await loan.click()
@@ -74,11 +83,10 @@ test('a borrower hands a lent roster back', async ({ browser }) => {
   await setLoan(owner, rosterUrl, borrowerName, true)
 
   await borrower.goto(rosterUrl)
-  await borrower.locator('[data-roster-lent-by]').getByRole('button', { name: 'Return it' }).click()
-  await borrower.waitForURL(/\/rosters$/)
+  // The button stays disabled until its navigation finishes, so a repeated press cannot return the roster twice.
+  await followLink(borrower.locator('[data-roster-lent-by]').getByRole('button', { name: 'Return it' }), /\/rosters$/)
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await owner.goto(rosterUrl)
-  await owner.getByRole('button', { name: 'Roster actions' }).click()
-  await owner.getByRole('menuitem', { name: 'Lend to a friend' }).click()
+  await chooseRosterAction(owner, 'Lend to a friend')
   await expect(owner.getByRole('switch', { name: `Lend to ${borrowerName}` })).not.toBeChecked()
 })

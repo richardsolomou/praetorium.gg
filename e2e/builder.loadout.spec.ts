@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './test'
-import { confirmRosterSetup, createRoster, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { savedWork } from './storage'
-import { expectNoHorizontalOverflow, openBuilder, add, attach } from './builder.harness'
+import { expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, attach } from './builder.harness'
 
 test('a squad grows from its unit editor', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -147,8 +147,11 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.keyboard.press('Escape')
   const rosterUrl = page.url()
   await page.goto('/collection')
-  await page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click()
-  await page.getByPlaceholder('Search datasheets…').fill('Lychguard Necrons')
+  const datasheetSearch = page.getByPlaceholder('Search datasheets…')
+  await retryUntilVisible(datasheetSearch, () =>
+    page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click(),
+  )
+  await datasheetSearch.fill('Lychguard Necrons')
   await page.getByRole('option', { name: /^Lychguard, Necrons/ }).click()
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
@@ -239,9 +242,7 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
 
   await add(page, 'Chronomancer')
   await expect(page.locator('header').getByText('2 units', { exact: true })).toBeVisible()
-  await page.locator('[data-unit="Chronomancer"]').getByRole('button', { name: 'Attach Chronomancer to unit' }).click()
-  await expect(page.getByRole('menu').getByRole('menuitem', { name: 'Immortals', exact: true })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await expectNotAttachable(page.locator('[data-unit="Chronomancer"]'), 'Chronomancer', 'Immortals')
 
   // The unit states both, from its own side.
   await expect(page.getByText('Leader', { exact: true })).toBeVisible()
@@ -266,9 +267,7 @@ test('Murdermind lets a Chronomancer support Destroyer Cult units', async ({ pag
   const chronomancer = page.locator('[data-unit="Chronomancer"]')
   const attachButton = chronomancer.getByRole('button', { name: 'Attach Chronomancer to unit' })
   const destroyers = page.getByRole('menu').getByRole('menuitem', { name: 'Lokhust Heavy Destroyers', exact: true })
-  await attachButton.click()
-  await expect(destroyers).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await expectNotAttachable(chronomancer, 'Chronomancer', 'Lokhust Heavy Destroyers')
 
   await chronomancer.getByRole('button', { name: 'Chronomancer', exact: true }).click()
   await page.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Select Murdermind' }).click()

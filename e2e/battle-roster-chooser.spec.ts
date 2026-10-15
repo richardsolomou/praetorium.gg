@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createBattle, setupStep, signUp, uniqueName } from './account'
+import { createBattle, retryUntilVisible, setupStep, signUp, uniqueName } from './account'
 import { productOperator, withAuthSql } from './storage'
 
 /** Signs up and saves the preview Necrons list under a new name, with the size and budget asked for. */
@@ -27,11 +27,14 @@ async function savedArmy(page: Page, name: string, { limit, pointsBudget }: { li
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
-  await page
-    .getByRole('button', { name: /^(Choose|Change) roster/ })
-    .first()
-    .click()
-  return page.getByRole('dialog', { name: 'Choose your roster' })
+  const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
+  await retryUntilVisible(chooser, () =>
+    page
+      .getByRole('button', { name: /^(Choose|Change) roster/ })
+      .first()
+      .click(),
+  )
+  return chooser
 }
 
 test('a roster chooser with no list for the battle size hands over to the battle size control', async ({ page }) => {

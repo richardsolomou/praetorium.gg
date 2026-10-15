@@ -6,6 +6,7 @@ import {
   createBattle,
   createRoster,
   desktopContext,
+  retryUntilVisible,
   signUp,
   startBattle,
   uniqueName,
@@ -24,8 +25,11 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await alice.getByLabel('Add a unit').fill('Plague Marines')
   await alice.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
+  // The server prices the list, so the total follows the model count rather than changing with it.
   const total = alice.locator('[data-stat="points"]')
-  const atFive = Number.parseInt(await total.innerText(), 10)
+  const points = async () => Number.parseInt(await total.innerText(), 10)
+  await expect.poll(points).toBeGreaterThan(0)
+  const atFive = await points()
   await alice
     .getByRole('button', { name: /^Plague Marines/ })
     .first()
@@ -35,7 +39,7 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
     await grow.click()
     await expect(alice.getByLabel('Plague Marines models')).toHaveText(String(models))
   }
-  expect(Number.parseInt(await total.innerText(), 10)).toBeGreaterThan(atFive)
+  await expect.poll(points).toBeGreaterThan(atFive)
   await alice.getByLabel('Add a unit').fill('Lord of Virulence')
   await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
 
@@ -47,9 +51,12 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
   // The bonus is a fact about the army, so it is set where the army is chosen — claimed
   // as the army arrives, and given back from the same place.
-  await alice.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${aliceName}`) }).click()
-  await alice.getByRole('button', { name: new RegExp(`^Add the battle ready bonus for ${aliceName}`) }).click()
-  await expect(alice.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${aliceName}`) })).toBeVisible()
+  // Bob's device still writes derived setup facts after his army appears, and a setup
+  // press that meets one comes back stale and is dropped, so repeat it like a player would.
+  const remove = alice.getByRole('button', { name: new RegExp(`^Remove the battle ready bonus for ${aliceName}`) })
+  const add = alice.getByRole('button', { name: new RegExp(`^Add the battle ready bonus for ${aliceName}`) })
+  await retryUntilVisible(add, () => remove.click({ timeout: 1_000 }))
+  await retryUntilVisible(remove, () => add.click({ timeout: 1_000 }))
   await chooseBattlefield(alice)
   await startBattle(alice)
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()

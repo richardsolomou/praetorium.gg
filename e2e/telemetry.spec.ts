@@ -185,7 +185,11 @@ test('a page that fails to load reports one exception from the error page', asyn
   )
   await page.goto('/')
   const simulator = page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Simulator', exact: true })
-  await simulator.waitFor()
+  // A link pressed before hydration loads a new document that the recorder does not observe; the search button answers only after it.
+  const search = page.getByPlaceholder('Search everything…')
+  await retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
+  await page.keyboard.press('Escape')
+  await expect(search).toBeHidden()
   const events = await recordEvents(page)
   await simulator.click()
   await expect(page.getByRole('heading', { name: 'Something went wrong' })).toBeVisible()
