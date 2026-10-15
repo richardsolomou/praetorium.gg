@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { version } from '../../../../package.json'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
 import { releaseNotesQuery, releaseQuery } from '../../queries'
 import { newerRelease } from './releaseUpdate'
-import { markReleaseSeen, seenRelease, unseenChanges } from './seenRelease'
+import { markReleaseSeen, seenRelease, subscribeSeenRelease, unseenChanges } from './seenRelease'
 import { UpdatesNavigation } from '../changes/UpdatesNavigation'
 
 /**
@@ -15,21 +15,17 @@ import { UpdatesNavigation } from '../changes/UpdatesNavigation'
  * A first visit has nothing to compare against, so it only records the version.
  */
 export function WhatsNewNotice() {
-  const [seen, setSeen] = useState<string | null>(null)
+  const acknowledged = useSyncExternalStore(subscribeSeenRelease, seenRelease, () => version)
   useEffect(() => {
-    const acknowledged = seenRelease()
-    if (acknowledged === null) markReleaseSeen(version)
-    else if (newerRelease(acknowledged, version)) setSeen(acknowledged)
+    if (seenRelease() === null) markReleaseSeen(version)
   }, [])
+  const seen = acknowledged !== null && newerRelease(acknowledged, version) ? acknowledged : null
   const { data: notes } = useQuery({ ...releaseNotesQuery(), enabled: seen !== null })
   const { data: latest } = useQuery(releaseQuery())
   if (!seen || !notes || (latest && newerRelease(version, latest.version))) return null
   const changes = unseenChanges(notes, seen, version)
   if (!changes.length) return null
-  const acknowledge = () => {
-    markReleaseSeen(version)
-    setSeen(null)
-  }
+  const acknowledge = () => markReleaseSeen(version)
   return (
     <aside
       aria-label="What's new"

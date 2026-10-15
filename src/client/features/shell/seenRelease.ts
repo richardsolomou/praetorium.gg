@@ -2,6 +2,7 @@ import type { ReleaseNote } from '../../../core/releaseNotes'
 import { newerRelease } from './releaseUpdate'
 
 const SEEN_KEY = 'praetorium-seen-release'
+const CHANGED = 'praetorium-seen-release-changed'
 
 /** The version this browser last acknowledged, or null when storage is unavailable or empty. */
 export function seenRelease() {
@@ -17,6 +18,20 @@ export function markReleaseSeen(version: string) {
     localStorage.setItem(SEEN_KEY, version)
   } catch {
     // Without storage the notice shows again next visit, which is the safer failure.
+  }
+  window.dispatchEvent(new Event(CHANGED))
+}
+
+/** Calls back when this or another window acknowledges a release. */
+export function subscribeSeenRelease(onChange: () => void) {
+  const storage = (event: StorageEvent) => {
+    if (event.key === SEEN_KEY || event.key === null) onChange()
+  }
+  window.addEventListener(CHANGED, onChange)
+  window.addEventListener('storage', storage)
+  return () => {
+    window.removeEventListener(CHANGED, onChange)
+    window.removeEventListener('storage', storage)
   }
 }
 

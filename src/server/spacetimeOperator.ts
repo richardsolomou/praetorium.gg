@@ -12,8 +12,8 @@ import { playerDefaultsSchema } from '../contracts/schemas'
 import { JOURNAL_RESULTS, type JournalEventInput, type JournalGameInput } from '../core/gameJournal'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 
-// Whole table rows drop columns this build does not know, so a replica still on the previous build keeps
-// reading after a migration appends an optional column.
+// Module results drop fields this build does not know, so a replica still on the previous build keeps
+// reading after a newer module appends a column or result field.
 const rosterRow = z.object({
   id: z.string(),
   userId: z.string(),
@@ -72,12 +72,12 @@ const favouriteDetachmentRow = z.object({
   detachmentId: z.string(),
   at: z.number().int(),
 })
-const pushTarget = z.strictObject({ userId: z.string(), token: z.string() })
-const battleSnapshot = z.strictObject({
-  battle: z.strictObject({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
-  seats: z.array(z.strictObject({ id: z.string(), side: z.number().int(), automated: z.boolean() })),
+const pushTarget = z.object({ userId: z.string(), token: z.string() })
+const battleSnapshot = z.object({
+  battle: z.object({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
+  seats: z.array(z.object({ id: z.string(), side: z.number().int(), automated: z.boolean() })),
   log: z.array(
-    z.strictObject({
+    z.object({
       seq: z.number().int(),
       by: z.string(),
       at: z.number().int(),
@@ -86,20 +86,20 @@ const battleSnapshot = z.strictObject({
     }),
   ),
 })
-const battleFeedResult = z.strictObject({
-  battles: z.array(z.strictObject({ ...battleSnapshot.shape, at: z.number().int() })),
-  nextCursor: z.strictObject({ at: z.number().int(), id: z.string() }).nullable(),
+const battleFeedResult = z.object({
+  battles: z.array(z.object({ ...battleSnapshot.shape, at: z.number().int() })),
+  nextCursor: z.object({ at: z.number().int(), id: z.string() }).nullable(),
 })
-const submission = z.strictObject({
+const submission = z.object({
   result: z.discriminatedUnion('outcome', [
-    z.strictObject({ outcome: z.literal('stale'), seq: z.number().int() }),
-    z.strictObject({ outcome: z.literal('refused'), reason: z.string() }),
-    z.strictObject({ outcome: z.literal('appended'), seq: z.number().int() }),
+    z.object({ outcome: z.literal('stale'), seq: z.number().int() }),
+    z.object({ outcome: z.literal('refused'), reason: z.string() }),
+    z.object({ outcome: z.literal('appended'), seq: z.number().int() }),
   ]),
   log: battleSnapshot.shape.log,
 })
 const friendship = z.object({ requesterId: z.string(), addresseeId: z.string(), acceptedAt: z.number().int().nullable() })
-const productStat = z.strictObject({
+const productStat = z.object({
   userId: z.string(),
   rosterCount: z.number().int().nonnegative(),
   battleCount: z.number().int().nonnegative(),
@@ -107,12 +107,12 @@ const productStat = z.strictObject({
   friendCount: z.number().int().nonnegative(),
   practiceOpponent: z.boolean(),
 })
-const invite = z.strictObject({ token: z.string(), inviterId: z.string() })
-const acceptedInvite = z.union([z.enum(['missing', 'self', 'already-friends']), z.strictObject({ inviterId: z.string() })])
-const onboarding = z.strictObject({
+const invite = z.object({ token: z.string(), inviterId: z.string() })
+const acceptedInvite = z.union([z.enum(['missing', 'self', 'already-friends']), z.object({ inviterId: z.string() })])
+const onboarding = z.object({
   welcomed: z.boolean(),
-  tasks: z.array(z.strictObject({ task: z.string(), state: z.enum(['completed', 'skipped']) })),
-  facts: z.strictObject({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), league: z.boolean() }),
+  tasks: z.array(z.object({ task: z.string(), state: z.enum(['completed', 'skipped']) })),
+  facts: z.object({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), league: z.boolean() }),
 })
 
 const league = z.object({
@@ -456,7 +456,7 @@ export class SpacetimeOperator {
   async battleAudiences(userIds: readonly string[]) {
     if (!userIds.length) return new Map<string, BattleAudience>()
     const rows = z
-      .array(z.strictObject({ userId: z.string(), audience: z.enum(BATTLE_AUDIENCES) }))
+      .array(z.object({ userId: z.string(), audience: z.enum(BATTLE_AUDIENCES) }))
       .parse(await this.read('battle_audiences', [[...new Set(userIds)]]))
     return new Map(rows.map((row) => [row.userId, row.audience]))
   }
@@ -514,14 +514,14 @@ export class SpacetimeOperator {
 
   async discoverRosters(query: RosterDiscoveryQuery) {
     return z
-      .strictObject({ rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE), nextCursor: rosterDiscoveryCursorSchema.nullable() })
+      .object({ rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE), nextCursor: rosterDiscoveryCursorSchema.nullable() })
       .parse(await this.read('discover_rosters', [JSON.stringify(query)]))
   }
 
   /** The base first, then its variants in the order they were made. */
   async rosterGroupByUser(userId: string, baseRosterId: string) {
     return z
-      .array(z.strictObject({ id: z.string(), name: z.string(), automaticName: z.boolean().nullable() }))
+      .array(z.object({ id: z.string(), name: z.string(), automaticName: z.boolean().nullable() }))
       .max(1_000)
       .parse(await this.read('roster_group_by_user', [userId, baseRosterId]))
   }

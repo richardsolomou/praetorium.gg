@@ -91,3 +91,17 @@ test("what's new announces changes once after an update and stays dismissed", as
   await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
   await expect(notice).toHaveCount(0)
 })
+
+test("dismissing what's new in one window hides it in the others", async ({ page, context }) => {
+  await page.goto('/')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium-seen-release'))).toBe(version)
+  await page.evaluate(() => localStorage.setItem('praetorium-seen-release', '0.0.1'))
+  const other = await context.newPage()
+  await other.goto('/')
+  await page.reload()
+  const notice = (tab: typeof page) => tab.getByRole('complementary', { name: "What's new" })
+  await expect(notice(other)).toBeVisible()
+  await expect(notice(page)).toBeVisible()
+  await notice(page).getByRole('button', { name: 'Dismiss', exact: true }).click()
+  await expect(notice(other)).toHaveCount(0)
+})

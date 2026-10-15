@@ -214,3 +214,41 @@ it('reads a roster row carrying a column added after this build', async () => {
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
   expect((await operator.roster('roster'))?.name).toBe('Army')
 })
+
+it('reads a battle carrying fields added after this build', async () => {
+  const battle = {
+    battle: { id: 'battle-1', token: 'token-1', createdAt: 0, fieldFromALaterRelease: 1 },
+    seats: [{ id: 'alice', side: 0, automated: false, fieldFromALaterRelease: 1 }],
+    log: [{ seq: 1, by: 'alice', at: 0, command: { kind: 'advance' }, fieldFromALaterRelease: 1 }],
+    fieldFromALaterRelease: 1,
+  }
+  const request = vi.fn(async () => Response.json(JSON.stringify(battle)))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect((await operator.battleForOperator('battle-1')).log[0]?.seq).toBe(1)
+})
+
+it('reads product stats carrying a field added after this build', async () => {
+  const stats = {
+    userId: 'user',
+    rosterCount: 1,
+    battleCount: 0,
+    leagueCount: 0,
+    friendCount: 0,
+    practiceOpponent: false,
+    fieldFromALaterRelease: 1,
+  }
+  const request = vi.fn(async () => Response.json(JSON.stringify([stats])))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect((await operator.productStats(['user'])).get('user')?.rosterCount).toBe(1)
+})
+
+it('reads onboarding carrying a fact added after this build', async () => {
+  const stored = {
+    welcomed: true,
+    tasks: [],
+    facts: { roster: true, friend: false, battle: false, league: false, factFromALaterRelease: true },
+  }
+  const request = vi.fn(async () => Response.json(JSON.stringify(stored)))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect((await operator.onboardingProgress('user')).welcomed).toBe(true)
+})

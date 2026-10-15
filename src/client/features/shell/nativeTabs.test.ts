@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { recallTab, rememberTab, tabLocation } from './nativeTabs'
+import { forgetTab, recallTab, rememberTab, tabLocation } from './nativeTabs'
 
 function stubSessionStorage() {
   const entries = new Map<string, string>()
@@ -7,6 +7,7 @@ function stubSessionStorage() {
   vi.stubGlobal('sessionStorage', {
     getItem: (key: string) => entries.get(key) ?? null,
     setItem: (key: string, value: string) => entries.set(key, value),
+    removeItem: (key: string) => entries.delete(key),
   })
 }
 
@@ -99,5 +100,19 @@ describe('native tab memory', () => {
       regions: { roster: 240, loadout: 360 },
       state: { rosterPane },
     })
+  })
+
+  it('forgets a location that turned out not to exist', () => {
+    stubSessionStorage()
+    rememberTab('/rosters/deleted-army')
+    forgetTab('/rosters/deleted-army')
+    expect(recallTab('rosters')).toBeNull()
+  })
+
+  it('keeps a tab memory that has moved on from a missing location', () => {
+    stubSessionStorage()
+    rememberTab('/rosters/army-id')
+    forgetTab('/rosters/deleted-army')
+    expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id' })
   })
 })

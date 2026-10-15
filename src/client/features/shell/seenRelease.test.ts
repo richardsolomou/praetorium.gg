@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest'
-import { unseenChanges } from './seenRelease'
+import { expect, it, vi } from 'vitest'
+import { markReleaseSeen, subscribeSeenRelease, unseenChanges } from './seenRelease'
 
 const notes = [
   { version: '0.134.0', changes: ['Newest'] },
@@ -17,4 +17,30 @@ it('lists nothing when the acknowledged version is current', () => {
 
 it('leaves out releases newer than the running app', () => {
   expect(unseenChanges(notes, '0.133.0', '0.133.1')).toEqual(['Middle'])
+})
+
+const listen = () => {
+  vi.stubGlobal('window', new EventTarget())
+  vi.stubGlobal('localStorage', { setItem: () => undefined })
+  const changed = vi.fn()
+  subscribeSeenRelease(changed)
+  return changed
+}
+
+it('tells this window when it acknowledges a release', () => {
+  const changed = listen()
+  markReleaseSeen('0.134.0')
+  expect(changed).toHaveBeenCalledOnce()
+})
+
+it('tells this window when another window acknowledges a release', () => {
+  const changed = listen()
+  window.dispatchEvent(Object.assign(new Event('storage'), { key: 'praetorium-seen-release' }))
+  expect(changed).toHaveBeenCalledOnce()
+})
+
+it('ignores other stored settings changing in another window', () => {
+  const changed = listen()
+  window.dispatchEvent(Object.assign(new Event('storage'), { key: 'praetorium-text-size' }))
+  expect(changed).not.toHaveBeenCalled()
 })
