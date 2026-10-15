@@ -7,14 +7,22 @@ vi.mock('idb-keyval', () => ({
   update: async (key: string, change: (current: unknown) => unknown) =>
     disk.set(key, structuredClone(change(structuredClone(disk.get(key))))),
 }))
-const native = vi.hoisted(() => ({ enabled: false, writes: 0, disk: new Map<string, { epoch: string; state: LocalState | null }>() }))
+const native = vi.hoisted(() => ({
+  enabled: false,
+  writes: 0,
+  reads: 0,
+  disk: new Map<string, { epoch: string; state: LocalState | null }>(),
+}))
 vi.mock('../nativeBridge', () => ({
   supportsNativeLocalState: () => native.enabled,
   // The shell answers each message after a round trip, accepting a write only at the revision it was read at.
   requestNativeLocalState: async (owner: string, write?: { state: LocalState | null; epoch: string; expectedRevision: number }) => {
     await new Promise((resolve) => setTimeout(resolve, 1))
     const previous = native.disk.get(owner) ?? { epoch: 'native-epoch', state: null }
-    if (!write) return structuredClone({ ...previous, saved: true })
+    if (!write) {
+      native.reads++
+      return structuredClone({ ...previous, saved: true })
+    }
     native.writes++
     if (previous.epoch !== write.epoch || (previous.state?.revision ?? 0) !== write.expectedRevision)
       return structuredClone({ ...previous, saved: false })
@@ -34,6 +42,7 @@ beforeEach(() => {
 afterEach(() => {
   native.enabled = false
   native.writes = 0
+  native.reads = 0
   vi.unstubAllGlobals()
 })
 it.each(['browser', 'native'])('migrates queued leagues read from %s storage and saves the upgraded document', async (surface) => {
@@ -159,4 +168,33 @@ it('sends the native app nothing for a change that keeps the saved state', async
   await storage.change((state) => ({ ...state, documents: { roster: { data: 'Saved army', serverVersion: 1 } } }))
   await storage.change((state) => state)
   expect(native.writes).toBe(1)
+})
+it('saves a native change without first reading back the state this screen holds', async () => {
+  native.enabled = true
+  const storage = localStateStorage(owner)
+  await storage.change((state) => ({ ...state, documents: { first: { data: 1, serverVersion: 1 } } }))
+  const reads = native.reads
+  await storage.change((state) => ({ ...state, documents: { ...state.documents, second: { data: 2, serverVersion: 1 } } }))
+  expect(native.reads).toBe(reads)
+})
+it("keeps another window's native save when this screen's copy is out of date", async () => {
+  native.enabled = true
+  const storage = localStateStorage(owner)
+  await storage.change((state) => ({ ...state, documents: { first: { data: 1, serverVersion: 1 } } }))
+  const saved = native.disk.get(owner)!
+  native.disk.set(owner, {
+    ...saved,
+    state: {
+      ...saved.state!,
+      revision: saved.state!.revision + 1,
+      documents: { ...saved.state!.documents, other: { data: 3, serverVersion: 1 } },
+    },
+  })
+  const next = await storage.change((state) => ({ ...state, documents: { ...state.documents, second: { data: 2, serverVersion: 1 } } }))
+  expect(Object.keys(next.documents).toSorted()).toEqual(['first', 'other', 'second'])
+})
+it("keeps the browser's saved state unchanged for a change that keeps it", async () => {
+  const storage = localStateStorage(owner)
+  const saved = await storage.change((state) => ({ ...state, documents: { roster: { data: 'Saved army', serverVersion: 1 } } }))
+  expect((await storage.change((state) => state)).revision).toBe(saved.revision)
 })

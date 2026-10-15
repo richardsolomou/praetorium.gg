@@ -164,6 +164,11 @@ export async function localDocument<T>(resource: string): Promise<T | undefined>
   const state = await engine.storage.read()
   return localOwner()?.id === state.owner ? (state.documents[resource]?.data as T | undefined) : undefined
 }
+/** A battle download's server time is read by nothing, so a copy differing only there is the same download. */
+const withoutServerTime = (key: string, value: unknown) => (key === 'serverNow' ? undefined : value)
+const sameDownload = (saved: unknown, downloaded: unknown) =>
+  JSON.stringify(saved, withoutServerTime) === JSON.stringify(downloaded, withoutServerTime)
+
 export async function rememberDocument(
   resource: string,
   data: unknown,
@@ -181,6 +186,8 @@ export async function rememberDocument(
   const saved = await engine.storage.change((state) => {
     assertAccount()
     if (state.operations.some((operation) => operation.resource === resource)) return state
+    const stored = state.documents[resource]
+    if (stored && stored.serverVersion === serverVersion && sameDownload(stored.data, data)) return state
     if (expectedDataJson !== undefined && JSON.stringify({ data: state.documents[resource]?.data }) !== expectedDataJson) return state
     if (resource.startsWith('battle:') || resource.startsWith('roster:')) {
       const currentVersion = state.documents[resource]?.serverVersion ?? null

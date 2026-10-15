@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { rosterAccess, rosterBootstrap, saveRoster, savedRosterSummaries, projectLocalState } from '../functions'
-import { configureLocalRuntime, localEngine, stopLocalRuntime } from './localRuntime'
+import { configureLocalRuntime, localEngine, rememberDocument, stopLocalRuntime } from './localRuntime'
 
 const mocks = vi.hoisted(() => ({
   access: vi.fn(),
@@ -55,7 +55,8 @@ beforeEach(() => {
   mocks.storage.mockReturnValue({
     read: async () => state,
     change: async (update: (current: typeof state) => typeof state) => {
-      state = { ...update(state), revision: state.revision + 1 }
+      const next = update(state)
+      if (next !== state) state = { ...next, revision: state.revision + 1 }
       return state
     },
   })
@@ -150,4 +151,31 @@ it.each([
     returned: result?.roster.name,
     cached: client.getQueryData<{ roster: typeof original }>([key, 'army', null])?.roster.name,
   }).toEqual({ returned: 'New', cached: 'New' })
+})
+
+it('saves nothing for a roster download identical to the saved copy', async () => {
+  const before = state
+  await rememberDocument('roster:army', structuredClone(original), 1)
+  expect(state.revision).toBe(before.revision)
+})
+
+it('saves nothing for a battle download that differs only in its server time', async () => {
+  const workspace = { battle: { token: 'battle' }, log: [], serverSeq: 3, serverNow: 1 }
+  state.documents['battle:battle'] = { data: workspace, serverVersion: 3 }
+  const before = state.revision
+  await rememberDocument('battle:battle', { ...workspace, serverNow: 2 }, 3)
+  expect(state.revision).toBe(before)
+})
+
+it('saves a roster download that changed on the server', async () => {
+  await rememberDocument('roster:army', { ...original, name: 'Renamed', updatedAt: 2 }, 2)
+  expect((state.documents['roster:army']!.data as typeof original).name).toBe('Renamed')
+})
+
+it('opens a saved roster without waiting for its download to be saved', async () => {
+  mocks.bootstrap.mockResolvedValue({ roster: { ...original, updatedAt: 2 }, editable: true, faction: null, price: null, changes: [] })
+  mocks.storage.mockReturnValue({ read: async () => state, change: () => new Promise(() => {}) })
+  stopLocalRuntime()
+  configureLocalRuntime(client, projectLocalState)
+  expect((await rosterBootstrap({ data: { id: 'army' } }))?.roster.updatedAt).toBe(2)
 })
