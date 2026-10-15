@@ -1,4 +1,5 @@
 import { SurveyEventName, SurveyEventProperties } from 'posthog-js'
+import { IMPORT_REPORT_MAX_LENGTH, type FeedbackKind } from '../../../contracts/feedback'
 
 /** The launched API survey “App feedback” in PostHog; question ids key its stored responses. */
 export const FEEDBACK_SURVEY = {
@@ -10,10 +11,6 @@ export const FEEDBACK_SURVEY = {
     email: { id: '70a4cb45-54cf-44c4-aabf-bbdb555b9caf', question: 'Email for a reply' },
   },
 } as const
-
-/** The survey's choices, in its order. */
-export const FEEDBACK_KINDS = ['Problem', 'Idea', 'Other'] as const
-export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
 export const FEEDBACK_MESSAGE_MAX_LENGTH = 2000
 
@@ -54,9 +51,6 @@ const IMPORT_FAILURES = {
 } as const
 const INPUT_KINDS = { text: 'pasted text', 'exchange-code': 'exchange code' } as const
 
-/** The SDK cuts any string property at 65,535 characters; the message is sent twice, well inside the 1 MB event limit. */
-export const IMPORT_REPORT_MAX_LENGTH = 60_000
-
 /** A feedback response the import files by itself, carrying the exact input so the failure can be reproduced. */
 export function importFailureReport({
   reason,
@@ -83,5 +77,5 @@ export function importFailureReport({
   const room = Math.max(0, IMPORT_REPORT_MAX_LENGTH - header.length)
   const message = header + (input.length > room ? `${input.slice(0, room)}\n[truncated ${input.length - room} characters]` : input)
   const { event, properties } = feedbackSurveyEvent({ kind: 'Problem', message })
-  return { event, properties: { ...properties, automatic: true, source: 'import_failure' } }
+  return { event, properties: { ...properties, automatic: true, source: 'import_failure' }, message }
 }

@@ -462,6 +462,10 @@ export class PraetoriumService {
     return this.repository.userById(id)
   }
 
+  adminEmails() {
+    return this.repository.adminEmails()
+  }
+
   /**
    * A new league opens at the default duel size; its rules are the event's to change.
    *

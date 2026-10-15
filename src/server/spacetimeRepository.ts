@@ -28,6 +28,10 @@ export class SpacetimeRepository {
     return this.accounts.userById(id)
   }
 
+  adminEmails() {
+    return this.accounts.adminEmails()
+  }
+
   onboardingProgress(userId: string) {
     return this.product.onboardingProgress(userId)
   }

@@ -13,6 +13,7 @@ import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
 import { battleSizeLabel } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
+import { sendFeedback } from '../feedback/sendFeedback'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 type Matched<T> = T extends { catalogueId: string | null; source: string | null }
@@ -42,8 +43,8 @@ const CODE_HASH = 'code='
 
 /** Files the failure as an automatic feedback response carrying the exact input, so it can be reproduced. */
 function reportImportFailure(report: Parameters<typeof importFailureReport>[0]) {
-  const { event, properties } = importFailureReport(report)
-  posthog.capture(event, properties, { send_instantly: true })
+  const { message, ...response } = importFailureReport(report)
+  sendFeedback(response, { kind: 'Problem', message, automatic: true })
 }
 
 /** Each name the import refused, on its own line, so the player reads why rather than only what. */

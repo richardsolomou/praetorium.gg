@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { posthog } from 'posthog-js'
 import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -12,8 +11,10 @@ import { feedbackScreenshotPath } from '../../../contracts/feedback'
 import { uploadFeedbackScreenshot } from '../../functions'
 import { SOURCE } from '../../projectLinks'
 import { meQuery } from '../../queries'
-import { FEEDBACK_KINDS, FEEDBACK_MESSAGE_MAX_LENGTH, feedbackSurveyEvent, type FeedbackKind } from './feedback'
+import { FEEDBACK_KINDS, type FeedbackKind } from '../../../contracts/feedback'
+import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackSurveyEvent } from './feedback'
 import { prepareFeedbackScreenshot } from './screenshot'
+import { sendFeedback } from './sendFeedback'
 
 const OPEN_FEEDBACK = 'praetorium-open-feedback'
 
@@ -77,15 +78,23 @@ export function FeedbackDialog() {
     setSending(true)
     // The text matters more than the picture, so a failed upload still sends the feedback.
     const file = screenshot ? await uploadFeedbackScreenshot({ data: { image: screenshot } }).catch(() => undefined) : undefined
-    const { event, properties } = feedbackSurveyEvent({
+    const replyEmail = me ? undefined : email.trim() || undefined
+    const response = feedbackSurveyEvent({
       kind,
       message,
-      email: me ? undefined : email,
+      email: replyEmail,
       screenshotUrl: file ? new URL(feedbackScreenshotPath(file), window.location.origin).href : undefined,
     })
     setSending(false)
     // Capture returns nothing when the SDK is not loaded, opted out, or rate limited.
-    if (!posthog.capture(event, properties, { send_instantly: true })) return setResult('unavailable')
+    const sent = sendFeedback(response, {
+      kind,
+      message: message.trim(),
+      automatic: false,
+      ...(replyEmail ? { replyEmail } : {}),
+      ...(file ? { screenshotId: file } : {}),
+    })
+    if (!sent) return setResult('unavailable')
     setResult(screenshot && !file ? 'sent-without-screenshot' : 'sent')
     setKind('Problem')
     setMessage('')
