@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { FileLock2 } from 'lucide-react'
+import { FileLock2, Pencil } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,7 @@ export function RosterChooser({
   open,
   pending,
   error,
+  failedRosterId,
   requiredLimit,
   onClose,
   onChoose,
@@ -21,6 +22,7 @@ export function RosterChooser({
   open: boolean
   pending: boolean
   error: Error | null
+  failedRosterId: string | null
   requiredLimit: number | null
   onClose: () => void
   onChoose: (roster: SavedRoster) => void
@@ -35,6 +37,7 @@ export function RosterChooser({
     if (!open) setSelectedId(null)
   }, [open])
   const selected = rosters.find((roster) => roster.id === selectedId)
+  const failed = error ? rosters.find((roster) => roster.id === failedRosterId) : undefined
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -52,6 +55,16 @@ export function RosterChooser({
             <p role="alert" className="text-sm text-destructive">
               {errorMessage(error ?? rosterQuery.error)}
             </p>
+          ) : null}
+          {failed ? (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              className="max-w-full min-w-0 justify-self-start"
+              render={<Link to="/rosters/$id" params={{ id: failed.id }} />}
+            >
+              <Pencil /> <span className="truncate">Edit {failed.name}</span>
+            </Button>
           ) : null}
           {rosterQuery.isPending ? (
             <RosterChooserSkeleton />

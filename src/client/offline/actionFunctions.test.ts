@@ -72,3 +72,14 @@ it.each(['preview', 'released', 'retired'] as const)('queues a saved %s league r
     undefined,
   )
 })
+
+it('names the missing Warlord when a list without one is sealed on this device', async () => {
+  const { saved, catalogue, rules } = leagueRosterFixture('released')
+  const unled = { ...saved, picks: [{ ...saved.picks[0]!, toggles: {} }] }
+  runtime.document.mockImplementation(async (resource: string) => (resource.startsWith('roster:') ? unled : { format: '1v1' }))
+  runtime.construction.mockReturnValue({ catalogue, rules })
+  vi.stubGlobal('navigator', { onLine: false })
+  await expect(submitLeagueRoster({ data: { token: 'league', rosterId: saved.id } })).rejects.toThrow(
+    'Choose a Warlord: this list has none',
+  )
+})

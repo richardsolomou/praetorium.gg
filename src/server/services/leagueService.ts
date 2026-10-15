@@ -8,6 +8,7 @@ import {
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
   LEAGUE_TEAM_ROSTER_LIMITS,
+  leagueWarlordRefusal,
   readsSealedLeagueRoster,
   isLeagueOrganizer,
   visibleLeagueEntries,
@@ -278,13 +279,7 @@ export class LeagueService {
         },
       )
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
-    if (result.outcome === 'invalid-warlords')
-      throw new Response(
-        result.format === '2v2'
-          ? 'a doubles team must seal exactly one Character or Epic Hero Warlord between both rosters'
-          : 'a league roster must seal exactly one Character or Epic Hero Warlord',
-        { status: 409 },
-      )
+    if (result.outcome === 'invalid-warlords') throw new Response(leagueWarlordRefusal(snapshot, result.format === '2v2'), { status: 409 })
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 

@@ -4,6 +4,7 @@ import {
   alliedLeagueRosterLimit,
   leagueMinimumPlaces,
   leaguePlacesSeat,
+  leagueWarlordRefusal,
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
@@ -463,6 +464,27 @@ describe('sealed Warlords', () => {
   })
   it('honors an explicit ineligible Warlord over its Character group', () => {
     expect(leagueWarlords([roster([{ ...unit, warlordEligible: false }])])).toEqual({ count: 1, eligible: false })
+  })
+  it('asks a list with no Warlord to choose one', () => {
+    expect(leagueWarlordRefusal(roster([]), false)).toBe('Choose a Warlord: this list has none')
+  })
+  it('names every Warlord when a list marks several', () => {
+    expect(leagueWarlordRefusal(roster([unit, { ...unit, key: 'second', name: 'Lieutenant' }]), false)).toBe(
+      'Choose one Warlord: Leader and Lieutenant are marked',
+    )
+  })
+  it('names a Warlord that is not a Character or Epic Hero', () => {
+    expect(leagueWarlordRefusal(roster([{ ...unit, name: 'Intercessor Squad', group: 'battleline' as const }]), false)).toBe(
+      'Intercessor Squad can’t be your Warlord — only a Character or Epic Hero can',
+    )
+  })
+  it('tells a doubles list with a Warlord that its teammate already has one', () => {
+    expect(leagueWarlordRefusal(roster([unit]), true)).toBe(
+      'Your teammate’s sealed list already has your team’s Warlord: remove this list’s Warlord',
+    )
+  })
+  it('tells a doubles list without a Warlord that the team has none', () => {
+    expect(leagueWarlordRefusal(roster([]), true)).toBe('Neither of your team’s lists has a Warlord: choose one in this list')
   })
 })
 
