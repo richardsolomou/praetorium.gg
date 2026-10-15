@@ -20,6 +20,8 @@ const OUTCOME = {
   drawn: { name: 'Drawn', tint: 'text-dim' },
 } as const
 
+const ENDING = { 'finished-early': 'Finished early', conceded: 'Conceded' } as const
+
 /**
  * One heading's worth of battles, a short card each: how it stands, who sits on each side
  * with what army, and each side's score in its colour.
@@ -69,7 +71,7 @@ export function BattleShelf({
             battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format',
             ...(battle.settings.manual ? ['Manual tracking'] : battle.mission ? [battle.mission.name] : []),
             ...(battlefield ? [battlefield] : []),
-            ...(battle.result?.reason && battle.result.reason !== 'completed' ? [battle.result.reason.replaceAll('-', ' ')] : []),
+            ...(battle.result?.reason && battle.result.reason !== 'completed' ? [ENDING[battle.result.reason]] : []),
           ].join(' · ')
           const scored = battle.status !== 'setup'
           const a = ours?.score ?? 0

@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { pageMeta, playerPreview } from '../client/linkPreview'
 import { PlayerProfilePage, readSearch, recordFilter } from '../client/features/profile/PlayerProfilePage'
 import {
+  deploymentsQuery,
   meQuery,
   collectionProfileQuery,
   playerProfileQuery,
@@ -21,6 +22,7 @@ export const Route = createFileRoute('/users/$userId')({
       context.queryClient.query({ ...playerRankingsQuery(params.userId), staleTime: 'static' }),
       context.queryClient.query({ ...playerRostersQuery(params.userId), staleTime: 'static' }),
       context.queryClient.query({ ...collectionProfileQuery(params.userId), staleTime: 'static' }),
+      context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
     ])
     // The same record the page header summarises, narrowed exactly as far as the link is.
     return { preview: profile ? playerPreview(profile.name, record?.record, rankings) : null }
