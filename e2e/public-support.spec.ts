@@ -18,7 +18,7 @@ for (const pageDetails of [
   })
 }
 
-test('support sends problem reports to the public issue tracker', async ({ page }) => {
+test('support sends feedback in place and keeps the public issue tracker', async ({ page }) => {
   await page.goto('/support')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -26,6 +26,10 @@ test('support sends problem reports to the public issue tracker', async ({ page 
       'href',
       'https://github.com/richardsolomou/praetorium.gg/issues/new',
     )
+    await page.getByRole('main').getByRole('button', { name: 'Send feedback' }).click()
+    await expect(page.getByRole('dialog', { name: 'Send feedback' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page).toHaveURL(/\/support$/)
     await expect(page.getByRole('heading', { name: 'Report a problem' })).toHaveCount(0)
     await expect(page.getByRole('main').getByRole('textbox')).toHaveCount(0)
     await page.screenshot({ path: `test-results/support-${width}.png`, fullPage: true })

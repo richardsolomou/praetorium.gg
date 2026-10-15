@@ -1,4 +1,6 @@
+import { MessageSquareWarning } from 'lucide-react'
 import { version } from '../../../../package.json'
+import { Button } from '@/components/ui/button'
 import { openFeedback } from '../feedback/FeedbackDialog'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
@@ -7,10 +9,14 @@ export function Support() {
     <LegalPage title="Support" updated="15 October 2026">
       <LegalSection title="Get help">
         <p>
-          <button type="button" onClick={openFeedback} className="text-info hover:text-parchment">
-            Send feedback
-          </button>{' '}
-          from any page through the account menu; it records the page you were on. You can also report a problem in the{' '}
+          Send feedback from any page, through the account menu or the More tab. It opens over the page you are on and sends us that page,
+          your device and this version of Praetorium with your message, and you can attach a screenshot.
+        </p>
+        <Button onClick={openFeedback}>
+          <MessageSquareWarning /> Send feedback
+        </Button>
+        <p>
+          To report a problem in public instead, use the{' '}
           <a href="https://github.com/richardsolomou/praetorium.gg/issues/new" className="text-info hover:text-parchment">
             public issue tracker
           </a>
