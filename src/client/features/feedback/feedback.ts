@@ -1,4 +1,5 @@
 import { SurveyEventName, SurveyEventProperties } from 'posthog-js'
+import { IMPORT_REPORT_MAX_LENGTH, type FeedbackKind } from '../../../contracts/feedback'
 
 /** The launched API survey “App feedback” in PostHog; question ids key its stored responses. */
 export const FEEDBACK_SURVEY = {
@@ -8,12 +9,9 @@ export const FEEDBACK_SURVEY = {
     kind: { id: '38c2962f-d6ad-4daf-95b9-1a7b540d24ed', question: 'What kind of feedback?' },
     message: { id: '1e9261de-1a9e-4465-b2a6-cc43acd873f4', question: 'Message' },
     email: { id: '70a4cb45-54cf-44c4-aabf-bbdb555b9caf', question: 'Email for a reply' },
+    screenshot: { id: 'c743390b-5aff-42e4-976a-d2d28d0ea1ee', question: 'Screenshot' },
   },
 } as const
-
-/** The survey's choices, in its order. */
-export const FEEDBACK_KINDS = ['Problem', 'Idea', 'Other'] as const
-export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
 export const FEEDBACK_MESSAGE_MAX_LENGTH = 2000
 
@@ -28,7 +26,7 @@ export function feedbackSurveyEvent({
   email?: string
   screenshotUrl?: string
 }) {
-  const answers = { kind, message: message.trim(), email: email?.trim() || undefined }
+  const answers = { kind, message: message.trim(), email: email?.trim() || undefined, screenshot: screenshotUrl }
   const questions = Object.entries(FEEDBACK_SURVEY.questions) as [keyof typeof answers, { id: string; question: string }][]
   return {
     event: SurveyEventName.SENT,
@@ -42,7 +40,6 @@ export function feedbackSurveyEvent({
           answers[key] === undefined ? [] : [[`${SurveyEventProperties.SURVEY_RESPONSE}_${id}`, answers[key]]],
         ),
       ),
-      ...(screenshotUrl ? { screenshot_url: screenshotUrl } : {}),
     },
   }
 }
@@ -53,9 +50,6 @@ const IMPORT_FAILURES = {
   review_required: 'roster import needed review',
 } as const
 const INPUT_KINDS = { text: 'pasted text', 'exchange-code': 'exchange code' } as const
-
-/** The SDK cuts any string property at 65,535 characters; the message is sent twice, well inside the 1 MB event limit. */
-export const IMPORT_REPORT_MAX_LENGTH = 60_000
 
 /** A feedback response the import files by itself, carrying the exact input so the failure can be reproduced. */
 export function importFailureReport({
@@ -83,5 +77,5 @@ export function importFailureReport({
   const room = Math.max(0, IMPORT_REPORT_MAX_LENGTH - header.length)
   const message = header + (input.length > room ? `${input.slice(0, room)}\n[truncated ${input.length - room} characters]` : input)
   const { event, properties } = feedbackSurveyEvent({ kind: 'Problem', message })
-  return { event, properties: { ...properties, automatic: true, source: 'import_failure' } }
+  return { event, properties: { ...properties, automatic: true, source: 'import_failure' }, message }
 }
