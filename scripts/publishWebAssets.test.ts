@@ -57,7 +57,17 @@ it('leaves an asset already stored with the same bytes untouched', async () => {
 it('stops before overwriting an immutable name with different bytes', async () => {
   const { request } = storage(new Map([['https://storage.test/web-assets/index-abcdefgh.js', 'different']]))
   await expect(publishWebAssets([await assets()], { base: 'https://storage.test/', request })).rejects.toThrow('Stored web asset differs')
-  expect(request).toHaveBeenCalledTimes(1)
+  expect(request.mock.calls.map(([, options]) => options?.method ?? 'GET')).toEqual(['HEAD', 'GET'])
+})
+it('keeps a stored asset whose code differs only in its PostHog chunk id', async () => {
+  const chunk = (id: string) => `!function(){e._posthogChunkIds[n]="${id}"}();\nexport const ready = true\n//# chunkId=${id}`
+  const directory = await mkdtemp(path.join(tmpdir(), 'web-assets-'))
+  directories.push(directory)
+  await writeFile(path.join(directory, 'index-abcdefgh.js'), chunk('11111111-1111-4111-8111-111111111111'))
+  const storedChunk = chunk('22222222-2222-4222-8222-222222222222')
+  const { stored, request, publicRequest } = storage(new Map([['https://storage.test/web-assets/index-abcdefgh.js', storedChunk]]))
+  await publishWebAssets([directory], { base: 'https://storage.test/', request }, publicRequest)
+  expect(stored.get('https://storage.test/web-assets/index-abcdefgh.js')).toBe(storedChunk)
 })
 it('fails publication if the public CDN serves stale bytes', async () => {
   const { request } = storage()
