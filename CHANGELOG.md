@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.144.3
+
+### Patch Changes
+
+- 49f8fa9: Open rosters in the mobile app without waiting for saved battles and rosters to finish refreshing.
+
 ## 0.144.2
 
 ### Patch Changes
