@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.144.2
+
+### Patch Changes
+
+- c219e75: Stop re-pricing an open roster a few seconds after the page loads.
+
 ## 0.144.1
 
 ### Patch Changes
