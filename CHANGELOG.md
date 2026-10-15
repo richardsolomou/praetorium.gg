@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.145.0
+
+### Minor Changes
+
+- d39a0b5: MFM 1.6 is the current rules, with its points for every faction. Rosters on MFM 1.5 follow it.
+
+### Patch Changes
+
+- d39a0b5: The Adeptus Custodes codex is part of the current rules with official MFM 1.6 points, Leader lists and unit limits, and Custodes preview rosters move to it unchanged.
+- d39a0b5: Custodes rosters built on the index stay on MFM 1.5 and offer to convert to the codex.
+- 019ece9: Converting a roster no longer offers rules versions that fold into another, where the conversion would have changed nothing.
+- d39a0b5: Upgrades the Munitorum Field Manual marks as one per army take their MFM points.
+- d39a0b5: Links to a faction's rules under an earlier MFM version open the matching archived rules, or the current rules when none are kept, instead of a missing page.
+
 ## 0.144.7
 
 ### Patch Changes
