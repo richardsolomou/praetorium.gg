@@ -4,7 +4,7 @@ import { emptyLocalState } from '../../contracts/localState'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { packRuntimeData } from '../../contracts/runtimeData'
 import { bookOf, system, points } from '../../server/catalogue.fixtures'
-import { savedRosterPage, savedRosterPrice, homeRosters, rosterBootstrap, projectLocalState } from '../functions'
+import { savedRosterPage, homeRosters, rosterBootstrap, projectLocalState } from '../functions'
 import { captureAppSnapshot, restoreAppSnapshot } from './appSnapshot'
 import { priceQuery } from '../queries/rosters'
 import { buildIndex } from '../../core/catalogue'
@@ -13,7 +13,6 @@ import type { LocalRoster } from './localRuntime'
 const mocks = vi.hoisted(() => ({
   page: vi.fn(),
   home: vi.fn(),
-  savedPrice: vi.fn(),
   price: vi.fn(),
   reference: vi.fn(),
   summaries: vi.fn(),
@@ -22,7 +21,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../server/functions', () => ({
   savedRosterPage: mocks.page,
   homeRosters: mocks.home,
-  savedRosterPrice: mocks.savedPrice,
   priceRoster: mocks.price,
   savedRosterSummaries: mocks.summaries,
 }))
@@ -137,18 +135,6 @@ it('uses the server Home calculation without rebuilding the local catalogue', as
   })
 })
 
-it('prices the actual unsynced choices on the server instead of returning the older saved price', async () => {
-  pending({ ...roster, updatedAt: 2, picks: [...roster.picks, ...roster.picks] })
-  mocks.price.mockResolvedValue({ points: 160, errors: [], unhandled: [], label: 'Army' })
-  const result = await savedRosterPrice({ data: { id: 'army' } })
-  expect({
-    points: result?.points,
-    choices: mocks.price.mock.calls[0]?.[0].data.units.length,
-    savedReads: mocks.savedPrice.mock.calls.length,
-    rules: vi.mocked(buildIndex).mock.calls.length,
-  }).toEqual({ points: 160, choices: 2, savedReads: 0, rules: 0 })
-})
-
 it('overlays a server library batch with server pricing for unsynced choices', async () => {
   pending({ ...roster, updatedAt: 2, picks: [...roster.picks, ...roster.picks] })
   mocks.price.mockResolvedValue({ points: 160, errors: [], unhandled: [], label: 'Army' })
@@ -219,21 +205,6 @@ it('persists a server price with its exact choices so it is immediately availabl
     changed: restored.getQueryData(priceQuery('cat', [], null, 1000, [...roster.picks, ...roster.picks]).queryKey),
     rules: vi.mocked(buildIndex).mock.calls.length,
   }).toEqual({ cached: data, changed: undefined, rules: 0 })
-})
-
-it('uses the saved server price directly when there are no unsynced choices', async () => {
-  mocks.savedPrice.mockResolvedValue({ points: 80 })
-  const result = await savedRosterPrice({ data: { id: 'army' } })
-  expect({ points: result?.points, requests: mocks.savedPrice.mock.calls.length, rules: vi.mocked(buildIndex).mock.calls.length }).toEqual({
-    points: 80,
-    requests: 1,
-    rules: 0,
-  })
-})
-
-it('calculates the saved roster locally after a connected pricing request fails', async () => {
-  mocks.savedPrice.mockRejectedValue(new TypeError('Failed to fetch'))
-  expect((await savedRosterPrice({ data: { id: 'army' } }))?.points).toBe(80)
 })
 
 it('keeps the server error when the rules needed for a local fallback were never downloaded', async () => {

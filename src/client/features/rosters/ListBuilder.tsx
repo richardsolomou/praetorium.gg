@@ -69,6 +69,7 @@ import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import type { RosterSetupReview } from './rosterSetupReview'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
+import { localEngine } from '../../offline/localRuntime'
 import { useSettled } from '../../useSettled'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { GROUPS } from '../../unitGroups'
@@ -370,7 +371,8 @@ export function ListBuilder({
     onSuccess: async ({ key, updatedAt }) => {
       lastApplied.current = key
       savedAt.current = Math.max(savedAt.current, updatedAt)
-      await invalidateSavedRosters(queryClient)
+      // A queued save reaches the server later; its acknowledgement refreshes saved rosters then.
+      if (!localEngine()) await invalidateSavedRosters(queryClient)
     },
     // What the row holds is unknown after a failure, so the next draft is sent whatever it is.
     onError: () => {

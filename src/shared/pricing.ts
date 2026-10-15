@@ -41,6 +41,44 @@ export { heldWargear } from './heldWargear'
 export { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
 export { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
 
+/** Evicts the least recently used entry once it holds more than its limit. */
+class RecentlyUsed<K, V> extends Map<K, V> {
+  constructor(private readonly limit: number) {
+    super()
+  }
+  override get(key: K) {
+    if (!super.has(key)) return undefined
+    const value = super.get(key) as V
+    super.delete(key)
+    super.set(key, value)
+    return value
+  }
+  override set(key: K, value: V) {
+    super.delete(key)
+    super.set(key, value)
+    if (this.size > this.limit) this.delete(this.keys().next().value as K)
+    return this
+  }
+}
+
+/**
+ * A built unit depends only on its pick, the battle size and the detachments, so every price on one catalogue shares
+ * it. An editor reprices the whole list after each change, and rebuilding every unchanged unit was most of that work.
+ */
+const sharedBuiltUnits = new WeakMap<LoadedCatalogue, Map<string, BuiltUnit | null>>()
+function sharedBuiltUnitsFor(loaded: LoadedCatalogue) {
+  let units = sharedBuiltUnits.get(loaded)
+  if (!units) {
+    units = new RecentlyUsed(2_000)
+    sharedBuiltUnits.set(loaded, units)
+  }
+  return units
+}
+
+/** Projections of one built unit, kept for as long as the unit itself is. */
+const builtModelKinds = new WeakMap<BuiltUnit, ModelKind[]>()
+const builtAttachments = new WeakMap<BuiltUnit, ReturnType<typeof attachmentOf>>()
+
 /**
  * A list as the catalogue reads it: every pick expanded, grouped by the book it
  * came from.
@@ -62,8 +100,9 @@ function rosterForces(
   const battleSize = battleSizeSelection(loaded.index, data.limit)
   const configuration = battleSize ? [battleSize] : []
   const roster = [...configuration, ...detachmentSelection]
+  const rosterKey = unitCache && JSON.stringify([loaded.index.revision, data.catalogueId, roster])
   const picked = data.units.flatMap((wanted, key) => {
-    const cacheKey = unitCache && JSON.stringify([loaded.index.revision, data.catalogueId, roster, wanted])
+    const cacheKey = rosterKey && `${rosterKey}${JSON.stringify(wanted)}`
     let built = cacheKey ? unitCache?.get(cacheKey) : undefined
     if (built === undefined) {
       built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
@@ -75,10 +114,12 @@ function rosterForces(
       })
       if (cacheKey) unitCache?.set(cacheKey, built)
     }
+    if (!built) return []
+    const source = built
     // Repeated picks need distinct top-level identities for contextual evaluation.
-    if (unitCache && built) built = { ...built, selection: { ...built.selection } }
+    if (unitCache) built = { ...built, selection: { ...built.selection } }
     const entry = loaded.index.definitions.get(wanted.entryId)
-    return built ? [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, ...built }] : []
+    return [{ key, entryId: wanted.entryId, name: entry?.name ?? wanted.entryId, source, ...built }]
   })
   const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...roster]]])
   for (const unit of picked) {
@@ -503,7 +544,7 @@ function calculateRoster(
       ? 'This roster has a detachment that is no longer available. Choose a current detachment.'
       : detachmentPointsError(purchased, budget, data.waivedRules)
 
-  const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection, unitCache)
+  const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection, unitCache ?? sharedBuiltUnitsFor(loaded))
   // Pricing is a roster being mustered, which is what a datasheet's force-scoped rules ask about.
   const options = { primaryCatalogueId: data.catalogueId, mustering: true }
   const forces = [...forceSelections.values()]
@@ -521,13 +562,12 @@ function calculateRoster(
   const keywordsFor = (catalogueId: string, at: number) => keywordMatrixFor(catalogueId)[at] ?? []
   // Model kinds are the dear part of a unit's projection, and the price reads them
   // twice: once to find units the catalogue composes itself, and once to draw each
-  // unit's card. Project each unit once and keep the result for the request.
-  const modelKindsByUnit = new Map<(typeof picked)[number], ModelKind[]>()
+  // unit's card. Project each built unit once and keep the result with it.
   const modelKindsFor = (unit: (typeof picked)[number]) => {
-    let kinds = modelKindsByUnit.get(unit)
+    let kinds = builtModelKinds.get(unit.source)
     if (!kinds) {
       kinds = modelKindsOf(unit.entryId, unit.selection, loaded.index, options)
-      modelKindsByUnit.set(unit, kinds)
+      builtModelKinds.set(unit.source, kinds)
     }
     return kinds
   }
@@ -752,7 +792,11 @@ function calculateRoster(
             : [],
         ),
       )
-      const attachment = attachmentOf(definition, loaded.index, unit.selection)
+      let attachment = builtAttachments.get(unit.source)
+      if (attachment === undefined) {
+        attachment = attachmentOf(definition, loaded.index, unit.selection)
+        builtAttachments.set(unit.source, attachment)
+      }
       return {
         key: unit.key,
         entryId: unit.entryId,

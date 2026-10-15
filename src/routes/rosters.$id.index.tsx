@@ -8,7 +8,7 @@ import {
   rosterAccessQuery,
   rosterBootstrapQuery,
   rosterChangesQuery,
-  savedRosterPriceQuery,
+  priceQuery,
   outdatedLeagueEntriesQuery,
 } from '../client/queries'
 import { pageHead, rosterExposure, rosterPreview } from '../client/linkPreview'
@@ -58,21 +58,23 @@ export const Route = createFileRoute('/rosters/$id/')({
       const { roster, editable, variants, differences, copiedFrom, lentBy, faction, price, changes } = value
       seed(rosterAccessQuery(params.id, deps.battle).queryKey, { roster, editable, variants, differences, copiedFrom, lentBy, faction })
       seed(rosterChangesQuery(params.id).queryKey, changes)
-      seed(
-        savedRosterPriceQuery(
-          roster.id,
-          roster.catalogueId,
-          roster.detachmentIds,
-          roster.disposition,
-          roster.limit,
-          normalisePicks(roster.picks),
-          deps.battle,
-          roster.waivedRules,
-          roster.borrowedDetachmentId,
-          roster.optionalRules,
-        ).queryKey,
-        price,
-      )
+      // Keyed as the builder asks, so the editor opens on this answer; an owner's needs unit limits, which a price
+      // worked out on this device for unsynced edits can lack.
+      if (price && (!editable || price.unitLimits))
+        seed(
+          priceQuery(
+            roster.catalogueId,
+            roster.detachmentIds,
+            roster.disposition,
+            roster.limit,
+            normalisePicks(roster.picks),
+            roster.waivedRules,
+            roster.borrowedDetachmentId,
+            roster.optionalRules,
+            editable,
+          ).queryKey,
+          price,
+        )
     }
     if (cachedBootstrap !== undefined)
       void context.queryClient

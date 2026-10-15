@@ -562,34 +562,6 @@ export async function setRosterLocked(args: Parameters<typeof server.setRosterLo
   return saved
 }
 
-export async function savedRosterPrice(args: Parameters<typeof server.savedRosterPrice>[0]): ReturnType<typeof server.savedRosterPrice> {
-  const owner = localOwner()?.id
-  const checked = async (loading: ReturnType<typeof server.savedRosterPrice>) => {
-    const result = await loading
-    if (localOwner()?.id !== owner) throw new Error('The account changed while loading this roster.')
-    return result
-  }
-  if (!args.data.battle) {
-    const local = await localDocument<LocalRoster | null>(`roster:${args.data.id}`)
-    if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(`roster:${args.data.id}`))))
-      return local ? checked(priceRoster({ data: savedRosterPriceInput(local), signal: args.signal })) : null
-  }
-  return checked(
-    calculationRead(
-      (signal) => server.savedRosterPrice({ ...args, signal }),
-      async (error) => {
-        const roster = !args.data.battle
-          ? await localDocument<LocalRoster | null>(`roster:${args.data.id}`)
-          : localClient()?.getQueryData<LocalRoster | null>(['shared-roster', args.data.id, args.data.battle])
-        if (!roster || !constructionData(roster.catalogueId)) throw error ?? new Error('Army data is unavailable.')
-        const data = localConstruction(roster.catalogueId)!
-        return calculateRosterPrice(savedRosterPriceInput(roster), data.catalogue, data.rules)
-      },
-      args.signal,
-    ),
-  )
-}
-
 export async function savedRosterLoadoutDatasheets(
   args: Parameters<typeof server.savedRosterLoadoutDatasheets>[0],
 ): ReturnType<typeof server.savedRosterLoadoutDatasheets> {

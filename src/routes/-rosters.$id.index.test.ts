@@ -1,7 +1,7 @@
 import { QueryClient, onlineManager } from '@tanstack/react-query'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as functions from '../server/functions'
-import { rosterAccessQuery, rosterBootstrapQuery } from '../client/queries'
+import { priceQuery, rosterAccessQuery, rosterBootstrapQuery } from '../client/queries'
 import { Route } from './rosters.$id.index'
 
 vi.mock('../client/features/rosters/RosterPage', () => ({ RosterPage: () => null }))
@@ -122,6 +122,59 @@ it('keeps the lender when it seeds the roster a friend lent', async () => {
   try {
     await load(client)
     expect(client.getQueryData(rosterAccessQuery('army').queryKey)?.lentBy).toEqual(lentBy)
+  } finally {
+    client.clear()
+  }
+})
+
+const builderPrice = (editable: boolean) => priceQuery('necrons', [], null, 2000, [], [], null, [], editable).queryKey
+
+it("opens an owner's builder on the bootstrap price, unit limits included", async () => {
+  const client = new QueryClient()
+  const price = { kind: 'full', points: 0, detachments: [], unitLimits: [] }
+  vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue({ ...bootstrap('Army', 0, true), price } as unknown as ReturnType<
+    typeof bootstrap
+  >)
+  try {
+    await load(client)
+    expect(client.getQueryData(builderPrice(true))).toBe(price)
+  } finally {
+    client.clear()
+  }
+})
+
+it("opens a reader's builder on the bootstrap price", async () => {
+  const client = new QueryClient()
+  const price = { kind: 'full', points: 0, detachments: [] }
+  vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue({ ...bootstrap('Army'), price } as unknown as ReturnType<typeof bootstrap>)
+  try {
+    await load(client)
+    expect(client.getQueryData(builderPrice(false))).toBe(price)
+  } finally {
+    client.clear()
+  }
+})
+
+it('leaves the price for the builder to ask when the bootstrap has none', async () => {
+  const client = new QueryClient()
+  vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue(bootstrap('Army', 0, true))
+  try {
+    await load(client)
+    expect(client.getQueryState(builderPrice(true))).toBeUndefined()
+  } finally {
+    client.clear()
+  }
+})
+
+it("leaves an owner's price for the builder to ask when it lacks unit limits", async () => {
+  const client = new QueryClient()
+  const price = { kind: 'full', points: 0, detachments: [] }
+  vi.spyOn(functions, 'rosterBootstrap').mockResolvedValue({ ...bootstrap('Army', 0, true), price } as unknown as ReturnType<
+    typeof bootstrap
+  >)
+  try {
+    await load(client)
+    expect(client.getQueryState(builderPrice(true))).toBeUndefined()
   } finally {
     client.clear()
   }

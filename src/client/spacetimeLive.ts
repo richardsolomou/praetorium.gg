@@ -5,7 +5,13 @@ import { z } from 'zod'
 import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
 import { maintainSpacetimeConnection } from './spacetimeConnection'
-import { coalescedBy, invalidateAdminProductQueries, invalidateProductQueries, invalidatePublicProductQueries } from './productSignals'
+import {
+  coalescedBy,
+  invalidateAdminProductQueries,
+  invalidateEveryProductQuery,
+  invalidateProductQueries,
+  invalidatePublicProductQueries,
+} from './productSignals'
 import { setLiveProductRefresh } from './liveProductRefresh'
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
@@ -104,6 +110,10 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
             current.db.myBattleSignals.onUpdate((_context, _previous, row) => {
               if (row.battleId === battleId) refresh(row.seq)
             })
+            // The row leaves when the battle is deleted or this player loses their seat, so the screen asks again.
+            current.db.myBattleSignals.onDelete((_context, row) => {
+              if (row.battleId === battleId) refresh()
+            })
             current
               .subscriptionBuilder()
               .onApplied(() => {
@@ -178,7 +188,6 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
       run: (scope?: string) => void,
       first: boolean,
     ) => {
-      if (first) run()
       for (const { scope, revision } of rows) {
         if (!first && revisions.get(scope) !== revision) run(scope)
         revisions.set(scope, revision)
@@ -207,7 +216,8 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
             const signal =
               (revisions: Map<string, bigint>, run: (scope?: string) => void, listening = true) =>
               (row: { scope: string; revision: bigint }) => {
-                if (!applied || !listening) return
+                // The subscription can replay rows its catch-up already read; an unchanged revision has nothing new.
+                if (!applied || !listening || revisions.get(row.scope) === row.revision) return
                 revisions.set(row.scope, row.revision)
                 run(row.scope)
               }
@@ -229,6 +239,8 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
                 setSubscribed(true)
                 const first = !synced
                 synced = true
+                if (first) void invalidateEveryProductQuery(queryClient, signedIn)
+                if (first && signedIn) refreshAdmin()
                 if (signedIn) catchUp(seen.product, current.db.myProductSignals.iter(), refresh, first)
                 if (signedIn) catchUp(seen.admin, current.db.myAdminSignals.iter(), refreshAdmin, first)
                 catchUp(seen.public, current.db.publicProductSignals.iter(), refreshPublic, first)
@@ -251,10 +263,9 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
   useEffect(() => {
     if (!enabled || subscribed) return
     const timer = window.setInterval(() => {
-      if (signedIn) refresh()
+      void invalidateEveryProductQuery(queryClient, signedIn)
       if (signedIn) refreshAdmin()
-      refreshPublic()
     }, 20_000)
     return () => window.clearInterval(timer)
-  }, [enabled, refresh, refreshAdmin, refreshPublic, signedIn, subscribed])
+  }, [enabled, queryClient, refreshAdmin, signedIn, subscribed])
 }

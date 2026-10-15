@@ -1,6 +1,6 @@
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
-import { battleSizeSelection, rosterLimit, type Selection } from '../core/evaluate'
+import { battleSizeSelection, type ModifierCache, rosterLimit, type Selection } from '../core/evaluate'
 import type { UnitGroup } from '../core/unitGroups'
 import type { UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
@@ -209,6 +209,9 @@ function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, 
   return rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
 }
 
+// Modifier expansion reads only catalogue definitions, so one expansion serves every roster priced from the catalogue.
+const modifierCaches = new WeakMap<LoadedCatalogue, ModifierCache>()
+
 export function contextualUnitLimit(
   loaded: LoadedCatalogue,
   catalogueId: string,
@@ -219,7 +222,9 @@ export function contextualUnitLimit(
 ) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return 0
-  const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
+  let modifierCache = modifierCaches.get(loaded)
+  if (!modifierCache) modifierCaches.set(loaded, (modifierCache = new WeakMap()))
+  const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster, modifierCache })
   if (!isKotcLimit(battleSize)) return limit
   const sheet = datasheetIn(loaded, catalogueId, entryId)
   return minimumLimit(limit, sheet ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(sheet.keywords), waivedRules) : null)
