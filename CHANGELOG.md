@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.144.5
+
+### Patch Changes
+
+- a72d79f: Keep a full league's lists sealed until someone reveals them, instead of opening them when the last list is sealed.
+
 ## 0.144.4
 
 ### Patch Changes
