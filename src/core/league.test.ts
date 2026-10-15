@@ -15,6 +15,7 @@ import {
   leagueTableShape,
   matchesSealedLeagueRoster,
   readsAlliedLeagueRoster,
+  readsSealedLeagueRoster,
   requiredLeagueRosterLimit,
   visibleLeagueEntries,
   type LeagueAllyEntry,
@@ -194,6 +195,31 @@ describe('readsAlliedLeagueRoster', () => {
   it('ignores an ally who is not in the event yet', () => {
     expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob', { status: 'pending' }), ally('carol'))).toBe(false)
     expect(readsAlliedLeagueRoster('2v1', 2_000, ally('bob'), ally('carol', { status: 'rejected' }))).toBe(false)
+  })
+})
+
+describe('readsSealedLeagueRoster', () => {
+  const entry = (userId: string, requiredLimit: number | null = 1_000): LeagueAllyEntry => ({
+    userId,
+    status: 'accepted',
+    requiredLimit,
+    teamId: null,
+  })
+
+  it('lets an entrant read their own sealed list in any format', () => {
+    expect(readsSealedLeagueRoster('1v1', 2_000, entry('bob', 2_000), entry('bob', 2_000))).toBe(true)
+  })
+
+  it('lets a 2v1 ally read the other ally', () => {
+    expect(readsSealedLeagueRoster('2v1', 2_000, entry('bob'), entry('carol'))).toBe(true)
+  })
+
+  it('keeps a 1v1 opponent sealed', () => {
+    expect(readsSealedLeagueRoster('1v1', 2_000, entry('alice', 2_000), entry('bob', 2_000))).toBe(false)
+  })
+
+  it('keeps every list sealed from a visitor', () => {
+    expect(readsSealedLeagueRoster('2v1', 2_000, null, entry('bob'))).toBe(false)
   })
 })
 

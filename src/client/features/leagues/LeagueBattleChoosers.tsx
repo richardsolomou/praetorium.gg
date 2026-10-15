@@ -49,6 +49,7 @@ export function OneOnOneBattleChooser({
       value: entry.userId,
       icon: <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />,
     }))
+  const chosen = opponentId ?? soleOption(options)
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
       <DialogContent>
@@ -63,7 +64,7 @@ export function OneOnOneBattleChooser({
               id="league-opponent"
               className="h-11"
               groups={[{ label: '', items: options }]}
-              value={opponentId ?? ''}
+              value={chosen ?? ''}
               onValueChange={(id) => {
                 onIntentChange()
                 setOpponentId(id)
@@ -82,7 +83,7 @@ export function OneOnOneBattleChooser({
           <Button variant="outline" disabled={pending} onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={!opponentId || pending} onClick={() => opponentId && onStart(opponentId)}>
+          <Button disabled={!chosen || pending} onClick={() => chosen && onStart(chosen)}>
             <Swords /> {pending ? 'Starting…' : 'Start battle'}
           </Button>
         </DialogFooter>
@@ -133,7 +134,22 @@ export function LeagueBattleChooser({
   }
   const ownTeammate = teammateOf(ownUserId)
   const paired = entries.some((entry) => entry.teamId)
-  const seatedIn = (seat: Seat) => (seat.side === 'yours' ? (ownTeammate ?? allyId) : (theirIds[seat.at] ?? null))
+  const others = (limit: number) =>
+    entries.filter((entry) => entry.userId !== ownUserId && entry.requiredLimit === limit).map((entry) => entry.userId)
+  const allied = others(alliedLimit)
+  const solos = others(rosterLimit)
+  // When the sealed entrants allow only one table, it is seated for you.
+  const onlyMatchup = isSolo
+    ? allied.length === 2
+      ? { theirIds: allied, allyId: null }
+      : null
+    : solos.length === 1 && (ownTeammate || allied.length === 1)
+      ? { theirIds: [solos[0]!], allyId: ownTeammate ? null : allied[0]! }
+      : null
+  const seatedIn = (seat: Seat) =>
+    seat.side === 'yours'
+      ? (ownTeammate ?? allyId ?? onlyMatchup?.allyId ?? null)
+      : (theirIds[seat.at] ?? onlyMatchup?.theirIds[seat.at] ?? null)
   const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const candidates = entries.map((entry) => ({
     id: entry.userId,
@@ -249,6 +265,7 @@ export function DoublesBattleChooser({
         </span>
       ),
     }))
+  const chosen = opponentId ?? soleOption(options)
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
       <DialogContent aria-busy={pending}>
@@ -263,7 +280,7 @@ export function DoublesBattleChooser({
               id="league-doubles-opponents"
               className="h-11"
               groups={[{ label: '', items: options }]}
-              value={opponentId ?? ''}
+              value={chosen ?? ''}
               onValueChange={(id) => {
                 onIntentChange()
                 setOpponentId(id)
@@ -283,13 +300,18 @@ export function DoublesBattleChooser({
           <Button variant="outline" disabled={pending} onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={!opponentId || pending} onClick={() => opponentId && onStart(opponentId)}>
+          <Button disabled={!chosen || pending} onClick={() => chosen && onStart(chosen)}>
             <Swords /> {pending ? 'Starting…' : 'Start battle'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
+}
+
+/** The only option a picker offers, so a table with one possible opponent is ready to start. */
+function soleOption(options: { value: string }[]) {
+  return options.length === 1 ? options[0]!.value : null
 }
 
 export type DoublesEntrant = {

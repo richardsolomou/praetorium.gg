@@ -914,8 +914,7 @@ test('an eligible casual matchup is directed through its league event', async ({
 
   const leagueChooser = owner.getByRole('dialog', { name: 'Start 1 vs 1 battle' })
   await expect(leagueChooser).toBeVisible()
-  await leagueChooser.getByRole('combobox', { name: 'Opponent' }).click()
-  await owner.getByRole('option', { name: entrantName, exact: true }).click()
+  await expect(leagueChooser.getByRole('combobox', { name: 'Opponent' })).toContainText(entrantName)
   await leagueChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
   await owner.goto(leagueUrl.toString())
@@ -1345,9 +1344,12 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   await expect(leagueHeader(owner)).toContainText('2 of 4 players')
   await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
 
-  // Removing a picked player frees their pick, so the pairing picker never locks on a row it no longer shows.
+  // The only two players left to pair start picked.
   const unpaired = owner.locator('[data-group="unpaired"]')
-  await unpaired.getByRole('checkbox', { name: `Pick ${names[1]} for a team` }).check()
+  await expect(unpaired.getByRole('checkbox', { name: `Pick ${names[1]} for a team` })).toBeChecked()
+  await expect(unpaired.getByRole('checkbox', { name: `Pick ${names[2]} for a team` })).toBeChecked()
+  // Removing a picked player frees their pick, so the pairing picker never locks on a row it no longer shows.
+  await unpaired.getByRole('checkbox', { name: `Pick ${names[2]} for a team` }).uncheck()
   await unpaired.getByRole('checkbox', { name: `Pick ${names[2]} for a team` }).check()
   await expect(unpaired.getByRole('button', { name: `Pair ${names[1]} and ${names[2]}` })).toBeEnabled()
   await unpaired.getByRole('button', { name: `Remove ${names[1]}`, exact: true }).click()
@@ -1450,8 +1452,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(owner.locator('[data-check="teams"]')).toContainText('with another ally.')
   // The organizer pairs the allies, and a pair plays together in every battle of the event.
   const alliedPool = owner.locator('[data-group="allied"]')
-  await alliedPool.getByRole('checkbox', { name: `Pick ${alliedLabel} for a pair` }).check()
-  await alliedPool.getByRole('checkbox', { name: `Pick ${secondAlliedLabel} for a pair` }).check()
+  await expect(alliedPool.getByRole('checkbox', { name: `Pick ${alliedLabel} for a pair` })).toBeChecked()
+  await expect(alliedPool.getByRole('checkbox', { name: `Pick ${secondAlliedLabel} for a pair` })).toBeChecked()
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(owner, alliedPool)
+  await owner.setViewportSize({ width: 1440, height: 900 })
   await alliedPool.getByRole('button', { name: /^Pair / }).click()
   await expect(owner.locator('[data-group="pair-1"]')).toContainText(secondAlliedLabel)
   await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
@@ -1483,11 +1488,14 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   // before reveal, while the solo roster they will both face stays sealed.
   const secondAlliedRow = alliedSide.locator(`[data-person="${alliedName}"]`).filter({ hasText: secondAlliedLabel })
   await expect(viewRoster(secondAlliedRow, secondAlliedLabel)).toBeVisible()
-  await expect(ownEntrantRow.getByRole('button', { name: /^View / })).toHaveCount(0)
+  await expect(viewRoster(ownEntrantRow, alliedLabel)).toBeVisible()
   await expect(allied.locator(`[data-person="${ownerName}"]`).getByRole('button', { name: /^View / })).toHaveCount(0)
   await expect(allied.getByText(`Only ${secondAlliedLabel} can see it before the reveal.`)).toBeVisible()
   await expectNoHorizontalOverflow(allied, ...(await allied.locator('[data-person]').all()))
   await viewRoster(secondAlliedRow, secondAlliedLabel).click()
+  await expect(allied.locator('[data-unit="Test unit"]')).toBeVisible()
+  await allied.goBack()
+  await viewRoster(ownEntrantRow, alliedLabel).click()
   await expect(allied.locator('[data-unit="Test unit"]')).toBeVisible()
   await allied.goBack()
 
@@ -1544,9 +1552,8 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await owner.getByRole('button', { name: 'Start 2 vs 1 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
   await expectNoHorizontalOverflow(owner, battleChooser)
-  await battleChooser.getByLabel('First opponent').click()
-  await owner.getByRole('option', { name: alliedLabel }).click()
-  // Choosing one ally seats their partner, since a pair always plays together.
+  // The only allied pair in the event is the one possible table, so it is already seated.
+  await expect(battleChooser.getByLabel('First opponent')).toContainText(alliedLabel)
   await expect(battleChooser.getByLabel('Second opponent')).toContainText(secondAlliedLabel)
   await expect(battleChooser.getByRole('button', { name: 'Start battle' })).toBeEnabled()
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
@@ -1597,8 +1604,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const alliedBattleChooser = allied.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
   await expectNoHorizontalOverflow(allied, alliedBattleChooser)
   await expect(alliedBattleChooser.getByLabel('Your ally')).toContainText(secondAlliedLabel)
-  await alliedBattleChooser.getByLabel('Opponent').click()
-  await allied.getByRole('option', { name: ownerName }).click()
+  await expect(alliedBattleChooser.getByLabel('Opponent')).toContainText(ownerName)
   await alliedBattleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(allied).toHaveURL(/\/battles\/[^/?]+$/)
   const alliedSetup = allied.getByRole('region', { name: 'Armies' })
@@ -1857,10 +1863,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(team(2)).toContainText('plays Purge the Foe')
   await owner.getByRole('button', { name: 'Start 2 vs 2 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 2 battle' })
-  await battleChooser.getByLabel('Opposing team').click()
-  const opposingTeam = owner.getByRole('option', { name: `${names[2]} & ${names[3]}`, exact: true })
-  await expect(opposingTeam).toBeVisible()
-  await opposingTeam.click()
+  await expect(battleChooser.getByLabel('Opposing team')).toContainText(`${names[2]} & ${names[3]}`)
   await expectNoHorizontalOverflow(owner, battleChooser)
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)

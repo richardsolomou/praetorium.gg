@@ -238,6 +238,16 @@ export function readsAlliedLeagueRoster(
   return false
 }
 
+/** Before reveal, an entrant reads their own sealed roster and any ally's. */
+export function readsSealedLeagueRoster(
+  format: TableShape | null,
+  eventLimit: number | null,
+  reader: LeagueAllyEntry | null,
+  sealed: LeagueAllyEntry,
+) {
+  return reader?.userId === sealed.userId || readsAlliedLeagueRoster(format, eventLimit, reader, sealed)
+}
+
 /** A fixed pair's sealed Force Disposition: what its lists offer, and the card it plays or null while it still owes the choice. */
 export type LeagueTeam = { id: string; userIds: string[]; choices: string[]; disposition: string | null; owed: boolean }
 
