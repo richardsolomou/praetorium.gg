@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { advance, attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName } from './account'
+import { advance, attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, rewind, signUp, startBattle, uniqueName } from './account'
 
 /** Narrow screens show one column at a time behind the battle tabs. */
 async function show(page: Page, tab: 'Your side' | 'Battle') {
@@ -129,7 +129,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   await page.getByRole('menuitem', { name: 'Concede battle', exact: true }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
   const slider = page.getByRole('navigation', { name: 'Battle replay timeline' }).getByRole('slider', { name: 'Replay event' })
-  await expect(slider).toBeVisible()
+  await rewind(slider)
   await slider.press('End')
   for (let step = 0; step < 10; step++) {
     if ((await slider.getAttribute('aria-valuetext'))?.includes('uses Insane Bravery')) break
