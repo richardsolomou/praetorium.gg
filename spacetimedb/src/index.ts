@@ -32,7 +32,6 @@ import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
 import { DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
-import { JOURNAL_EVENTS_MAX, JOURNAL_GAMES_MAX, journalEventSchema, journalGameSchema } from '../../src/core/gameJournal'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -158,17 +157,7 @@ function requireOperator(ctx: Context) {
 
 const ROSTER_LOANS_PER_ROSTER = 100
 
-type ProductScope =
-  | 'rosters'
-  | 'collection'
-  | 'favourites'
-  | 'friends'
-  | 'invites'
-  | 'onboarding'
-  | 'settings'
-  | 'leagues'
-  | 'battles'
-  | 'journal'
+type ProductScope = 'rosters' | 'collection' | 'favourites' | 'friends' | 'invites' | 'onboarding' | 'settings' | 'leagues' | 'battles'
 
 function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
   for (const scope of scopes) {
@@ -940,11 +929,19 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
   ctx.withTx((tx) => {
     requireOperator(tx)
     const { table: entity, keys } = z
-      .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
+      .object({
+        table: z.enum(['rosters', 'collection', 'journal_games', 'journal_events']),
+        keys: z.array(z.string().min(1).max(512)).max(20),
+      })
       .parse(input)
     let changed = 0
     for (const key of keys) {
-      if (entity === 'rosters') {
+      // The journal is retired; its rows are deleted so a later module can drop the tables.
+      if (entity === 'journal_games') {
+        if (tx.db.journalGames.id.delete(key)) changed++
+      } else if (entity === 'journal_events') {
+        if (tx.db.journalEvents.id.delete(key)) changed++
+      } else if (entity === 'rosters') {
         const row = tx.db.rosters.id.find(key)
         if (!row) continue
         const migrated = migrateStoredRoster(row)
@@ -1074,6 +1071,7 @@ function rosterSummary(row: StoredRoster) {
     borrowedDetachmentId: row.borrowedDetachmentId,
     baseRosterId: row.baseRosterId,
     locked: row.locked,
+    archived: row.archived,
     visibility: row.visibility,
     source: row.source,
     createdAt: row.createdAt,
@@ -1137,13 +1135,16 @@ export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.s
     requireOperator(tx)
     if (!userId || userId.length > 128) throw new SenderError('Invalid roster query')
     const rows: NonNullable<ReturnType<typeof tx.db.rosters.id.find>>[] = []
+    let scanned = 0
     let count = 0
     const compare = (left: (typeof rows)[number], right: (typeof rows)[number]) => {
       if (left.updatedAt !== right.updatedAt) return left.updatedAt > right.updatedAt ? -1 : 1
       return left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
     }
     for (const row of tx.db.rosters.userId.filter(userId)) {
-      if (++count > 1_000) throw new SenderError('Roster list exceeds the supported limit')
+      if (++scanned > 1_000) throw new SenderError('Roster list exceeds the supported limit')
+      if (row.archived) continue
+      count++
       rows.push(row)
       rows.sort(compare)
       if (rows.length > 5) rows.pop()
@@ -1219,6 +1220,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     // Where a copy came from, recorded once; readers resolve it through their own access.
     copiedFromRosterId: input.copiedFromRosterId ?? undefined,
     locked: false,
+    archived: false,
     ...fields,
   })
   touchProduct(tx, input.userId, 'rosters', 'onboarding')
@@ -1327,6 +1329,21 @@ export const setRosterLocked = spacetime.procedure(
     }),
 )
 
+export const setRosterArchived = spacetime.procedure(
+  { id: t.string(), userId: t.string(), archived: t.bool(), now: t.u64() },
+  t.bool(),
+  (ctx, { id, userId, archived, now }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      const current = tx.db.rosters.id.find(id)
+      if (!current || current.userId !== userId) return false
+      tx.db.rosters.id.update({ ...current, archived, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
+      touchProduct(tx, userId, 'rosters')
+      if (current.visibility !== 'private') touchPublic(tx, 'rosters')
+      return true
+    }),
+)
+
 export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string() }, (ctx, { id, userId }) => {
   requireOperator(ctx)
   const current = ctx.db.rosters.id.find(id)
@@ -1410,111 +1427,6 @@ export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.strin
         })
         .sort((left, right) => right.lentAt - left.lentAt || left.id.localeCompare(right.id)),
     )
-  }),
-)
-
-export const journalByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    if (!userId || userId.length > 128) throw new SenderError('Invalid journal query')
-    const games = Array.from(tx.db.journalGames.userId.filter(userId))
-    const events = Array.from(tx.db.journalEvents.userId.filter(userId))
-    if (games.length > JOURNAL_GAMES_MAX || events.length > JOURNAL_EVENTS_MAX) throw new SenderError('Journal exceeds the supported limit')
-    return productJson({
-      events: events.map(({ id, name, createdAt }) => ({ id, name, createdAt: safeNumber(createdAt) })),
-      games: games.map((row) => ({
-        id: row.id,
-        eventId: row.eventId ?? null,
-        playedOn: row.playedOn,
-        factionId: row.factionId ?? null,
-        army: row.army ?? null,
-        opponentName: row.opponentName ?? null,
-        opponentFactionId: row.opponentFactionId ?? null,
-        score: row.score ?? null,
-        opponentScore: row.opponentScore ?? null,
-        result: row.result,
-        notes: row.notes ?? null,
-        createdAt: safeNumber(row.createdAt),
-        updatedAt: safeNumber(row.updatedAt),
-      })),
-    })
-  }),
-)
-
-/** Saving under a known id updates that game, so a repeated submission records it once. */
-export const saveJournalGame = spacetime.procedure(
-  { userId: t.string(), payload: t.string(), now: t.u64() },
-  t.string(),
-  (ctx, { userId, payload, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
-      if (!userId || userId.length > 128 || payload.length > 10_000) throw new SenderError('Invalid journal game')
-      const parsed = journalGameSchema.safeParse(JSON.parse(payload))
-      if (!parsed.success) throw new SenderError('Invalid journal game')
-      const game = parsed.data
-      const current = tx.db.journalGames.id.find(game.id)
-      if (current && current.userId !== userId) return 'forbidden'
-      if (game.eventId && tx.db.journalEvents.id.find(game.eventId)?.userId !== userId) return 'no-event'
-      if (!current && Array.from(tx.db.journalGames.userId.filter(userId)).length >= JOURNAL_GAMES_MAX) return 'too-many'
-      const fields = {
-        eventId: game.eventId ?? undefined,
-        playedOn: game.playedOn,
-        factionId: game.factionId ?? undefined,
-        army: game.army ?? undefined,
-        opponentName: game.opponentName ?? undefined,
-        opponentFactionId: game.opponentFactionId ?? undefined,
-        score: game.score ?? undefined,
-        opponentScore: game.opponentScore ?? undefined,
-        result: game.result,
-        notes: game.notes ?? undefined,
-        updatedAt: now,
-      }
-      if (current) tx.db.journalGames.id.update({ ...current, ...fields })
-      else tx.db.journalGames.insert({ id: game.id, userId, createdAt: now, ...fields })
-      touchProduct(tx, userId, 'journal')
-      return 'saved'
-    }),
-)
-
-export const deleteJournalGame = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    if (tx.db.journalGames.id.find(id)?.userId !== userId) return false
-    tx.db.journalGames.id.delete(id)
-    touchProduct(tx, userId, 'journal')
-    return true
-  }),
-)
-
-export const saveJournalEvent = spacetime.procedure(
-  { userId: t.string(), payload: t.string(), now: t.u64() },
-  t.string(),
-  (ctx, { userId, payload, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
-      if (!userId || userId.length > 128 || payload.length > 1_000) throw new SenderError('Invalid journal event')
-      const parsed = journalEventSchema.safeParse(JSON.parse(payload))
-      if (!parsed.success) throw new SenderError('Invalid journal event')
-      const current = tx.db.journalEvents.id.find(parsed.data.id)
-      if (current && current.userId !== userId) return 'forbidden'
-      if (current) tx.db.journalEvents.id.update({ ...current, name: parsed.data.name })
-      else if (Array.from(tx.db.journalEvents.userId.filter(userId)).length >= JOURNAL_EVENTS_MAX) return 'too-many'
-      else tx.db.journalEvents.insert({ id: parsed.data.id, userId, name: parsed.data.name, createdAt: now })
-      touchProduct(tx, userId, 'journal')
-      return 'saved'
-    }),
-)
-
-/** Deleting an event keeps its games, which return to the journal ungrouped. */
-export const deleteJournalEvent = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    if (tx.db.journalEvents.id.find(id)?.userId !== userId) return false
-    for (const game of Array.from(tx.db.journalGames.userId.filter(userId)))
-      if (game.eventId === id) tx.db.journalGames.id.update({ ...game, eventId: undefined })
-    tx.db.journalEvents.id.delete(id)
-    touchProduct(tx, userId, 'journal')
-    return true
   }),
 )
 

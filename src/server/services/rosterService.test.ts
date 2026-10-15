@@ -149,6 +149,22 @@ it('refuses to lock a roster somebody else owns', async () => {
   expect(refusal instanceof Response && refusal.status).toBe(403)
 })
 
+it('reports the version an archive change wrote', async () => {
+  const setRosterArchived = vi.fn().mockResolvedValue(true)
+  const service = new RosterService(
+    { setRosterArchived, roster: vi.fn().mockResolvedValue({ ...row, archived: true, updatedAt: 9 }) } as unknown as RepositoryPort,
+    () => 8,
+  )
+  expect(await service.setRosterArchived('user-1', 'roster-1', true)).toEqual({ updatedAt: 9 })
+  expect(setRosterArchived).toHaveBeenCalledWith('roster-1', 'user-1', true, 8)
+})
+
+it('refuses to archive a roster somebody else owns', async () => {
+  const service = new RosterService({ setRosterArchived: vi.fn().mockResolvedValue(false) } as unknown as RepositoryPort, () => 0)
+  const refusal = await service.setRosterArchived('user-2', 'roster-1', true).catch((error: unknown) => error)
+  expect(refusal instanceof Response && refusal.status).toBe(403)
+})
+
 it('reads a migrated library row as unlocked', async () => {
   const { picks: _picks, prep: _prep, tags: _tags, userId: _userId, ...fields } = row
   const service = new RosterService(

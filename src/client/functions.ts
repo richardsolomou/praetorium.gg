@@ -403,6 +403,7 @@ export async function saveRoster(
     reminders: input.prep?.reminders ?? [],
     remindersEnabled: input.prep?.remindersEnabled ?? true,
     locked: previous?.locked ?? false,
+    archived: previous?.archived ?? false,
   }
   const refusal = lockedRosterRefusal(previous, roster)
   if (refusal) throw new Error(refusal)
@@ -562,6 +563,22 @@ export async function setRosterLocked(args: Parameters<typeof server.setRosterLo
   const saved = await server.setRosterLocked(args)
   const local = await localDocument<LocalRoster | null>(resource)
   if (local) await rememberDocument(resource, { ...local, locked: args.data.locked, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
+  return saved
+}
+
+/** Archiving is accepted by the server, after this device has sent the roster's saved changes. */
+export async function setRosterArchived(args: Parameters<typeof server.setRosterArchived>[0]): ReturnType<typeof server.setRosterArchived> {
+  const owner = localOwner()?.id
+  const resource = `roster:${args.data.id}`
+  if (localEngine()) {
+    if (!navigator.onLine) throw new Error('Connect to the internet to archive or unarchive this roster.')
+    if (await hasLocalChanges(resource)) await syncLocalWork()
+    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
+  }
+  const saved = await server.setRosterArchived(args)
+  const local = await localDocument<LocalRoster | null>(resource)
+  if (local)
+    await rememberDocument(resource, { ...local, archived: args.data.archived, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
   return saved
 }
 
@@ -755,13 +772,14 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
         true,
       )
   assertAccount()
-  const recent = summaries.slice(0, 5)
+  const active = summaries.filter((roster) => !roster.archived)
+  const recent = active.slice(0, 5)
   if (fresh) {
     const page = await savedRosterPage({ data: { ids: recent.map((roster) => roster.id) }, signal: args?.signal })
     assertAccount()
     const rows = new Map(page.map((row) => [row.id, row]))
     return {
-      count: summaries.length,
+      count: active.length,
       rosters: recent.map((roster) => ({
         roster,
         points: rows.get(roster.id)?.points ?? null,
@@ -782,7 +800,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
       return { roster: summary, ...assessment }
     }),
   )
-  return { count: summaries.length, rosters }
+  return { count: active.length, rosters }
 }
 
 export {

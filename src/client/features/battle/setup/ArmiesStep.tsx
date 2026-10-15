@@ -56,7 +56,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
   /** A chosen list the library already prices over its limit, held back instead of sent for the server to refuse. */
   const [overLimit, setOverLimit] = useState<SavedRoster | null>(null)
   const rosterQuery = useQuery(savedRosterSummariesQuery())
-  const saved = rosterQuery.data ?? []
+  const saved = (rosterQuery.data ?? []).filter((roster) => !roster.archived)
   const lentQuery = useQuery(rostersLentToMeQuery())
   const nameDisposition = useDispositionNames()
   const yourSide = sides.find((side) => side.isViewer)

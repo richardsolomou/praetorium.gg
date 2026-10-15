@@ -2,7 +2,15 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
 import { saveRosterSchema } from '../../contracts/schemas'
-import { copyRoster, rosterAccess, saveRoster, savedRosterSummaries, setRosterLocked, setRosterVisibility } from '../functions'
+import {
+  copyRoster,
+  rosterAccess,
+  saveRoster,
+  savedRosterSummaries,
+  setRosterArchived,
+  setRosterLocked,
+  setRosterVisibility,
+} from '../functions'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   defaults: vi.fn(),
   queue: vi.fn(),
   setLocked: vi.fn(),
+  setArchived: vi.fn(),
   access: vi.fn(),
   engines: new Map<string, ReturnType<typeof engine>>(),
 }))
@@ -18,6 +27,7 @@ const client = new QueryClient()
 vi.mock('../../server/functions', () => ({
   savedRosterSummaries: mocks.summaries,
   setRosterLocked: mocks.setLocked,
+  setRosterArchived: mocks.setArchived,
   rosterAccess: mocks.access,
 }))
 vi.mock('./actionFunctions', () => ({ playerDefaults: mocks.defaults }))
@@ -142,6 +152,11 @@ it("refuses a variant of another player's roster", async () => {
 it('asks for a connection before locking a roster saved on the device', async () => {
   await expect(setRosterLocked({ data: { id: 'original', locked: true } })).rejects.toThrow(/Connect/)
   expect(mocks.setLocked).not.toHaveBeenCalled()
+})
+
+it('asks for a connection before archiving a roster saved on the device', async () => {
+  await expect(setRosterArchived({ data: { id: 'original', archived: true } })).rejects.toThrow(/Connect/)
+  expect(mocks.setArchived).not.toHaveBeenCalled()
 })
 
 async function holdBudget() {

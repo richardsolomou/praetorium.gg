@@ -112,9 +112,44 @@ it('reads compact roster summaries without requiring picks or preparation data',
   }
   const request = vi.fn(async () => Response.json(JSON.stringify([summary])))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
-  expect(await operator.rosterSummariesByUser('user-1')).toEqual([summary])
+  expect(await operator.rosterSummariesByUser('user-1')).toEqual([{ ...summary, archived: false }])
   const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
   expect([url.pathname, init.body]).toEqual(['/v1/database/preview-42/call/roster_summaries_by_user', '["user-1"]'])
+})
+
+it.each([
+  [null, false],
+  [false, false],
+  [true, true],
+])('reads a stored archived value of %s as %s', async (stored, archived) => {
+  const row = {
+    id: 'roster',
+    userId: 'user',
+    name: 'Army',
+    automaticName: false,
+    catalogueId: 'cat',
+    detachmentId: '[]',
+    disposition: null,
+    limit: 1000,
+    pointsBudget: null,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    optionalRules: '[]',
+    borrowedDetachmentId: null,
+    baseRosterId: null,
+    locked: false,
+    archived: stored,
+    copiedFromRosterId: null,
+    visibility: 'private',
+    source: 'editable',
+    createdAt: 1,
+    updatedAt: 2,
+  }
+  const request = vi.fn(async () => Response.json(JSON.stringify(row)))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  expect((await operator.roster('roster'))?.archived).toBe(archived)
 })
 
 it('reads only the requested roster ids for an owner', async () => {

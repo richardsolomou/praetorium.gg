@@ -6,6 +6,7 @@ import { canonicalLink, siteStructuredData } from '../client/linkPreview'
 import {
   armyUpdatesQuery,
   battlesQuery,
+  deploymentsQuery,
   factionIndexQuery,
   friendBattlesQuery,
   friendshipsQuery,
@@ -41,6 +42,11 @@ export const Route = createFileRoute('/')({
     let record: Promise<(() => void) | undefined> | undefined
     await Promise.all([
       timed('publicBattles', context.queryClient.infiniteQuery({ ...publicBattlesQuery(), staleTime: 'static' })),
+      // Battle rows name their battlefield from it; without it the rows can only add it after hydration.
+      timed(
+        'deployments',
+        context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
+      ),
       timed('me', context.queryClient.query({ ...meQuery(), staleTime: 'static' })).then((me): Promise<unknown> => {
         if (!me) return timed('standings', context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }))
         record = Promise.all([playerProfile({ data: { userId: me.id } }), playerRankings({ data: { userId: me.id } })]).then(

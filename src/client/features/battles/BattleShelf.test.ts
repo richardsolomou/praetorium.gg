@@ -69,7 +69,11 @@ describe('battle row battlefield label', () => {
   })
 
   it('keeps a concession visible', () => {
-    expect(render({ status: 'finished', result: { concededBy: 'bob', reason: 'conceded' } })).toContain(' · conceded')
+    expect(render({ status: 'finished', result: { concededBy: 'bob', reason: 'conceded' } })).toContain(' · Conceded')
+  })
+
+  it('labels a battle finished early', () => {
+    expect(render({ status: 'finished', result: { concededBy: null, reason: 'finished-early' } })).toContain(' · Finished early')
   })
 
   it('does not repeat the score as a result sentence', () => {

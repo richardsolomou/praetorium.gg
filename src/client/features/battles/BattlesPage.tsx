@@ -110,7 +110,7 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
               {more}
             </div>
           ) : (
-            <FriendTables battles={[]} explain />
+            <FriendTables battles={[]} />
           )
         ) : battles.length ? (
           <div>

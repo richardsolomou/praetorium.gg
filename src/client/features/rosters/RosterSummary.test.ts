@@ -23,6 +23,7 @@ const roster = {
   borrowedDetachmentId: null,
   baseRosterId: null,
   locked: false,
+  archived: false,
 } satisfies SavedRoster
 
 describe('roster summary', () => {

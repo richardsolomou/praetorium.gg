@@ -6,7 +6,16 @@ import type { RosterTextExport } from './RosterExportDialog'
 import type { RosterExchangeCode } from './RosterExchangeDialog'
 import { encodeRosterExchange } from '../../../core/rosterExchange'
 import type { RosterVisibility } from '../../../core/savedRoster'
-import { copyRoster, deleteRoster, exportRoster, saveRoster, setRosterLocked, setRosterVisibility, sharedRoster } from '../../functions'
+import {
+  copyRoster,
+  deleteRoster,
+  exportRoster,
+  saveRoster,
+  setRosterArchived,
+  setRosterLocked,
+  setRosterVisibility,
+  sharedRoster,
+} from '../../functions'
 import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
@@ -58,6 +67,11 @@ export function useRosterActions(origin: string) {
 
   const lock = useMutation({
     mutationFn: ({ id, locked }: { id: string; locked: boolean }) => setRosterLocked({ data: { id, locked } }),
+    onSuccess: refresh,
+  })
+
+  const archive = useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) => setRosterArchived({ data: { id, archived } }),
     onSuccess: refresh,
   })
 
@@ -136,6 +150,7 @@ export function useRosterActions(origin: string) {
     remove,
     access,
     lock,
+    archive,
     take,
     exchange,
     update,

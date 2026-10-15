@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { type BattlesView, BattlesPage } from '../client/features/battles/BattlesPage'
-import { battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../client/queries'
+import { battlesQuery, deploymentsQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 
 const VIEWS = ['friends', 'public'] as const
@@ -14,7 +14,10 @@ export const Route = createFileRoute('/battles/')({
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     const view = me ? (deps.view ?? 'mine') : 'public'
     const query = view === 'mine' ? battlesQuery() : view === 'friends' ? friendBattlesQuery() : publicBattlesQuery()
-    await context.queryClient.infiniteQuery({ ...query, staleTime: 'static' })
+    await Promise.all([
+      context.queryClient.infiniteQuery({ ...query, staleTime: 'static' }),
+      context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
+    ])
   },
   head: ({ match }) =>
     pageHead(match.context.origin, {

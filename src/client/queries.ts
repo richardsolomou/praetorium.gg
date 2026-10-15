@@ -1,7 +1,6 @@
 export * from './queries/account'
 export * from './queries/battles'
 export * from './queries/changes'
-export * from './queries/journal'
 export * from './queries/leagues'
 export * from './queries/references'
 export * from './queries/release'

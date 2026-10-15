@@ -34,6 +34,7 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     baseRosterId: row.baseRosterId,
     copiedFromRosterId: row.copiedFromRosterId ?? null,
     locked: row.locked,
+    archived: row.archived,
     visibility: row.visibility,
     source: row.source,
   })

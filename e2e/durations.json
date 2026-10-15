@@ -225,7 +225,6 @@
   "interop.spec.ts › an account reviews and saves all 1 source entries, and cancelling writes nothing": 6.1,
   "interop.spec.ts › an account reviews and saves all 3 source entries, and cancelling writes nothing": 7.2,
   "interop.spec.ts › an imported roster with disagreeing dispositions asks for one before battle setup": 18.6,
-  "journal.spec.ts › a player keeps a private journal of games played elsewhere, grouped by event": 10.4,
   "leagues.spec.ts › a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle": 43.8,
   "leagues.spec.ts › a doubles event pairs teams, filters half-size rosters, and starts a four-seat battle": 45.7,
   "leagues.spec.ts › a full league opens every list when its last place seals one": 18.5,

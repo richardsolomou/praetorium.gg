@@ -134,6 +134,7 @@ const rosters = table(
     locked: t.option(t.bool()).default(undefined),
     pointsBudget: t.option(t.u32()).default(undefined),
     copiedFromRosterId: t.option(t.string()).default(undefined),
+    archived: t.option(t.bool()).default(undefined),
   },
 )
 

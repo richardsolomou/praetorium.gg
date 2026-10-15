@@ -50,6 +50,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       borrowedDetachmentId: identities.borrowedDetachmentId,
       baseRosterId: row.baseRosterId,
       locked: row.locked,
+      archived: row.archived,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
@@ -207,6 +208,14 @@ export class RosterService {
 
   async setRosterLocked(userId: string, id: string, locked: boolean) {
     if (!(await this.repository.setRosterLocked(id, userId, locked, this.clock())))
+      throw new Response('you do not own this roster', { status: 403 })
+    const stored = await this.repository.roster(id)
+    if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
+    return { updatedAt: stored.updatedAt }
+  }
+
+  async setRosterArchived(userId: string, id: string, archived: boolean) {
+    if (!(await this.repository.setRosterArchived(id, userId, archived, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
     const stored = await this.repository.roster(id)
     if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })

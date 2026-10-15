@@ -24,8 +24,8 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
-          and actions recorded during a game, games and events you record in your game journal, friendships, the friends you lend a roster
-          to, datasheets in your collection and their model counts, favourites, and practice opponents you seat.
+          and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection and their model
+          counts, favourites, and practice opponents you seat.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
@@ -126,9 +126,9 @@ export function PrivacyPolicy() {
           removes its events and sealed rosters, while battles already played keep their own copies.
         </p>
         <p>
-          You can permanently delete your account from your profile. This removes your profile, rosters, game journal, friendships, league
-          participation, leagues you organize and every battle you played, including shared battles. Session records expire on their own;
-          usage data is kept by our analytics provider under its retention settings. The{' '}
+          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, league participation,
+          leagues you organize and every battle you played, including shared battles. Session records expire on their own; usage data is
+          kept by our analytics provider under its retention settings. The{' '}
           <a href="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </a>{' '}

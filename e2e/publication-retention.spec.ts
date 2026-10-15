@@ -166,7 +166,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
   const deletion = page.getByRole('alertdialog')
-  await expect(deletion).toContainText('Frozen copies in battles and leagues are kept.')
+  await expect(deletion).toContainText('Frozen copies in battles and leagues are kept')
   await deletion.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([{ id: rosterId }])
   await page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click()

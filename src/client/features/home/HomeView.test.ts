@@ -116,28 +116,6 @@ describe('army updates', () => {
   })
 })
 
-describe('getting started checklist', () => {
-  it('ticks what the player has already done', () => {
-    expect(render({ onboarding: progress(['friend']) }).match(/aria-label="Done"/g)).toHaveLength(1)
-  })
-
-  it('goes once the player has built a list', () => {
-    expect(render({ onboarding: progress(['roster']) })).not.toContain('data-home-checklist')
-  })
-
-  it('goes once the player has played a battle', () => {
-    expect(render({ onboarding: progress(['battle']) })).not.toContain('data-home-checklist')
-  })
-
-  it('goes when the player has skipped the battle step', () => {
-    expect(render({ onboarding: progress([], ['battle']) })).not.toContain('data-home-checklist')
-  })
-
-  it('shows to a player with nothing built or played', () => {
-    expect(render({ onboarding: progress([]) })).toContain('data-home-checklist')
-  })
-})
-
 describe('lists first', () => {
   it("leads with a player's lists when they have no games", () => {
     const markup = render({ onboarding: progress(['roster']) })

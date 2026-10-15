@@ -28,11 +28,8 @@ export function watchedTables(friends: readonly Battle[], open: readonly Battle[
  * shelf is the only thing on the page that names them. It says nothing about
  * whether the player has any: a table of four friends who all play together has
  * no friend games either, because every one of them already has this reader in it.
- *
- * Beside the first-game checklist the section is gone, because the checklist already
- * names finding someone to play.
  */
-export function FriendTables({ battles, explain }: { battles: readonly Battle[]; explain: boolean }) {
+export function FriendTables({ battles }: { battles: readonly Battle[] }) {
   if (battles.length) {
     return (
       <div>
@@ -41,7 +38,6 @@ export function FriendTables({ battles, explain }: { battles: readonly Battle[];
       </div>
     )
   }
-  if (!explain) return null
   return (
     <section data-friends-empty>
       <p className="rubric border-b border-edge pb-2">Friends' games</p>

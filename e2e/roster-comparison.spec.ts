@@ -328,6 +328,7 @@ for (const width of [1440, 390]) {
       'Create variant',
       'Duplicate',
       'Lock roster',
+      'Archive',
       'Copy link',
       'Make private',
       'Export text',

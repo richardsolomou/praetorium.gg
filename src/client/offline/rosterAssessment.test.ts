@@ -32,6 +32,7 @@ function roster(): LocalRoster {
     baseRosterId: null,
     copiedFromRosterId: null,
     locked: false,
+    archived: false,
     prep: null,
     waivedRules: [],
     optionalRules: [],
