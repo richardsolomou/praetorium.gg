@@ -12,21 +12,28 @@ type Factions = NonNullable<Awaited<ReturnType<ReturnType<typeof app>['factionsF
 
 /** Army text or an exchange code, matched against the rules version it names. */
 export async function importRosterInput(file: string) {
-  const factions = (await app().factionsFor())?.factions ?? []
-  return isRosterExchangeCode(file) ? importExchangeCode(file, factions) : importText(file, factions)
+  if (isRosterExchangeCode(file)) return importExchangeCode(file)
+  return importText(file, (await app().factionsFor())?.factions ?? [])
+}
+
+/** The book saved under exactly this ID, including exact root IDs the faction index lists only qualified. */
+async function factionById(catalogueId: string) {
+  const faction = await app().factionFor(catalogueId)
+  return faction?.id === catalogueId ? faction : null
+}
+
+async function importedFaction(name: string | null, statedCatalogueId: string | null, factions: Factions) {
+  if (!name) return null
+  if (!statedCatalogueId) return factions.find((candidate) => matchesImportFaction(name, candidate.name) && candidate.isDefault) ?? null
+  const stated = await factionById(statedCatalogueId)
+  return stated && matchesImportFaction(name, stated.name) ? stated : null
 }
 
 async function importText(file: string, factions: Factions) {
   const instance = app()
   const factionName = importRosterFaction(file)
   const statedCatalogueId = importRosterCatalogueId(file)
-  const faction = factionName
-    ? factions.find(
-        (candidate) =>
-          matchesImportFaction(factionName, candidate.name) &&
-          (statedCatalogueId ? candidate.id === statedCatalogueId : candidate.isDefault),
-      )
-    : null
+  const faction = await importedFaction(factionName, statedCatalogueId, factions)
   if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
   const loaded = faction ? await instance.catalogueFor(faction.id) : null
   if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
@@ -40,12 +47,12 @@ async function importText(file: string, factions: Factions) {
   return { result, loaded, rules }
 }
 
-async function importExchangeCode(code: string, factions: Factions) {
+async function importExchangeCode(code: string) {
   const instance = app()
   const exchange = await decodeRosterExchange(code).catch((error: unknown) => {
     throw error instanceof RosterExchangeError ? new Response(error.message, { status: 400 }) : error
   })
-  const faction = factions.find((candidate) => candidate.id === exchange.catalogueId)
+  const faction = await factionById(exchange.catalogueId)
   if (!faction) throw new Response(ROSTER_EXCHANGE_RULES_UNAVAILABLE, { status: 409 })
   const loaded = await instance.catalogueFor(faction.id)
   if (!loaded) throw new Response('army data is not available', { status: 409 })

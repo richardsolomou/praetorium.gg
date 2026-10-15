@@ -2,7 +2,8 @@ import { version } from '../../package.json'
 import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
-import { nameOf } from '../core/catalogue'
+import { type Definition, nameOf } from '../core/catalogue'
+import { childrenOf, modelProfileOf, resolve } from '../core/definitions'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText, toCompactText } from '../core/newRecruit'
 import { defaultSelection } from '../core/expand'
@@ -370,12 +371,14 @@ function textRosterPick(
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
   for (const selection of unit.selections) {
-    const label = selection.name.replace(/^(?:Enhancement|Upgrade):\s*/i, '').trim()
+    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*/i, '').trim()
     const name = normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
   }
-  const requestedModels = unit.models ?? Math.max(1, ...unit.selections.map((selection) => selection.count))
+  const models = modelNames(entryId, loaded.index)
+  const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) ? count : 0), 0)
+  const requestedModels = unit.models ?? Math.max(1, statedModels, ...unit.selections.map((selection) => selection.count))
   const context = { primaryCatalogueId: catalogueId, roster }
   const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const selection = built?.selection ?? { id: entryId, count: 1 }
@@ -385,7 +388,7 @@ function textRosterPick(
   )
   const aliases = choices.map((choice) => optionAliases(choice.options, loaded, context))
   const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated)]))
-  const placed = placeableNames(selection, aliases, unit.name, loaded)
+  const placed = placeableNames(selection, aliases, models, unit.name, loaded)
   const pick = {
     entryId,
     catalogueId,
@@ -432,6 +435,26 @@ function textRosterPick(
   return { pick, unplaced }
 }
 
+/** Every kind of model a datasheet can field, by entry and stat-line name, so stated model lines size the squad. */
+function modelNames(entryId: string, index: LoadedCatalogue['index']) {
+  const names = new Set<string>()
+  const seen = new Set<string>()
+  const walk = (definition: Definition) => {
+    const target = resolve(definition, index)
+    if (seen.has(target.id)) return
+    seen.add(target.id)
+    if (target.type === 'model') {
+      names.add(normalized(nameOf(definition, index.definitions)))
+      const profile = modelProfileOf(definition, index)
+      if (profile) names.add(normalized(profile))
+    }
+    for (const child of childrenOf(target, index)) walk(child.definition)
+  }
+  const root = index.definitions.get(entryId)
+  if (root) walk(root)
+  return names
+}
+
 /** Each option under every name a list could call it by: its own, and the wargear taking it brings. */
 function optionAliases(
   options: readonly { id: string; name: string }[],
@@ -457,10 +480,11 @@ function optionAliases(
 function placeableNames(
   selection: Selection,
   aliases: readonly ReadonlyMap<string, Set<string>>[],
+  models: ReadonlySet<string>,
   unitName: string,
   loaded: LoadedCatalogue,
 ) {
-  const names = new Set([normalized(unitName)])
+  const names = new Set([normalized(unitName), ...models])
   for (const choice of aliases) for (const option of choice.values()) for (const name of option) names.add(name)
   for (const piece of wargearOf(selection, loaded.index)) names.add(normalized(piece.name))
   const walk = (node: Selection) => {
