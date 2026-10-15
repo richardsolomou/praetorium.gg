@@ -9,6 +9,7 @@ export const FEEDBACK_SURVEY = {
     kind: { id: '38c2962f-d6ad-4daf-95b9-1a7b540d24ed', question: 'What kind of feedback?' },
     message: { id: '1e9261de-1a9e-4465-b2a6-cc43acd873f4', question: 'Message' },
     email: { id: '70a4cb45-54cf-44c4-aabf-bbdb555b9caf', question: 'Email for a reply' },
+    screenshot: { id: 'c743390b-5aff-42e4-976a-d2d28d0ea1ee', question: 'Screenshot' },
   },
 } as const
 
@@ -25,7 +26,7 @@ export function feedbackSurveyEvent({
   email?: string
   screenshotUrl?: string
 }) {
-  const answers = { kind, message: message.trim(), email: email?.trim() || undefined }
+  const answers = { kind, message: message.trim(), email: email?.trim() || undefined, screenshot: screenshotUrl }
   const questions = Object.entries(FEEDBACK_SURVEY.questions) as [keyof typeof answers, { id: string; question: string }][]
   return {
     event: SurveyEventName.SENT,
@@ -39,7 +40,6 @@ export function feedbackSurveyEvent({
           answers[key] === undefined ? [] : [[`${SurveyEventProperties.SURVEY_RESPONSE}_${id}`, answers[key]]],
         ),
       ),
-      ...(screenshotUrl ? { screenshot_url: screenshotUrl } : {}),
     },
   }
 }

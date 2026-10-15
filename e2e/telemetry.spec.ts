@@ -277,11 +277,13 @@ test('feedback is sent as a survey response from the page the player is on', asy
         '$survey_response_38c2962f-d6ad-4daf-95b9-1a7b540d24ed': 'Idea',
         '$survey_response_1e9261de-1a9e-4465-b2a6-cc43acd873f4': 'Group factions by alliance',
         '$survey_response_70a4cb45-54cf-44c4-aabf-bbdb555b9caf': 'guest@example.com',
-        screenshot_url: expect.stringMatching(SCREENSHOT_URL),
+        '$survey_response_c743390b-5aff-42e4-976a-d2d28d0ea1ee': expect.stringMatching(SCREENSHOT_URL),
       }),
     },
   ])
-  const screenshot = await page.request.get(events.find((event) => event.name === 'survey sent')!.properties.screenshot_url as string)
+  const screenshot = await page.request.get(
+    events.find((event) => event.name === 'survey sent')!.properties['$survey_response_c743390b-5aff-42e4-976a-d2d28d0ea1ee'] as string,
+  )
   expect(screenshot.status()).toBe(401)
 })
 
@@ -307,7 +309,7 @@ test('an administrator sends feedback without an email field and opens its scree
   await expect(dialog.getByRole('status')).toHaveText('Thanks, your feedback was sent.')
   const sent = events.find((event) => event.name === 'survey sent')!
   expect(sent.properties).not.toHaveProperty('$survey_response_70a4cb45-54cf-44c4-aabf-bbdb555b9caf')
-  const screenshot = await page.request.get(sent.properties.screenshot_url as string)
+  const screenshot = await page.request.get(sent.properties['$survey_response_c743390b-5aff-42e4-976a-d2d28d0ea1ee'] as string)
   expect([screenshot.status(), screenshot.headers()['content-type'], screenshot.headers()['cache-control']]).toEqual([
     200,
     expect.stringMatching(/^image\/(?:webp|jpeg)$/),
