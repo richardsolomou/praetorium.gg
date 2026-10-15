@@ -20,7 +20,6 @@ import {
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
-  leagueRevealsItself,
   leagueTeams,
   mayRevealLeague,
   isLeagueOrganizer,
@@ -3053,25 +3052,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       rosterSnapshot: input.snapshot,
       submittedAt: BigInt(input.now),
     })
-    const revealed =
-      event.revealedAt === undefined &&
-      leagueRevealsItself(
-        {
-          format: (event.format ?? null) as '1v1' | '2v1' | '2v2' | null,
-          rosterLimit: event.rosterLimit ?? null,
-          playerLimit: league.playerLimit ?? null,
-        },
-        leagueRevealEntries(tx, event.id, leagueEntriesFor(tx, event.id)),
-      )
-        ? revealLeagueEvent(tx, event, input.now, input.userId)
-        : null
     touchLeague(tx, league.id, event.id)
-    return productJson({
-      outcome: 'sealed',
-      format: event.format ?? null,
-      requiredLimit,
-      revealedIds: revealed?.outcome === 'revealed' ? revealed.entrantIds : null,
-    })
+    // The web build before this module requires `revealedIds` while its replicas roll.
+    return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit, revealedIds: null })
   }
   if (operation === 'set-team-disposition') {
     const input = leagueCommandInput(
@@ -3085,18 +3068,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
     if (!team?.choices.includes(input.disposition)) return productJson({ outcome: 'not-offered' })
     setTeamPick(tx, event.id, team.id, input.disposition)
-    const revealed = leagueRevealsItself(
-      {
-        format: (event.format ?? null) as '1v1' | '2v1' | '2v2' | null,
-        rosterLimit: event.rosterLimit ?? null,
-        playerLimit: league.playerLimit ?? null,
-      },
-      leagueRevealEntries(tx, event.id, entries),
-    )
-      ? revealLeagueEvent(tx, event, input.now, ownerId)
-      : null
     touchLeague(tx, league.id, event.id)
-    return productJson({ outcome: 'chosen', revealedIds: revealed?.outcome === 'revealed' ? revealed.entrantIds : null })
+    // The web build before this module requires `revealedIds` while its replicas roll.
+    return productJson({ outcome: 'chosen', revealedIds: null })
   }
   if (operation === 'reveal') {
     const input = leagueCommandInput(z.object({ op: z.literal('reveal'), now: leagueTimeInput }), value)

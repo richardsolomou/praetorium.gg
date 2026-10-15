@@ -177,7 +177,7 @@ export function LeagueFormFields({
                   ? 'Doubles needs an even number of places, at least four.'
                   : limitFormat === '2v1'
                     ? 'A 2v1 league needs at least three places.'
-                    : 'With a limit, the lists open by themselves once every place has sealed one.'}
+                    : 'Leave it empty for no limit.'}
             </p>
           </div>
           <Choice

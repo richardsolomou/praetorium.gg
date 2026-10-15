@@ -48,7 +48,7 @@ Detail reads expose submission status and frozen name, not roster JSON. Before r
 
 `leagueRevealChecklist` supplies structural checks to both UI and command. Reveal additionally validates the sealed rosters and Warlords in one transaction. Require an accepted entrant, complete assignments/snapshots, valid team composition, a settled Force Disposition for every pair, and no pending approval requests in doubles. Checklist completion alone is not proof that roster validation passed.
 
-Before reveal, everyone reading the event sees whose list is sealed. The organizer or any accepted entrant reveals once every check passes (`mayRevealLeague`), and the event records who did. An event with a player limit also reveals itself, through `leagueRevealsItself`, inside the seal that fills its last place when every check passes; the seal result reports the revealed entrants so the service notifies them. A failed roster validation leaves the event sealed for the organizer to resolve.
+Before reveal, everyone reading the event sees whose list is sealed. The organizer or any accepted entrant reveals once every check passes (`mayRevealLeague`), and the event records who did. Nothing reveals an event on its own, even a full one: someone has to choose to. A failed roster validation leaves the event sealed for the organizer to resolve.
 
 Reveal is irreversible, closes registration/assignment/submission, and makes accepted snapshots readable without closing the league. The organizer may unseal one roster afterward: discard only that snapshot and reopen its submission. The event stays revealed; an entrant without a snapshot cannot start a battle. A replacement uses ordinary pricing and Warlord validation.
 

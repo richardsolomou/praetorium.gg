@@ -268,12 +268,7 @@ export class LeagueService {
       now: this.clock(),
       eventToken,
     })
-    if (result.outcome === 'sealed') {
-      const { revealedIds, ...sealedResult } = result
-      if (revealedIds)
-        this.notifier.notify([{ kind: 'league-revealed', actorId: userId, recipientIds: revealedIds, leagueToken: token, eventToken }])
-      return { ...sealedResult, revealed: revealedIds !== null }
-    }
+    if (result.outcome === 'sealed') return result
     if (result.outcome === 'unassigned') throw new Response('wait for the organizer to give you a size or team', { status: 409 })
     if (result.outcome === 'disposition-dropped')
       throw new Response(
@@ -296,13 +291,7 @@ export class LeagueService {
   /** Records the one Force Disposition a fixed pair plays, before reveal shows them the other side. */
   async setLeagueTeamDisposition(token: string, userId: string, disposition: string, eventToken?: string) {
     const result = await this.repository.setLeagueTeamDisposition(token, userId, disposition, this.clock(), eventToken)
-    if (result.outcome === 'chosen') {
-      if (result.revealedIds)
-        this.notifier.notify([
-          { kind: 'league-revealed', actorId: userId, recipientIds: result.revealedIds, leagueToken: token, eventToken },
-        ])
-      return { revealed: result.revealedIds !== null }
-    }
+    if (result.outcome === 'chosen') return
     if (result.outcome === 'closed')
       throw new Response('the lists are already out, so your team’s Force Disposition is settled', { status: 409 })
     if (result.outcome === 'not-offered')

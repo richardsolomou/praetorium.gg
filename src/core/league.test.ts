@@ -7,7 +7,6 @@ import {
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
-  leagueRevealsItself,
   leagueArmy,
   leagueTeams,
   mayRevealLeague,
@@ -429,34 +428,6 @@ describe('sealed Warlords', () => {
   })
   it('honors an explicit ineligible Warlord over its Character group', () => {
     expect(leagueWarlords([roster([{ ...unit, warlordEligible: false }])])).toEqual({ count: 1, eligible: false })
-  })
-})
-
-describe('leagueRevealsItself', () => {
-  const sealed = (userId: string): LeagueRevealEntry => ({
-    userId,
-    status: 'accepted',
-    submitted: true,
-    requiredLimit: null,
-    teamId: null,
-    dispositionOwed: false,
-  })
-  const duel = { format: '1v1' as const, rosterLimit: 2_000 }
-
-  it('opens a full event once every list is sealed', () => {
-    expect(leagueRevealsItself({ ...duel, playerLimit: 2 }, [sealed('a'), sealed('b')])).toBe(true)
-  })
-
-  it('waits for an empty place', () => {
-    expect(leagueRevealsItself({ ...duel, playerLimit: 3 }, [sealed('a'), sealed('b')])).toBe(false)
-  })
-
-  it('waits for an unsealed list', () => {
-    expect(leagueRevealsItself({ ...duel, playerLimit: 2 }, [sealed('a'), { ...sealed('b'), submitted: false }])).toBe(false)
-  })
-
-  it('leaves an event without a limit to the organizer', () => {
-    expect(leagueRevealsItself({ ...duel, playerLimit: null }, [sealed('a'), sealed('b')])).toBe(false)
   })
 })
 

@@ -81,10 +81,7 @@ export function LeagueReadiness({
       ? `${sealed.length} of ${accepted.length} lists sealed`
       : 'Nobody is in yet'
   const revealNow = mayReveal ? 'You can open the lists now' : 'Anyone playing can open the lists now'
-  const readyLine =
-    openPlaces > 0
-      ? `${openPlaces} of ${league.playerLimit} places are still open. ${revealNow}, or they open by themselves once every place has a sealed list.`
-      : `${revealNow}.`
+  const readyLine = openPlaces > 0 ? `${openPlaces} of ${league.playerLimit} places are still open. ${revealNow}.` : `${revealNow}.`
   const detail = [
     waiting.length ? `Waiting on ${namesPhrase(waiting.map(label))}.` : null,
     owing.length
@@ -94,7 +91,6 @@ export function LeagueReadiness({
       ? `${league.admins.length ? 'The organizers still need' : `${league.ownerName} still needs`} to ${namesPhrase(organizerSteps)}.`
       : null,
     ready ? readyLine : null,
-    !ready && league.playerLimit !== null ? `They open by themselves once all ${league.playerLimit} places have a sealed list.` : null,
   ]
     .filter(Boolean)
     .join(' ')
