@@ -182,7 +182,7 @@ export function AppShell() {
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
         <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
           <TooltipProvider delay={250} closeDelay={100}>
-            {posthog && <PostHogBetterAuthIdentity authClient={authClient} />}
+            {posthog && <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />}
             <GlobalSearchProvider>
               {/*
                * The bar spans the window and the page inside it decides its own width,
