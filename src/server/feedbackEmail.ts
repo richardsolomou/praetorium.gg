@@ -30,5 +30,14 @@ export function feedbackEmail(input: FeedbackEmailInput, sender: Sender, appUrl:
     bytes.byteLength > FEEDBACK_EMAIL_MAX_BYTES
       ? `${new TextDecoder().decode(bytes.subarray(0, FEEDBACK_EMAIL_MAX_BYTES - 64)).replace(/�$/, '')}\n[truncated]`
       : lines.join('\n')
-  return { subject: input.automatic ? 'Praetorium import failure' : `Praetorium feedback: ${input.kind}`, text }
+  return { subject: input.automatic ? 'Praetorium import failure' : `Praetorium feedback: ${input.kind}`, text, html: textHtml(text) }
+}
+
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+
+/** Some mail clients reflow a plain-text body into one paragraph, so the HTML part keeps every line and links its URLs. */
+function textHtml(text: string) {
+  const escaped = text.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]!)
+  const linked = escaped.replace(/https:\/\/[^\s<]+/g, (url) => `<a href="${url}">${url}</a>`)
+  return `<div style="font-family:monospace">${linked.replaceAll('\n', '<br>')}</div>`
 }
