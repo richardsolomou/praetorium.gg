@@ -4,6 +4,7 @@ import { rosterPickSchema } from '../../src/core/commands'
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, pointsBudgetOf } from '../../src/core/battle'
 import { ROSTER_SOURCES } from '../../src/core/savedRoster'
 import { currentRosterIds } from '../../src/core/retiredCatalogueIds'
+import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import type { RosterPick } from '../../src/core/roster'
 import { builtPickSelections } from '../../src/core/rosterSelections'
 import { detachmentIds } from '../../src/server/rosterPersistence'
@@ -223,13 +224,19 @@ export async function fetchProductionRosters(
   })
 }
 
+/** A saved roster as it reads once the deploy's product data migration has rewritten its stored row. */
+function deployedRosterIds(stored: ProductionRosterSnapshot['rosters'][number]) {
+  const row = migrateStoredRoster({ name: '', catalogueId: stored.catalogueId, picks: JSON.stringify(stored.picks) })
+  return currentRosterIds({ ...stored, catalogueId: row.catalogueId, picks: JSON.parse(row.picks) as typeof stored.picks })
+}
+
 export function auditProductionRosters(
   snapshot: ProductionRosterSnapshot,
   catalogueFor: (id: string) => LoadedCatalogue | null,
   rulesFor: (id: string) => LoadedRules | null,
 ) {
   return snapshot.rosters.map((stored) => {
-    const roster = currentRosterIds(stored)
+    const roster = deployedRosterIds(stored)
     const catalogue = catalogueFor(roster.catalogueId)
     const rules = rulesFor(roster.catalogueId)
     const price = calculateRosterPrice(savedRosterPriceInput(roster), catalogue, rules)
@@ -369,7 +376,7 @@ export function normaliseProductionRosters(
   rulesFor: (id: string) => LoadedRules | null,
 ) {
   return snapshot.rosters.map((stored) => {
-    const roster = currentRosterIds(stored)
+    const roster = deployedRosterIds(stored)
     const base = { id: stored.id, updatedAt: stored.updatedAt, migrated: JSON.stringify(roster) !== JSON.stringify(stored) }
     const skipped = (reason: string, units: ReturnType<typeof unitChanges> = []) => ({
       ...base,

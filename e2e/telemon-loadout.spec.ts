@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 
 for (const width of [1440, 390]) {
-  test(`Telemon preview bundles select and persist at ${width}px`, async ({ page }) => {
+  test(`Telemon bundles select and persist at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/rosters')
     await page.waitForLoadState('networkidle')
@@ -10,8 +10,6 @@ for (const width of [1440, 390]) {
     await setup.getByRole('combobox', { name: 'Faction' }).click()
     await page.getByPlaceholder('Search factions…').fill('Adeptus Custodes')
     await page.getByRole('option', { name: 'Adeptus Custodes', exact: true }).click()
-    await setup.getByRole('combobox', { name: 'Rules version' }).click()
-    await page.getByRole('option', { name: 'Custodes codex · 17 Oct 2026 · Preview', exact: true }).click()
     await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     await setup.getByRole('button', { name: 'Start building' }).click()

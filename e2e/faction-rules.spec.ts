@@ -2,10 +2,10 @@ import { expect, test } from '@playwright/test'
 import { retryUntilVisible } from './account'
 
 const factions = [
-  { name: 'Blood Angels', slug: 'blood-angels', versions: 5 },
-  { name: 'Dark Angels', slug: 'dark-angels', versions: 7 },
-  { name: 'Salamanders', slug: 'salamanders', versions: 6 },
-  { name: 'Space Marines', slug: 'space-marines', versions: 4 },
+  { name: 'Blood Angels', slug: 'blood-angels', versions: 6 },
+  { name: 'Dark Angels', slug: 'dark-angels', versions: 8 },
+  { name: 'Salamanders', slug: 'salamanders', versions: 7 },
+  { name: 'Space Marines', slug: 'space-marines', versions: 5 },
 ]
 
 test('Custodes reference retains cards with unsupported battle timing', { tag: '@catalogue' }, async ({ page }, testInfo) => {
@@ -107,7 +107,7 @@ test('faction links open current rules and version menus identify archives', { t
     const link = row.getByRole('link', { name: faction.name, exact: true })
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
-      await expect(link).toHaveAttribute('href', `/factions/${faction.slug}/rules/space-marines-points-2026-10-13`)
+      await expect(link).toHaveAttribute('href', `/factions/${faction.slug}/rules/mfm-1-6`)
       if (faction.versions > 1) {
         await retryUntilVisible(page.getByRole('menu'), () =>
           row.getByRole('button', { name: `Rules versions for ${faction.name}` }).click(),
@@ -125,7 +125,7 @@ test('faction links open current rules and version menus identify archives', { t
             .evaluate((chip) => chip.parentElement?.firstElementChild === chip),
         ).toBe(true)
         if (faction.name === 'Dark Angels') await page.screenshot({ path: `test-results/rules-status-menu-${width}.png` })
-        await expect(items.first()).toHaveText('Current MFM 1.5')
+        await expect(items.first()).toHaveText('Current MFM 1.6')
         await expect(page.getByRole('menu')).not.toContainText('Previous rules')
         await page.keyboard.press('Escape')
         await expect(page.getByRole('menu')).toHaveCount(0)
@@ -135,13 +135,13 @@ test('faction links open current rules and version menus identify archives', { t
     }
     await page.setViewportSize({ width: 1440, height: 900 })
     await link.click()
-    await expect(page).toHaveURL(new RegExp(`/factions/${faction.slug}/rules/space-marines-points-2026-10-13$`))
+    await expect(page).toHaveURL(new RegExp(`/factions/${faction.slug}/rules/mfm-1-6$`))
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
       await expect(page.getByRole('heading', { level: 1, name: faction.name, exact: true })).toBeVisible()
       await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
       if (faction.versions > 1) {
-        await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current MFM 1.5')
+        await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current MFM 1.6')
         await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).click())
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveText('Current')
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
@@ -178,12 +178,16 @@ test('faction links open current rules and version menus identify archives', { t
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/factions/dark-angels/rules/470a-6daa-9014-12df')
-  await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/space-marines-points-2026-10-13$/)
+  await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/mfm-1-6$/)
   await page.goto('/factions/dark-angels/rules/legacy-marine-old')
   await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/mfm-1-4-2026-09-02$/)
   await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Archived MFM 1.4 · 2 Sep 2026')
   await page.goto('/factions/necrons')
-  await expect(page).toHaveURL(/\/factions\/necrons\/rules\/mfm-1-5$/)
+  await expect(page).toHaveURL(/\/factions\/necrons\/rules\/mfm-1-6$/)
+  await page.goto('/factions/necrons/rules/mfm-1-5/datasheets/overlord')
+  await expect(page).toHaveURL(/\/factions\/necrons\/rules\/mfm-1-6\/datasheets\/overlord$/)
+  await page.goto('/factions/adeptus-custodes/rules/mfm-1-5')
+  await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/space-marines-points-2026-10-13$/)
   await page.goto('/factions/dark-angels/rules/legacy-rosters/datasheets')
   await expect(page).toHaveURL(/\/factions\/dark-angels\/rules\/mfm-1-4-2026-09-30\/datasheets$/)
 })

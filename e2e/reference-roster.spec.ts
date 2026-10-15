@@ -47,10 +47,7 @@ test('a datasheet opens the simulator on the side the reader picks', async ({ pa
 
 test('partial Eradicator squads retain their copy-tier prices through reload, view and export', { tag: '@catalogue' }, async ({ page }) => {
   const name = 'Eradicator Squad with Heavy Bolters'
-  await addFromDatasheet(
-    page,
-    '/factions/space-marines/rules/space-marines-points-2026-10-13/datasheets/eradicator-squad-with-heavy-bolters',
-  )
+  await addFromDatasheet(page, '/factions/space-marines/rules/mfm-1-6/datasheets/eradicator-squad-with-heavy-bolters')
   const setup = page.getByRole('dialog', { name: 'Create roster' })
   await setup.getByRole('button', { name: 'Select Assault Brethren', exact: true }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import { loadMfm, mfmAttribution, mfmCostRows, mfmPrice, type MfmIndex, type MfmUnit } from './mfm'
+import { loadMfm, mfmAttribution, mfmCostRows, mfmEnhancementPoints, mfmPrice, type MfmIndex, type MfmUnit } from './mfm'
 
 const sizedUnit: MfmUnit = {
   name: 'Squad',
@@ -182,4 +182,19 @@ it('attributes an entirely authored dataset without claiming it is MFM', () => {
   ])
 
   expect(mfmAttribution(index)).toBe('Community Custodes preview points')
+})
+
+it.each([
+  ['Augury Uplink (Upgrade)', 30],
+  ['Auriferous Orb', 20],
+])('prices the %s enhancement from a row with printed qualifiers', (name, points) => {
+  const detachment = {
+    name: 'Might of the Moritoi',
+    dp: 1,
+    enhancements: [
+      { name: 'Augury Uplink (one per army) (Upgrade)', points: 30 },
+      { name: 'Auriferous Orb (Aura)', points: 20 },
+    ],
+  }
+  expect(mfmEnhancementPoints(detachment, name)).toBe(points)
 })

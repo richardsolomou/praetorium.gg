@@ -180,48 +180,48 @@ for (const width of [390, 1280]) {
     await page.goto('/search?q=Superior%20Creation')
     const result = page
       .getByRole('main')
-      .getByRole('link', { name: /Lions of the Emperor/ })
+      .getByRole('link', { name: /Auric Champions/ })
       .first()
     await expect(result).toBeVisible()
     await page.screenshot({ path: test.info().outputPath('enhancement-search.png') })
     await result.click()
-    await expect(page.getByRole('heading', { name: 'Lions of the Emperor', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Auric Champions', exact: true })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Superior Creation', exact: true })).toBeVisible()
     await retryUntilVisible(page.getByRole('combobox'), () =>
       page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
     )
     await page.getByRole('combobox').fill('Superior Creation')
-    await expect(page.getByRole('option', { name: /Lions of the Emperor/ }).first()).toBeVisible()
+    await expect(page.getByRole('option', { name: /Auric Champions/ }).first()).toBeVisible()
     await page.getByRole('combobox').press('Enter')
     await expect(page.getByRole('dialog')).not.toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Lions of the Emperor', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Auric Champions', exact: true })).toBeVisible()
     await page.goto('/search?q=Gilded%20Champion')
     await expect(
       page
         .getByRole('main')
-        .getByRole('link', { name: /Lions of the Emperor/ })
+        .getByRole('link', { name: /Auric Champions/ })
         .first(),
     ).toBeVisible()
     await retryUntilVisible(page.getByRole('combobox'), () =>
       page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
     )
     await page.getByRole('combobox').fill('Gilded Champion')
-    await expect(page.getByRole('option', { name: /Lions of the Emperor/ }).first()).toBeVisible()
+    await expect(page.getByRole('option', { name: /Auric Champions/ }).first()).toBeVisible()
     await page.screenshot({ path: test.info().outputPath('stratagem-global.png') })
   })
 }
 
 test('detachment rule names, effect text, and weapon traits explain their matches', async ({ page }) => {
   for (const [query, reason] of [
-    ['Against All Odds', 'Against All Odds detachment rule'],
-    ['Defiant To The Last fight on death', 'Defiant To The Last stratagem'],
-    ['Lone Operative Stealth', 'Praesidius enhancement'],
-    ['one additional time during battle', 'Gilded Champion stratagem'],
+    ['Assemblage of Might', 'Assemblage of Might detachment rule'],
+    ['Duty Unto Death stays on the battlefield', 'Duty Unto Death stratagem'],
+    ['Lone Operative Stealth', 'Shroud of the Hidden Blade enhancement'],
+    ['one additional time not in the same phase', 'Gilded Champion stratagem'],
   ] as const) {
     await page.goto(`/search?q=${encodeURIComponent(query)}`)
     const result = page
       .getByRole('main')
-      .getByRole('link', { name: /Lions of the Emperor/ })
+      .getByRole('link', { name: /Auric Champions/ })
       .first()
     await scrollSearchResultIntoView(page, result)
     await expect(result).toContainText(reason)
@@ -229,7 +229,7 @@ test('detachment rule names, effect text, and weapon traits explain their matche
       page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
     )
     await page.getByRole('combobox').fill(query)
-    const option = page.getByRole('option', { name: /Lions of the Emperor/ }).first()
+    const option = page.getByRole('option', { name: /Auric Champions/ }).first()
     await scrollSearchResultIntoView(page, option)
     await expect(option).toContainText(reason)
   }
@@ -251,7 +251,7 @@ test('both searches debounce typing for 250 milliseconds and retain prior result
   await page.goto('/search?q=Superior%20Creation')
   const result = page
     .getByRole('main')
-    .getByRole('link', { name: /Lions of the Emperor/ })
+    .getByRole('link', { name: /Auric Champions/ })
     .first()
   await expect(result).toContainText('Superior Creation enhancement')
   await retryUntilVisible(page.getByRole('combobox'), () =>

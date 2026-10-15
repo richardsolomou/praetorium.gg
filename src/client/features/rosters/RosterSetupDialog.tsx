@@ -54,6 +54,7 @@ import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favour
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
 import { type CatalogueEdition, rulesVersionLabel } from '../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
+import { onFoldedEdition } from '../../../core/editionMigrations'
 
 type Detachment = {
   id: string
@@ -286,6 +287,8 @@ export function RosterSetupDialog({
     .filter(
       (entry) =>
         currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(draft.catalogueId) &&
+        // A roster saved on a folded version reads on the version it folded into, so it is never a destination.
+        !onFoldedEdition(entry.id) &&
         (mode !== 'create' || entry.edition?.status !== 'retired' || entry.id === draft.catalogueId),
     )
     .toSorted((left, right) => Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)))

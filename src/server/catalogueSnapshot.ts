@@ -13,6 +13,7 @@ import {
   type SnapshotSourceName,
 } from './catalogueSources'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
+import pRetry from 'p-retry'
 import { fetchWithRetry } from './fetch'
 import { publicAssetsBaseUrl } from './objectStorage'
 import { readCatalogueComposition } from './catalogueComposition'
@@ -625,15 +626,8 @@ export async function fetchSnapshot(
     }
   }
   report(`fetching catalogue snapshot ${pointer.id.slice(0, 10)}`)
-  const response = await fetchCatalogueArtifact(
-    `${baseUrl.replace(/\/$/, '')}/snapshots/${pointer.id}.zip`,
-    catalogueReleaseUrl(pointer.id, 'snapshot.zip'),
-  )
-  if (!response.ok) throw new Error(`catalogue snapshot answered ${response.status}`)
-  const length = Number(response.headers.get('content-length') ?? 0)
-  if (length > MAX_ARCHIVE_BYTES) throw new Error('catalogue snapshot archive is too large')
   const archive = `${directory}.download-${randomUUID()}`
-  await saveResponse(response, archive)
+  await saveSnapshotArchive(baseUrl, pointer, archive)
   try {
     installArchive(directory, archive, pointer, options.revocations ?? configuredRevocations(), options.revisions)
   } finally {
@@ -672,14 +666,9 @@ export async function downloadSnapshotArchive(
   pointer = catalogueLock.pointer,
   revisions: Record<string, string> | undefined = catalogueLock.revisions,
 ) {
-  const response = await fetchCatalogueArtifact(
-    `${baseUrl.replace(/\/$/, '')}/snapshots/${pointer.id}.zip`,
-    catalogueReleaseUrl(pointer.id, 'snapshot.zip'),
-  )
-  if (!response.ok) throw new Error(`catalogue snapshot answered ${response.status}`)
   const temporary = `${archiveFile}.${randomUUID()}`
   try {
-    await saveResponse(response, temporary)
+    await saveSnapshotArchive(baseUrl, pointer, temporary)
     verifyArchiveFile(temporary, pointer, revisions)
     fs.renameSync(temporary, archiveFile)
   } finally {
@@ -712,6 +701,23 @@ export function catalogueUpdateMode(value = process.env.CATALOGUE_UPDATE_MODE): 
   const mode = value?.trim() || 'latest'
   if (mode !== 'latest' && mode !== 'pinned' && mode !== 'off') throw new Error('CATALOGUE_UPDATE_MODE must be latest, pinned, or off')
   return mode
+}
+
+/** Downloads a snapshot archive, starting again when the connection drops mid-body, which `fetchWithRetry` cannot see. */
+async function saveSnapshotArchive(baseUrl: string, pointer: SnapshotPointer, file: string) {
+  await pRetry(
+    async () => {
+      const response = await fetchCatalogueArtifact(
+        `${baseUrl.replace(/\/$/, '')}/snapshots/${pointer.id}.zip`,
+        catalogueReleaseUrl(pointer.id, 'snapshot.zip'),
+      )
+      if (!response.ok) throw new Error(`catalogue snapshot answered ${response.status}`)
+      if (Number(response.headers.get('content-length') ?? 0) > MAX_ARCHIVE_BYTES)
+        throw new Error('catalogue snapshot archive is too large')
+      await saveResponse(response, file)
+    },
+    { retries: 2, minTimeout: 1_000, shouldRetry: ({ error }) => error instanceof TypeError },
+  )
 }
 
 async function saveResponse(response: Response, file: string, limit = MAX_ARCHIVE_BYTES) {
