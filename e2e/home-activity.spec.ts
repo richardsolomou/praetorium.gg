@@ -294,6 +294,8 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.getByRole('menuitem', { name: 'Concede battle' }).click()
     await host.getByRole('alertdialog').getByRole('button', { name: 'Concede battle' }).click()
     await expect(host.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
+    // The record arrives in the server's HTML, not after hydration.
+    await expect.poll(async () => (await (await host.request.get('/')).text()).includes('data-home-record')).toBe(true)
     await host.goto('/')
     const idleHistory = host.locator('[data-battle-shelf="Games you have played"]')
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)

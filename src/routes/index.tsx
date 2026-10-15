@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Home } from '../client/features/home/Home'
 import { armySlugs } from '../client/features/home/HomeArmyUpdates'
+import { playerProfile, playerRankings } from '../client/functions'
 import { canonicalLink, siteStructuredData } from '../client/linkPreview'
 import {
   armyUpdatesQuery,
@@ -12,9 +13,14 @@ import {
   leaguesQuery,
   meQuery,
   onboardingQuery,
+  playerProfileQuery,
+  playerRankingsQuery,
   publicBattlesQuery,
   standingsQuery,
 } from '../client/queries'
+
+/** How long the loader waits, from its start, for the player's record before leaving it to the client. */
+const RECORD_BUDGET_MS = 300
 
 /** Fetch home feeds in the loader so the first frame has its final layout. */
 export const Route = createFileRoute('/')({
@@ -29,10 +35,22 @@ export const Route = createFileRoute('/')({
         durations[name] = Math.round(performance.now() - started)
       }
     }
+    // The record folds every battle the player has played, so it joins the first frame only within a budget and
+    // otherwise loads on the client. Left pending in the cache, it would hold the streamed page, and its hydration,
+    // open until it settled.
+    let record: Promise<(() => void) | undefined> | undefined
     await Promise.all([
       timed('publicBattles', context.queryClient.infiniteQuery({ ...publicBattlesQuery(), staleTime: 'static' })),
       timed('me', context.queryClient.query({ ...meQuery(), staleTime: 'static' })).then((me): Promise<unknown> => {
         if (!me) return timed('standings', context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }))
+        record = Promise.all([playerProfile({ data: { userId: me.id } }), playerRankings({ data: { userId: me.id } })]).then(
+          ([profile, rankings]) =>
+            () => {
+              context.queryClient.setQueryData(playerProfileQuery(me.id).queryKey, profile)
+              context.queryClient.setQueryData(playerRankingsQuery(me.id).queryKey, rankings)
+            },
+          () => undefined,
+        )
         const rosters = timed('homeRosters', context.queryClient.query({ ...homeRostersQuery(), staleTime: 'static' }))
         const factions = timed('factionIndex', context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' }))
         return Promise.all([
@@ -57,6 +75,11 @@ export const Route = createFileRoute('/')({
         ])
       }),
     ])
+    if (record) {
+      const late = new Promise<undefined>((resolve) => setTimeout(resolve, startedAt + RECORD_BUDGET_MS - performance.now()))
+      const fill = await Promise.race([record, late])
+      fill?.()
+    }
     if (import.meta.env.SSR && performance.now() - startedAt > 1000) {
       console.warn({ event: 'slow_home_loader', duration_ms: Math.round(performance.now() - startedAt), queries_ms: durations })
     }
