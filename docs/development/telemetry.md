@@ -4,7 +4,7 @@ PostHog is optional: every product path works without its variables. `src/postho
 
 ## Runtime boundaries
 
-Browsers send through the same-origin `/t` proxy, which drops cookies and forwards the visitor address. `VITE_POSTHOG_HOST` must be the ingestion host, not a managed reverse proxy that discards that forwarding header. Filter `$host = praetorium.gg` to exclude previews/local stacks sharing the project. Browser test stacks clear telemetry variables.
+Browsers send through the same-origin `/t` proxy, which drops cookies and forwards the visitor address. `VITE_POSTHOG_HOST` must be the ingestion host, not a managed reverse proxy that discards that forwarding header. Only production sends browser events: PR preview images are built without the PostHog variables, local dev servers only load the SDK in a production bundle, and browser test stacks clear telemetry variables.
 
 The WebView browser owns product events, identified replay, logs, and metrics. Mask every form input and exclude account, security, and administration surfaces with `ph-no-capture`. The Expo client captures shell lifecycle/errors separately; native screenshot replay stays disabled because it cannot redact the WebView DOM.
 

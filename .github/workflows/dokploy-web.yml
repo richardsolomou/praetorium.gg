@@ -102,6 +102,18 @@ jobs:
           test -n "$DOKPLOY_APPLICATION_ID"
           test -n "$DOKPLOY_ENVIRONMENT_ID"
           test -n "$SPACETIME_OWNER_TOKEN"
+      # A re-run release must not roll back a newer deploy; a rollback is an explicit workflow_dispatch.
+      - name: Refuse to replace a newer deployed revision
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          installed="$(node scripts/configureDokployNode.ts image "$TARGET")"
+          live="$(sed -n 's/.*:sha-\([0-9a-f]\{40\}\)@sha256:.*/\1/p' <<< "$installed")"
+          : "${live:?the installed image $installed names no revision}"
+          if ! git merge-base --is-ancestor "$live" "$DEPLOY_SHA"; then
+            echo "::error::$TARGET already runs $live, which $DEPLOY_SHA does not contain. Roll back through workflow_dispatch instead." >&2
+            exit 1
+          fi
       - uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64

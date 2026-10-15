@@ -142,14 +142,19 @@ test('a lost save response retains its identity and later edits sync in order', 
   const operator = await productOperator()
   await waitForOfflineApp(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  let dropAcknowledgement!: () => void
+  // Going offline while the response is still held would fail the request before the handler drops it.
+  const acknowledgementDropped = new Promise<void>((resolve) => (dropAcknowledgement = resolve))
   await page.route('**/_serverFn/**', async (route) => {
     const body = route.request().postData() ?? ''
     if (body.includes('Lost acknowledgement') && body.includes('operationId')) {
       await route.fetch()
       await route.abort()
+      dropAcknowledgement()
     } else await route.continue()
   })
   await page.getByLabel('List name').fill('Lost acknowledgement')
+  await acknowledgementDropped
   await expect.poll(async () => (await operator.roster(id))?.name).toBe('Lost acknowledgement')
   await context.setOffline(true)
   await expect.poll(async () => (await savedWork(page))?.operations[0]?.attempted).toBe(true)

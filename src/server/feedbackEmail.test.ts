@@ -50,4 +50,14 @@ describe('feedbackEmail', () => {
     const { text } = feedbackEmail({ ...input, message: 'é'.repeat(FEEDBACK_EMAIL_MAX_BYTES) }, null, undefined)
     expect([new TextEncoder().encode(text).byteLength <= FEEDBACK_EMAIL_MAX_BYTES, text.endsWith('\n[truncated]')]).toEqual([true, true])
   })
+
+  it('keeps every line and links its addresses in the HTML part', () => {
+    const { html } = feedbackEmail({ ...input, message: '<b>two</b>\nlines' }, null, 'https://praetorium.gg')
+    expect(html).toContain('Kind: Problem<br>From: Guest, no reply email')
+    expect(html).toContain('&lt;b&gt;two&lt;/b&gt;<br>lines')
+  })
+
+  it('links the page address in the HTML part', () => {
+    expect(feedbackEmail(input, null, undefined).html).toContain(`<a href="${input.pageUrl}">${input.pageUrl}</a>`)
+  })
 })

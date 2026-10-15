@@ -1,5 +1,14 @@
 import { expect, test, type Page } from './test'
-import { attachRoster, createBattle, PRACTICE_OPPONENT, setupStep, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  attachRoster,
+  chooseRosterAction,
+  createBattle,
+  PRACTICE_OPPONENT,
+  setupStep,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 import { productOperator, withAuthSql } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
@@ -18,8 +27,7 @@ async function savedArmy(page: Page, name: string) {
 }
 
 async function openSetup(page: Page) {
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseRosterAction(page, 'Edit roster setup')
   return page.getByRole('dialog', { name: 'Edit roster setup' })
 }
 

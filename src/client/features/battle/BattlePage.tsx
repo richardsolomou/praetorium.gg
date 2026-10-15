@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { BattleUnavailable } from './BattleUnavailable'
@@ -9,7 +9,7 @@ import { Tracker } from './Tracker'
 import { celebrateVictory } from './victory'
 import { battleResult } from '../../battleOutcome'
 import { sides } from '../../sides'
-import { battleQuery } from '../../queries'
+import { battleQuery, battlesQuery } from '../../queries'
 import { useCommand } from './useCommand'
 import { useSpacetimeLiveBattle } from '../../spacetimeLive'
 import { setNativeBattleActive } from '../../nativeBridge'
@@ -17,6 +17,12 @@ import type { openBattle } from '../../functions'
 
 export function BattlePage({ token }: { token: string }) {
   const { data: screen, isPending } = useQuery(battleQuery(token))
+  const queryClient = useQueryClient()
+  const gone = !isPending && !screen
+  // A battle deleted elsewhere is still in the cached list this page hands over to.
+  useEffect(() => {
+    if (gone) void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+  }, [gone, queryClient])
 
   if (isPending)
     return (

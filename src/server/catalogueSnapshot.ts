@@ -703,7 +703,7 @@ export function catalogueUpdateMode(value = process.env.CATALOGUE_UPDATE_MODE): 
   return mode
 }
 
-/** Downloads a snapshot archive, starting again when the connection drops mid-body, which `fetchWithRetry` cannot see. */
+/** Downloads a snapshot archive, starting again when the connection drops or stalls mid-body, which `fetchWithRetry` cannot see. */
 async function saveSnapshotArchive(baseUrl: string, pointer: SnapshotPointer, file: string) {
   await pRetry(
     async () => {
@@ -716,7 +716,7 @@ async function saveSnapshotArchive(baseUrl: string, pointer: SnapshotPointer, fi
         throw new Error('catalogue snapshot archive is too large')
       await saveResponse(response, file)
     },
-    { retries: 2, minTimeout: 1_000, shouldRetry: ({ error }) => error instanceof TypeError },
+    { retries: 2, minTimeout: 1_000, shouldRetry: ({ error }) => error instanceof TypeError || error.name === 'TimeoutError' },
   )
 }
 

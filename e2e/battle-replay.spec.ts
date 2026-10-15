@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from './test'
+import { rewind } from './account'
 
 test('the full replay preloads before scrubbing', async ({ page }) => {
   let replayRequests = 0
@@ -59,9 +60,13 @@ test('dragging the replay timeline on a phone changes the event without scrollin
     const page = await context.newPage()
     await page.goto('/battles/preview-league-battle-duel')
     const slider = page.getByRole('slider', { name: 'Replay event' })
-    await expect(slider).toBeVisible()
+    await rewind(slider)
+    await slider.press('End')
+    await expect(slider).toHaveValue((await slider.getAttribute('max'))!)
     await page.evaluate(() => {
       document.querySelector('main')!.style.minHeight = '200vh'
+      // Scrubbing changes the content above the viewport, and scroll anchoring would move the page for that rather than the touch.
+      document.documentElement.style.overflowAnchor = 'none'
     })
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeGreaterThan(300)
     const session = await context.newCDPSession(page)
@@ -154,7 +159,7 @@ test('a spectator scrubs back through a live battle and returns to the latest ev
   const slider = page.getByRole('navigation', { name: 'Battle replay timeline' }).getByRole('slider', { name: 'Replay event' })
   const latest = await slider.getAttribute('max')
   await expect(slider).toHaveValue(latest!)
-  await slider.press('Home')
+  await rewind(slider)
   await expect(page.getByText('Battle setup')).toBeVisible()
   await slider.press('End')
   await expect(page.getByText('Watching live')).toBeVisible()
@@ -162,7 +167,7 @@ test('a spectator scrubs back through a live battle and returns to the latest ev
 
 /** Steps one entry at a time, waiting for each to render, so the read never sees the step before. */
 async function scrubToRound(slider: Locator, round: number) {
-  await slider.press('Home')
+  await rewind(slider)
   await expect(slider).toHaveValue((await slider.getAttribute('min')) ?? '0')
   for (let step = 0; step < 300; step++) {
     if ((await slider.getAttribute('aria-valuetext'))?.startsWith(`Round ${round},`)) return

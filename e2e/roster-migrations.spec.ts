@@ -198,10 +198,8 @@ test('resets a saved choice the current rules no longer offer', async ({ page })
     source: 'editable',
     now: Date.now(),
   })
-  // Opened from the library, so this device holds the saved version its edit builds on.
-  await page.goto('/rosters')
-  await page.locator('[data-roster="Stale Scouts"]').getByRole('link').first().click()
-  await expect(page).toHaveURL(new RegExp(`/rosters/${id}$`))
+  // Opened straight from its address, so the edit can land before this device has downloaded the roster.
+  await page.goto(`/rosters/${id}`)
   const error = page.getByRole('listitem').filter({ hasText: 'Scout Squad: a saved choice is no longer available' })
   await expect(error).toBeVisible()
   await waitForRosterSave(page, () => error.getByRole('button', { name: 'Reset options', exact: true }).click())

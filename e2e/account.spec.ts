@@ -1,5 +1,15 @@
 import { expect, test } from './test'
-import { befriend, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  befriend,
+  choosePlayerDefault,
+  chooseRosterDefault,
+  createBattle,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
   await page
@@ -201,22 +211,20 @@ test('a player can edit their display name and profile picture', async ({ page }
 
 test('profile defaults apply to rosters while battles infer their format', async ({ page }) => {
   await signUp(page, uniqueName('Alice'))
-  await page.goto('/profile')
+  // Neither choice is a new account's default, so each assertion below needs its press to have saved.
+  await chooseRosterDefault(page, 'Unlisted')
+  await choosePlayerDefault(page, 'Roster size', 'Incursion')
+  await page.reload()
   const visibility = page.getByRole('group', { name: 'Roster visibility' })
   const size = page.getByRole('group', { name: 'Roster size' })
-  await visibility.getByRole('button', { name: /^Public/ }).click()
-  await expect(visibility.getByRole('button', { name: /^Public/ })).toHaveAttribute('aria-pressed', 'true')
-  await size.getByRole('button', { name: /^Incursion/ }).click()
-  await expect(size.getByRole('button', { name: /^Incursion/ })).toHaveAttribute('aria-pressed', 'true')
-  await page.reload()
-  await expect(visibility.getByRole('button', { name: /^Public/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(visibility.getByRole('button', { name: /^Unlisted/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(size.getByRole('button', { name: /^Incursion/ })).toHaveAttribute('aria-pressed', 'true')
 
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
   await expect(dialog.getByRole('combobox', { name: 'Battle size' })).toContainText('Incursion')
-  await expect(dialog.locator('#setup-visibility')).toContainText('Public — listed on your profile')
+  await expect(dialog.locator('#setup-visibility')).toContainText('Unlisted — anyone with the link')
   await page.keyboard.press('Escape')
 
   await createBattle(page, { practice: true })
@@ -252,11 +260,16 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
 
   await signUp(alice, aliceName)
   await alice.goto('/profile')
-  await alice.getByLabel('Choose profile picture').setInputFiles({
-    name: 'avatar.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
-  })
+  // A file chosen before the page hydrates is dropped, so choose it until the picture is held.
+  await expect(async () => {
+    if (await alice.getByRole('button', { name: 'Replace picture' }).isVisible()) return
+    await alice.getByLabel('Choose profile picture').setInputFiles({
+      name: 'avatar.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+    })
+    await expect(alice.getByRole('button', { name: 'Replace picture' })).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
   await alice.getByRole('button', { name: 'Save profile' }).click()
   await expect(alice.getByText('Profile saved.')).toBeVisible()
   await signUp(bob, uniqueName('Bob'))
@@ -367,20 +380,26 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
     await signUp(requester, requesterName)
     await signUp(recipient, recipientName)
     await requester.goto('/friends')
-    await requester.getByPlaceholder('Search by account name').fill(recipientName)
-    await requester.locator(`[data-person="${recipientName}"]`).getByRole('button', { name: 'Add friend' }).click()
-    await expect(
-      requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`),
-    ).toBeVisible()
+    const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`)
+    // Presses that land before the page hydrates do nothing, so repeat them until the request is sent.
+    await expect(async () => {
+      if (await sent.isVisible()) return
+      await requester.getByPlaceholder('Search by account name').fill(recipientName)
+      await requester.locator(`[data-person="${recipientName}"]`).getByRole('button', { name: 'Add friend' }).click({ timeout: 1_000 })
+      await expect(sent).toBeVisible({ timeout: 1_000 })
+    }).toPass({ timeout: 15_000 })
 
     await recipient.goto('/')
     await expect(recipient.getByText('A player wants to be your friend')).toBeVisible()
     await recipient.goto('/friends')
     const incoming = recipient.locator('section').filter({ hasText: 'Friend requests' }).locator(`[data-person="${requesterName}"]`)
+    await expect(incoming).toBeVisible()
     await recipient.screenshot({ path: 'test-results/friend-request-reject.png' })
-    await incoming.getByRole('button', { name: 'Reject' }).click()
-
-    await expect(incoming).toHaveCount(0)
+    await expect(async () => {
+      if ((await incoming.count()) === 0) return
+      await incoming.getByRole('button', { name: 'Reject' }).click({ timeout: 1_000 })
+      await expect(incoming).toHaveCount(0, { timeout: 1_000 })
+    }).toPass({ timeout: 15_000 })
     await recipient.goto('/')
     await expect(recipient.getByRole('heading', { name: 'Welcome back', exact: false })).toBeVisible()
     await expect(recipient.getByText('Needs your attention')).toHaveCount(0)

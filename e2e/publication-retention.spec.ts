@@ -99,18 +99,17 @@ async function leagueFixture(ownerId: string, members: string[]) {
 
 async function sealThroughPage(page: Page, leagueToken: string, rosterName: string) {
   await page.goto(`/leagues/${leagueToken}`)
-  // A press before hydration opens nothing, so the chooser waits for the page to settle.
-  await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Choose a list', exact: true }).click()
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
+  await retryUntilVisible(chooser, () => page.getByRole('button', { name: 'Choose a list', exact: true }).click())
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
   await chooser.getByRole('button', { name: `Seal ${rosterName}`, exact: true }).click()
   await expect(chooser).toBeHidden()
 }
 
 async function concede(page: Page) {
-  await page.getByRole('button', { name: 'Battle options' }).click()
-  await page.getByRole('menuitem', { name: 'Concede battle', exact: true }).click()
+  const choice = page.getByRole('menuitem', { name: 'Concede battle', exact: true })
+  await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Battle options' }).click())
+  await choice.click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
   // The scoreboard updates before the queued concession reaches the server.
@@ -120,8 +119,9 @@ async function concede(page: Page) {
 async function deleteBattle(page: Page, url: string) {
   await page.goto('/battles')
   const card = page.locator('article').filter({ has: page.locator(`a[href="${new URL(url).pathname}"]`) })
-  await card.click({ button: 'right' })
-  await page.getByRole('menuitem', { name: 'Delete battle', exact: true }).click()
+  const choice = page.getByRole('menuitem', { name: 'Delete battle', exact: true })
+  await retryUntilVisible(choice, () => card.click({ button: 'right' }))
+  await choice.click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete battle', exact: true }).click()
   await expect(card).toHaveCount(0)
 }
@@ -163,14 +163,15 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.goto(rosterUrl)
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Changed saved roster'), 'Changed saved roster')
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
+  const remove = page.getByRole('menuitem', { name: 'Delete', exact: true })
+  await retryUntilVisible(remove, () => page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click())
+  await remove.click()
   const deletion = page.getByRole('alertdialog')
   await expect(deletion).toContainText('Frozen copies in battles and leagues are kept')
   await deletion.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(await productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([{ id: rosterId }])
   await page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
+  await remove.click()
   await deletion.getByRole('button', { name: 'Delete roster', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([])
   expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`).toEqual(commandsBefore)
@@ -183,9 +184,10 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
   await page.goto(`/leagues/${league.token}`)
   const viewSealed = page.getByRole('button', { name: `View ${name}’s list`, exact: true })
+  const reveal = page.getByRole('alertdialog', { name: 'Reveal every list?' })
+  await retryUntilVisible(reveal, () => page.getByRole('button', { name: 'Reveal all lists', exact: true }).click())
   await expect(viewSealed).toHaveCount(0)
-  await page.getByRole('button', { name: 'Reveal all lists', exact: true }).click()
-  await page.getByRole('alertdialog', { name: 'Reveal every list?' }).getByRole('button', { name: 'Reveal all lists', exact: true }).click()
+  await reveal.getByRole('button', { name: 'Reveal all lists', exact: true }).click()
   await expect(viewSealed).toBeVisible()
   const sealedUrl = await viewSealed.getAttribute('href')
   if (!sealedUrl) throw new Error('Missing revealed roster link')
@@ -208,8 +210,9 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
     }
   }
   await page.goto(`/leagues/${league.token}`)
-  await page.getByRole('button', { name: /^More for Retention league-/ }).click()
-  await page.getByRole('menuitem', { name: 'Delete league', exact: true }).click()
+  const deleteLeague = page.getByRole('menuitem', { name: 'Delete league', exact: true })
+  await retryUntilVisible(deleteLeague, () => page.getByRole('button', { name: /^More for Retention league-/ }).click())
+  await deleteLeague.click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete league', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM league_events WHERE league_id = ${league.id}`).toEqual([])
   expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${league.eventId}`).toEqual([])
@@ -290,8 +293,8 @@ test('self-account deletion removes populated shared history and sealed entries 
     await expect(opponent.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
 
     await owner.goto('/profile')
-    await owner.getByRole('button', { name: 'Delete account', exact: true }).click()
     const dialog = owner.getByRole('dialog', { name: 'Delete your account' })
+    await retryUntilVisible(dialog, () => owner.getByRole('button', { name: 'Delete account', exact: true }).click())
     await owner.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
     expect(await productSql`SELECT id FROM rosters WHERE id = ${ownerRosterId}`).toEqual([{ id: ownerRosterId }])

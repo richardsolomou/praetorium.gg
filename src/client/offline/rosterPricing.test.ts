@@ -1,3 +1,4 @@
+import { CancelledError } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
@@ -183,7 +184,7 @@ it('rejects an old account batch rather than giving it to the new account', asyn
     mocks.owner = 'bob'
     return [row]
   })
-  await expect(savedRosterPage({ data: { ids: ['army'] } })).rejects.toThrow('account changed')
+  await expect(savedRosterPage({ data: { ids: ['army'] } })).rejects.toBeInstanceOf(CancelledError)
 })
 
 it('does not calculate clean downloaded roster projections when restoring work online', () => {
@@ -271,5 +272,5 @@ it('rejects a pending roster bootstrap if the account changes during server pric
   await vi.waitFor(() => expect(mocks.price).toHaveBeenCalledOnce())
   mocks.owner = 'bob'
   finish({ points: 80 })
-  await expect(result).rejects.toThrow('account changed')
+  await expect(result).rejects.toBeInstanceOf(CancelledError)
 })

@@ -1,6 +1,6 @@
 import { requireReviewedRoster, type ReviewedServerSave } from './offline/reviewedRoster'
 import { projectBattles } from './offline/battleFunctions'
-import { cachedRead, cachedPage } from './offline/reads'
+import { accountChanged, cachedRead, cachedPage } from './offline/reads'
 import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
 import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
@@ -299,7 +299,7 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
   const owner = localOwner()?.id
   const engine = localEngine()
   const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw new Error('The account changed while loading this roster.')
+    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
   }
   const resource = `roster:${args.data.id}`
   const local = !args.data.battle ? await localDocument<LocalRoster | null>(resource) : undefined
@@ -380,7 +380,18 @@ export async function saveRoster(
     baseRosterId: (args.data as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
     copiedFromRosterId: (args.data as RosterInput & { copiedFromRosterId?: string | null }).copiedFromRosterId ?? null,
   } as RosterInput & { id: string; baseRosterId: string | null; copiedFromRosterId: string | null }
-  const previous = await localDocument<LocalRoster | null>(`roster:${input.id}`)
+  const resource = `roster:${input.id}`
+  let previous = await localDocument<LocalRoster | null>(resource)
+  // A roster the server rendered reaches this device's storage in the background; an edit that
+  // beats that download still builds on the opened version instead of saving a new roster.
+  const opened =
+    previous === undefined && args.data.id
+      ? localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterAccess>>>(['roster-access', input.id, null])
+      : undefined
+  if (opened?.editable) {
+    await rememberDocument(resource, opened.roster, opened.roster.updatedAt, owner, null)
+    previous = await localDocument<LocalRoster | null>(resource)
+  }
   if (previous === null) throw new Error('This roster was deleted. Save it as a new roster.')
   const now = Math.max(Date.now(), (previous?.updatedAt ?? 0) + 1)
   const roster: LocalRoster = {
@@ -412,7 +423,7 @@ export async function saveRoster(
   await queueLocal(
     'saveRoster',
     { ...roster, name: roster.automaticName ? '' : roster.name },
-    `roster:${input.id}`,
+    resource,
     roster,
     undefined,
     undefined,
@@ -588,7 +599,7 @@ export async function savedRosterLoadoutDatasheets(
   const owner = localOwner()?.id
   const checked = async (loading: ReturnType<typeof server.savedRosterLoadoutDatasheets>) => {
     const result = await loading
-    if (localOwner()?.id !== owner) throw new Error('The account changed while loading this roster.')
+    if (localOwner()?.id !== owner) throw accountChanged()
     return result
   }
   const resource = `roster:${args.data.id}`
@@ -627,7 +638,7 @@ export async function savedRosterSummaries(args?: { signal?: AbortSignal }): Ret
   const engine = localEngine()
   const owner = localOwner()?.id
   const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw new Error('The account changed while loading these rosters.')
+    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
   }
   const summaries = await cachedRead(['saved-roster-summaries'], async () => {
     const before = await engine?.storage.read()
@@ -690,7 +701,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
   if (!engine) return server.savedRosterPage(args)
   const owner = localOwner()!.id
   const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw new Error('The account changed while loading these rosters.')
+    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
   }
   const before = await engine.storage.read()
   assertAccount()
@@ -738,7 +749,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
   if (!engine) return server.homeRosters(args)
   const owner = localOwner()!.id
   const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw new Error('The account changed while loading these rosters.')
+    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
   }
   const before = await engine.storage.read()
   assertAccount()

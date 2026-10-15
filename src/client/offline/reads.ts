@@ -1,4 +1,8 @@
+import { CancelledError } from '@tanstack/react-query'
 import { localClient, localOwner } from './localRuntime'
+
+/** A read finished for the account that just left: dropped like a cancelled read, so the screen loads again for the new one. */
+export const accountChanged = () => new CancelledError({ revert: true, silent: true })
 
 export async function cachedRead<T>(
   key: readonly unknown[],
@@ -15,7 +19,7 @@ export async function cachedRead<T>(
   const owner = localOwner()?.id
   try {
     const data = await online()
-    if (key[0] !== 'me' && localOwner()?.id !== owner) throw new Error('The account changed while loading this screen.')
+    if (key[0] !== 'me' && localOwner()?.id !== owner) throw accountChanged()
     if (key[0] !== 'me' && options.updateCache !== false) client?.setQueryData(key, data)
     return data
   } catch (error) {
@@ -35,7 +39,7 @@ export async function cachedPage<T>(key: readonly unknown[], cursor: unknown, on
   const owner = localOwner()?.id
   try {
     const data = await online()
-    if (localOwner()?.id !== owner) throw new Error('The account changed while loading this page.')
+    if (localOwner()?.id !== owner) throw accountChanged()
     return data
   } catch (error) {
     if (page !== undefined && localOwner()?.id === owner) return page

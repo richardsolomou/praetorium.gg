@@ -1,12 +1,12 @@
 import { expect, type Page, test } from './test'
-import { createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave, makeWarlord } from './account'
+import { chooseRosterAction, createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave, makeWarlord } from './account'
 import { add, attach, shot } from './builder.harness'
+import { savedWork } from './storage'
 
 const phone = { viewport: { width: 390, height: 844 } }
 
 async function exportedText(page: Page) {
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const text = await dialog.locator('pre').innerText()
   await dialog.getByRole('button', { name: 'Close' }).click()
@@ -46,11 +46,12 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await waitForRosterSave(sender, () =>
     sender.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Select Tesla carbine' }).click(),
   )
+  // The save response above can belong to an earlier queued edit; a reload before the last one leaves would export the server's older list.
+  await expect.poll(async () => (await savedWork(sender))?.operations.length).toBe(0)
   await sender.reload()
   const sent = await exportedText(sender)
 
-  await sender.getByRole('button', { name: 'Roster actions' }).click()
-  await sender.getByRole('menuitem', { name: 'Exchange code' }).click()
+  await chooseRosterAction(sender, 'Exchange code')
   const exchange = sender.getByRole('dialog', { name: 'Exchange code' })
   await expect(exchange.getByRole('img', { name: `Exchange QR code for ${name}` })).toBeVisible()
   await exchange.getByRole('button', { name: 'Copy code' }).click()
@@ -181,8 +182,11 @@ test('a roster too long for a QR code still offers its exchange code', async ({ 
   await page.waitForURL(/\/rosters\/[^/]+$/)
 
   await page.goto('/rosters')
-  await page.locator('[data-roster="Long army"]').getByRole('button', { name: 'Actions for Long army' }).click()
-  await page.getByRole('menuitem', { name: 'Exchange code' }).click()
+  const exchangeItem = page.getByRole('menuitem', { name: 'Exchange code' })
+  await retryUntilVisible(exchangeItem, () =>
+    page.locator('[data-roster="Long army"]').getByRole('button', { name: 'Actions for Long army' }).click(),
+  )
+  await exchangeItem.click()
   const exchange = page.getByRole('dialog', { name: 'Exchange code' })
   await expect(exchange).toContainText('too long for a reliable QR code')
   await expect(exchange.getByRole('img')).toHaveCount(0)

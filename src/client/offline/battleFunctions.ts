@@ -248,9 +248,16 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   return { result: { outcome: 'appended', seq: state.seq + 1 }, screen: workspaceScreen(next, owner.id) }
 }
 
+/** A clean saved history can trail commands sent straight to the service, so connected reads use it only for unsynced work. */
+async function unsyncedWorkspace(token: string) {
+  const resource = `battle:${token}`
+  const workspace = await localDocument<BattleWorkspace>(resource)
+  return workspace && localOwner() && (!navigator.onLine || (await hasSyncableChanges(resource))) ? workspace : null
+}
+
 export async function battleReport(args: Parameters<typeof server.battleReport>[0]): ReturnType<typeof server.battleReport> {
-  const workspace = await localDocument<BattleWorkspace>(`battle:${args.data.token}`)
-  return workspace && localOwner() && (!navigator.onLine || (await hasSyncableChanges(`battle:${args.data.token}`)))
+  const workspace = await unsyncedWorkspace(args.data.token)
+  return workspace
     ? foldReport(
         workspace.players,
         workspace.log,
@@ -262,8 +269,8 @@ export async function battleReport(args: Parameters<typeof server.battleReport>[
     : cachedRead(['report', args.data.token], () => server.battleReport(args))
 }
 export async function replayBattleAt(args: Parameters<typeof server.replayBattleAt>[0]): ReturnType<typeof server.replayBattleAt> {
-  const workspace = await localDocument<BattleWorkspace>(`battle:${args.data.token}`)
-  if (!workspace || !localOwner()) return server.replayBattleAt(args)
+  const workspace = await unsyncedWorkspace(args.data.token)
+  if (!workspace) return server.replayBattleAt(args)
   const prefix = { ...workspace, log: battleLogThroughSeq(workspace.log, args.data.seq) }
   const screen = workspaceScreen(prefix, localOwner()!.id)
   return {
@@ -283,9 +290,8 @@ export async function replayBattleAt(args: Parameters<typeof server.replayBattle
 }
 
 export async function replayBattleBatch(args: Parameters<typeof server.replayBattleBatch>[0]): ReturnType<typeof server.replayBattleBatch> {
-  const workspace = await localDocument<BattleWorkspace>(`battle:${args.data.token}`)
-  if (!workspace || !localOwner())
-    return cachedRead(['replay-batch', args.data.token, args.data.seqs], () => server.replayBattleBatch(args))
+  const workspace = await unsyncedWorkspace(args.data.token)
+  if (!workspace) return cachedRead(['replay-batch', args.data.token, args.data.seqs], () => server.replayBattleBatch(args))
   if (
     !args.data.seqs.length ||
     args.data.seqs.length > REPLAY_BATCH_SIZE ||

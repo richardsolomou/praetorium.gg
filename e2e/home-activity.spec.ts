@@ -20,9 +20,14 @@ async function featurePreviewBattle(page: Page, token: string) {
 
 test('shows the faction icon for an unqualified frozen army', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Historical faction'))
-  await page.goto('/')
+  // Other tests publish battles meanwhile, so date this one ahead of them to keep it on the shelf.
+  await productSql`UPDATE battles SET created_at = ${Date.now() + 30 * 60 * 1000} WHERE token = 'preview-league-battle-doubles'`
   const battle = page.locator('[data-battle-shelf="Public games"] a[href="/battles/preview-league-battle-doubles"]')
   const mark = battle.locator('[data-faction-mark="space-marines"]').first()
+  await expect(async () => {
+    await page.goto('/')
+    await expect(battle).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(mark).toBeVisible()

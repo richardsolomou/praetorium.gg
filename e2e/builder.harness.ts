@@ -62,6 +62,16 @@ export async function add(page: Page, name: string) {
     .click()
 }
 
+/** An absent item proves nothing until the menu has opened, and an Escape pressed before then leaves it open over the roster. */
+export async function expectNotAttachable(card: Locator, unit: string, target: string) {
+  const menu = card.page().getByRole('menu')
+  await card.getByRole('button', { name: `Attach ${unit} to unit` }).click()
+  await expect(menu).toBeVisible()
+  await expect(menu.getByRole('menuitem', { name: target, exact: true })).toHaveCount(0)
+  await card.page().keyboard.press('Escape')
+  await expect(menu).toBeHidden()
+}
+
 export async function attach(page: Page, unit: string, target: string) {
   const card = page.locator(`[data-unit="${unit}"]`).first()
   await card.getByRole('button', { name: `Attach ${unit} to unit` }).click()

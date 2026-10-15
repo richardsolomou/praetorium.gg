@@ -111,6 +111,25 @@ export function compareCatalogueCoverage(
     for (const item of earlier) if (!laterKeys.has(key(item))) lost.push(`${where}: ${item}`)
     for (const item of later) if (!earlierKeys.has(key(item))) gained.push(`${where}: ${item}`)
   }
+  // `Bolt pistol ×2` and `Sergeant (3 rows, 1 fixed)` count a named thing, so like the
+  // datasheet counts above only a lower count is a loss; a raised one is reported as gained.
+  const compareCounted = (where: string, earlier: readonly string[], later: readonly string[]) => {
+    const counted = (item: string) => {
+      const match = /^(.*) (?:×(\d+)|\((\d+) rows, (\d+) fixed\))$/.exec(item)
+      return match ? { name: match[1]!, counts: match.slice(2).filter(Boolean).map(Number) } : { name: item, counts: [] }
+    }
+    const now = later.map(counted)
+    for (const item of earlier) {
+      const { name, counts } = counted(item)
+      const kept = now.some(
+        (entry) =>
+          entry.name === name && entry.counts.length === counts.length && counts.every((count, index) => entry.counts[index]! >= count),
+      )
+      if (!kept) lost.push(`${where}: ${item}`)
+    }
+    const earlierItems = new Set(earlier)
+    for (const item of later) if (!earlierItems.has(item)) gained.push(`${where}: ${item}`)
+  }
   const compareDescribed = (where: string, earlier: readonly Described[], later: readonly Described[], key = (name: string) => name) => {
     compareLists(
       where,
@@ -231,7 +250,10 @@ export function compareCatalogueCoverage(
         const roster = `${where} roster`
         if (sheet.roster.points > 0 && !(current.roster.points > 0)) lost.push(`${roster}: points unavailable`)
         compareLists(`${roster} choices`, choiceOptions(sheet.roster.choices), choiceOptions(current.roster.choices))
-        for (const field of ['models', 'wargear', 'errors', 'deployment'] as const) {
+        for (const field of ['models', 'wargear'] as const) {
+          compareCounted(`${roster} ${field}`, sheet.roster[field] ?? [], current.roster[field] ?? [])
+        }
+        for (const field of ['errors', 'deployment'] as const) {
           compareLists(`${roster} ${field}`, sheet.roster[field] ?? [], current.roster[field] ?? [])
         }
       } else if (sheet.roster && !current.roster) {

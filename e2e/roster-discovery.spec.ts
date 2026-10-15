@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { chooseRosterAction, confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, withAuthSql } from './storage'
 
@@ -9,8 +9,7 @@ const NOTE = 'Discovery note stays with the owner'
 const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
 
 async function setAccess(page: Page, name: string, value: string) {
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseRosterAction(page, 'Edit roster setup')
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name }).click()
@@ -89,8 +88,7 @@ for (const [width, label] of [
 
     if (width === 1440) {
       await reader.goto(`/rosters/${sourceId}`)
-      await reader.getByRole('button', { name: 'Roster actions', exact: true }).click()
-      await reader.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+      await chooseRosterAction(reader, 'Test targets')
       const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
       await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
       await simulator.getByRole('button', { name: 'Close', exact: true }).click()
@@ -170,8 +168,9 @@ for (const [width, label] of [
     }).toPass({ timeout: 10_000 })
     await page.screenshot({ path: `test-results/roster-discovery-scrolled-${label}.png` })
     const seeded = page.locator(`[data-discovered-roster^="${prefix} "]`)
+    // The last page removes the button, so a slow page must not be asked for again.
     await expect(async () => {
-      await more.click({ timeout: 1_000 })
+      if (await more.isVisible()) await more.click({ timeout: 1_000 })
       await expect(seeded).toHaveCount(25, { timeout: 2_000 })
     }).toPass({ timeout: 15_000 })
   })

@@ -1,10 +1,9 @@
 name: Coverage baseline
 
 # Pull request caches are scoped to their own branch, so only a snapshot saved from
-# main can serve as the coverage base for every pull request that follows it.
+# main can serve as the coverage base for every pull request that follows it. The
+# release run dispatches this once main settles, after any `[skip ci]` release commit.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:

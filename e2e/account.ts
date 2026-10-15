@@ -31,9 +31,16 @@ export async function signUp(page: Page, name: string) {
 /** Chooses the visibility new rosters, copies and imports start with, and waits until it leaves the device. */
 export async function chooseRosterDefault(page: Page, name: 'Private' | 'Unlisted' | 'Public') {
   await page.goto('/profile')
-  const choice = page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: new RegExp(`^${name}`) })
-  await choice.click()
-  await expect(choice).toHaveAttribute('aria-pressed', 'true')
+  await choosePlayerDefault(page, 'Roster visibility', name)
+}
+
+/** Presses a profile default on the open profile page until it reads as pressed, and waits until it leaves the device. */
+export async function choosePlayerDefault(page: Page, setting: 'Roster visibility' | 'Roster size', name: string) {
+  const group = page.getByRole('group', { name: setting })
+  const choice = new RegExp(`^${name}`)
+  await retryUntilVisible(group.getByRole('button', { name: choice, pressed: true }), () =>
+    group.getByRole('button', { name: choice }).click(),
+  )
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
 }
 
@@ -48,6 +55,13 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
     await action()
     await expect(outcome).toBeVisible({ timeout: 5_000 })
   }).toPass({ timeout: 30_000 })
+}
+
+/** Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before hydration opens nothing. */
+export async function chooseRosterAction(page: Page, item: string) {
+  const choice = page.getByRole('menuitem', { name: item, exact: true })
+  await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Roster actions', exact: true }).click())
+  await choice.click()
 }
 
 /** Follows a link until the address changes: the router's hydration cancels a navigation that started before it. */
@@ -89,7 +103,8 @@ export async function befriend(requester: Page, recipient: Page, { beforeAccept 
     await expect(request).toBeVisible()
     await beforeAccept()
   }
-  await retryUntilVisible(accepted, () => request.getByRole('button', { name: 'Accept' }).click())
+  // A press still saving disables Accept, and a click left waiting on it outlasts the retry.
+  await retryUntilVisible(accepted, () => request.getByRole('button', { name: 'Accept' }).click({ timeout: 1_000 }))
   await requester.goto('/friends')
   await expect(requester.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
 }
@@ -559,7 +574,8 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
         element.scrollTop += element.clientHeight / 2
       })
     await expect(result).toBeVisible({ timeout: 100 })
-    await result.scrollIntoViewIfNeeded()
+    // Device results are replaced by the server's, so a result can leave the list mid-scroll.
+    await result.scrollIntoViewIfNeeded({ timeout: 100 })
     await expect(result).toBeInViewport({ timeout: 100 })
   }).toPass({ timeout: 15000 })
 }
@@ -572,4 +588,18 @@ export async function makeWarlord(page: Page, unit: string) {
   if (await make.isVisible()) await make.click()
   await expect(held).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+}
+
+/**
+ * Moves the timeline to its first event once the page answers keys.
+ *
+ * A key pressed before hydration moves only the native input, which then already sits
+ * at its minimum, so End comes first to give Home a change to report.
+ */
+export async function rewind(slider: Locator) {
+  await expect(async () => {
+    await slider.press('End')
+    await slider.press('Home')
+    await expect(slider).toHaveAttribute('aria-valuetext', /^Setup,/, { timeout: 1_000 })
+  }).toPass({ timeout: 10_000 })
 }
