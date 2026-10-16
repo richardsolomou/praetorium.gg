@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonClass } from './buttonClass'
 import { LogIn } from 'lucide-react'
 import { PageState } from './PageState'
 
@@ -19,7 +19,7 @@ export function SignInRequired({ title, explanation, next }: { title: string; ex
         explanation={explanation}
         icon={LogIn}
         action={
-          <Link to="/sign-in" search={{ next }} className={buttonVariants({ className: 'h-11 w-full text-base' })}>
+          <Link to="/sign-in" search={{ next }} className={buttonClass({ className: 'h-11 w-full text-base' })}>
             Sign in
           </Link>
         }

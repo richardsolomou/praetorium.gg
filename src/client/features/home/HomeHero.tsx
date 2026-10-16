@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Eye } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { battleStage } from '../../battleStage'
 import { summarySides, type SummarySide } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
@@ -37,13 +37,13 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             they end up with a second account.
           */}
           <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:mt-8">
-            <Link to="/rosters" className={buttonVariants({ size: 'lg' })}>
+            <Link to="/rosters" className={buttonClass({ size: 'lg' })}>
               Try the builder
             </Link>
-            <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+            <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonClass({ variant: 'outline', size: 'lg' })}>
               Create an account
             </Link>
-            <Link to="/sign-in" search={{ next: undefined }} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
+            <Link to="/sign-in" search={{ next: undefined }} className={buttonClass({ variant: 'ghost', size: 'lg' })}>
               Sign in
             </Link>
           </div>

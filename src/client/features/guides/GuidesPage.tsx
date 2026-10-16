@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { PRODUCT_GUIDES, type ProductGuide } from '../../../contracts/productGuides'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -127,7 +127,7 @@ export function GuidePage({ guide }: { guide: ProductGuide }) {
               ))}
             </ol>
           </section>
-          <Link to={guide.action.to} className={buttonVariants({ variant: 'outline' })}>
+          <Link to={guide.action.to} className={buttonClass({ variant: 'outline' })}>
             {guide.action.label}
           </Link>
           <section className="grid gap-5 border-t border-edge pt-7 sm:grid-cols-2">

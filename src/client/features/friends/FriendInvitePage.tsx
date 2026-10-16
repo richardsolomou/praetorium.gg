@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { UserPlus } from 'lucide-react'
-import { buttonVariants, Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -70,10 +71,10 @@ export function FriendInvitePage({ token }: { token: string }) {
             icon={UserPlus}
             action={
               <div className="grid w-full gap-2">
-                <Link to="/sign-in" search={{ next, join: true }} className={buttonVariants({ className: 'h-11 w-full text-base' })}>
+                <Link to="/sign-in" search={{ next, join: true }} className={buttonClass({ className: 'h-11 w-full text-base' })}>
                   Create an account
                 </Link>
-                <Link to="/sign-in" search={{ next }} className={buttonVariants({ variant: 'ghost', className: 'w-full' })}>
+                <Link to="/sign-in" search={{ next }} className={buttonClass({ variant: 'ghost', className: 'w-full' })}>
                   I already have an account
                 </Link>
               </div>
