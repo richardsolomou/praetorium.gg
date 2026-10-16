@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { type Command, reduceBattle, validate } from './battle'
 import { battleReport } from './battleReport'
 import { battleView } from './battleView'
-import { ALICE, BOB, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, text, turns } from './battle.fixtures'
+import { ALICE, BOB, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, turns } from './battle.fixtures'
 
 describe('the view', () => {
   it('shows roster reminders only to their owner', () => {
@@ -385,20 +385,33 @@ describe('models within a unit', () => {
     expect(intercessors(reduceBattle(PLAYERS, history))?.alive).toBe(5)
   })
 
-  it('read as a loss in the account when the last model goes', () => {
-    const history = log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -5 }])
-    expect(text(battleReport(NAMES, history))).toContain('Alice loses Intercessors')
+  it.each<[string, Command]>([
+    ['models', { kind: 'wound-unit', unitKey: 'u0', delta: -1 }],
+    ['wounds', { kind: 'damage-unit', unitKey: 'u0', delta: -1 }],
+    ['a lost unit', { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+  ])('leave %s out of the account', (_casualty, command) => {
+    const history = log(...inPlay(), [ALICE, command])
+    expect(battleReport(NAMES, history).some((entry) => entry.commandKind === command.kind)).toBe(false)
   })
 
-  it('name the recorder and owner when another player removes the last model', () => {
-    const history = log(...inPlay(), [BOB, { kind: 'wound-unit', unitKey: 'u0', delta: -5, playerId: ALICE }])
-
-    expect(text(battleReport(NAMES, history))).toContain('Bob removes the last model from Alice’s Intercessors')
+  it.each<[string, Command]>([
+    ['models', { kind: 'wound-unit', unitKey: 'u0', delta: -1 }],
+    ['wounds', { kind: 'damage-unit', unitKey: 'u0', delta: -1 }],
+    ['a lost unit', { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+  ])('leave the undo target on the action before %s', (_casualty, command) => {
+    const history = log(...inPlay(), [ALICE, { kind: 'score', category: 'primary', delta: 1 }], [ALICE, command])
+    expect(reduceBattle(PLAYERS, history).undoable?.seq).toBe(history.at(-2)?.seq)
   })
 
-  it('read as models in the account otherwise', () => {
-    const history = log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -1 }])
-    expect(text(battleReport(NAMES, history))).toContain('Alice loses 1 model from Intercessors')
+  it('stand when the action before them is undone', () => {
+    const scored = log(...inPlay(), [ALICE, { kind: 'score', category: 'primary', delta: 1 }]).at(-1)!.seq
+    const history = log(
+      ...inPlay(),
+      [ALICE, { kind: 'score', category: 'primary', delta: 1 }],
+      [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -2 }],
+      [ALICE, { kind: 'undo', target: scored }],
+    )
+    expect(intercessors(reduceBattle(PLAYERS, history))?.alive).toBe(3)
   })
 })
 
@@ -498,20 +511,5 @@ describe('wounds within a unit', () => {
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: false }],
     )
     expect(unit(reduceBattle(PLAYERS, history))).toMatchObject({ alive: 5, damage: 0 })
-  })
-
-  it('read as wounds in the account', () => {
-    const history = log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -5 }])
-    expect(text(battleReport(NAMES, history))).toContain('Alice takes 5 wounds on Redemptor Dreadnought')
-  })
-
-  it('name the recorder and owner when another player deals them', () => {
-    const history = log(...walker(), [BOB, { kind: 'damage-unit', unitKey: 'u0', delta: -5, playerId: ALICE }])
-    expect(text(battleReport(NAMES, history))).toContain('Bob puts 5 wounds on Alice\u2019s Redemptor Dreadnought')
-  })
-
-  it('read as a loss in the account when the last wound goes', () => {
-    const history = log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -12 }])
-    expect(text(battleReport(NAMES, history))).toContain('Alice loses Redemptor Dreadnought')
   })
 })

@@ -360,6 +360,41 @@ export function unitWoundsLeft(unit: UnitState): number | null {
   return unit.wounds ? unit.alive * unit.wounds - unit.damage : null
 }
 
+type CasualtyCommand = Extract<Command, { kind: 'set-unit' | 'wound-unit' | 'damage-unit' }>
+
+/** What is left of a unit after one casualty command, which the fold and the roster's pending presses both read. */
+export function casualtyOutcome(unit: UnitState, command: CasualtyCommand): Pick<UnitState, 'alive' | 'damage' | 'destroyed'> {
+  switch (command.kind) {
+    // The three stay in step in both directions: a unit brought back is whole again,
+    // and a unit that is gone has nothing left standing to be carrying a wound.
+    case 'set-unit':
+      return { destroyed: command.destroyed, alive: command.destroyed ? 0 : unit.models, damage: 0 }
+    // The model that was carrying the damage is the one that just left, and a model
+    // returning to the unit arrives whole, so either way nothing is still wounded.
+    // Losing the last model is losing the unit: one event, not two states that could
+    // contradict each other.
+    case 'wound-unit': {
+      const alive = unit.alive + command.delta
+      return { alive, damage: 0, destroyed: alive === 0 }
+    }
+    case 'damage-unit': {
+      const left = unitWoundsLeft(unit)
+      if (left === null || !unit.wounds) return unit
+      /*
+       * Wounds are the whole of it, and the models fall out of the arithmetic.
+       *
+       * Damage lands on one model until that model is gone and then moves to the next,
+       * so what a unit has left is a single number of wounds and where the model line
+       * falls inside it is division. Keeping the two as separate counters to be nudged
+       * in step is how they end up disagreeing.
+       */
+      const remaining = left + command.delta
+      const alive = Math.ceil(remaining / unit.wounds)
+      return { alive, damage: alive * unit.wounds - remaining, destroyed: alive === 0 }
+    }
+  }
+}
+
 /**
  * A stratagem from the verified rules sources, with the cost, timing and usage limit
  * needed to validate its use during a battle.
@@ -1139,6 +1174,9 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
   }
 }
 
+/** Commands that change what is left of a unit, which the table corrects by pressing the opposite control. */
+export const CASUALTY_COMMANDS: readonly Command['kind'][] = ['set-unit', 'wound-unit', 'damage-unit']
+
 /** Applies one command that is standing when it is folded, and records whether undo may name it. */
 export function applyEntry(state: BattleState, entry: LoggedCommand) {
   apply(state, entry.by, entry.command, entry.seq)
@@ -1161,6 +1199,8 @@ export function applyEntry(state: BattleState, entry: LoggedCommand) {
       'acknowledge-scoring',
       'pause-clock',
       'resume-clock',
+      // Casualties are corrected through their own counters, so tapping one never takes Undo away from the last action.
+      ...CASUALTY_COMMANDS,
     ].includes(entry.command.kind)
   ) {
     state.undoable = { seq: entry.seq, by: entry.by, kind: entry.command.kind }
@@ -1894,14 +1934,12 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       }
       return
     }
-    case 'set-unit': {
+    case 'set-unit':
+    case 'wound-unit':
+    case 'damage-unit': {
       const unit = player.units.find((candidate) => candidate.key === command.unitKey)
       if (!unit) return
-      unit.destroyed = command.destroyed
-      // The three stay in step in both directions: a unit brought back is whole again,
-      // and a unit that is gone has nothing left standing to be carrying a wound.
-      unit.alive = command.destroyed ? 0 : unit.models
-      unit.damage = 0
+      Object.assign(unit, casualtyOutcome(unit, command))
       disembarkPassengers(player.units, unit)
       return
     }
@@ -1926,38 +1964,6 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     }
     case 'set-painted': {
       player.painted = command.painted
-      return
-    }
-    case 'wound-unit': {
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return
-      unit.alive += command.delta
-      // The model that was carrying the damage is the one that just left, and a model
-      // returning to the unit arrives whole, so either way nothing is still wounded.
-      unit.damage = 0
-      // Losing the last model is losing the unit: one event, not two states that
-      // could contradict each other.
-      unit.destroyed = unit.alive === 0
-      disembarkPassengers(player.units, unit)
-      return
-    }
-    case 'damage-unit': {
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      const left = unit ? unitWoundsLeft(unit) : null
-      if (!unit || left === null || !unit.wounds) return
-      /*
-       * Wounds are the whole of it, and the models fall out of the arithmetic.
-       *
-       * Damage lands on one model until that model is gone and then moves to the next,
-       * so what a unit has left is a single number of wounds and where the model line
-       * falls inside it is division. Keeping the two as separate counters to be nudged
-       * in step is how they end up disagreeing.
-       */
-      const remaining = left + command.delta
-      unit.alive = Math.ceil(remaining / unit.wounds)
-      unit.damage = unit.alive * unit.wounds - remaining
-      unit.destroyed = unit.alive === 0
-      disembarkPassengers(player.units, unit)
       return
     }
     case 'set-deployment': {

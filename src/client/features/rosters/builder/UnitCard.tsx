@@ -207,7 +207,7 @@ export function UnitCard({
 
       {/* A wider gap than the rows above it: two counters side by side put one's `+` next to the other's `-`. */}
       {status ? (
-        <div data-print-hide className={`${ROW} relative z-10 flex-wrap gap-x-4 gap-y-1.5 [&_button]:pointer-events-auto`}>
+        <div data-print-hide data-unit-status className={`${ROW} relative z-10 flex-wrap gap-x-4 gap-y-1.5 [&_button]:pointer-events-auto`}>
           {status}
         </div>
       ) : null}

@@ -34,7 +34,7 @@ test('an army is read and its losses recorded without leaving the battle', async
 
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
   const army = page.locator('[data-army-roster]')
-  const squad = army.locator('[data-unit="Plague Marines"]')
+  const squad = army.locator('[data-army-list] [data-unit="Plague Marines"]')
   await squad.getByRole('button', { name: 'Plague Marines', exact: true }).click()
   const loadout = army.locator('[data-army-loadout]')
   await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
@@ -44,7 +44,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   await page.getByRole('button', { name: 'Return to army' }).click()
   await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
 
-  // Casualty controls stay mounted while the command is in flight.
+  // Casualty presses count ahead of the service, so a squad can be tapped down while a write is in flight.
   let releaseSubmit = () => undefined
   const submitHeld = new Promise<void>((resolve) => {
     releaseSubmit = resolve
@@ -61,31 +61,37 @@ test('an army is read and its losses recorded without leaving the battle', async
     await route.continue()
   })
 
-  // A model comes off the squad, and what is left of the army says so behind the dialog.
+  // Models come off the squad, and what is left of the army says so behind the dialog.
   const removeModel = squad.getByRole('button', { name: 'Remove a model from Plague Marines' })
   await removeModel.click()
   await started
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
-  await expect(removeModel).toBeVisible()
-  await expect(army.getByRole('button', { name: 'Mark Foetid Bloat-drone lost' })).toBeVisible()
+  await removeModel.click()
+  await expect(models).toHaveText(`${brought - 2}/${brought}`)
+  await expect(army.getByRole('button', { name: 'Mark Foetid Bloat-drone lost' })).toBeEnabled()
   releaseSubmit()
-  await expect(models).toHaveText(`${brought - 1}/${brought}`)
+  await expect(models).toHaveText(`${brought - 2}/${brought}`)
   await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
   await expect(units).toHaveText('2/2')
 
   // A unit lost outright leaves the shelf it was read on, and is kept only to be taken back.
-  await army.locator('[data-unit="Foetid Bloat-drone"]').getByRole('button', { name: 'Mark Foetid Bloat-drone lost' }).click()
-  await expect(army.locator('[data-unit="Foetid Bloat-drone"]')).toBeHidden()
+  await army
+    .locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
+    .getByRole('button', { name: 'Mark Foetid Bloat-drone lost' })
+    .click()
+  await expect(army.locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')).toBeHidden()
   await expect(units).toHaveText('1/2')
   await army.getByRole('button', { name: 'Toggle Lost' }).click()
-  await army.locator('[data-unit="Foetid Bloat-drone"]').getByRole('button', { name: 'Bring Foetid Bloat-drone back' }).click()
+  await army
+    .locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
+    .getByRole('button', { name: 'Bring Foetid Bloat-drone back' })
+    .click()
   await expect(units).toHaveText('2/2')
 
-  // Every casualty is a command like any other, so the log has all of it.
+  // Casualties are running counts rather than events, so the log and Undo leave them out.
   await army.getByRole('button', { name: 'Close' }).click()
-  await expect(page.getByText(`${player} loses 1 model from Plague Marines`)).toBeVisible()
-  await expect(page.getByText(`${player} loses Foetid Bloat-drone`)).toBeVisible()
-  await expect(page.getByText(`${player} brings Foetid Bloat-drone back`)).toBeVisible()
+  const report = page.locator('[data-battle-report-scroll]')
+  await expect(report).toContainText(`${player} brought ${roster}`)
+  await expect(report).not.toContainText(/Plague Marines|Foetid Bloat-drone/)
 })
 
 test('a multi-wound model is tracked in wounds, and losing them all takes the model', async ({ page }) => {
@@ -110,8 +116,8 @@ test('a multi-wound model is tracked in wounds, and losing them all takes the mo
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
   const army = page.locator('[data-army-roster]')
-  const squad = army.locator('[data-unit="Plague Marines"]')
-  const drone = army.locator('[data-unit="Foetid Bloat-drone"]')
+  const squad = army.locator('[data-army-list] [data-unit="Plague Marines"]')
+  const drone = army.locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
 
   // A squad counts both, because a table does: whole models, and the one taking damage.
   await expect(squad.locator('[data-count="models"]')).toHaveText('5/5')
@@ -132,8 +138,4 @@ test('a multi-wound model is tracked in wounds, and losing them all takes the mo
   await expect(drone.locator('[data-count="wounds"]')).toHaveText('10/10')
   await drone.getByRole('button', { name: 'Take a wound off Foetid Bloat-drone' }).click()
   await expect(drone.locator('[data-count="wounds"]')).toHaveText('9/10')
-
-  await army.getByRole('button', { name: 'Close' }).click()
-  await expect(page.getByText(`${player} takes 1 wound on Foetid Bloat-drone`)).toBeVisible()
-  await expect(page.getByText(`${player} takes 1 wound on Plague Marines`).first()).toBeVisible()
 })

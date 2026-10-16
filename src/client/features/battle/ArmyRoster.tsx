@@ -1,9 +1,11 @@
-import { Calculator, Minus, Plus, Scroll } from 'lucide-react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { Calculator, ChevronLeft, ChevronRight, Minus, Plus, Scroll } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
-import { type Command, transportLabel, type UnitState } from '../../../core/battle'
+import { casualtyOutcome, type Command, transportLabel, type UnitState } from '../../../core/battle'
+import { battleUnitCounts } from '../../../core/attachedUnits'
+import type { SendCommand } from './useCommand'
 import { armyModels, armyShelves } from './armyUnits'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
@@ -21,61 +23,99 @@ type Props = {
   /** Casualties are recorded only while the battle is running. */
   actionable: boolean
   pending: boolean
+  /** A parked prompt holds every battle-changing control, casualties included, until it is resumed or closed. */
+  blocked?: boolean
+  send: SendCommand
+}
+
+type CasualtyCommand = Parameters<typeof casualtyOutcome>[1]
+type Press = (command: CasualtyCommand) => void
+
+/** What every unit row needs to show and record its losses. */
+type UnitControls = {
+  army: Army
+  actionable: boolean
+  pending: boolean
+  blocked: boolean
   send: (command: Command) => void
+  press: Press
+}
+
+/**
+ * Casualty presses shown before the service answers, so a squad can be counted down
+ * tap after tap. Each press is still its own queued command; one the service refuses
+ * leaves the overlay and the count falls back to the authoritative screen.
+ */
+function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
+  const [presses, setPresses] = useState<{ id: number; command: CasualtyCommand }[]>([])
+  const nextId = useRef(0)
+  const press: Press = useCallback(
+    (command) => {
+      const id = nextId.current++
+      setPresses((current) => [...current, { id, command }])
+      send(command, { blocking: false, complete: () => setPresses((current) => current.filter((candidate) => candidate.id !== id)) })
+    },
+    [send],
+  )
+  const shown = presses.length
+    ? units.map((unit) =>
+        presses
+          .filter(({ command }) => command.unitKey === unit.key)
+          .reduce((folded, { command }) => Object.assign({}, folded, casualtyOutcome(folded, command)), unit),
+      )
+    : units
+  return { units: shown, press }
 }
 
 /** Show the frozen roster from the battle log in place, with current losses; either seated side can record either army’s losses. */
-export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }: Props) {
+export function ArmyRoster({ army, side, actionable, pending, blocked = false, send, onSimulate }: Props) {
   const [open, setOpen] = useState(false)
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
-  const unitCards = useRef(new Map<string, HTMLDivElement>())
-  const collapsedCard = useRef<HTMLDivElement | null>(null)
-  useLayoutEffect(() => {
-    collapsedCard.current?.scrollIntoView({ block: 'nearest' })
-    collapsedCard.current = null
-  }, [expanded])
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const { units, press } = usePendingCasualties(army.units, send)
   const roster = army.roster
   if (!roster) return null
 
-  const models = armyModels(army.units)
-  const lost = army.units.filter((unit) => unit.destroyed)
-  const canSimulate = (unit: UnitState) =>
-    Boolean(roster.built?.picks?.length && unit.entryId && !unit.destroyed && unit.formation === 'battlefield')
+  const models = armyModels(units)
+  const standing = battleUnitCounts(units).standing
+  const shelves = armyShelves(units)
+  const lost = units.filter((unit) => unit.destroyed)
+  const readable = (unit: UnitState) => Boolean(roster.built?.picks?.length && unit.entryId)
+  // The order the list reads in, which is the order previous and next step through.
+  const ordered = [...shelves.flatMap((shelf) => shelf.units), ...lost].filter(readable)
+  const selected = ordered.find((unit) => unit.key === selectedKey) ?? null
+  const canSimulate = (unit: UnitState) => readable(unit) && !unit.destroyed && unit.formation === 'battlefield'
   const simulate = () => onSimulate({ playerId: army.playerId })
+  const unitProps: UnitControls = { army, actionable, pending, blocked, send, press }
   const card = (unit: UnitState) => (
-    <div key={unit.key} data-army-unit>
-      <div
-        ref={(element) => {
-          if (element) unitCards.current.set(unit.key, element)
-          else unitCards.current.delete(unit.key)
-        }}
-        data-army-unit-header
-        className={expanded.has(unit.key) ? 'sticky -top-4 z-20 bg-panel' : undefined}
-      >
-        <BattleUnit
-          unit={unit}
-          army={army}
-          selected={expanded.has(unit.key)}
-          onSelect={
-            roster.built?.picks?.length && unit.entryId
-              ? () => {
-                  if (expanded.has(unit.key)) collapsedCard.current = unitCards.current.get(unit.key) ?? null
-                  setExpanded((previous) => {
-                    const next = new Set(previous)
-                    if (next.has(unit.key)) next.delete(unit.key)
-                    else next.add(unit.key)
-                    return next
-                  })
-                }
-              : undefined
-          }
-          actionable={actionable}
-          pending={pending}
-          send={send}
-        />
-      </div>
-      {expanded.has(unit.key) ? <ArmyLoadout army={army} unit={unit} /> : null}
+    <BattleUnit
+      key={unit.key}
+      {...unitProps}
+      unit={unit}
+      selected={unit.key === selected?.key}
+      onSelect={readable(unit) ? () => setSelectedKey(unit.key) : undefined}
+    />
+  )
+  const list = units.length ? (
+    <div>
+      {shelves.map((shelf) => (
+        <Section key={shelf.id} title={shelf.plural} count={shelf.units.length}>
+          {shelf.units.map(card)}
+        </Section>
+      ))}
+      {/*
+       * Off the shelves and under them: a unit that is gone is not part of the
+       * army being read any more, and it is kept only so a mistaken loss can be
+       * taken back.
+       */}
+      {lost.length ? (
+        <Section title="Lost" count={lost.length} defaultOpen={false}>
+          {lost.map(card)}
+        </Section>
+      ) : null}
     </div>
+  ) : (
+    /* A list attached before the battle knew how to read one is still the army. */
+    <pre className="overflow-auto border border-edge bg-sunken p-3 font-rules text-sm whitespace-pre-wrap select-text">{roster.text}</pre>
   )
 
   return (
@@ -84,7 +124,7 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
         <Button variant="secondary" size="xs" className="max-w-full" onClick={() => setOpen(true)} aria-label={`Open ${roster.name}`}>
           <Scroll aria-hidden /> Army
         </Button>
-        {army.units.some(canSimulate) ? (
+        {units.some(canSimulate) ? (
           <Button variant="secondary" size="xs" onClick={() => simulate()} aria-label={`Simulate ${army.playerName}'s combat`}>
             <Calculator aria-hidden /> Simulate
           </Button>
@@ -93,7 +133,7 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
         {army.units.length ? (
           <span className="readout text-3xs text-faint">
             <span data-army-units>
-              {army.standing}/{army.unitCount}
+              {standing}/{army.unitCount}
             </span>{' '}
             units ·{' '}
             <span data-army-models>
@@ -106,69 +146,124 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
 
       <BattlePromptDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          setOpen(next)
+          // Minimizing keeps the unit being read; closing starts the next look from the army.
+          if (!next) setSelectedKey(null)
+        }}
         minimizedLabel={`${army.playerName} · ${roster.name}`}
         resumeLabel="Return to army"
       >
-        <BattleDialogContent data-army-roster size="md" className={tint(side.index).border}>
+        <BattleDialogContent
+          data-army-roster
+          size={ordered.length ? 'lg' : 'md'}
+          fill={Boolean(ordered.length)}
+          className={tint(side.index).border}
+        >
           <DialogHeader className="px-(--dialog-actions) text-center">
             <p className="eyebrow">{army.playerName}</p>
             <DialogTitle>{roster.name}</DialogTitle>
             <DialogDescription render={<div />}>
               <ArmyIdentity army={army} list={false} className="justify-center" />
-              {roster.built?.picks?.length ? <p className="mt-1 text-xs text-dim">Select a unit to see its loadout.</p> : null}
             </DialogDescription>
           </DialogHeader>
 
-          <DialogBody>
-            {army.units.length ? (
-              <div>
-                {armyShelves(army.units).map((shelf) => (
-                  <Section key={shelf.id} title={shelf.plural} count={shelf.units.length}>
-                    {shelf.units.map(card)}
-                  </Section>
-                ))}
-                {/*
-                 * Off the shelves and under them: a unit that is gone is not part of the
-                 * army being read any more, and it is kept only so a mistaken loss can be
-                 * taken back.
-                 */}
-                {lost.length ? (
-                  <Section title="Lost" count={lost.length} defaultOpen={false}>
-                    {lost.map(card)}
-                  </Section>
-                ) : null}
-              </div>
-            ) : (
-              /* A list attached before the battle knew how to read one is still the army. */
-              <pre className="overflow-auto border border-edge bg-sunken p-3 font-rules text-sm whitespace-pre-wrap select-text">
-                {roster.text}
-              </pre>
-            )}
-          </DialogBody>
+          {ordered.length ? (
+            /*
+             * The army and the selected unit side by side where there is room, so
+             * reading a datasheet never moves the list. A compact screen shows one at
+             * a time and steps between units without going back to the list.
+             */
+            <div className="grid min-h-0 flex-auto grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] min-[860px]:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+              <DialogBody data-army-list className={`min-[860px]:border-r min-[860px]:border-edge ${selected ? 'max-[859px]:hidden' : ''}`}>
+                {list}
+              </DialogBody>
+              {/* Keyed so stepping to another unit starts its datasheet from the top. */}
+              <DialogBody key={selected?.key} data-army-detail className={selected ? '' : 'max-[859px]:hidden'}>
+                {selected ? (
+                  <ArmyUnitDetail {...unitProps} unit={selected} ordered={ordered} rosterName={roster.name} onSelect={setSelectedKey} />
+                ) : (
+                  <p className="py-8 text-center text-sm text-dim">Select a unit to see its datasheet.</p>
+                )}
+              </DialogBody>
+            </div>
+          ) : (
+            <DialogBody>{list}</DialogBody>
+          )}
         </BattleDialogContent>
       </BattlePromptDialog>
     </>
   )
 }
 
+/**
+ * One unit's datasheet beside or in place of the list, led by the unit's own card so
+ * its losses are recorded where it is read. The list beside it already carries those
+ * controls on a wide screen, so they show here only where the list is hidden.
+ */
+function ArmyUnitDetail({
+  unit,
+  ordered,
+  rosterName,
+  onSelect,
+  ...unitProps
+}: {
+  unit: UnitState
+  ordered: UnitState[]
+  rosterName: string
+  onSelect: (key: string | null) => void
+} & UnitControls) {
+  const index = ordered.findIndex((candidate) => candidate.key === unit.key)
+  const previous = ordered[index - 1]
+  const next = ordered[index + 1]
+  return (
+    <div className="min-w-0 space-y-3">
+      <div className="flex items-center justify-between gap-2 min-[860px]:hidden">
+        <Button variant="ghost" className="-ml-2 h-11" aria-label={`Back to ${rosterName}`} onClick={() => onSelect(null)}>
+          <ChevronLeft aria-hidden /> {rosterName}
+        </Button>
+        <span className="readout text-xs text-faint">
+          {index + 1} of {ordered.length}
+        </span>
+      </div>
+      <div className="min-[860px]:[&_[data-unit-status]]:hidden">
+        <BattleUnit {...unitProps} unit={unit} selected={false} />
+      </div>
+      <ArmyLoadout army={unitProps.army} unit={unit} />
+      <div className="flex justify-between gap-2 min-[860px]:hidden">
+        {previous ? (
+          <Button
+            variant="outline"
+            className="h-11 min-w-0"
+            onClick={() => onSelect(previous.key)}
+            aria-label={`Previous unit: ${previous.name}`}
+          >
+            <ChevronLeft aria-hidden /> <span className="truncate">{previous.name}</span>
+          </Button>
+        ) : (
+          <span />
+        )}
+        {next ? (
+          <Button variant="outline" className="h-11 min-w-0" onClick={() => onSelect(next.key)} aria-label={`Next unit: ${next.name}`}>
+            <span className="truncate">{next.name}</span> <ChevronRight aria-hidden />
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function BattleUnit({
   unit,
-  army,
-  actionable,
-  pending,
-  send,
   selected,
   onSelect,
+  ...controls
 }: {
   selected: boolean
   onSelect?: () => void
   unit: UnitState
-  army: Army
-  actionable: boolean
-  pending: boolean
-  send: (command: Command) => void
-}) {
+} & UnitControls) {
+  const { actionable } = controls
   // A whole unit on the table with nothing to press has nothing to report, so it says nothing.
   const worthSaying = actionable || unit.destroyed || unit.alive < unit.models || unit.damage > 0 || unit.formation !== 'battlefield'
 
@@ -188,32 +283,15 @@ function BattleUnit({
       onSelect={onSelect}
       joined={unit.joined ?? []}
       editable={false}
-      status={
-        worthSaying ? (
-          <UnitStatus unit={unit} units={army.units} playerId={army.playerId} actionable={actionable} pending={pending} send={send} />
-        ) : undefined
-      }
+      status={worthSaying ? <UnitStatus {...controls} unit={unit} /> : undefined}
     />
   )
 }
 
 /** Expose model and wound controls only where the frozen unit has those counts; the domain decides whether a wound removes a model. */
-function UnitStatus({
-  unit,
-  units,
-  playerId,
-  actionable,
-  pending,
-  send,
-}: {
-  unit: UnitState
-  units: UnitState[]
-  playerId: string
-  actionable: boolean
-  pending: boolean
-  send: (command: Command) => void
-}) {
-  const mark = (destroyed: boolean) => send({ kind: 'set-unit', unitKey: unit.key, destroyed, playerId })
+function UnitStatus({ unit, army, actionable, pending, blocked, send, press }: { unit: UnitState } & UnitControls) {
+  const { units, playerId } = army
+  const mark = (destroyed: boolean) => press({ kind: 'set-unit', unitKey: unit.key, destroyed, playerId })
   // The wounds a squad still has are the front model's; the ones behind it are whole.
   const wounds = unit.wounds ? unit.wounds - unit.damage : 0
 
@@ -227,7 +305,7 @@ function UnitStatus({
             size="xs"
             className="ml-auto shrink-0"
             aria-label={`Bring ${unit.name} back`}
-            disabled={pending}
+            disabled={blocked}
             onClick={() => mark(false)}
           >
             Bring back
@@ -265,10 +343,10 @@ function UnitStatus({
           of={unit.models}
           whole={unit.alive === unit.models}
           actionable={actionable}
-          pending={pending}
+          disabled={blocked}
           removeLabel={`Remove a model from ${unit.name}`}
           returnLabel={`Return a model to ${unit.name}`}
-          onStep={(delta) => send({ kind: 'wound-unit', unitKey: unit.key, delta, playerId })}
+          onStep={(delta) => press({ kind: 'wound-unit', unitKey: unit.key, delta, playerId })}
         />
       ) : null}
       {unit.wounds && unit.wounds > 1 ? (
@@ -278,10 +356,10 @@ function UnitStatus({
           of={unit.wounds}
           whole={unit.alive === unit.models && unit.damage === 0}
           actionable={actionable}
-          pending={pending}
+          disabled={blocked}
           removeLabel={`Take a wound off ${unit.name}`}
           returnLabel={`Heal a wound on ${unit.name}`}
-          onStep={(delta) => send({ kind: 'damage-unit', unitKey: unit.key, delta, playerId })}
+          onStep={(delta) => press({ kind: 'damage-unit', unitKey: unit.key, delta, playerId })}
         />
       ) : null}
       {actionable ? (
@@ -290,7 +368,7 @@ function UnitStatus({
           size="xs"
           className="ml-auto shrink-0"
           aria-label={`Mark ${unit.name} lost`}
-          disabled={pending}
+          disabled={blocked}
           onClick={() => mark(true)}
         >
           Lost
@@ -313,7 +391,7 @@ function Counter({
   of,
   whole,
   actionable,
-  pending,
+  disabled,
   removeLabel,
   returnLabel,
   onStep,
@@ -323,7 +401,7 @@ function Counter({
   of: number
   whole: boolean
   actionable: boolean
-  pending: boolean
+  disabled: boolean
   removeLabel: string
   returnLabel: string
   onStep: (delta: number) => void
@@ -331,7 +409,7 @@ function Counter({
   return (
     <span className="flex shrink-0 items-center gap-1.5">
       {actionable ? (
-        <Button variant="outline" size="icon-xs" aria-label={removeLabel} disabled={pending} onClick={() => onStep(-1)}>
+        <Button variant="outline" size="icon-xs" aria-label={removeLabel} disabled={disabled} onClick={() => onStep(-1)}>
           <Minus aria-hidden />
         </Button>
       ) : null}
@@ -340,7 +418,7 @@ function Counter({
       </span>
       <span className="eyebrow">{noun}</span>
       {actionable ? (
-        <Button variant="outline" size="icon-xs" disabled={pending || whole} aria-label={returnLabel} onClick={() => onStep(1)}>
+        <Button variant="outline" size="icon-xs" disabled={disabled || whole} aria-label={returnLabel} onClick={() => onStep(1)}>
           <Plus aria-hidden />
         </Button>
       ) : null}

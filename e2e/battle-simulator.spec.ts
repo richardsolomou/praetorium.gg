@@ -189,7 +189,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
     if (width === 1440) await squad.getByRole('button', { name: 'Take a wound off Intercessor Squad' }).click()
     await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
-    expect(await army.locator('[data-slot="dialog-body"]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    expect(await army.locator('[data-army-list]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
     await expect(army.getByRole('button', { name: /^Simulate/ })).toHaveCount(0)
     await army.getByRole('button', { name: 'Close', exact: true }).click()
     await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
