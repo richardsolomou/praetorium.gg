@@ -2,10 +2,12 @@ import { createRequire } from 'node:module'
 import { afterEach, expect, test } from 'vitest'
 
 const require = createRequire(import.meta.url)
-const appConfig = require('../mobile/app.config.js') as () => {
+const { expo } = require('../mobile/app.json') as { expo: Record<string, unknown> }
+const resolveAppConfig = require('../mobile/app.config.js') as (context: { config: Record<string, unknown> }) => {
   updates?: { requestHeaders?: Record<string, string> }
   plugins?: (string | [string, Record<string, unknown>])[]
 }
+const appConfig = () => resolveAppConfig({ config: expo })
 const originalChannel = process.env.MOBILE_UPDATE_CHANNEL
 
 afterEach(() => {
