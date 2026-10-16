@@ -51,6 +51,9 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    // TanStack Start keeps better-auth and ras-stack out of pre-bundling, so without these
+    // the browser meets their imports only on first load and Vite reloads the page for them.
+    optimizeDeps: { include: ['better-auth > jose/errors', 'ras-stack > nodemailer'] },
     worker: { plugins: () => webSourceMapPlugins(env) },
     server: {
       port: 3000,
