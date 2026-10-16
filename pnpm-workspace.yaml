@@ -12,8 +12,6 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - ras-stack-config@1.0.0
   - ras-stack@3.1.0
-  - expo-file-system@57.0.6
-  - expo-haptics@57.0.2
   # Server telemetry target from the SDK update report; the pins are hours short
   # of the age threshold and can be dropped once it passes.
   - posthog-node@5.52.3
