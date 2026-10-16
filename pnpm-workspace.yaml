@@ -82,3 +82,8 @@ minimumReleaseAgeExclude:
   - expo@58.0.12
   - react-native@0.88.0
 minimumReleaseAge: 10080
+packageExtensions:
+  # The Expo config plugin's compiled tooling requires @babel/runtime 7 subpaths without declaring it.
+  posthog-react-native:
+    dependencies:
+      '@babel/runtime': ^7.20.0

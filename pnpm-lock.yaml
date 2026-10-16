@@ -4,6 +4,8 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+packageExtensionsChecksum: sha256-6c58zEPnz0/E5hbPuzPLG/3mMxI2Rn//Sgi7e+54Z6s=
+
 importers:
 
   .:
@@ -13151,6 +13153,7 @@ snapshots:
 
   posthog-react-native@4.80.0(4e05132c002c73f00d66460165aca6f4):
     dependencies:
+      '@babel/runtime': 7.29.10
       '@posthog/core': 1.57.3
       '@posthog/types': 1.415.2
     optionalDependencies:
