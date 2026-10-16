@@ -14,6 +14,7 @@ import ClearCollectionPhotoDeletionsReducer from '../clear_collection_photo_dele
 import DeletePushTokensReducer from '../delete_push_tokens_reducer'
 import DeleteRosterReducer from '../delete_roster_reducer'
 import DeleteUserDataReducer from '../delete_user_data_reducer'
+import KeepCollectionPhotoReducer from '../keep_collection_photo_reducer'
 import RegisterPracticeOpponentReducer from '../register_practice_opponent_reducer'
 import RegisterPushTokenReducer from '../register_push_token_reducer'
 import RemoveCollectionPhotoReducer from '../remove_collection_photo_reducer'
@@ -23,6 +24,7 @@ import RemoveFavouriteDetachmentReducer from '../remove_favourite_detachment_red
 import RemoveFavouriteFactionReducer from '../remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from '../remove_from_collection_reducer'
 import ReplaceFriendInviteReducer from '../replace_friend_invite_reducer'
+import ReportCollectionPhotoReducer from '../report_collection_photo_reducer'
 import RevokeOwnAccessReducer from '../revoke_own_access_reducer'
 import RevokeSessionReducer from '../revoke_session_reducer'
 import SetCollectionModelsReducer from '../set_collection_models_reducer'
@@ -40,6 +42,7 @@ export type ClearCollectionPhotoDeletionsParams = __Infer<typeof ClearCollection
 export type DeletePushTokensParams = __Infer<typeof DeletePushTokensReducer>
 export type DeleteRosterParams = __Infer<typeof DeleteRosterReducer>
 export type DeleteUserDataParams = __Infer<typeof DeleteUserDataReducer>
+export type KeepCollectionPhotoParams = __Infer<typeof KeepCollectionPhotoReducer>
 export type RegisterPracticeOpponentParams = __Infer<typeof RegisterPracticeOpponentReducer>
 export type RegisterPushTokenParams = __Infer<typeof RegisterPushTokenReducer>
 export type RemoveCollectionPhotoParams = __Infer<typeof RemoveCollectionPhotoReducer>
@@ -49,6 +52,7 @@ export type RemoveFavouriteDetachmentParams = __Infer<typeof RemoveFavouriteDeta
 export type RemoveFavouriteFactionParams = __Infer<typeof RemoveFavouriteFactionReducer>
 export type RemoveFromCollectionParams = __Infer<typeof RemoveFromCollectionReducer>
 export type ReplaceFriendInviteParams = __Infer<typeof ReplaceFriendInviteReducer>
+export type ReportCollectionPhotoParams = __Infer<typeof ReportCollectionPhotoReducer>
 export type RevokeOwnAccessParams = __Infer<typeof RevokeOwnAccessReducer>
 export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>
 export type SetCollectionModelsParams = __Infer<typeof SetCollectionModelsReducer>

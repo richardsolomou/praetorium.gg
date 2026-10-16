@@ -68,6 +68,7 @@ export const CollectionPhoto = __t.object('CollectionPhoto', {
   entryId: __t.string(),
   at: __t.u64(),
   likes: __t.option(__t.u32()),
+  review: __t.option(__t.string()),
 })
 export type CollectionPhoto = __Infer<typeof CollectionPhoto>
 

@@ -7,5 +7,5 @@ import { TypeBuilder as __TypeBuilder, t as __t, type AlgebraicTypeType as __Alg
 
 export default {
   userId: __t.string(),
-  entryId: __t.string(),
+  photoId: __t.string(),
 }

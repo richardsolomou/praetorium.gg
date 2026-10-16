@@ -42,6 +42,7 @@ import ClearCollectionPhotoDeletionsReducer from './clear_collection_photo_delet
 import DeletePushTokensReducer from './delete_push_tokens_reducer'
 import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
+import KeepCollectionPhotoReducer from './keep_collection_photo_reducer'
 import RegisterPracticeOpponentReducer from './register_practice_opponent_reducer'
 import RegisterPushTokenReducer from './register_push_token_reducer'
 import RemoveCollectionPhotoReducer from './remove_collection_photo_reducer'
@@ -51,6 +52,7 @@ import RemoveFavouriteDetachmentReducer from './remove_favourite_detachment_redu
 import RemoveFavouriteFactionReducer from './remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from './remove_from_collection_reducer'
 import ReplaceFriendInviteReducer from './replace_friend_invite_reducer'
+import ReportCollectionPhotoReducer from './report_collection_photo_reducer'
 import RevokeOwnAccessReducer from './revoke_own_access_reducer'
 import RevokeSessionReducer from './revoke_session_reducer'
 import SetCollectionModelsReducer from './set_collection_models_reducer'
@@ -71,6 +73,7 @@ import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as CollectionByUserProcedure from './collection_by_user_procedure'
 import * as CollectionPhotoProcedure from './collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from './collection_photo_deletions_procedure'
+import * as CollectionPhotoForAdminProcedure from './collection_photo_for_admin_procedure'
 import * as CollectionProfileProcedure from './collection_profile_procedure'
 import * as CreateBattleProcedure from './create_battle_procedure'
 import * as DatasheetPhotosProcedure from './datasheet_photos_procedure'
@@ -83,6 +86,7 @@ import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_
 import * as FriendInviteByInviterProcedure from './friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from './friend_invite_by_token_procedure'
 import * as FriendshipsByUserProcedure from './friendships_by_user_procedure'
+import * as HeldCollectionPhotosProcedure from './held_collection_photos_procedure'
 import * as HomeRostersByUserProcedure from './home_rosters_by_user_procedure'
 import * as LeagueBattleCandidatesProcedure from './league_battle_candidates_procedure'
 import * as LeagueByTokenProcedure from './league_by_token_procedure'
@@ -200,6 +204,7 @@ const reducersSchema = __reducers(
   __reducerSchema('delete_push_tokens', DeletePushTokensReducer),
   __reducerSchema('delete_roster', DeleteRosterReducer),
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
+  __reducerSchema('keep_collection_photo', KeepCollectionPhotoReducer),
   __reducerSchema('register_practice_opponent', RegisterPracticeOpponentReducer),
   __reducerSchema('register_push_token', RegisterPushTokenReducer),
   __reducerSchema('remove_collection_photo', RemoveCollectionPhotoReducer),
@@ -209,6 +214,7 @@ const reducersSchema = __reducers(
   __reducerSchema('remove_favourite_faction', RemoveFavouriteFactionReducer),
   __reducerSchema('remove_from_collection', RemoveFromCollectionReducer),
   __reducerSchema('replace_friend_invite', ReplaceFriendInviteReducer),
+  __reducerSchema('report_collection_photo', ReportCollectionPhotoReducer),
   __reducerSchema('revoke_own_access', RevokeOwnAccessReducer),
   __reducerSchema('revoke_session', RevokeSessionReducer),
   __reducerSchema('set_collection_models', SetCollectionModelsReducer),
@@ -231,6 +237,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('collection_by_user', CollectionByUserProcedure.params, CollectionByUserProcedure.returnType),
   __procedureSchema('collection_photo', CollectionPhotoProcedure.params, CollectionPhotoProcedure.returnType),
   __procedureSchema('collection_photo_deletions', CollectionPhotoDeletionsProcedure.params, CollectionPhotoDeletionsProcedure.returnType),
+  __procedureSchema('collection_photo_for_admin', CollectionPhotoForAdminProcedure.params, CollectionPhotoForAdminProcedure.returnType),
   __procedureSchema('collection_profile', CollectionProfileProcedure.params, CollectionProfileProcedure.returnType),
   __procedureSchema('create_battle', CreateBattleProcedure.params, CreateBattleProcedure.returnType),
   __procedureSchema('datasheet_photos', DatasheetPhotosProcedure.params, DatasheetPhotosProcedure.returnType),
@@ -251,6 +258,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('friend_invite_by_inviter', FriendInviteByInviterProcedure.params, FriendInviteByInviterProcedure.returnType),
   __procedureSchema('friend_invite_by_token', FriendInviteByTokenProcedure.params, FriendInviteByTokenProcedure.returnType),
   __procedureSchema('friendships_by_user', FriendshipsByUserProcedure.params, FriendshipsByUserProcedure.returnType),
+  __procedureSchema('held_collection_photos', HeldCollectionPhotosProcedure.params, HeldCollectionPhotosProcedure.returnType),
   __procedureSchema('home_rosters_by_user', HomeRostersByUserProcedure.params, HomeRostersByUserProcedure.returnType),
   __procedureSchema('league_battle_candidates', LeagueBattleCandidatesProcedure.params, LeagueBattleCandidatesProcedure.returnType),
   __procedureSchema('league_by_token', LeagueByTokenProcedure.params, LeagueByTokenProcedure.returnType),

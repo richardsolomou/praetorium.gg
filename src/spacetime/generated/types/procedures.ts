@@ -16,6 +16,7 @@ import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CollectionPhotoProcedure from '../collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from '../collection_photo_deletions_procedure'
+import * as CollectionPhotoForAdminProcedure from '../collection_photo_for_admin_procedure'
 import * as CollectionProfileProcedure from '../collection_profile_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
 import * as DatasheetPhotosProcedure from '../datasheet_photos_procedure'
@@ -28,6 +29,7 @@ import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user
 import * as FriendInviteByInviterProcedure from '../friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from '../friend_invite_by_token_procedure'
 import * as FriendshipsByUserProcedure from '../friendships_by_user_procedure'
+import * as HeldCollectionPhotosProcedure from '../held_collection_photos_procedure'
 import * as HomeRostersByUserProcedure from '../home_rosters_by_user_procedure'
 import * as LeagueBattleCandidatesProcedure from '../league_battle_candidates_procedure'
 import * as LeagueByTokenProcedure from '../league_by_token_procedure'
@@ -93,6 +95,8 @@ export type CollectionPhotoArgs = __Infer<typeof CollectionPhotoProcedure.params
 export type CollectionPhotoResult = __Infer<typeof CollectionPhotoProcedure.returnType>
 export type CollectionPhotoDeletionsArgs = __Infer<typeof CollectionPhotoDeletionsProcedure.params>
 export type CollectionPhotoDeletionsResult = __Infer<typeof CollectionPhotoDeletionsProcedure.returnType>
+export type CollectionPhotoForAdminArgs = __Infer<typeof CollectionPhotoForAdminProcedure.params>
+export type CollectionPhotoForAdminResult = __Infer<typeof CollectionPhotoForAdminProcedure.returnType>
 export type CollectionProfileArgs = __Infer<typeof CollectionProfileProcedure.params>
 export type CollectionProfileResult = __Infer<typeof CollectionProfileProcedure.returnType>
 export type CreateBattleArgs = __Infer<typeof CreateBattleProcedure.params>
@@ -117,6 +121,8 @@ export type FriendInviteByTokenArgs = __Infer<typeof FriendInviteByTokenProcedur
 export type FriendInviteByTokenResult = __Infer<typeof FriendInviteByTokenProcedure.returnType>
 export type FriendshipsByUserArgs = __Infer<typeof FriendshipsByUserProcedure.params>
 export type FriendshipsByUserResult = __Infer<typeof FriendshipsByUserProcedure.returnType>
+export type HeldCollectionPhotosArgs = __Infer<typeof HeldCollectionPhotosProcedure.params>
+export type HeldCollectionPhotosResult = __Infer<typeof HeldCollectionPhotosProcedure.returnType>
 export type HomeRostersByUserArgs = __Infer<typeof HomeRostersByUserProcedure.params>
 export type HomeRostersByUserResult = __Infer<typeof HomeRostersByUserProcedure.returnType>
 export type LeagueBattleCandidatesArgs = __Infer<typeof LeagueBattleCandidatesProcedure.params>
