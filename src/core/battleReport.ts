@@ -118,7 +118,7 @@ function describe(
       // The twist is named by its pack's own id, which this file has no way to read
       // back into a name — `src/core` holds no game data. The log records that one is
       // in play; the battle facts name it from the pack.
-      return `${who} sets a ${command.limit}-point battle${command.twistId ? ' with a mission twist' : ''}${command.manual ? ', tracked manually' : ''}`
+      return `${who} ${command.limit === null ? 'sets up a battle sized by its rosters' : `sets a ${command.limit.toLocaleString('en')}-point battle`}${command.twistId ? ' with a mission twist' : ''}${command.manual ? ', tracked manually' : ''}`
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'set-setup-step':
@@ -172,7 +172,7 @@ function describe(
     case 'begin-battle': {
       const first = named.get(command.firstPlayerId) ?? 'someone'
       if (after.settings.manual) return `The battle begins, ${first} taking the first turn`
-      return `The battle begins, ${named.get(command.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${first} taking the first turn; both sides gain 1 CP`
+      return `The battle begins, ${named.get(after.attackerId ?? command.firstPlayerId) ?? 'someone'} attacking and ${first} taking the first turn; both sides gain 1 CP`
     }
     case 'advance': {
       if (after.status === 'finished' || after.completionPending) {

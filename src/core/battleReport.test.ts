@@ -59,6 +59,31 @@ describe('the account of the battle', () => {
     )
   })
 
+  it('names the recorded attacker when the other side takes the first turn', () => {
+    const history = log(
+      [ALICE, roster('Ultramarines')],
+      [BOB, roster('Death Guard')],
+      [ALICE, { kind: 'set-attacker', attackerId: BOB }],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    )
+    expect(text(battleReport(NAMES, history))).toContain(
+      'The battle begins, Bob attacking and Alice taking the first turn; both sides gain 1 CP',
+    )
+  })
+
+  it('names a battle sized by its rosters without a points total', () => {
+    const configure: Command = {
+      kind: 'configure-battle',
+      limit: null,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: false,
+      clockLimitMinutes: null,
+    }
+    expect(text(battleReport(NAMES, log([ALICE, configure])))).toEqual(['Alice sets up a battle sized by its rosters'])
+  })
+
   it('marks a new round', () => {
     const history = log(...started(), ...turns(6, ALICE), ...turns(6, BOB))
     expect(text(battleReport(NAMES, history))).toContain('Round 2 begins; both sides gain 1 CP')
