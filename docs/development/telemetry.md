@@ -25,6 +25,7 @@ Custom events measure starts, attempts, completed actions, and bounded failures;
 - `detachment_rules_covered` requires every selected detachment, including imported options, to resolve to supported Game Datacards semantics.
 - `battle_command_submitted` refusals carry a `RefusalCode` from `src/core/battle.ts`, never the message; read it with `command`, since codes are shared across kinds. `unclassified` is a refusal the server's rules did not reproduce, expected only while releases overlap. `set-setup-step` appears only for battles set up before the one-page setup.
 - Measure spectator invite conversion as unique people from `spectator_invite_followed` to `guest_roster_started`, `account_created`, or `battle_creation_submitted`; a battle finishing while watched can repeat `shown`.
+- `collection_photo_screened` and `profile_picture_screened` carry TypeSafe Jev probabilities per question in `src/server/photoScreening.ts`, or an `outcome` of `unreadable` or `failed`. They decide nothing yet; choose thresholds from them before acting on uploads, and compare only rows from the same `model`.
 - `reference` (`datasheet` or `detachment`) marks flows begun on a reference page; measure reference conversion with it, not destination pageviews.
 
 Browser events receive bounded `feature` and `surface` at the send boundary; route parameters never enter `feature`, and server/native-shell events do not inherit them. Web vitals use the measured `$current_url`, since later SPA navigation can change `$pathname`.

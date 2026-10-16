@@ -74,6 +74,8 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     }
     // Only production's pages belong in search results.
     if (environment.INDEXNOW_KEY) entries.INDEXNOW_KEY = required(environment, 'INDEXNOW_KEY')
+    // Only real uploads are worth screening.
+    if (environment.TYPESAFE_API_KEY) entries.TYPESAFE_API_KEY = required(environment, 'TYPESAFE_API_KEY')
   }
   return Object.entries(entries)
     .map(([name, value]) => `${name}=${value}`)

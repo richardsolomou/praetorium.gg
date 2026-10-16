@@ -70,6 +70,7 @@ jobs:
       GITHUB_CLIENT_SECRET: ${{ secrets.PRAETORIUM_GITHUB_CLIENT_SECRET }}
       GITHUB_SPONSORS_TOKEN: ${{ secrets.PRAETORIUM_GITHUB_SPONSORS_TOKEN }}
       INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
       SMTP_HOST: ${{ vars.SMTP_HOST }}
       SMTP_PORT: ${{ vars.SMTP_PORT }}
       SMTP_SECURE: ${{ vars.SMTP_SECURE }}

@@ -1451,7 +1451,7 @@ export const collectionProfile = spacetime.procedure(
       const entries = []
       for (const row of tx.db.collection.userId.filter(userId)) {
         if (entries.length >= MAX_COLLECTION_DATASHEETS) throw new SenderError('Collection exceeds the supported limit')
-        entries.push({ entryId: row.entryId, models: row.models, ...collectionPhotoField(tx, row.key) })
+        entries.push({ entryId: row.entryId, models: row.models, ...collectionPhotoField(tx, row.key, viewerId === userId) })
       }
       return productJson({ published, entries })
     }),
@@ -1504,7 +1504,7 @@ export const setCollectionPhoto = spacetime.reducer(
     const key = JSON.stringify([userId, entryId])
     if (!ctx.db.collection.key.find(key)) throw new SenderError('Add the datasheet to your collection before adding a photo')
     dropCollectionPhoto(ctx, key)
-    ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId, at: input.at, likes: 0 })
+    ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId, at: input.at, likes: 0, review: undefined })
     touchCollection(ctx, userId)
   },
 )
@@ -1514,7 +1514,7 @@ export const removeCollectionPhoto = spacetime.reducer({ userId: t.string(), ent
   if (dropCollectionPhoto(ctx, JSON.stringify([userId, entryId]))) touchCollection(ctx, userId)
 })
 
-/** The photo's owner while it may be shown to `viewerId`: always to its owner, to anyone else while the collection is shared. */
+/** The photo's owner while it may be shown to `viewerId`. */
 export const collectionPhoto = spacetime.procedure(
   { photoId: t.string(), viewerId: t.option(t.string()) },
   t.string(),
@@ -1522,10 +1522,23 @@ export const collectionPhoto = spacetime.procedure(
     ctx.withTx((tx) => {
       requireOperator(tx)
       const row = tx.db.collectionPhotos.photoId.find(photoId)
-      const visible = row && (row.userId === viewerId || collectionPublished(tx, row.userId))
-      return productJson(visible ? { userId: row.userId, entryId: row.entryId } : null)
+      return productJson(row && photoShown(tx, row, viewerId) ? { userId: row.userId, entryId: row.entryId } : null)
     }),
 )
+
+/** The photo's owner whatever its visibility, for an administrator reviewing it. */
+export const collectionPhotoForAdmin = spacetime.procedure({ photoId: t.string() }, t.string(), (ctx, { photoId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const row = tx.db.collectionPhotos.photoId.find(photoId)
+    return productJson(row ? { userId: row.userId, entryId: row.entryId } : null)
+  }),
+)
+
+/** Always shown to its owner; to anyone else while the collection is shared and no report holds it. */
+function photoShown(ctx: Context, row: { userId: string; review?: string }, viewerId: string | undefined) {
+  return row.userId === viewerId || (row.review !== 'held' && collectionPublished(ctx, row.userId))
+}
 
 /** The photos of a datasheet its viewer may see, shared collections' and the viewer's own, in gallery order. */
 export const datasheetPhotos = spacetime.procedure(
@@ -1537,6 +1550,7 @@ export const datasheetPhotos = spacetime.procedure(
       const published = new Map<string, boolean>()
       const visible = Array.from(tx.db.collectionPhotos.entryId.filter(entryId)).filter((row) => {
         if (row.userId === viewerId) return true
+        if (row.review === 'held') return false
         if (!published.has(row.userId)) published.set(row.userId, collectionPublished(tx, row.userId))
         return published.get(row.userId)
       })
@@ -1560,11 +1574,47 @@ export const setCollectionPhotoLike = spacetime.reducer(
   (ctx, { userId, photoId, liked, at }) => {
     requireOperator(ctx)
     const photo = ctx.db.collectionPhotos.photoId.find(photoId)
-    if (!photo || (photo.userId !== userId && !collectionPublished(ctx, photo.userId)))
-      throw new SenderError('That photo is no longer shown')
+    if (!photo || !photoShown(ctx, photo, userId)) throw new SenderError('That photo is no longer shown')
     if (photo.userId === userId) throw new SenderError('You cannot like your own photo')
     setLike(ctx, photoId, userId, liked, at)
   },
+)
+
+/** A reader's report, which holds the photo for review unless an administrator has already kept it. */
+export const reportCollectionPhoto = spacetime.reducer({ userId: t.string(), photoId: t.string() }, (ctx, { userId, photoId }) => {
+  requireOperator(ctx)
+  const photo = ctx.db.collectionPhotos.photoId.find(photoId)
+  if (!photo || !photoShown(ctx, photo, userId)) throw new SenderError('That photo is no longer shown')
+  if (photo.userId === userId) throw new SenderError('You cannot report your own photo')
+  if (photo.review) return
+  ctx.db.collectionPhotos.photoId.update({ ...photo, review: 'held' })
+  touchCollection(ctx, photo.userId)
+  touchAdmin(ctx)
+})
+
+/** An administrator's decision to show a reported photo again and ignore later reports of it. */
+export const keepCollectionPhoto = spacetime.reducer({ photoId: t.string() }, (ctx, { photoId }) => {
+  requireOperator(ctx)
+  const photo = ctx.db.collectionPhotos.photoId.find(photoId)
+  if (!photo || photo.review === 'kept') return
+  ctx.db.collectionPhotos.photoId.update({ ...photo, review: 'kept' })
+  touchCollection(ctx, photo.userId)
+  touchAdmin(ctx)
+})
+
+/** Photos a report holds, oldest first, for administrators to keep or remove. */
+export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const held = []
+    for (const row of tx.db.collectionPhotos.iter()) if (row.review === 'held') held.push(row)
+    return productJson(
+      held
+        .sort((left, right) => Number(left.at - right.at) || left.photoId.localeCompare(right.photoId))
+        .slice(0, Math.min(limit, 100))
+        .map(({ photoId, userId, entryId, at }) => ({ photoId, userId, entryId, at })),
+    )
+  }),
 )
 
 function setLike(ctx: Context, photoId: string, userId: string, liked: boolean, at: bigint) {
@@ -1582,7 +1632,9 @@ function setLike(ctx: Context, photoId: string, userId: string, liked: boolean, 
 export const removeCollectionPhotoById = spacetime.reducer({ photoId: t.string() }, (ctx, { photoId }) => {
   requireOperator(ctx)
   const photo = ctx.db.collectionPhotos.photoId.find(photoId)
-  if (photo && dropCollectionPhoto(ctx, photo.key)) touchCollection(ctx, photo.userId)
+  if (!photo || !dropCollectionPhoto(ctx, photo.key)) return
+  touchCollection(ctx, photo.userId)
+  if (photo.review === 'held') touchAdmin(ctx)
 })
 
 export const collectionPhotoDeletions = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
@@ -1602,10 +1654,10 @@ export const clearCollectionPhotoDeletions = spacetime.reducer({ photoIds: t.arr
   for (const photoId of photoIds.slice(0, 1_000)) ctx.db.collectionPhotoDeletions.photoId.delete(photoId)
 })
 
-/** Absent rather than null when there is no photo, because `productJson` writes undefined fields as null. */
-function collectionPhotoField(ctx: Context, key: string) {
+/** Absent rather than null when there is no photo, because `productJson` writes undefined fields as null; only its owner sees a held photo. */
+function collectionPhotoField(ctx: Context, key: string, owner = true) {
   const photo = ctx.db.collectionPhotos.key.find(key)
-  return photo ? { photoId: photo.photoId } : {}
+  return photo && (owner || photo.review !== 'held') ? { photoId: photo.photoId } : {}
 }
 
 /** Drops a collection row's photo, leaving its id for the web server to delete the stored object. */

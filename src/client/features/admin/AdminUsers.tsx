@@ -15,6 +15,7 @@ import { errorMessage } from '../../queryClient'
 import { useSettled } from '../../useSettled'
 import { PageContent, PageHeader } from '../../components/Page'
 import { SearchField } from '../../components/SearchField'
+import { AdminHeldPhotos } from './AdminHeldPhotos'
 import { AdminUserPanel } from './AdminUserPanel'
 import { AdminUsersTable } from './AdminUsersTable'
 
@@ -34,7 +35,7 @@ export function AdminUsers({ currentUserId }: { currentUserId: string }) {
       <PageHeader
         eyebrow="Praetorium"
         title="Administration"
-        description="Find a player to change their access, help them sign in, or delete their account."
+        description="Review reported photos, or find a player to change their access, help them sign in, or delete their account."
         media={
           <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
@@ -43,6 +44,7 @@ export function AdminUsers({ currentUserId }: { currentUserId: string }) {
       />
 
       <PageContent>
+        <AdminHeldPhotos />
         <section>
           <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
             <span>Players</span>

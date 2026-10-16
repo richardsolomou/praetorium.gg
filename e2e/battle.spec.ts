@@ -351,7 +351,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const ownPanel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const playerLink = ownPanel.getByRole('link', { name: aliceName })
   await expect(playerLink).toHaveAttribute('href', /^\/users\/[^/?]+$/)
-  await expect(playerLink.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
+  await expect(playerLink.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await playerLink.hover()
   await expect(playerLink).toHaveCSS('text-decoration-line', 'none')
   await expect(playerLink.getByText(aliceName, { exact: true })).toHaveCSS('text-decoration-line', 'underline')

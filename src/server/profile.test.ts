@@ -28,6 +28,7 @@ describe('profileUpdate', () => {
     expect(await profileUpdate({ image: 'data:image/webp;base64,YXZhdGFy' })).toEqual({
       ok: true,
       data: { image: STORED_URL },
+      uploaded: 'data:image/webp;base64,YXZhdGFy',
     })
   })
 

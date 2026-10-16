@@ -31,6 +31,7 @@ export function PhotoViewer({
   const [reason, setReason] = useState('')
   const report = useMutation({
     mutationFn: (photoId: string) => reportCollectionPhoto({ data: { photoId, reason } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] }),
   })
   const remove = useMutation({
     mutationFn: (photoId: string) => removeCollectionPhotoAsAdmin({ data: { photoId } }),

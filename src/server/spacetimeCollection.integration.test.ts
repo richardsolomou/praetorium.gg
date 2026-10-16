@@ -143,3 +143,38 @@ it.skipIf(!url || !database || !token)(
     }
   },
 )
+
+it.skipIf(!url || !database || !token)(
+  'holds a reported photo from everyone but its owner and administrators until one keeps it',
+  async () => {
+    const operator = new SpacetimeOperator(url!, database!, token!)
+    const entryId = `held-${randomUUID()}`
+    const [owner, reader] = [randomUUID(), randomUUID()]
+    const photoId = randomUUID()
+    const shown = async (viewerId: string | null) => (await operator.datasheetPhotos(entryId, viewerId, 12)).map((row) => row.photoId)
+    const held = async () => (await operator.heldCollectionPhotos(1_000)).some((row) => row.photoId === photoId)
+    try {
+      await operator.setCollectionModels({ userId: owner, entryId, models: 1, now: 1 })
+      await operator.setCollectionPhoto({ userId: owner, entryId, photoId, now: 1 })
+      await expect(operator.reportCollectionPhoto({ userId: owner, photoId })).rejects.toThrow('your own photo')
+      await operator.reportCollectionPhoto({ userId: reader, photoId })
+      expect([await shown(null), await shown(reader), await shown(owner), await operator.collectionPhoto(photoId, reader)]).toEqual([
+        [],
+        [],
+        [photoId],
+        null,
+      ])
+      expect([await held(), await operator.collectionPhotoForAdmin(photoId)]).toEqual([true, { userId: owner, entryId }])
+      expect([
+        (await operator.collectionProfile(owner, reader))?.entries,
+        (await operator.collectionProfile(owner, owner))?.entries,
+      ]).toEqual([[{ entryId, models: 1 }], [{ entryId, models: 1, photoId }]])
+      await expect(operator.setCollectionPhotoLike({ userId: reader, photoId, liked: true, now: 2 })).rejects.toThrow('no longer shown')
+      await operator.keepCollectionPhoto(photoId)
+      await operator.reportCollectionPhoto({ userId: randomUUID(), photoId })
+      expect([await shown(null), await held()]).toEqual([[photoId], false])
+    } finally {
+      await Promise.all([operator.deleteUserData(owner), operator.deleteUserData(reader)])
+    }
+  },
+)

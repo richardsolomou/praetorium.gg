@@ -22,6 +22,7 @@ import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 import { storeProfileImageFromUrl } from './avatarStorage'
 import { collectionPhotoStore, type CollectionPhotoStore } from './collectionPhotos'
+import { PROFILE_PICTURE_QUESTIONS, photoScreening, type PhotoScreening, recordScreening } from './photoScreening'
 import { privateObjects } from './privateImages'
 import { profileUpdate } from './profile'
 import { PraetoriumService } from './service'
@@ -49,6 +50,8 @@ type App = {
   health: () => Promise<void>
   service: PraetoriumService
   collectionPhotos: CollectionPhotoStore
+  /** Scores uploads for review without acting on them; null without `TYPESAFE_API_KEY`. */
+  photoScreening: PhotoScreening | null
   /** Loaded on first use, and null on an instance with no catalogue data synced. */
   catalogue: () => LoadedCatalogue | null
   catalogueFor: (catalogueId: string) => Promise<LoadedCatalogue | null>
@@ -312,6 +315,7 @@ export function app(): App {
     )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
+    const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
     let ready = Promise.resolve()
     const loaded = catalogueLoaders(catalogueDataDirectory)
     const authOptions = {
@@ -321,6 +325,10 @@ export function app(): App {
       revokeSessionAccess: (sessionId: string) => operator.revokeSession(sessionId),
       storeSocialAvatar: storeProfileImageFromUrl,
       updateProfile: profileUpdate,
+      profilePictureUploaded: (userId: string, image: string) =>
+        void recordScreening(screening, image, PROFILE_PICTURE_QUESTIONS, (properties) =>
+          telemetry.capture(userId, 'profile_picture_screened', properties),
+        ),
       githubLinked: () => githubSponsors.refresh(),
       captureAuthentication: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) =>
         telemetry.capture(userId, event, properties),
@@ -353,6 +361,7 @@ export function app(): App {
       combatUnits: loaded.combatUnits,
       construction: loaded.construction,
       collectionPhotos,
+      photoScreening: screening,
       ...catalogueReads(() => instance, loaded),
       push: Boolean(push),
       sync: () => sync.state,

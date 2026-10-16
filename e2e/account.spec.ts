@@ -194,7 +194,7 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.getByRole('button', { name: 'Account menu for Commander Alice' })).toBeVisible()
   await page.reload()
   await expect(page.getByLabel('Display name')).toHaveValue('Commander Alice')
-  await expect(page.locator('main img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
+  await expect(page.locator('main img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: 'test-results/profile-phone.png', fullPage: true })
@@ -284,7 +284,7 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   await expectOnboardingProgress(alice, 1)
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
-  await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
+  await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await bob.screenshot({ path: 'test-results/friends-profile-picture.png', fullPage: true })
   await bob.setViewportSize({ width: 390, height: 844 })
   await bob.screenshot({ path: 'test-results/friends-profile-picture-phone.png', fullPage: true })
