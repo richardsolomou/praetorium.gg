@@ -1,3 +1,4 @@
+import { coreRulesFirst } from './rulesCore'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { datasheetInBySlug } from '../shared/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -26,7 +27,7 @@ export function referenceDatasheetBySlug(sources: ReferenceSources, data: { cata
 
 function referenceRuleDocuments(sources: ReferenceSources) {
   const canonical = sources.canonicalCatalogue()
-  if (canonical) return canonical.ruleDocuments
+  if (canonical) return coreRulesFirst(canonical.ruleDocuments)
   return sources.rules()?.ruleDocuments ?? null
 }
 
