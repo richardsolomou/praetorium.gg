@@ -15,7 +15,7 @@ export type StandingsTable = { faction: StandingFaction | null; players: number;
  * what the rating was earned from, and the points a battle the player scores.
  * Every width shows all of them.
  */
-export function Standings({ table }: { table: StandingsTable }) {
+export function Standings({ table, viewerId }: { table: StandingsTable; viewerId?: string }) {
   return (
     <section data-onboarding="standings-table" data-standings>
       <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
@@ -65,6 +65,7 @@ export function Standings({ table }: { table: StandingsTable }) {
                     <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
                       <PlayerAvatar name={row.name} image={row.image} className="size-7 text-3xs" />
                       <span className="truncate font-bold uppercase">{row.name}</span>
+                      {row.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
                     </Link>
                   </td>
                   <td className="readout p-3 text-right text-info">{row.rating}</td>
@@ -78,7 +79,7 @@ export function Standings({ table }: { table: StandingsTable }) {
           </table>
         </div>
       ) : (
-        <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">Nobody has finished a public battle here yet.</p>
+        <p className="mt-2 text-sm text-dim">Nobody has finished a public battle here yet.</p>
       )}
     </section>
   )
@@ -117,7 +118,7 @@ export function FactionFilter({ factions, selected }: { factions: readonly Stand
       }}
       placeholder="Everyone"
       searchPlaceholder="Search factions…"
-      className="w-full sm:w-72"
+      className="w-72 max-w-full"
     />
   )
 }

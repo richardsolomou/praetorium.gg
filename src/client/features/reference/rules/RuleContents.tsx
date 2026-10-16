@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronLeft } from 'lucide-react'
 import { useDateFormatting } from '../../../dates'
 import { ruleIndexQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -15,22 +14,23 @@ export function RuleContents({ documentId }: { documentId: string }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Rules"
+        eyebrow={
+          <Link to="/rules" className="text-info hover:text-bone">
+            Rules
+          </Link>
+        }
         title={document.title}
         description={
           <>
-            {document.sections.length} sections. Open one to read it.
+            {document.sections.length} sections.
             {/* When the source last wrote this document, which is how current these rules are. */}
             {document.updated ? ` Updated ${date(document.updated)}.` : null}
           </>
         }
       />
-      <PageContent>
-        <Link to="/rules" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
-          <ChevronLeft className="size-3.5" aria-hidden /> Rules
-        </Link>
+      <PageContent className="space-y-6">
         {document.sections.map((section) => (
-          <section key={section.id} data-onboarding="rule-contents" className="mt-5">
+          <section key={section.id} data-onboarding="rule-contents">
             <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
               <Link
                 to="/rules/$documentId/$sectionId"
@@ -41,7 +41,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
               </Link>
               <span className="readout">{section.entries.length}</span>
             </h2>
-            <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2">
+            <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel sm:grid-cols-2">
               {section.entries.map((entry) => (
                 <Link
                   key={entry.anchor}
@@ -49,7 +49,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
                   to="/rules/$documentId/$sectionId"
                   params={{ documentId: document.slug, sectionId: section.slug }}
                   hash={entry.anchor}
-                  className="flex items-center gap-2 bg-panel px-3 py-2 hover:bg-raised"
+                  className="flex items-center gap-2 bg-panel px-3 py-2 ring-1 ring-edge hover:bg-raised"
                 >
                   {entry.code ? <span className="readout w-16 shrink-0 text-xs text-faint">{entry.code}</span> : null}
                   <span className="min-w-0 flex-1 truncate text-sm text-bone">{entry.title}</span>
@@ -58,7 +58,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
             </div>
           </section>
         ))}
-        <p className="mt-8 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

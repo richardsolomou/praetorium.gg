@@ -344,7 +344,7 @@ function GuidePrompt({
   return (
     <section role="note" aria-live="polite" aria-label="Getting started">
       <div className="flex items-start justify-between gap-3">
-        <p className="eyebrow text-info">Field guide</p>
+        <p className="eyebrow text-info">Getting started</p>
         <Button
           type="button"
           variant="ghost"
@@ -415,7 +415,7 @@ function GuidePanel({
         <div className="flex flex-col gap-2">
           <p className="eyebrow text-info">Getting started</p>
           <h2 id="onboarding-guide-title" ref={heading} tabIndex={-1} className="text-xl text-bone outline-none">
-            {complete ? 'Field guide complete' : 'Learn Praetorium'}
+            {complete ? 'Everything covered' : 'Learn Praetorium'}
           </h2>
           <p className="text-dim">
             {complete

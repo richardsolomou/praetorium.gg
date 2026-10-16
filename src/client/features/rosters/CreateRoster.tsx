@@ -27,7 +27,7 @@ export function CreateRoster({ factionOptions, limit }: { factionOptions: Roster
           setOpen(true)
         }}
       >
-        <Plus /> Create roster
+        <Plus /> New roster
       </Button>
       <RosterSetupDialog
         // The dialog reads its value once, so defaults that arrive later start it again.

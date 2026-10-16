@@ -37,6 +37,21 @@ const posthog = import.meta.env.PROD
   : undefined
 const posthogService = { name: 'praetorium', version, environment: import.meta.env.MODE }
 
+const PRIMARY_LINKS = [
+  { to: '/rosters', label: 'Rosters', Icon: ScrollText },
+  { to: '/battles', label: 'Battles', Icon: Swords },
+  { to: '/leagues', label: 'Leagues', Icon: Trophy },
+  { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
+  { to: '/simulator', label: 'Simulator', Icon: Calculator },
+] as const
+
+const REFERENCE_LINKS = [
+  { to: '/factions', label: 'Factions', Icon: UsersRound },
+  { to: '/missions', label: 'Missions', Icon: BookOpen },
+  { to: '/force-dispositions', label: 'Force dispositions', Icon: Layers3 },
+  { to: '/rules', label: 'Rules', Icon: Gavel },
+] as const
+
 function PrimaryNavigation({ path }: { path: string }) {
   // The page the menu was opened on, so moving to another page closes it.
   const [openOn, setOpenOn] = useState<string | null>(null)
@@ -84,72 +99,48 @@ function PrimaryNavigation({ path }: { path: string }) {
         className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg @min-[46.75rem]:static @min-[46.75rem]:flex @min-[46.75rem]:items-center @min-[46.75rem]:gap-3 @min-[55.55rem]:gap-4 @min-[46.75rem]:border-0 @min-[46.75rem]:bg-transparent @min-[46.75rem]:p-0 @min-[46.75rem]:shadow-none`}
         aria-label="Primary"
       >
-        <Link
-          to="/rosters"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
-        >
-          <ScrollText aria-hidden className="size-4 shrink-0 text-info" />
-          Rosters
-        </Link>
-        <Link
-          to="/battles"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
-        >
-          <Swords aria-hidden className="size-4 shrink-0 text-info" />
-          Battles
-        </Link>
-        <Link
-          to="/leagues"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
-        >
-          <Trophy aria-hidden className="size-4 shrink-0 text-info" />
-          Leagues
-        </Link>
-        <Link
-          to="/leaderboard"
-          search={{ faction: undefined }}
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
-        >
-          <Medal aria-hidden className="size-4 shrink-0 text-info" />
-          Leaderboard
-        </Link>
-        <Link
-          to="/simulator"
-          className={linkClass}
-          activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
-        >
-          <Calculator aria-hidden className="size-4 shrink-0 text-info" />
-          Simulator
-        </Link>
+        {PRIMARY_LINKS.map(({ to, label, Icon }) => (
+          <Link
+            key={to}
+            to={to}
+            search={to === '/leaderboard' ? { faction: undefined } : undefined}
+            className={linkClass}
+            activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
+          >
+            <Icon aria-hidden className="size-4 shrink-0 text-info" />
+            {label}
+          </Link>
+        ))}
+        {/* Only while the compact menu is open, so every server-rendered page does not carry them. */}
+        {open ? (
+          <div className="@min-[46.75rem]:hidden">
+            <p className="eyebrow border-t border-edge px-3 pt-3 pb-1 text-faint">Reference</p>
+            {REFERENCE_LINKS.map(({ to, label, Icon }) => (
+              <Link key={to} to={to} className={linkClass} activeProps={{ className: 'border-parchment bg-raised text-parchment' }}>
+                <Icon aria-hidden className="size-4 shrink-0 text-info" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
                 aria-label="Reference"
-                className={`eyebrow flex items-center gap-1.5 hover:text-info ${/^\/(?:factions|missions|force-dispositions|rules)(?:\/|$)/.test(path) ? 'text-parchment' : ''}`}
+                className={`eyebrow hidden items-center gap-1.5 hover:text-info @min-[46.75rem]:flex ${/^\/(?:factions|missions|force-dispositions|rules)(?:\/|$)/.test(path) ? 'text-parchment' : ''}`}
               />
             }
           >
             <BookOpen aria-hidden className="size-4 shrink-0 text-info" /> Reference <ChevronDown aria-hidden className="size-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuItem render={<Link to="/factions" />}>
-              <UsersRound aria-hidden /> Factions
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/missions" />}>
-              <BookOpen aria-hidden /> Missions
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/force-dispositions" />}>
-              <Layers3 aria-hidden /> Force dispositions
-            </DropdownMenuItem>
-            <DropdownMenuItem render={<Link to="/rules" />}>
-              <Gavel aria-hidden /> Rules
-            </DropdownMenuItem>
+            {REFERENCE_LINKS.map(({ to, label, Icon }) => (
+              <DropdownMenuItem key={to} render={<Link to={to} />}>
+                <Icon aria-hidden /> {label}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>

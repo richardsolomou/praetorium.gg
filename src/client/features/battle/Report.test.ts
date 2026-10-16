@@ -50,3 +50,24 @@ it('shows how long a phase and its turn took beside the line that ends them', ()
 
   expect(markup.replaceAll(/<[^>]+>/g, '')).toMatch(/0:17.*turn 3:12/)
 })
+
+it('labels a line from before the battle began as setup rather than a phase', () => {
+  const entry: ReportEntry = {
+    seq: 1,
+    at: 0,
+    round: 0,
+    phase: 'command',
+    by: 'alice',
+    commandKind: 'set-attacker',
+    text: 'Alice names Bob as the attacker',
+  }
+  const markup = renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(Report, { token: 'battle', open: true, entries: [entry] }),
+    ),
+  )
+
+  expect(markup.replaceAll(/<[^>]+>/g, ' ')).not.toContain('cmd')
+})

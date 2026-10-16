@@ -62,7 +62,7 @@ const columns: (ColumnDef<typeof features, AdminUser> & { meta: AdminColumnMeta 
           type="button"
           aria-haspopup="dialog"
           aria-expanded={table.options.meta?.openedUserId === user.id}
-          className="flex max-w-64 min-w-0 items-center gap-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex max-w-64 min-w-0 items-center gap-2.5 text-left"
         >
           <PlayerAvatar name={user.name} image={user.image} className="size-7 shrink-0 text-[0.625rem]" />
           <span className="truncate font-bold">{user.name}</span>
@@ -83,7 +83,7 @@ const columns: (ColumnDef<typeof features, AdminUser> & { meta: AdminColumnMeta 
     meta: { label: 'Role' },
     enableSorting: false,
     cell: ({ row }) =>
-      row.original.role === 'admin' ? <span className="chip text-parchment">Admin</span> : <span className="text-dim">User</span>,
+      row.original.role === 'admin' ? <span className="chip text-parchment">Admin</span> : <span className="text-dim">Player</span>,
   },
   numberColumn('rosters', 'Rosters', (user) => user.rosterCount),
   numberColumn('battles', 'Battles', (user) => user.battleCount),
@@ -219,7 +219,7 @@ export function AdminUsersTable({
                   return (
                     <TableHead
                       key={header.id}
-                      className={cn('px-2 text-dim', numeric(column) && 'text-right')}
+                      className={cn('px-2 text-[0.8rem] text-dim', numeric(column) && 'text-right')}
                       aria-sort={sorted ? (sorted === 'desc' ? 'descending' : 'ascending') : undefined}
                     >
                       {column.getCanSort() ? (
@@ -276,7 +276,7 @@ export function AdminUsersTable({
             {!pending && !users.length ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={visibleColumns.length} className="h-24 text-center text-dim">
-                  No player matches this search.
+                  No players match this search.
                 </TableCell>
               </TableRow>
             ) : null}
@@ -333,7 +333,7 @@ function numeric(column: Column<typeof features, AdminUser>) {
   return (column.columnDef.meta as AdminColumnMeta).numeric
 }
 
-const ROLE_NAMES: Record<AdminUser['role'], string> = { admin: 'Administrator', user: 'User' }
+const ROLE_NAMES: Record<AdminUser['role'], string> = { admin: 'Administrator', user: 'Player' }
 
 function RoleFilter({ selected, onChange }: { selected: AdminUser['role'][]; onChange: (roles: AdminUser['role'][]) => void }) {
   return (

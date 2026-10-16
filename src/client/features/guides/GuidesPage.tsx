@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList } from '@/components/ui/breadcrumb'
 import { PRODUCT_GUIDES, type ProductGuide } from '../../../contracts/productGuides'
 import { PageContent, PageHeader } from '../../components/Page'
 import { guideVisual } from './guideVisuals'
@@ -10,11 +10,11 @@ export function GuidesPage() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Praetorium"
+        eyebrow="Help"
         title="Player guides"
         description="Prepare for a game, give your army a plan and learn how to score. Find help with lists, matchups and tracking too."
       />
-      <PageContent className="pt-6">
+      <PageContent>
         <ul className="grid gap-5 sm:grid-cols-2">
           {PRODUCT_GUIDES.map((guide) => {
             const visual = guideVisual(guide)
@@ -57,15 +57,11 @@ export function GuidePage({ guide }: { guide: ProductGuide }) {
   return (
     <main className="w-full">
       <PageHeader eyebrow="Player guide" title={guide.title} description={guide.description} />
-      <PageContent className="space-y-8 pt-6">
+      <PageContent className="space-y-6">
         <Breadcrumb>
-          <BreadcrumbList className="text-xs">
+          <BreadcrumbList className="eyebrow gap-1 text-info">
             <BreadcrumbItem>
               <BreadcrumbLink render={<Link to="/guides" />}>Player guides</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{guide.title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -99,7 +95,7 @@ export function GuidePage({ guide }: { guide: ProductGuide }) {
             </ul>
           </div>
         </section>
-        <div className="space-y-8 font-rules">
+        <div className="space-y-6 font-rules">
           <ol aria-label="Steps" className="grid gap-4 sm:grid-cols-2">
             {guide.steps.map((step, index) => (
               <li

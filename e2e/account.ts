@@ -20,7 +20,7 @@ export async function signUp(page: Page, name: string) {
   await page.getByLabel('Your name').fill(name)
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
-  await page.getByRole('button', { name: 'Create the account' }).click()
+  await page.getByRole('button', { name: 'Create account', exact: true }).click()
   await page
     .getByRole('button', { name: `Account menu for ${name}`, includeHidden: true })
     .first()
@@ -35,7 +35,7 @@ export async function chooseRosterDefault(page: Page, name: 'Private' | 'Unliste
 }
 
 /** Presses a profile default on the open profile page until it reads as pressed, and waits until it leaves the device. */
-export async function choosePlayerDefault(page: Page, setting: 'Roster visibility' | 'Roster size', name: string) {
+export async function choosePlayerDefault(page: Page, setting: 'Roster visibility' | 'Battle size', name: string) {
   const group = page.getByRole('group', { name: setting })
   const choice = new RegExp(`^${name}`)
   await retryUntilVisible(group.getByRole('button', { name: choice, pressed: true }), () =>
@@ -135,7 +135,7 @@ export async function createRoster(
 ) {
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill(faction)
   await page.getByRole('option', { name: faction, exact: true }).click()
@@ -146,7 +146,8 @@ export async function createRoster(
   // A 2v1 ally brings half the battle size, so the size is a choice rather than the default.
   if (size) {
     await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-    await page.getByRole('option', { name: size }).click()
+    // Each standard size lists before the custom size that keeps its limits.
+    await page.getByRole('option', { name: size }).first().click()
   }
   await dialog.getByRole('button', { name: new RegExp(`^Select (?:${detachment.source})$`, detachment.flags) }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
@@ -263,14 +264,10 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
   }).toPass({ timeout: 20_000 })
 }
 
-/** A step button rendered by the server scrolls nothing until React owns it, so the click repeats until the section arrives. */
 export async function setupStep(page: Page, label: string) {
   const section = page.getByRole('region', { name: label, exact: true })
-  const step = page.getByRole('navigation', { name: 'Setup sections' }).locator(`button[data-step="${label}"]`)
-  await expect(async () => {
-    await step.click({ timeout: 1_000 })
-    await expect(section).toBeInViewport({ timeout: 1_000 })
-  }).toPass({ timeout: 15_000 })
+  await section.scrollIntoViewIfNeeded()
+  await expect(section).toBeInViewport()
 }
 
 /** Attaches a saved list to a seat: your own by default, or a named one such as a practice opponent's. */
@@ -295,7 +292,7 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
 }
 
 export async function chooseBattlefield(page: Page) {
-  const battlefieldStep = page.locator('nav[aria-label="Setup sections"] button[data-step="Battlefield"]')
+  const battlefieldStep = page.locator('#setup-battlefield')
   if ((await battlefieldStep.getAttribute('data-complete')) === 'true') return
   await settleDispositions(page)
   await setupStep(page, 'Battlefield')

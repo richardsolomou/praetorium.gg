@@ -4,6 +4,9 @@
 @import '@fontsource-variable/sofia-sans-semi-condensed/wght.css';
 @import '@fontsource-variable/martian-mono/wdth.css';
 
+/* The app is dark only, so the vendored components' dark styles apply on every device rather than following the system setting. */
+@custom-variant dark (&:where(*));
+
 /*
  * The world is a plotting table: a slate map under acetate, marked in
  * grease pencil. Chakra Petch, squared with cut corners like stencilled map

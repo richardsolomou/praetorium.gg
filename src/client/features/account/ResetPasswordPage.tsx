@@ -27,7 +27,7 @@ export function ResetPasswordPage({ token, tokenError, next }: { token?: string;
           <p className="text-sm text-dim">Choose a new password for your Praetorium account.</p>
         </div>
       </aside>
-      <section className="border-b border-edge bg-panel md:border-l">
+      <section className="border-b border-edge bg-panel">
         <div className="mr-auto h-full w-full max-w-lg p-6 sm:p-8">
           <p className="eyebrow text-parchment">Account recovery</p>
           <h1 className="mt-1 text-3xl">Reset password</h1>

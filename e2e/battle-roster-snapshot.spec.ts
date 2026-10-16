@@ -14,10 +14,7 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   const battleUrl = await createBattle(page, { practice: true })
   await attachRoster(page, rosterName)
   await attachRoster(page, rosterName, { forPlayer: PRACTICE_OPPONENT })
-  await expect(page.getByRole('navigation', { name: 'Setup sections' }).locator('[data-step="Armies"]')).toHaveAttribute(
-    'data-complete',
-    'true',
-  )
+  await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
   const token = lastPathSegment(battleUrl)
   await page.goto(`/rosters/${rosterId}?battle=${token}`)
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
@@ -50,5 +47,5 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   await expect(page.getByRole('button', { name: 'Back to battle' })).toHaveCount(0)
   await page.goBack()
   await expect(page).toHaveURL(`/battles/${token}`)
-  await expect(page.getByRole('navigation', { name: 'Setup sections' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Set up the battle' })).toBeVisible()
 })

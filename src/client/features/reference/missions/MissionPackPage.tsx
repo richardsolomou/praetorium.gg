@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { buttonClass } from '../../../components/buttonClass'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -34,19 +35,18 @@ export function MissionPackPage({ packId }: { packId: string }) {
       <PageHeader
         eyebrow="Mission pack"
         title={pack.name}
-        description={'Choose your disposition down the left and your opponent’s across the top.'}
         actions={
-          <Link to="/force-dispositions" className="eyebrow border border-edge bg-raised px-3 py-2 text-info hover:border-info">
+          <Link to="/force-dispositions" className={buttonClass({ variant: 'outline' })}>
             Force dispositions
           </Link>
         }
       >
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
       </PageHeader>
-      <PageContent className="space-y-7">
+      <PageContent className="space-y-6">
         <section id="matrix" data-onboarding="mission-dispositions">
           <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
-          <p className="mt-2 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
+          <p className="mt-2 text-sm text-dim">Your disposition down the left, your opponent’s across the top.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
           <div className="-mx-3 mt-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
             <div
@@ -104,13 +104,13 @@ export function MissionPackPage({ packId }: { packId: string }) {
             <span>Secondary missions</span>
             <span className="readout">{data.secondaries.length}</span>
           </h2>
-          <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2">
+          <div className="mt-2 grid gap-px border border-edge bg-panel sm:grid-cols-2">
             {data.secondaries.map((card) => (
               <Link
                 key={card.key}
                 to="/missions/$packId/secondaries/$cardId"
                 params={{ packId, cardId: card.key }}
-                className="flex w-full items-center justify-between bg-panel px-3 py-2 text-left font-bold uppercase hover:bg-raised hover:text-info"
+                className="flex w-full items-center justify-between bg-panel px-3 py-2 text-left font-bold uppercase ring-1 ring-edge hover:bg-raised hover:text-info"
               >
                 <span>{card.name}</span>
                 {card.awards.some((award) => award.mode === 'fixed') ? <span className="chip shrink-0">Fixed</span> : null}

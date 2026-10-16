@@ -9,7 +9,7 @@ export function WhatsNewPage() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Application"
+        eyebrow="Updates"
         title="What's new"
         description="The latest improvements to army building, battle tracking and the rest of Praetorium."
       >

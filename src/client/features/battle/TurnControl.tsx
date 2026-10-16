@@ -38,7 +38,7 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
     <section data-onboarding="battle-live-turn" data-turn-control className={`space-y-2 ${className}`}>
       <ol className="flex gap-0.5" aria-label={`${view.phase} phase`}>
         {PHASES.map((phase, index) => (
-          <li key={phase} className="min-w-0 flex-1" aria-current={phase === view.phase ? 'step' : undefined}>
+          <li key={phase} className="min-w-0 flex-auto" aria-current={phase === view.phase ? 'step' : undefined}>
             <span className={`block h-1 ${index <= at ? tint(activeSide).rail : 'bg-edge-strong'}`} />
             <span
               className={`mt-1 block truncate text-center text-3xs font-semibold tracking-label uppercase ${

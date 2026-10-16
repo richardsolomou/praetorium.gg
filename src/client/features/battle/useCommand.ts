@@ -24,7 +24,15 @@ function explain(result: SubmitResult, setup: boolean) {
   if (result.outcome === 'stale' && setup) return null
   // Shared setup redraws from the winner; live controls remain available to retry.
   if (result.outcome === 'stale') return 'Your opponent got there first. Try that again.'
-  return result.reason
+  return asSentence(result.reason)
+}
+
+/** Domain refusals are written as clauses; the screen shows them as a sentence. */
+export function asSentence(reason: string) {
+  const text = reason.trim()
+  if (!text) return text
+  const capitalised = text.charAt(0).toLocaleUpperCase() + text.slice(1)
+  return /[.!?…]$/.test(capitalised) ? capitalised : `${capitalised}.`
 }
 
 /**

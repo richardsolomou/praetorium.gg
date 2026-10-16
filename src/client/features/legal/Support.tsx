@@ -6,7 +6,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Support() {
   return (
-    <LegalPage title="Support" updated="15 October 2026">
+    <LegalPage eyebrow="Help" title="Support" updated="15 October 2026">
       <LegalSection title="Get help">
         <p>
           Send feedback from any page, through the account menu or the More tab. It opens over the page you are on and sends us that page,

@@ -126,7 +126,7 @@ test('a faction page leads to its public armies, and a filter none match explain
   await page.getByRole('link', { name: 'Public armies' }).click()
   await expect(page).toHaveURL(/\/rosters\/discover\?faction=necrons$/)
   await page.goto('/rosters/discover?rules=preview&faction=necrons')
-  await expect(page.getByRole('heading', { name: 'No public armies match' })).toBeVisible()
+  await expect(page.getByText('No public armies match these filters')).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('main'))
   await shot(page.locator('main'), 'test-results/roster-discovery-empty-phone.png')
   await page.getByRole('button', { name: 'Clear filters' }).click()

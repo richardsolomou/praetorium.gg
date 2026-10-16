@@ -162,7 +162,7 @@ export function DrawDialog({
                 : carried.length
                   ? `${drawn.length} drawn this turn, on top of the ${carried.length} your hand was already holding. `
                   : `${drawn.length} drawn this turn. `}
-              {side.remainingSecondaries.length} cards left. Some missions must be put back when their condition applies.
+              {side.remainingSecondaries.length} cards left.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="gap-2">

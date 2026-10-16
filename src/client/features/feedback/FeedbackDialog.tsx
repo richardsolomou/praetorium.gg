@@ -107,7 +107,7 @@ export function FeedbackDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Send feedback</DialogTitle>
-          <DialogDescription>Tell us what went wrong or what you would like. You stay on this page.</DialogDescription>
+          <DialogDescription>Tell us what went wrong or what you would like.</DialogDescription>
         </DialogHeader>
         {result === 'sent' || result === 'sent-without-screenshot' ? (
           <>
@@ -119,7 +119,9 @@ export function FeedbackDialog() {
               </output>
             </DialogBody>
             <DialogFooter>
-              <Button onClick={() => setOpen(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Done
+              </Button>
             </DialogFooter>
           </>
         ) : (

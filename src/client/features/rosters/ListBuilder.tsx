@@ -22,7 +22,6 @@ import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -1230,7 +1229,6 @@ export function ListBuilder({
               </DropdownMenu>
               <Tooltip>
                 <TooltipTrigger
-                  closeOnClick={false}
                   render={
                     <div>
                       <ToggleGroup
@@ -1259,7 +1257,7 @@ export function ListBuilder({
                     </div>
                   }
                 />
-                <TooltipContent side="bottom">Build shows roster editing controls. View simplifies cards and loadouts.</TooltipContent>
+                <TooltipContent side="bottom">View hides editing controls and simplifies cards and loadouts.</TooltipContent>
               </Tooltip>
             </>
           ) : (
@@ -1444,9 +1442,9 @@ export function ListBuilder({
 
       <div className="hidden px-3 py-2 text-xs print:block">
         <p>
-          {guest ? 'Draft on this device' : 'Army list'} · {points}/{limit} points
+          {guest ? 'Draft on this device' : 'Roster'} · {points}/{budget} points
         </p>
-        {!frozen && illegal ? <p>Resolve roster validation messages before playing this list.</p> : null}
+        {!frozen && illegal ? <p>Resolve roster validation messages before playing this roster.</p> : null}
         {!frozen && over ? <p>Over the points limit.</p> : null}
         {!frozen && priced?.unhandled.length ? <p>Some restrictions could not be checked. Read the source rules before playing.</p> : null}
         {waivedRules.length ? <p>Some construction rules are waived; check the roster setup.</p> : null}
@@ -1588,23 +1586,18 @@ export function ListBuilder({
                 ) : optimisticUnit ? (
                   <span className="flex max-w-full shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
                     {warlord && inspectorView === 'edit' ? (
-                      <Toggle
-                        variant="outline"
-                        size="sm"
+                      <button
+                        type="button"
                         data-onboarding="unit-warlord"
                         title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
                         aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
-                        pressed={warlord.selected}
-                        className={`!h-auto !min-h-0 !min-w-0 gap-1 rounded-sm !px-1.5 !py-px !text-2xs !font-semibold !tracking-label uppercase ${
-                          warlord.selected
-                            ? 'border-parchment bg-parchment/15 text-parchment'
-                            : 'border-edge-strong text-dim hover:border-info hover:text-bone'
-                        }`}
-                        onPressedChange={(pressed) => selected !== null && edit.toggle(selected, warlord.key, warlord.name, pressed)}
+                        aria-pressed={warlord.selected}
+                        className={`chip gap-1 ${warlord.selected ? 'text-info' : 'hover:border-info hover:text-bone'}`}
+                        onClick={() => selected !== null && edit.toggle(selected, warlord.key, warlord.name, !warlord.selected)}
                       >
-                        <Crown className={warlord.selected ? 'fill-current' : undefined} />
+                        <Crown className={`size-3.5 ${warlord.selected ? 'fill-current' : ''}`} />
                         Warlord
-                      </Toggle>
+                      </button>
                     ) : null}
                     {warlord?.selected && inspectorView === 'readonly' ? (
                       <span className="chip gap-1 text-info">

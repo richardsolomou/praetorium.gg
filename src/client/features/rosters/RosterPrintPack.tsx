@@ -162,7 +162,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       <div data-battle-reference-pack>
         <header>
           <p>Battle reference pack</p>
-          <h1>{input.name || 'Army list'}</h1>
+          <h1>{input.name || 'Roster'}</h1>
           <p>
             {data.faction.displayName} · {input.price.points}/{pointsBudgetOf(input)} points · {data.groups.length}{' '}
             {data.groups.length === 1 ? 'unit' : 'units'} · {models(input.price.units.reduce((count, unit) => count + unit.size.models, 0))}
@@ -173,7 +173,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           </p>
           {data.cards.dataslate ? <p>{data.cards.dataslate}</p> : null}
           <p>
-            {input.draft ? 'Draft on this device' : 'Army list'}
+            {input.draft ? 'Draft on this device' : 'Roster'}
             {input.url ? (
               <>
                 {' '}

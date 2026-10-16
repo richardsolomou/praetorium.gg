@@ -28,7 +28,7 @@ for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel'
       // The roster editor's datasheet, detachment rules and keywords included.
       await expect(loadout.locator('[data-slot="datasheet-content"]')).toContainText('abilities')
       await expect(loadout.locator('[data-slot="datasheet-content"]')).toContainText(/Detachment rules/i)
-      await expect(army.getByRole('button', { name: /^Mark .* lost$/ })).toHaveCount(0)
+      await expect(army.getByRole('button', { name: /^Mark .* destroyed$/ })).toHaveCount(0)
       await expect(loadout.getByRole('combobox')).toHaveCount(0)
       await expect(loadout.locator('[data-slot="scroll-area"]')).toHaveCount(0)
       const overflowing = await army.evaluate((element) =>

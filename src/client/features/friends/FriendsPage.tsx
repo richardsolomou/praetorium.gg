@@ -2,6 +2,16 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Link } from '@tanstack/react-router'
 import { Check, Link2, RotateCw, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -23,6 +33,7 @@ export function FriendsPage() {
   const { data: me } = useQuery(meQuery())
   const { data = { friends: [], incoming: [], outgoing: [] } } = useQuery(friendshipsQuery())
   const [query, setQuery] = useState('')
+  const [unfriending, setUnfriending] = useState<Person | null>(null)
   const settledQuery = useSettled(query.trim())
   const search = playerSearchQuery(settledQuery)
   const { data: matches = [], isFetching } = useQuery({ ...search, placeholderData: keepPreviousData })
@@ -54,11 +65,7 @@ export function FriendsPage() {
 
   return (
     <main className="w-full">
-      <PageHeader
-        eyebrow="Your account"
-        title="Friends"
-        description="Connect with the people you know, then invite confirmed friends to private battles."
-      />
+      <PageHeader eyebrow="Your account" title="Friends" description="Add the people you play with." />
       <PageContent className="space-y-6">
         {request.error || accept.error || reject.error || remove.error ? (
           <p role="alert" className="border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
@@ -66,37 +73,8 @@ export function FriendsPage() {
           </p>
         ) : null}
 
-        <InviteFriend />
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <People
-            onboarding="friend-requests"
-            title="Friend requests"
-            empty="No requests are waiting for you."
-            people={data.incoming}
-            action="Accept"
-            secondaryAction="Reject"
-            pendingId={inFlight(accept) ?? inFlight(reject)}
-            onAction={(person) => accept.mutate(person.id)}
-            onSecondaryAction={(person) => reject.mutate(person.id)}
-          />
-          <People
-            onboarding="friend-list"
-            title="Friends"
-            empty="Add a player below before you create a shared battle."
-            people={data.friends}
-            action="Remove"
-            destructive
-            pendingId={inFlight(remove)}
-            onAction={(person) => remove.mutate(person.id)}
-          />
-        </div>
-
         <section>
-          <div className="flex items-baseline justify-between border-b border-edge pb-2">
-            <p className="rubric">Find players</p>
-            <UserPlus className="size-4 text-parchment" aria-hidden />
-          </div>
+          <h2 className="rubric border-b border-edge pb-2">Find players</h2>
           <SearchField
             onboarding="friend-search"
             className="mt-2"
@@ -124,27 +102,71 @@ export function FriendsPage() {
                 <PersonRowSkeleton />
               </>
             ) : null}
-            {tooShort ? (
-              <p className="border border-edge bg-panel p-4 text-sm text-dim">
-                {typed ? `Type at least ${PLAYER_SEARCH_MIN_LENGTH} letters of a player’s name.` : 'Type a player’s name to find them.'}
-              </p>
+            {typed && tooShort ? (
+              <p className="py-2 text-sm text-dim">Type at least {PLAYER_SEARCH_MIN_LENGTH} letters of a player’s name.</p>
             ) : null}
-            {!tooShort && !searching && !found.length ? (
-              <p className="border border-edge bg-panel p-4 text-sm text-dim">No player matches that name.</p>
-            ) : null}
+            {!tooShort && !searching && !found.length ? <p className="py-2 text-sm text-dim">No players match that name.</p> : null}
           </div>
         </section>
 
-        <People
-          title="Sent requests"
-          empty="You have no pending requests."
-          people={data.outgoing}
-          action="Cancel"
-          destructive
-          pendingId={inFlight(remove)}
-          onAction={(person) => remove.mutate(person.id)}
-        />
+        <InviteFriend />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <People
+            onboarding="friend-requests"
+            title="Friend requests"
+            empty="No requests are waiting for you."
+            people={data.incoming}
+            action="Accept"
+            secondaryAction="Reject"
+            pendingId={inFlight(accept) ?? inFlight(reject)}
+            onAction={(person) => accept.mutate(person.id)}
+            onSecondaryAction={(person) => reject.mutate(person.id)}
+          />
+          <People
+            onboarding="friend-list"
+            title="Friends"
+            empty="No friends yet."
+            people={data.friends}
+            action="Remove"
+            pendingId={inFlight(remove)}
+            onAction={setUnfriending}
+          />
+        </div>
+
+        {data.outgoing.length ? (
+          <People
+            title="Sent requests"
+            empty=""
+            people={data.outgoing}
+            action="Cancel"
+            pendingId={inFlight(remove)}
+            onAction={(person) => remove.mutate(person.id)}
+          />
+        ) : null}
       </PageContent>
+      <AlertDialog open={Boolean(unfriending)} onOpenChange={(open) => !open && setUnfriending(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {unfriending?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You stop seeing each other's friends-only battles, and rosters you lent each other go back to their owners.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep friend</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (unfriending) remove.mutate(unfriending.id)
+                setUnfriending(null)
+              }}
+            >
+              Remove friend
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   )
 }
@@ -154,14 +176,10 @@ function InviteFriend() {
   const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
 
   return (
-    <section className="border border-edge bg-panel p-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="max-w-2xl">
-          <p className="rubric">Invite a friend</p>
-          <p className="mt-1 text-sm text-dim">
-            Share a one-time link with someone who is not here yet. They can make an account, then accept your invite to become friends.
-          </p>
-        </div>
+    <section>
+      <h2 className="rubric border-b border-edge pb-2">Invite a friend</h2>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm text-dim">Not on Praetorium yet? Send them a one-time invite link.</p>
         <div data-onboarding="friend-invite" className="flex flex-wrap gap-2">
           {invite.url ? (
             <>
@@ -194,7 +212,6 @@ function People({
   people,
   action,
   empty,
-  destructive = false,
   onboarding,
   pendingId,
   onAction,
@@ -205,7 +222,6 @@ function People({
   people: Person[]
   action: string
   empty: string
-  destructive?: boolean
   onboarding?: OnboardingTarget
   pendingId: string | null
   onAction: (person: Person) => void
@@ -214,10 +230,10 @@ function People({
 }) {
   return (
     <section data-onboarding={onboarding}>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>{title}</span>
         <span className="readout">{people.length}</span>
-      </p>
+      </h2>
       <div className="mt-2 space-y-2">
         {people.length ? (
           people.map((person) => (
@@ -225,7 +241,6 @@ function People({
               key={person.id}
               person={person}
               action={action}
-              destructive={destructive}
               pending={pendingId === person.id}
               onAction={() => onAction(person)}
               secondaryAction={secondaryAction}
@@ -233,7 +248,7 @@ function People({
             />
           ))
         ) : (
-          <p className="border border-edge bg-panel p-4 text-sm text-dim">{empty}</p>
+          <p className="py-2 text-sm text-dim">{empty}</p>
         )}
       </div>
     </section>
@@ -255,7 +270,6 @@ function PersonRowSkeleton() {
 function PersonRow({
   person,
   action,
-  destructive = false,
   pending,
   onAction,
   secondaryAction,
@@ -263,23 +277,19 @@ function PersonRow({
 }: {
   person: Person
   action: string
-  destructive?: boolean
   pending: boolean
   onAction: () => void
   secondaryAction?: string
   onSecondaryAction?: () => void
 }) {
   return (
-    <div
-      data-person={person.name}
-      className="flex items-center justify-between gap-3 border border-edge bg-panel p-3 hover:border-edge-strong"
-    >
+    <div data-person={person.name} className="flex items-center justify-between gap-3 border border-edge bg-panel p-3">
       <Link to="/users/$userId" params={{ userId: person.id }} className="flex min-w-0 items-center gap-3 hover:text-info">
         <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
         <span className="truncate font-bold uppercase">{person.name}</span>
       </Link>
       <span className="flex shrink-0 gap-1">
-        <Button variant={destructive ? 'destructive' : 'outline'} size="sm" disabled={pending} onClick={onAction}>
+        <Button variant="outline" size="sm" disabled={pending} onClick={onAction}>
           {action}
         </Button>
         {secondaryAction ? (

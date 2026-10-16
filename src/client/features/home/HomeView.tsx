@@ -80,6 +80,7 @@ export function HomeView({
       <main className="w-full">
         <Welcome
           name={me.name}
+          returning={mine.length > 0 || rosterCount > 0}
           newBattle={newBattle}
           // A player who only builds lists has no record to show, and a strip of dashes would say they are losing.
           stats={onboarding?.completedTasks.includes('battle') ? <HomeRecord userId={me.id} data={record} /> : null}
@@ -147,14 +148,15 @@ export function HomeView({
  * of the page is one width: a second tall gradient panel would make one page look
  * like two.
  */
-function Welcome({ name, newBattle, stats }: { name: string; newBattle?: ReactNode; stats: ReactNode }) {
+function Welcome({ name, returning, newBattle, stats }: { name: string; returning: boolean; newBattle?: ReactNode; stats: ReactNode }) {
   const firstName = name.trim().split(/\s+/)[0]
+  const greeting = returning ? 'Welcome back' : 'Welcome'
   return (
     <section data-onboarding="home-activity" className="relative overflow-hidden border-b border-edge bg-panel">
       <div className="plot-grid" />
       <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 py-6 sm:px-6 sm:py-7">
         <div className="w-full sm:w-auto">
-          <h1 className="text-2xl leading-none sm:text-3xl">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</h1>
+          <h1 className="text-2xl leading-none sm:text-3xl">{firstName ? `${greeting}, ${firstName}` : greeting}</h1>
           {stats}
         </div>
         <div className="flex flex-wrap gap-2">

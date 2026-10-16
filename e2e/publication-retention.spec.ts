@@ -100,7 +100,7 @@ async function leagueFixture(ownerId: string, members: string[]) {
 async function sealThroughPage(page: Page, leagueToken: string, rosterName: string) {
   await page.goto(`/leagues/${leagueToken}`)
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
-  await retryUntilVisible(chooser, () => page.getByRole('button', { name: 'Choose a list', exact: true }).click())
+  await retryUntilVisible(chooser, () => page.getByRole('button', { name: 'Choose a roster', exact: true }).click())
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
   await chooser.getByRole('button', { name: `Seal ${rosterName}`, exact: true }).click()
   await expect(chooser).toBeHidden()
@@ -168,7 +168,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await remove.click()
   const deletion = page.getByRole('alertdialog')
   await expect(deletion).toContainText('Frozen copies in battles and leagues are kept')
-  await deletion.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await deletion.getByRole('button', { name: 'Keep roster', exact: true }).click()
   expect(await productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([{ id: rosterId }])
   await page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click()
   await remove.click()
@@ -183,11 +183,13 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.goto(`/rosters/${userId}?league=${league.token}&event=${league.eventToken}`)
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
   await page.goto(`/leagues/${league.token}`)
-  const viewSealed = page.getByRole('link', { name: `View ${name}’s list`, exact: true })
-  const reveal = page.getByRole('alertdialog', { name: 'Reveal every list?' })
-  await retryUntilVisible(reveal, () => page.getByRole('button', { name: 'Reveal all lists', exact: true }).click())
+  const viewSealed = page.getByRole('link', { name: `View ${name}’s roster`, exact: true })
+  const reveal = page.getByRole('alertdialog', { name: 'Reveal every roster?' })
+  await retryUntilVisible(reveal, () =>
+    page.locator('[data-entry-status]').getByRole('button', { name: 'Reveal all rosters', exact: true }).click(),
+  )
   await expect(viewSealed).toHaveCount(0)
-  await reveal.getByRole('button', { name: 'Reveal all lists', exact: true }).click()
+  await reveal.getByRole('button', { name: 'Reveal all rosters', exact: true }).click()
   await expect(viewSealed).toBeVisible()
   const sealedUrl = await viewSealed.getAttribute('href')
   if (!sealedUrl) throw new Error('Missing revealed roster link')
@@ -348,7 +350,7 @@ test('self-account deletion removes populated shared history and sealed entries 
     await expect(anonymous.getByRole('heading', { name: 'No such player' })).toBeVisible()
     await expectRecord(opponent, opponentId, 0)
     await opponent.goto(unrelated)
-    await expect(opponent.getByRole('navigation', { name: 'Setup sections' })).toBeVisible()
+    await expect(opponent.getByRole('heading', { name: 'Set up the battle' })).toBeVisible()
   } finally {
     await Promise.all([ownerContext.close(), opponentContext.close(), anonymousContext.close()])
   }

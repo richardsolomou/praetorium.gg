@@ -135,7 +135,7 @@ test('roster reminders cover selected rules and advances from another device', a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.setViewportSize(desktopContext.viewport)
-  await reminder.getByRole('button', { name: 'Dismiss Living Lightning for a period' }).click()
+  await reminder.getByRole('button', { name: 'Hide Living Lightning for a period' }).click()
   await page.getByRole('menuitem', { name: 'This turn' }).click()
   await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await expect(reminder).toBeHidden()
@@ -167,7 +167,7 @@ test('roster reminders cover selected rules and advances from another device', a
     .locator('[data-panel="player"][data-side="0"]')
     .getByRole('button', { name: `Open ${roster}` })
     .click()
-  await opponent.locator('[data-army-roster] [data-unit="Plasmancer"]').getByRole('button', { name: 'Mark Plasmancer lost' }).click()
+  await opponent.locator('[data-army-roster] [data-unit="Plasmancer"]').getByRole('button', { name: 'Mark Plasmancer destroyed' }).click()
   await expect(reminder).toBeHidden()
 })
 

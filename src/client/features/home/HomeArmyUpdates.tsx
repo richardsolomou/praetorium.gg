@@ -27,7 +27,7 @@ export function HomeArmyUpdates({ updates }: { updates: readonly ArmyUpdate[] })
   const newest = updates.toSorted((one, other) => other.recordedAt - one.recordedAt).slice(0, SHOWN)
   return (
     <section data-home-army-updates>
-      <p className="rubric border-b border-edge pb-2">Updates for your armies</p>
+      <h2 className="rubric border-b border-edge pb-2">Updates for your armies</h2>
       <ul className="divide-y divide-edge border-b border-edge">
         {newest.map(({ faction, recordedAt, anchor, changes }) => (
           <li key={faction.slug}>

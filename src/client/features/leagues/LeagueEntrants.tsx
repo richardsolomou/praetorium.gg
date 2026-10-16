@@ -7,11 +7,17 @@ import type { LeagueEntryView } from '../../../core/league'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 
 export function SectionHeading({ title, count, action }: { title: string; count?: number; action?: ReactNode }) {
+  const readout = count === undefined ? null : <span className="readout">{count}</span>
+  if (!action)
+    return (
+      <h2 className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
+        {title} {readout}
+      </h2>
+    )
   return (
-    <div className="rubric mb-2 flex min-h-8 items-end justify-between gap-3 border-b border-edge pb-2">
-      <h2 className="flex items-baseline gap-2">
-        {title}
-        {count === undefined ? null : <span className="readout text-faint">{count}</span>}
+    <div className="mb-2 flex min-h-8 items-end justify-between gap-3 border-b border-edge pb-2">
+      <h2 className="rubric flex items-baseline gap-2">
+        {title} {readout}
       </h2>
       {action}
     </div>
@@ -81,8 +87,8 @@ export function EntrantGroup({
 }
 
 export function sealStatus(entry: Pick<LeagueEntryView, 'submitted'>, revealed: boolean) {
-  if (revealed) return entry.submitted ? 'List revealed' : 'No list'
-  return entry.submitted ? 'List sealed' : 'No list yet'
+  if (revealed) return entry.submitted ? 'Roster revealed' : 'No roster'
+  return entry.submitted ? 'Roster sealed' : 'No roster yet'
 }
 
 export function ViewRosterButton({

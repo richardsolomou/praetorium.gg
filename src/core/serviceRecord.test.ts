@@ -320,7 +320,7 @@ describe('recordFacets', () => {
   })
 
   it('offers the battle sizes they have played, labelled for a reader', () => {
-    expect(recordFacets([duel()], 'alice').limits).toEqual([{ value: '2000', label: '2000 points', battles: 1 }])
+    expect(recordFacets([duel()], 'alice').limits).toEqual([{ value: '2000', label: '2,000 points', battles: 1 }])
   })
 })
 

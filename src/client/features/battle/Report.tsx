@@ -95,7 +95,7 @@ export function Report({
                   <span className="readout text-right text-xs text-dim">
                     {time(entry.at)}
                     <span className="block text-3xs text-faint">
-                      {entry.round ? `R${entry.round}` : '—'} {PHASE_LABELS[entry.phase] ?? entry.phase}
+                      {entry.round ? `R${entry.round} ${PHASE_LABELS[entry.phase] ?? entry.phase}` : 'setup'}
                     </span>
                   </span>
                   <span className="min-w-0 break-words text-bone">
@@ -191,7 +191,7 @@ function colourNames(text: string, players: readonly ReportPlayer[]) {
     typeof part === 'string' ? (
       part
     ) : (
-      <span key={part.key} className={`break-all font-semibold ${part.className}`}>
+      <span key={part.key} className={`font-semibold ${part.className}`}>
         {part.name}
       </span>
     ),

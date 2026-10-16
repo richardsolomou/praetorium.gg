@@ -16,7 +16,7 @@ export function Section({ title, count, children, defaultOpen = true }: Props) {
   return (
     <Collapsible render={<section />} defaultOpen={defaultOpen}>
       <div className="flex w-full items-center justify-between py-1.5">
-        <span className="rubric">{title}</span>
+        <h2 className="rubric">{title}</h2>
         <span className="flex items-center gap-1.5">
           <span className="readout text-sm text-dim">{count}</span>
           <CollapsibleTrigger

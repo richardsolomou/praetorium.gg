@@ -20,9 +20,7 @@ export function AdminHeldPhotos() {
   })
   return (
     <section>
-      {held.isSuccess && !held.data.length ? (
-        <p className="border border-edge bg-panel p-4 text-sm text-dim">No reported photos are waiting for review.</p>
-      ) : null}
+      {held.isSuccess && !held.data.length ? <p className="py-2 text-sm text-dim">No reported photos are waiting for review.</p> : null}
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {held.data?.map((photo) => (
           <li key={photo.photoId} className="flex flex-col gap-2 border border-edge bg-sunken p-3">

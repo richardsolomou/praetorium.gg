@@ -49,11 +49,11 @@ function render(overrides: Partial<Battle> = {}, loaded = true) {
 
 describe('battle row battlefield label', () => {
   it('shows the published name for a UUID', () => {
-    expect(render()).toContain('1000 pts · Dawn Of War')
+    expect(render()).toContain('1,000 points · Dawn Of War')
   })
 
   it('shows the published name for an older slug', () => {
-    expect(render({ deploymentId: 'search-and-destroy' })).toContain('1000 pts · Search And Destroy')
+    expect(render({ deploymentId: 'search-and-destroy' })).toContain('1,000 points · Search And Destroy')
   })
 
   it.each([
@@ -61,7 +61,7 @@ describe('battle row battlefield label', () => {
     ['an unknown deployment', 'missing-deployment', true],
     ['no deployment', null, true],
   ])('omits the battlefield when there is %s', (_, deploymentId, loaded) => {
-    expect(render({ deploymentId }, loaded)).toContain('1000 pts1 Jan 1970')
+    expect(render({ deploymentId }, loaded)).toContain('1,000 points1 Jan 1970')
   })
 
   it('does not repeat the finished status as completed', () => {

@@ -17,7 +17,7 @@ const VISIBILITIES: ChoiceOption<RosterVisibility>[] = ROSTER_VISIBILITIES.map((
 const SIZES: ChoiceOption<string>[] = GAME_SIZES.map((size) => ({
   value: String(size.limit),
   name: size.name,
-  count: `${size.limit} points`,
+  count: `${size.limit.toLocaleString('en')} points`,
 }))
 
 /** Saved on the press like `BattleSharing`; it changes what the next roster starts with. */
@@ -35,9 +35,8 @@ export function PlayerDefaultsSettings() {
   return (
     <section className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
       <div>
-        <p className="rubric border-b border-edge pb-2">Defaults</p>
-        <h2 className="mt-4 text-base">What new rosters start with</h2>
-        <p className="mt-1 text-sm text-dim">You can still change either one when you create a roster.</p>
+        <h2 className="rubric border-b border-edge pb-2">Roster defaults</h2>
+        <p className="mt-2 text-sm text-dim">What a new roster starts with. You can change both when you create one.</p>
       </div>
       <Choice
         label="Roster visibility"
@@ -47,7 +46,7 @@ export function PlayerDefaultsSettings() {
         onChange={(rosterVisibility) => save.mutate({ ...defaults, rosterVisibility })}
       />
       <Choice
-        label="Roster size"
+        label="Battle size"
         value={String(defaults.battleSize)}
         options={SIZES}
         disabled={save.isPending}

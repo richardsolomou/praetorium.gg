@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './test'
+import { expect, test, type Locator, type Page } from './test'
 import {
   attachRoster,
   chooseRosterAction,
@@ -31,9 +31,17 @@ async function openSetup(page: Page) {
   return page.getByRole('dialog', { name: 'Edit roster setup' })
 }
 
+async function chooseCustomSize(page: Page, setup: Locator) {
+  await setup.getByRole('combobox', { name: 'Battle size' }).click()
+  await page.getByRole('option', { name: 'Custom · Strike Force limits' }).click()
+  return setup.getByLabel('Points limit')
+}
+
 async function setBudget(page: Page, budget: string) {
   const setup = await openSetup(page)
-  await setup.getByLabel('Custom points budget').fill(budget)
+  const field = setup.getByLabel('Points limit')
+  if (!(await field.isVisible())) await chooseCustomSize(page, setup)
+  await field.fill(budget)
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(review.getByLabel('Roster change preview')).toBeVisible()
@@ -52,10 +60,12 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   await expect(points).toContainText('/2000')
 
   const setup = await openSetup(page)
-  const budget = setup.getByLabel('Custom points budget')
+  await expect(setup.getByLabel('Points limit')).toHaveCount(0)
+  const budget = await chooseCustomSize(page, setup)
+  await expect(setup.getByRole('combobox', { name: 'Battle size' })).toContainText('Custom · Strike Force limits')
+  await expect(budget).toHaveValue('2000')
   for (const viewport of [desktop, phone]) {
     await page.setViewportSize(viewport)
-    await expect(setup).toContainText('Strike Force still sets detachment points, enhancement and unit limits.')
     for (const [typed, problem] of [
       ['abc', 'Enter a whole number of points.'],
       ['1500.5', 'Enter a whole number of points.'],
@@ -90,7 +100,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
     await page.setViewportSize(viewport)
     await expect(points).toContainText('/1000')
     await expect(page.getByText('Over the points limit', { exact: true })).toBeAttached()
-    await expect(page.locator('[data-slot="roster-meta"]')).toContainText('Strike Force · 1000-point budget')
+    await expect(page.locator('[data-slot="roster-meta"]')).toContainText('Strike Force · 1,000-point budget')
     await page.screenshot({ path: test.info().outputPath(`budget-over-${viewport.width}.png`) })
   }
   await page.setViewportSize(desktop)
@@ -127,7 +137,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   await page.goto('/rosters')
   for (const viewport of [desktop, phone]) {
     await page.setViewportSize(viewport)
-    await expect(page.locator(`[data-roster="${name} renamed"]`)).toContainText('Strike Force · 2500-point budget')
+    await expect(page.locator(`[data-roster="${name} renamed"]`)).toContainText('Strike Force · 2,500-point budget')
     await page.screenshot({ path: test.info().outputPath(`budget-library-${viewport.width}.png`) })
   }
   await page.setViewportSize(desktop)
@@ -139,9 +149,9 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   const armies = page.getByRole('region', { name: 'Armies' })
   for (const viewport of [desktop, phone]) {
     await page.setViewportSize(viewport)
-    await expect(armies).toContainText('Strike Force · 2500-point budget')
-    await expect(armies.getByText(/of 2500 points$/).first()).toBeVisible()
-    await expect(page.locator('nav[aria-label="Setup sections"] button[data-step="Armies"]')).toHaveAttribute('data-complete', 'true')
+    await expect(armies).toContainText('Strike Force · 2,500-point budget')
+    await expect(armies.getByText(/of 2,500 points$/).first()).toBeVisible()
+    await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
     await expectNoHorizontalOverflow(armies)
     await armies.screenshot({ path: test.info().outputPath(`budget-battle-${viewport.width}.png`) })
   }

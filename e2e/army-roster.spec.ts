@@ -67,7 +67,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   await started
   await removeModel.click()
   await expect(models).toHaveText(`${brought - 2}/${brought}`)
-  await expect(army.getByRole('button', { name: 'Mark Foetid Bloat-drone lost' })).toBeEnabled()
+  await expect(army.getByRole('button', { name: 'Mark Foetid Bloat-drone destroyed' })).toBeEnabled()
   releaseSubmit()
   await expect(models).toHaveText(`${brought - 2}/${brought}`)
   await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
@@ -76,11 +76,11 @@ test('an army is read and its losses recorded without leaving the battle', async
   // A unit lost outright leaves the shelf it was read on, and is kept only to be taken back.
   await army
     .locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
-    .getByRole('button', { name: 'Mark Foetid Bloat-drone lost' })
+    .getByRole('button', { name: 'Mark Foetid Bloat-drone destroyed' })
     .click()
   await expect(army.locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')).toBeHidden()
   await expect(units).toHaveText('1/2')
-  await army.getByRole('button', { name: 'Toggle Lost' }).click()
+  await army.getByRole('button', { name: 'Toggle Destroyed' }).click()
   await army
     .locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
     .getByRole('button', { name: 'Bring Foetid Bloat-drone back' })

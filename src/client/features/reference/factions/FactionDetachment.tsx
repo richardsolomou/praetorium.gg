@@ -1,7 +1,7 @@
 import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { Link, useParams } from '@tanstack/react-router'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { DetachmentReference } from './DetachmentReference'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
 
@@ -38,10 +38,6 @@ export function FactionDetachment() {
                 >
                   {faction.displayName}
                 </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="text-dim" />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-dim">Detachments</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

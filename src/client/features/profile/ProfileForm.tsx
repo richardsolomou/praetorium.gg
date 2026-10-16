@@ -80,7 +80,11 @@ export function ProfileForm({
         </Fact>
       ) : null}
       {rank ? (
-        <Link to="/leaderboard" search={{ faction: undefined }} className="flex">
+        <Link
+          to="/leaderboard"
+          search={{ faction: undefined }}
+          className="flex [&>span]:transition-colors [&>span]:hover:border-edge-strong [&>span]:hover:bg-raised"
+        >
           <Fact label="Leaderboard">
             <span className="figure text-sm font-bold text-bone">
               #{rank.place}
@@ -95,7 +99,7 @@ export function ProfileForm({
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <span className="flex flex-col justify-center gap-1.5 border border-edge bg-sunken/60 px-3 py-2">
+    <span className="flex flex-col gap-1.5 border border-edge bg-sunken/60 px-3 py-2">
       <span className="eyebrow text-faint">{label}</span>
       {children}
     </span>

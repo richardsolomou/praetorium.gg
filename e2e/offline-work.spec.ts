@@ -115,7 +115,7 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   )
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()

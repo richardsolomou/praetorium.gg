@@ -86,30 +86,33 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
     <div data-onboarding="battle-setup-armies" className="space-y-4">
       {perArmy !== null && perArmy !== view.settings.limit ? (
         <SetupNote>
-          The allied side splits {view.settings.limit} points evenly, so each ally brings a {perArmy}-point army.
+          The allied side splits {view.settings.limit?.toLocaleString('en')} points evenly, so each ally brings a{' '}
+          {perArmy.toLocaleString('en')}-point army.
         </SetupNote>
       ) : null}
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         {sides.map((side) => (
-          <SetupSidePanel key={side.index} side={side}>
+          <SetupSidePanel key={side.index} side={side} named>
             {side.armies.map((army) => (
-              <article key={army.playerId} className="space-y-2 rounded-sm border border-edge bg-sunken p-2.5">
+              <article key={army.playerId} className="space-y-2">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     {side.armies.length > 1 ? <span className="eyebrow block">{army.playerName}</span> : null}
-                    <span className="block break-words font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
+                    {army.roster ? (
+                      <span className="block font-bold break-words uppercase">{army.roster.name}</span>
+                    ) : (
+                      <span className="block py-2 text-sm text-dim">No army chosen</span>
+                    )}
                     {/* What the army is, named the same way the battle will name it. */}
                     {army.roster ? <ArmyIdentity army={army} list={false} className="mt-0.5" /> : null}
                     {army.roster?.lentBy ? <span className="mt-0.5 block text-xs text-dim">Lent by {army.roster.lentBy.name}</span> : null}
-                    <span className="mt-0.5 block text-xs text-dim">
-                      {army.roster?.built
-                        ? `${army.unitCount} units · ${army.points ?? 0} of ${pointsBudgetOf(army.roster.built)} points`
-                        : army.roster
-                          ? 'Imported army'
-                          : army.automated
-                            ? 'Choose the army it brings'
-                            : 'Waiting for this player'}
-                    </span>
+                    {army.roster ? (
+                      <span className="mt-0.5 block text-xs text-dim">
+                        {army.roster.built
+                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsBudgetOf(army.roster.built).toLocaleString('en')} points`
+                          : 'Imported army'}
+                      </span>
+                    ) : null}
                     {/*
                      * The disposition, in the colour the roster builder gave it. It decides the
                      * mission this side plays, so it belongs beside the army. Allies who have
@@ -123,7 +126,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                     <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
                   </div>
                   {view.leagueToken ? (
-                    <span className="chip shrink-0 text-achieved">League roster</span>
+                    <span className="chip shrink-0 self-start text-achieved sm:self-auto">League roster</span>
                   ) : army.isViewer || army.automated ? (
                     <div className="flex shrink-0 items-center gap-1">
                       <Button
@@ -152,7 +155,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                       ) : null}
                     </div>
                   ) : (
-                    <span className={`chip shrink-0 ${army.roster ? 'text-achieved' : 'text-dim'}`}>
+                    <span className={`chip shrink-0 self-start sm:self-auto ${army.roster ? 'text-achieved' : 'text-dim'}`}>
                       {army.roster ? 'Ready' : 'Waiting'}
                     </span>
                   )}
@@ -165,7 +168,11 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                 {army.roster && !view.settings.manual ? (
                   <div className="flex items-center justify-between gap-2 border-t border-edge pt-2 text-xs">
                     <span className={army.painted ? 'text-achieved' : 'text-dim'}>
-                      {army.painted ? 'Battle ready' : 'Not battle ready'}
+                      {army.painted
+                        ? side.armies.length === 1 && side.paintedPoints
+                          ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
+                          : 'Battle ready'
+                        : 'Not battle ready'}
                     </span>
                     <Button
                       variant="outline"
@@ -187,17 +194,15 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
               </p>
             ) : null}
             {/*
-             * The bonus is the side's and pays once, so it is said under the side rather
-             * than beside each list — an allied pair fields one army between them, and
-             * an unpainted half costs the whole side the bonus.
+             * The bonus is the side's and pays once, so an allied pair hears it under the
+             * side rather than beside each list: an unpainted half costs the whole side
+             * the bonus. A lone army says it on its own line above.
              */}
-            {view.settings.manual ? null : (
+            {view.settings.manual || side.armies.length === 1 ? null : (
               <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
                 {side.paintedPoints
                   ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
-                  : side.armies.length > 1
-                    ? `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`
-                    : 'No battle ready bonus'}
+                  : `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`}
               </p>
             )}
           </SetupSidePanel>
@@ -336,14 +341,13 @@ function RosterChooser({
             {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
             {requiredLimit === null
               ? 'Your rosters, most recently updated first.'
-              : `Rosters built for ${requiredLimit} points, most recently updated first.`}
+              : `Rosters built for ${requiredLimit.toLocaleString('en')} points, most recently updated first.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            <span>Rosters</span>
-            <span className="readout">{rosters.length}</span>
-          </p>
+          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+            Rosters <span className="readout">{rosters.length}</span>
+          </h2>
           <div className="space-y-2">
             {loading ? (
               <div className="space-y-2" aria-label="Loading rosters">
@@ -363,7 +367,7 @@ function RosterChooser({
               <div className="space-y-3 border border-edge bg-sunken p-4">
                 <p className="text-sm text-dim">
                   {savedCount
-                    ? `None of your ${savedCount} saved rosters is built for ${requiredLimit} points.`
+                    ? `None of your ${savedCount} saved rosters is built for ${requiredLimit?.toLocaleString('en')} points.`
                     : 'You do not have a saved roster yet.'}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -392,10 +396,9 @@ function RosterChooser({
           </div>
           {lent.length ? (
             <>
-              <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-                <span>Lent by friends</span>
-                <span className="readout">{lent.length}</span>
-              </p>
+              <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+                Lent by friends <span className="readout">{lent.length}</span>
+              </h2>
               <LentRosterList rosters={lent} selectedId={selectedId} disabled={pending} onChoose={onChoose} />
             </>
           ) : null}

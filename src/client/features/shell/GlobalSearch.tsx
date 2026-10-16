@@ -5,6 +5,7 @@ import { posthog } from 'posthog-js'
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CommandDialog } from '@/components/ui/command'
+import { DialogClose } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../functions'
 import { globalSearchQuery } from '../../queries'
@@ -32,7 +33,13 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const shortcutModifier = useClientValue(shortcutModifierOfBrowser, 'Ctrl')
   const trimmed = query.trim()
   const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
-  const { data = [], isFetching, isPending, isError } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
+  const {
+    data = [],
+    isFetching,
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
   const results = useMemo(
     () => globalSearchGroups.flatMap((group) => [...matchingPages(settled), ...data].filter((result) => result.group === group)),
     [data, settled],
@@ -104,39 +111,51 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
         className="top-1/2 max-w-xl -translate-y-1/2 rounded-none!"
       >
         <div className="flex flex-col bg-popover p-1">
-          <input
-            className="h-9 w-full border border-edge bg-sunken px-3 text-base outline-none md:text-sm focus-visible:border-info"
-            role="combobox"
-            aria-label="Search Praetorium"
-            aria-expanded={open}
-            aria-controls={listId}
-            aria-autocomplete="list"
-            aria-activedescendant={results.length ? `${listId}-${Math.min(selectedIndex, results.length - 1)}` : undefined}
-            value={query}
-            maxLength={80}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              setSelectedIndex(0)
-            }}
-            onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing || !results.length) return
-              const current = Math.min(selectedIndex, results.length - 1)
-              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                event.preventDefault()
-                setSelectedIndex((current + (event.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length)
-              } else if (event.key === 'Enter') {
-                event.preventDefault()
-                void go(results[current]!)
-              } else if ((event.key === 'Home' || event.key === 'End') && event.ctrlKey) {
-                event.preventDefault()
-                setSelectedIndex(event.key === 'Home' ? 0 : results.length - 1)
-              }
-            }}
-            placeholder="Search everything…"
-          />
+          <div className="flex gap-1">
+            <input
+              className="h-9 min-w-0 flex-1 border border-edge bg-sunken px-3 text-base outline-none md:text-sm focus-visible:border-info"
+              role="combobox"
+              aria-label="Search Praetorium"
+              aria-expanded={open}
+              aria-controls={listId}
+              aria-autocomplete="list"
+              aria-activedescendant={results.length ? `${listId}-${Math.min(selectedIndex, results.length - 1)}` : undefined}
+              value={query}
+              maxLength={80}
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setSelectedIndex(0)
+              }}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || !results.length) return
+                const current = Math.min(selectedIndex, results.length - 1)
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  setSelectedIndex((current + (event.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length)
+                } else if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void go(results[current]!)
+                } else if ((event.key === 'Home' || event.key === 'End') && event.ctrlKey) {
+                  event.preventDefault()
+                  setSelectedIndex(event.key === 'Home' ? 0 : results.length - 1)
+                }
+              }}
+              placeholder="Search everything…"
+            />
+            <DialogClose render={<Button variant="ghost" className="h-9 pointer-fine:hidden" />}>Cancel</DialogClose>
+          </div>
           {trimmed.length >= 2 && isFetching ? <output className="sr-only">Searching</output> : null}
           {trimmed.length >= 2 && trimmed === settled && !isFetching && !results.length ? (
-            <p className="py-6 text-center text-sm">{isError ? 'Search unavailable. Try again.' : 'No results found.'}</p>
+            isError ? (
+              <p className="flex items-center justify-center gap-3 py-6 text-sm text-dim">
+                Search unavailable.
+                <Button variant="outline" size="sm" onClick={() => void refetch()}>
+                  Retry
+                </Button>
+              </p>
+            ) : (
+              <p className="py-6 text-center text-sm text-dim">No results found.</p>
+            )
           ) : null}
           <SearchResults
             results={results}
@@ -145,7 +164,10 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
             selectedIndex={Math.min(selectedIndex, results.length - 1)}
             onSelect={(result) => void go(result)}
           />
-          <div className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-3xs text-dim" aria-hidden>
+          <div
+            className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-3xs text-dim pointer-coarse:hidden"
+            aria-hidden
+          >
             <span>
               <Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate
             </span>

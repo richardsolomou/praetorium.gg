@@ -25,7 +25,8 @@ export function MissionCardReference({
   mode,
 }: {
   card: { name: string; text: string | null; awards: Award[] }
-  type: string
+  /** The chip naming what kind of card this is; omit it when the page already says so. */
+  type?: string
   /** The side's secondary mode, when it is known. Unset shows every way it can pay. */
   mode?: string
 }) {
@@ -44,9 +45,9 @@ export function MissionCardReference({
   }
   return (
     <article>
-      <span className="chip">{type}</span>
-      {card.text ? <RuleText text={card.text} className="mt-4 text-base text-bone" /> : null}
-      <div className="mt-4 space-y-3">
+      {type ? <span className="chip">{type}</span> : null}
+      {card.text ? <RuleText text={card.text} className={`${type ? 'mt-4' : ''} text-base text-bone`} /> : null}
+      <div className={`${type || card.text ? 'mt-4' : ''} space-y-3`}>
         {[...groups.values()].map((awards) => (
           <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
         ))}

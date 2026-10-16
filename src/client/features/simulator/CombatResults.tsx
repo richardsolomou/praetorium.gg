@@ -140,7 +140,7 @@ export function CombatResults({
                           <CombatValue
                             result={result}
                             metric={metric}
-                            className={`flex min-h-8 items-center text-sm ${muted ? 'text-dim' : 'text-primary'}`}
+                            className={`flex min-h-8 items-center text-sm sm:mt-1 sm:min-h-0 sm:text-xl ${muted ? 'text-dim' : 'text-primary'}`}
                           />
                         )}
                       </div>

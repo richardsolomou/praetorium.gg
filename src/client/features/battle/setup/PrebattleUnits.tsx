@@ -18,7 +18,7 @@ type Rule = 'infiltrators' | 'scouts'
 export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Rule; empty: string }) {
   return (
     <>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         {sides.map((side) => (
           <SetupSidePanel key={side.index} side={side} className="space-y-3">
             {side.armies.map((army) => (

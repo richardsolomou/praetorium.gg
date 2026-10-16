@@ -17,10 +17,10 @@ export function HomeLeaders({ rows, days }: { rows: readonly Standing[]; days: n
   if (!rows.length) return null
   return (
     <section data-home-leaders>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>Leaderboard</span>
         <span className="text-xs font-normal tracking-normal text-faint normal-case">Last {days} days</span>
-      </p>
+      </h2>
       <ol className="divide-y divide-edge border-b border-edge">
         {rows.slice(0, TOP).map((row, place) => (
           <li key={row.id}>

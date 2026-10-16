@@ -32,6 +32,7 @@ export function SyncStatus() {
     staleTime: Infinity,
   })
   const [online, setOnline] = useState(true)
+  const [signingOut, setSigningOut] = useState(false)
   const [pendingOwner, setPendingOwner] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -84,7 +85,10 @@ export function SyncStatus() {
     const storage = (event: StorageEvent) => {
       if (event.key === LOCAL_STATE_EVENT) wake()
     }
-    const show = () => setOpen(true)
+    const show = (event: Event) => {
+      setSigningOut(event instanceof CustomEvent && event.detail === 'sign-out')
+      setOpen(true)
+    }
     void run()
     window.addEventListener('online', wake)
     window.addEventListener('offline', wake)
@@ -193,22 +197,31 @@ export function SyncStatus() {
       {label ? (
         <output className="flex shrink-0 items-center justify-between gap-3 border-b border-edge bg-panel px-4 py-2 text-xs">
           <span>{label}</span>
-          <button className="text-info underline underline-offset-4" onClick={() => setOpen(true)}>
+          <button type="button" className="text-info underline underline-offset-4" onClick={() => setOpen(true)}>
             Details
           </button>
         </output>
       ) : null}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) setSigningOut(false)
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Saved changes</DialogTitle>
             <DialogDescription>
-              Edits are saved on this device before syncing. Invitations, league admissions, roster sealing and reveals take effect after
-              the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until your
-              changes sync.
+              Edits are saved on this device until they sync; invitations, league admissions, roster sealing and reveals take effect once
+              the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until
+              then.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
+            {signingOut && operations.length ? (
+              <output className="block text-sm text-discarded">Sign-out is waiting: sync, export or discard these changes first.</output>
+            ) : null}
             {problem || syncFeedback ? <output className="block text-sm text-dim">{problem || syncFeedback}</output> : null}
             {!operations.length ? <p className="text-sm text-dim">All changes have synced.</p> : null}
             {groups.map((resource) => {
@@ -227,7 +240,7 @@ export function SyncStatus() {
               return (
                 <div key={resource} className="space-y-2 border border-edge p-3">
                   <p className="text-sm font-semibold">
-                    {title} · {failed ? 'Needs review' : 'Pending'}
+                    {title} · {failed ? 'Needs review' : 'Waiting to sync'}
                   </p>
                   <p className="text-sm text-dim">
                     {failed?.message || `${group.length} saved action${group.length === 1 ? '' : 's'} waiting for a connection.`}
@@ -264,8 +277,8 @@ export function SyncStatus() {
               </div>
             ) : null}
             <p className="text-xs text-dim">
-              New screens and other players’ updates need a connection. Your saved rosters, references, simulations and downloaded battles
-              remain available offline.
+              Saved rosters, references, simulations and downloaded battles work offline; new screens and other players’ updates need a
+              connection.
             </p>
           </DialogBody>
         </DialogContent>
@@ -287,13 +300,14 @@ export function SyncStatus() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {discardProblem ? (
-            <p role="alert" className="text-sm text-dim">
+            <p role="alert" className="text-sm text-destructive">
               {discardProblem}
             </p>
           ) : null}
+          {online ? null : <p className="text-sm text-dim">Reconnect to discard: the server’s version has to load first.</p>}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={busy || typeof window === 'undefined' || !navigator.onLine} onClick={() => void discardResource()}>
+            <AlertDialogCancel disabled={busy}>Keep changes</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={busy || !online} onClick={() => void discardResource()}>
               Discard changes
             </AlertDialogAction>
           </AlertDialogFooter>

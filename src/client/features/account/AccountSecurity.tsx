@@ -16,7 +16,16 @@ import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } fro
 import { accountMethodsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
 import { GithubSupporter } from './GithubSupporter'
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/Dialog'
 import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
 
@@ -74,7 +83,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
   return (
     <div className="ph-no-capture grid gap-6 lg:grid-cols-2">
       <section id="sign-in-methods" className="border border-edge bg-panel p-5 md:p-7">
-        <p className="rubric border-b border-edge pb-2">Sign-in methods</p>
+        <h2 className="rubric border-b border-edge pb-2">Sign-in methods</h2>
         {methodsPending ? <AccountMethodsSkeleton /> : null}
         {methods ? (
           <div className="mt-4 space-y-3">
@@ -119,21 +128,24 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
               name="Password"
               linked={hasPassword}
               available
+              note={canRemove('credential') && me.twoFactorEnabled ? 'Turn off two-factor to remove' : undefined}
               action={
                 hasPassword ? (
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="outline" size="sm" onClick={() => setDialog('change-password')}>
                       Change
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={!canRemove('credential') || me.twoFactorEnabled}
-                      onClick={() => setRemoving('credential')}
-                    >
-                      Remove
-                    </Button>
+                    {canRemove('credential') ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={me.twoFactorEnabled}
+                        onClick={() => setRemoving('credential')}
+                      >
+                        Remove
+                      </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <Button type="button" variant="outline" size="sm" onClick={() => setDialog('create-password')}>
@@ -151,9 +163,11 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                   available={available.has(provider)}
                   action={
                     linked.has(provider) ? (
-                      <Button type="button" variant="ghost" size="sm" disabled={!canRemove(provider)} onClick={() => setRemoving(provider)}>
-                        Unlink
-                      </Button>
+                      canRemove(provider) ? (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setRemoving(provider)}>
+                          Unlink
+                        </Button>
+                      ) : null
                     ) : provider === 'github' && !githubAuthAvailable ? (
                       <span className="text-xs text-faint">Update the app to link GitHub.</span>
                     ) : (
@@ -195,14 +209,14 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
       </section>
 
       <section className="border border-edge bg-panel p-5 md:p-7">
-        <p className="rubric border-b border-edge pb-2">Two-factor authentication</p>
+        <h2 className="rubric border-b border-edge pb-2">Two-factor authentication</h2>
         <div className="mt-4 flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center border border-edge bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base">Authenticator app</h2>
+              <h3 className="text-base">Authenticator app</h3>
               {methodsPending ? (
                 <Skeleton className="h-5 w-24" />
               ) : (
@@ -242,10 +256,11 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
         )}
       </section>
 
+      {privacy}
+
       <section className="border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
-        <p className="rubric border-b border-edge pb-2">Connected apps</p>
-        <h2 className="mt-4 text-base">Praetorium MCP access</h2>
-        <p className="mt-1 text-sm text-dim">Apps you allowed to read or change your rosters and battles appear here.</p>
+        <h2 className="rubric border-b border-edge pb-2">Connected apps</h2>
+        <p className="mt-2 text-sm text-dim">Apps you have allowed to read or change your rosters and battles.</p>
         {connectionsResult.isPending ? <Skeleton className="mt-4 h-10 w-full" /> : null}
         {connectionsResult.isError ? (
           <Button className="mt-4" variant="outline" onClick={() => void connectionsResult.refetch()}>
@@ -295,15 +310,10 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
         ) : null}
       </section>
 
-      {privacy}
-
       <section className="border border-destructive/40 bg-panel p-5 md:p-7 lg:col-span-2">
-        <p className="rubric border-b border-edge pb-2 text-destructive">Delete account</p>
+        <h2 className="rubric border-b border-edge pb-2 text-destructive">Delete account</h2>
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base">Permanently delete your Praetorium account</h2>
-            <p className="mt-1 text-sm text-dim">This removes your rosters, friendships, leagues and every battle you played.</p>
-          </div>
+          <p className="text-sm text-dim">Permanently deletes your rosters, friendships, leagues and every battle you played.</p>
           <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
           </Button>
@@ -446,6 +456,7 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </DialogBody>
       <DialogFooter>
+        <DialogClose render={<Button type="button" variant="outline" />}>Keep account</DialogClose>
         <Button type="submit" variant="destructive" disabled={busy || !confirmed || (hasPassword && !password)}>
           {busy ? 'Deleting…' : 'Permanently delete account'}
         </Button>
@@ -459,19 +470,22 @@ function MethodRow({
   name,
   linked,
   available,
+  note,
   action,
 }: {
   method: SocialAuthProvider | 'password'
   name: string
   linked: boolean
   available: boolean
+  /** Why an action beside the row is unavailable. */
+  note?: string
   action: ReactNode
 }) {
   return (
     <SettingRow
       icon={<AuthMethodIcon method={method} />}
       title={name}
-      detail={linked ? 'Linked' : available ? 'Available to link' : 'Unavailable'}
+      detail={[linked ? 'Linked' : available ? 'Available to link' : 'Unavailable', note].filter(Boolean).join(' · ')}
       action={action}
     />
   )
@@ -538,6 +552,7 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </DialogBody>
       <DialogFooter>
+        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
         <Button type="submit" disabled={busy || password.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Creating…' : 'Create password'}
         </Button>
@@ -596,6 +611,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </DialogBody>
       <DialogFooter>
+        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
         <Button type="submit" disabled={busy || newPassword.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Changing…' : 'Change password'}
         </Button>
@@ -623,6 +639,9 @@ function RemoveMethodDialog({
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </DialogBody>
       <DialogFooter>
+        <DialogClose render={<Button type="button" variant="outline" />}>
+          {method === 'credential' ? 'Keep password' : `Keep ${SOCIAL_AUTH_PROVIDER_NAMES[method]}`}
+        </DialogClose>
         <Button
           type="button"
           variant="destructive"
@@ -734,6 +753,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </DialogBody>
         <DialogFooter>
+          <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
           <Button type="submit" disabled={busy || !password}>
             {busy ? 'Starting…' : 'Continue'}
           </Button>
@@ -779,6 +799,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </DialogBody>
       <DialogFooter>
+        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
         <Button type="submit" disabled={busy || !code.trim()}>
           {busy ? 'Verifying…' : 'Verify and enable'}
         </Button>
@@ -823,6 +844,7 @@ function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </DialogBody>
       <DialogFooter>
+        <DialogClose render={<Button type="button" variant="outline" />}>Keep two-factor</DialogClose>
         <Button type="submit" variant="destructive" disabled={busy || !password}>
           {busy ? 'Turning off…' : 'Turn off two-factor authentication'}
         </Button>

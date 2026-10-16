@@ -39,7 +39,7 @@ export function PlayerCollection({
         </p>
       ) : null}
       {!groups.length ? (
-        <p className="border border-edge bg-panel p-5 text-sm text-dim">Your shelf is empty. Add the models you own to your collection.</p>
+        <p className="text-sm text-dim">Your shelf is empty. Add the models you own to your collection.</p>
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-2">
           {groups.map((group) => {

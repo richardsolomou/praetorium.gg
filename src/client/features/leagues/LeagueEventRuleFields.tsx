@@ -7,11 +7,10 @@ import { Choice } from '../../components/Choice'
 
 export type LeagueEventRuleValue = { format: TableShape; rosterLimit: number }
 
-/** What each shape asks of an entrant's roster, which is the whole reason an event fixes one. */
-export const ROSTER_RULE: Record<TableShape, string> = {
-  '1v1': 'Everyone seals a list built to this size.',
+/** What a team shape asks of an entrant's roster; a duel's points say it all. */
+export const ROSTER_RULE: Partial<Record<TableShape, string>> = {
   '2v1': 'You give each player a solo or allied size before they seal.',
-  '2v2': 'You pair players into teams of two, and each seals a half-size list. Team-wide limits are yours to check.',
+  '2v2': 'You pair players into teams of two, and each seals a half-size roster. Team-wide limits are yours to check.',
 }
 
 export function LeagueEventRuleFields({
@@ -28,7 +27,7 @@ export function LeagueEventRuleFields({
     const split = leagueRosterSplit(value.format, limit)
     if (split) return split
     const size = GAME_SIZES.find((candidate) => candidate.limit === limit)
-    return size ? `${size.name} · ${limit.toLocaleString()} points` : `${limit.toLocaleString()} points per player`
+    return size ? `${size.name} · ${limit.toLocaleString('en')} points` : `${limit.toLocaleString('en')} points per player`
   }
 
   return (
@@ -50,24 +49,34 @@ export function LeagueEventRuleFields({
         }
       />
       <div className="space-y-1.5">
-        <Label htmlFor="league-event-roster-limit">Points</Label>
-        <Select
-          value={String(value.rosterLimit)}
-          disabled={disabled}
-          onValueChange={(limit) => limit && onChange({ ...value, rosterLimit: Number(limit) })}
-        >
-          <SelectTrigger id="league-event-roster-limit" className="h-11 w-full">
-            <SelectValue>{() => label(value.rosterLimit)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {limits.map((limit) => (
-              <SelectItem key={limit} value={String(limit)}>
-                {label(limit)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-dim">{ROSTER_RULE[value.format]}</p>
+        {limits.length > 1 ? (
+          <>
+            <Label htmlFor="league-event-roster-limit">Points</Label>
+            <Select
+              value={String(value.rosterLimit)}
+              disabled={disabled}
+              onValueChange={(limit) => limit && onChange({ ...value, rosterLimit: Number(limit) })}
+            >
+              <SelectTrigger id="league-event-roster-limit" className="h-11 w-full">
+                <SelectValue>{() => label(value.rosterLimit)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {limits.map((limit) => (
+                  <SelectItem key={limit} value={String(limit)}>
+                    {label(limit)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        ) : (
+          // One size on offer is a fact to read, not a choice to make.
+          <>
+            <p className="text-sm leading-none font-medium">Points</p>
+            <p className="font-semibold">{label(value.rosterLimit)}</p>
+          </>
+        )}
+        {ROSTER_RULE[value.format] ? <p className="text-xs text-dim">{ROSTER_RULE[value.format]}</p> : null}
       </div>
     </>
   )

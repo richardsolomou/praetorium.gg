@@ -13,16 +13,23 @@ export function SecondaryMissionPage({ packId, cardId }: { packId: string; cardI
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Secondary mission" title={card.name} />
-      <PageContent>
-        <Link to="/missions/$packId" params={{ packId }} className="eyebrow text-info">
-          {pack.name}
-        </Link>
-        <section id={`secondary-${card.key}`} className="mt-4 scroll-mt-16 border border-edge bg-panel p-4">
-          <MissionCardReference card={card} type="Secondary mission" />
+      <PageHeader
+        eyebrow={
+          <>
+            Secondary mission ·{' '}
+            <Link to="/missions/$packId" params={{ packId }} className="text-info hover:text-bone">
+              {pack.name}
+            </Link>
+          </>
+        }
+        title={card.name}
+      />
+      <PageContent className="space-y-6">
+        <section id={`secondary-${card.key}`} className="scroll-mt-16">
+          <MissionCardReference card={card} />
           <MissionActions actions={card.actions} className="mt-4" />
         </section>
-        <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

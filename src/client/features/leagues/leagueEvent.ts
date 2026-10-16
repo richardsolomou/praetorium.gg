@@ -55,9 +55,9 @@ export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'
 export function sideGroups(league: Pick<League, 'rosterLimit'>): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
   const solo = league.rosterLimit ?? 0
   return {
-    solo: { title: `Solo · ${solo.toLocaleString()} points`, detail: 'Plays alone against a pair.' },
+    solo: { title: `Solo · ${solo.toLocaleString('en')} points`, detail: 'Plays alone against a pair.' },
     allied: {
-      title: `Allied · ${alliedLeagueRosterLimit(solo).toLocaleString()} points`,
+      title: `Allied · ${alliedLeagueRosterLimit(solo).toLocaleString('en')} points`,
       detail: 'Plays beside another ally.',
     },
     unsized: { title: 'Waiting for a size' },
@@ -71,7 +71,7 @@ export function sideGroups(league: Pick<League, 'rosterLimit'>): Record<'solo' |
  */
 export type EntrantGrouping<T> = { key: string; title?: string; detail?: string; teamId?: string; entries: T[] }
 
-/** The groups the entrant list, the organizer and the revealed lists all split an event into, so a pairing reads the same everywhere. */
+/** The groups the entrant list, the organizer and the revealed rosters all split an event into, so a pairing reads the same everywhere. */
 export function entrantGroups<T extends Pick<LeagueEntryView, 'teamId' | 'status' | 'requiredLimit'>>(
   league: Pick<League, 'format' | 'rosterLimit'>,
   accepted: readonly T[],
@@ -113,8 +113,8 @@ export function entryProgress(league: Pick<League, 'format'>, stage: EntryStage)
   const stages: { stage: EntryStage; label: string }[] = [
     { stage: 'join', label: 'Join the league' },
     ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
-    { stage: 'seal', label: 'Seal your list' },
-    { stage: 'reveal', label: 'Lists revealed' },
+    { stage: 'seal', label: 'Seal your roster' },
+    { stage: 'reveal', label: 'Rosters revealed' },
     { stage: 'play', label: 'Play your games' },
   ]
   const current = stages.findIndex((candidate) => candidate.stage === stage)
@@ -132,7 +132,7 @@ type LeagueFacts = {
 /** A league's table shape and points, such as "Duel · 2,000 points", or null for an event that fixed neither. */
 export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'>) {
   return league.format && league.rosterLimit
-    ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString()} points`}`
+    ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString('en')} points`}`
     : null
 }
 
@@ -143,7 +143,7 @@ export function leaguePlayers(league: Pick<LeagueFacts, 'playerLimit'>, accepted
 
 /** Where the open event stands for someone not in it: still taking players, full, or past its reveal. */
 export function leaguePhase(league: LeagueFacts, accepted: number, occupied: number) {
-  if (league.revealedAt) return { label: 'Lists revealed', tint: 'text-achieved' }
+  if (league.revealedAt) return { label: 'Rosters revealed', tint: 'text-achieved' }
   return leagueRegistrationFull(league, accepted, occupied)
     ? { label: 'Registration full', tint: 'text-dim' }
     : { label: 'Registration open', tint: 'text-parchment' }

@@ -1,18 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import {
-  Bell,
-  Calculator,
-  ChevronRight,
-  ClipboardPaste,
-  Code,
-  Crosshair,
-  Heart,
-  Layers3,
-  LockKeyhole,
-  RotateCcw,
-  Swords,
-  Users,
-} from 'lucide-react'
+import { Bell, Calculator, ClipboardPaste, Code, Crosshair, Heart, Layers3, LockKeyhole, RotateCcw, Swords, Users } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
 import { SOURCE, SPONSOR } from '../../projectLinks'
 
@@ -55,7 +42,7 @@ const FEATURES = [
   {
     icon: RotateCcw,
     title: 'Battle replay & stats',
-    text: 'Revisit each turn. Track your results by detachment, mission and game size.',
+    text: 'Revisit each turn. Track your results by detachment, mission and battle size.',
   },
 ]
 
@@ -74,16 +61,13 @@ export function HomeFeatures() {
           </article>
         ))}
       </div>
-      <Link to="/simulator" className={buttonClass({ variant: 'outline', className: 'mt-6' })}>
-        Try a combat matchup <ChevronRight aria-hidden />
-      </Link>
     </section>
   )
 }
 
 export function HomeIncluded() {
   return (
-    <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
+    <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-16">
       <div className="min-w-0 border-l-2 border-parchment bg-parchment/5 p-5 sm:p-6">
         <h2 className="text-2xl leading-none text-parchment sm:text-3xl">All free. No subscription.</h2>
         <p className="mt-4 max-w-2xl font-rules text-dim">

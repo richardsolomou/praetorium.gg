@@ -13,9 +13,8 @@ export function TextSizeSettings() {
   return (
     <section className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
       <div>
-        <p className="rubric border-b border-edge pb-2">Display</p>
-        <h2 className="mt-4 text-base">Text size on this device</h2>
-        <p className="mt-1 text-sm text-dim">Everything scales together, so layouts keep their shape at every size.</p>
+        <h2 className="rubric border-b border-edge pb-2">Text size</h2>
+        <p className="mt-2 text-sm text-dim">Applies on this device only.</p>
       </div>
       <Choice label="Text size" value={size} options={SIZES} onChange={chooseTextSize} />
     </section>

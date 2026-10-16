@@ -225,6 +225,7 @@ type DispositionFaction = {
   displayName: string
   icon: string | null
   edition?: StandingFaction['edition']
+  isDefault?: boolean
   referenceDetachmentIds: readonly string[]
   detachments: readonly {
     id: string
@@ -238,6 +239,7 @@ type DispositionFaction = {
 /** Each faction's own reference detachments that offer a force disposition, so a chapter's repeated options appear once. */
 export function detachmentsOffering(factions: readonly DispositionFaction[], dispositionId: string) {
   return factions
+    .filter((faction) => faction.isDefault !== false)
     .flatMap((faction) => {
       const detachments = faction.detachments.flatMap((detachment) =>
         detachment.reference &&

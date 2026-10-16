@@ -235,7 +235,9 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
             if (context) createdAccounts.add(context.context)
             await captureAuthentication(created.id, 'account_created', context)
           },
-          before: async (data) => {
+          before: async (data, context) => {
+            // A player's name is public, so an email sign-up never falls back to part of the address.
+            if (context?.path === '/sign-up/email' && !data.name?.trim()) throw new APIError('BAD_REQUEST', { message: 'Enter your name.' })
             const avatar = await rehostSocialAvatarOnSignUp(data)
             if (!options.userIdForNewAccount) return avatar
             return { data: { ...avatar?.data, id: options.userIdForNewAccount(data.email) } }

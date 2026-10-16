@@ -27,17 +27,17 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
   if (!rows.length) return null
   return (
     <section data-onboarding="profile-rankings" data-rankings>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>Leaderboard</span>
         <span className="text-xs text-faint normal-case">Last {rankings.days} days</span>
-      </p>
+      </h2>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map(({ faction, place, of, standing }) => (
           <Link
             key={faction?.slug ?? 'overall'}
             to="/leaderboard"
             search={{ faction: faction?.slug }}
-            className="flex min-w-0 items-center gap-3 border border-edge bg-panel p-3 transition-colors hover:border-edge-strong hover:bg-raised"
+            className="flex min-w-0 items-center gap-3 border border-edge bg-panel p-3 transition-colors hover:border-info hover:bg-raised"
           >
             <span className="figure w-14 shrink-0 text-2xl leading-none font-bold text-bone">
               #{place}

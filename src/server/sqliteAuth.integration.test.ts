@@ -93,6 +93,13 @@ it.each([
   expect(response.status).toBe(200)
 })
 
+it.each(['', '   '])('refuses an email sign-up whose name is %j, since the name is public', async (name) => {
+  const auth = authFor({ APP_URL: 'http://127.0.0.1:3000', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
+  await expect(auth.api.signUpEmail({ body: { email: `${randomUUID()}@example.com`, password: 'password1234', name } })).rejects.toThrow(
+    'Enter your name.',
+  )
+})
+
 it.each(['http://localhost:3001', 'https://example.com'])('rejects sign-in from %s for a local app', async (browserOrigin) => {
   const appUrl = 'http://127.0.0.1:3000'
   const auth = authFor({ APP_URL: appUrl, AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })

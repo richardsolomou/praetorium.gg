@@ -18,7 +18,7 @@ test('deleting offers to archive a roster, which leaves the library list and Hom
   const confirm = page.getByRole('alertdialog')
   await expect(confirm.getByRole('button', { name: 'Delete roster' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('archive-instead-1440.png') })
-  await confirm.getByRole('button', { name: 'Archive instead' }).click()
+  await confirm.getByRole('button', { name: 'Archive roster' }).click()
   await expect.poll(async () => (await operator.roster(id))?.archived).toBe(true)
 
   const archived = page.getByRole('button', { name: /^Archived/ })
@@ -54,7 +54,7 @@ test('deleting offers to archive a roster, which leaves the library list and Hom
   await openArchived()
   await row.getByRole('button', { name: `Actions for ${name}` }).click()
   await page.getByRole('menuitem', { name: 'Delete' }).click()
-  await expect(confirm.getByRole('button', { name: 'Archive instead' })).toHaveCount(0)
+  await expect(confirm.getByRole('button', { name: 'Archive roster' })).toHaveCount(0)
   await confirm.getByRole('button', { name: 'Delete roster' }).click()
   await expect.poll(async () => await operator.roster(id)).toBeUndefined()
 })

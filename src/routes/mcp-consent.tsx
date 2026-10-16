@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { buttonClass } from '../client/components/buttonClass'
+import { PageState } from '../client/components/PageState'
 import { authClient } from '../client/authClient'
 import { mcpConsentDetails } from '../server/mcpConsent'
 
@@ -8,6 +10,17 @@ export const Route = createFileRoute('/mcp-consent')({
   loader: () => mcpConsentDetails(),
   head: () => ({ meta: [{ name: 'robots', content: 'noindex' }] }),
   component: McpConsent,
+  // An expired or replayed request cannot be retried from here; only the app can start a new one.
+  errorComponent: () => (
+    <main className="flex w-full">
+      <PageState
+        className="flex-1 border-x-0 border-t-0"
+        eyebrow="Connected apps"
+        title="This connection request has expired"
+        explanation="Start the connection again from your app."
+      />
+    </main>
+  ),
 })
 
 function McpConsent() {
@@ -20,7 +33,7 @@ function McpConsent() {
     setError(null)
     const result = await authClient.oauth2.consent({ accept })
     if (result.error) {
-      setError('Could not finish authorization. Please try again.')
+      setError('Could not finish connecting. Start the connection again from your app.')
       setPending(false)
       return
     }
@@ -29,7 +42,7 @@ function McpConsent() {
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-      <p className="eyebrow">Account access</p>
+      <p className="eyebrow">Connected apps</p>
       <h1 className="mt-2 text-3xl">Connect to Praetorium</h1>
       {signedIn ? (
         <>
@@ -56,9 +69,12 @@ function McpConsent() {
           </div>
         </>
       ) : (
-        <a className="mt-6 inline-block underline" href={`/sign-in?${new URLSearchParams({ next })}`}>
-          Sign in to continue
-        </a>
+        <>
+          <p className="mt-4 text-dim">Sign in to choose what this app may access.</p>
+          <a className={buttonClass({ className: 'mt-6' })} href={`/sign-in?${new URLSearchParams({ next })}`}>
+            Sign in to continue
+          </a>
+        </>
       )}
     </main>
   )

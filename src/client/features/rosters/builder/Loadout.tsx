@@ -216,10 +216,10 @@ export function Loadout({
           )}
           {visibleLoose.length ? (
             <section data-onboarding="loadout-wargear">
-              <p className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
+              <h3 className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
                 <span>Wargear options</span>
                 <span className="readout">{visibleLoose.length}</span>
-              </p>
+              </h3>
               <div className="mt-3 grid gap-5">
                 {orderedChoices(visibleLoose, weapons).map((choice) =>
                   choice.kind ? (

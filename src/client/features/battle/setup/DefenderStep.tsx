@@ -1,6 +1,5 @@
 import type { Command } from '../../../../core/battle'
 import type { Side } from '../../../sides'
-import { SetupPanel } from './chrome'
 import { SetupSideChoice } from './SetupSideChoice'
 
 export function DefenderStep({
@@ -17,7 +16,7 @@ export function DefenderStep({
   const attacker = sides.find((side) => side.armies.some((army) => army.playerId === attackerId))
   const chosen = attacker ? (sides.find((side) => side.index !== attacker.index)?.index ?? null) : null
   return (
-    <SetupPanel onboarding="battle-setup-defender">
+    <div data-onboarding="battle-setup-defender">
       <SetupSideChoice
         label="Defender"
         sides={sides}
@@ -29,6 +28,6 @@ export function DefenderStep({
           if (opposingCaptain) send({ kind: 'set-attacker', attackerId: opposingCaptain })
         }}
       />
-    </SetupPanel>
+    </div>
   )
 }

@@ -35,7 +35,7 @@ function useAccountControls() {
   const signOut = () => {
     void (async () => {
       if (await hasLocalChanges()) {
-        window.dispatchEvent(new Event('praetorium-open-sync'))
+        window.dispatchEvent(new CustomEvent('praetorium-open-sync', { detail: 'sign-out' }))
         return
       }
       const owner = me?.id
@@ -96,7 +96,7 @@ function AccountMenuItems() {
       {me ? (
         <>
           <DropdownMenuItem render={<Link to="/profile" />}>
-            <UserRoundPen /> Edit profile
+            <UserRoundPen /> Account settings
           </DropdownMenuItem>
           {showOnboarding ? (
             <DropdownMenuItem onClick={openOnboarding}>

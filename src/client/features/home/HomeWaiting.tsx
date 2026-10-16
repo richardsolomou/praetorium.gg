@@ -10,10 +10,10 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
   if (!rostersDue.length && !friendRequests) return null
   return (
     <section data-home-waiting>
-      <p className="rubric flex items-baseline justify-between border-b border-discarded/40 pb-2 text-discarded">
+      <h2 className="rubric flex items-baseline justify-between border-b border-discarded/40 pb-2 text-discarded">
         <span>Needs your attention</span>
         <span className="readout">{rostersDue.length + friendRequests}</span>
-      </p>
+      </h2>
       <ul className="divide-y divide-edge border-b border-edge">
         {rostersDue.map((league) => (
           <li key={league.token}>

@@ -31,17 +31,20 @@ const ENDING = { 'finished-early': 'Finished early', conceded: 'Conceded' } as c
  * the viewer sat in leads with how it went for them, the fold the leaderboard and profile
  * count, so the card cannot call a game differently from either.
  *
- * `title` is optional because a shelf that is already the whole of a named tab
- * would only repeat that name over itself.
+ * `title` is optional because a shelf that is already the whole of a named tab, or sits
+ * under its page's own heading, would only repeat that name over itself; `name` then
+ * still identifies the shelf.
  */
 export function BattleShelf({
   title,
+  name = title,
   battles,
   viewerId,
   onboarding,
   onDelete,
 }: {
   title?: string
+  name?: string
   battles: readonly Battle[]
   viewerId?: string
   onboarding?: OnboardingTarget
@@ -51,12 +54,12 @@ export function BattleShelf({
   const { data: deployments } = useQuery({ ...deploymentsQuery(), enabled: battles.some((battle) => battle.deploymentId !== null) })
   if (!battles.length) return null
   return (
-    <section data-onboarding={onboarding} data-battle-shelf={title ?? ''}>
+    <section data-onboarding={onboarding} data-battle-shelf={name ?? ''}>
       {title ? (
-        <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+        <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
           <span>{title}</span>
           <span className="readout">{battles.length}</span>
-        </p>
+        </h2>
       ) : null}
       <div className={`grid gap-3 ${title ? 'mt-3' : ''}`}>
         {battles.map((battle) => {
@@ -68,7 +71,7 @@ export function BattleShelf({
             seat !== -1 && battle.status === 'finished' ? OUTCOME[battleOutcome(battle, battle.sides[seat]!)] : battleStage(battle.status)
           const battlefield = deploymentName(battle.deploymentId, deployments)
           const setting = [
-            battle.settings.limit ? `${battle.settings.limit} pts` : 'Legacy format',
+            battle.settings.limit ? `${battle.settings.limit.toLocaleString('en')} points` : 'Legacy format',
             ...(battle.settings.manual ? ['Manual tracking'] : battle.mission ? [battle.mission.name] : []),
             ...(battlefield ? [battlefield] : []),
             ...(battle.result?.reason && battle.result.reason !== 'completed' ? [ENDING[battle.result.reason]] : []),
@@ -81,7 +84,7 @@ export function BattleShelf({
             <ContextMenu key={battle.token}>
               <ContextMenuTrigger
                 render={
-                  <article className="group relative min-w-0 overflow-hidden border border-edge bg-panel shadow-[0_1rem_2rem_-1.25rem_rgba(0,0,0,0.7)] transition-colors hover:border-edge-strong" />
+                  <article className="group relative min-w-0 overflow-hidden border border-edge bg-panel shadow-[0_1rem_2rem_-1.25rem_rgba(0,0,0,0.7)] transition-colors hover:border-info hover:bg-raised" />
                 }
               >
                 <span className="flex h-1" aria-hidden>
@@ -104,7 +107,8 @@ export function BattleShelf({
                     <Side side={ours} viewerId={viewerId} className="order-2 sm:order-none" />
                     <span className="order-1 flex items-center justify-between gap-3 sm:order-none sm:flex-col sm:justify-center sm:gap-1.5">
                       <span className={`chip ${stage.tint}`}>{stage.name}</span>
-                      <span className="figure text-3xl leading-none font-bold">
+                      {/* Stacked sides on a phone have nothing between them for "vs" to stand for. */}
+                      <span className={`figure text-3xl leading-none font-bold ${scored ? '' : 'max-sm:hidden'}`}>
                         {scored ? (
                           <>
                             <span className="text-side-a">{a}</span>
@@ -116,12 +120,17 @@ export function BattleShelf({
                         )}
                       </span>
                       {battle.status === 'playing' ? (
-                        <span className="text-2xs text-dim">
+                        <span className="text-2xs text-dim capitalize">
                           Round {battle.round} · {battle.phase}
                         </span>
                       ) : null}
                     </span>
-                    <Side side={theirs} viewerId={viewerId} mirrored className="order-3 sm:order-none" />
+                    <Side
+                      side={theirs}
+                      viewerId={viewerId}
+                      mirrored
+                      className="order-3 max-sm:border-t max-sm:border-edge max-sm:pt-3 sm:order-none"
+                    />
                   </span>
                   <span
                     className={`flex min-w-0 items-center justify-between gap-3 border-t border-edge bg-sunken/40 py-1.5 pl-4 text-2xs text-faint ${canDelete ? 'pr-10' : 'pr-4'}`}

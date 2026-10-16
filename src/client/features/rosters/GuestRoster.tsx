@@ -117,7 +117,7 @@ export function GuestRoster({
             </>
           }
         />
-        <PageContent className="pt-6">
+        <PageContent>
           <RosterSetupDialog
             mode="create"
             guest

@@ -73,7 +73,7 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
         'league-entry-added': `${actor} added you as a player. Seal your list.`,
         'league-entry-rejected': 'The organizer declined your entry.',
         'league-roster-reseal': 'Your sealed list was cleared after a size or team change. Seal a replacement.',
-        'league-revealed': 'The lists are out. Start your league battles.',
+        'league-revealed': 'The rosters are out. Start your league battles.',
         'league-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
       }[notice.kind]
       return { title: names.league, body, path: `/leagues/${encodeURIComponent(notice.leagueToken)}${query}` }

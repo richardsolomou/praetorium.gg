@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { MapPinned } from 'lucide-react'
+import { Fragment } from 'react'
+import { MapPinned, Maximize2 } from 'lucide-react'
 import { Dialog, DialogTrigger } from '../../../components/Dialog'
 import { MissionActions } from '../../../components/MissionActions'
 import { MissionCardReference } from '../../../components/MissionCardReference'
@@ -8,7 +9,7 @@ import { TerrainBoard } from './TerrainBoard'
 import { TerrainLayoutDialogContent } from './TerrainLayoutDialogContent'
 import { PageState } from '../../../components/PageState'
 import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from './terrainGeometry'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { dispositionAccent, dispositionTone } from '../../../components/rosterSetup'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 
@@ -33,51 +34,74 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Mission matchup" title={`${yourDisposition.name} vs ${opponentDisposition.name}`} />
-      <PageContent>
-        <Link to="/missions/$packId" params={{ packId }} className="eyebrow text-info">
-          {pack.name}
-        </Link>
-        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 border border-edge bg-sunken p-3">
-          <div className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(you, true)}`}>
-            {yourDisposition.name}
-          </div>
-          <span className="grid place-items-center text-sm font-bold text-dim">VS</span>
-          <div
-            className={`grid min-h-14 place-items-center border px-3 text-center font-bold uppercase ${dispositionTone(opponent, true)}`}
-          >
-            {opponentDisposition.name}
-          </div>
+      <PageHeader
+        eyebrow={
+          <>
+            Mission matchup ·{' '}
+            <Link to="/missions/$packId" params={{ packId }} className="text-info hover:text-bone">
+              {pack.name}
+            </Link>
+          </>
+        }
+        title={`${yourDisposition.name} vs ${opponentDisposition.name}`}
+      >
+        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+          {sides.map((side, at) => (
+            <Fragment key={side.seat}>
+              {at ? <span className="grid place-items-center px-1 text-sm font-bold text-dim">VS</span> : null}
+              <a
+                href={`#mission-${side.mission.id}`}
+                className={`flex min-h-16 min-w-0 flex-col justify-center border px-3 py-2 transition-colors hover:border-info hover:bg-raised focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'} ${dispositionTone(side.disposition.id, true)}`}
+              >
+                <span className="eyebrow text-bone/75">{side.disposition.name}</span>
+                <span className="mt-0.5 font-bold break-words sm:text-lg">{side.mission.name}</span>
+              </a>
+            </Fragment>
+          ))}
         </div>
-
-        <section data-onboarding="matchup-primary" className="mt-7">
+      </PageHeader>
+      <PageContent className="space-y-6">
+        <section data-onboarding="matchup-primary">
           <h2 className="rubric border-b border-edge pb-2">Primary missions</h2>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <div id={`mission-${yours.id}`} className="scroll-mt-16 border border-edge bg-panel p-4">
-              <h3 className="text-xl">{yours.name}</h3>
-              {yours.card ? <MissionCardReference card={yours.card} type={yourDisposition.name} /> : null}
-            </div>
-            <div id={`mission-${theirs.id}`} className="scroll-mt-16 border border-edge bg-panel p-4">
-              <h3 className="text-xl">{theirs.name}</h3>
-              {theirs.card ? <MissionCardReference card={theirs.card} type={opponentDisposition.name} /> : null}
-            </div>
+          <div className="mt-4 grid gap-6 md:grid-cols-2">
+            {sides.map((side) => (
+              <div
+                key={side.seat}
+                id={`mission-${side.mission.id}`}
+                className={`scroll-mt-16 border-t-[3px] pt-3 ${dispositionAccent(side.disposition.id)}`}
+              >
+                <h3 className="text-xl">{side.mission.name}</h3>
+                {side.mission.card ? (
+                  <div className="mt-3">
+                    <MissionCardReference card={side.mission.card} />
+                  </div>
+                ) : null}
+              </div>
+            ))}
           </div>
         </section>
 
         {sides.some((side) => side.actions.length) ? (
-          <section data-onboarding="matchup-actions" className="mt-7">
+          <section data-onboarding="matchup-actions">
             <h2 className="rubric flex justify-between border-b border-edge pb-2">
               <span>Actions</span>
               <span className="readout">{sides.reduce((total, side) => total + side.actions.length, 0)}</span>
             </h2>
-            <div className="mt-3 grid items-start gap-3 md:grid-cols-2">
+            <div className="mt-4 grid items-start gap-6 md:grid-cols-2">
               {sides.map((side) => (
-                <div key={side.seat} className="border border-edge bg-panel p-4">
-                  <span className="chip">{side.disposition.name}</span>
+                <div
+                  key={side.seat}
+                  className={
+                    side.actions.length
+                      ? `border-t-[3px] pt-3 ${dispositionAccent(side.disposition.id)}`
+                      : 'border-t-[3px] border-transparent pt-3'
+                  }
+                >
+                  <span className={`chip ${dispositionTone(side.disposition.id)}`}>{side.disposition.name}</span>
                   {side.actions.length ? (
                     <MissionActions actions={side.actions} className="mt-4" />
                   ) : (
-                    <p className="mt-4 text-sm text-dim">{side.mission.name} asks for no action.</p>
+                    <p className="mt-3 text-sm text-dim">{side.mission.name} asks for no action.</p>
                   )}
                 </div>
               ))}
@@ -85,7 +109,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
           </section>
         ) : null}
 
-        <section data-onboarding="matchup-terrain" className="mt-7">
+        <section data-onboarding="matchup-terrain">
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
             <span>Terrain layouts</span>
             <span className="readout" aria-label={terrainQuery.isPending ? 'Loading terrain layout count' : undefined}>
@@ -134,7 +158,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
             />
           )}
         </section>
-        <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )
@@ -165,21 +189,24 @@ function TerrainLayout({
   const description = deployment?.name ?? layout.description ?? layout.name
 
   return (
-    <div id={`terrain-${layout.id}`} className="scroll-mt-16">
+    <div id={`terrain-${layout.id}`} className="h-full scroll-mt-16">
       {deployment ? <span id={`deployment-${deployment.id}`} className="block scroll-mt-16" /> : null}
       <Dialog>
         <DialogTrigger
           render={
             <button
               type="button"
-              className="group border border-edge bg-panel p-3 text-left transition-colors hover:border-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info"
+              className="group flex h-full w-full flex-col border border-edge bg-panel p-3 text-left transition-colors hover:border-info focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none"
               aria-label={`Enlarge terrain layout ${label}: ${description}`}
             />
           }
         >
-          <span className="block text-center text-lg font-bold">{label}</span>
+          <span className="flex items-center gap-2">
+            <span className="text-lg font-bold">{label}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-dim transition-colors group-hover:text-bone">{description}</span>
+            <Maximize2 className="size-4 shrink-0 text-dim transition-colors group-hover:text-info" aria-hidden />
+          </span>
           <TerrainBoard layout={layout} deployment={deployment} templates={templates} className="mt-2 w-full" />
-          <span className="mt-2 block text-xs text-dim group-hover:text-bone">{description}</span>
         </DialogTrigger>
         <TerrainLayoutDialogContent
           title={`Layout ${label} · ${layout.name}`}

@@ -22,7 +22,7 @@ test('the roster library reserves its rows while the first page loads', async ({
   const firstFrameRubric = firstFrame.locator('main section').last().locator('.rubric')
   await expect(firstFrameRubric.getByText('Rosters', { exact: true })).toBeVisible()
   await expect(firstFrameRubric.getByLabel('Loading roster count')).toBeVisible()
-  await expect(firstFrame.getByRole('button', { name: 'Create roster', exact: true })).toBeVisible()
+  await expect(firstFrame.getByRole('button', { name: 'New roster', exact: true })).toBeVisible()
   await expect(firstFrame.getByLabel('Loading roster creation options')).toHaveCount(0)
   await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js.png', fullPage: true })
   await firstFrame.setViewportSize({ width: 390, height: 844 })
@@ -52,7 +52,7 @@ test('the roster library reserves its rows while the first page loads', async ({
     const libraryRubric = page.locator('main section').last().locator('.rubric')
     await expect(libraryRubric.getByText('Rosters', { exact: true })).toBeVisible()
     await expect(libraryRubric.getByLabel('Loading roster count')).toBeVisible()
-    const createRosterButton = page.getByRole('button', { name: 'Create roster', exact: true })
+    const createRosterButton = page.getByRole('button', { name: 'New roster', exact: true })
     await expect(createRosterButton).toBeVisible()
     await expect(page.getByLabel('Loading roster creation options')).toHaveCount(0)
     await createRosterButton.click()
@@ -150,7 +150,7 @@ test('automatic roster names are saved with edits and a player can override or r
   await signUp(page, 'Automatic roster')
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
@@ -577,7 +577,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await printedRoster.close()
 
   await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
@@ -588,7 +588,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   // Public reads exactly as unlisted does. What it adds is being listed on the
   // owner's profile, which is the only place the two values look different.
   await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const publishing = page.getByRole('dialog', { name: 'Edit roster setup' })
   await publishing.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Public — listed on your profile' }).click()
@@ -607,7 +607,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   // Back to unlisted, so the rest of this test reads the link the way it did before.
   await page.goto('/rosters')
-  const revertSetup = page.getByRole('menuitem', { name: 'Edit setup' })
+  const revertSetup = page.getByRole('menuitem', { name: 'Edit roster setup' })
   await retryUntilVisible(revertSetup, () => page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click())
   await revertSetup.click()
   const reverting = page.getByRole('dialog', { name: 'Edit roster setup' })

@@ -34,17 +34,21 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow={data.document.title} title={data.section.title} />
-      <PageContent>
-        <Link to="/rules/$documentId" params={{ documentId }} className="eyebrow flex items-center gap-1 text-info hover:text-bone">
-          <ChevronLeft className="size-3.5" aria-hidden /> {data.document.title}
-        </Link>
-        <div className="mt-5 space-y-5">
+      <PageHeader
+        eyebrow={
+          <Link to="/rules/$documentId" params={{ documentId }} className="text-info hover:text-bone">
+            {data.document.title}
+          </Link>
+        }
+        title={data.section.title}
+      />
+      <PageContent className="space-y-6">
+        <div className="space-y-5">
           {data.section.entries.map((entry) => (
             <Rule key={entry.anchor} entry={entry} links={links} />
           ))}
         </div>
-        <nav className="mt-8 flex items-stretch justify-between gap-2 border-t border-edge pt-4">
+        <nav className="flex items-stretch justify-between gap-2 border-t border-edge pt-4">
           {[sections[at - 1], sections[at + 1]].map((section, side) =>
             section ? (
               <Link
@@ -60,7 +64,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
             ) : null,
           )}
         </nav>
-        <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{index.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{index.attribution}</p>
       </PageContent>
     </main>
   )

@@ -55,6 +55,13 @@ describe('canonical reference boundaries', () => {
     )
   })
 
+  it('lists the core rules first in the rules index', () => {
+    const core = { ...ruleDocument, id: 'core-rules', slug: 'core-rules', title: 'Core Rules' }
+    const sources = { canonicalCatalogue: () => ({ datasheets: [], ruleDocuments: [ruleDocument, core] }) }
+
+    expect(referenceRuleIndex(sources as never)?.documents[0]?.id).toBe('core-rules')
+  })
+
   it('reads a rule section from canonical documents', () => {
     const { sources } = referenceSources()
 

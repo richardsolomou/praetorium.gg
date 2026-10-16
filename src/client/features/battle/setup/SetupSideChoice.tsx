@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button'
 import type { Side } from '../../../sides'
-import { ArmyIdentity } from '../ArmyIdentity'
 import { SidePlayers } from '../PlayerName'
 import { tint } from '../battleTints'
 import { CHOOSABLE, CHOSEN } from './chrome'
@@ -52,9 +51,6 @@ export function SetupSideChoice({
             >
               {/* Unlinked throughout: the card itself is the control. */}
               <SidePlayers side={side} linked={false} />
-              {side.armies.map((army) => (
-                <ArmyIdentity key={army.playerId} army={army} linked={false} />
-              ))}
               {role ? (
                 <span className={`text-2xs font-bold tracking-label uppercase ${picked ? tint(side.index).text : 'text-dim'}`}>{role}</span>
               ) : null}

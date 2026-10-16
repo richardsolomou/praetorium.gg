@@ -242,6 +242,14 @@ describe('detachments offering a force disposition', () => {
     expect(detachmentsOffering(factions, 'disruption')).toEqual([])
   })
 
+  it('lists a faction once, from its default rules version', () => {
+    const factions = [
+      faction('dark-angels', [detachment('inner-circle', ['take-and-hold'])]),
+      { ...faction('dark-angels', [detachment('inner-circle', ['take-and-hold'])]), isDefault: false },
+    ]
+    expect(detachmentsOffering(factions, 'take-and-hold')).toHaveLength(1)
+  })
+
   it('orders factions by name', () => {
     const factions = [
       faction('tyranids', [detachment('swarm', ['disruption'])]),

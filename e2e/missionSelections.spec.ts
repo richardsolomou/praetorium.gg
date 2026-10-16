@@ -227,7 +227,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await inspectChoices(page, beacon, 'Beacon')
   await side.getByRole('button', { name: 'Open Beacon nomination roster', exact: true }).click()
   const army = page.getByRole('dialog', { name: 'Beacon nomination roster', exact: true })
-  await army.getByRole('button', { name: 'Mark Immortals lost', exact: true }).click()
+  await army.getByRole('button', { name: 'Mark Immortals destroyed', exact: true }).click()
   await army.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(beacon.getByText('Immortals (destroyed)', { exact: true })).toBeVisible()

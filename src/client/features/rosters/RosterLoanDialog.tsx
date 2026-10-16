@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -34,14 +35,20 @@ export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string
         <DialogHeader>
           <DialogTitle>Lend to a friend</DialogTitle>
           <DialogDescription>
-            A friend you lend this roster to can view it and field it in their own battles. They cannot edit it, though like any roster they
-            can read, they can keep their own copy. Your unit notes and battle preparation stay yours. A battle keeps the army as it was
-            when it was fielded, even if you change the roster or stop lending it.
+            A friend can view this roster and field it in their battles, but not edit it. Your unit notes and battle preparation stay yours.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {friends.isPending || loans.isPending ? (
-            <output className="text-sm text-dim">Loading friends…</output>
+            <ul aria-label="Loading friends" aria-busy="true" className="grid gap-2">
+              {[0, 1, 2].map((key) => (
+                <li key={key} className="flex items-center gap-3">
+                  <Skeleton className="size-9 rounded-full" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-5 w-9 rounded-full" />
+                </li>
+              ))}
+            </ul>
           ) : friends.isError || loans.isError ? (
             <p role="alert" className="text-sm text-destructive">
               Could not load your friends. Try again.

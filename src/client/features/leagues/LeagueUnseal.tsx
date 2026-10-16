@@ -17,7 +17,7 @@ import { unsealLeagueRoster } from '../../functions'
 import { errorMessage } from '../../queryClient'
 import { useLeagueRefresh } from './leagueEvent'
 
-/** An organizer's way to send one revealed list back to its player, behind a confirmation that says what it costs. */
+/** An organizer's way to send one revealed roster back to its player, behind a confirmation that says what it costs. */
 export function UnsealRoster({ token, eventToken, userId, label }: { token: string; eventToken: string; userId: string; label: string }) {
   const refresh = useLeagueRefresh(token)
   const [confirming, setConfirming] = useState(false)
@@ -64,8 +64,8 @@ export function UnsealRoster({ token, eventToken, userId, label }: { token: stri
           <AlertDialogHeader>
             <AlertDialogTitle>Unseal {label}’s roster?</AlertDialogTitle>
             <AlertDialogDescription>
-              Their revealed list is discarded and they can seal another one for this event. Battles already started keep the list they were
-              created with.
+              Their revealed roster is discarded and they can seal another one for this event. Battles already started keep the roster they
+              were created with.
             </AlertDialogDescription>
             {unseal.error ? (
               <p role="alert" className="text-sm text-destructive">

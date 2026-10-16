@@ -25,7 +25,7 @@ import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 export type ManageableLeague = { token: string; name: string }
 
 /** One frame for every league card, so a card with organizer actions looks like one without. */
-export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:bg-raised'
+export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:border-info hover:bg-raised'
 
 /** `canDelete` is the owner's alone; an admin runs the league but cannot remove it. */
 export function LeagueCardActions({
@@ -58,16 +58,12 @@ export function LeagueCardActions({
 export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActionsController; canDelete: boolean }) {
   return (
     <>
-      <Button variant="outline" className="pointer-coarse:h-11" onClick={actions.openEdit}>
+      <Button variant="outline" onClick={actions.openEdit}>
         <Pencil /> Edit league
       </Button>
       {canDelete ? (
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="ghost" size="icon" className="pointer-coarse:size-11" aria-label={`More for ${actions.league.name}`} />
-            }
-          >
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More for ${actions.league.name}`} />}>
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -153,7 +149,7 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {actions.league.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every event, entrant, and sealed list goes with it, for good. Battles already started from it stay where they are.
+              Every event, entrant, and sealed roster goes with it, for good. Battles already started from it stay where they are.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {actions.remove.isPending ? <output className="sr-only">Deleting the league…</output> : null}
@@ -163,7 +159,7 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
             </p>
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={actions.remove.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={actions.remove.isPending}>Keep league</AlertDialogCancel>
             <AlertDialogAction variant="destructive" disabled={actions.remove.isPending} onClick={() => actions.remove.mutate()}>
               {actions.remove.isPending ? 'Deleting…' : 'Delete league'}
             </AlertDialogAction>

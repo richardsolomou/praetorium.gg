@@ -19,14 +19,13 @@ export function CollectionSharing({ userId }: { userId: string }) {
   return (
     <section id="collection-sharing" className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
       <div>
-        <p className="rubric border-b border-edge pb-2">Collection</p>
-        <h2 className="mt-4 text-base">Who can see your collection</h2>
-        <p className="mt-1 text-sm text-dim">Your profile’s Collection tab lists your datasheets and model counts.</p>
+        <h2 className="rubric border-b border-edge pb-2">Collection</h2>
+        <p className="mt-2 text-sm text-dim">Your profile’s Collection tab lists your datasheets, model counts and photos.</p>
       </div>
       <label htmlFor={switchId} className="flex items-center justify-between gap-4 border border-edge bg-sunken p-3">
         <span>
           <span className="block text-sm font-semibold text-bone">Show collection on profile</span>
-          <span className="block text-xs text-dim">Anyone can see it when this is on. Turn it off to keep it to yourself.</span>
+          <span className="block text-xs text-dim">Anyone can see it while this is on.</span>
         </span>
         <Switch
           id={switchId}

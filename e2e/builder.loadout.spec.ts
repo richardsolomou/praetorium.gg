@@ -173,7 +173,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /Incursion/ }).click()
+  await page.getByRole('option', { name: /^Incursion/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await confirmRosterSetup(setup)
   await expect(page.getByText('3/2 in roster')).toBeVisible()
@@ -191,7 +191,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /Incursion/ }).click()
+  await page.getByRole('option', { name: /^Incursion/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await confirmRosterSetup(setup)
 

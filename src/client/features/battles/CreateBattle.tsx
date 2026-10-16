@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Check, ChevronRight, Link2 } from 'lucide-react'
+import { Check, ChevronRight, Link2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { createBattle, leagueBattleOptions } from '../../functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
@@ -24,16 +25,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../../components/Dialog'
-import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
 import { MANUAL_TRACKING_LIMITS } from '../battle/manualTracking'
+import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
 import type { SearchableGroup } from '../../components/SearchableSelect'
-
-/** How each shape seats the table, which is the whole question this dialog asks. */
-const SEATING: Record<TableShape, string> = {
-  '1v1': 'One player on each side',
-  '2v1': 'One player faces a two-player team',
-  '2v2': 'Two players on each side',
-}
 
 /** A seat this player may fill: a friend, or one of the instance's practice opponents. */
 type Opponent = { id: string; name: string; image: string | null; automated: boolean }
@@ -138,7 +132,7 @@ export function CreateBattle() {
       <DialogTrigger
         render={<Button data-onboarding="create-battle" onClick={() => advanceOnboarding('battle', 'battle-start', 'battle-format')} />}
       >
-        New battle
+        <Plus /> New battle
       </DialogTrigger>
       <DialogContent>
         {leagueMatches.length ? (
@@ -177,7 +171,7 @@ export function CreateBattle() {
             </DialogBody>
             <DialogFooter>
               <Button variant="outline" disabled={create.isPending} onClick={() => setLeagueMatches([])}>
-                Go back
+                Back
               </Button>
               <Button variant="outline" disabled={create.isPending} onClick={() => create.mutate(true)}>
                 {create.isPending ? 'Creating…' : 'Play it casually'}
@@ -188,23 +182,20 @@ export function CreateBattle() {
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
-              <DialogDescription>Choose who is playing. A practice opponent lets you control both sides on your own.</DialogDescription>
+              <DialogDescription>Choose who is playing. A practice opponent lets you play both sides yourself.</DialogDescription>
             </DialogHeader>
             <DialogBody>
-              <div>
-                <Choice
-                  onboarding="battle-format"
-                  label="Game format"
-                  value={shape}
-                  options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
-                  columns={3}
-                  onChange={(next) => {
-                    changeIntent()
-                    setShape(next)
-                  }}
-                />
-                <p className="mt-1.5 text-xs text-dim">{SEATING[shape]}.</p>
-              </div>
+              <Choice
+                onboarding="battle-format"
+                label="Battle format"
+                value={shape}
+                options={TABLE_SHAPES.map((candidate) => ({ value: candidate, ...TABLE_SHAPE_LABELS[candidate] }))}
+                columns={3}
+                onChange={(next) => {
+                  changeIntent()
+                  setShape(next)
+                }}
+              />
               {shape === '2v1' ? (
                 <Choice
                   label="Your role"
@@ -220,24 +211,11 @@ export function CreateBattle() {
                   }}
                 />
               ) : null}
-              <div>
-                <Choice
-                  label="Tracking"
-                  value={tracking}
-                  options={[
-                    { value: 'guided', name: 'Guided', detail: 'Mission cards, scoring prompts and caps' },
-                    { value: 'manual', name: 'Manual', detail: 'Keep score yourself' },
-                  ]}
-                  columns={2}
-                  onChange={(next) => {
-                    changeIntent()
-                    setTracking(next)
-                  }}
-                />
-                {tracking === 'manual' ? <p className="mt-1.5 text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
-              </div>
               {opponentQuery.isPending ? (
-                <p className="border border-edge bg-sunken p-3 text-sm text-dim">Loading players…</p>
+                <div aria-label="Loading players" className="space-y-1.5">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-11 w-full" />
+                </div>
               ) : opponentQuery.error ? null : (
                 <>
                   {opponents.length ? (
@@ -260,6 +238,22 @@ export function CreateBattle() {
               {opponents.length ? (
                 <SeatMatchup onboarding="battle-sides" seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} />
               ) : null}
+              <div>
+                <Choice
+                  label="Tracking"
+                  value={tracking}
+                  options={[
+                    { value: 'guided', name: 'Guided', detail: 'Mission cards, scoring prompts and caps' },
+                    { value: 'manual', name: 'Manual', detail: 'Keep score yourself' },
+                  ]}
+                  columns={2}
+                  onChange={(next) => {
+                    changeIntent()
+                    setTracking(next)
+                  }}
+                />
+                {tracking === 'manual' ? <p className="mt-1.5 text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
+              </div>
               {create.error || opponentQuery.error ? (
                 <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
               ) : null}

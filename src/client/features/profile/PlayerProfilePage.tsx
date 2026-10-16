@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { BattleShelf } from '../battles/BattleShelf'
 import { PageTabsList } from '../../components/PageTabs'
@@ -170,7 +171,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 ) : null}
               </>
             ) : (
-              <p className="border border-edge bg-panel p-5 text-sm text-dim">
+              <p className="text-sm text-dim">
                 {yourself
                   ? 'None of your battles are listed here. Only the ones your sharing setting allows appear.'
                   : 'This player has no battles anyone else can watch.'}
@@ -189,7 +190,10 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 </button>
               </p>
             ) : (
-              <p className="text-sm text-dim">Loading collection…</p>
+              <div className="grid gap-4 lg:grid-cols-2" aria-label="Loading collection">
+                <Skeleton className="h-40" />
+                <Skeleton className="h-40" />
+              </div>
             )}
           </TabsContent>
 

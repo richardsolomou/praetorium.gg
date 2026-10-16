@@ -32,7 +32,7 @@ export function RosterChooser({
   const rosters = (rosterQuery.data ?? []).filter(
     (roster) => !roster.archived && roster.pointsBudget === null && (requiredLimit === null || roster.limit === requiredLimit),
   )
-  // Picking a list and sealing it are two presses, because a seal is what every opponent reads at reveal.
+  // Picking a roster and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   if (!open && selectedId !== null) setSelectedId(null)
   const selected = rosters.find((roster) => roster.id === selectedId)
@@ -45,8 +45,8 @@ export function RosterChooser({
           <DialogTitle className="text-2xl">Seal a roster</DialogTitle>
           <DialogDescription>
             {requiredLimit === null
-              ? 'Nobody sees it until reveal, and you can swap it until then.'
-              : `Only your ${requiredLimit.toLocaleString()}-point lists. Nobody sees it until reveal, and you can swap it until then.`}
+              ? 'Hidden until the reveal. You can swap it until then.'
+              : `Your ${requiredLimit.toLocaleString('en')}-point rosters. Hidden until the reveal; you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -69,18 +69,12 @@ export function RosterChooser({
           ) : rosters.length ? (
             <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={(roster) => setSelectedId(roster.id)} />
           ) : (
-            <div className="border border-edge bg-panel p-5 text-center">
-              <p className="text-sm text-dim">
-                {requiredLimit === null
-                  ? 'Build or import a list first. Once it is saved, the builder links back here to seal it.'
-                  : `Build or import a ${requiredLimit.toLocaleString()}-point list. Once it is saved, the builder links back here to seal it.`}
+            <div className="space-y-3">
+              <p className="py-2 text-sm text-dim">
+                {requiredLimit === null ? 'No rosters to seal yet.' : `No ${requiredLimit.toLocaleString('en')}-point rosters to seal yet.`}
               </p>
-              <Link
-                to="/rosters"
-                search={requiredLimit === null ? {} : { limit: requiredLimit }}
-                className={buttonClass({ className: 'mt-3' })}
-              >
-                {requiredLimit === null ? 'Go to rosters' : `Build a ${requiredLimit.toLocaleString()}-point list`}
+              <Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} className={buttonClass()}>
+                {requiredLimit === null ? 'Go to rosters' : `Build a ${requiredLimit.toLocaleString('en')}-point roster`}
               </Link>
             </div>
           )}
@@ -92,7 +86,7 @@ export function RosterChooser({
             </Button>
             <Button className="max-w-full min-w-0" disabled={!selected || pending} onClick={() => selected && onChoose(selected)}>
               <FileLock2 />
-              <span className="truncate">{pending ? 'Sealing…' : selected ? `Seal ${selected.name}` : 'Choose a list to seal'}</span>
+              <span className="truncate">{pending ? 'Sealing…' : selected ? `Seal ${selected.name}` : 'Choose a roster to seal'}</span>
             </Button>
           </DialogFooter>
         ) : null}

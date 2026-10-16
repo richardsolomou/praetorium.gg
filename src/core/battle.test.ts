@@ -660,7 +660,7 @@ describe('setup', () => {
 
   it('names a custom budget in the points limit while the battle size keeps its detachment points', () => {
     expect(formatRules(2000, 1500).map((rule) => rule.hint)).toEqual([
-      'The roster costs at most 1500 points',
+      'The roster costs at most 1,500 points',
       'Detachments cost at most 3 DP together',
     ])
   })

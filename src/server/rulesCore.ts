@@ -48,8 +48,11 @@ export function loadRuleDocuments(datacardsDirectory: string): RuleDocument[] {
     .filter((name) => name.endsWith('.json'))
     .toSorted()
     .flatMap((name) => readDocument(path.join(directory, name)))
-  return documents.toSorted((left, right) => Number(right.slug === CORE_RULES_SLUG) - Number(left.slug === CORE_RULES_SLUG))
+  return coreRulesFirst(documents)
 }
+
+export const coreRulesFirst = <T extends { slug: string }>(documents: readonly T[]) =>
+  documents.toSorted((left, right) => Number(right.slug === CORE_RULES_SLUG) - Number(left.slug === CORE_RULES_SLUG))
 
 function readDocument(file: string): RuleDocument[] {
   const parsed = readSharedJson(file)

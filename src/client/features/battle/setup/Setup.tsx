@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
@@ -13,15 +13,14 @@ import {
   pointsBudgetsAgree,
   rosterBattleFormat,
 } from '../../../../core/battle'
-import { deploymentsQuery, gameReferencesQuery } from '../../../queries'
-import { deploymentFor } from '../../../battleSummary'
+import { gameReferencesQuery } from '../../../queries'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
 import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
 import { ArmiesStep } from './ArmiesStep'
-import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupPanel, useDispositionNames } from './chrome'
+import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, SetupPanel, useDispositionNames } from './chrome'
 import { TwistChoice } from './TwistChoice'
 import { DefenderStep } from './DefenderStep'
 import { FirstTurnStep } from './FirstTurnStep'
@@ -30,10 +29,8 @@ import { PreBattleRulesStep } from './PreBattleRulesStep'
 import { SideDispositionChoice } from './SideDispositionChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
-import { SidePlayers } from '../PlayerName'
-import { StepRail, type RailStep } from './StepRail'
 import { MissionDetailsDialog, type MissionDetails } from '../MissionCards'
-import { CARD_NAME, tint } from '../battleTints'
+import { tint } from '../battleTints'
 import { TableStrip } from './TableStrip'
 import { Choice } from '../../../components/Choice'
 import { MANUAL_TRACKING_LIMITS } from '../manualTracking'
@@ -62,7 +59,10 @@ function matchupName(table: Side[], nameDisposition: (id: string | null | undefi
 
 /** Every matched-play size, named and priced, for the one control that asks for it. */
 const SIZE_OPTIONS: SearchableGroup[] = [
-  { label: '', items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit}`, value: String(size.limit) })) },
+  {
+    label: '',
+    items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit.toLocaleString('en')} points`, value: String(size.limit) })),
+  },
 ]
 
 const SECTION_IDS = [
@@ -77,26 +77,20 @@ const SECTION_IDS = [
   'pre-battle',
 ] as const
 type SectionId = (typeof SECTION_IDS)[number]
-/** A manually tracked battle needs only the armies and who goes first. */
-const MANUAL_SECTION_IDS: readonly SectionId[] = ['armies', 'first-turn']
 const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each side. Allies split the points evenly.'
 
 /**
  * Setting the table on one page, in the order the rules set it.
  *
  * Every answer is folded from the battle log, so both devices read the same page and
- * the same list of what is left. Where each device is scrolled is its own: the next
- * thing the table owes is derived from the log rather than shared as a position.
+ * the same list of what is left; where each device is scrolled is its own.
  */
 export function Setup({ view, mission, missions, send: sendCommand, attachSavedRoster, pending, problem }: Props) {
   const table = foldSides(view, missions)
   const manual = view.settings.manual === true
-  const sectionIds = manual ? MANUAL_SECTION_IDS : SECTION_IDS
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const nameDisposition = useDispositionNames()
-  const { data: deployments } = useQuery(deploymentsQuery())
-  const deployment = deploymentFor(view.deploymentId, deployments)
   const attacker = table.find((side) => side.armies.some((army) => army.playerId === view.attackerId))
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
   // Pre-battle rules resolve starting with whoever takes the first turn, so it is read
@@ -155,8 +149,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           : 'Choose a battle size to continue.'
 
   /**
-   * Everything the battle still needs before it can begin, in rules order. The bar
-   * and Start battle both read this one list.
+   * Everything the battle still needs before it can begin, in rules order. The summary
+   * beside Start battle and the button itself both read this one list.
    */
   const remaining = [
     ...owed.map((army) => (army.isViewer ? 'Your army' : `${army.playerName}’s army`)),
@@ -183,15 +177,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
     defender: Boolean(view.attackerId),
     secondaries: ready && !missingCards.length,
     reserves: ready,
-    deploy: false,
+    // Nothing is recorded for deployment; the first-turn roll-off that follows it closes it.
+    deploy: Boolean(view.firstPlayerId),
     'first-turn': Boolean(view.firstPlayerId),
     'pre-battle': false,
   }
-  // The section the table owes next, which every device derives the same way.
-  const decisions: SectionId[] = manual
-    ? ['armies', 'first-turn']
-    : ['armies', 'mission', 'battlefield', 'defender', 'secondaries', 'first-turn']
-  const next = decisions.find((id) => !complete[id]) ?? sectionIds.at(-1)!
 
   useEffect(() => {
     if (ready) advanceOnboarding('battle', 'battle-setup-armies', 'battle-setup-mission')
@@ -205,68 +195,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
   useEffect(() => {
     if (view.firstPlayerId) advanceOnboarding('battle', 'battle-setup-first', 'battle-setup-begin')
   }, [view.firstPlayerId])
-
-  const stepFor: Record<SectionId, RailStep> = {
-    armies: {
-      name: 'Armies',
-      detail: `${view.settings.limit === null ? 'Choose armies' : `${pointsBudget ?? view.settings.limit} points`} · ${attached}/${view.players.length} armies`,
-      complete: complete.armies,
-    },
-    mission: { name: 'Mission', detail: mission?.name ?? 'Choose the armies first', complete: complete.mission },
-    battlefield: {
-      name: 'Battlefield',
-      detail: deployment?.name ?? (view.deploymentId ? 'Layout chosen' : 'Choose a layout'),
-      complete: complete.battlefield,
-    },
-    defender: { name: 'Defender', detail: defender ? sideName(defender) : 'Roll off for it', complete: complete.defender },
-    secondaries: { name: 'Secondaries', detail: yours?.secondaryMode === 'fixed' ? 'Fixed' : 'Tactical', complete: complete.secondaries },
-    reserves: { name: 'Reserves', detail: youHaveAnArmy ? 'Where units start' : 'Choose an army first', complete: complete.reserves },
-    deploy: { name: 'Deploy', detail: defender ? `${sideName(defender)} first` : 'After the defender', complete: complete.deploy },
-    'first-turn': {
-      name: 'First turn',
-      detail: firstSide ? sideName(firstSide) : manual ? 'Roll off for it' : 'After deployment',
-      complete: complete['first-turn'],
-    },
-    'pre-battle': {
-      name: 'Pre-battle rules',
-      detail: firstSide ? `${sideName(firstSide)} first` : 'After the first turn',
-      complete: complete['pre-battle'],
-    },
-  }
-  const steps = sectionIds.map((id) => stepFor[id])
-  const [at, setAt] = useState(0)
-  const indexBar = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    let frame = 0
-    const update = () => {
-      frame = 0
-      const first = document.getElementById('setup-armies')
-      const margin = first ? Number.parseFloat(getComputedStyle(first).scrollMarginTop) : 0
-      const top = Math.max(indexBar.current?.getBoundingClientRect().bottom ?? 0, margin) + 1
-      let viewed = 0
-      sectionIds.forEach((id, index) => {
-        const section = document.getElementById(`setup-${id}`)
-        if (section && section.getBoundingClientRect().top <= top) viewed = index
-      })
-      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) viewed = sectionIds.length - 1
-      setAt(viewed)
-    }
-    const schedule = () => {
-      frame ||= requestAnimationFrame(update)
-    }
-    const observer = new ResizeObserver(schedule)
-    const page = indexBar.current?.parentElement
-    if (page) observer.observe(page)
-    window.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule)
-    update()
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('scroll', schedule)
-      window.removeEventListener('resize', schedule)
-      cancelAnimationFrame(frame)
-    }
-  }, [sectionIds])
 
   // A twist belongs to the pack that prints it, so changing the pack drops it above.
   const chosenPack = references?.packs.find((pack) => pack.id === view.settings.missionPackId)
@@ -300,32 +228,21 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
     view.settings.limit === null
       ? 'Determined by your rosters'
       : pointsBudget === null
-        ? `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit} points`
+        ? `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit.toLocaleString('en')} points`
         : battleSizeLabel(view.settings.limit, pointsBudget)
   // The size and pack fold away once there is nothing to settle in them.
   const formatOpen = isOpen('armies') || !sizeFixed || (!manual && (!chosenPack || (references?.packs.length ?? 0) > 1))
 
   return (
-    <main className="flex w-full flex-col pb-28">
-      {/*
-       * The index of the page, pinned the way the tracker pins its scoreboard. A section
-       * is a press away from anywhere, and the one the table owes next is marked.
-       */}
-      <div ref={indexBar} className="sticky top-12 z-20 border-b border-edge bg-void/95 backdrop-blur">
-        <StepRail
-          steps={steps}
-          at={at}
-          next={sectionIds.indexOf(next)}
-          onGo={(step) => document.getElementById(`setup-${sectionIds[step]}`)?.scrollIntoView({ block: 'start' })}
-        />
-      </div>
-
-      <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-6">
-        <TableStrip sides={table} />
-        <header className="space-y-1 text-center">
-          <h1 className="text-lg text-balance sm:text-xl">Set up the battle</h1>
-          <p className="text-sm text-dim">In the order the rules play it. Anyone at the table can answer for either side.</p>
-          {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
+    <main className="flex w-full flex-col">
+      <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 pb-10">
+        <header className="space-y-3">
+          <div className="space-y-1 text-center">
+            <h1 className="text-lg text-balance sm:text-xl">Set up the battle</h1>
+            <p className="text-sm text-dim">In the order the rules play it. Anyone at the table can answer for either side.</p>
+            {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
+          </div>
+          <TableStrip sides={table} />
         </header>
 
         <SetupSection
@@ -339,7 +256,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
               : awaited.length
                 ? `Waiting for ${awaited.map((army) => army.playerName).join(' and ')} to choose an army.`
                 : (sizeProblem ??
-                  'The battle format follows your saved rosters. Each side brings the same points allowance; allies split it evenly.')
+                  (table.some((side) => side.armies.length > 1)
+                    ? 'Battle size follows your rosters. Each side brings the same points; allies split them evenly.'
+                    : 'Battle size follows your rosters. Each side brings the same points.'))
           }
           needed={Boolean(owed.length || sizeProblem)}
         >
@@ -450,36 +369,29 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           {youHaveAnArmy ? (
             <>
               <SideDispositionChoice sides={table} nameDisposition={nameDisposition} send={send} />
-              <div data-onboarding="battle-setup-mission" className="grid gap-2 sm:grid-cols-2">
+              <div data-onboarding="battle-setup-mission" className="grid items-start gap-6 sm:grid-cols-2">
                 {table.map((side) => {
                   const card = side.mission ? primaryCardFor(side.mission.id) : undefined
-                  const body = (
-                    <>
-                      <span className="flex flex-wrap items-center justify-between gap-2">
-                        <SidePlayers side={side} linked={!card} />
-                        {/* The card the side plays, which is the side's rather than any one list's. */}
-                        <DispositionChip disposition={nameDisposition(side.disposition)} />
-                      </span>
-                      <span className={`mt-1 block ${side.mission ? CARD_NAME : 'text-sm font-bold text-faint uppercase'}`}>
-                        {side.mission?.name ?? 'No mission for this matchup'}
-                      </span>
-                    </>
-                  )
-                  const shell = `block w-full rounded-sm border border-edge border-t-2 bg-sunken p-2.5 text-left ${tint(side.index).edge}`
-                  // The whole card opens the card: a mission is read far more often than it is glanced at.
-                  return card && side.mission ? (
-                    <button
-                      key={side.index}
-                      type="button"
-                      aria-label={`Read ${side.mission.name}`}
-                      className={`${shell} transition-colors hover:border-edge-strong hover:bg-raised`}
-                      onClick={() => setReading({ name: side.mission!.name, card, type: 'Primary mission' })}
-                    >
-                      {body}
-                    </button>
-                  ) : (
-                    <div key={side.index} className={shell}>
-                      {body}
+                  return (
+                    <div key={side.index} className={`min-w-0 border-t-[3px] pt-3 ${tint(side.index).edge}`}>
+                      <p className="sr-only">{sideName(side)}</p>
+                      {side.mission ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="min-w-0 text-xl break-words">{side.mission.name}</h3>
+                          {card ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              aria-label={`Read ${side.mission.name}`}
+                              onClick={() => setReading({ name: side.mission!.name, card, type: 'Primary mission' })}
+                            >
+                              Read card
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <p className="py-2 text-sm text-dim">No mission for this matchup.</p>
+                      )}
                     </div>
                   )
                 })}
@@ -528,15 +440,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           }
         >
           {youHaveAnArmy ? (
-            <SetupPanel>
-              <Battlefield
-                view={view}
-                send={send}
-                pending={busy}
-                allowedIds={mission?.deploymentIds}
-                matchup={matchupName(table, nameDisposition)}
-              />
-            </SetupPanel>
+            <Battlefield
+              view={view}
+              send={send}
+              pending={busy}
+              allowedIds={mission?.deploymentIds}
+              matchup={matchupName(table, nameDisposition)}
+            />
           ) : null}
         </SetupSection>
 
@@ -550,11 +460,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           needed={complete.armies && !view.attackerId}
           hint={
             complete.armies
-              ? 'Roll off. The winner decides who attacks and who defends — the defender deploys first.'
-              : 'Once the armies are chosen, roll off. The winner decides who attacks and who defends.'
+              ? 'Roll off. The winner chooses the defender, who deploys first.'
+              : 'Once the armies are chosen, roll off. The winner chooses the defender.'
           }
         >
-          <DefenderStep sides={table} attackerId={view.attackerId} disabled={busy || !complete.armies} send={send} />
+          {complete.armies ? <DefenderStep sides={table} attackerId={view.attackerId} disabled={busy} send={send} /> : null}
         </SetupSection>
 
         <SetupSection
@@ -596,8 +506,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           complete={complete.deploy}
           locked={!view.deploymentId || !view.attackerId}
           onboarding="battle-setup-deploy"
+          hint={`Sides alternate setting up one unit at a time${defender ? `, ${sideName(defender)} first` : ''}. Units in strategic reserves stay off the table.`}
         >
-          {youHaveAnArmy ? <DeployStep sides={table} defender={defender} /> : null}
+          {youHaveAnArmy ? <DeployStep sides={table} /> : null}
         </SetupSection>
 
         <SetupSection
@@ -630,15 +541,12 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           number={9}
           name="Pre-battle rules"
           complete={complete['pre-battle']}
-          hint="Units with a pre-battle move make it now, before the first Command phase."
+          hint={`Sides alternate resolving pre-battle rules${firstSide ? `, ${sideName(firstSide)} first` : ''}. Start battle opens the first Command phase.`}
         >
-          {youHaveAnArmy ? <PreBattleRulesStep sides={table} first={firstSide} /> : null}
+          {youHaveAnArmy ? <PreBattleRulesStep sides={table} /> : null}
         </SetupSection>
-      </div>
 
-      {/* What is left and the way into the battle, kept in reach from anywhere on the page. */}
-      <div data-setup-bar className="fixed inset-x-0 bottom-0 z-30 border-t border-edge bg-void/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
+        <div data-setup-bar className="flex items-center justify-between gap-3 border-t border-edge pt-6">
           <div className="min-w-0" aria-live="polite">
             {problem && !reserveRow ? (
               <p className="line-clamp-2 text-sm text-destructive">{problem}</p>
@@ -656,7 +564,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
             className="h-11 shrink-0 px-5 text-base"
             disabled={pending || remaining.length > 0 || !firstSide}
             onClick={() => {
-              if (firstSide) send({ kind: 'begin-battle', firstPlayerId: firstSide.captain.id })
+              if (firstSide) send({ kind: 'begin-battle', firstPlayerId: firstSide.captain.id, attackerId: view.attackerId ?? undefined })
             }}
           >
             Start battle
@@ -699,8 +607,9 @@ function SetupSection({
       id={`setup-${id}`}
       data-onboarding={onboarding}
       data-locked={locked}
+      data-complete={complete}
       aria-labelledby={`setup-${id}-title`}
-      className={`scroll-mt-32! space-y-3 transition-opacity ${locked ? 'opacity-40' : ''}`}
+      className={`scroll-mt-16! space-y-4 rounded-lg border border-edge bg-panel p-4 transition-opacity sm:p-5 ${locked ? 'opacity-40' : ''}`}
     >
       <div className="space-y-1 border-b border-edge pb-1.5">
         <h2 id={`setup-${id}-title`} className="flex items-center gap-2 text-base">

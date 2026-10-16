@@ -216,7 +216,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
     const edit = page.getByRole('dialog', { name: 'Edit roster setup' })
     await edit.getByRole('combobox', { name: 'Battle size' }).click()
-    await page.getByRole('option', { name: /Onslaught/ }).click()
+    await page.getByRole('option', { name: /^Onslaught/ }).click()
     await edit.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets', exact: true }).click()
     await edit.getByRole('button', { name: 'Review changes' }).click()
     const review = page.getByRole('dialog', { name: 'Review roster changes' })

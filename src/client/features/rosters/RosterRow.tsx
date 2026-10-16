@@ -42,7 +42,7 @@ export type RosterRowLayout = 'card' | 'base' | 'variant'
 
 /** A list on its own is a card; a base shares its card with its variants, which are the slim rows beneath it. */
 export const rosterRowFrame: Record<RosterRowLayout, string> = {
-  card: 'border border-edge bg-panel hover:border-azure',
+  card: 'border border-edge bg-panel hover:border-info hover:bg-raised',
   base: 'hover:bg-raised',
   variant: 'border-t border-edge py-1.5 pl-3 hover:bg-raised',
 }
@@ -194,7 +194,7 @@ function RosterActionItems({
   return (
     <>
       <Item disabled={roster.locked} onClick={onEdit}>
-        <Pencil /> Edit setup
+        <Pencil /> Edit roster setup
       </Item>
       <Item disabled={roster.locked} onClick={onConvert}>
         <Pencil /> Convert rules version

@@ -107,7 +107,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
        * taken back.
        */}
       {lost.length ? (
-        <Section title="Lost" count={lost.length} defaultOpen={false}>
+        <Section title="Destroyed" count={lost.length} defaultOpen={false}>
           {lost.map(card)}
         </Section>
       ) : null}
@@ -252,7 +252,7 @@ function UnitStatus({ unit, army, actionable, pending, blocked, send, press }: {
   if (unit.destroyed) {
     return (
       <>
-        <span className="chip shrink-0 border-destructive/60 text-destructive">Lost</span>
+        <span className="chip shrink-0 border-destructive/60 text-destructive">Destroyed</span>
         {actionable ? (
           <Button
             variant="secondary"
@@ -321,11 +321,11 @@ function UnitStatus({ unit, army, actionable, pending, blocked, send, press }: {
           variant="destructive"
           size="xs"
           className="ml-auto shrink-0"
-          aria-label={`Mark ${unit.name} lost`}
+          aria-label={`Mark ${unit.name} destroyed`}
           disabled={blocked}
           onClick={() => mark(true)}
         >
-          Lost
+          Destroyed
         </Button>
       ) : null}
     </>

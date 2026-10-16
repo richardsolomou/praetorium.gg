@@ -60,13 +60,15 @@ export function FactionIndexPage() {
           label="Find a faction"
           clearLabel="Empty the faction filter"
         />
-        <FactionShelf
-          title="Favourites"
-          entries={favouriteFactions}
-          versions={data.factions}
-          favourites={favourites}
-          onFavourite={me ? toggleFavourite : undefined}
-        />
+        {favouriteFactions.length ? (
+          <FactionShelf
+            title="Favourites"
+            entries={favouriteFactions}
+            versions={data.factions}
+            favourites={favourites}
+            onFavourite={me ? toggleFavourite : undefined}
+          />
+        ) : null}
         {matching.length ? (
           [...groups.entries()]
             .toSorted(([left], [right]) => left.localeCompare(right))
@@ -121,10 +123,10 @@ function FactionShelf({
 }) {
   return (
     <section data-shelf={title} className="mt-6">
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>{title}</span>
         <span className="readout">{entries.length}</span>
-      </p>
+      </h2>
       {entries.length ? (
         <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
           {entries.map((entry) => {
@@ -150,7 +152,9 @@ function FactionShelf({
                       {entry.displayName}
                     </FactionReferenceLink>
                     <div className="flex flex-wrap items-center gap-x-2 text-xs text-dim">
-                      <span>{entry.references[0]?.detachments ?? 0} detachments</span>
+                      <span>
+                        {entry.references[0]?.detachments ?? 0} {entry.references[0]?.detachments === 1 ? 'detachment' : 'detachments'}
+                      </span>
                       {editions.length > 1 ? (
                         <>
                           <span aria-hidden>·</span>

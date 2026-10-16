@@ -200,13 +200,7 @@ function StratagemCard({
           </Button>
         </>
       ) : (
-        <span
-          className={`readout shrink-0 rounded-sm px-1.5 py-px text-2xs font-bold uppercase ${
-            refusal ? 'bg-edge text-dim' : 'bg-azure text-void'
-          }`}
-        >
-          {stratagem.cp} CP
-        </span>
+        <span className={`chip readout shrink-0 ${refusal ? 'text-dim' : 'border-azure/60 text-azure'}`}>{stratagem.cp} CP</span>
       )}
       <BattlePromptDialog
         open={newOrdersCost !== null}

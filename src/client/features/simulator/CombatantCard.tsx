@@ -8,7 +8,7 @@ import { MAX_COMBAT_MODELS } from '../../../core/combat'
 import { modelCountChoices } from '../../../core/unitSize'
 import { FactionLabel, FactionMark } from '../../components/FactionMark'
 import { SearchableSelect } from '../../components/SearchableSelect'
-import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, loadoutDatasheetsQuery } from '../../queries'
+import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, factionQuery, loadoutDatasheetsQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
@@ -61,13 +61,21 @@ export function CombatantCard({
             1),
     }))
   const totalModels = members.reduce((total, member) => total + member.models, 0)
+  const indexedFaction = factions.data?.factions.find((entry) => entry.id === combatant.faction)
+  // Exact root catalogue IDs are absent from the faction index, so a roster saved with one reads its own faction.
+  const rosterFaction = useQuery({
+    ...factionQuery(combatant.faction),
+    enabled: combatant.roster && factions.isSuccess && !indexedFaction,
+  })
+  const selectedFaction = indexedFaction ?? (combatant.roster ? rosterFaction.data : undefined)
   const factionIcon = (catalogueId: string | undefined) => {
-    const faction = factions.data?.factions.find((entry) => entry.id === catalogueId || entry.slug === catalogueId)
+    const faction =
+      factions.data?.factions.find((entry) => entry.id === catalogueId || entry.slug === catalogueId) ??
+      (catalogueId === combatant.faction ? selectedFaction : undefined)
     return faction ? (
       <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
     ) : undefined
   }
-  const selectedFaction = factions.data?.factions.find((entry) => entry.id === combatant.faction)
   const failed = factions.isError || catalogueUnits.isError || combatant.price.isError || combatant.sheets.isError
   const unavailable =
     picks.positioned.length > 0 &&

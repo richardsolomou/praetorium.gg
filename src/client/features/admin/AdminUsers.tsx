@@ -47,9 +47,9 @@ export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: strin
   return (
     <main className="ph-no-capture w-full">
       <PageHeader
-        eyebrow="Praetorium"
+        eyebrow="Administrator tools"
         title="Administration"
-        description="Find a player to change their access, help them sign in, or delete their account, or review reported photos."
+        description="Change a player’s access, help them sign in, delete their account, or review reported photos."
         media={
           <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
