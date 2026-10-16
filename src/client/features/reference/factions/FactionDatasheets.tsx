@@ -113,9 +113,9 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
       <FactionReferenceLink
         to="/factions/$catalogueId/datasheets/$entryId"
         params={{ catalogueId, entryId: unit.slug }}
-        className="flex min-w-0 flex-1 items-center justify-between px-3 py-2"
+        className="flex min-w-0 flex-1 items-center px-3 py-2"
       >
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-bold uppercase">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
         </span>
