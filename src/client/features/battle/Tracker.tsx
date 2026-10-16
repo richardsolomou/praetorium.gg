@@ -1,6 +1,8 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
+import { useHydrated } from '../../useClientValue'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../functions'
@@ -80,6 +82,17 @@ type ReminderPrompt = {
   advanceAfterDismissal?: boolean
 }
 
+/** Queued prompts keep only reminders still on the roster; mission action reminders come from the cards, not the roster. */
+function withRosterReminders(prompts: readonly ReminderPrompt[], rosterReminders: readonly RosterReminder[]) {
+  const available = new Set(rosterReminders.map((reminder) => reminder.key))
+  return prompts.flatMap((prompt) => {
+    const reminders = prompt.reminders.filter(
+      (reminder) => reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) || available.has(reminder.key),
+    )
+    return reminders.length ? [{ ...prompt, reminders }] : []
+  })
+}
+
 /** Narrow screens cannot hold three columns, so they hold one at a time. */
 const VIEWS = ['yours', 'battle', 'theirs'] as const
 type Focus = (typeof VIEWS)[number]
@@ -107,8 +120,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const [recordingMissed, setRecordingMissed] = useState(false)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
-  const [dismissalsReady, setDismissalsReady] = useState(false)
-  const [actionRemindersEnabled, setActionRemindersEnabled] = useState(true)
+  // Dismissals and preferences live in browser storage, so reminders wait for the browser's first render.
+  const dismissalsReady = useHydrated()
   const [promptMinimized, setPromptMinimized] = useState(false)
   const [skippedChoices, setSkippedChoices] = useState<ReadonlySet<string>>(new Set())
   const minimizedDialogs = useRef<string[]>([])
@@ -125,11 +138,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     },
     [promptMinimized, send],
   )
-  const scoringDrafts = useRef(new Map<string, { signature: string; answers: ScoringAnswers }>())
-  const drawDrafts = useRef(new Map<string, DrawSelection>())
-  const discardDrafts = useRef(new Map<string, string[]>())
+  // Answers in progress survive a dialog closing for a reminder or a minimised prompt.
+  const [scoringDrafts, setScoringDrafts] = useState<ReadonlyMap<string, { signature: string; answers: ScoringAnswers }>>(new Map())
+  const [drawDrafts, setDrawDrafts] = useState<ReadonlyMap<string, DrawSelection>>(new Map())
+  const [discardDrafts, setDiscardDrafts] = useState<ReadonlyMap<string, string[]>>(new Map())
   const reminderPrompt = reminderPrompts[0] ?? null
-  const dismissedReminders = useRef(new Set<string>())
   // Refetches that change nothing keep their object identity through the query
   // cache's structural sharing, so these memos hold between commands too.
   const table = useMemo(() => sides(view, missions), [view, missions])
@@ -137,17 +150,12 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const active = table.find((side) => side.isActive)
   const viewer = view.players.find((player) => player.isViewer)
   const viewerReminders = viewer?.roster?.remindersEnabled === false ? EMPTY_REMINDERS : (viewer?.roster?.reminders ?? EMPTY_REMINDERS)
-  useEffect(() => {
-    const available = new Set(viewerReminders.map((reminder) => reminder.key))
-    setReminderPrompts((current) =>
-      current.flatMap((prompt) => {
-        const reminders = prompt.reminders.filter(
-          (reminder) => reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) || available.has(reminder.key),
-        )
-        return reminders.length ? [{ ...prompt, reminders }] : []
-      }),
-    )
-  }, [viewerReminders])
+  // Another battle starts with no prompts, and a reminder taken off the roster leaves the queued ones.
+  const [promptsFor, setPromptsFor] = useState({ battle: view.token, reminders: viewerReminders })
+  if (promptsFor.battle !== view.token || promptsFor.reminders !== viewerReminders) {
+    setPromptsFor({ battle: view.token, reminders: viewerReminders })
+    setReminderPrompts((current) => (promptsFor.battle === view.token ? withRosterReminders(current, viewerReminders) : []))
+  }
   const reminderTurn: ReminderTiming['turn'] | null =
     viewer && active ? (viewer.side === active.index ? 'your-turn' : 'opponent-turn') : null
   const reminderContext = useMemo(
@@ -156,29 +164,12 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   )
   const dismissalStorageKey = reminderDismissalStorageKey(view.token)
   const actionReminderStorageKey = missionActionReminderStorageKey(view.token)
-  useEffect(() => {
-    setDismissalsReady(false)
-    setReminderPrompts([])
-    try {
-      dismissedReminders.current = parseReminderDismissals(localStorage.getItem(dismissalStorageKey))
-    } catch {
-      dismissedReminders.current = new Set()
-    }
-    try {
-      setActionRemindersEnabled(storedMissionActionRemindersEnabled(localStorage.getItem(actionReminderStorageKey)))
-    } catch {
-      setActionRemindersEnabled(true)
-    }
-    setDismissalsReady(true)
-  }, [actionReminderStorageKey, dismissalStorageKey])
+  const storedDismissals = useStoredValue(dismissalStorageKey)
+  const dismissedReminders = useMemo(() => parseReminderDismissals(storedDismissals), [storedDismissals])
+  const actionRemindersEnabled = storedMissionActionRemindersEnabled(useStoredValue(actionReminderStorageKey))
   const updateActionReminders = useCallback(
     (enabled: boolean) => {
-      setActionRemindersEnabled(enabled)
-      try {
-        localStorage.setItem(actionReminderStorageKey, enabled ? 'on' : 'off')
-      } catch {
-        // The in-memory preference still applies for this page when storage is unavailable.
-      }
+      writeStoredValue(actionReminderStorageKey, enabled ? 'on' : 'off')
       if (!enabled)
         setReminderPrompts((current) =>
           current.flatMap((prompt) => {
@@ -191,21 +182,18 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   )
   const reminderDismissed = useCallback(
     (reminderKey: string, context: ReminderDismissalContext) =>
-      reminderDismissalKeys(reminderKey, context).some((key) => dismissedReminders.current.has(key)),
-    [],
+      reminderDismissalKeys(reminderKey, context).some((key) => dismissedReminders.has(key)),
+    [dismissedReminders],
   )
   const rememberReminder = useCallback(
     (reminderKey: string, scope: ReminderDismissalScope, context: ReminderDismissalContext) => {
-      dismissedReminders.current.add(reminderDismissalKey(reminderKey, scope, context))
-      try {
-        localStorage.setItem(dismissalStorageKey, serializeReminderDismissals(dismissedReminders.current))
-      } catch {
-        // The in-memory record still keeps the dismissal for this page when storage is unavailable.
-      }
+      // Read back from storage, so several dismissals in one handler all keep.
+      const dismissed = parseReminderDismissals(readStoredValue(dismissalStorageKey)).add(reminderDismissalKey(reminderKey, scope, context))
+      writeStoredValue(dismissalStorageKey, serializeReminderDismissals(dismissed))
       setReminderPrompts((current) =>
         current.flatMap((prompt) => {
           const reminders = prompt.reminders.filter(
-            (candidate) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissedReminders.current.has(key)),
+            (candidate) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissed.has(key)),
           )
           return reminders.length ? [{ ...prompt, reminders }] : []
         }),
@@ -415,11 +403,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const scoringDraft = (side: Side, round: number, moment: string, cards: readonly DueCard[]) => {
     const id = JSON.stringify([view.token, side.captain.id, round, moment])
     const signature = JSON.stringify(cards.map((card) => [card.key, card.awards]))
-    const saved = scoringDrafts.current.get(id)
+    const saved = scoringDrafts.get(id)
     return {
       key: `${id}:${signature}`,
       initialAnswers: saved?.signature === signature ? saved.answers : undefined,
-      onAnswersChange: (answers: ScoringAnswers) => scoringDrafts.current.set(id, { signature, answers }),
+      onAnswersChange: (answers: ScoringAnswers) => setScoringDrafts((current) => new Map(current).set(id, { signature, answers })),
     }
   }
   const activeNeedsReferences = Boolean(
@@ -494,8 +482,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const emptySettlementKey = `${view.seq}:${settlementRound ?? ''}:${view.settlementPlayerId ?? ''}`
   const emptySettlementReady =
     settlementRound !== null && !settlementRulesPending && !settlementSecretMissionAction && owedCards.length === 0
-  const emptySettlementRetryNeeded =
-    emptySettlementReady && automaticAttemptsExhausted(attemptedEmptySettlements.current, emptySettlementKey)
+  // Set once the last automatic attempt comes back unrecorded, so the retry offer follows a real failure.
+  const [exhaustedSettlement, setExhaustedSettlement] = useState<string | null>(null)
+  const emptySettlementRetryNeeded = emptySettlementReady && exhaustedSettlement === emptySettlementKey
   useEffect(() => {
     if (
       !emptySettlementReady ||
@@ -504,7 +493,16 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)
     )
       return
-    send({ kind: 'settle-opponent-turn' }, { background: true })
+    send(
+      { kind: 'settle-opponent-turn' },
+      {
+        background: true,
+        complete: (appended) => {
+          if (!appended && automaticAttemptsExhausted(attemptedEmptySettlements.current, emptySettlementKey))
+            setExhaustedSettlement(emptySettlementKey)
+        },
+      },
+    )
   }, [emptySettlementKey, emptySettlementReady, pending, promptMinimized, send])
   // The win is this device's to celebrate only when the side it is seated on took it.
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
@@ -546,25 +544,19 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
 
   useEffect(() => {
     if (!dismissalsReady) return
-    const pruned = pruneReminderDismissals(dismissedReminders.current, reminderContext)
-    dismissedReminders.current = pruned
-    try {
-      localStorage.setItem(dismissalStorageKey, serializeReminderDismissals(pruned))
-    } catch {
-      // The in-memory record still keeps dismissals for this page when storage is unavailable.
-    }
+    const pruned = pruneReminderDismissals(parseReminderDismissals(readStoredValue(dismissalStorageKey)), reminderContext)
+    writeStoredValue(dismissalStorageKey, serializeReminderDismissals(pruned))
   }, [dismissalStorageKey, dismissalsReady, reminderContext])
 
-  useEffect(() => {
-    if (!dismissalsReady || view.status !== 'playing' || reminderPrompt || !reminderTurn) return
+  // The reminders due at this moment of the turn join the queue once no prompt is showing; each is dismissed when shown.
+  const momentPrompt = ((): ReminderPrompt | null => {
+    if (view.status !== 'playing' || !reminderTurn) return null
     const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
     const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
     const roundMoment = firstSide === undefined || !active ? null : roundReminderMoment(view.phase, active.index, firstSide)
     const roundReminders = roundMoment ? remindersAt([roundMoment], context) : []
-    if (roundMoment && roundReminders.length) {
-      enqueueReminderPrompt({ reminders: roundReminders, moment: reminderTimingLabel(roundMoment), confirmLabel: 'Dismiss', context })
-      return
-    }
+    if (roundMoment && roundReminders.length)
+      return { reminders: roundReminders, moment: reminderTimingLabel(roundMoment), confirmLabel: 'Dismiss', context }
     const moments: ReminderTiming[] =
       view.phase === 'end'
         ? [{ moment: 'turn-end', phase: null, turn: reminderTurn }]
@@ -577,8 +569,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         ? activeMissionActionReminders.filter((reminder) => !reminderDismissed(reminder.key, context))
         : EMPTY_REMINDERS
     const reminders = [...remindersAt(moments, context), ...actionReminders]
-    if (!reminders.length) return
-    enqueueReminderPrompt({
+    if (!reminders.length) return null
+    return {
       reminders,
       moment:
         view.phase === 'command'
@@ -586,24 +578,14 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           : reminderTimingLabel(moments[0]!),
       confirmLabel: 'Dismiss',
       context,
-    })
-  }, [
-    actionRemindersEnabled,
-    active,
-    activeMissionActionReminders,
-    dismissalsReady,
-    enqueueReminderPrompt,
-    reminderPrompt,
-    reminderTurn,
-    reminderDismissed,
-    remindersAt,
-    view.activePlayerId,
-    view.firstPlayerId,
-    view.players,
-    view.phase,
-    view.round,
-    view.status,
-  ])
+    }
+  })()
+  const momentSignature = momentPrompt && JSON.stringify([momentPrompt.context, momentPrompt.reminders.map((reminder) => reminder.key)])
+  const [queuedMoment, setQueuedMoment] = useState<string | null>(null)
+  if (dismissalsReady && !reminderPrompt && momentPrompt && momentSignature !== queuedMoment) {
+    setQueuedMoment(momentSignature)
+    enqueueReminderPrompt(momentPrompt)
+  }
 
   return (
     <BattleMinimizeContext.Provider value={registerMinimized}>
@@ -832,8 +814,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           <DiscardSecondaryDialog
             side={active}
             keys={discardable}
-            initialSelection={discardDrafts.current.get(turnDraftKey)}
-            onSelectionChange={(selected) => discardDrafts.current.set(turnDraftKey, selected)}
+            initialSelection={discardDrafts.get(turnDraftKey)}
+            onSelectionChange={(selected) => setDiscardDrafts((current) => new Map(current).set(turnDraftKey, selected))}
             pending={pending}
             send={send}
             undoable={view.undoable}
@@ -848,8 +830,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           <DrawDialog
             key={turnKey}
             side={active}
-            initialSelection={drawDrafts.current.get(turnDraftKey)}
-            onSelectionChange={(selection) => drawDrafts.current.set(turnDraftKey, selection)}
+            initialSelection={drawDrafts.get(turnDraftKey)}
+            onSelectionChange={(selection) => setDrawDrafts((current) => new Map(current).set(turnDraftKey, selection))}
             round={view.round}
             undoable={view.undoable}
             confirmUndo={view.undoableDraw}

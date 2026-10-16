@@ -1,5 +1,6 @@
 import { Calculator, Minus, Plus, Scroll } from 'lucide-react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
@@ -29,11 +30,6 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
   const [open, setOpen] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const unitCards = useRef(new Map<string, HTMLDivElement>())
-  const collapsedCard = useRef<HTMLDivElement | null>(null)
-  useLayoutEffect(() => {
-    collapsedCard.current?.scrollIntoView({ block: 'nearest' })
-    collapsedCard.current = null
-  }, [expanded])
   const roster = army.roster
   if (!roster) return null
 
@@ -59,13 +55,17 @@ export function ArmyRoster({ army, side, actionable, pending, send, onSimulate }
           onSelect={
             roster.built?.picks?.length && unit.entryId
               ? () => {
-                  if (expanded.has(unit.key)) collapsedCard.current = unitCards.current.get(unit.key) ?? null
-                  setExpanded((previous) => {
-                    const next = new Set(previous)
-                    if (next.has(unit.key)) next.delete(unit.key)
-                    else next.add(unit.key)
-                    return next
-                  })
+                  const collapsing = expanded.has(unit.key)
+                  // Commits the collapse first, so the card scrolls to where it now sits.
+                  flushSync(() =>
+                    setExpanded((previous) => {
+                      const next = new Set(previous)
+                      if (next.has(unit.key)) next.delete(unit.key)
+                      else next.add(unit.key)
+                      return next
+                    }),
+                  )
+                  if (collapsing) unitCards.current.get(unit.key)?.scrollIntoView({ block: 'nearest' })
                 }
               : undefined
           }

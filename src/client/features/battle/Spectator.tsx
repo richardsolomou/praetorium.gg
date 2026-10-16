@@ -120,7 +120,7 @@ export function Spectator({
       player_count: view.players.length,
       league: Boolean(view.leagueToken),
     })
-  }, [table, view.leagueToken, view.players, view.status, view.token])
+  }, [table, view.leagueToken, view.players, view.status])
 
   return (
     <>

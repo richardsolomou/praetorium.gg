@@ -1,9 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { useEffect, useId, useState } from 'react'
+import { useId } from 'react'
 import { Switch } from '@/components/ui/switch'
 import type { BattleView } from '../../../core/battleView'
 import { teamsBattlePoints } from '../../../core/teamsBattlePoints'
 import { sideName, type Side } from '../../sides'
+import { useStoredValue, writeStoredValue } from '../../storedValue'
 
 const SHOWN_KEY = 'praetorium-teams-battle-points'
 
@@ -21,22 +22,8 @@ export function teamsBattlePointsGap(view: Pick<BattleView, 'result'>, sides: re
  */
 export function TeamsBattlePoints({ view, sides }: { view: Pick<BattleView, 'result'>; sides: readonly Side[] }) {
   const switchId = useId()
-  const [shown, setShown] = useState(false)
-  useEffect(() => {
-    try {
-      setShown(localStorage.getItem(SHOWN_KEY) === 'true')
-    } catch {
-      // Without storage the choice lasts for this page.
-    }
-  }, [])
-  const choose = (next: boolean) => {
-    setShown(next)
-    try {
-      localStorage.setItem(SHOWN_KEY, String(next))
-    } catch {
-      // Without storage the choice lasts for this page.
-    }
-  }
+  const shown = useStoredValue(SHOWN_KEY) === 'true'
+  const choose = (next: boolean) => writeStoredValue(SHOWN_KEY, String(next))
   const gap = teamsBattlePointsGap(view, sides)
   const [first, second] = sides
   return (
