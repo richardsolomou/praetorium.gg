@@ -7,11 +7,12 @@ export function useQrCode(text: string | null, width: number, errorCorrectionLev
   useEffect(() => {
     if (!text) return
     let active = true
-    setFailed(null)
     void import('qrcode')
       .then(({ default: qr }) => qr.toDataURL(text, { width, margin: 2, errorCorrectionLevel }))
       .then((data) => {
-        if (active) setImage({ text, data })
+        if (!active) return
+        setImage({ text, data })
+        setFailed(null)
       })
       .catch(() => {
         if (active) setFailed(text)

@@ -18,69 +18,73 @@ export function WebMcp() {
   const client = useQueryClient()
   const { data: me } = useQuery(meQuery())
   const userId = me && !me.impersonatedBy ? me.id : null
-  const [accountGeneration, setAccountGeneration] = useState(0)
   const [proposal, setProposal] = useState<WriteProposal | null>(null)
   const approval = useMemo(() => new WriteApproval(setProposal), [])
 
   useEffect(() => {
     const context = browserModelContext()
     if (!context) return
-    const lifetime = new AbortController()
+    // Each registration owns its lifetime, so a write that finishes after an account change reports against the old one.
+    const register = () => {
+      const lifetime = new AbortController()
+      void browserAgentToolCatalog({ signal: lifetime.signal })
+        .then((catalog) =>
+          installWebMcp(
+            context,
+            (JSON.parse(catalog) as AgentToolDescriptor[]).filter((tool) => !tool.account || userId !== null),
+            {
+              signal: lifetime.signal,
+              prepare: (tool, input, signal) =>
+                prepareBrowserAgentTool({
+                  data: { name: tool.name, input, expectedUserId: userId },
+                  signal: anySignal([signal, AbortSignal.timeout(30_000)]),
+                }),
+              approve: (tool, input, summary, signal) => approval.request(tool, input, summary, signal),
+              finishWrite: (error) => {
+                if (!lifetime.signal.aborted) approval.finish(error)
+              },
+              invoke: async (tool, input, signal) => {
+                // Once a write is dispatched, cancellation cannot undo it; await its result without retrying.
+                const serialized = await callBrowserAgentTool({
+                  data: { name: tool.name, input, expectedUserId: userId },
+                  signal: tool.readOnly ? anySignal([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
+                })
+                const result = JSON.parse(serialized) as ToolResult
+                if (lifetime.signal.aborted)
+                  return {
+                    content: [{ type: 'text' as const, text: 'Your account changed. Check the result after signing in.' }],
+                    isError: true,
+                  }
+                if (!tool.readOnly) {
+                  await client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' }).catch(() => {})
+                  await writeAppSnapshot(captureAppSnapshot(client)).catch(() => {})
+                }
+                return result
+              },
+            },
+          ),
+        )
+        .catch((error: unknown) => {
+          if (!lifetime.signal.aborted && !isFetchNetworkFailure(error))
+            posthog.captureException(error, { operation: 'webmcp_registration' })
+          lifetime.abort()
+        })
+      return lifetime
+    }
+    let current = register()
     const accountChanged = (event: StorageEvent) => {
-      if (event.key === APP_ACCOUNT_EVENT) {
-        lifetime.abort()
-        approval.dismiss()
-        setAccountGeneration((generation) => generation + 1)
-      }
+      if (event.key !== APP_ACCOUNT_EVENT) return
+      current.abort()
+      approval.dismiss()
+      current = register()
     }
     window.addEventListener('storage', accountChanged)
-    void browserAgentToolCatalog({ signal: lifetime.signal })
-      .then((catalog) =>
-        installWebMcp(
-          context,
-          (JSON.parse(catalog) as AgentToolDescriptor[]).filter((tool) => !tool.account || userId !== null),
-          {
-            signal: lifetime.signal,
-            prepare: (tool, input, signal) =>
-              prepareBrowserAgentTool({
-                data: { name: tool.name, input, expectedUserId: userId },
-                signal: anySignal([signal, AbortSignal.timeout(30_000)]),
-              }),
-            approve: (tool, input, summary, signal) => approval.request(tool, input, summary, signal),
-            finishWrite: (error) => {
-              if (!lifetime.signal.aborted) approval.finish(error)
-            },
-            invoke: async (tool, input, signal) => {
-              // Once a write is dispatched, cancellation cannot undo it; await its result without retrying.
-              const serialized = await callBrowserAgentTool({
-                data: { name: tool.name, input, expectedUserId: userId },
-                signal: tool.readOnly ? anySignal([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
-              })
-              const result = JSON.parse(serialized) as ToolResult
-              if (lifetime.signal.aborted)
-                return {
-                  content: [{ type: 'text' as const, text: 'Your account changed. Check the result after signing in.' }],
-                  isError: true,
-                }
-              if (!tool.readOnly) {
-                await client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' }).catch(() => {})
-                await writeAppSnapshot(captureAppSnapshot(client)).catch(() => {})
-              }
-              return result
-            },
-          },
-        ),
-      )
-      .catch((error: unknown) => {
-        if (!lifetime.signal.aborted && !isFetchNetworkFailure(error)) posthog.captureException(error, { operation: 'webmcp_registration' })
-        lifetime.abort()
-      })
     return () => {
-      lifetime.abort()
+      current.abort()
       approval.dismiss()
       window.removeEventListener('storage', accountChanged)
     }
-  }, [client, userId, approval, accountGeneration])
+  }, [client, userId, approval])
 
   if (!proposal) return null
   const saving = proposal.status === 'saving'

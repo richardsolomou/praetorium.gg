@@ -3,7 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { posthog } from 'posthog-js'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { readGuestDraft, GUEST_PATH, requestGuestSave } from '../rosters/guestDraft'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from './AuthMethodIcon'
 import { TwoFactorSignIn } from './TwoFactorSignIn'
 import { requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { signInOptionsQuery } from '../../queries'
+import { useClientValue } from '../../useClientValue'
 
 const socialAuthErrorMessage = (error?: string) => {
   if (!error) return undefined
@@ -25,6 +26,8 @@ const socialAuthErrorMessage = (error?: string) => {
   }
 }
 
+const hasSavedGuestDraft = () => Boolean(readGuestDraft())
+
 /**
  * An account is who you are here: battles, saved lists and every command in a log
  * point at it, and there is no other way to be anyone.
@@ -34,8 +37,8 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
-  const [savingRoster, setSavingRoster] = useState(false)
-  useEffect(() => setSavingRoster(next === GUEST_PATH && Boolean(readGuestDraft())), [next])
+  const hasGuestDraft = useClientValue(hasSavedGuestDraft, false)
+  const savingRoster = next === GUEST_PATH && hasGuestDraft
   const [joining, setJoining] = useState(Boolean(join))
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [resetSent, setResetSent] = useState(false)

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useClientValue } from './useClientValue'
 
-/** Empty until mounted, so the server and the first render agree. */
+const origin = () => window.location.origin
+
+/** Empty on the server and while hydrating, so the server and the first render agree. */
 export function useOrigin() {
-  const [origin, setOrigin] = useState('')
-  useEffect(() => setOrigin(window.location.origin), [])
-  return origin
+  return useClientValue(origin, '')
 }

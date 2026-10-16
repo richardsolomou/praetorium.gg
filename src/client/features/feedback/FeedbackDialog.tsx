@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ImagePlus, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,13 +43,13 @@ export function FeedbackDialog() {
     return () => window.removeEventListener(OPEN_FEEDBACK, show)
   }, [])
 
-  const attach = (file: File | null | undefined) => {
+  const attach = useCallback((file: File | null | undefined) => {
     if (!file) return
     setScreenshotError(undefined)
     prepareFeedbackScreenshot(file).then(setScreenshot, (error: unknown) =>
       setScreenshotError(error instanceof Error ? error.message : 'That screenshot could not be attached.'),
     )
-  }
+  }, [])
   useEffect(() => {
     if (!open || result) return
     const pasted = (event: ClipboardEvent) => {
@@ -72,7 +72,7 @@ export function FeedbackDialog() {
       window.removeEventListener('dragover', dragged)
       window.removeEventListener('drop', dropped)
     }
-  }, [open, result])
+  }, [attach, open, result])
 
   const send = async () => {
     setSending(true)

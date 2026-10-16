@@ -38,20 +38,20 @@ const posthog = import.meta.env.PROD
 const posthogService = { name: 'praetorium', version, environment: import.meta.env.MODE }
 
 function PrimaryNavigation({ path }: { path: string }) {
-  const [open, setOpen] = useState(false)
+  // The page the menu was opened on, so moving to another page closes it.
+  const [openOn, setOpenOn] = useState<string | null>(null)
+  const open = openOn === path
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => setOpen(false), [path])
 
   useEffect(() => {
     if (!open) return
     const closeOutside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false)
+      if (!root.current?.contains(event.target as Node)) setOpenOn(null)
     }
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      setOpen(false)
+      setOpenOn(null)
       trigger.current?.focus()
     }
     document.addEventListener('pointerdown', closeOutside)
@@ -75,7 +75,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         aria-label={open ? 'Close primary navigation' : 'Open primary navigation'}
         aria-controls="primary-navigation"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => setOpenOn(open ? null : path)}
       >
         {open ? <X /> : <Menu />}
       </Button>
