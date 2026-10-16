@@ -120,8 +120,8 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
               Retry
             </Button>
           </p>
-        ) : combatant.unit && !rules.length && !enhancements.length ? (
-          <p className="text-xs text-faint">No combat buffs available.</p>
+        ) : !rules.length && !enhancements.length ? (
+          <p className="text-xs text-faint">{combatant.unit ? 'No combat buffs available.' : 'Choose a unit to see its buffs.'}</p>
         ) : null}
       </section>
     </section>

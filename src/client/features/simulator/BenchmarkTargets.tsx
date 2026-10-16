@@ -30,7 +30,7 @@ export function BenchmarkTargets({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold"
+          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold focus-visible:ring-2 focus-visible:ring-primary"
         >
           Benchmark targets · {targets.length}
           <ChevronDown className={`size-4 ${open ? 'rotate-180' : ''}`} aria-hidden />
@@ -38,7 +38,9 @@ export function BenchmarkTargets({
       </h2>
       {open ? (
         <div className="space-y-3 border-t border-edge p-3">
-          <p className="text-xs text-dim">Targets start at their default squad size and are saved in this browser.</p>
+          <p className="text-xs text-dim">
+            Mix units from any faction. Targets start at their default squad size. This target set is saved in this browser.
+          </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {targets.map((target, position) => {
               const book = index.find((entry) => entry.catalogueId === target.catalogueId)

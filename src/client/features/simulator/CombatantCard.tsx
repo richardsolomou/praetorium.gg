@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useContext, useState, type ReactNode } from 'react'
 import { Plus, Settings, WandSparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
@@ -173,7 +172,7 @@ export function CombatantCard({
       <div className="mb-3 flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1" aria-label={`${side} unit actions`}>
         <div className="flex shrink-0 items-center gap-2">
           <h2 className="rubric">{side}</h2>
-          {!combatant.roster && pick ? (
+          {!combatant.roster ? (
             <SearchableSelect
               ariaLabel={`${side} add attached unit`}
               placeholder="Add member"
@@ -215,12 +214,17 @@ export function CombatantCard({
               </span>
             </span>
           ) : pick ? (
-            <div aria-hidden className="flex min-h-5 items-center gap-2">
-              <Skeleton className="h-4 w-14 rounded-none" />
-              <Skeleton className="h-4 w-12 rounded-none" />
-            </div>
-          ) : null}
-          {optimizer.available && pick ? (
+            <span aria-hidden className="flex min-h-5 items-center gap-2">
+              <span className="h-4 w-14 animate-pulse bg-muted" />
+              <span className="h-4 w-12 animate-pulse bg-muted" />
+            </span>
+          ) : (
+            <span className="flex min-h-5 items-center gap-2 text-xs text-dim">
+              <span className="w-14">— models</span>
+              <span className="readout w-12 text-sm text-info">— pts</span>
+            </span>
+          )}
+          {optimizer.available ? (
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -249,6 +253,7 @@ export function CombatantCard({
       {combatant.roster ? (
         <div className="mb-3 flex h-8 min-w-0 items-center gap-2 text-sm text-dim" aria-label={`${side} faction`}>
           {selectedFaction ? <FactionLabel faction={selectedFaction} /> : 'Loading faction…'}
+          <span className="ml-auto text-xs text-faint">{battleUnit ? 'Battle' : 'Roster'}</span>
         </div>
       ) : null}
       <div className="min-h-8 space-y-2">
@@ -256,7 +261,7 @@ export function CombatantCard({
           <div className="space-y-1" aria-label={`${side} unit members`}>
             {members.map((member) => (
               <div key={member.index} className="flex min-w-0 flex-wrap items-center gap-2 text-sm" data-combat-member={member.name}>
-                <div className="min-w-40 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
+                <div className="min-w-12 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
                   {member.index === pickIndex ? (
                     unitPicker
                   ) : (
@@ -291,91 +296,89 @@ export function CombatantCard({
                     />
                   )}
                 </div>
-                {pick ? (
-                  <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center gap-2">
-                    {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
-                      <Stepper
-                        label={`${side.toLowerCase()} models`}
-                        countLabel={`${side} models`}
-                        count={pick ? models : null}
-                        loading={Boolean(pick) && !unit}
-                        onRemove={
-                          unit && unit.entryId === pick?.entryId && fewer < models && fewer >= (battleUnit ? 1 : unit.size.min)
-                            ? () =>
-                                battleUnit ? combatant.setHealth({ models: fewer }) : edit.resize(pickIndex, (count) => nextSize(count, -1))
-                            : undefined
-                        }
-                        onAdd={
-                          unit && unit.entryId === pick?.entryId && more > models && more <= maximum
-                            ? () =>
-                                battleUnit
-                                  ? combatant.setHealth({ models: more })
-                                  : edit.resize(pickIndex, (count) => Math.min(maximum, nextSize(count, 1)))
-                            : undefined
-                        }
-                        choices={
-                          unit && unit.entryId === pick?.entryId
-                            ? modelCountChoices(battleUnit ? { min: 1, max: maximum } : { ...unit.size, max: maximum })
-                            : undefined
-                        }
-                        onChoose={(count) => (battleUnit ? combatant.setHealth({ models: count }) : edit.resize(pickIndex, () => count))}
-                      />
-                    ) : (
-                      <div
-                        aria-label={member.index === pickIndex ? `${side} models` : `${side} ${member.name} models`}
-                        aria-busy={!combatant.price.data?.units[member.index]}
-                        className="readout w-8 shrink-0 text-center text-sm text-dim"
-                      >
-                        {combatant.price.data?.units[member.index] ? (
-                          member.models
-                        ) : (
-                          <Skeleton aria-hidden className="mx-auto h-4 w-5 rounded-none" />
-                        )}
-                      </div>
-                    )}
-                    <Button
-                      data-onboarding={side === 'Attacker' && member.index === pickIndex ? 'simulator-loadout' : undefined}
-                      variant="outline"
-                      size="icon-sm"
-                      title="Loadout"
-                      disabled={!ready}
-                      onPointerEnter={() => warmLoadout(member.index)}
-                      onFocus={() => warmLoadout(member.index)}
-                      aria-label={member.index === pickIndex ? 'Loadout' : `${side} ${member.name} loadout`}
-                      onClick={() => setLoadoutIndex(member.index)}
+                <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center gap-2">
+                  {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
+                    <Stepper
+                      label={`${side.toLowerCase()} models`}
+                      countLabel={`${side} models`}
+                      count={pick ? models : null}
+                      loading={Boolean(pick) && !unit}
+                      onRemove={
+                        unit && unit.entryId === pick?.entryId && fewer < models && fewer >= (battleUnit ? 1 : unit.size.min)
+                          ? () =>
+                              battleUnit ? combatant.setHealth({ models: fewer }) : edit.resize(pickIndex, (count) => nextSize(count, -1))
+                          : undefined
+                      }
+                      onAdd={
+                        unit && unit.entryId === pick?.entryId && more > models && more <= maximum
+                          ? () =>
+                              battleUnit
+                                ? combatant.setHealth({ models: more })
+                                : edit.resize(pickIndex, (count) => Math.min(maximum, nextSize(count, 1)))
+                          : undefined
+                      }
+                      choices={
+                        unit && unit.entryId === pick?.entryId
+                          ? modelCountChoices(battleUnit ? { min: 1, max: maximum } : { ...unit.size, max: maximum })
+                          : undefined
+                      }
+                      onChoose={(count) => (battleUnit ? combatant.setHealth({ models: count }) : edit.resize(pickIndex, () => count))}
+                    />
+                  ) : (
+                    <span
+                      aria-label={member.index === pickIndex ? `${side} models` : `${side} ${member.name} models`}
+                      aria-busy={!combatant.price.data?.units[member.index]}
+                      className="readout w-8 shrink-0 text-center text-sm text-dim"
                     >
-                      <Settings className="size-4" aria-hidden />
+                      {combatant.price.data?.units[member.index] ? (
+                        member.models
+                      ) : (
+                        <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" />
+                      )}
+                    </span>
+                  )}
+                  <Button
+                    data-onboarding={side === 'Attacker' && member.index === pickIndex ? 'simulator-loadout' : undefined}
+                    variant="outline"
+                    size="icon-sm"
+                    title="Loadout"
+                    disabled={!ready}
+                    onPointerEnter={() => warmLoadout(member.index)}
+                    onFocus={() => warmLoadout(member.index)}
+                    aria-label={member.index === pickIndex ? 'Loadout' : `${side} ${member.name} loadout`}
+                    onClick={() => setLoadoutIndex(member.index)}
+                  >
+                    <Settings className="size-4" aria-hidden />
+                  </Button>
+                  {battleUnit &&
+                  (member.index === pickIndex
+                    ? models < battleUnit.startingModels
+                    : combatant.companionSurvivors.some(
+                        (candidate) =>
+                          candidate.pickIndex === member.index &&
+                          candidate.models < candidate.original.reduce((total, carrier) => total + carrier.models, 0),
+                      )) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={member.index === pickIndex ? undefined : `${side} ${member.name} survivors`}
+                      onClick={() => setSurvivorIndex(member.index)}
+                    >
+                      Survivors
                     </Button>
-                    {battleUnit &&
-                    (member.index === pickIndex
-                      ? models < battleUnit.startingModels
-                      : combatant.companionSurvivors.some(
-                          (candidate) =>
-                            candidate.pickIndex === member.index &&
-                            candidate.models < candidate.original.reduce((total, carrier) => total + carrier.models, 0),
-                        )) ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label={member.index === pickIndex ? undefined : `${side} ${member.name} survivors`}
-                        onClick={() => setSurvivorIndex(member.index)}
-                      >
-                        Survivors
-                      </Button>
-                    ) : null}
-                    {!combatant.roster ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={members.length < 2 || !ready || optimizer.busy}
-                        aria-label={`Remove ${side.toLowerCase()} ${member.name}`}
-                        onClick={() => combatant.removeMember(member.index)}
-                      >
-                        <X aria-hidden />
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
+                  ) : null}
+                  {!combatant.roster ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={members.length < 2 || !ready || optimizer.busy}
+                      aria-label={`Remove ${side.toLowerCase()} ${member.name}`}
+                      onClick={() => combatant.removeMember(member.index)}
+                    >
+                      <X aria-hidden />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>

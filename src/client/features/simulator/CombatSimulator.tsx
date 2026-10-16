@@ -33,7 +33,11 @@ export function CombatSimulator({
   )
   return (
     <main className="w-full bg-sunken">
-      <PageHeader eyebrow={null} title="Combat simulator" description="Compare shooting and melee between units or whole rosters." />
+      <PageHeader
+        eyebrow={null}
+        title="Combat simulator"
+        description="Compare shooting and melee between units or whole rosters. Unit odds update as you edit; roster comparisons run when you’re ready."
+      />
       <PageContent>
         <SimulationMode
           rosters={comparingRosters}

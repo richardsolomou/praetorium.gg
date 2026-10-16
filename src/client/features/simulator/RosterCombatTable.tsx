@@ -69,7 +69,7 @@ export function RosterCombatTable({
         aria-label="View options"
         aria-expanded={optionsOpen}
         onClick={() => setOptionsOpen(!optionsOpen)}
-        className="flex w-full items-center justify-between gap-2 border border-edge px-3 py-2 text-left text-xs sm:hidden"
+        className="flex w-full items-center justify-between gap-2 border border-edge px-3 py-2 text-left text-xs focus-visible:ring-2 focus-visible:ring-primary sm:hidden"
       >
         {phases.find(([value]) => value === phase)![1]} · {heading}
         <ChevronDown className={`size-4 shrink-0 ${optionsOpen ? 'rotate-180' : ''}`} aria-hidden />
@@ -99,7 +99,7 @@ export function RosterCombatTable({
         aria-label="All unit matchups"
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users need to scroll the matchup columns.
         tabIndex={0}
-        className="max-h-[min(32rem,65dvh)] max-w-full overflow-auto rounded border border-edge focus-visible:-outline-offset-2"
+        className="max-h-[min(32rem,65dvh)] max-w-full overflow-auto rounded border border-edge focus-visible:outline-2 focus-visible:outline-primary"
       >
         <table className="w-full border-separate border-spacing-0 text-sm">
           <caption className="sr-only">
@@ -160,7 +160,7 @@ export function RosterCombatTable({
                           disabled={!answer}
                           aria-label={`${unit.name} #${row + 1} against ${target.name} #${column + 1}: ${value === undefined ? (answer ? `Not calculated: ${reason}` : 'Pending') : formatCombatValue(answer?.result, metric)}${bestTarget ? `, ${bestLabel.toLowerCase()}` : ''}. Open matchup`}
                           onClick={() => onSelect(row, column)}
-                          className="min-h-14 w-full p-2 text-center hover:bg-raised focus-visible:-outline-offset-2 disabled:text-faint"
+                          className="min-h-14 w-full p-2 text-center outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary disabled:text-faint"
                         >
                           {value !== undefined ? (
                             <>
