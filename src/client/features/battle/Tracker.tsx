@@ -29,7 +29,7 @@ import {
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
 import { type Side, type SideMission, sides } from '../../sides'
-import { battleSizeText, type Command } from '../../../core/battle'
+import { battleSizeText } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, roundReminderMoment, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
@@ -119,9 +119,10 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     setPromptMinimized(minimizedDialogs.current.length > 0)
     return minimizedDialogs.current.indexOf(id)
   }, [])
-  const sendAction = useCallback(
-    (command: Command) => {
-      if (!promptMinimized) send(command)
+  const sendAction: SendCommand = useCallback(
+    (command, options) => {
+      if (promptMinimized) options?.complete?.(false)
+      else send(command, options)
     },
     [promptMinimized, send],
   )
@@ -647,6 +648,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               onSimulate={setCombatSelection}
               coreKeys={coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
               pending={pending || promptMinimized}
+              blocked={promptMinimized}
               send={sendAction}
               awardsFor={awardsFor}
               referenceFor={referenceFor}

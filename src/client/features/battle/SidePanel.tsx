@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
-import type { Command } from '../../../core/battle'
+import type { SendCommand } from './useCommand'
 import type { BattleView } from '../../../core/battleView'
 import { type Side } from '../../sides'
 import { PlayerName } from './PlayerName'
@@ -18,7 +18,9 @@ type Props = {
   onSimulate: (selection: BattleCombatSelection) => void
   coreKeys: ReadonlySet<string>
   pending: boolean
-  send: (command: Command) => void
+  /** A parked prompt, which holds controls that otherwise stay usable while a write is in flight. */
+  blocked: boolean
+  send: SendCommand
   awardsFor: (key: string, mode?: string) => Award[]
   referenceFor: (key: string) => ReferenceCard | undefined
   writtenFor: (side: Side, key: string) => StratagemText | undefined
@@ -43,6 +45,7 @@ export const SidePanel = memo(function SidePanel({
   onSimulate,
   coreKeys,
   pending,
+  blocked,
   send,
   awardsFor,
   referenceFor,
@@ -102,6 +105,7 @@ export const SidePanel = memo(function SidePanel({
               side={side}
               actionable={view.status === 'playing'}
               pending={pending}
+              blocked={blocked}
               send={send}
             />
           </div>
