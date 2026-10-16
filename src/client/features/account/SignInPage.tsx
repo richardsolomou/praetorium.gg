@@ -67,7 +67,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
         ? authClient.signUp.email({
             email,
             password,
-            name: name.trim() || email.split('@')[0] || 'Player',
+            name: name.trim(),
             callbackURL: '/profile?verified=true',
           })
         : authClient.signIn.email({ email, password }),
@@ -157,7 +157,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                 {joining ? (
                   <div className="space-y-2">
                     <Label htmlFor="name">Your name</Label>
-                    <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" />
+                    <Input id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" required />
                   </div>
                 ) : null}
                 <div className="space-y-2">
