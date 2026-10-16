@@ -57,6 +57,14 @@ vi.mock('react', () => ({
     return hooks.slots[index]
   },
   useCallback: (callback: unknown) => callback,
+  // Layout effects finish before any passive effect or event handler can run, so the double runs them at once.
+  useLayoutEffect: (effect: () => void, dependencies: readonly unknown[]) => {
+    const index = hooks.cursor++
+    if (!hooks.dependencies[index] || dependencies.some((value, at) => !Object.is(value, hooks.dependencies[index]![at]))) {
+      effect()
+      hooks.dependencies[index] = dependencies
+    }
+  },
   useEffect: (effect: () => void, dependencies: readonly unknown[]) => {
     const index = hooks.cursor++
     if (!hooks.dependencies[index] || dependencies.some((value, at) => !Object.is(value, hooks.dependencies[index]![at]))) {
