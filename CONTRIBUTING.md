@@ -22,11 +22,11 @@ CI runs the `just check` steps as parallel lanes (static checks, unit tests, int
 
 For rendered changes, inspect the running preview at the relevant widths and exercise the complete behavior. Repeat on the hosted preview when the change depends on hosted configuration or when local and CI evidence leave a deployment-specific question. After release, verify the deployed revision and health; repeat the feature flow when it depends on production services.
 
-Browser tests wait for page elements rather than `networkidle` on live battle pages. Locate unit cards with `data-unit` and roster rows with `data-roster`; scope assertions to the card or row so a menu item cannot satisfy them before the change takes effect.
+Browser tests wait for page elements rather than `networkidle` on live battle pages. Locate unit cards with `data-unit`, roster rows with `data-roster`, and players with `data-person`; scope assertions to the card or row so a menu item cannot satisfy them before the change takes effect.
 
 ## Pull requests and releases
 
-Use a conventional commit title and the [pull request template](.github/pull_request_template.md). Branches receive a disposable [preview](docs/development/pr-previews.md).
+Use a conventional commit title and the [pull request template](.github/pull_request_template.md). Branches receive a disposable [preview](docs/deployment.md#pull-request-previews).
 
 A change players can notice needs a `pnpm changeset` entry for `praetorium.gg`: `minor` for a new capability, `patch` for a fix, and one sentence saying what a player sees, not how it was done. What's new and the update notice show these sentences to players. Changes players cannot notice need no changeset and deploy on merge without one: documentation, tests, refactors, tooling, CI, deployment and images, analytics and error reporting, and server internals such as caching, memory, or query counts. Merging a changeset to `main` triggers the version update, changelog, tag, and GitHub Release in a release commit on `main`, without a release pull request; [Hosted deployment](docs/deployment.md#delivery) describes it.
 

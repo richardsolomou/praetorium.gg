@@ -1,71 +1,45 @@
 # Leagues
 
-Leagues organize registration, sealed rosters, entrant-started battles, and a results table from those battles. They do not generate pairings or schedules. `src/core/league.ts` owns decisions, `src/core/leagueResults.ts` owns the results table, and `src/server/services/leagueService.ts` owns application operations. [Interface](interface.md#battles-and-leagues) owns presentation.
+Leagues organize registration, sealed rosters, entrant-started battles, and a results table. They do not generate pairings or schedules. `src/core/league.ts` owns decisions, `leagueResults.ts` the results table, `tableShape.ts` formats and minimum places, and `src/server/services/leagueService.ts` application operations. [Interface](interface.md#battles-and-leagues) owns presentation.
 
 ## Events
 
-Player-facing copy says league when it means the whole league and numbers an event only once a league has more than one.
-
-Creating a league creates its first event atomically. At most one event has open registration; another can start after reveal. League identity, organizer, settings, and invite link persist, while entrants, assignments, teams, and snapshots belong to one event. Prior events stay readable; returning players join again.
-
-1v1 assigns the event's roster size. 2v1 requires solo and allied roles, with the allies paired into fixed pairs; 2v2 requires fixed teams of two. A pair plays together in every battle of the event. When only two entrants are left to pair, the organizer's picker ticks both. Read `src/core/tableShape.ts` and league decisions for their sizes and minimum places. Doubles team rosters are independently legal and share one eligible Warlord. Remaining unsupported cross-army uniqueness rules require manual review.
-
-Changing an open event's shape is allowed only before the first seal and atomically clears obsolete assignments/teams. League settings and event changes save together. Player limits must seat the format and existing accepted entrants; a revealed event no longer constrains future-event limits. A player limit caps entry rather than holding the reveal back.
-
-Deleting a league deletes its events and snapshots. Existing battles keep their own command-log copies.
+Copy says league for the whole league and numbers events only once there is more than one. Creating a league creates its first event atomically; at most one event has open registration, and another can start after reveal. Entrants, assignments, teams, and snapshots belong to one event. 2v1 allies and 2v2 teams are fixed pairs for the event; doubles rosters are independently legal, and unsupported cross-army uniqueness rules need manual review. Shape changes only before the first seal, atomically clearing obsolete assignments and teams. Player limits must seat the format and accepted entrants, and never hold back reveal. Deleting a league deletes its events and snapshots; battles keep their own copies.
 
 ## Organizers
 
-The owner may name up to `LEAGUE_ADMIN_MAX` admins from their friends. `isLeagueOrganizer` gives admins every organizer operation, including starting the next event, editing settings, admitting or adding players, assigning sizes and teams, revealing, and unsealing. Only the owner deletes the league or changes its admins. An admin adds their own friends, plays as themselves when they start an event, and receives join requests with the owner. Removing an admin, or deleting their account, ends their access at once; the league stays with its owner.
-
-Saved league responses and queued drafts can predate admins. Migrate missing `admins` and `adminIds` to empty arrays when parsing application snapshots and local work, before restoring or projecting query data. Keep components on the current shape instead of adding per-screen compatibility fallbacks. Server authorization still uses current membership. Exercise restoration and roster replacement through `e2e/leagues.spec.ts`.
+The owner may name up to `LEAGUE_ADMIN_MAX` friends as admins; `isLeagueOrganizer` gives them every organizer operation except deleting the league or changing admins. Removal ends access at once. Saved responses and queued drafts can predate admins: migrate missing `admins`/`adminIds` to empty arrays when parsing, not in components.
 
 ## Visibility and entry
 
-Public leagues are listed; private leagues are discoverable by their opaque link. Joining and submission require an account. Past participants retain access to their private league.
-
-Admission can be automatic or organizer-approved; new leagues default to automatic, because a private link is already the way in. Directly added friends are accepted atomically after friendship and capacity checks. Switching to automatic entry or Accept all admits oldest requests first up to the accepted-player limit. Pending requests do not consume those configured places, but total active entries remain bounded.
-
-Use `visibleLeagueEntries` and `leagueRegistrationFull` for reads and controls. Rejected requests remain visible only to their player and organizer and may be accepted again before reveal.
+Public leagues are listed; private ones are reachable by opaque link, so new leagues default to automatic admission. Joining and submission require an account; past participants keep access. Direct adds check friendship and capacity atomically; bulk admission takes oldest requests first. Pending requests take no places, but active entries stay bounded. Use `visibleLeagueEntries` and `leagueRegistrationFull`. Rejected requests are visible only to their player and organizers and may be accepted again before reveal.
 
 ## Roster sealing
 
-Only accepted entrants with resolved size/team assignments may seal. Server submission reprices the selected saved list, checks its exact size and unwaived legality, validates the frozen snapshot, removes the saved ID, and stores it atomically. Incomplete catalogue validation remains a warning. Waived restrictions require confirmation and remain visible in the snapshot.
+Only accepted entrants with resolved assignments may seal. Submission reprices the saved list against its rules version (preview, released, or archived), checks exact size and unwaived legality, and stores the frozen snapshot atomically without the saved ID. Incomplete validation is a warning; waived restrictions need confirmation and stay visible.
 
-Preview, released, and archived rules may be sealed. Submission prices the roster against its selected rules version and freezes that version's metadata with the roster. [Catalogue data](catalogue-data.md#composing-sources-and-publishing-rules-versions) owns the rules-version lifecycle.
+Outside doubles every roster has one eligible Warlord; in doubles the first roster may have zero or one and the team exactly one. Freeze source-backed eligibility rather than inferring it from names; both seal paths explain refusals through `leagueWarlordRefusal`.
 
-Outside doubles, every roster has one eligible Warlord. A first doubles roster may have zero or one; once both exist, the team must contain exactly one. Freeze source-backed eligibility rather than inferring it from names. Both the local and server seal paths explain a refused Warlord through `leagueWarlordRefusal` in `src/core/league.ts`, which names the missing, extra, or ineligible unit.
-
-Saved edits never change `league_event_entries.roster_snapshot`. Before reveal, an entrant can replace it deliberately. Reassignment and doubles re-pairing clear every affected snapshot atomically; pairing a 2v1 ally keeps an allied-size list, since its Warlord is its own. Compare saved choices with the sealed copy to warn about changed unrevealed lists; restoration clears the warning.
+Saved edits never change `league_event_entries.roster_snapshot`; before reveal an entrant may replace it deliberately. Reassignment and re-pairing clear affected snapshots atomically, except that pairing a 2v1 ally keeps its list.
 
 ## Team Force Disposition
 
-A fixed pair plays one Force Disposition, chosen before reveal so that it cannot answer the opposing lists. `leagueTeams` owns the decision through `src/core/teamDisposition.ts`, the same rule a battle uses for an allied side. Once both lists are sealed, either member chooses from every card either list's detachments offered (`built.dispositions`), not only the cards the lists chose; a player saves the roster as a personal list. Lists that chose the same card play it without asking. The pick is stored in `league_event_teams` and counts only while the sealed lists still offer it, so replacing a list can reopen the choice. Reveal requires every pair to have a card and records each one. After reveal the card is fixed: the choice is closed, and a list sealed after an unseal must leave it on offer. Before reveal, only the pair reads its choices and card.
+A fixed pair plays one Force Disposition, chosen before reveal so it cannot answer the opposing lists. `src/core/teamDisposition.ts` applies the battle's allied-side rule: once both lists are sealed, either member picks from every card either list's detachments offered (`built.dispositions`). The pick in `league_event_teams` counts only while the sealed lists still offer it. Reveal requires every pair to have one and fixes it, so a list resealed after an unseal must keep it on offer. Before reveal only the pair reads its choices.
 
-Detail reads expose submission status and frozen name, not roster JSON. Before reveal, `readsSealedLeagueRoster` grants an entrant their own list and, through `readsAlliedLeagueRoster`, another entrant access only as a fixed doubles teammate or fellow 2v1 allied entrant. Organizer status grants no extra roster access. Reassignment revokes the old alliance immediately. SQL narrows candidates; the domain decides access.
+Detail reads expose submission status and frozen name, not roster JSON. Before reveal, `readsSealedLeagueRoster` and `readsAlliedLeagueRoster` grant an entrant only their own list and a fixed teammate's or fellow 2v1 ally's; organizers get no extra access, and reassignment revokes it immediately. SQL narrows candidates; the domain decides access.
 
 ## Reveal
 
-`leagueRevealChecklist` supplies structural checks to both UI and command. Reveal additionally validates the sealed rosters and Warlords in one transaction. Require an accepted entrant, complete assignments/snapshots, valid team composition, a settled Force Disposition for every pair, and no pending approval requests in doubles. Checklist completion alone is not proof that roster validation passed.
-
-Before reveal, everyone reading the event sees whose list is sealed. The organizer or any accepted entrant reveals once every check passes (`mayRevealLeague`), and the event records who did. Nothing reveals an event on its own, even a full one: someone has to choose to. A failed roster validation leaves the event sealed for the organizer to resolve.
-
-Reveal is irreversible, closes registration/assignment/submission, and makes accepted snapshots readable without closing the league. The organizer may unseal one roster afterward: discard only that snapshot and reopen its submission. The event stays revealed; an entrant without a snapshot cannot start a battle. A replacement uses ordinary pricing and Warlord validation.
-
-Once revealed, the lists lead the event page. Cards stack one per line like the roster library and reuse its `RosterSummary` for the sealed copy from `leagueArmy`, naming detachments as sealed and the army as battle summaries do. Count fielded units with `attachedUnitCount`, as the roster library does: an attached Leader and its squad count as one unit. They group under the same 2v1 side and doubles team headings as the entrant list. A header names the player, with borderless icon actions: the organizer's Unseal roster first, opening its confirmation, then Simulate (calculator) for a reader with their own sealed list, then View list. The card body also opens the full list. The entrant list is hidden once lists are revealed, since every player shows with their list. Start the planner with the viewer's roster attacking the selected entrant; Reverse direction checks incoming damage. Use the sealed copies and the existing roster-access read, without changing league submissions or battle state. [Combat simulation](combat-simulation.md#interface-and-context) owns the matrix, assumptions, and verification. Before reveal, an entrant row offers only the reader's own list or an ally's.
+`leagueRevealChecklist` feeds both UI and command, but reveal also validates rosters and Warlords in its transaction, so a complete checklist is not proof. The organizer or any accepted entrant reveals (`mayRevealLeague`), and the event records who; nothing reveals automatically, even when full. Reveal is irreversible and closes registration, assignment, and submission. The organizer may then unseal one roster: the event stays revealed, that entrant cannot start battles until resealing, and the replacement gets ordinary validation. The revealed-list [simulator](combat-simulation.md#interface-and-context) reads sealed copies and never changes submissions or battles.
 
 ## Battles
 
-Accepted entrants in a revealed event choose a valid opposing composition. When the sealed entrants allow only one matchup, the chooser seats it already. A duel entrant who joins without needing an assignment goes straight to the list chooser; a saved list matching an open entry's required size links back to seal it from the builder. The server derives fixed teammates and pairs and verifies every sealed roster size; no friendship is required within this boundary. A 2v1 event revealed before allies were paired still lets an entrant name both allies.
-
-Creation copies snapshots and appends `lock-league-rosters` in one transaction. The lock preserves event identity and prevents roster replacement/removal, reset, size changes, and adding a side. It carries each pair's sealed Force Disposition, which setup then cannot change; an event revealed before pairs sealed one leaves the choice to setup. Saved-list or catalogue updates cannot rewrite it. Event battle history is read-only and respects both the narrowest-seat battle audience and battle field visibility. An event's reveal or link never widens access to a private battle.
-
-Ordinary creation detects exact matchups from revealed events and directs the player to that event. Proceeding as an unlinked casual battle requires explicit confirmation.
+The server derives fixed teammates and pairs and verifies sealed sizes; no friendship is required. A 2v1 event revealed before allies were paired lets an entrant name both allies. Creation copies snapshots and appends `lock-league-rosters` in one transaction. The lock preserves event identity, blocks roster replacement, reset, size changes, and new sides, and carries each pair's sealed Force Disposition (events revealed before pairs chose leave it to setup). Event battles keep battle audience and field visibility; reveal never widens access to a private battle. Ordinary creation detects exact event matchups and needs explicit confirmation to proceed unlinked.
 
 ## Results
 
-A revealed event's results fold the event battles its reader may watch, so a private battle stays out of everybody else's table as it stays out of their battle list. Finished battles count, including manually tracked ones; wins rank first, then draws, then victory points, which follow the side as the leaderboard counts them. Any started battle counts as a meeting, so a duel entrant sees who they have not played yet. The table folds the battle feed's largest page and says when an event has more battles than that.
+Results fold only battles the reader may watch, so a private battle stays out of other tables. Finished battles count, including manual ones; any started battle counts as a meeting. The table folds the feed's largest page and says when there are more.
 
 ## Verification
 
-Exercise admission/capacity races, organizer and ally access before/after reassignment, saved-versus-sealed restoration, team Warlords, team Force Dispositions before and after reveal, atomic invalidation, irreversible and self-revealing events, unseal/reseal, results from finished and private battles, and immutable event-linked battles. Use adjacent tests and `e2e/leagues.spec.ts`, then inspect open and revealed event layouts on phones.
+Use adjacent tests and `e2e/leagues.spec.ts`, covering admission races, access across reassignment, Force Dispositions across reveal, unseal/reseal, admin-less saved data, and private battles in results. Inspect open and revealed event layouts on phones.
