@@ -63,7 +63,7 @@ Offline candidate discovery runs in a worker embedded in the saved application s
 
 ## Coverage audit
 
-`pnpm catalogue:combat` inventories source clauses and raw weapon keyword variants (`--faction`, `--json`); reports stay outside Git. Compiler wording coverage does not prove matchup eligibility. TypeSafe Jev shortlists development candidates only; the application needs no TypeSafe credential. With `TYPESAFE_API_KEY`:
+`pnpm catalogue:combat` inventories source clauses and raw weapon keyword variants (`--faction`, `--json`); reports stay outside Git. Compiler wording coverage does not prove matchup eligibility. TypeSafe Jev shortlists development candidates only; combat simulation needs no TypeSafe credential. With `TYPESAFE_API_KEY`:
 
 ```sh
 mkdir -p combat-reports

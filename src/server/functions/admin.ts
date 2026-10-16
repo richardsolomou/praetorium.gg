@@ -209,6 +209,24 @@ export const deleteBattleAsAdmin = createServerFn({ method: 'POST' })
     }),
   )
 
+export const heldCollectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    await requireAdmin()
+    return app().collectionPhotos.held()
+  }),
+)
+
+export const keepCollectionPhotoAsAdmin = createServerFn({ method: 'POST' })
+  .validator(collectionPhotoIdSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const current = await requireAdmin()
+      await app().collectionPhotos.keep(data.photoId)
+      await track(current.id, 'collection-photo-kept')
+      return null
+    }),
+  )
+
 export const removeCollectionPhotoAsAdmin = createServerFn({ method: 'POST' })
   .validator(collectionPhotoIdSchema)
   .handler(({ data }) =>

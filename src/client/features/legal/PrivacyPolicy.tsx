@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="15 October 2026">
+    <LegalPage title="Privacy policy" updated="16 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -24,8 +24,8 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
-          and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection and their model
-          counts, favourites, and practice opponents you seat.
+          and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their model
+          counts and photos, favourites, and practice opponents you seat.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
@@ -79,8 +79,9 @@ export function PrivacyPolicy() {
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
-            Your collection's datasheets and model counts are shown on your profile by default. Turn off Show collection on profile in your
-            account settings to hide them; turning it back on shows them again.
+            Your collection's datasheets, model counts and photos are shown on your profile by default, and its photos on their datasheet
+            pages. Turn off Show collection on profile in your account settings to hide them; turning it back on shows them again. A photo
+            another player reports is hidden from everyone but you until an administrator reviews it.
           </li>
           <li>
             Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can
@@ -108,6 +109,9 @@ export function PrivacyPolicy() {
           <li>PostHog, for the usage measurement described above.</li>
           <li>An email delivery provider, to send account email.</li>
           <li>Apple, Google or Discord, when you use one of them to sign in.</li>
+          <li>
+            TypeSafe, which checks each collection photo and profile picture you upload for content that does not belong on the service.
+          </li>
           <li>
             Expo, with Apple or Google, to deliver the notifications you allow. A notification carries its title, text, and the page it
             opens.

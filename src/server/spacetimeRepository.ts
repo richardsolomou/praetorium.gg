@@ -748,6 +748,22 @@ export class SpacetimeRepository {
     return this.product.removeCollectionPhotoById(...args)
   }
 
+  collectionPhotoForAdmin(...args: Parameters<SpacetimeOperator['collectionPhotoForAdmin']>) {
+    return this.product.collectionPhotoForAdmin(...args)
+  }
+
+  reportCollectionPhoto(...args: Parameters<SpacetimeOperator['reportCollectionPhoto']>) {
+    return this.product.reportCollectionPhoto(...args)
+  }
+
+  keepCollectionPhoto(...args: Parameters<SpacetimeOperator['keepCollectionPhoto']>) {
+    return this.product.keepCollectionPhoto(...args)
+  }
+
+  heldCollectionPhotos(...args: Parameters<SpacetimeOperator['heldCollectionPhotos']>) {
+    return this.product.heldCollectionPhotos(...args)
+  }
+
   collectionPhotoDeletions(...args: Parameters<SpacetimeOperator['collectionPhotoDeletions']>) {
     return this.product.collectionPhotoDeletions(...args)
   }

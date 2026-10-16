@@ -14,12 +14,19 @@ export function dataUrl(blob: Blob) {
 }
 
 /**
- * Downscales and re-encodes an image until it fits `maxBytes`, trying each longest edge at each quality, WebP first.
- * Re-encoding also drops any metadata the original carried, such as where a photo was taken.
+ * Downscales and re-encodes an image until it fits `maxBytes`, trying each longest edge at each quality, as WebP unless
+ * the browser cannot encode it or JPEG is asked for. Re-encoding also drops any metadata the original carried, such as
+ * where a photo was taken.
  */
 export async function shrinkImage(
   file: Blob,
-  { edges, qualities, maxBytes, noun }: { edges: readonly number[]; qualities: readonly number[]; maxBytes: number; noun: string },
+  {
+    edges,
+    qualities,
+    maxBytes,
+    noun,
+    jpeg = false,
+  }: { edges: readonly number[]; qualities: readonly number[]; maxBytes: number; noun: string; jpeg?: boolean },
 ): Promise<string> {
   let source: ImageBitmap
   try {
@@ -33,7 +40,7 @@ export async function shrinkImage(
     const context = canvas.getContext('2d')
     if (!context) throw new Error(`This browser cannot prepare the ${noun}.`)
 
-    let type = 'image/webp'
+    let type = jpeg ? 'image/jpeg' : 'image/webp'
     for (const edge of edges) {
       const scale = Math.min(1, edge / Math.max(source.width, source.height))
       canvas.width = Math.max(1, Math.round(source.width * scale))

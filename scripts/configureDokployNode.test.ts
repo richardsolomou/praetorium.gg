@@ -92,6 +92,15 @@ it('passes the IndexNow key to production', () => {
   expect(nodeEnvironment({ ...environment, ...apple, INDEXNOW_KEY: 'index-key' }, 'production')).toContain('INDEXNOW_KEY=index-key')
 })
 
+it('passes the photo screening key to production only', () => {
+  expect(
+    [
+      nodeEnvironment({ ...environment, ...apple, TYPESAFE_API_KEY: 'screening-key' }, 'production'),
+      nodeEnvironment({ ...environment, TYPESAFE_API_KEY: 'screening-key' }, 'staging'),
+    ].map((config) => config.includes('TYPESAFE_API_KEY=screening-key')),
+  ).toEqual([true, false])
+})
+
 it('leaves the IndexNow key out of staging, whose pages search engines should not be told about', () => {
   expect(nodeEnvironment({ ...environment, INDEXNOW_KEY: 'index-key' }, 'staging')).not.toContain('INDEXNOW_KEY')
 })

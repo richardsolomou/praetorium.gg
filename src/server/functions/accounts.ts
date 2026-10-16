@@ -1,8 +1,14 @@
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
-import { collectionPhotoLikeSchema, collectionPhotoReportSchema, collectionPhotoSchema } from '../../contracts/collection'
+import {
+  collectionPhotoIdSchema,
+  collectionPhotoLikeSchema,
+  collectionPhotoReportSchema,
+  collectionPhotoSchema,
+} from '../../contracts/collection'
 import { collectionPhotoReportEmail } from '../collectionPhotos'
+import { COLLECTION_PHOTO_QUESTIONS, recordScreening } from '../photoScreening'
 import { app } from '../app'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
 import { currentUser, currentUserId, requireUser, requireUserId } from '../playerSession'
@@ -319,7 +325,7 @@ export const setCollectionModels = createServerFn({ method: 'POST' })
 export const collectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    const photos: Record<string, string> = id ? await app().service.collectionPhotos(id) : {}
+    const photos: Record<string, string[]> = id ? await app().service.collectionPhotos(id) : {}
     return photos
   }),
 )
@@ -331,20 +337,23 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const limited = photoRateLimit(getRequest(), 6)
+      const limited = photoRateLimit(getRequest(), 12)
       if (limited) throw limited
       const photoId = await app().collectionPhotos.upload(player.id, data.entryId, data.image)
       await app().telemetry.capture(player.id, 'collection_photo_uploaded')
+      void recordScreening(app().photoScreening, data.image, COLLECTION_PHOTO_QUESTIONS, (properties) =>
+        app().telemetry.capture(player.id, 'collection_photo_screened', { photo_id: photoId, ...properties }),
+      )
       return photoId
     }),
   )
 
 export const removeCollectionPhoto = createServerFn({ method: 'POST' })
-  .validator(collectionPhotoSchema.pick({ entryId: true }))
+  .validator(collectionPhotoIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().collectionPhotos.remove(player.id, data.entryId)
+      await app().collectionPhotos.remove(player.id, data.photoId)
       await app().telemetry.capture(player.id, 'collection_photo_removed')
       return null
     }),
@@ -367,7 +376,7 @@ export const likeCollectionPhoto = createServerFn({ method: 'POST' })
 
 const reportRateLimit = fixedWindowRateLimit('too many photo reports')
 
-/** Emails every administrator a photo the reporter can see; a no-op where this instance sends no email. */
+/** Holds a photo the reporter can see for review and emails every administrator, where this instance sends email. */
 export const reportCollectionPhoto = createServerFn({ method: 'POST' })
   .validator(collectionPhotoReportSchema)
   .handler(({ data }) =>
@@ -377,6 +386,7 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
       if (limited) throw limited
       const photo = await app().collectionPhotos.visibleTo(data.photoId, reporter.id)
       if (!photo) throw new Response('that photo is no longer shown', { status: 404 })
+      await app().collectionPhotos.report(reporter.id, data.photoId)
       const delivery = app().email
       if (delivery && process.env.APP_URL) {
         const email = collectionPhotoReportEmail({ ...data, ownerId: photo.userId }, reporter, process.env.APP_URL)

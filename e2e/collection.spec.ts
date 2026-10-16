@@ -15,13 +15,7 @@ async function addDatasheet(page: Page, name: string, faction: string) {
 
 const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
 
-async function addPhoto(page: Page, name: string) {
-  const dialog = page.getByRole('dialog', { name: `Your ${name}` })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: `Add a photo of your ${name}`, exact: true }).click())
-  await dialog.getByLabel(`Choose a photo of your ${name}`).setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PIXEL })
-  await expect(dialog.getByRole('button', { name: 'Replace photo', exact: true })).toBeVisible()
-  await page.keyboard.press('Escape')
-}
+const png = (name: string) => ({ name, mimeType: 'image/png', buffer: PIXEL })
 
 const loaded = (image: Locator) => expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0)
 
@@ -238,30 +232,29 @@ test('profiles show a new collection by default and settings hide it', async ({ 
   await guestContext.close()
 })
 
-test('a collection photo is replaced, removed, and shown only while the collection is shared', async ({ page, browser }) => {
+test('collection photos are added together, removed only after confirmation, and shown only while the collection is shared', async ({
+  page,
+  browser,
+}) => {
   await signUp(page, uniqueName('Collection photo'))
   await page.goto('/collection')
   await addDatasheet(page, 'Overlord', 'Necrons')
-  const dialog = page.getByRole('dialog', { name: 'Your Overlord' })
-  const choose = (name: string) =>
-    dialog.getByLabel('Choose a photo of your Overlord').setInputFiles({ name, mimeType: 'image/png', buffer: PIXEL })
-  const shown = dialog.getByRole('img', { name: 'The Overlord in this collection' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Add a photo of your Overlord', exact: true }).click())
-  await choose('first.png')
-  await loaded(shown)
-  const first = (await shown.getAttribute('src'))!
-  await choose('second.png')
-  await expect(shown).not.toHaveAttribute('src', first)
-  const second = (await shown.getAttribute('src'))!
+  const dialog = page.getByRole('dialog', { name: 'Your Overlord', exact: true })
+  const photo = (index: number) => dialog.getByRole('button', { name: `Your photo ${index} of Overlord`, exact: true })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Add photos of your Overlord', exact: true }).click())
+  await dialog.getByLabel('Choose photos of your Overlord').setInputFiles([png('first.png'), png('second.png')])
+  await loaded(photo(2).locator('img'))
+  const first = (await photo(1).locator('img').getAttribute('src'))!
+  const second = (await photo(2).locator('img').getAttribute('src'))!
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: 'Photo of your Overlord', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Photos of your Overlord', exact: true })).toHaveText('2')
 
   const owner = (await savedWork(page))!.owner
   const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const guest = await guestContext.newPage()
   const status = async (reader: Page, src: string) => (await reader.request.get(new URL(src, page.url()).href)).status()
   const served = await guest.request.get(new URL(second, page.url()).href)
-  expect([served.status(), served.headers()['cache-control'], await status(guest, first)]).toEqual([200, 'private, no-store', 404])
+  expect([served.status(), served.headers()['cache-control'], await status(guest, first)]).toEqual([200, 'private, no-store', 200])
   await guest.goto(new URL(`/users/${owner}?tab=collection`, page.url()).href)
   const thumbnail = guest.locator('[data-collection-unit="Overlord"]').getByRole('img', { name: 'Overlord', exact: true })
   await loaded(thumbnail)
@@ -272,19 +265,31 @@ test('a collection photo is replaced, removed, and shown only while the collecti
   expect([await status(guest, second), await status(page, second)]).toEqual([404, 200])
   await operator.setCollectionPublished(owner, true)
 
-  await page.getByRole('button', { name: 'Photo of your Overlord', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Remove photo', exact: true }).click()
-  await expect(dialog.getByText('No photo yet')).toBeVisible()
-  expect(await status(page, second)).toBe(404)
+  await page.getByRole('button', { name: 'Photos of your Overlord', exact: true }).click()
+  await photo(1).click()
+  const viewer = page.getByRole('dialog', { name: 'Overlord', exact: true })
+  const confirm = page.getByRole('alertdialog', { name: 'Remove this photo?', exact: true })
+  await viewer.getByRole('button', { name: 'Remove photo', exact: true }).click()
+  await confirm.getByRole('button', { name: 'Keep', exact: true }).click()
+  expect(await status(page, first)).toBe(200)
+  await viewer.getByRole('button', { name: 'Remove photo', exact: true }).click()
+  await confirm.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(viewer).toBeHidden()
+  await expect(photo(2)).toHaveCount(0)
+  await expect(photo(1).locator('img')).toHaveAttribute('src', second)
+  expect(await status(page, first)).toBe(404)
   await guestContext.close()
 })
 
-test('datasheet pages and rosters show shared photos, and a player sees their own in their rosters', async ({ page, browser }) => {
+test('players add photos from datasheet pages and rosters, which show shared photos and a player’s own', async ({ page, browser }) => {
   const sharer = uniqueName('Photo sharer')
   await signUp(page, sharer)
+  await page.goto('/factions/necrons/datasheets/overlord')
+  const sharerGallery = page.locator('[data-datasheet-photos]')
+  await sharerGallery.getByLabel('Choose photos of your Overlord').setInputFiles(png('photo.png'))
+  await loaded(sharerGallery.getByRole('button', { name: `Overlord from ${sharer}’s collection`, exact: true }).locator('img'))
   await page.goto('/collection')
-  await addDatasheet(page, 'Overlord', 'Necrons')
-  await addPhoto(page, 'Overlord')
+  await expect(page.locator('[data-unit="Overlord"]')).toBeVisible()
 
   const builderContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const builder = await builderContext.newPage()
@@ -294,13 +299,6 @@ test('datasheet pages and rosters show shared photos, and a player sees their ow
   const gallery = builder.locator('[data-datasheet-photos]')
   const shared = gallery.getByRole('button', { name: `Overlord from ${sharer}’s collection`, exact: true })
   await loaded(shared.locator('img'))
-  await shared.click()
-  const viewer = builder.getByRole('dialog', { name: 'Overlord' })
-  await viewer.getByRole('button', { name: 'Report', exact: true }).click()
-  await viewer.getByLabel('What is wrong with this photo?').fill('Not a model')
-  await viewer.getByRole('button', { name: 'Send report', exact: true }).click()
-  await expect(viewer.getByText('Thanks. An administrator will review it.')).toBeVisible()
-  await builder.keyboard.press('Escape')
 
   await createRoster(builder, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
   await waitForRosterSave(builder, () => builder.getByRole('button', { name: 'Add Overlord', exact: true }).first().click())
@@ -309,18 +307,18 @@ test('datasheet pages and rosters show shared photos, and a player sees their ow
   await expect(photo).toContainText(`From ${sharer}’s collection`)
   await loaded(photo.locator('img'))
 
-  const rosterUrl = builder.url()
-  await builder.goto('/collection')
-  await addDatasheet(builder, 'Overlord', 'Necrons')
-  await addPhoto(builder, 'Overlord')
-  await builder.goto(rosterUrl)
-  await builder.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
+  await photo.getByLabel('Choose photos of your Overlord').setInputFiles(png('photo.png'))
   await expect(photo).toContainText('Your models')
+  await loaded(photo.getByRole('button', { name: 'Your photo 1 of Overlord', exact: true }).locator('img'))
 
   await builder.goto('/factions/necrons/datasheets/overlord')
-  const owners = gallery.locator('li span.truncate')
+  // Other tests share Overlord photos in the same database.
+  const owners = gallery.locator('li span.truncate').filter({ hasText: new RegExp(`^(${builderName}|${sharer})$`) })
   await expect(owners).toHaveText([builderName, sharer])
-  const like = gallery.getByRole('button', { name: /^Like this photo of Overlord, 0 likes$/ })
+  const like = gallery
+    .locator('li')
+    .filter({ has: builder.getByText(sharer, { exact: true }) })
+    .getByRole('button', { name: 'Like this photo of Overlord, 0 likes', exact: true })
   await like.click()
   await expect(owners).toHaveText([sharer, builderName])
   await builder.reload()
@@ -330,4 +328,52 @@ test('datasheet pages and rosters show shared photos, and a player sees their ow
   )
   await expect(owners).toHaveText([sharer, builderName])
   await builderContext.close()
+})
+
+test('a reported photo is hidden from everyone but its owner until an administrator keeps it', async ({ page, browser }) => {
+  const sharer = uniqueName('Reported sharer')
+  await signUp(page, sharer)
+  const shared = (scope: Page) =>
+    scope.locator('[data-datasheet-photos]').getByRole('button', { name: `Royal Warden from ${sharer}’s collection`, exact: true })
+  await page.goto('/factions/necrons/datasheets/royal-warden')
+  await page.locator('[data-datasheet-photos]').getByLabel('Choose photos of your Royal Warden').setInputFiles(png('photo.png'))
+  await loaded(shared(page).locator('img'))
+
+  const readerContext = await browser.newContext()
+  const reader = await readerContext.newPage()
+  await signUp(reader, uniqueName('Photo reporter'))
+  await reader.goto('/factions/necrons/datasheets/royal-warden')
+  await shared(reader).click()
+  const viewer = reader.getByRole('dialog', { name: 'Royal Warden' })
+  await viewer.getByRole('button', { name: 'Report', exact: true }).click()
+  await viewer.getByLabel('What is wrong with this photo?').fill('Not a model')
+  await viewer.getByRole('button', { name: 'Send report', exact: true }).click()
+  await expect(viewer.getByText('Thanks. An administrator will review it.')).toBeVisible()
+  await reader.keyboard.press('Escape')
+  await expect(shared(reader)).toHaveCount(0)
+
+  await page.goto('/factions/necrons/datasheets/royal-warden')
+  await expect(shared(page)).toBeVisible()
+
+  const adminContext = await browser.newContext()
+  const admin = await adminContext.newPage()
+  await admin.goto('/sign-in')
+  // Filling before hydration submits the form natively and never signs in.
+  await admin.waitForLoadState('networkidle')
+  await admin.getByLabel('Email').fill('preview@praetorium.gg')
+  await admin.getByLabel('Password').fill('preview-preview-preview')
+  await admin.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await admin.waitForURL('/')
+  await admin.goto('/admin')
+  await admin.getByRole('tab', { name: /^Reported photos/ }).click()
+  await expect(admin).toHaveURL(/\/admin\?tab=photos$/)
+  await admin.reload()
+  const held = admin.getByRole('listitem').filter({ has: admin.getByRole('link', { name: sharer, exact: true }) })
+  await loaded(held.getByRole('img'))
+  await held.getByRole('button', { name: 'Keep', exact: true }).click()
+  await expect(held).toHaveCount(0)
+
+  await reader.reload()
+  await expect(shared(reader)).toBeVisible()
+  await Promise.all([readerContext.close(), adminContext.close()])
 })

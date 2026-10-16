@@ -7,12 +7,17 @@ const PREFIX = 'collection-photos/'
 const DELETION_BATCH = 100
 const DELETION_BATCHES_PER_DRAIN = 20
 export const DATASHEET_GALLERY_SIZE = 12
+const HELD_LIST_SIZE = 100
 
 type PhotoRepository = Pick<
   SpacetimeRepository,
   | 'setCollectionPhoto'
   | 'removeCollectionPhoto'
   | 'removeCollectionPhotoById'
+  | 'collectionPhotoForAdmin'
+  | 'reportCollectionPhoto'
+  | 'keepCollectionPhoto'
+  | 'heldCollectionPhotos'
   | 'setCollectionPhotoLike'
   | 'collectionPhoto'
   | 'datasheetPhotos'
@@ -46,8 +51,8 @@ export function collectionPhotoStore(
       return photoId
     },
 
-    remove(userId: string, entryId: string) {
-      return repository.removeCollectionPhoto(userId, entryId)
+    remove(userId: string, photoId: string) {
+      return repository.removeCollectionPhoto(userId, photoId)
     },
 
     /** A datasheet's gallery, named for each photo's owner; a photo whose owner has no account is left out. */
@@ -68,14 +73,32 @@ export function collectionPhotoStore(
       return repository.removeCollectionPhotoById(photoId)
     },
 
+    /** Holds the photo from everyone but its owner and administrators until one keeps or removes it. */
+    report(userId: string, photoId: string) {
+      return repository.reportCollectionPhoto({ userId, photoId })
+    },
+
+    keep(photoId: string) {
+      return repository.keepCollectionPhoto(photoId)
+    },
+
+    /** Photos reports hold, oldest first, named for their owners. */
+    async held() {
+      const rows = await repository.heldCollectionPhotos(HELD_LIST_SIZE)
+      const owners = await repository.namesByIds(rows.map((row) => row.userId))
+      return rows.map(({ userId, ...photo }) => ({ ...photo, owner: owners.get(userId) ?? { id: userId, name: 'Deleted player' } }))
+    },
+
     /** Whether `viewerId` may see the photo, and whose it is. */
     visibleTo(photoId: string, viewerId: string | null) {
       return repository.collectionPhoto(photoId, viewerId)
     },
 
-    async response(photoId: string, viewerId: string | null) {
+    /** Administrators see every photo, including those reports hold. */
+    async response(photoId: string, viewerId: string | null, admin = false) {
       if (!z.uuid().safeParse(photoId).success) return notFound()
-      if (!(await repository.collectionPhoto(photoId, viewerId))) return notFound()
+      const photo = admin ? await repository.collectionPhotoForAdmin(photoId) : await repository.collectionPhoto(photoId, viewerId)
+      if (!photo) return notFound()
       return privateImageResponse(privateObjects(), `${PREFIX}${photoId}`)
     },
 
@@ -113,7 +136,7 @@ export function collectionPhotoReportEmail(
       '',
       report.reason || 'No reason given.',
       '',
-      'Remove it from the photo on its datasheet page while signed in as an administrator.',
+      `It stays hidden until you keep or remove it at ${new URL('/admin?tab=photos', appUrl).href}, unless an administrator has kept it before.`,
     ].join('\n'),
   }
 }

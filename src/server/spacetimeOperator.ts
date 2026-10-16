@@ -52,7 +52,7 @@ const collectionRow = z.object({
   entryId: z.string(),
   at: z.number().int(),
   models: z.number().int(),
-  photoId: z.uuid().optional(),
+  photoIds: z.array(z.uuid()).optional(),
 })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
@@ -633,8 +633,8 @@ export class SpacetimeOperator {
     await this.call('set_collection_photo', [input.userId, input.entryId, input.photoId, input.now])
   }
 
-  async removeCollectionPhoto(userId: string, entryId: string) {
-    await this.call('remove_collection_photo', [userId, entryId])
+  async removeCollectionPhoto(userId: string, photoId: string) {
+    await this.call('remove_collection_photo', [userId, photoId])
   }
 
   async collectionPhoto(photoId: string, viewerId: string | null) {
@@ -665,6 +665,28 @@ export class SpacetimeOperator {
 
   async removeCollectionPhotoById(photoId: string) {
     await this.call('remove_collection_photo_by_id', [photoId])
+  }
+
+  async collectionPhotoForAdmin(photoId: string) {
+    return z
+      .object({ userId: z.string(), entryId: z.string() })
+      .nullable()
+      .parse(await this.read('collection_photo_for_admin', [photoId]))
+  }
+
+  async reportCollectionPhoto(input: { userId: string; photoId: string }) {
+    await this.call('report_collection_photo', [input.userId, input.photoId])
+  }
+
+  async keepCollectionPhoto(photoId: string) {
+    await this.call('keep_collection_photo', [photoId])
+  }
+
+  async heldCollectionPhotos(limit: number) {
+    return z
+      .array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int() }))
+      .max(100)
+      .parse(await this.read('held_collection_photos', [limit]))
   }
 
   async collectionPhotoDeletions(limit: number) {

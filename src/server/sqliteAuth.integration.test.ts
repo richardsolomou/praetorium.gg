@@ -520,6 +520,29 @@ it('renames a player and removes their picture through the profile checks', asyn
   })
 })
 
+it('hands a picture a player uploads for their own profile to screening with their id', async () => {
+  const uploads: [string, string][] = []
+  const auth = createSqliteAuth(local.database, secret, {
+    environment: testEnvironment,
+    deleteUserData: async () => {},
+    revokeSessionAccess: async () => {},
+    storeSocialAvatar: async () => null,
+    updateProfile: async (data) =>
+      typeof data.image === 'string' && data.image.startsWith('data:')
+        ? { ok: true, data: { image: 'https://example.com/stored.jpg' }, uploaded: data.image }
+        : { ok: true, data },
+    profilePictureUploaded: (userId, image) => void uploads.push([userId, image]),
+  })
+  const created = await auth.api.signUpEmail({
+    body: { email: `${randomUUID()}@example.com`, password: 'password1234', name: 'Picture player' },
+    returnHeaders: true,
+  })
+  const headers = new Headers({ cookie: created.headers.get('set-cookie')!.split(';')[0]! })
+  await auth.api.updateUser({ body: { image: 'data:image/jpeg;base64,AAAA' }, headers })
+  await auth.api.updateUser({ body: { name: 'Renamed player' }, headers })
+  expect(uploads).toEqual([[created.response.user.id, 'data:image/jpeg;base64,AAAA']])
+})
+
 it('lists a player’s MCP connections and revokes one with every token it issued', async () => {
   const auth = authFor(testEnvironment)
   const player = await signUpAs(auth, 'Granting player', 'user')

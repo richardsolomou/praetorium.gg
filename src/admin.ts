@@ -48,6 +48,7 @@ export type AdminAction =
   | 'profile-renamed'
   | 'profile-image-removed'
   | 'collection-photo-removed'
+  | 'collection-photo-kept'
   | 'verification-sent'
   | 'email-verified'
   | 'sign-in-method-unlinked'

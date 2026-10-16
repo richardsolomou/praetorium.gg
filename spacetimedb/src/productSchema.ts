@@ -250,17 +250,23 @@ const collection = table(
   },
 )
 
-/** One photo per collection row, keyed like it; `photoId` names the private object. */
+/**
+ * A collection row's photos, each naming its row by `key`; `photoId` names the private object.
+ *
+ * The row index is named because `key` was once unique, and a migration keeps a column index of the same name unique.
+ */
 const collectionPhotos = table(
-  { name: 'collection_photo' },
+  { name: 'collection_photo', indexes: [{ accessor: 'row', name: 'collection_photo_row', algorithm: 'btree', columns: ['key'] }] },
   {
     photoId: t.string().primaryKey(),
-    key: t.string().unique(),
+    key: t.string(),
     userId: t.string().index('btree'),
     entryId: t.string().index('btree'),
     at: t.u64(),
     /** How many `collection_photo_like` rows name this photo, kept in the same transactions. */
     likes: t.option(t.u32()).default(undefined),
+    /** `held` from a player's report until an administrator keeps it, after which reports no longer hold it. */
+    review: t.option(t.string()).default(undefined),
   },
 )
 

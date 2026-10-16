@@ -2,7 +2,8 @@ import { PROFILE_IMAGE_MAX_LENGTH } from '../../../authConfig'
 import { canvasBlob, dataUrl } from '../../imageFile'
 
 const INPUT_MAX_BYTES = 10_000_000
-const PROFILE_IMAGE_SIZES = [256, 192, 128]
+/** JPEG at 280 pixels or more, because the screening model reads only JPEG and PNG of at least that size. */
+const PROFILE_IMAGE_SIZES = [320, 288]
 const PROFILE_IMAGE_QUALITIES = [0.86, 0.7, 0.55]
 
 export async function prepareProfileImage(file: File): Promise<string> {
@@ -21,18 +22,12 @@ export async function prepareProfileImage(file: File): Promise<string> {
     if (!context) throw new Error('This browser cannot prepare the profile picture.')
 
     const edge = Math.min(source.width, source.height)
-    let type = 'image/webp'
     for (const size of PROFILE_IMAGE_SIZES) {
       canvas.width = size
       canvas.height = size
       context.drawImage(source, (source.width - edge) / 2, (source.height - edge) / 2, edge, edge, 0, 0, size, size)
       for (const quality of PROFILE_IMAGE_QUALITIES) {
-        let blob = await canvasBlob(canvas, type, quality)
-        if (type === 'image/webp' && blob.type !== type) {
-          type = 'image/jpeg'
-          blob = await canvasBlob(canvas, type, quality)
-        }
-        const image = await dataUrl(blob)
+        const image = await dataUrl(await canvasBlob(canvas, 'image/jpeg', quality))
         if (image.length <= PROFILE_IMAGE_MAX_LENGTH) return image
       }
     }

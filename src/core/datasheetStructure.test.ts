@@ -4,6 +4,7 @@ import {
   datasheetCharacteristicKindOf,
   datasheetProfileKind,
   datasheetProfileKindOf,
+  profileBaseSize,
   structureDatasheetProfiles,
 } from './datasheetStructure'
 
@@ -23,6 +24,7 @@ describe('datasheet structure', () => {
     ['M', 'movement'],
     ['Objective Control', 'objective-control'],
     ['InSv', 'invulnerable-save'],
+    ['Base', 'base-size'],
     ['BS', 'ballistic-skill'],
     ['AP', 'armour-penetration'],
     ['Keywords', 'keywords'],
@@ -75,5 +77,21 @@ describe('datasheet structure', () => {
     expect(profiles[0]?.values[0]?.kind).toBe('toughness')
     expect(datasheetProfileKindOf(profiles[0]!)).toBe('unit')
     expect(datasheetCharacteristicKindOf(profiles[0]!.values[0]!)).toBe('toughness')
+  })
+
+  describe('profileBaseSize', () => {
+    const unit = (name: string, base: string) => ({ id: name, name, type: 'Unit', values: [{ name: 'Base', value: base }] })
+
+    it('reads one base shared by every model', () => {
+      expect(profileBaseSize([unit('Clanblade', '75x42mm'), unit('Clanblade Leader', '75x42mm')])).toBe('75x42mm')
+    })
+
+    it('names each model when their bases differ', () => {
+      expect(profileBaseSize([unit('Captain', '40mm'), unit('Veteran', '32mm')])).toBe('Captain: 40mm\nVeteran: 32mm')
+    })
+
+    it('ignores a Base characteristic outside unit profiles', () => {
+      expect(profileBaseSize([{ ...unit('Gun', '1'), type: 'Ranged Weapons' }])).toBeNull()
+    })
   })
 })

@@ -2,6 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Flag, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { collectionPhotoPath } from '../../../contracts/collection'
@@ -9,11 +19,12 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { removeCollectionPhotoAsAdmin, reportCollectionPhoto } from '../../functions'
 import { meQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { useCollectionPhotoRemoval } from '../../useCollection'
 import { PhotoLike } from './PhotoLike'
 
 export type SharedPhoto = { photoId: string; owner: { id: string; name: string } }
 
-/** A player's photo at full size, which other signed-in players can report and administrators can remove. */
+/** A player's photo at full size, which its owner and administrators can remove and other signed-in players can report. */
 export function PhotoViewer({
   entryId,
   name,
@@ -29,24 +40,27 @@ export function PhotoViewer({
   const { data: me } = useQuery(meQuery())
   const [reporting, setReporting] = useState(false)
   const [reason, setReason] = useState('')
+  const [confirming, setConfirming] = useState(false)
   const report = useMutation({
     mutationFn: (photoId: string) => reportCollectionPhoto({ data: { photoId, reason } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] }),
   })
-  const remove = useMutation({
+  const own = Boolean(me && photo && me.id === photo.owner.id)
+  const removeOwn = useCollectionPhotoRemoval()
+  const removeAsAdmin = useMutation({
     mutationFn: (photoId: string) => removeCollectionPhotoAsAdmin({ data: { photoId } }),
-    onSuccess: () => {
-      onClose()
-      return queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] })
-    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] }),
   })
+  const remove = own ? removeOwn : removeAsAdmin
   const close = () => {
     setReporting(false)
     setReason('')
+    setConfirming(false)
     report.reset()
     remove.reset()
     onClose()
   }
-  const reportable = Boolean(me && photo && me.id !== photo.owner.id)
+  const reportable = Boolean(me && photo && !own)
   const error = report.error ?? remove.error
   return (
     <Dialog open={Boolean(photo)} onOpenChange={(open) => !open && close()}>
@@ -98,12 +112,12 @@ export function PhotoViewer({
             <span className="mr-auto">
               <PhotoLike entryId={entryId} photoId={photo.photoId} name={name} />
             </span>
-            {me?.role === 'admin' ? (
+            {own || me?.role === 'admin' ? (
               <Button
                 variant="ghost"
                 className="text-dim hover:text-destructive"
                 disabled={remove.isPending}
-                onClick={() => remove.mutate(photo.photoId)}
+                onClick={() => setConfirming(true)}
               >
                 <Trash2 /> Remove photo
               </Button>
@@ -122,6 +136,31 @@ export function PhotoViewer({
           </DialogFooter>
         ) : null}
       </DialogContent>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this photo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {own
+                ? `It will be deleted from your collection, your profile and the ${name} datasheet.`
+                : `It will be deleted from ${photo?.owner.name}’s collection for everyone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (!photo) return
+                remove.mutate(photo.photoId, { onSuccess: close })
+                setConfirming(false)
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }
