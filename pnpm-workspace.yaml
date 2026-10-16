@@ -8,7 +8,6 @@ allowBuilds:
   core-js: true
   esbuild: true
   protobufjs: false
-  workerd: true
 minimumReleaseAgeExclude:
   - ras-stack-config@1.0.0
   - ras-stack@3.1.0
