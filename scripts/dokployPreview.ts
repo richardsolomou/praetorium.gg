@@ -6,6 +6,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { DokployClient, dokployPreviewFromEnvironment, loadPreviewAppSecrets, pullRequestNumber } from 'ras-stack/preview/dokploy'
+import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 
 const execFile = promisify(execFileCallback)
 const allowedSecrets = [
@@ -46,15 +47,15 @@ function internalSpacetimeHost() {
   return host
 }
 
-async function spacetime(method: string, pathname: string, body?: BodyInit, token?: string) {
+async function spacetime(method: string, pathname: string, body?: BodyInit, token?: string, extra: [string, string][] = []) {
+  const headers = new Headers(extra)
+  headers.set('CF-Access-Client-Id', required('SPACETIME_ACCESS_CLIENT_ID'))
+  headers.set('CF-Access-Client-Secret', required('SPACETIME_ACCESS_CLIENT_SECRET'))
+  if (token) headers.set('authorization', `Bearer ${token}`)
+  if (typeof body === 'string') headers.set('content-type', 'application/json')
   const response = await fetch(new URL(pathname, spacetimeOrigin()), {
     method,
-    headers: {
-      'CF-Access-Client-Id': required('SPACETIME_ACCESS_CLIENT_ID'),
-      'CF-Access-Client-Secret': required('SPACETIME_ACCESS_CLIENT_SECRET'),
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(typeof body === 'string' ? { 'content-type': 'application/json' } : {}),
-    },
+    headers,
     body,
     redirect: 'error',
     signal: AbortSignal.timeout(90_000),
@@ -112,9 +113,14 @@ async function deploy() {
   if (typeof identity.identity !== 'string' || !/^[0-9a-f]{64}$/.test(identity.identity) || typeof identity.token !== 'string') {
     throw new Error('Invalid SpacetimeDB operator identity')
   }
-  await spacetime('PUT', `/v1/database/${name}?host_type=Js`, module, admin)
   const issuer = `${previewUrl}/api/auth/preview/${revision}`
-  await spacetime('POST', `/v1/database/${name}/call/configure`, JSON.stringify([issuer, name, identity.identity]), admin)
+  await spacetime(
+    'PUT',
+    `/v1/database/${name}?host_type=Js`,
+    module,
+    admin,
+    moduleEnvironment({ issuer, audience: name, operator: identity.identity }),
+  )
   await spacetime('POST', `/v1/database/${name}/call/operator_health`, '[]', identity.token)
   process.env.PREVIEW_ENVIRONMENT = [
     'APP_URL={{PREVIEW_URL}}',

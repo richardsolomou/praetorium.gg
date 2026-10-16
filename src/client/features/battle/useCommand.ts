@@ -1,6 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import type { Command, SubmitResult } from '../../../core/battle'
 import { isRosterNotUsable } from '../../../core/rosterUse'
 import { isSignedOut } from '../../../core/session'
@@ -45,6 +45,77 @@ export function afterFailedCommand<T extends Pick<QueuedCommand, 'basedOn' | 'ba
   return { kept, dropped: queued.filter((candidate) => !kept.includes(candidate)) }
 }
 
+/** Sends queued commands one at a time, each against the newest history this device has seen. */
+async function drainCommands({
+  token,
+  queryClient,
+  seen,
+  queued,
+  draining,
+  setPending,
+  setProblem,
+}: {
+  token: string
+  queryClient: QueryClient
+  seen: RefObject<number>
+  queued: RefObject<QueuedCommand[]>
+  draining: RefObject<boolean>
+  setPending: (pending: boolean) => void
+  setProblem: (problem: string | null) => void
+}) {
+  if (draining.current) return
+  draining.current = true
+  try {
+    while (queued.current.length) {
+      const item = queued.current.shift()
+      if (!item) break
+      seen.current = Math.max(seen.current, item.basedOn)
+      try {
+        const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
+        const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
+        if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
+        queryClient.setQueryData(battleQuery(token).queryKey, screen)
+        if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
+        // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.
+        item.complete?.(result.outcome === 'appended')
+        void queryClient.invalidateQueries({ queryKey: ['report', token] })
+        await writeAppSnapshot(captureAppSnapshot(queryClient)).catch(() => {})
+        if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
+        if (result.outcome !== 'appended') {
+          const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
+          const { kept, dropped } = afterFailedCommand(queued.current, item, authoritativeSeq)
+          for (const candidate of dropped) candidate.complete?.(false)
+          queued.current = kept
+        }
+      } catch (error) {
+        // Whatever was behind this one was written against a history that never happened.
+        item.complete?.(false)
+        for (const candidate of queued.current) candidate.complete?.(false)
+        queued.current = []
+        if (isSignedOut(error)) {
+          /*
+           * A session that lapsed mid-battle is an answer like any other. Asking
+           * again who is playing and what this battle looks like turns the page
+           * into the unavailable screen, which offers sign-in with this battle as the
+           * destination — so the player gets a way back into the game they were
+           * in the middle of, rather than a sentence they cannot act on.
+           */
+          console.info({ event: 'battle_command_signed_out' })
+          setProblem(null)
+          void queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
+          void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+        } else {
+          if (!isRosterNotUsable(error)) posthog.captureException(error, { operation: 'battle_command' })
+          setProblem(errorMessage(error))
+        }
+      }
+    }
+  } finally {
+    draining.current = false
+    setPending(false)
+  }
+}
+
 /**
  * Sends commands sequentially against the latest history this device has seen.
  *
@@ -65,59 +136,10 @@ export function useCommand(token: string, seq: number) {
     seen.current = Math.max(seen.current, seq)
   }, [seq])
 
-  const drain = useCallback(async () => {
-    if (draining.current) return
-    draining.current = true
-    try {
-      while (queued.current.length) {
-        const item = queued.current.shift()
-        if (!item) break
-        seen.current = Math.max(seen.current, item.basedOn)
-        try {
-          const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
-          const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
-          if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
-          queryClient.setQueryData(battleQuery(token).queryKey, screen)
-          if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
-          // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.
-          item.complete?.(result.outcome === 'appended')
-          void queryClient.invalidateQueries({ queryKey: ['report', token] })
-          await writeAppSnapshot(captureAppSnapshot(queryClient)).catch(() => {})
-          if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
-          if (result.outcome !== 'appended') {
-            const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
-            const { kept, dropped } = afterFailedCommand(queued.current, item, authoritativeSeq)
-            for (const candidate of dropped) candidate.complete?.(false)
-            queued.current = kept
-          }
-        } catch (error) {
-          // Whatever was behind this one was written against a history that never happened.
-          item.complete?.(false)
-          for (const candidate of queued.current) candidate.complete?.(false)
-          queued.current = []
-          if (isSignedOut(error)) {
-            /*
-             * A session that lapsed mid-battle is an answer like any other. Asking
-             * again who is playing and what this battle looks like turns the page
-             * into the unavailable screen, which offers sign-in with this battle as the
-             * destination — so the player gets a way back into the game they were
-             * in the middle of, rather than a sentence they cannot act on.
-             */
-            console.info({ event: 'battle_command_signed_out' })
-            setProblem(null)
-            void queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
-            void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
-          } else {
-            if (!isRosterNotUsable(error)) posthog.captureException(error, { operation: 'battle_command' })
-            setProblem(errorMessage(error))
-          }
-        }
-      }
-    } finally {
-      draining.current = false
-      setPending(false)
-    }
-  }, [queryClient, token])
+  const drain = useCallback(
+    () => drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem }),
+    [queryClient, token],
+  )
 
   const send: SendCommand = useCallback(
     (command, options) => {

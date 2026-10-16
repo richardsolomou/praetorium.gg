@@ -10,6 +10,7 @@ import { promisify } from 'node:util'
 import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
+import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
@@ -35,7 +36,7 @@ let publicUrl = ''
 let spacetimeUrl = ''
 let database = ''
 const credentialsPath = path.join(root, 'credentials.json')
-const installedCli = path.join(os.homedir(), '.local/share/spacetime/bin/2.7.0/spacetimedb-cli')
+const installedCli = path.join(os.homedir(), '.local/share/spacetime/bin/2.12.0/spacetimedb-cli')
 const cli = process.env.SPACETIME_BIN ?? (existsSync(installedCli) ? installedCli : 'spacetime')
 const buildDir = path.join(root, 'build')
 const environment: NodeJS.ProcessEnv = { ...process.env, LOCAL_BUILD_DIR: buildDir, LOCAL_TEST_MODE: String(testMode) }
@@ -141,10 +142,13 @@ async function credentials(): Promise<Credentials> {
   return value
 }
 
-async function spacetime(method: string, pathname: string, credentialToken: string, body: BodyInit) {
+async function spacetime(method: string, pathname: string, credentialToken: string, body: BodyInit, extra: [string, string][] = []) {
+  const headers = new Headers(extra)
+  headers.set('authorization', `Bearer ${credentialToken}`)
+  if (typeof body === 'string') headers.set('content-type', 'application/json')
   const response = await fetch(`${spacetimeUrl}${pathname}`, {
     method,
-    headers: { authorization: `Bearer ${credentialToken}`, ...(typeof body === 'string' ? { 'content-type': 'application/json' } : {}) },
+    headers,
     body,
     signal: AbortSignal.timeout(60_000),
   })
@@ -170,12 +174,12 @@ async function configure(value: Credentials) {
   } else if (migration.status !== 404) {
     throw new Error(`Local product migration planning failed with HTTP ${migration.status}.`)
   }
-  await spacetime('PUT', `/v1/database/${database}${query}`, value.owner.token, bundle)
   await spacetime(
-    'POST',
-    `/v1/database/${database}/call/configure`,
+    'PUT',
+    `/v1/database/${database}${query}`,
     value.owner.token,
-    JSON.stringify([`${publicUrl}/api/auth`, database, value.operator.identity]),
+    bundle,
+    moduleEnvironment({ issuer: `${publicUrl}/api/auth`, audience: database, operator: value.operator.identity }),
   )
   await spacetime('POST', `/v1/database/${database}/call/operator_health`, value.operator.token, '[]')
   const migrated = await migrateProductData({
@@ -242,7 +246,7 @@ async function main() {
   if (!testMode) await mkdir(path.dirname(previewFile), { recursive: true })
   await writePreview()
   const { stdout } = await execute(cli, ['--version'], { signal: abort.signal })
-  if (!stdout.includes('spacetimedb tool version 2.7.0;')) throw new Error('Local development requires SpacetimeDB CLI 2.7.0')
+  if (!stdout.includes('spacetimedb tool version 2.12.0;')) throw new Error('Local development requires SpacetimeDB CLI 2.12.0')
   await product.release()
   start(
     cli,

@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Check, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { GAME_SIZES } from '../../../core/battle'
 import {
   leagueRegistrationFull,
@@ -129,11 +130,10 @@ export function LeagueEventView({
   const entryStatusNow = ownEntry?.status
   // A duel needs nothing from the organizer before a list, so a new entrant's next step opens straight away.
   const duel = league.format !== '2v1' && league.format !== '2v2'
-  useEffect(() => {
-    if (!chooseOnEntry || entryStatusNow !== 'accepted') return
+  if (chooseOnEntry && entryStatusNow === 'accepted') {
     setChooseOnEntry(false)
     if (duel && !league.revealedAt) setChoosing(true)
-  }, [chooseOnEntry, entryStatusNow, duel, league.revealedAt])
+  }
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const sealedEntrants = accepted.filter((entry) => entry.submitted)
   const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
@@ -365,14 +365,14 @@ export function LeagueEventView({
           </p>
           <AlertDialogFooter className="sm:flex-wrap">
             {sealing ? (
-              <Button
-                variant="outline"
-                nativeButton={false}
-                className="sm:mr-auto"
-                render={<Link to="/rosters/$id" params={{ id: sealing.id }} />}
+              <Link
+                to="/rosters/$id"
+                params={{ id: sealing.id }}
+                data-slot="button"
+                className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
               >
                 <Pencil /> Edit roster
-              </Button>
+              </Link>
             ) : null}
             <AlertDialogCancel disabled={submit.isPending}>Choose another</AlertDialogCancel>
             <AlertDialogAction
@@ -585,15 +585,16 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
         </div>
         {action ? (
           'to' in action ? (
-            <Button
-              size="lg"
-              className="w-full pointer-coarse:h-11"
-              nativeButton={false}
-              variant={action.to === '/leagues' ? 'outline' : 'default'}
-              render={action.to === '/sign-in' ? <Link to="/sign-in" search={{ next: `/leagues/${token}` }} /> : <Link to="/leagues" />}
+            <Link
+              {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/leagues/${token}` } } : { to: '/leagues' })}
+              className={buttonClass({
+                size: 'lg',
+                variant: action.to === '/leagues' ? 'outline' : 'default',
+                className: 'w-full pointer-coarse:h-11',
+              })}
             >
               {action.label}
-            </Button>
+            </Link>
           ) : (
             <Button
               size="lg"

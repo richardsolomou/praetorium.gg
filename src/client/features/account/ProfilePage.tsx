@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, ShieldCheck, Trash2 } from 'lucide-react'
 import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,10 +68,13 @@ function ProfileForm({
   const queryClient = useQueryClient()
   const submit = useAuthAction({ failureMessage: errorMessage })
 
-  useEffect(() => {
+  // A saved or refreshed account replaces the fields, as React's guide to adjusting state on a prop change describes.
+  const [shown, setShown] = useState({ name: me.name, image: me.image })
+  if (shown.name !== me.name || shown.image !== me.image) {
+    setShown({ name: me.name, image: me.image })
     setName(me.name)
     setImage(me.image)
-  }, [me.image, me.name])
+  }
 
   const changed = name.trim() !== me.name || image !== me.image
   const save = async () => {

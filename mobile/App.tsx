@@ -140,7 +140,8 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 }
 
 function AppShell() {
-  const webView = useRef<WebView>(null)
+  // react-native-webview 14 defaults its props generic to undefined, which types every prop as never (react-native-webview#3977).
+  const webView = useRef<WebView<object>>(null)
   const [watchAvailable, setWatchAvailable] = useState(isWatchCompanionAvailable)
   useEffect(() => subscribeWatchAvailability(setWatchAvailable), [])
   useEffect(() => {
@@ -156,8 +157,7 @@ function AppShell() {
   const [offlineView, setOfflineView] = useState<{ path: string; html: string } | null>(null)
   const [offlineRenderKey, setOfflineRenderKey] = useState(0)
   const offlinePath = useRef('/')
-  const [initialSnapshotScript] = useState(appSnapshotScript)
-  const snapshotScript = useRef(initialSnapshotScript)
+  const [snapshotScript, setSnapshotScript] = useState(appSnapshotScript)
   const [historyBack, setHistoryBack] = useState(false)
   const [backSwipeGated, setBackSwipeGated] = useState(canGateBackSwipe)
   const authOpen = useRef(false)
@@ -165,11 +165,12 @@ function AppShell() {
   const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
   const handledAuthTokens = useRef(new Set<string>())
   const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
-  const shellRef = useRef(initialAppShellState(AppState.currentState === 'active'))
+  const [initialShell] = useState(() => initialAppShellState(AppState.currentState === 'active'))
+  const shellRef = useRef(initialShell)
   const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGeneration = useRef(0)
   const mainFrameUrl = useRef<string | null>(null)
-  const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
+  const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(initialShell))
 
   const commitShell = useCallback((state: AppShellState) => {
     const shouldRender = appShellRenderChanged(shellRef.current, state)
@@ -315,7 +316,7 @@ function AppShell() {
           const file = new File(Paths.cache, `praetorium-offline-${action.id}.json`)
           try {
             if (Platform.OS !== 'ios') throw new Error('File export is currently available on iOS and the website.')
-            file.write(JSON.stringify(action.state, null, 2))
+            file.writeSync(JSON.stringify(action.state, null, 2))
             await Share.share({ url: file.uri, title: 'Praetorium saved changes' })
           } catch (problem) {
             error = problem instanceof Error ? problem.message : 'Your saved changes could not be exported.'
@@ -350,7 +351,7 @@ function AppShell() {
           let saved = false
           try {
             storeAppSnapshot(action.snapshot, action.id)
-            snapshotScript.current = appSnapshotScript(action.snapshot)
+            setSnapshotScript(appSnapshotScript(action.snapshot))
             saved = true
           } catch (error) {
             captureNativeException('app_snapshot_save', error)
@@ -598,12 +599,18 @@ function AppShell() {
     commitShell(rendererTerminated(state))
   }
 
+  // react-native-webview reinstalls a live page's scripts and message handler whenever its start script changes, after
+  // which that page's bridge requests go unanswered, so each web view keeps the restore script it was created with.
+  const webViewKey = offlineView ? `saved-${offlineRenderKey}` : String(renderedShell.renderKey)
+  const [mountedSnapshot, setMountedSnapshot] = useState({ key: webViewKey, script: snapshotScript })
+  if (mountedSnapshot.key !== webViewKey) setMountedSnapshot({ key: webViewKey, script: snapshotScript })
+
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
       <StatusBar style="light" />
       {offlineView ? (
-        <WebView
+        <WebView<object>
           key={`saved-${offlineRenderKey}`}
           ref={webView}
           source={{ html: offlineView.html, baseUrl: APP_URL + offlineView.path }}
@@ -616,7 +623,7 @@ function AppShell() {
           allowsLinkPreview={false}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${snapshotScript.current}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
+          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
           onLoad={() => webView.current?.injectJavaScript(nativeWatchCapabilityScript(isWatchCompanionAvailable()))}
           onMessage={({ nativeEvent }) => {
             try {
@@ -639,7 +646,7 @@ function AppShell() {
           onRenderProcessGone={recoverSavedRenderer}
         />
       ) : renderedShell.sourceUrl ? (
-        <WebView
+        <WebView<object>
           key={renderedShell.renderKey}
           ref={webView}
           source={{ uri: renderedShell.sourceUrl }}
@@ -647,7 +654,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript.current}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}

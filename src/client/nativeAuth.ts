@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useClientValue } from './useClientValue'
 import type { SocialAuthProvider } from '../authConfig'
 import { nativeBridgeVersion } from './nativeBridge'
 
@@ -26,11 +26,7 @@ export function canUseGithubAuth() {
 }
 
 export function useGithubAuthAvailability() {
-  return useSyncExternalStore(
-    () => () => {},
-    canUseGithubAuth,
-    () => true,
-  )
+  return useClientValue(canUseGithubAuth, true)
 }
 
 function base64url(bytes: Uint8Array) {

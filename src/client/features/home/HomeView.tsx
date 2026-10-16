@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { OnboardingProgress } from '../../../core/onboarding'
@@ -159,9 +159,9 @@ function Welcome({ name, newBattle, stats }: { name: string; newBattle?: ReactNo
         </div>
         <div className="flex flex-wrap gap-2">
           {newBattle}
-          <Button render={<Link to="/rosters/new" />} variant="outline" nativeButton={false}>
+          <Link to="/rosters/new" className={buttonClass({ variant: 'outline' })}>
             Build a roster
-          </Button>
+          </Link>
         </div>
       </div>
     </section>

@@ -29,7 +29,7 @@ appId: gg.praetorium
 - tapOn: dismiss popup
 - tapOn: Close
 - tapOn: Battles
-- assertVisible: MY BATTLES
+- assertVisible: YOUR BATTLES
 - assertVisible: '(?is).*Practice Opponent.*'
 - takeScreenshot: native-battles-offline
 - tapOn: '(?is).*Practice Opponent.*'

@@ -5,7 +5,7 @@ test.use({ launchOptions: { args: ['--enable-blink-features=WebMCP,WebMCPTesting
 
 type NativeContext = {
   getTools: () => Promise<{ name: string }[]>
-  executeTool: (tool: { name: string }, input: string) => Promise<string>
+  executeTool: (tool: { name: string }, input: Record<string, unknown>) => Promise<string>
 }
 
 function nativeTools() {
@@ -21,8 +21,7 @@ test('the native browser API registers, executes and removes Praetorium tools', 
   const result = await page.evaluate(async () => {
     const context = (document as Document & { modelContext: NativeContext }).modelContext
     const tool = (await context.getTools()).find((entry) => entry.name === 'list_my_rosters')!
-    // The pinned Chromium 151 accepts JSON-string inputs; object inputs arrive in Chrome 155.
-    return JSON.parse(await context.executeTool(tool, '{}'))
+    return JSON.parse(await context.executeTool(tool, {}))
   })
   expect(result.structuredContent.rosters).toEqual([])
   await page

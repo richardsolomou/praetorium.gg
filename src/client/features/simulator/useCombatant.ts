@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { combatAtHealth } from '../../../core/combatSurvivors'
@@ -183,8 +183,11 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     () => (selectedPreferences ? restoreWeaponPreferences(selectedPreferences, preferenceMembers, ready) : initialPreferences),
     [selectedPreferences, preferenceMembers, initialPreferences, ready],
   )
+  // Lets a late update from a unit that has since changed find out that it is stale.
   const preferenceContext = useRef({ key: preferenceKey, ready })
-  preferenceContext.current = { key: preferenceKey, ready }
+  useLayoutEffect(() => {
+    preferenceContext.current = { key: preferenceKey, ready }
+  }, [preferenceKey, ready])
   const invalidatedPreferences =
     ready &&
     selectedPreferences !== null &&
@@ -208,7 +211,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   )
   useEffect(() => {
     if (ready) setWeaponPreferences((current) => current)
-  }, [ready, weaponPreferences, setWeaponPreferences])
+  }, [ready, setWeaponPreferences])
   return {
     catalogueId,
     faction,

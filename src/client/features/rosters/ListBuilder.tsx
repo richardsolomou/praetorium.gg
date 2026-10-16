@@ -1756,6 +1756,7 @@ export function ListBuilder({
       ) : null}
       {reminderDraft ? (
         <ReminderEditorDialog
+          key={reminderDraft.key}
           draft={reminderDraft}
           onClose={() => setReminderDraft(null)}
           onSave={(reminder) => {

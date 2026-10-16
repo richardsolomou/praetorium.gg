@@ -19,7 +19,7 @@ Sync before list, mission, or battlefield work. Never edit the shared cache in p
 
 Check browser status and dev status before starting. Use the reported URL and leave the preview running. Product-module, startup, or activated-catalogue changes require restart. Never kill a shared-port listener or broad process name: ownership is verified by worktree and token through `data-dev/active-preview.json`, not by PID or port. Startup logs are in `data-dev/dev.log`.
 
-Ports are allocated automatically; on a collision with an explicit `LOCAL_*_PORT`, choose another free port without touching its owner. Existing data in `data-dev/hosted/` fixes its app port and origin through the auth issuer, so changing them requires fresh data. A manual product migration stops startup instead of clearing data. `SPACETIME_BIN` selects the CLI; [Contributing](../../CONTRIBUTING.md#start-the-app) owns its version.
+Ports are allocated automatically; on a collision with an explicit `LOCAL_*_PORT`, choose another free port without touching its owner. Existing data in `data-dev/hosted/` fixes its app port and origin through the auth issuer, so changing them requires fresh data. A manual product migration stops startup instead of clearing data. `SPACETIME_BIN` selects the CLI; [Contributing](../../CONTRIBUTING.md#start-the-app) owns its version. Each start republishes the product module with its auth settings as SpacetimeDB environment values; [Deployment](../deployment.md#delivery) describes them.
 
 ## Browser tests
 

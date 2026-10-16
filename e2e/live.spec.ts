@@ -1,3 +1,4 @@
+import type { WebSocketRoute } from '@playwright/test'
 import { expect, test, type Page } from './test'
 import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 
@@ -72,6 +73,53 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(alice.getByRole('heading', { name: `${aliceName} wins by concession` })).toBeVisible()
   // The confetti is the winner's, on the winner's device: the player who conceded gets the result and nothing else.
   await expect(bob.locator('[data-victory="confetti"]')).toHaveCount(0)
+})
+
+test('a dropped live connection reconnects without a new ticket and keeps the battle in step', async ({ browser }) => {
+  const alice = await (await browser.newContext()).newPage()
+  const bobContext = await browser.newContext()
+  // Sockets the page holds open, so the test can drop them as a network failure would.
+  const live = new Map<WebSocketRoute, WebSocketRoute>()
+  await bobContext.routeWebSocket(/\/v1\/database\/[^/]+\/subscribe/, (route) => {
+    const server = route.connectToServer()
+    live.set(route, server)
+    route.onClose((code, reason) => {
+      live.delete(route)
+      void server.close({ code, reason })
+    })
+    server.onClose((code, reason) => {
+      live.delete(route)
+      void route.close({ code, reason })
+    })
+  })
+  const bob = await bobContext.newPage()
+  let tickets = 0
+  bob.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/spacetime/token') tickets += 1
+  })
+  const aliceName = uniqueName('Alice')
+  const bobName = uniqueName('Bob')
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  await signUp(alice, aliceName)
+  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  await takeTheTurn(alice)
+  await expect(panel(bob, 'Death Guard').locator('[data-stat="cp"]')).toHaveText('1')
+
+  const dropped = [...live]
+  expect(dropped.length).toBeGreaterThan(0)
+  const issued = tickets
+  for (const [route, server] of dropped) {
+    live.delete(route)
+    await server.close()
+    await route.close({ code: 1011, reason: 'test drop' })
+  }
+  await expect.poll(() => live.size).toBe(dropped.length)
+  expect(tickets).toBe(issued)
+
+  await panel(alice, 'Necrons').getByRole('button', { name: '+1 CP' }).click()
+  await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
 })
 
 function panel(page: Page, army: string) {

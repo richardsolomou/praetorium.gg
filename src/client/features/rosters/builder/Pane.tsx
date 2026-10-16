@@ -39,6 +39,28 @@ const MOBILE_LAYOUT = {
   loadout: 'inset-0',
 } as const
 
+/** Makes everything beside the pane inert, up to the document body, and returns what restores it. */
+function makeBackgroundInert(pane: HTMLElement, keepTabs: boolean) {
+  const backgrounds: Array<{ element: HTMLElement; inert: boolean }> = []
+  let branch = pane
+  while (branch.parentElement) {
+    const parent = branch.parentElement
+    for (const sibling of parent.children) {
+      if (sibling === branch || !(sibling instanceof HTMLElement)) continue
+      // The tab bar is the one thing beside this pane that stays on screen.
+      if (keepTabs && sibling.hasAttribute('data-native-app-tabs')) continue
+      if (sibling.matches('[data-inert-exempt], [data-slot$="-portal"]')) continue
+      backgrounds.push({ element: sibling, inert: sibling.inert })
+      sibling.inert = true
+    }
+    if (parent === document.body) break
+    branch = parent
+  }
+  return () => {
+    for (const background of backgrounds) background.element.inert = background.inert
+  }
+}
+
 export function Pane({
   variant,
   open,
@@ -100,22 +122,7 @@ export function Pane({
     const active = document.activeElement
     if (active instanceof HTMLElement && !paneElement.contains(active)) returnFocus.current = active
     const focusTarget = returnFocus.current
-    const backgrounds: Array<{ element: HTMLElement; inert: boolean }> = []
-    let branch = paneElement
-
-    while (branch.parentElement) {
-      const parent = branch.parentElement
-      for (const sibling of parent.children) {
-        if (sibling === branch || !(sibling instanceof HTMLElement)) continue
-        // The tab bar is the one thing beside this pane that stays on screen.
-        if (screen && sibling.hasAttribute('data-native-app-tabs')) continue
-        if (sibling.matches('[data-inert-exempt], [data-slot$="-portal"]')) continue
-        backgrounds.push({ element: sibling, inert: sibling.inert })
-        sibling.inert = true
-      }
-      if (parent === document.body) break
-      branch = parent
-    }
+    const restoreBackground = makeBackgroundInert(paneElement, screen)
 
     const containFocus = (event: KeyboardEvent) => {
       if (event.key !== 'Tab') return
@@ -135,7 +142,7 @@ export function Pane({
     if (!(active instanceof HTMLElement) || !active.closest('[role="dialog"], [role="alertdialog"]')) closeElement?.focus()
     return () => {
       document.removeEventListener('keydown', containFocus)
-      for (const background of backgrounds) background.element.inert = background.inert
+      restoreBackground()
       if (focusTarget?.isConnected) focusTarget.focus()
     }
   }, [compactLoadout, open, screen])

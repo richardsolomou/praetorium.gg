@@ -1,7 +1,9 @@
+import { spacetimedbModuleTestPlugin } from 'spacetimedb/server/test-utils/vitest'
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 
 export default defineConfig({
+  plugins: [spacetimedbModuleTestPlugin()],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   assetsInclude: ['**/*.wasm'],
   test: {

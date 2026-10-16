@@ -61,6 +61,36 @@ export const Collection = __t.object('Collection', {
 })
 export type Collection = __Infer<typeof Collection>
 
+export const CollectionPhoto = __t.object('CollectionPhoto', {
+  photoId: __t.string(),
+  key: __t.string(),
+  userId: __t.string(),
+  entryId: __t.string(),
+  at: __t.u64(),
+  likes: __t.option(__t.u32()),
+  review: __t.option(__t.string()),
+})
+export type CollectionPhoto = __Infer<typeof CollectionPhoto>
+
+export const CollectionPhotoDeletion = __t.object('CollectionPhotoDeletion', {
+  photoId: __t.string(),
+})
+export type CollectionPhotoDeletion = __Infer<typeof CollectionPhotoDeletion>
+
+export const CollectionPhotoLike = __t.object('CollectionPhotoLike', {
+  key: __t.string(),
+  photoId: __t.string(),
+  userId: __t.string(),
+  at: __t.u64(),
+})
+export type CollectionPhotoLike = __Infer<typeof CollectionPhotoLike>
+
+export const CollectionSharing = __t.object('CollectionSharing', {
+  userId: __t.string(),
+  published: __t.bool(),
+})
+export type CollectionSharing = __Infer<typeof CollectionSharing>
+
 export const CollectionStock = __t.object('CollectionStock', {
   key: __t.string(),
   userId: __t.string(),
@@ -119,6 +149,14 @@ export const Friendships = __t.object('Friendships', {
 })
 export type Friendships = __Infer<typeof Friendships>
 
+export const LeagueAdmins = __t.object('LeagueAdmins', {
+  key: __t.string(),
+  leagueId: __t.string(),
+  userId: __t.string(),
+  addedAt: __t.u64(),
+})
+export type LeagueAdmins = __Infer<typeof LeagueAdmins>
+
 export const LeagueEventBattles = __t.object('LeagueEventBattles', {
   battleId: __t.string(),
   eventId: __t.string(),
@@ -139,6 +177,14 @@ export const LeagueEventEntries = __t.object('LeagueEventEntries', {
   teamId: __t.option(__t.string()),
 })
 export type LeagueEventEntries = __Infer<typeof LeagueEventEntries>
+
+export const LeagueEventTeams = __t.object('LeagueEventTeams', {
+  key: __t.string(),
+  eventId: __t.string(),
+  teamId: __t.string(),
+  disposition: __t.string(),
+})
+export type LeagueEventTeams = __Infer<typeof LeagueEventTeams>
 
 export const LeagueEvents = __t.object('LeagueEvents', {
   id: __t.string(),
@@ -263,6 +309,15 @@ export const RevokedSession = __t.object('RevokedSession', {
   subject: __t.string(),
 })
 export type RevokedSession = __Infer<typeof RevokedSession>
+
+export const RosterLoans = __t.object('RosterLoans', {
+  key: __t.string(),
+  rosterId: __t.string(),
+  ownerId: __t.string(),
+  borrowerId: __t.string(),
+  lentAt: __t.u64(),
+})
+export type RosterLoans = __Infer<typeof RosterLoans>
 
 export const RosterSync = __t.object('RosterSync', {
   id: __t.string(),

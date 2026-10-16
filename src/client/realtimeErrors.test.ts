@@ -3,6 +3,10 @@ import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeError
 
 it.each([
   new Event('error'),
+  new Error('WebSocket error', { cause: new Event('error') }),
+  new Error('WebSocket closed (code 1006)'),
+  new Error('WebSocket closed while suspended'),
+  new Error('Session busy'),
   { code: 11, message: 'connection closed' },
   Object.assign(new Error(''), { name: 'UnauthorizedError' }),
   new DOMException('signal timed out', 'TimeoutError'),
@@ -24,6 +28,7 @@ it.each([
   'connection closed',
   null,
   new Event('message'),
+  new Error('WebSocket error', { cause: new Event('message') }),
   ...[400, 403, 404].map((status) => new RealtimeHttpError('Spacetime token', status)),
 ])('reports %s as an unexpected realtime failure', (error) => {
   expect(isExpectedRealtimeDisconnect(error)).toBe(false)

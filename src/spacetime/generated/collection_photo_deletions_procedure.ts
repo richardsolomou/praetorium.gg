@@ -5,8 +5,7 @@
 /* tslint:disable */
 import { TypeBuilder as __TypeBuilder, t as __t, type AlgebraicTypeType as __AlgebraicTypeType, type Infer as __Infer } from 'spacetimedb'
 
-export default {
-  issuer: __t.string(),
-  audience: __t.string(),
-  operator: __t.string(),
+export const params = {
+  limit: __t.u32(),
 }
+export const returnType = __t.string()

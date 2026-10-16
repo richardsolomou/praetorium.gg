@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
-import satori, { init as initYoga, type Font } from 'satori/standalone'
+import satori, { init as initLayout, type Font } from 'satori/standalone'
 import display500 from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-500-normal.woff?inline'
 import display500Extended from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-ext-500-normal.woff?inline'
 import display700 from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-700-normal.woff?inline'
@@ -38,11 +38,11 @@ let ready: Promise<Font[]> | undefined
 /** The rasteriser and fonts are prepared when a preview is first requested. */
 function prepare() {
   ready ??= (async () => {
-    const [{ default: resvg }, { default: yoga }] = await Promise.all([
+    const [{ default: resvg }, { default: layout }] = await Promise.all([
       import('@resvg/resvg-wasm/index_bg.wasm?inline'),
-      import('satori/yoga.wasm?inline'),
+      import('satori/layout.wasm?inline'),
     ])
-    await Promise.all([initWasm(bytes(resvg)), initYoga(bytes(yoga))])
+    await Promise.all([initWasm(bytes(resvg)), initLayout(bytes(layout))])
     return [
       { data: display500, weight: 500 as const, name: FAMILY },
       { data: display500Extended, weight: 500 as const, name: EXTENDED },
@@ -133,6 +133,7 @@ function Frame({ card }: { card: PreviewCard }) {
     <div
       style={{
         ...PREVIEW_SIZE,
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         padding: '52px 64px',
@@ -236,6 +237,7 @@ function Side({ side, index }: { side: BattleCard['sides'][number] | undefined; 
         flexDirection: 'column',
         gap: pair ? 18 : 8,
         width: 396,
+        boxSizing: 'border-box',
         [index === 0 ? 'borderLeft' : 'borderRight']: `8px solid ${COLOR.sides[index]}`,
         padding: '4px 28px',
       }}

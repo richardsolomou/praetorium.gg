@@ -23,6 +23,7 @@ routes ──> client ──> contracts ──> core
 | `src/client/components` | Shared browser components                                                                             |
 | `src/components/ui`     | Generated, vendored shadcn components                                                                 |
 | `src/routes`            | URLs, loaders, search validation, metadata, and page composition                                      |
+| `spacetimedb/src`       | Product database module; its unit tests run on the SDK's in-memory host (`module.test.ts`)            |
 | `catalogue.json`        | Release snapshot pin                                                                                  |
 | `scripts`               | Maintenance and deployment entry points; shared helpers in `scripts/lib`                              |
 

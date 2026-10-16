@@ -8,16 +8,82 @@ allowBuilds:
   core-js: true
   esbuild: true
   protobufjs: false
-  workerd: true
 minimumReleaseAgeExclude:
-  - ras-stack-config@1.0.0
-  - ras-stack@3.1.0
-  - expo-file-system@57.0.6
-  - expo-haptics@57.0.2
-  # Server telemetry target from the SDK update report; the pins are hours short
-  # of the age threshold and can be dropped once it passes.
-  - posthog-node@5.52.3
-  - '@posthog/core@1.54.1'
+  # ras-stack 3.1.1 widens its OpenTelemetry peers to 0.223; drop once it passes the age threshold on 2026-10-23.
+  - ras-stack@3.1.1
+  # better-auth 1.7.10 carries the oauth-provider resource-seeding fix; drop these once it is
+  # seven days old (2026-10-22).
+  - better-auth@1.7.10
+  - '@better-auth/cimd@1.7.10'
+  - '@better-auth/core@1.7.10'
+  - '@better-auth/drizzle-adapter@1.7.10'
+  - '@better-auth/kysely-adapter@1.7.10'
+  - '@better-auth/mcp@1.7.10'
+  - '@better-auth/memory-adapter@1.7.10'
+  - '@better-auth/mongo-adapter@1.7.10'
+  - '@better-auth/oauth-provider@1.7.10'
+  - '@better-auth/prisma-adapter@1.7.10'
+  - '@better-auth/telemetry@1.7.10'
+  # Approved early for automatic reconnect and module environments; drop once it passes the age threshold on 2026-10-20.
+  - spacetimedb@2.12.0
+  # Expo SDK 58.0.12 and React Native 0.88.0, approved ahead of the age
+  # threshold; drop these once they pass it, by 2026-10-23.
+  - 2g@1.0.1
+  - '@expo/cli@58.1.10'
+  - '@expo/config-plugins@58.0.9'
+  - '@expo/config-types@58.0.3'
+  - '@expo/config@58.0.6'
+  - '@expo/env@2.5.2'
+  - '@expo/fingerprint@0.21.5'
+  - '@expo/image-utils@0.12.5'
+  - '@expo/inline-modules@0.2.6'
+  - '@expo/local-build-cache-provider@58.0.6'
+  - '@expo/log-box-utils@58.0.2'
+  - '@expo/log-box@58.0.12'
+  - '@expo/metro-config@58.0.14'
+  - '@expo/metro-file-map@58.0.5'
+  - '@expo/metro@58.0.0'
+  - '@expo/modules-macros-win32-arm64@0.20.0'
+  - '@expo/modules-macros-win32-x64@0.20.0'
+  - '@expo/package-manager@1.14.2'
+  - '@expo/platforms@58.0.1'
+  - '@expo/prebuild-config@58.0.14'
+  - '@expo/require-utils@58.0.4'
+  - '@expo/router-server@58.0.14'
+  - '@react-native/asset-utils@0.88.0'
+  - '@react-native/babel-plugin-codegen@0.88.0'
+  - '@react-native/codegen@0.88.0'
+  - '@react-native/community-cli-plugin@0.88.0'
+  - '@react-native/debugger-frontend@0.88.0'
+  - '@react-native/debugger-shell@0.88.0'
+  - '@react-native/dev-middleware@0.88.0'
+  - '@react-native/gradle-plugin@0.88.0'
+  - '@react-native/js-polyfills@0.88.0'
+  - '@react-native/normalize-colors@0.88.0'
+  - '@react-native/virtualized-lists@0.88.0'
+  - babel-preset-expo@58.0.16
+  - expo-application@58.1.1
+  - expo-asset@58.0.16
+  - expo-constants@58.0.12
+  - expo-file-system@58.0.9
+  - expo-font@58.0.8
+  - expo-haptics@58.0.6
+  - expo-localization@58.0.4
+  - expo-modules-autolinking@58.0.13
+  - expo-modules-core@58.0.20
+  - expo-modules-jsi@58.0.14
+  - expo-modules-macros@0.20.0
+  - expo-notifications@58.1.4
+  - expo-print@58.0.6
+  - expo-server@58.0.5
+  - expo-splash-screen@58.0.9
+  - expo-system-ui@58.0.6
+  - expo-updates@58.0.17
+  - expo@58.0.12
+  - react-native@0.88.0
 minimumReleaseAge: 10080
-patchedDependencies:
-  '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
+packageExtensions:
+  # The Expo config plugin's compiled tooling requires @babel/runtime 7 subpaths without declaring it.
+  posthog-react-native:
+    dependencies:
+      '@babel/runtime': ^7.20.0

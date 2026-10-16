@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Calculator, Eye } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LeagueArmy, LeagueEntryView } from '../../../core/league'
 import type { FactionPresentation } from '../../components/FactionMark'
@@ -93,15 +94,33 @@ export function LeagueArmies({
           <span className="ml-auto flex shrink-0 items-center gap-1">
             {army && canUnseal ? <UnsealRoster token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
             {army && onSimulate && entry.userId !== viewerId ? (
-              <IconAction label={`Simulate against ${named}`} tooltip="Simulate" onClick={() => onSimulate(entry.userId)}>
+              <IconAction
+                tooltip="Simulate"
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={ICON_ACTION}
+                    aria-label={`Simulate against ${named}`}
+                    onClick={() => onSimulate(entry.userId)}
+                  />
+                }
+              >
                 <Calculator aria-hidden />
               </IconAction>
             ) : null}
             {army ? (
               <IconAction
-                label={`View ${named}’s list`}
                 tooltip="View list"
-                render={<Link to="/rosters/$id" params={{ id: entry.userId }} search={{ league: token, event: eventToken }} />}
+                trigger={
+                  <Link
+                    to="/rosters/$id"
+                    params={{ id: entry.userId }}
+                    search={{ league: token, event: eventToken }}
+                    aria-label={`View ${named}’s list`}
+                    className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: ICON_ACTION })}
+                  />
+                }
               >
                 <Eye aria-hidden />
               </IconAction>
@@ -147,37 +166,13 @@ export function LeagueArmies({
   }
 }
 
-/** A borderless icon with its name in a tooltip, the way entrant rows offer their actions; `render` makes it a link. */
-function IconAction({
-  label,
-  tooltip,
-  onClick,
-  render,
-  children,
-}: {
-  label: string
-  tooltip: string
-  onClick?: () => void
-  render?: ReactElement
-  children: ReactNode
-}) {
+const ICON_ACTION = 'text-dim hover:text-info pointer-coarse:size-11'
+
+/** A borderless icon with its name in a tooltip, the way entrant rows offer their actions. */
+function IconAction({ tooltip, trigger, children }: { tooltip: string; trigger: ReactElement; children: ReactNode }) {
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="text-dim hover:text-info pointer-coarse:size-11"
-            aria-label={label}
-            nativeButton={!render}
-            render={render}
-            onClick={onClick}
-          />
-        }
-      >
-        {children}
-      </TooltipTrigger>
+      <TooltipTrigger render={trigger}>{children}</TooltipTrigger>
       <TooltipContent role="tooltip" side="bottom">
         {tooltip}
       </TooltipContent>

@@ -95,6 +95,6 @@ test('choosing a roster the library reports over its limit names the problem and
   await expect(page.getByRole('region', { name: 'Armies' }).locator('article').first()).toContainText('No army chosen')
 
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
-  await refusal.getByText('Edit roster').click()
+  await refusal.getByRole('link', { name: 'Edit roster' }).click()
   await expect(page).toHaveURL(new RegExp(`/rosters/${id}$`))
 })

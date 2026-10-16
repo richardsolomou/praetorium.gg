@@ -65,13 +65,17 @@ export function reportRuntimeMetrics(
     longestGcPauseMs = 0
     delay.reset()
   }
-  const seconds = setInterval(sampleSecond, SECOND_MS)
-  const reports = setInterval(report, intervalMs)
+  // One timer orders each report after its interval's last second; two timers firing at the same instant have no order.
+  const secondsPerReport = Math.max(1, Math.round(intervalMs / SECOND_MS))
+  let elapsedSeconds = 0
+  const seconds = setInterval(() => {
+    sampleSecond()
+    elapsedSeconds += 1
+    if (elapsedSeconds % secondsPerReport === 0) report()
+  }, SECOND_MS)
   seconds.unref()
-  reports.unref()
   return () => {
     clearInterval(seconds)
-    clearInterval(reports)
     collections.disconnect()
     delay.disable()
   }

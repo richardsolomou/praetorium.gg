@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, Crosshair, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchableSelect } from '../../components/SearchableSelect'
@@ -7,6 +7,8 @@ import { FactionMark } from '../../components/FactionMark'
 import { combatUnitsQuery, factionIndexQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
 import { sharedRoster } from '../../functions'
 import { errorMessage } from '../../queryClient'
+import { useStoredValue, writeStoredValue } from '../../storedValue'
+import { useHydrated } from '../../useClientValue'
 import { rosterTitle } from '../rosters/RosterSummary'
 import { CombatSimulatorMatchup } from './CombatSimulator'
 import { CombatDialog } from './RosterCombatDialog'
@@ -53,27 +55,22 @@ export function RosterCombatComparison({
   const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
   const factions = useQuery(factionIndexQuery())
   const catalogue = useQuery({ ...combatUnitsQuery(), enabled: !sources })
-  const [storedTargets, setStoredTargets] = useState<{ key: string; targets: BenchmarkTarget[] | null } | null>(null)
   const storageKey = `praetorium.combat-benchmarks.v1:${me.data?.id ?? 'guest'}`
+  const storedBenchmarks = useStoredValue(storageKey)
+  const storedTargets = useMemo(() => parseBenchmarkTargets(storedBenchmarks), [storedBenchmarks])
+  // Each account keeps its own targets, so they are read once the browser knows whose they are.
+  const targetsLoaded = useHydrated() && !sources && !me.isPending
   const [storageProblem, setStorageProblem] = useState<string | null>(null)
-  useEffect(() => {
-    if (sources || me.isPending) return
-    try {
-      setStoredTargets({ key: storageKey, targets: parseBenchmarkTargets(localStorage.getItem(storageKey)) })
-    } catch {
-      setStoredTargets({ key: storageKey, targets: null })
-      setStorageProblem('Benchmark preferences could not be loaded. Changes will only last for this session.')
-    }
-  }, [storageKey, me.isPending, sources])
   const defaults = defaultBenchmarkTargets(catalogue.data ?? [])
-  const targets = storedTargets?.key === storageKey ? (storedTargets.targets ?? defaults.targets) : defaults.targets
+  const savedTargets = targetsLoaded ? storedTargets : null
+  const targets = savedTargets ?? defaults.targets
   const options: RosterCombatSource[] = sources ?? [
     {
       id: 'benchmarks',
       label: 'Benchmark targets',
       load: async () => {
         if (!catalogue.data) throw new Error('Benchmark unit data is still loading. Try again.')
-        if (!storedTargets?.targets && defaults.missing.length)
+        if (!savedTargets && defaults.missing.length)
           throw new Error(`Some default benchmarks are unavailable: ${defaults.missing.join(', ')}. Edit or reset the target set.`)
         return benchmarkRosters(targets, catalogue.data)
       },
@@ -144,23 +141,22 @@ export function RosterCombatComparison({
     setRunning(false)
     setComparison(null)
     setProblem(null)
-    setStoredTargets({ key: storageKey, targets: next })
-    try {
-      if (next) localStorage.setItem(storageKey, JSON.stringify(next))
-      else localStorage.removeItem(storageKey)
-      setStorageProblem(null)
-    } catch {
-      setStorageProblem('Benchmark changes could not be saved. They will only last for this session.')
-    }
+    setStorageProblem(
+      writeStoredValue(storageKey, next && JSON.stringify(next))
+        ? null
+        : 'Benchmark changes could not be saved. They will only last for this session.',
+    )
   }
-  const run = async ({ cachedOnly = false } = {}) => {
-    active.current?.abort()
-    const controller = new AbortController()
-    active.current = controller
-    setRunning(!cachedOnly)
+  const clearComparison = (runningNext: boolean) => {
+    setRunning(runningNext)
     setComparison(null)
     setProblem(null)
     setPair(null)
+  }
+  const execute = async (cachedOnly: boolean) => {
+    active.current?.abort()
+    const controller = new AbortController()
+    active.current = controller
     const timer = setTimeout(
       () =>
         controller.abort(new Error('The comparison reached its five-minute limit. Completed pairings are retained; run again to retry.')),
@@ -198,24 +194,55 @@ export function RosterCombatComparison({
       }
     }
   }
-  const restore = useEffectEvent(() => {
-    if (liveKey === undefined && running) return
-    if ((!sources && me.isPending) || !attackerId || !defenderId) return
-    if ((attackerId === 'benchmarks' || defenderId === 'benchmarks') && (!catalogue.data || storedTargets?.key !== storageKey)) return
-    if (!options.some((source) => source.id === attackerId) || !options.some((source) => source.id === defenderId)) return
-    void run({ cachedOnly: liveKey === undefined })
-  })
+  const run = () => {
+    clearComparison(true)
+    void execute(false)
+  }
+  const usingBenchmarks = attackerId === 'benchmarks' || defenderId === 'benchmarks'
   const waitingForAccount = !sources && me.isPending
-  const benchmarkIndex = !sources && (attackerId === 'benchmarks' || defenderId === 'benchmarks') ? catalogue.data : undefined
-  const waitingForBenchmarks = (attackerId === 'benchmarks' || defenderId === 'benchmarks') && storedTargets?.key !== storageKey
+  const benchmarkIndex = !sources && usingBenchmarks ? catalogue.data : undefined
+  const waitingForBenchmarks = usingBenchmarks && !targetsLoaded
   const savedVersions = sources
     ? undefined
     : JSON.stringify(
         saved.data?.filter((source) => source.id === attackerId || source.id === defenderId).map((source) => [source.id, source.updatedAt]),
       )
+  /*
+   * A change to the matchup's inputs shows that matchup again: from the cache while browsing, or computed while a
+   * battle's lists are live. The reset happens while rendering, as React describes for state that follows other
+   * values, and the effect below only starts the work.
+   */
+  const restoreInputs = [
+    liveKey,
+    attackerId,
+    defenderId,
+    storageKey,
+    waitingForAccount,
+    benchmarkIndex,
+    savedVersions,
+    waitingForBenchmarks,
+    currentRoster,
+  ]
+  const [restoredFor, setRestoredFor] = useState<typeof restoreInputs | null>(null)
+  const [restoration, setRestoration] = useState<{ cachedOnly: boolean } | null>(null)
+  if (!restoredFor || restoreInputs.some((value, index) => !Object.is(value, restoredFor[index]))) {
+    setRestoredFor(restoreInputs)
+    const restorable =
+      !(liveKey === undefined && running) &&
+      !waitingForAccount &&
+      Boolean(attackerId && defenderId) &&
+      !(usingBenchmarks && (!catalogue.data || waitingForBenchmarks)) &&
+      options.some((source) => source.id === attackerId) &&
+      options.some((source) => source.id === defenderId)
+    if (restorable) {
+      clearComparison(liveKey !== undefined)
+      setRestoration({ cachedOnly: liveKey === undefined })
+    }
+  }
+  const restore = useEffectEvent((cachedOnly: boolean) => void execute(cachedOnly))
   useEffect(() => {
-    restore()
-  }, [liveKey, attackerId, defenderId, storageKey, waitingForAccount, benchmarkIndex, savedVersions, waitingForBenchmarks, currentRoster])
+    if (restoration) restore(restoration.cachedOnly)
+  }, [restoration])
   const total = comparison ? comparison.attackers.length * comparison.defenders.length : 0
   const selected =
     pair && comparison
@@ -230,7 +257,6 @@ export function RosterCombatComparison({
           },
         }
       : null
-  const usingBenchmarks = attackerId === 'benchmarks' || defenderId === 'benchmarks'
   const readError = !sources && (saved.error ?? me.error ?? (usingBenchmarks ? catalogue.error : null))
   return (
     <section aria-label="Roster comparison" className="min-w-0 space-y-3 p-3 sm:p-4">
@@ -319,10 +345,7 @@ export function RosterCombatComparison({
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button
-          disabled={running || !attackerId || !defenderId || (usingBenchmarks && (!catalogue.data || storedTargets?.key !== storageKey))}
-          onClick={() => void run()}
-        >
+        <Button disabled={running || !attackerId || !defenderId || (usingBenchmarks && (!catalogue.data || !targetsLoaded))} onClick={run}>
           {comparison ? 'Run again' : 'Run all matchups'}
         </Button>
         {running ? (
@@ -351,7 +374,7 @@ export function RosterCombatComparison({
         <BenchmarkTargets
           targets={targets}
           index={catalogue.data ?? []}
-          disabled={running || !catalogue.data || storedTargets?.key !== storageKey}
+          disabled={running || !catalogue.data || !targetsLoaded}
           onChange={editTargets}
           onReset={() => editTargets(null)}
         />

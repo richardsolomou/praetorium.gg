@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FileLock2, Pencil } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { errorMessage } from '../../queryClient'
@@ -33,9 +34,7 @@ export function RosterChooser({
   )
   // Picking a list and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  useEffect(() => {
-    if (!open) setSelectedId(null)
-  }, [open])
+  if (!open && selectedId !== null) setSelectedId(null)
   const selected = rosters.find((roster) => roster.id === selectedId)
   const failed = error ? rosters.find((roster) => roster.id === failedRosterId) : undefined
 
@@ -57,14 +56,13 @@ export function RosterChooser({
             </p>
           ) : null}
           {failed ? (
-            <Button
-              variant="outline"
-              nativeButton={false}
-              className="max-w-full min-w-0 justify-self-start"
-              render={<Link to="/rosters/$id" params={{ id: failed.id }} />}
+            <Link
+              to="/rosters/$id"
+              params={{ id: failed.id }}
+              className={buttonClass({ variant: 'outline', className: 'max-w-full min-w-0 justify-self-start' })}
             >
               <Pencil /> <span className="truncate">Edit {failed.name}</span>
-            </Button>
+            </Link>
           ) : null}
           {rosterQuery.isPending ? (
             <RosterChooserSkeleton />
@@ -77,13 +75,13 @@ export function RosterChooser({
                   ? 'Build or import a list first. Once it is saved, the builder links back here to seal it.'
                   : `Build or import a ${requiredLimit.toLocaleString()}-point list. Once it is saved, the builder links back here to seal it.`}
               </p>
-              <Button
-                className="mt-3"
-                nativeButton={false}
-                render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
+              <Link
+                to="/rosters"
+                search={requiredLimit === null ? {} : { limit: requiredLimit }}
+                className={buttonClass({ className: 'mt-3' })}
               >
                 {requiredLimit === null ? 'Go to rosters' : `Build a ${requiredLimit.toLocaleString()}-point list`}
-              </Button>
+              </Link>
             </div>
           )}
         </DialogBody>

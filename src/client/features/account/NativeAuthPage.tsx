@@ -50,18 +50,23 @@ function returnToApplication(
   window.location.replace(callback.toString())
 }
 
+/** The request a native shell sent, or null when it lacks what the exchange needs. */
+function nativeAuthRequest({ action, bridge, challenge, next = '/rosters', provider }: NativeAuthSearch) {
+  if (!action || !bridge || !provider || (bridge >= 2 && !challenge)) return null
+  return { action, bridge, challenge, next, provider }
+}
+
 export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
   const started = useRef(false)
   const [failed, setFailed] = useState(false)
+  const incomplete = !nativeAuthRequest(search)
 
   useEffect(() => {
     if (started.current) return
     started.current = true
-    const { action, bridge, challenge, next = '/rosters', provider } = search
-    if (!action || !bridge || !provider || (bridge >= 2 && !challenge)) {
-      setFailed(true)
-      return
-    }
+    const request = nativeAuthRequest(search)
+    if (!request) return
+    const { action, bridge, challenge, next, provider } = request
 
     const finish = async () => {
       if (search.error) {
@@ -130,9 +135,11 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
     <main className="grid place-items-center p-6 text-center">
       <div className="max-w-sm border border-edge bg-panel p-6">
         <p className="eyebrow text-parchment">Praetorium account</p>
-        <h1 className="mt-1 text-2xl">{failed ? 'Sign-in did not finish' : 'Completing secure sign-in'}</h1>
+        <h1 className="mt-1 text-2xl">{incomplete || failed ? 'Sign-in did not finish' : 'Completing secure sign-in'}</h1>
         <p className="mt-3 text-sm text-dim">
-          {failed ? 'Close this window, return to Praetorium and try again.' : 'You will return to the application automatically.'}
+          {incomplete || failed
+            ? 'Close this window, return to Praetorium and try again.'
+            : 'You will return to the application automatically.'}
         </p>
       </div>
     </main>

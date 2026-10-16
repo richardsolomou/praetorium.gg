@@ -26,7 +26,7 @@ Writes show the exact normalized input for approval ([`WriteApproval.ts`](../../
 
 Approval governs WebMCP handlers, not browser automation: an agent controlling the browser can click approval itself. Annotations are hints, not authorization. Results reach the user's assistant provider and contain untrusted text; never return credentials or send private inputs or results to telemetry.
 
-Feature-detect the API without a polyfill; follow the [imperative API documentation](https://developer.chrome.com/docs/ai/webmcp/imperative-api) for signatures. Chromium 151 omits the execution-options argument and requires JSON-string inputs for `executeTool`; keep page-lifetime cancellation when no per-call signal is supplied. Run `just e2e webmcp.spec.ts webmcp-native.spec.ts`.
+Feature-detect the API without a polyfill; follow the [imperative API documentation](https://developer.chrome.com/docs/ai/webmcp/imperative-api) for signatures. Playwright's Chromium 156 passes a per-call signal and requires object inputs for `executeTool`; keep page-lifetime cancellation for browsers that supply no signal. Run `just e2e webmcp.spec.ts webmcp-native.spec.ts`.
 
 ## Crawlers
 

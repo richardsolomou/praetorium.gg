@@ -19,6 +19,6 @@ appId: gg.praetorium
 - tapOn: Rosters
 - assertVisible: 'UPDATED NATIVE ARMY.*'
 - tapOn: Battles
-- assertVisible: MY BATTLES
+- assertVisible: YOUR BATTLES
 - assertVisible: '^2$'
 - takeScreenshot: native-battles-updated

@@ -41,7 +41,7 @@ export function combatTarget(
     wounds: integer(value(profile, 'wounds')),
     invulnerable: integer(value(profile, 'invulnerable-save')),
   }))
-  const key = ({ name: _, ...stats }: (typeof defences)[number]) => JSON.stringify(stats)
+  const key = ({ name: _name, ...stats }: (typeof defences)[number]) => JSON.stringify(stats)
   let counted: { defence: (typeof defences)[number]; models: number }[]
   if (defences.every((defence) => key(defence) === key(defences[0]!))) counted = [{ defence: defences[0]!, models }]
   else {

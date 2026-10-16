@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronDown, Compass, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { currentRulesFor } from '../../../core/currentRules'
@@ -29,7 +30,7 @@ import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
-import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { parseWorkspaceState, readStoredWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
   factionIndexQuery,
@@ -41,6 +42,7 @@ import {
 } from '../../queries'
 import { LentRosterList } from './LentRosters'
 import { useOrigin } from '../../useOrigin'
+import { useClientValue } from '../../useClientValue'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
@@ -53,6 +55,7 @@ type EditingSession = { rosterId: string; draft: RosterSetup; mode?: 'edit' | 'c
 
 const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
+const storedEditingSession = () => readStoredWorkspaceState(WORKSPACE_PATH, EDITING_STATE)
 
 export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearch; sort: RosterSort }) {
   const [selectedSort, setSelectedSort] = useState(sort)
@@ -65,7 +68,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   ])
   const [page, setPage] = useState({ key: pageKey, visibleCount: ROSTER_LIBRARY_BATCH_SIZE })
   const visibleCount = page.key === pageKey ? page.visibleCount : ROSTER_LIBRARY_BATCH_SIZE
-  useEffect(() => setSelectedSort(sort), [sort])
+  const [sortFrom, setSortFrom] = useState(sort)
+  if (sortFrom !== sort) {
+    setSortFrom(sort)
+    setSelectedSort(sort)
+  }
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
@@ -127,12 +134,14 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   const origin = useOrigin()
   const actions = useRosterActions(origin)
   const [deleting, setDeleting] = useState<SavedRoster | null>(null)
-  const [session, setSession] = useState<EditingSession | null>(null)
+  const storedSession = useClientValue(storedEditingSession, null)
+  const restoredSession = useMemo(() => parseWorkspaceState<EditingSession>(storedSession), [storedSession])
+  const [chosenSession, setChosenSession] = useState<{ session: EditingSession | null }>()
+  const session = chosenSession ? chosenSession.session : restoredSession
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
 
-  useEffect(() => setSession(readWorkspaceState<EditingSession>(WORKSPACE_PATH, EDITING_STATE)), [])
   const setEditing = (next: EditingSession | null) => {
-    setSession(next)
+    setChosenSession({ session: next })
     writeWorkspaceState(WORKSPACE_PATH, EDITING_STATE, next)
   }
   const setupOf = (roster: SavedRoster): RosterSetup => ({
@@ -190,9 +199,9 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         description="Build, import, organize, and share the armies you bring to battle."
         actions={
           <>
-            <Button variant="outline" size="lg" render={<Link to="/rosters/discover" />}>
+            <Link to="/rosters/discover" className={buttonClass({ variant: 'outline', size: 'lg' })}>
               <Compass /> Discover armies
-            </Button>
+            </Link>
             <RosterImport />
             <CreateRoster factionOptions={available?.factions ?? []} limit={search.limit} />
           </>

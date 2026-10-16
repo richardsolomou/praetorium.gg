@@ -4,12 +4,14 @@ import { Link, useLocation, useNavigate, useRouter } from '@tanstack/react-route
 import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { attachedUnitCount } from '../../../core/attachedUnits'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { saveRoster } from '../../functions'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { factionIndexQuery, factionQuery, invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { useClientValue, useHydrated } from '../../useClientValue'
 import {
   claimInput,
   clearGuestDraft,
@@ -19,6 +21,7 @@ import {
   guestSaveRequested,
   markGuestDraft,
   newGuestDraft,
+  peekGuestDraft,
   readGuestDraft,
   setGuestDraftOpen,
   watchGuestDraft,
@@ -42,35 +45,34 @@ const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabl
  */
 export function useGuestDraft(hinted: boolean) {
   const router = useRouter()
-  const [state, setState] = useState<{ ready: boolean; guest: GuestDraft | null; revision: number }>({
-    ready: false,
-    guest: null,
-    revision: 0,
-  })
+  const ready = useHydrated()
+  const stored = useClientValue(peekGuestDraft, null)
+  // Set once this page or another tab changes the draft; until then the stored one stands.
+  const [changed, setChanged] = useState<{ guest: GuestDraft | null; revision: number }>()
+  const guest = changed ? changed.guest : stored
   useEffect(() => {
-    const guest = readGuestDraft()
-    setGuestDraftOpen(Boolean(guest))
-    setState((current) => ({ ...current, ready: true, guest }))
+    const kept = readGuestDraft()
+    setGuestDraftOpen(Boolean(kept))
     // A cookie from another tab, or a draft from before there was one, is set right for the next refresh.
-    if (Boolean(guest) !== hinted) {
-      markGuestDraft(Boolean(guest))
+    if (Boolean(kept) !== hinted) {
+      markGuestDraft(Boolean(kept))
       void router.invalidate()
     }
   }, [hinted, router])
   useEffect(
     () =>
-      watchGuestDraft((guest) => {
-        setGuestDraftOpen(Boolean(guest))
-        setState((current) => ({ ready: true, guest, revision: current.revision + 1 }))
+      watchGuestDraft((next) => {
+        setGuestDraftOpen(Boolean(next))
+        setChanged((current) => ({ guest: next, revision: (current?.revision ?? 0) + 1 }))
       }),
     [],
   )
-  const set = (guest: GuestDraft | null) => {
-    setGuestDraftOpen(Boolean(guest))
-    setState((current) => ({ ...current, ready: true, guest }))
+  const set = (next: GuestDraft | null) => {
+    setGuestDraftOpen(Boolean(next))
+    setChanged((current) => ({ guest: next, revision: current?.revision ?? 0 }))
     void router.invalidate()
   }
-  return [state, set] as const
+  return [{ ready, guest, revision: changed?.revision ?? 0 }, set] as const
 }
 
 export function GuestRoster({
@@ -109,7 +111,7 @@ export function GuestRoster({
                   onStart(started)
                 }}
               />
-              <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonVariants({ variant: 'outline' })}>
+              <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonClass({ variant: 'outline' })}>
                 Sign in
               </Link>
             </>

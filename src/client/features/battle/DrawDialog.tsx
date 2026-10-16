@@ -127,12 +127,9 @@ export function DrawDialog({
     send({ kind: 'draw-secondaries', secondaries, playerId: side.captain.id })
   }, [side.secondariesDrawnThisTurn, side.secondaryDrawTarget, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
 
-  useEffect(() => {
-    setSelected((current) => {
-      const next = current.filter((key) => side.remainingSecondaries.some((card) => card.key === key))
-      return next.length === current.length ? current : next
-    })
-  }, [side.remainingSecondaries])
+  // A card that leaves the deck leaves the selection.
+  const stillInDeck = selected.filter((key) => side.remainingSecondaries.some((card) => card.key === key))
+  if (stillInDeck.length !== selected.length) setSelected(stillInDeck)
 
   const toggleSelected = (key: string) =>
     recordSelection({

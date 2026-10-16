@@ -1,6 +1,6 @@
 import { localCombatStream } from '../../offline/combatStream'
 import CombatWorker from './combatWorker'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   compareOutcomes,
   applyOptimizedLoadout,
@@ -30,7 +30,9 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     context?.excluded,
   ])
   const latest = useRef(key)
-  latest.current = key
+  useLayoutEffect(() => {
+    latest.current = key
+  }, [key])
   useEffect(() => {
     if (active.current?.key === key) return
     active.current?.cancel()

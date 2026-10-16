@@ -2,10 +2,11 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { migrateAuthSqlite } from '../../scripts/nodeAuthSqlite'
 import { account, user } from '../db/authSchema'
+import { oauthResource } from '../db/oauthSchema'
 import { SqliteAccountRepository } from './accountRepository'
 import { createSqliteAuth } from './sqliteAuth'
 import { localAuthDatabase } from './localAuthDatabase'
@@ -98,5 +99,21 @@ test('concurrent unlinks on independent SQLite connections preserve one sign-in 
       remaining: 1,
       results: ['last-method', 'removed'],
     })
+  })
+})
+
+test('concurrent startups on independent SQLite connections seed the MCP resource once without failing', async () => {
+  await isolatedDatabase(async (left, right) => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await Promise.all([auth(left).$context, auth(right).$context])
+      const resources = await left.database.select({ identifier: oauthResource.identifier }).from(oauthResource)
+      expect({ resources: resources.map((resource) => resource.identifier), errors: errors.mock.calls.length }).toEqual({
+        resources: ['http://localhost/mcp'],
+        errors: 0,
+      })
+    } finally {
+      errors.mockRestore()
+    }
   })
 })

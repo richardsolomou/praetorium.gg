@@ -62,6 +62,12 @@ function edgeMask(start: boolean, end: boolean) {
   return `linear-gradient(to right, ${opening}, ${closing})`
 }
 
+function scrollEdges(node: HTMLElement, current: { start: boolean; end: boolean }) {
+  const start = node.scrollLeft > 1
+  const end = Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth
+  return current.start === start && current.end === end ? current : { start, end }
+}
+
 /**
  * Fades whichever end of a horizontal scroller still holds content, so a row that
  * has more to say says so rather than ending in a hard clip mid-word.
@@ -71,21 +77,19 @@ function useScrollEdges<T extends HTMLElement>() {
   const [edges, setEdges] = useState({ start: false, end: false })
   const measure = () => {
     const node = ref.current
-    if (!node) return
-    const start = node.scrollLeft > 1
-    const end = Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth
-    setEdges((current) => (current.start === start && current.end === end ? current : { start, end }))
+    if (node) setEdges((current) => scrollEdges(node, current))
   }
   // Content decides the overflow as much as the viewport does, and a detachment can change under a row that never resized.
   useEffect(measure)
   useEffect(() => {
     const node = ref.current
     if (!node) return
-    node.addEventListener('scroll', measure, { passive: true })
-    const observer = new ResizeObserver(measure)
+    const remeasure = () => setEdges((current) => scrollEdges(node, current))
+    node.addEventListener('scroll', remeasure, { passive: true })
+    const observer = new ResizeObserver(remeasure)
     observer.observe(node)
     return () => {
-      node.removeEventListener('scroll', measure)
+      node.removeEventListener('scroll', remeasure)
       observer.disconnect()
     }
   }, [])
@@ -112,7 +116,7 @@ export function RosterHeader({
   actions,
   children,
 }: RosterHeaderProps) {
-  const meta = useScrollEdges<HTMLSpanElement>()
+  const { ref: metaRef, style: metaStyle } = useScrollEdges<HTMLSpanElement>()
   const hasPoints = points !== null && points !== undefined
   const hasSummary = hasPoints || limit !== undefined
   const knownDisposition = disposition
@@ -144,8 +148,8 @@ export function RosterHeader({
       {faction || factionLoading || limit !== undefined ? (
         <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
           <span
-            ref={meta.ref}
-            style={meta.style}
+            ref={metaRef}
+            style={metaStyle}
             data-slot="roster-meta"
             className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
