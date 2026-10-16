@@ -51,8 +51,8 @@ importers:
         specifier: ^0.221.0
         version: 0.221.0(@opentelemetry/api@1.9.1)
       '@posthog/mcp':
-        specifier: 0.17.0
-        version: 0.17.0(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)
+        specifier: 0.22.2
+        version: 0.22.2(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)
       '@posthog/react':
         specifier: ^1.11.3
         version: 1.11.3(@types/react@19.3.0)(posthog-js@1.438.3(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -2433,14 +2433,11 @@ packages:
   '@posthog/core@1.48.8':
     resolution: {integrity: sha512-LAOBOjMQrQmgcbZxnubl74l2GQd5OWqxCJJ8mzcWdZRWbfO6Y/A6E3fqWjDtm68hY4LxC/bbopG60cxZW8cfWw==}
 
-  '@posthog/core@1.55.0':
-    resolution: {integrity: sha512-x+0FR+uHsK3uJeofd5X4S2YS7hjaWkzkPN0X1GROHm9SvKw2RJ91kfQ7gT1bPtFwZSHNiRtteB7fX/xEMRN0IQ==}
-
   '@posthog/core@1.57.3':
     resolution: {integrity: sha512-lag+QZE61kcYSjYN9lKwri6P4/DACOtyRsA41MSI6tdKHbSIyrPfQPkDQiPbq413AMbTXFjcN/N6bqxPhei93Q==}
 
-  '@posthog/mcp@0.17.0':
-    resolution: {integrity: sha512-X6rB7SWp8bEr5P8zrtjoNif9YH9BBPD8XRLq85z/wvFxq1ufH2HMxhlZXp/DvO0ZB0VulRYVw45OzL6rjpxDqg==}
+  '@posthog/mcp@0.22.2':
+    resolution: {integrity: sha512-mTG9qU03vVD0SPtf2hl+SStEVVSRRnYWNvbHb9wOqkOSLk/jjMEkmeTDkh6QRUifv0LgHg2C/syNiX501mAyEQ==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.26.0'
@@ -9932,17 +9929,13 @@ snapshots:
     dependencies:
       '@posthog/types': 1.412.2
 
-  '@posthog/core@1.55.0':
-    dependencies:
-      '@posthog/types': 1.412.2
-
   '@posthog/core@1.57.3':
     dependencies:
       '@posthog/types': 1.415.2
 
-  '@posthog/mcp@0.17.0(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)':
+  '@posthog/mcp@0.22.2(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)':
     dependencies:
-      '@posthog/core': 1.55.0
+      '@posthog/core': 1.57.3
       posthog-node: 5.55.1
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.1(supports-color@10.2.2)(zod@4.6.5)
