@@ -3,7 +3,7 @@ import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-ro
 import { BookOpen, Ellipsis, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType, type MouseEvent, type ReactNode } from 'react'
 import { setNativeAccount, setNativeHistoryBack, setNativeNavigation } from '../../nativeBridge'
-import { historyStaysInSection, rememberHistorySection } from './nativeHistory'
+import { historyBackStaysInTab, openedByTab } from './nativeHistory'
 import { nativeNavigation, type NativeSection } from './nativeNavigation'
 import { meQuery } from '../../queries'
 import { restoreNativeTabScroll } from './nativeTabScroll'
@@ -52,13 +52,10 @@ export function NativeAppNavigation({
   const navigation = nativeNavigation(path, search)
   const active = tabLocation(href)?.section
   const index = router.history.location.state.__TSR_index
-  const staysInTab = Boolean(navigation.back?.preferHistory) && historyStaysInSection(index, navigation.section)
+  const staysInTab = Boolean(navigation.back?.preferHistory) && historyBackStaysInTab(index, state)
   const notFound = useRouterState({ select: ({ matches }) => matches.some((match) => match.status === 'notFound' || match._notFound) })
   const moreActive = path === '/more' || (!PRIMARY_TABS.some(({ section }) => section === active) && path !== '/')
 
-  useEffect(() => {
-    rememberHistorySection(index, navigation.section)
-  }, [index, navigation.section])
   useEffect(() => {
     setNativeHistoryBack(staysInTab)
     if (document.documentElement.dataset.nativeShell === 'true') {
@@ -102,7 +99,7 @@ export function NativeAppNavigation({
       href: remembered?.href ?? to,
       // A tab with no memory opens at its top rather than at the last tab's scroll.
       resetScroll: !remembered,
-      ...(remembered?.state ? { state: (current) => ({ ...current, ...remembered.state }) } : {}),
+      state: (current) => openedByTab({ ...current, ...remembered?.state }) as typeof current,
     })
   }
 

@@ -28,28 +28,32 @@ routes ──> client ──> contracts ──> core
 
 ## Placement rules
 
-Keep page implementation in client features. Routes compose it. Shared browser models live at the client root; React Query options live in `src/client/queries/<feature>.ts`, exported through `src/client/queries.ts`. The roster builder owns the loadout editor reused by simulation.
+Keep page implementation in client features; routes compose it. React Query options live in `src/client/queries/<feature>.ts`, exported through `src/client/queries.ts`.
 
-Application components and queries call `src/client/functions.ts`, which selects local construction, durable edits, cached reads, or existing server functions. Keep transport calls inside that facade and `src/client/offline`; client code must not import server implementation modules. Cross-boundary types belong in contracts. `src/core/datasheet.ts` owns domain datasheet shapes, re-exported by `src/contracts/catalogue.ts`.
+Application components and queries call `src/client/functions.ts`, which chooses local construction, durable edits, cached reads, or server functions. Keep transport calls inside that facade and `src/client/offline`; client code must not import server implementation modules. Cross-boundary types belong in contracts.
 
 Keep existing `createServerFn` source paths: the pinned compiler includes filenames in production function IDs, so moving them can break older open clients.
 
-`PraetoriumService` and repository facades delegate complete application areas while preserving one entry point. Split modules by responsibility, not length; keep each domain decision under one owner. `src/core/battle.ts` deliberately owns the full battle fold and validation.
+Split modules by responsibility, not length, and keep each domain decision under one owner; `src/core/battle.ts` deliberately owns the full battle fold and validation.
 
 ## Offline work
 
-`src/client/offline/syncEngine.ts` owns durable enqueue, ordering, dependencies, sender leases, and acknowledgements. A sender holds a Web Lock for its lifetime, so another window takes over a lease whose sender closed or stopped mid-sync instead of waiting for it to expire. IndexedDB transactions and native generation files implement the same account-scoped storage contract. Save before projecting a change into query data. Never replace a later local edit with an earlier acknowledgement or write across an account generation. An acknowledgement refreshes only the query families its operation kind can change, once per operation however many readers report it (`invalidateSyncedQueries` in `src/client/productSignals.ts`); catalogue reads and roster prices depend only on their inputs and never refetch after a sync. Discarding saved work in `SyncStatus` removes it without waiting for a sync in flight, which acknowledges nothing once its operation is gone, and reports a failure inside the confirmation; exercise it through `e2e/note-sync.spec.ts`.
+`src/client/offline/syncEngine.ts` owns durable enqueue, ordering, dependencies, sender leases, and acknowledgements; IndexedDB and native generation files implement the same account-scoped storage contract. Invariants:
 
-Roster-summary pruning captures its initiating account and runtime before awaiting the server. Other downloads carry their initiating account into durable writes. Check the account and writing runtime again inside delayed storage transactions. Roster copies and variants use the account's saved visibility default.
+- Save durably before projecting a change into query data, and refuse an edit before projecting it when storage cannot accept it (`MAX_LOCAL_STATE_BYTES`, `MAX_LOCAL_OPERATIONS` in `src/contracts/localState.ts`). Persist refreshed query data before a roster save or battle command finishes so an immediate reload retains it; storage failure must not retry a completed server mutation.
+- Local work projects roster edits and command logs through the shared domain authority; the server revalidates on sync.
+- Coalesce only consecutive roster saves never sent to the server; retries keep the original operation ID and content. Battle commands keep their selected random cards and recorded timestamps.
+- Never replace a later local edit with an earlier acknowledgement, or write across an account generation. Downloads carry their initiating account and runtime and check both again inside delayed storage transactions.
+- Versioned downloads cannot replace newer acknowledged rosters or battles; unversioned downloads and summary pruning retain documents changed since the request started, and return them to query consumers as well as storage.
+- Collection and favourite deltas update the current document in the same transaction that appends the queued action.
+- An acknowledgement refreshes only the query families its operation kind can change (`invalidateSyncedQueries` in `src/client/productSignals.ts`); catalogue reads and roster prices never refetch after a sync.
+- Do not project clean saved league documents over online query results. A local battle workspace must contain at least the displayed sequence before validating a command; refresh older workspaces online and keep the newer screen offline.
+- New online rosters attempt a bounded sync before navigation so a cold reload can find them on the server.
 
-Versioned downloads cannot replace newer acknowledged rosters or battles. Unversioned account downloads retain documents changed since the request started. Summary pruning retains rosters changed since the request started. Return retained documents to query consumers as well as protecting storage. Item deltas for collections and favourites update the current document inside the same transaction that appends the queued action. Opening a saved roster returns the server's answer, or a copy saved since the request started, without waiting for its download to be saved.
-
-Do not project clean saved league documents over online query results. A local battle workspace must contain at least the sequence already displayed before validating a command; refresh older workspaces online and retain the newer screen when offline. New online rosters attempt a bounded sync before navigation, after saving durably, so a cold reload can find them on the server. A roster the server render cannot find loads again in the browser, which can read this device's unsynced copy, before showing not found (`src/routes/rosters.$id.index.tsx`).
-
-`src/server/functions/offline.ts` authenticates queued actions and preserves the ordinary mutation origin checks. SpacetimeDB commits product mutations and retry receipts atomically. Roster versions and battle sequences detect concurrent changes; conflicts remain on the device for review. Fold downloaded battle commands through the existing domain authority, sanitizing private history before download. Public construction bundles serialize the same catalogue and rules used by the server.
+`src/server/functions/offline.ts` authenticates queued actions with the ordinary mutation origin checks. SpacetimeDB commits product mutations and retry receipts atomically; roster versions and battle sequences detect concurrent changes, and conflicts stay on the device for review — never silently rebase or discard them. Discarding a prerequisite keeps dependent actions for review; receipts expire after `SYNC_RETENTION_MS`, and expired actions require review. Invitations, league admissions, sealing, and reveals stay pending until server acceptance, and sealing refuses a changed authoritative copy. Downloaded battle commands fold through the existing domain authority, with private history sanitized before download. Public construction bundles serialize the same catalogue and rules the server uses.
 
 ## Tests
 
 Keep tests beside the behavior. Use `*.integration.test.ts` for database, service, authentication, and snapshot boundaries; other `*.test.ts` files are unit tests. [Contributing](../../CONTRIBUTING.md#check-a-change) owns the check commands.
 
-Test public behavior with shared harnesses and scenario-specific suites. Request adapters must accept foreign `Request` implementations: rebuild from URL, fields, and body instead of passing the foreign object into `new Request(request)`.
+Request adapters must accept foreign `Request` implementations: rebuild from URL, fields, and body instead of passing the foreign object into `new Request(request)`.

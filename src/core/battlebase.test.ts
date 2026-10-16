@@ -110,4 +110,46 @@ describe('BattleBase text import', () => {
 
     expect(parsed?.units).toMatchObject([{ leading: 'Lokhust Destroyers' }, { leader: 'Lokhust Lord' }])
   })
+
+  describe('hand-edited app text', () => {
+    const handEdited = `Last Signal - Necrons (600 Points; Orb to add in builder)
+Warhammer 40,000
+Necrons
+Incursion (1000 Points)
+Cursed Legion
+Force Disposition: Purge the Foe
+
+CHARACTERS
+
+Lokhust Lord (70 Points)
+• Warlord
+• 1 model
+• 1x Lord's blade
+
+OTHER DATASHEETS
+
+Lokhust Destroyers (170 Points)
+• 6 models
+• 6x Gauss cannon
+
+TOTAL ARMY POINTS: 600pts`
+
+    it('reads the list setup around a game line and a note in the title', () => {
+      expect(fromBattleBaseText(handEdited)).toMatchObject({
+        name: 'Last Signal - Necrons',
+        reportedPoints: 600,
+        faction: 'Necrons',
+        detachment: 'Cursed Legion',
+        disposition: 'Purge the Foe',
+        limit: 1000,
+      })
+    })
+
+    it('reads model counts and skips the closing points total', () => {
+      expect(fromBattleBaseText(handEdited)?.units).toEqual([
+        { name: 'Lokhust Lord', models: 1, leading: null, warlord: true, selections: [{ name: "Lord's blade", count: 1 }] },
+        { name: 'Lokhust Destroyers', models: 6, leading: null, warlord: false, selections: [{ name: 'Gauss cannon', count: 6 }] },
+      ])
+    })
+  })
 })

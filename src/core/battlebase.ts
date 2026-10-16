@@ -2,24 +2,27 @@ import type { TextRoster, TextRosterUnit } from './textRoster'
 
 const unitHeader = /^(.*?)\s+\(\d[\d,]* Points?\)$/i
 const selection = /^\s*[•◦]\s*(?:(\d+)x\s+)?(.+?)\s*$/
+const titlePattern = /^(.*?)\s+\((\d[\d,]*) Points?(?:;[^)]*)?\)$/i
 const sectionHeading = /^(CHARACTERS?|BATTLELINE|DEDICATED TRANSPORTS|OTHER DATASHEETS|ALLIED UNITS)$/i
 
 export function fromBattleBaseText(input: string): TextRoster | null {
   const lines = input.replaceAll('\r', '').split('\n')
   const title = lines.find((line) => line.trim())?.trim() ?? 'Imported list'
-  const titleMatch = title.match(/^(.*?)\s+\((\d[\d,]*) Points?\)$/i)
+  const titleMatch = title.match(titlePattern)
   const factionAt = lines.findIndex((line) => line.trim() === title)
   const firstSection = lines.findIndex((line) => sectionHeading.test(line.trim()))
   const setup = lines
     .slice(factionAt + 1, firstSection < 0 ? undefined : firstSection)
     .map((line) => line.trim())
-    .filter(Boolean)
+    .filter((line) => line && !/^Warhammer 40,?000$/i.test(line))
   const faction = setup[0] ?? ''
   const sizeLine = setup.find((line) => /\([\d,]+ Points?\)$/i.test(line))
   if (!/Exported with (?:BattleBase|Praetorium\.gg)/i.test(input) && (!titleMatch || !faction || !sizeLine || firstSection < 0)) return null
-  const detachmentLine = setup.find((line) => /\(\d+ Detachment Points?\)$/i.test(line)) ?? (setup[1] !== sizeLine ? setup[1] : undefined)
-  const size = sizeLine?.match(/^(.*?)\s*\(([\d,]+) Points?\)$/i)
   const dispositionLine = setup.find((line) => /^Force Dispositions?:/i.test(line))
+  const detachmentLine =
+    setup.find((line) => /\(\d+ Detachment Points?\)$/i.test(line)) ??
+    setup.slice(1).find((line) => line !== sizeLine && line !== dispositionLine)
+  const size = sizeLine?.match(/^(.*?)\s*\(([\d,]+) Points?\)$/i)
   const units: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null
   let unitSection = false
@@ -27,7 +30,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
 
   for (const line of lines.slice(factionAt + 1)) {
     const trimmed = line.trim()
-    if (/^(Exported with |Codex:|Ruleset:)/i.test(trimmed)) {
+    if (/^(Exported with |Codex:|Ruleset:|TOTAL ARMY POINTS:)/i.test(trimmed)) {
       current = null
       continue
     }
@@ -53,7 +56,9 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     }
     const name = picked[2]!.trim()
     const numeric = name.match(/^(Models|Roster entry|Attached to entry):\s*(\d+)$/i)
-    if (numeric) {
+    const modelCount = name.match(/^(\d+) models?$/i)
+    if (modelCount) current.models = Number(modelCount[1])
+    else if (numeric) {
       const field = { models: 'models', 'roster entry': 'entry', 'attached to entry': 'attachedToEntry' } as const
       current[field[numeric[1]!.toLowerCase() as keyof typeof field]] = Number(numeric[2])
     } else if (/^Nickname:/i.test(name)) (current.unread ??= []).push(trimmed)
