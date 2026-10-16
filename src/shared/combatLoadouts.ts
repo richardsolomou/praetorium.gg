@@ -233,7 +233,7 @@ export async function* combatLoadoutCandidates(
         ),
       ],
     }
-    const equipmentKey = JSON.stringify(candidate.members.map(({ pick: _, ...description }) => description))
+    const equipmentKey = JSON.stringify(candidate.members.map(({ pick: _pick, ...description }) => description))
     if (equipment.has(equipmentKey)) return
     if (equipment.size >= 20_000) throw incomplete()
     retain(equipmentKey)
