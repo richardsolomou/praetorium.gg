@@ -27,7 +27,7 @@ minimumReleaseAgeExclude:
   # Approved early for automatic reconnect and module environments; drop once it passes the age threshold on 2026-10-20.
   - spacetimedb@2.12.0
   # Expo SDK 58.0.12 and React Native 0.88.0, approved ahead of the age
-  # threshold; drop these once they pass it around 2026-10-22.
+  # threshold; drop these once they pass it, by 2026-10-23.
   - 2g@1.0.1
   - '@expo/cli@58.1.10'
   - '@expo/config-plugins@58.0.9'
