@@ -199,7 +199,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         description="Build, import, organize, and share the armies you bring to battle."
         actions={
           <>
-            <Link to="/rosters/discover" className={buttonClass({ variant: 'outline', size: 'lg' })}>
+            <Link to="/rosters/discover" className={buttonClass({ variant: 'outline' })}>
               <Compass /> Discover armies
             </Link>
             <RosterImport />
@@ -286,7 +286,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                 }
               />
             ) : libraryPending ? (
-              <div>
+              <div className="space-y-3">
                 <output className="sr-only">Loading your rosters…</output>
                 <RosterLibrarySkeleton />
               </div>
@@ -311,18 +311,19 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                   </Button>
                 ) : null}
               </>
+            ) : saved.length ? (
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border border-dashed border-edge px-3 py-3 text-sm">
+                <h2 className="font-sans text-sm font-semibold tracking-normal normal-case">
+                  {archived.length ? 'Every roster here is archived' : 'No rosters match these filters'}
+                </h2>
+                {archived.length ? <p className="text-dim">Archived rosters are listed below.</p> : null}
+              </div>
             ) : (
               <PageState
                 headingLevel={2}
-                eyebrow={saved.length ? 'Roster filters' : 'Roster library'}
-                title={archived.length ? 'Every roster here is archived' : saved.length ? 'No rosters match' : 'No rosters yet'}
-                explanation={
-                  archived.length
-                    ? 'Archived rosters are listed below.'
-                    : saved.length
-                      ? 'No rosters match these filters.'
-                      : 'No rosters yet. Create one or bring one from another app.'
-                }
+                eyebrow="Roster library"
+                title="No rosters yet"
+                explanation="No rosters yet. Create one or bring one from another app."
                 icon={ScrollText}
               />
             )}

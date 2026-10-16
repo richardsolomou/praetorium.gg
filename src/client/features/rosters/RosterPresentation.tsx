@@ -139,7 +139,7 @@ export function RosterHeader({
         aria-label="List name"
         readOnly={!onNameChange}
         data-print-hide={onNameChange && !name ? '' : undefined}
-        className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-wide uppercase focus-visible:ring-0"
+        className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-wide uppercase focus-visible:border-b focus-visible:border-info focus-visible:ring-0 md:text-lg dark:bg-transparent"
       />
       {onNameChange && !name && placeholder ? (
         <p className="hidden h-8 items-center text-lg font-bold tracking-wide uppercase print:flex">{placeholder}</p>

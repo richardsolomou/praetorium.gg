@@ -96,7 +96,7 @@ export function RosterSummary({
   return (
     // A phone puts the name beside the points and gives the chips and details full lines beneath; a wider screen keeps the points in a column of their own.
     <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 text-left">
-      <span className="min-w-0 truncate font-bold uppercase">{rosterTitle(roster, faction, label)}</span>
+      <span className="min-w-0 leading-snug font-bold break-words uppercase sm:truncate">{rosterTitle(roster, faction, label)}</span>
       <RosterStanding
         roster={roster}
         points={points}

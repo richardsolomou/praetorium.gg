@@ -123,7 +123,7 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
         description="Find armies other players published, open them, and duplicate one to make it your own."
         actions={
           me ? (
-            <Link to="/rosters" className={buttonClass({ variant: 'outline', size: 'lg' })}>
+            <Link to="/rosters" className={buttonClass({ variant: 'outline' })}>
               My rosters
             </Link>
           ) : null
@@ -219,22 +219,22 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
                   </Button>
                 ) : null}
               </>
+            ) : active ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-dashed border-edge px-3 py-2 text-sm">
+                <h3 className="mr-auto font-sans text-sm font-semibold tracking-normal normal-case">
+                  No public armies match these filters
+                </h3>
+                <Button variant="outline" size="sm" onClick={() => choose({})}>
+                  Clear filters
+                </Button>
+              </div>
             ) : (
               <PageState
                 headingLevel={2}
                 eyebrow="Public armies"
-                title={active ? 'No public armies match' : 'No public armies yet'}
-                explanation={
-                  active ? 'No published army matches these filters.' : 'Players list an army here by choosing Public in its roster setup.'
-                }
+                title="No public armies yet"
+                explanation="Players list an army here by choosing Public in its roster setup."
                 icon={ScrollText}
-                action={
-                  active ? (
-                    <Button variant="outline" onClick={() => choose({})}>
-                      Clear filters
-                    </Button>
-                  ) : null
-                }
               />
             )}
           </div>
