@@ -47,7 +47,11 @@ function ResultList({
   const { items, totalSize, virtualizer } = useVirtualRows({
     count: rows.length,
     getScrollElement: () => scroller.current,
-    estimateSize: (index) => (rows[index]?.kind === 'heading' ? 36 : 76),
+    estimateSize: (index) => {
+      const row = rows[index]
+      if (row?.kind === 'heading') return 36
+      return row?.result.matchReasons?.length ? 103 : 76
+    },
     getItemKey: (index) => {
       const row = rows[index]!
       return row.kind === 'heading' ? row.label : row.result.id
