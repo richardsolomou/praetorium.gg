@@ -1,4 +1,4 @@
-import { Calculator, ChevronLeft, ChevronRight, Minus, Plus, Scroll } from 'lucide-react'
+import { Calculator, Minus, Plus, Scroll } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -80,9 +80,8 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
   const shelves = armyShelves(units)
   const lost = units.filter((unit) => unit.destroyed)
   const readable = (unit: UnitState) => Boolean(roster.built?.picks?.length && unit.entryId)
-  // The order the list reads in, which is the order previous and next step through.
-  const ordered = [...shelves.flatMap((shelf) => shelf.units), ...lost].filter(readable)
-  const selected = ordered.find((unit) => unit.key === selectedKey) ?? null
+  const sheets = units.some(readable)
+  const selected = units.find((unit) => unit.key === selectedKey && readable(unit)) ?? null
   const canSimulate = (unit: UnitState) => readable(unit) && !unit.destroyed && unit.formation === 'battlefield'
   const simulate = () => onSimulate({ playerId: army.playerId })
   const unitProps: UnitControls = { army, actionable, pending, blocked, send, press }
@@ -147,6 +146,11 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
       <BattlePromptDialog
         open={open}
         onOpenChange={(next) => {
+          // A compact screen has no room for a back bar, so closing a datasheet returns to the army.
+          if (!next && selected && window.matchMedia('(max-width: 859px)').matches) {
+            setSelectedKey(null)
+            return
+          }
           setOpen(next)
           // Minimizing keeps the unit being read; closing starts the next look from the army.
           if (!next) setSelectedKey(null)
@@ -154,12 +158,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
         minimizedLabel={`${army.playerName} · ${roster.name}`}
         resumeLabel="Return to army"
       >
-        <BattleDialogContent
-          data-army-roster
-          size={ordered.length ? 'lg' : 'md'}
-          fill={Boolean(ordered.length)}
-          className={tint(side.index).border}
-        >
+        <BattleDialogContent data-army-roster size={sheets ? 'lg' : 'md'} fill={sheets} className={tint(side.index).border}>
           <DialogHeader className="px-(--dialog-actions) text-center">
             <p className="eyebrow">{army.playerName}</p>
             <DialogTitle>{roster.name}</DialogTitle>
@@ -168,20 +167,20 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
             </DialogDescription>
           </DialogHeader>
 
-          {ordered.length ? (
+          {sheets ? (
             /*
-             * The army and the selected unit side by side where there is room, so
-             * reading a datasheet never moves the list. A compact screen shows one at
-             * a time and steps between units without going back to the list.
+             * The army and the selected unit's datasheet side by side where there is
+             * room, so reading a datasheet never moves the list. A compact screen shows
+             * one at a time.
              */
             <div className="grid min-h-0 flex-auto grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] min-[860px]:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
               <DialogBody data-army-list className={`min-[860px]:border-r min-[860px]:border-edge ${selected ? 'max-[859px]:hidden' : ''}`}>
                 {list}
               </DialogBody>
-              {/* Keyed so stepping to another unit starts its datasheet from the top. */}
-              <DialogBody key={selected?.key} data-army-detail className={selected ? '' : 'max-[859px]:hidden'}>
+              {/* Keyed so another unit's datasheet starts from the top. */}
+              <DialogBody key={selected?.key} data-army-detail className={selected ? 'p-0' : 'max-[859px]:hidden'}>
                 {selected ? (
-                  <ArmyUnitDetail {...unitProps} unit={selected} ordered={ordered} rosterName={roster.name} onSelect={setSelectedKey} />
+                  <ArmyLoadout army={army} unit={selected} />
                 ) : (
                   <p className="py-8 text-center text-sm text-dim">Select a unit to see its datasheet.</p>
                 )}
@@ -193,63 +192,6 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
         </BattleDialogContent>
       </BattlePromptDialog>
     </>
-  )
-}
-
-/**
- * One unit's datasheet beside or in place of the list, led by the unit's own card so
- * its losses are recorded where it is read. The list beside it already carries those
- * controls on a wide screen, so they show here only where the list is hidden.
- */
-function ArmyUnitDetail({
-  unit,
-  ordered,
-  rosterName,
-  onSelect,
-  ...unitProps
-}: {
-  unit: UnitState
-  ordered: UnitState[]
-  rosterName: string
-  onSelect: (key: string | null) => void
-} & UnitControls) {
-  const index = ordered.findIndex((candidate) => candidate.key === unit.key)
-  const previous = ordered[index - 1]
-  const next = ordered[index + 1]
-  return (
-    <div className="min-w-0 space-y-3">
-      <div className="flex items-center justify-between gap-2 min-[860px]:hidden">
-        <Button variant="ghost" className="-ml-2 h-11" aria-label={`Back to ${rosterName}`} onClick={() => onSelect(null)}>
-          <ChevronLeft aria-hidden /> {rosterName}
-        </Button>
-        <span className="readout text-xs text-faint">
-          {index + 1} of {ordered.length}
-        </span>
-      </div>
-      <div className="min-[860px]:[&_[data-unit-status]]:hidden">
-        <BattleUnit {...unitProps} unit={unit} selected={false} />
-      </div>
-      <ArmyLoadout army={unitProps.army} unit={unit} />
-      <div className="flex justify-between gap-2 min-[860px]:hidden">
-        {previous ? (
-          <Button
-            variant="outline"
-            className="h-11 min-w-0"
-            onClick={() => onSelect(previous.key)}
-            aria-label={`Previous unit: ${previous.name}`}
-          >
-            <ChevronLeft aria-hidden /> <span className="truncate">{previous.name}</span>
-          </Button>
-        ) : (
-          <span />
-        )}
-        {next ? (
-          <Button variant="outline" className="h-11 min-w-0" onClick={() => onSelect(next.key)} aria-label={`Next unit: ${next.name}`}>
-            <span className="truncate">{next.name}</span> <ChevronRight aria-hidden />
-          </Button>
-        ) : null}
-      </div>
-    </div>
   )
 }
 
