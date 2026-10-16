@@ -51,8 +51,8 @@ export function collectionPhotoStore(
       return photoId
     },
 
-    remove(userId: string, entryId: string) {
-      return repository.removeCollectionPhoto(userId, entryId)
+    remove(userId: string, photoId: string) {
+      return repository.removeCollectionPhoto(userId, photoId)
     },
 
     /** A datasheet's gallery, named for each photo's owner; a photo whose owner has no account is left out. */

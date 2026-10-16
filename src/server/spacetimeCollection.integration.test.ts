@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { expect, it } from 'vitest'
+import { MAX_DATASHEET_PHOTOS } from '../core/collectionPhotos'
 import { SpacetimeOperator } from './spacetimeOperator'
 
 const url = process.env.SPACETIME_TEST_URL
@@ -36,44 +37,50 @@ it.skipIf(!url || !database || !token)(
   },
 )
 
-it.skipIf(!url || !database || !token)('keeps one photo per collection row and leaves every dropped photo for deletion', async () => {
-  const operator = new SpacetimeOperator(url!, database!, token!)
-  const owner = randomUUID()
-  const [first, second, third] = [randomUUID(), randomUUID(), randomUUID()]
-  const photos: string[] = [first, second, third]
-  try {
-    await expect(operator.setCollectionPhoto({ userId: owner, entryId: 'warriors', photoId: first, now: Date.now() })).rejects.toThrow(
-      'Add the datasheet',
-    )
-    await operator.setCollectionModels({ userId: owner, entryId: 'warriors', models: 20, now: Date.now() })
-    await operator.setCollectionPhoto({ userId: owner, entryId: 'warriors', photoId: first, now: Date.now() })
-    await operator.setCollectionPhoto({ userId: owner, entryId: 'warriors', photoId: second, now: Date.now() })
-    expect([
-      (await operator.collectionProfile(owner, null))?.entries,
-      await operator.collectionPhoto(first, null),
-      await operator.collectionPhoto(second, null),
-    ]).toEqual([[{ entryId: 'warriors', models: 20, photoId: second }], null, { userId: owner, entryId: 'warriors' }])
+it.skipIf(!url || !database || !token)(
+  'keeps several photos per collection row, in order and up to the limit, and leaves every dropped photo for deletion',
+  async () => {
+    const operator = new SpacetimeOperator(url!, database!, token!)
+    const [owner, other] = [randomUUID(), randomUUID()]
+    const photos: string[] = Array.from({ length: MAX_DATASHEET_PHOTOS + 1 }, () => randomUUID())
+    const [first, second] = photos as [string, string, ...string[]]
+    try {
+      for (const [index, photoId] of photos.slice(0, MAX_DATASHEET_PHOTOS).entries())
+        await operator.setCollectionPhoto({ userId: owner, entryId: 'warriors', photoId, now: index + 1 })
+      expect((await operator.collectionProfile(owner, null))?.entries).toEqual([
+        { entryId: 'warriors', models: 1, photoIds: photos.slice(0, MAX_DATASHEET_PHOTOS) },
+      ])
+      await expect(
+        operator.setCollectionPhoto({ userId: owner, entryId: 'warriors', photoId: photos.at(-1)!, now: Date.now() }),
+      ).rejects.toThrow(`up to ${MAX_DATASHEET_PHOTOS} photos`)
 
-    await operator.setCollectionPublished(owner, false)
-    expect([await operator.collectionPhoto(second, null), await operator.collectionPhoto(second, owner)]).toEqual([
-      null,
-      { userId: owner, entryId: 'warriors' },
-    ])
+      await operator.removeCollectionPhoto(other, first)
+      await operator.removeCollectionPhoto(owner, second)
+      expect([await operator.collectionPhoto(first, null), await operator.collectionPhoto(second, null)]).toEqual([
+        { userId: owner, entryId: 'warriors' },
+        null,
+      ])
+      expect(await operator.collectionPhotoDeletions(1_000)).toContain(second)
 
-    await operator.removeFromCollection(owner, 'warriors')
-    expect(await operator.collectionPhotoDeletions(1_000)).toContain(second)
-    await operator.setCollectionModels({ userId: owner, entryId: 'overlord', models: 1, now: Date.now() })
-    await operator.setCollectionPhoto({ userId: owner, entryId: 'overlord', photoId: third, now: Date.now() })
-    await operator.deleteUserData(owner)
-    const dropped = await operator.collectionPhotoDeletions(1_000)
-    expect(photos.every((photoId) => dropped.includes(photoId))).toBe(true)
+      await operator.setCollectionPublished(owner, false)
+      expect([await operator.collectionPhoto(first, null), await operator.collectionPhoto(first, owner)]).toEqual([
+        null,
+        { userId: owner, entryId: 'warriors' },
+      ])
 
-    await operator.clearCollectionPhotoDeletions(photos)
-    expect((await operator.collectionPhotoDeletions(1_000)).some((photoId) => photos.includes(photoId))).toBe(false)
-  } finally {
-    await operator.deleteUserData(owner)
-  }
-})
+      await operator.removeFromCollection(owner, 'warriors')
+      await operator.setCollectionPhoto({ userId: owner, entryId: 'overlord', photoId: photos.at(-1)!, now: Date.now() })
+      await operator.deleteUserData(owner)
+      const dropped = await operator.collectionPhotoDeletions(1_000)
+      expect(photos.every((photoId) => dropped.includes(photoId))).toBe(true)
+
+      await operator.clearCollectionPhotoDeletions(photos)
+      expect((await operator.collectionPhotoDeletions(1_000)).some((photoId) => photos.includes(photoId))).toBe(false)
+    } finally {
+      await operator.deleteUserData(owner)
+    }
+  },
+)
 
 it.skipIf(!url || !database || !token)(
   'lists a datasheet’s shared photos newest first, with a reader’s own even when hidden, until an administrator removes one',
@@ -168,7 +175,7 @@ it.skipIf(!url || !database || !token)(
       expect([
         (await operator.collectionProfile(owner, reader))?.entries,
         (await operator.collectionProfile(owner, owner))?.entries,
-      ]).toEqual([[{ entryId, models: 1 }], [{ entryId, models: 1, photoId }]])
+      ]).toEqual([[{ entryId, models: 1 }], [{ entryId, models: 1, photoIds: [photoId] }]])
       await expect(operator.setCollectionPhotoLike({ userId: reader, photoId, liked: true, now: 2 })).rejects.toThrow('no longer shown')
       await operator.keepCollectionPhoto(photoId)
       await operator.reportCollectionPhoto({ userId: randomUUID(), photoId })

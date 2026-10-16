@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.149.0
+
+### Minor Changes
+
+- f5349aa: Add up to six photos of your models to each datasheet by dropping them on, or clicking, the photo area of a datasheet's Player photos, the roster builder's unit pane or your Collection. Adding a photo puts the datasheet in your collection.
+
+### Patch Changes
+
+- 8746440: Datasheets and the roster builder no longer show the base size as a characteristic box; datasheet pages list it under Unit configuration, now including units whose base size came only from their profile.
+- f5349aa: Removing a collection photo now asks for confirmation, and removing a datasheet from your collection says how many photos go with it.
+
 ## 0.148.0
 
 ### Minor Changes

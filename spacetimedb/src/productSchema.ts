@@ -250,12 +250,16 @@ const collection = table(
   },
 )
 
-/** One photo per collection row, keyed like it; `photoId` names the private object. */
+/**
+ * A collection row's photos, each naming its row by `key`; `photoId` names the private object.
+ *
+ * The row index is named because `key` was once unique, and a migration keeps a column index of the same name unique.
+ */
 const collectionPhotos = table(
-  { name: 'collection_photo' },
+  { name: 'collection_photo', indexes: [{ accessor: 'row', name: 'collection_photo_row', algorithm: 'btree', columns: ['key'] }] },
   {
     photoId: t.string().primaryKey(),
-    key: t.string().unique(),
+    key: t.string(),
     userId: t.string().index('btree'),
     entryId: t.string().index('btree'),
     at: t.u64(),

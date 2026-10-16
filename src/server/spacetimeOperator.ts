@@ -52,7 +52,7 @@ const collectionRow = z.object({
   entryId: z.string(),
   at: z.number().int(),
   models: z.number().int(),
-  photoId: z.uuid().optional(),
+  photoIds: z.array(z.uuid()).optional(),
 })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
@@ -633,8 +633,8 @@ export class SpacetimeOperator {
     await this.call('set_collection_photo', [input.userId, input.entryId, input.photoId, input.now])
   }
 
-  async removeCollectionPhoto(userId: string, entryId: string) {
-    await this.call('remove_collection_photo', [userId, entryId])
+  async removeCollectionPhoto(userId: string, photoId: string) {
+    await this.call('remove_collection_photo', [userId, photoId])
   }
 
   async collectionPhoto(photoId: string, viewerId: string | null) {

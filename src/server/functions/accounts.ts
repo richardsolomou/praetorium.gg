@@ -1,7 +1,12 @@
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
-import { collectionPhotoLikeSchema, collectionPhotoReportSchema, collectionPhotoSchema } from '../../contracts/collection'
+import {
+  collectionPhotoIdSchema,
+  collectionPhotoLikeSchema,
+  collectionPhotoReportSchema,
+  collectionPhotoSchema,
+} from '../../contracts/collection'
 import { collectionPhotoReportEmail } from '../collectionPhotos'
 import { COLLECTION_PHOTO_QUESTIONS, recordScreening } from '../photoScreening'
 import { app } from '../app'
@@ -320,7 +325,7 @@ export const setCollectionModels = createServerFn({ method: 'POST' })
 export const collectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    const photos: Record<string, string> = id ? await app().service.collectionPhotos(id) : {}
+    const photos: Record<string, string[]> = id ? await app().service.collectionPhotos(id) : {}
     return photos
   }),
 )
@@ -332,7 +337,7 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const limited = photoRateLimit(getRequest(), 6)
+      const limited = photoRateLimit(getRequest(), 12)
       if (limited) throw limited
       const photoId = await app().collectionPhotos.upload(player.id, data.entryId, data.image)
       await app().telemetry.capture(player.id, 'collection_photo_uploaded')
@@ -344,11 +349,11 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
   )
 
 export const removeCollectionPhoto = createServerFn({ method: 'POST' })
-  .validator(collectionPhotoSchema.pick({ entryId: true }))
+  .validator(collectionPhotoIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().collectionPhotos.remove(player.id, data.entryId)
+      await app().collectionPhotos.remove(player.id, data.photoId)
       await app().telemetry.capture(player.id, 'collection_photo_removed')
       return null
     }),

@@ -101,7 +101,7 @@ export function FactionDatasheet() {
             onboarding="datasheet-stats"
             title="Models"
             profiles={unit}
-            omit={['invulnerable-save']}
+            omit={['invulnerable-save', 'base-size']}
             keywordRules={sheet.keywordRules}
             anchorIds={unitAnchorIds}
           />
@@ -213,7 +213,7 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
             {sheet.composition.map((line) => (
               <RuleText key={line} text={line} rules={rules} />
             ))}
-            {sheet.baseSize ? <p className="text-sm text-dim">Base size: {sheet.baseSize}</p> : null}
+            {sheet.baseSize ? <p className="text-sm whitespace-pre-line text-dim">Base size: {sheet.baseSize}</p> : null}
           </div>
           <div id="points" className="border-t border-edge p-3 md:border-t-0">
             <h3 className="eyebrow mb-2">Points</h3>
@@ -342,7 +342,7 @@ function UnitCharacteristics({
   anchorIds?: readonly string[]
 }) {
   const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')?.value
-  const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
+  const values = profile.values.filter((value) => !['invulnerable-save', 'base-size'].includes(datasheetCharacteristicKindOf(value)))
   return (
     <section id={`profile-${profile.id}`} data-onboarding={onboarding}>
       <ReferenceAnchors prefix="profile" ids={anchorIds.filter((id) => id !== profile.id)} />
@@ -367,7 +367,9 @@ function UnitCharacteristics({
 function characteristicProfileGroups(profiles: DisplayProfile[]) {
   const groups = new Map<string, DisplayProfile[]>()
   for (const profile of profiles) {
-    const signature = JSON.stringify(profile.values.map(({ name, value }) => ({ name, value })))
+    const signature = JSON.stringify(
+      profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'base-size').map(({ name, value }) => ({ name, value })),
+    )
     groups.set(signature, [...(groups.get(signature) ?? []), profile])
   }
   return [...groups.values()]

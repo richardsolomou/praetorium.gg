@@ -1,11 +1,18 @@
 import { z } from 'zod'
 import { MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../core/collection'
+import { MAX_DATASHEET_PHOTOS } from '../core/collectionPhotos'
 
 export const collectionProfileSchema = z
   .object({
     published: z.boolean(),
     entries: z
-      .array(z.object({ entryId: z.string(), models: z.number().int().min(1).max(MAX_COLLECTION_MODELS), photoId: z.uuid().optional() }))
+      .array(
+        z.object({
+          entryId: z.string(),
+          models: z.number().int().min(1).max(MAX_COLLECTION_MODELS),
+          photoIds: z.array(z.uuid()).max(MAX_DATASHEET_PHOTOS).optional(),
+        }),
+      )
       .max(MAX_COLLECTION_DATASHEETS),
   })
   .nullable()

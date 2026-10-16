@@ -46,6 +46,7 @@ export type DatasheetCharacteristicKind =
   | 'leadership'
   | 'objective-control'
   | 'invulnerable-save'
+  | 'base-size'
   | 'range'
   | 'attacks'
   | 'ballistic-skill'
