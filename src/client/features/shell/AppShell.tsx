@@ -111,15 +111,18 @@ function PrimaryNavigation({ path }: { path: string }) {
             {label}
           </Link>
         ))}
-        <div className="@min-[46.75rem]:hidden">
-          <p className="eyebrow border-t border-edge px-3 pt-3 pb-1 text-faint">Reference</p>
-          {REFERENCE_LINKS.map(({ to, label, Icon }) => (
-            <Link key={to} to={to} className={linkClass} activeProps={{ className: 'border-parchment bg-raised text-parchment' }}>
-              <Icon aria-hidden className="size-4 shrink-0 text-info" />
-              {label}
-            </Link>
-          ))}
-        </div>
+        {/* Only while the compact menu is open, so every server-rendered page does not carry them. */}
+        {open ? (
+          <div className="@min-[46.75rem]:hidden">
+            <p className="eyebrow border-t border-edge px-3 pt-3 pb-1 text-faint">Reference</p>
+            {REFERENCE_LINKS.map(({ to, label, Icon }) => (
+              <Link key={to} to={to} className={linkClass} activeProps={{ className: 'border-parchment bg-raised text-parchment' }}>
+                <Icon aria-hidden className="size-4 shrink-0 text-info" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
