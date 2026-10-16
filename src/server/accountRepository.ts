@@ -1,9 +1,9 @@
-import { and, asc, desc, eq, exists, inArray, isNull, lt, ne, not, notInArray, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, exists, inArray, ne, not, notInArray, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/sqlite-core'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { account, githubSponsor, schema, user } from '../db/authSchema'
 import type { GithubSponsor } from './githubSponsors'
-import type { AdminUserFilter, AdminUserSort, AdminUsersCursor } from '../admin'
+import type { AdminUserCountSort, AdminUserSort, AdminUsersRequest } from '../admin'
 
 type UnlinkAccountResult =
   | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
@@ -11,6 +11,33 @@ type UnlinkAccountResult =
 
 function contains(query: string) {
   return `%${query.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+}
+
+type AdminUserQuery = Partial<Pick<AdminUsersRequest, 'query' | 'role' | 'descending'>>
+type AccountSort = Exclude<AdminUserSort, AdminUserCountSort>
+
+const adminUserColumns = {
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  image: user.image,
+  role: user.role,
+  emailVerified: user.emailVerified,
+  twoFactorEnabled: user.twoFactorEnabled,
+  createdAt: user.createdAt,
+  lastSeenAt: user.lastSeenAt,
+}
+
+function adminUserWhere(input: AdminUserQuery, practiceIds: readonly string[]) {
+  if (practiceIds.length > 100) throw new Error('Too many practice opponents')
+  const query = input.query?.trim().toLowerCase()
+  return and(
+    practiceIds.length ? notInArray(user.id, [...practiceIds]) : undefined,
+    query
+      ? or(sql`lower(${user.name}) like ${contains(query)} escape '\\'`, sql`lower(${user.email}) like ${contains(query)} escape '\\'`)
+      : undefined,
+    input.role?.length ? inArray(user.role, input.role) : undefined,
+  )
 }
 
 export class SqliteAccountRepository {
@@ -77,53 +104,53 @@ export class SqliteAccountRepository {
     return new Map(rows.map((row) => [row.id, row]))
   }
 
-  async adminUserRows(
-    input: { query?: string; sort?: AdminUserSort; filter?: AdminUserFilter; cursor?: AdminUsersCursor | null; limit?: number },
-    practiceIds: readonly string[],
-  ) {
-    if (practiceIds.length > 100) throw new Error('Too many practice opponents')
-    const limit = Math.min(Math.max(input.limit ?? 50, 1), 100)
-    const query = input.query?.trim()
-    const ordered = input.sort === 'seen' ? user.lastSeenAt : user.createdAt
-    const cursor = input.cursor
-    // Newest first with never-seen players last, which is where SQLite sorts a null in descending order.
-    const after = cursor
-      ? cursor.at
-        ? or(lt(ordered, cursor.at), and(eq(ordered, cursor.at), lt(user.id, cursor.id)), isNull(ordered))
-        : and(isNull(ordered), lt(user.id, cursor.id))
-      : undefined
+  /** One page of players in an order the account database can sort by itself. */
+  async adminUserRows(input: AdminUserQuery & { sort?: AccountSort; page?: number; pageSize?: number }, practiceIds: readonly string[]) {
+    const pageSize = Math.min(Math.max(input.pageSize ?? 25, 1), 100)
+    const ordered = { name: sql`lower(${user.name})`, email: user.email, joined: user.createdAt, seen: user.lastSeenAt }[
+      input.sort ?? 'joined'
+    ]
+    const direction = (input.descending ?? true) ? desc : asc
+    const where = adminUserWhere(input, practiceIds)
+    const [rows, total] = await Promise.all([
+      this.database
+        .select(adminUserColumns)
+        .from(user)
+        .where(where)
+        // SQLite sorts null lowest, so never-seen players lead the oldest-first order and trail the newest-first one.
+        .orderBy(direction(ordered), direction(user.id))
+        .limit(pageSize)
+        .offset((input.page ?? 0) * pageSize),
+      this.database.$count(user, where),
+    ])
+    return { users: await this.withSignInMethods(rows), total }
+  }
+
+  /** Every matching player, newest first, for orders decided outside the account database. */
+  async adminUserIds(input: AdminUserQuery, practiceIds: readonly string[]) {
     const rows = await this.database
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        twoFactorEnabled: user.twoFactorEnabled,
-        createdAt: user.createdAt,
-        lastSeenAt: user.lastSeenAt,
-      })
+      .select({ id: user.id })
       .from(user)
-      .where(
-        and(
-          practiceIds.length ? notInArray(user.id, [...practiceIds]) : undefined,
-          query
-            ? or(
-                sql`lower(${user.name}) like ${contains(query.toLowerCase())} escape '\\'`,
-                sql`lower(${user.email}) like ${contains(query.toLowerCase())} escape '\\'`,
-              )
-            : undefined,
-          input.filter === 'admins' ? eq(user.role, 'admin') : undefined,
-          input.filter === 'no-two-factor' ? eq(user.twoFactorEnabled, false) : undefined,
-          input.filter === 'unverified' ? eq(user.emailVerified, false) : undefined,
-          after,
-        ),
-      )
-      .orderBy(desc(ordered), desc(user.id))
-      .limit(limit + 1)
-    const shown = rows.slice(0, limit)
-    const ids = shown.map((row) => row.id)
+      .where(adminUserWhere(input, practiceIds))
+      .orderBy(desc(user.createdAt), desc(user.id))
+    return rows.map((row) => row.id)
+  }
+
+  /** The given players, in the given order. */
+  async adminUsersByIds(ids: readonly string[]) {
+    if (ids.length > 100) throw new Error('Too many players')
+    const rows = ids.length
+      ? await this.database
+          .select(adminUserColumns)
+          .from(user)
+          .where(inArray(user.id, [...ids]))
+      : []
+    const byId = new Map(rows.map((row) => [row.id, row]))
+    return this.withSignInMethods(ids.flatMap((id) => byId.get(id) ?? []))
+  }
+
+  private async withSignInMethods<Row extends { id: string }>(rows: Row[]) {
+    const ids = rows.map((row) => row.id)
     const methods = ids.length
       ? await this.database
           .select({ userId: account.userId, providerId: account.providerId, linkedAt: account.createdAt })
@@ -137,14 +164,10 @@ export class SqliteAccountRepository {
       if (!providers.has(method.providerId)) providers.set(method.providerId, method.linkedAt)
       methodsByUser.set(method.userId, providers)
     }
-    const last = shown.at(-1)
-    return {
-      users: shown.map((entry) => ({
-        ...entry,
-        signInMethods: [...(methodsByUser.get(entry.id) ?? [])].map(([providerId, linkedAt]) => ({ providerId, linkedAt })),
-      })),
-      nextCursor: rows.length > limit && last ? { at: input.sort === 'seen' ? last.lastSeenAt : last.createdAt, id: last.id } : null,
-    }
+    return rows.map((entry) => ({
+      ...entry,
+      signInMethods: [...(methodsByUser.get(entry.id) ?? [])].map(([providerId, linkedAt]) => ({ providerId, linkedAt })),
+    }))
   }
 
   async searchPlayerRows(userId: string, query: string, after: { name: string; id: string } | null, limit: number) {

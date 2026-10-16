@@ -77,7 +77,7 @@ it.skipIf(!url || !databaseName || !token)(
       const database = local.database
       const [preview] = await database.select({ id: user.id }).from(user).where(eq(user.email, PREVIEW_EMAIL))
       if (!preview) throw new Error('Preview account missing')
-      expect((await repository.adminUsers({ limit: 10 })).users.find((row) => row.id === preview.id)?.rosterCount).toBe(8)
+      expect((await repository.adminUsers({ pageSize: 10 })).users.find((row) => row.id === preview.id)?.rosterCount).toBe(8)
       expect((await repository.leagueByToken('preview-league-doubles', preview.id))?.entries).toHaveLength(4)
       expect((await repository.battleHistoryByToken('preview-league-battle-duel'))?.players).toHaveLength(2)
       const replacementRepository = new SpacetimeRepository(new SqliteAccountRepository(replacement.database), product)

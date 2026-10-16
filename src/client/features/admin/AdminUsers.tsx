@@ -1,25 +1,19 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { ArrowDownUp, ListFilter, ShieldCheck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import type { PaginationState, SortingState } from '@tanstack/react-table'
+import { ShieldCheck } from 'lucide-react'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import type { AdminUser, AdminUserFilter, AdminUserSort } from '../../../admin'
+import type { AdminUser, AdminUserSort } from '../../../admin'
 import { adminUsersQuery, heldCollectionPhotosQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useSettled } from '../../useSettled'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageTabsList } from '../../components/PageTabs'
-import { SearchField } from '../../components/SearchField'
 import { AdminHeldPhotos } from './AdminHeldPhotos'
 import { AdminUserPanel } from './AdminUserPanel'
 import { AdminUsersTable } from './AdminUsersTable'
+
+const NO_USERS: AdminUser[] = []
 
 export type AdminTab = 'players' | 'photos'
 
@@ -30,14 +24,25 @@ export const readAdminSearch = (search: Record<string, unknown>): { tab?: Exclud
 export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: string; tab: AdminTab; onTab: (tab: AdminTab) => void }) {
   const [search, setSearch] = useState('')
   const query = useSettled(search.trim())
-  const [sort, setSort] = useState<AdminUserSort>('joined')
-  const [filter, setFilter] = useState<AdminUserFilter>('all')
-  const usersResult = useInfiniteQuery(adminUsersQuery(query, sort, filter))
-  const users = useMemo(() => usersResult.data?.pages.flatMap((page) => page.users) ?? [], [usersResult.data])
+  const [roles, setRoles] = useState<AdminUser['role'][]>([])
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'joined', desc: true }])
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 })
+  const usersResult = useQuery(
+    adminUsersQuery({
+      query,
+      role: roles,
+      sort: sorting[0]!.id as AdminUserSort,
+      descending: sorting[0]!.desc,
+      page: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+    }),
+  )
+  const users = usersResult.data?.users ?? NO_USERS
   const held = useQuery(heldCollectionPhotosQuery())
-  // Held rather than looked up, so a new search or sort does not close the player being worked on.
+  // Held rather than looked up, so a new search or page does not close the player being worked on.
   const [opened, setOpened] = useState<AdminUser>()
   const selected = opened && (users.find((user) => user.id === opened.id) ?? opened)
+  const firstPage = () => setPagination((current) => ({ ...current, pageIndex: 0 }))
 
   return (
     <main className="ph-no-capture w-full">
@@ -57,54 +62,41 @@ export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: strin
         <Tabs value={tab} className="flex-col gap-0" onValueChange={(value) => onTab(value as AdminTab)}>
           <PageTabsList
             tabs={[
-              { value: 'players', label: 'Players', count: usersResult.data ? users.length : undefined },
+              { value: 'players', label: 'Players', count: usersResult.data?.total },
               { value: 'photos', label: 'Reported photos', count: held.data?.length },
             ]}
           />
-          <TabsContent value="players" className="mt-4">
-            <section>
-              <div className="flex flex-wrap gap-2">
-                <SearchField
-                  className="min-w-56 flex-1"
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Search by name or email"
-                  label="Search users"
-                  clearLabel="Empty the user search"
-                  maxLength={100}
-                />
-                <ChoiceMenu label="Show" icon={<ListFilter />} value={filter} options={FILTERS} onChange={setFilter} />
-                <ChoiceMenu label="Sort" icon={<ArrowDownUp />} value={sort} options={SORTS} onChange={setSort} />
-              </div>
-              <div className="mt-2 space-y-2">
-                <AdminUsersTable
-                  users={users}
-                  currentUserId={currentUserId}
-                  openedUserId={opened?.id}
-                  pending={usersResult.isPending}
-                  empty={usersResult.isSuccess && !users.length}
-                  sort={sort}
-                  onSort={setSort}
-                  onOpen={setOpened}
-                />
-                {usersResult.error ? (
-                  <p role="alert" className="border border-edge bg-panel p-4 text-sm text-destructive">
-                    {errorMessage(usersResult.error)}
-                  </p>
-                ) : null}
-              </div>
-              {usersResult.hasNextPage ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-3"
-                  disabled={usersResult.isFetchingNextPage || usersResult.isPlaceholderData}
-                  onClick={() => void usersResult.fetchNextPage()}
-                >
-                  {usersResult.isFetchingNextPage ? 'Loading…' : 'Load more'}
-                </Button>
-              ) : null}
-            </section>
+          <TabsContent value="players" className="mt-4 space-y-2">
+            <AdminUsersTable
+              users={users}
+              total={usersResult.data?.total ?? 0}
+              currentUserId={currentUserId}
+              openedUserId={opened?.id}
+              pending={usersResult.isPending}
+              search={search}
+              onSearch={(value) => {
+                setSearch(value)
+                firstPage()
+              }}
+              roles={roles}
+              onRoles={(value) => {
+                setRoles(value)
+                firstPage()
+              }}
+              sorting={sorting}
+              onSorting={(value) => {
+                setSorting(value)
+                firstPage()
+              }}
+              pagination={pagination}
+              onPagination={setPagination}
+              onOpen={setOpened}
+            />
+            {usersResult.error ? (
+              <p role="alert" className="border border-edge bg-panel p-4 text-sm text-destructive">
+                {errorMessage(usersResult.error)}
+              </p>
+            ) : null}
           </TabsContent>
           <TabsContent value="photos" className="mt-4">
             <AdminHeldPhotos />
@@ -116,49 +108,5 @@ export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: strin
         <AdminUserPanel key={selected.id} user={selected} current={selected.id === currentUserId} onClose={() => setOpened(undefined)} />
       ) : null}
     </main>
-  )
-}
-
-const FILTERS: { value: AdminUserFilter; label: string }[] = [
-  { value: 'all', label: 'Everyone' },
-  { value: 'admins', label: 'Administrators' },
-  { value: 'no-two-factor', label: 'Without two-factor' },
-  { value: 'unverified', label: 'Unverified email' },
-]
-const SORTS: { value: AdminUserSort; label: string }[] = [
-  { value: 'joined', label: 'Recently joined' },
-  { value: 'seen', label: 'Recently seen' },
-]
-
-function ChoiceMenu<T extends string>({
-  label,
-  icon,
-  value,
-  options,
-  onChange,
-}: {
-  label: string
-  icon: ReactNode
-  value: T
-  options: { value: T; label: string }[]
-  onChange: (value: T) => void
-}) {
-  const current = options.find((option) => option.value === value)?.label ?? ''
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" aria-label={`${label}: ${current}`} />}>
-        {icon}
-        {current}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuRadioGroup value={value} onValueChange={(chosen) => onChange(chosen as T)}>
-          {options.map((option) => (
-            <DropdownMenuRadioItem key={option.value} value={option.value} closeOnClick>
-              {option.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }

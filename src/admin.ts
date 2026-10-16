@@ -17,14 +17,26 @@ export type AdminUser = {
   signInMethods: { providerId: string; linkedAt: Date }[]
 }
 
-export const ADMIN_USER_SORTS = ['joined', 'seen'] as const
+/** Orders that need counts from the product database rather than an account column. */
+export const ADMIN_USER_COUNT_SORTS = ['rosters', 'battles', 'friends', 'leagues'] as const
+export type AdminUserCountSort = (typeof ADMIN_USER_COUNT_SORTS)[number]
+export const ADMIN_USER_SORTS = ['name', 'email', 'joined', 'seen', ...ADMIN_USER_COUNT_SORTS] as const
 export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number]
-export const ADMIN_USER_FILTERS = ['all', 'admins', 'no-two-factor', 'unverified'] as const
-export type AdminUserFilter = (typeof ADMIN_USER_FILTERS)[number]
+export const isAdminUserCountSort = (sort: AdminUserSort): sort is AdminUserCountSort =>
+  (ADMIN_USER_COUNT_SORTS as readonly string[]).includes(sort)
+export const ADMIN_USER_ROLES = ['admin', 'user'] as const
+export const ADMIN_USER_PAGE_SIZES = [10, 25, 50, 100] as const
 
-/** Where the next page starts in the chosen order: a join or last-seen time, null for players never seen. */
-export type AdminUsersCursor = { at: Date | null; id: string }
-export type AdminUserPage = { users: AdminUser[]; nextCursor: AdminUsersCursor | null }
+export type AdminUsersRequest = {
+  query: string
+  /** Players holding any of these roles; empty keeps everyone. */
+  role: AdminUser['role'][]
+  sort: AdminUserSort
+  descending: boolean
+  page: number
+  pageSize: number
+}
+export type AdminUserPage = { users: AdminUser[]; total: number }
 
 /** What an administrator did, as counted in analytics. */
 export type AdminAction =
