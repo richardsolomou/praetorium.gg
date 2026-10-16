@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { z } from 'zod'
 import { completeSteps, type Steps } from '../shared/steps'
-import { structureDatasheetProfiles } from '../core/datasheetStructure'
+import { profileBaseSize, structureDatasheetProfiles } from '../core/datasheetStructure'
 import { compareText } from '../core/text'
 import type {
   CanonicalCatalogue,
@@ -30,7 +30,7 @@ import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 9 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 10 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -45,6 +45,7 @@ const characteristicSchema = z.object({
     'leadership',
     'objective-control',
     'invulnerable-save',
+    'base-size',
     'range',
     'attacks',
     'ballistic-skill',
@@ -388,6 +389,7 @@ export function* canonicalCatalogueSteps(
       if (!description) continue
       const { datasheet: described, contributions: abilityContributions } = description
       const cardsBaseSize = described.baseSize
+      const baseSize = cardsBaseSize || profileBaseSize(described.profiles)
       const cardsComposition = described.composition
       const cardsCosts = described.costs
       const mfmUnit = mfmUnitFor(loaded, faction.id, entryId)
@@ -437,7 +439,7 @@ export function* canonicalCatalogueSteps(
         attribution: attribution || null,
         points,
         profiles: structureDatasheetProfiles(described.profiles),
-        baseSize: cardsBaseSize,
+        baseSize,
         composition: cardsComposition,
         costs: sourceCosts,
         provenance: {
@@ -458,7 +460,7 @@ export function* canonicalCatalogueSteps(
             composition: sourceOrUnresolved(cardsComposition.length ? 'datacards' : null),
             loadout: sourceOrUnresolved(joined && described.loadout ? 'datacards' : null),
             wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : 'definitions', !joined?.details.wargear.length),
-            baseSize: sourceOrUnresolved(cardsBaseSize ? 'datacards' : null),
+            baseSize: sourceOrUnresolved(cardsBaseSize ? 'datacards' : baseSize ? 'definitions' : null),
             transport: sourceOrUnresolved(joined && described.transport ? 'datacards' : null),
             costs: costsResolution,
             relationships: sourceOrUnresolved('definitions'),
