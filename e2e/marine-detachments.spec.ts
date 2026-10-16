@@ -15,7 +15,7 @@ for (const width of [390, 1440]) {
     for (const [chapter, detachment] of chapters) {
       await page.goto(`/factions/${chapter}`)
       const list = page.locator('[data-onboarding="faction-detachments"]')
-      await expect(list.locator('p > .readout')).toHaveText('1')
+      await expect(list.locator('h2 > .readout')).toHaveText('1')
       await expect(list.getByRole('link', { name: /^Gladius Task Force/ })).toHaveCount(0)
       await page.screenshot({ path: `test-results/marine-${chapter}-${width}.png`, fullPage: true })
       await list.getByRole('link', { name: new RegExp(`^${detachment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click()
@@ -34,7 +34,7 @@ for (const width of [390, 1440]) {
     ] as const) {
       await page.goto(`/factions/${chapter}`)
       const list = page.locator('[data-onboarding="faction-detachments"]')
-      await expect(list.locator('p > .readout')).toHaveText(String(count))
+      await expect(list.locator('h2 > .readout')).toHaveText(String(count))
       await expect(list.getByRole('link', { name: /^Gladius Task Force/ })).toHaveCount(0)
       await expect(list.getByRole('link', { name: /^Forgefather's Seekers/ })).toHaveCount(0)
     }

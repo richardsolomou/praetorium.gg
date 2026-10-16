@@ -67,7 +67,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
       await dialog.getByRole('combobox', { name: 'Stratagem' }).click()
       await page.getByRole('option', { name: 'Insane Bravery · 1 CP' }).click()
     })
-    await expect(refused.getByRole('alert')).toHaveText('Insane Bravery has been used this battle')
+    await expect(refused.getByRole('alert')).toHaveText('Insane Bravery has been used this battle.')
     await expect(refused.getByRole('button', { name: 'Record missed action' })).toBeEnabled()
     await page.screenshot({ path: `test-results/missed-action-refused-${viewport.width}.png` })
     await refused.getByRole('button', { name: 'Cancel' }).click()
