@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.151.2
+
+### Patch Changes
+
+- e144650: A unit's datasheet in the battle army dialog opens beside the list on wide screens, and in its own view with previous and next on phones, instead of unfolding inside the list.
+- e144650: Recording wounds, models, or a lost unit no longer fills the battle log or takes Undo away from the last action.
+- e144650: Casualty buttons stay usable while a change saves, so a squad can be tapped down several models at once.
+
 ## 0.151.1
 
 ### Patch Changes
