@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.152.0
+
+### Minor Changes
+
+- f624534: On a phone, Home has its own tab beside Rosters, Battles and Factions, and Missions moves into More.
+
+### Patch Changes
+
+- f624534: On a phone, the page footer keeps only the privacy policy, terms and data sources, since More lists the rest.
+- f624534: More lists its pages as compact rows grouped into Reference, Play, Account and Help, and adds player guides, your profile and support.
+
 ## 0.151.6
 
 ### Patch Changes
