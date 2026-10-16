@@ -115,7 +115,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.64.0",
     "@posthog/cli": "0.14.1",
     "@posthog/rollup-plugin": "1.6.1",
     "@tailwindcss/vite": "^4.3.3",
