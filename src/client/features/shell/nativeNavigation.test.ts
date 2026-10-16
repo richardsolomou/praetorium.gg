@@ -11,14 +11,20 @@ describe('native application navigation', () => {
   it.each([
     ['/rosters', { section: 'rosters', title: 'Rosters' }],
     ['/battles', { section: 'battles', title: 'Battles' }],
-    ['/leagues', { section: 'leagues', title: 'Leagues' }],
     ['/factions', { section: 'factions', title: 'Factions' }],
     ['/missions', { section: 'missions', title: 'Missions' }],
-    ['/rules', { section: 'rules', title: 'Rules' }],
-    ['/leaderboard', { section: 'leaderboard', title: 'Leaderboard' }],
     ['/more', { title: 'More' }],
   ])('leaves %s without a back action, because it is the bottom of its tab', (path, expected) => {
     expect(nativeNavigation(path)).toEqual(expected)
+  })
+
+  it.each([
+    ['/leagues', 'leagues', 'Leagues'],
+    ['/rules', 'rules', 'Rules'],
+    ['/leaderboard', 'leaderboard', 'Leaderboard'],
+    ['/force-dispositions', 'missions', 'Force dispositions'],
+  ])('returns from %s to the More screen that lists it', (path, section, title) => {
+    expect(nativeNavigation(path)).toEqual({ back: { href: '/more', label: 'Back to more', preferHistory: true }, section, title })
   })
 
   it.each([
@@ -88,7 +94,6 @@ describe('native application navigation', () => {
         title: 'Force disposition',
       },
     ],
-    ['/force-dispositions', { section: 'missions', title: 'Force dispositions' }],
     ['/users/player-id', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }],
     ['/support', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Support' }],
     ['/privacy', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }],

@@ -1,49 +1,24 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { historyStaysInSection, rememberHistorySection } from './nativeHistory'
+import { describe, expect, it } from 'vitest'
+import { historyBackStaysInTab, openedByTab } from './nativeHistory'
 
-describe('native history sections', () => {
-  beforeEach(() => {
-    const entries = new Map<string, string>()
-    vi.stubGlobal('window', {})
-    vi.stubGlobal('sessionStorage', {
-      getItem: (key: string) => entries.get(key) ?? null,
-      setItem: (key: string, value: string) => entries.set(key, value),
-    })
+describe('native history back', () => {
+  it('goes back to the screen that opened this one', () => {
+    expect(historyBackStaysInTab(1, {})).toBe(true)
   })
 
-  it('goes back inside the tab the previous screen belongs to', () => {
-    rememberHistorySection(0, 'rosters')
-    rememberHistorySection(1, 'rosters')
-
-    expect(historyStaysInSection(1, 'rosters')).toBe(true)
+  it('does not go back into the tab the player switched from', () => {
+    expect(historyBackStaysInTab(1, openedByTab({ __TSR_index: 0 }))).toBe(false)
   })
 
-  it('does not go back into the tab the player came from', () => {
-    rememberHistorySection(0, 'factions')
-    rememberHistorySection(1, 'rosters')
-
-    expect(historyStaysInSection(1, 'rosters')).toBe(false)
+  it('goes back from a screen stacked on the one the tab opened', () => {
+    expect(historyBackStaysInTab(2, openedByTab({ __TSR_index: 0 }))).toBe(true)
   })
 
   it('has nothing behind the first screen of the session', () => {
-    rememberHistorySection(0, 'rosters')
-
-    expect(historyStaysInSection(0, 'rosters')).toBe(false)
+    expect(historyBackStaysInTab(0, {})).toBe(false)
   })
 
-  it('forgets the screens a new branch of history replaced', () => {
-    rememberHistorySection(0, 'rosters')
-    rememberHistorySection(1, 'rosters')
-    rememberHistorySection(2, 'rosters')
-    rememberHistorySection(1, 'factions')
-
-    expect(historyStaysInSection(2, 'rosters')).toBe(false)
-  })
-
-  it('answers nothing for a screen outside every tab', () => {
-    rememberHistorySection(0, 'rosters')
-    rememberHistorySection(1, undefined)
-
-    expect(historyStaysInSection(1, undefined)).toBe(false)
+  it('keeps the rest of the entry state when marking a tab switch', () => {
+    expect(openedByTab({ __TSR_index: 0, rosterPane: 'picker' })).toMatchObject({ rosterPane: 'picker' })
   })
 })
