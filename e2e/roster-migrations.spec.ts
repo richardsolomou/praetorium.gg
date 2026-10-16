@@ -144,7 +144,7 @@ test('library and builder point a roster on earlier released rules at the curren
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('Older rules')
   await expect(page.locator('[data-roster="Current Scouts"]')).toContainText('11th edition')
   await expect(page.locator('[data-roster="Current Scouts"]')).not.toContainText('Older rules')
-  await page.getByRole('link', { name: '1 list uses older rules', exact: true }).click()
+  await page.getByRole('link', { name: '1 roster uses older rules', exact: true }).click()
   await expect(page).toHaveURL(/updates=older/)
   await expect(page.locator('[data-roster="Current Scouts"]')).toHaveCount(0)
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toBeVisible()
