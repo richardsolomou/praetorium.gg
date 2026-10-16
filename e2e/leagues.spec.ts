@@ -1589,7 +1589,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await spectator.getByRole('button', { name: 'Open 2,000-point roster' }).click()
   const spectatorRoster = spectator.locator('[data-army-roster]')
   await expect(spectatorRoster.locator('[data-unit="Test unit"]')).toBeVisible()
-  await expect(spectatorRoster.getByRole('button', { name: /Mark .* lost/ })).toHaveCount(0)
+  await expect(spectatorRoster.getByRole('button', { name: /Mark .* destroyed/ })).toHaveCount(0)
   await expectNoHorizontalOverflow(spectator, spectatorRoster)
   await spectator.keyboard.press('Escape')
   await expect(spectatorRoster).toBeHidden()

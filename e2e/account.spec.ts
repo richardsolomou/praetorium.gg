@@ -46,6 +46,7 @@ test('account forms show the server error', async ({ page }) => {
   await expect(page.getByText('Invalid email or password', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'I need an account' }).click()
+  await page.getByLabel('Your name').fill('Auth Error')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create account', exact: true }).click()
