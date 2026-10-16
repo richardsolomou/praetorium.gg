@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -38,9 +38,8 @@ export function OneOnOneBattleChooser({
   onStart: (opponentId: string) => void
 }) {
   const [opponentId, setOpponentId] = useState<string | null>(null)
-  useEffect(() => {
-    if (!open) setOpponentId(null)
-  }, [open])
+  // A closed chooser forgets its choice, so reopening it starts again.
+  if (!open && opponentId !== null) setOpponentId(null)
   const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const options = entries
     .filter((entry) => entry.userId !== ownUserId)
@@ -117,12 +116,10 @@ export function LeagueBattleChooser({
 }) {
   const [theirIds, setTheirIds] = useState<(string | null)[]>([null, null])
   const [allyId, setAllyId] = useState<string | null>(null)
-  useEffect(() => {
-    if (!open) {
-      setTheirIds([null, null])
-      setAllyId(null)
-    }
-  }, [open])
+  if (!open && (theirIds.some((id) => id !== null) || allyId !== null)) {
+    setTheirIds([null, null])
+    setAllyId(null)
+  }
   const alliedLimit = alliedLeagueRosterLimit(rosterLimit)
   // The organizer's roster assignment already says which side of the table this entrant is on.
   const isSolo = ownRequiredLimit === rosterLimit
@@ -247,9 +244,8 @@ export function DoublesBattleChooser({
   onStart: (opponentId: string) => void
 }) {
   const [opponentId, setOpponentId] = useState<string | null>(null)
-  useEffect(() => {
-    if (!open) setOpponentId(null)
-  }, [open])
+  // A closed chooser forgets its choice, so reopening it starts again.
+  if (!open && opponentId !== null) setOpponentId(null)
   const ownTeamId = entries.find((entry) => entry.userId === ownUserId)?.teamId
   const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const options = doublesTeams(entries)

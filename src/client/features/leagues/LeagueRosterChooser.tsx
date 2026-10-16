@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FileLock2, Pencil } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -33,9 +33,7 @@ export function RosterChooser({
   )
   // Picking a list and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  useEffect(() => {
-    if (!open) setSelectedId(null)
-  }, [open])
+  if (!open && selectedId !== null) setSelectedId(null)
   const selected = rosters.find((roster) => roster.id === selectedId)
   const failed = error ? rosters.find((roster) => roster.id === failedRosterId) : undefined
 
