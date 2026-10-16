@@ -48,8 +48,8 @@ importers:
         specifier: ^0.223.0
         version: 0.223.0(@opentelemetry/api@1.9.1)
       '@posthog/mcp':
-        specifier: 0.22.2
-        version: 0.22.2(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)
+        specifier: 0.22.3
+        version: 0.22.3(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)
       '@posthog/react':
         specifier: ^1.11.3
         version: 1.11.3(@types/react@19.3.0)(posthog-js@1.438.4(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -144,8 +144,8 @@ importers:
         specifier: 10.1.0
         version: 10.1.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
       satori:
-        specifier: 0.44.1
-        version: 0.44.1
+        specifier: 0.44.3
+        version: 0.44.3
       spacetimedb:
         specifier: 2.12.0
         version: 2.12.0(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0)
@@ -2130,8 +2130,8 @@ packages:
   '@posthog/core@1.57.3':
     resolution: {integrity: sha512-lag+QZE61kcYSjYN9lKwri6P4/DACOtyRsA41MSI6tdKHbSIyrPfQPkDQiPbq413AMbTXFjcN/N6bqxPhei93Q==}
 
-  '@posthog/mcp@0.22.2':
-    resolution: {integrity: sha512-mTG9qU03vVD0SPtf2hl+SStEVVSRRnYWNvbHb9wOqkOSLk/jjMEkmeTDkh6QRUifv0LgHg2C/syNiX501mAyEQ==}
+  '@posthog/mcp@0.22.3':
+    resolution: {integrity: sha512-ZO2+f/PxHdsbVwwtihBTvqMP7dkKDNnZJCxYD/MxS7BT1I6SCSVodwQ5NtaTxmYUdBzJptXQ9kVdbRJtOUaVlg==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.26.0'
@@ -6477,8 +6477,8 @@ packages:
     engines: {node: '>=18.18'}
     hasBin: true
 
-  satori@0.44.1:
-    resolution: {integrity: sha512-VivTTA0fZd/hivBvSJW8qDD31LaKIBSN9en4nbT1ljXugL4nT8kdlvF1AAc37yhLiydRNjTg3v4Y1sgQKPQXWg==}
+  satori@0.44.3:
+    resolution: {integrity: sha512-3Dj7zB2jc+806+YYinNID9nvdJK2AagSmpNeG/qeHY7Yq7jQ5EpMSQ8C5rLSw1PMxnrbQaQsQnCiEGzIKKq3HA==}
     engines: {node: '>=16'}
 
   sax@1.6.1:
@@ -8969,7 +8969,7 @@ snapshots:
     dependencies:
       '@posthog/types': 1.415.2
 
-  '@posthog/mcp@0.22.2(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)':
+  '@posthog/mcp@0.22.3(@modelcontextprotocol/sdk@1.32.1(supports-color@10.2.2)(zod@4.6.5))(posthog-node@5.55.1)':
     dependencies:
       '@posthog/core': 1.57.3
       posthog-node: 5.55.1
@@ -13535,7 +13535,7 @@ snapshots:
 
   sandbox-cli-detector@0.2.0: {}
 
-  satori@0.44.1:
+  satori@0.44.3:
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
       css-background-parser: 0.1.0

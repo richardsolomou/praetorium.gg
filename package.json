@@ -76,7 +76,7 @@
     "@opentelemetry/exporter-logs-otlp-http": "^0.223.0",
     "@opentelemetry/resources": "^2.12.0",
     "@opentelemetry/sdk-logs": "^0.223.0",
-    "@posthog/mcp": "0.22.2",
+    "@posthog/mcp": "0.22.3",
     "@posthog/react": "^1.11.3",
     "@resvg/resvg-wasm": "2.6.2",
     "@tanstack/react-query": "^5.104.1",
@@ -108,7 +108,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "10.1.0",
-    "satori": "0.44.1",
+    "satori": "0.44.3",
     "spacetimedb": "2.12.0",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.5"
