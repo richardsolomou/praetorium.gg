@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.147.6
+
+### Patch Changes
+
+- 02b2c33: A long unit name under From your battles on the Collection page no longer widens the page on phones.
+- 02b2c33: Points badges on a faction's datasheet list now line up in one column.
+
 ## 0.147.5
 
 ### Patch Changes
