@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.151.0
+
+### Minor Changes
+
+- 67db37a: The administration players list is a standard data table: one value per column, every column but Role sortable in either direction, a Role filter, column toggles, and numbered pages with a chosen page size. Counts of zero show as a dash.
+
 ## 0.150.0
 
 ### Minor Changes
