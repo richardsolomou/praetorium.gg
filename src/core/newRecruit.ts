@@ -6,9 +6,10 @@ const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*pts?\)(?::\s*
 const modelLine = /^[•*]\s*(\d+)x\s+([^:]+?)(?::\s*(.*))?$/
 
 export function fromNewRecruitText(input: string): TextRoster | null {
-  const native = /Exported with Praetorium\.gg/i.test(input)
-  if (!/Created with newrecruit\.eu/i.test(input) && !(/Exported with Praetorium\.gg/i.test(input) && /^\+ FACTION KEYWORD:/m.test(input)))
-    return null
+  const newRecruit = /Created with newrecruit\.eu/i.test(input)
+  const native =
+    /^\+ FACTION KEYWORD:/m.test(input) && (/Exported with Praetorium\.gg/i.test(input) || (!newRecruit && /^\+ ROSTER NAME:/m.test(input)))
+  if (!newRecruit && !native) return null
 
   const lines = input.replaceAll('\r', '').split('\n')
   const faction = metadata(lines, 'FACTION KEYWORD') ?? ''
