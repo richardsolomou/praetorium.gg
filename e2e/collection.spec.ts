@@ -306,6 +306,9 @@ test('players add photos from datasheet pages and rosters, which show shared pho
   const photo = builder.locator('aside[aria-label="Loadout"] [data-unit-photo]')
   await expect(photo).toContainText(`From ${sharer}’s collection`)
   await loaded(photo.locator('img'))
+  // Closing the system file dialog returns focus to the hidden input, which must not scroll the pane's clipping root.
+  await photo.getByLabel('Choose photos of your Overlord').focus()
+  await expect(builder.locator('aside[aria-label="Loadout"] [data-slot="scroll-area"]')).toHaveJSProperty('scrollTop', 0)
 
   await photo.getByLabel('Choose photos of your Overlord').setInputFiles(png('photo.png'))
   await expect(photo).toContainText('Your models')

@@ -188,7 +188,7 @@ export function FeedbackDialog() {
                   </div>
                 ) : (
                   <>
-                    <Label className="flex min-h-11 cursor-pointer items-center gap-2 border border-dashed border-edge px-3 text-sm text-dim hover:border-info hover:text-info sm:min-h-9 has-focus-visible:border-info">
+                    <Label className="relative flex min-h-11 cursor-pointer items-center gap-2 border border-dashed border-edge px-3 text-sm text-dim hover:border-info hover:text-info sm:min-h-9 has-focus-visible:border-info">
                       <ImagePlus aria-hidden className="size-4 shrink-0" />
                       <span>Attach screenshot</span>
                       <input
