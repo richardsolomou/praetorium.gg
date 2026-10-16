@@ -98,7 +98,7 @@
     "idb-keyval": "6.3.0",
     "jose": "^6.2.12",
     "lucide-react": "^1.54.0",
-    "nodemailer": "^10.0.14",
+    "nodemailer": "^10.0.16",
     "openskill": "5.0.1",
     "p-retry": "^8.0.1",
     "posthog-js": "^1.438.3",
