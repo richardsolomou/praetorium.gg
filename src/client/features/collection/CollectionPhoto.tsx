@@ -15,15 +15,14 @@ export function CollectionPhoto({ entryId, name }: { entryId: string; name: stri
   const photoId = photos?.[entryId]
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="overflow-hidden text-faint hover:text-info"
+      <button
+        type="button"
+        className="grid size-16 shrink-0 place-items-center overflow-hidden border border-edge bg-sunken text-faint hover:border-info hover:text-info"
         aria-label={photoId ? `Photo of your ${name}` : `Add a photo of your ${name}`}
         onClick={() => setOpen(true)}
       >
-        {photoId ? <img src={collectionPhotoPath(photoId)} alt="" className="size-full object-cover" /> : <Camera />}
-      </Button>
+        {photoId ? <img src={collectionPhotoPath(photoId)} alt="" className="size-full object-cover" /> : <Camera className="size-5" />}
+      </button>
       <CollectionPhotoDialog entryId={entryId} name={name} photoId={photoId} open={open} onOpenChange={setOpen} />
     </>
   )

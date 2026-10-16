@@ -168,17 +168,21 @@ export function CollectionPage() {
                   </header>
                   <ul className="divide-y divide-edge">
                     {sheets.map((sheet) => (
-                      <li key={sheet.id} data-unit={sheet.name} className="flex min-h-12 items-center gap-2 py-1.5 pr-1.5 pl-3">
-                        <FactionReferenceLink
-                          to="/factions/$catalogueId/datasheets/$entryId"
-                          params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
-                          className="min-w-0 flex-1 text-sm font-semibold break-words text-bone uppercase underline-offset-4 hover:text-info hover:underline"
-                        >
-                          {sheet.name}
-                        </FactionReferenceLink>
+                      <li key={sheet.id} data-unit={sheet.name} className="flex gap-3 p-2">
                         <CollectionPhoto entryId={sheet.id} name={sheet.name} />
-                        <CollectionCount entryId={sheet.id} name={sheet.name} />
-                        <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
+                        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
+                          <FactionReferenceLink
+                            to="/factions/$catalogueId/datasheets/$entryId"
+                            params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
+                            className="text-sm font-semibold break-words text-bone uppercase underline-offset-4 hover:text-info hover:underline"
+                          >
+                            {sheet.name}
+                          </FactionReferenceLink>
+                          <div className="flex items-center justify-between gap-2">
+                            <CollectionCount entryId={sheet.id} name={sheet.name} />
+                            <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
+                          </div>
+                        </div>
                       </li>
                     ))}
                   </ul>
