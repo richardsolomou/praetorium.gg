@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.151.4
+
+### Patch Changes
+
+- 2531165: The army dialog's datasheet pane shows just the datasheet, edge to edge, without repeating the unit's card; on a phone it fills the dialog and the close button returns to the list.
+
 ## 0.151.3
 
 ### Patch Changes
