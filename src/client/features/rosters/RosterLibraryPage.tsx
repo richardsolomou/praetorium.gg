@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { ChevronDown, Compass, ScrollText } from 'lucide-react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { currentRulesFor } from '../../../core/currentRules'
@@ -190,7 +191,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         description="Build, import, organize, and share the armies you bring to battle."
         actions={
           <>
-            <Link to="/rosters/discover" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+            <Link to="/rosters/discover" className={buttonClass({ variant: 'outline', size: 'lg' })}>
               <Compass /> Discover armies
             </Link>
             <RosterImport />

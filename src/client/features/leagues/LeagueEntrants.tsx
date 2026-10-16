@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Eye } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LeagueEntryView } from '../../../core/league'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -100,13 +100,12 @@ export function ViewRosterButton({
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="text-dim hover:text-info pointer-coarse:size-11"
-            nativeButton={false}
+          <Link
+            to="/rosters/$id"
+            params={{ id: userId }}
+            search={{ league: token, event: eventToken }}
             aria-label={`View ${label}’s roster`}
-            render={<Link to="/rosters/$id" params={{ id: userId }} search={{ league: token, event: eventToken }} />}
+            className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: 'text-dim hover:text-info pointer-coarse:size-11' })}
           />
         }
       >

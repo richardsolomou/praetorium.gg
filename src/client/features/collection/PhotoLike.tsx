@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Heart } from 'lucide-react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { type datasheetPhotos, likeCollectionPhoto } from '../../functions'
 import { datasheetPhotosQuery, meQuery } from '../../queries'
 
@@ -42,7 +43,7 @@ export function PhotoLike({ entryId, photoId, name }: { entryId: string; photoId
         to="/sign-in"
         search={{ next: path }}
         rel="nofollow"
-        className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'text-dim' })}
+        className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-dim' })}
       >
         <span className="sr-only">Sign in to like this photo of {name}, </span>
         {count}
@@ -51,7 +52,7 @@ export function PhotoLike({ entryId, photoId, name }: { entryId: string; photoId
     )
   if (me.id === photo.owner.id)
     return (
-      <span className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'pointer-events-none text-dim' })} aria-label={label}>
+      <span className={buttonClass({ variant: 'ghost', size: 'sm', className: 'pointer-events-none text-dim' })} aria-label={label}>
         {count}
       </span>
     )

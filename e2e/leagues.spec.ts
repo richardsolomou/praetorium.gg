@@ -396,11 +396,11 @@ async function revealEvent(owner: Page) {
 
 /** A revealed list's card action; before the reveal, an ally's row offers the icon `viewRoster` finds. */
 function viewList(scope: Page | Locator, name: string) {
-  return scope.getByRole('button', { name: `View ${name}’s list` })
+  return scope.getByRole('link', { name: `View ${name}’s list` })
 }
 
 function viewRoster(scope: Page | Locator, name: string) {
-  return scope.getByRole('button', { name: `View ${name}’s roster` })
+  return scope.getByRole('link', { name: `View ${name}’s roster` })
 }
 
 /** A roster a league accepts: one Warlord, plus whatever else it is asked to field. */
@@ -625,7 +625,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await expect(page.getByRole('alert')).toHaveCount(0)
   await chooser.getByRole('button', { name: `Seal ${rosterName}` }).click()
   await expect(page.getByRole('alert')).toHaveText('Choose a Warlord: this list has none')
-  await expect(chooser.getByRole('button', { name: `Edit ${rosterName}` })).toHaveAttribute('href', /^\/rosters\/[^/]+$/)
+  await expect(chooser.getByRole('link', { name: `Edit ${rosterName}` })).toHaveAttribute('href', /^\/rosters\/[^/]+$/)
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   await page.setViewportSize({ width: 1440, height: 900 })

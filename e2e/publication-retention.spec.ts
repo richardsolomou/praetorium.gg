@@ -183,7 +183,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.goto(`/rosters/${userId}?league=${league.token}&event=${league.eventToken}`)
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
   await page.goto(`/leagues/${league.token}`)
-  const viewSealed = page.getByRole('button', { name: `View ${name}’s list`, exact: true })
+  const viewSealed = page.getByRole('link', { name: `View ${name}’s list`, exact: true })
   const reveal = page.getByRole('alertdialog', { name: 'Reveal every list?' })
   await retryUntilVisible(reveal, () => page.getByRole('button', { name: 'Reveal all lists', exact: true }).click())
   await expect(viewSealed).toHaveCount(0)

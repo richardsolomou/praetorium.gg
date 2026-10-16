@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Users } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 
@@ -43,9 +43,9 @@ export function FriendTables({ battles }: { battles: readonly Battle[] }) {
       <p className="rubric border-b border-edge pb-2">Friends' games</p>
       <div className="flex flex-col gap-4 border-b border-edge py-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-rules text-sm text-dim">Your friends' games appear here, apart from the ones you are already sitting in.</p>
-        <Button render={<Link to="/friends" />} variant="outline" className="shrink-0" nativeButton={false}>
+        <Link to="/friends" className={buttonClass({ variant: 'outline', className: 'shrink-0' })}>
           <Users /> Your friends
-        </Button>
+        </Link>
       </div>
     </section>
   )
