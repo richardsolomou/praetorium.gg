@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.151.6
+
+### Patch Changes
+
+- a821bf6: A unit's datasheet in the army dialog now matches the roster editor's, with its detachment rules, keywords, attachments, and model photos.
+- a821bf6: The army dialog's header takes two short lines instead of three, and on a phone an open datasheet has a back button in it that returns to the list.
+
 ## 0.151.5
 
 ### Patch Changes
