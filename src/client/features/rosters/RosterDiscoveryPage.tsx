@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Copy, ListFilter, ScrollText } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RULES_VERSION_STATUSES, type RosterDiscoveryFilter, type RulesVersionStatus } from '../../../core/rosterDiscovery'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
@@ -122,9 +122,9 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
         description="Find armies other players published, open them, and duplicate one to make it your own."
         actions={
           me ? (
-            <Button variant="outline" size="lg" render={<Link to="/rosters" />}>
+            <Link to="/rosters" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
               My rosters
-            </Button>
+            </Link>
           ) : null
         }
       />
@@ -279,9 +279,9 @@ function DiscoveredRoster({
             <Copy /> {duplicating ? 'Duplicating…' : 'Duplicate'}
           </Button>
         ) : (
-          <Button variant="outline" size="sm" render={<Link to="/sign-in" search={{ next: signInPath }} />}>
+          <Link to="/sign-in" search={{ next: signInPath }} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
             <Copy /> Sign in to duplicate
-          </Button>
+          </Link>
         )}
       </div>
     </article>

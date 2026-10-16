@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -378,13 +378,13 @@ function RosterChooser({
                       Choose a different battle size
                     </Button>
                   ) : null}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
+                  <Link
+                    to="/rosters"
+                    search={requiredLimit === null ? {} : { limit: requiredLimit }}
+                    className={buttonVariants({ variant: 'outline', size: 'sm' })}
                   >
                     Open your roster library
-                  </Button>
+                  </Link>
                 </div>
               </div>
             )}

@@ -38,11 +38,16 @@ export function PhotoLike({ entryId, photoId, name }: { entryId: string; photoId
   )
   if (!me)
     return (
-      <Button variant="ghost" size="sm" className="text-dim" render={<Link to="/sign-in" search={{ next: path }} rel="nofollow" />}>
+      <Link
+        to="/sign-in"
+        search={{ next: path }}
+        rel="nofollow"
+        className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'text-dim' })}
+      >
         <span className="sr-only">Sign in to like this photo of {name}, </span>
         {count}
         <span className="sr-only">{label}</span>
-      </Button>
+      </Link>
     )
   if (me.id === photo.owner.id)
     return (
