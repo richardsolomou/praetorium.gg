@@ -11,7 +11,6 @@ import AddFavouriteDetachmentReducer from '../add_favourite_detachment_reducer'
 import AddFavouriteFactionReducer from '../add_favourite_faction_reducer'
 import AddToCollectionReducer from '../add_to_collection_reducer'
 import ClearCollectionPhotoDeletionsReducer from '../clear_collection_photo_deletions_reducer'
-import ConfigureReducer from '../configure_reducer'
 import DeletePushTokensReducer from '../delete_push_tokens_reducer'
 import DeleteRosterReducer from '../delete_roster_reducer'
 import DeleteUserDataReducer from '../delete_user_data_reducer'
@@ -38,7 +37,6 @@ export type AddFavouriteDetachmentParams = __Infer<typeof AddFavouriteDetachment
 export type AddFavouriteFactionParams = __Infer<typeof AddFavouriteFactionReducer>
 export type AddToCollectionParams = __Infer<typeof AddToCollectionReducer>
 export type ClearCollectionPhotoDeletionsParams = __Infer<typeof ClearCollectionPhotoDeletionsReducer>
-export type ConfigureParams = __Infer<typeof ConfigureReducer>
 export type DeletePushTokensParams = __Infer<typeof DeletePushTokensReducer>
 export type DeleteRosterParams = __Infer<typeof DeleteRosterReducer>
 export type DeleteUserDataParams = __Infer<typeof DeleteUserDataReducer>

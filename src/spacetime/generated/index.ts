@@ -39,7 +39,6 @@ import AddFavouriteDetachmentReducer from './add_favourite_detachment_reducer'
 import AddFavouriteFactionReducer from './add_favourite_faction_reducer'
 import AddToCollectionReducer from './add_to_collection_reducer'
 import ClearCollectionPhotoDeletionsReducer from './clear_collection_photo_deletions_reducer'
-import ConfigureReducer from './configure_reducer'
 import DeletePushTokensReducer from './delete_push_tokens_reducer'
 import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
@@ -198,7 +197,6 @@ const reducersSchema = __reducers(
   __reducerSchema('add_favourite_faction', AddFavouriteFactionReducer),
   __reducerSchema('add_to_collection', AddToCollectionReducer),
   __reducerSchema('clear_collection_photo_deletions', ClearCollectionPhotoDeletionsReducer),
-  __reducerSchema('configure', ConfigureReducer),
   __reducerSchema('delete_push_tokens', DeletePushTokensReducer),
   __reducerSchema('delete_roster', DeleteRosterReducer),
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
