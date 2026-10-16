@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.147.4
+
+### Patch Changes
+
+- b42f3e4: Compact Praetorium text still imports after its "Exported with Praetorium.gg" footer has been removed.
+- b42f3e4: Imported army text finds the detachment when it comes after the battle size, so its enhancements are placed.
+- b42f3e4: Army text with a "Warhammer 40,000" line above the faction imports under the right faction.
+- b42f3e4: Imported army text reads "• 5 models" lines as squad sizes and skips a closing "TOTAL ARMY POINTS" line.
+- b42f3e4: Imported army text keeps working when its title has a note after the points, such as "(600 Points; Cult Icon to add in builder)".
+
 ## 0.147.3
 
 ### Patch Changes
