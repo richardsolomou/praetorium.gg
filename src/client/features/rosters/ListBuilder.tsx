@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Calculator,
@@ -39,7 +39,6 @@ import type { RosterPick } from '../../../core/roster'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
   armyReminder,
-  detachmentRuleSubject,
   reminderKey,
   reminderTimingCountsByUnit,
   remindersAfterUnitInserted,
@@ -55,7 +54,6 @@ import type { Datasheet } from '../../../contracts/catalogue'
 import { copyRoster, endRosterLoan, exportRoster, saveRoster, setRosterLocked } from '../../functions'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
-  detachmentDetailQuery,
   factionIndexQuery,
   factionQuery,
   invalidateSavedRosters,
@@ -83,6 +81,7 @@ import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitNote } from './builder/UnitNote'
 import { UnitPhoto } from './builder/UnitPhoto'
+import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { type AttachLink, canAddCopy, defaultWarlord, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
@@ -275,16 +274,7 @@ export function ListBuilder({
   })
   const { isLoading: factionLoading } = factionRead
   const faction = factionRead.data ?? (initialFaction?.id === catalogueId ? initialFaction : null)
-  const detachmentRules = useQueries({
-    queries: detachmentIds.map((id) =>
-      detachmentDetailQuery(catalogueId, faction?.detachments.find((detachment) => detachment.id === id)?.slug ?? ''),
-    ),
-    combine: useCallback(
-      (details: { data?: { rules: { name: string; description: string | null }[] } | null }[]) =>
-        detachmentIds.flatMap((id, at) => details[at]?.data?.rules.map((rule) => detachmentRuleSubject(id, rule)) ?? []),
-      [detachmentIds],
-    ),
-  })
+  const detachmentRules = useDetachmentRules(catalogueId, faction?.detachments, detachmentIds)
   const currentRules = currentRulesFor(catalogueId, factionIndex?.factions ?? [])
   // View mode simplifies the owner's roster cards and loadouts without taking away
   // their unit picker. Other readers still get the roster without builder controls.
