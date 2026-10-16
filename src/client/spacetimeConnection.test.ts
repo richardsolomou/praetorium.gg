@@ -80,7 +80,7 @@ it('reports an unexpected failure once until the subscription has recovered', as
     report,
   })
   await vi.advanceTimersByTimeAsync(0)
-  fail(new Event('error'))
+  fail(new Error('WebSocket error', { cause: new Event('error') }))
   await vi.advanceTimersByTimeAsync(5_000)
   const error = new Error('Invalid subscription')
   fail(error)

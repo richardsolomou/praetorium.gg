@@ -156,7 +156,7 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   }
   mount()
   await vi.advanceTimersByTimeAsync(0)
-  mocks.sockets[0]!.failed!(null, new Event('error'))
+  mocks.sockets[0]!.failed!(null, new Error('WebSocket error', { cause: new Event('error') }))
   await vi.advanceTimersByTimeAsync(5_000)
   const socket = mocks.sockets[1]!
   const signal = { onInsert: vi.fn(), onUpdate: vi.fn(), onDelete: vi.fn(), iter: () => [].values() }
@@ -175,7 +175,7 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   })
   socket.applied!()
   await vi.advanceTimersByTimeAsync(30_000)
-  socket.failed!(null, new Event('error'))
+  socket.failed!(null, new Error('WebSocket error', { cause: new Event('error') }))
   await vi.advanceTimersByTimeAsync(5_000)
   expect([mocks.sockets.length, mocks.captureException.mock.calls.length]).toEqual([3, 0])
 })
