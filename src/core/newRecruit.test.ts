@@ -147,4 +147,30 @@ Created with newrecruit.eu v35.46`)
       ],
     })
   })
+
+  it('reads a Praetorium compact export whose footer was removed', () => {
+    const parsed = fromNewRecruitText(`+++++++++++++++++++++++++++++++++++++++++++++++
++ ROSTER NAME: Test list
++ FACTION KEYWORD: Test Faction
++ DETACHMENT: Test Detachment
++ BATTLE SIZE: 1000pts
++ TOTAL ARMY POINTS: 600pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+1x Test Leader (60 pts): Warlord
+• 1x Test weapon: with a colon
+Roster entry: 1`)
+
+    expect(parsed?.units).toEqual([
+      {
+        name: 'Test Leader',
+        models: 1,
+        entry: 1,
+        leading: null,
+        leader: null,
+        warlord: true,
+        selections: [{ name: 'Test weapon: with a colon', count: 1 }],
+      },
+    ])
+  })
 })
