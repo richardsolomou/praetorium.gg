@@ -9,7 +9,7 @@ import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { migrateProductData } from './lib/productDataMigrations'
 import { reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack'
 
-const cli = process.env.SPACETIME_BIN ?? path.join(os.homedir(), '.local/share/spacetime/bin/2.7.0/spacetimedb-cli')
+const cli = process.env.SPACETIME_BIN ?? path.join(os.homedir(), '.local/share/spacetime/bin/2.11.0/spacetimedb-cli')
 const execute = promisify(execFile)
 const fixture = `
 export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx, { broken }) => {

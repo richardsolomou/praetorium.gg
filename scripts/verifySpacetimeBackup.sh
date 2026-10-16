@@ -68,7 +68,7 @@ docker run --detach --name praetorium-backup-readback \
   --env HOME=/tmp \
   --publish 127.0.0.1:3301:3000 \
   --volume "$work/data:/data" --volume "$work/identity:/identity" \
-  clockworklabs/spacetime:v2.7.0-hotfix3 \
+  clockworklabs/spacetime:v2.11.0 \
   start --data-dir /data --listen-addr 0.0.0.0:3000 \
   --jwt-priv-key-path /identity/id_ecdsa --jwt-pub-key-path /identity/id_ecdsa.pub > /dev/null
 

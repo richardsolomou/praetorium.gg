@@ -144,8 +144,8 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
         id: spacetime
         with:
-          version: '2.7.0-hotfix3'
-          sha256: d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831
+          version: '2.11.0'
+          sha256: fe4645f3abc96a5386ebe98879bba0bea2d0bf56ad7612c322e36a7b93ba04d0
       - name: Run catalogue smoke tests
         env:
           SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
@@ -204,8 +204,8 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
         id: spacetime
         with:
-          version: '2.7.0-hotfix3'
-          sha256: d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831
+          version: '2.11.0'
+          sha256: fe4645f3abc96a5386ebe98879bba0bea2d0bf56ad7612c322e36a7b93ba04d0
       - name: Run the E2E shard
         env:
           E2E_SHARD: ${{ matrix.runner }}
