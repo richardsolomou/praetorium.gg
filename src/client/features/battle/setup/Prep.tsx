@@ -104,7 +104,8 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   const recorded = captain.stratagems.map((stratagem) => stratagem.key).join()
   const wanted = stratagems.map((stratagem) => stratagem.key).join()
   // The write in flight. Effects re-run before it lands, and another side's write can
-  // land first, so without this the same write goes out twice; a failed one may retry.
+  // land first, so without this the same write goes out twice. Once it settles, the
+  // screen it brings decides whether anything is still owed.
   const sent = useRef<string | null>(null)
   useEffect(() => {
     // The deck is part of what a write records, and it comes from the references rather
@@ -129,8 +130,8 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
       {},
       {
         background: true,
-        complete: (appended) => {
-          if (!appended && sent.current === attempt) sent.current = null
+        complete: () => {
+          if (sent.current === attempt) sent.current = null
         },
       },
     )
