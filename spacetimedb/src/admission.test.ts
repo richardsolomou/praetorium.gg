@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { admitConnection, type AdmissionClaims } from './admission'
+import { admitConnection, authConfiguration, type AdmissionClaims } from './admission'
 
 const NOW = 1_000_000n
 const SENDER = 'c200'.padEnd(64, '0')
@@ -77,5 +77,36 @@ describe('admitConnection', () => {
 
   it('lets the owner and the configured operator in without a token', () => {
     expect(admit(null, { trusted: true }).kind).toBe('trusted')
+  })
+})
+
+describe('authConfiguration', () => {
+  const env = { AUTH_ISSUER: ISSUER, AUTH_AUDIENCE: AUDIENCE, OPERATOR_IDENTITY: SENDER }
+
+  it.each([
+    ISSUER,
+    `https://pr-7.preview.praetorium.gg/api/auth/preview/${'a'.repeat(40)}`,
+    'http://127.0.0.1:3000/api/auth',
+    'http://localhost/api/auth',
+  ])('accepts the issuer %s', (issuer) => {
+    expect(authConfiguration({ ...env, AUTH_ISSUER: issuer })).toEqual({ issuer, audience: AUDIENCE, operator: SENDER })
+  })
+
+  it.each([
+    ['', 'an empty issuer'],
+    ['http://praetorium.gg/api/auth', 'a public issuer without HTTPS'],
+    ['https://praetorium.gg/api/auth/other', 'another path'],
+    ['https://user@praetorium.gg/api/auth', 'credentials'],
+    [`https://${'a'.repeat(250)}.gg/api/auth`, 'an overlong issuer'],
+  ])('refuses %j (%s)', (issuer) => {
+    expect(() => authConfiguration({ ...env, AUTH_ISSUER: issuer })).toThrow('Invalid auth configuration')
+  })
+
+  it.each(['', 'Praetorium', '-praetorium'])('refuses the audience %j', (audience) => {
+    expect(() => authConfiguration({ ...env, AUTH_AUDIENCE: audience })).toThrow('Invalid auth configuration')
+  })
+
+  it.each(['', 'C200'.padEnd(64, '0'), SENDER.slice(1)])('refuses the operator identity %j', (operator) => {
+    expect(() => authConfiguration({ ...env, OPERATOR_IDENTITY: operator })).toThrow('Invalid auth configuration')
   })
 })

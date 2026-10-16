@@ -34,8 +34,8 @@ RUN --mount=type=cache,target=/root/.cache/praetorium/runtime \
         --directory .output/public --release-name praetorium-web --release-version "$GITHUB_SHA"; \
     fi; \
     find .output/public -type f -name '*.map' -delete
-ADD --checksum=sha256:d25c6c9e4ec5d52fe43cd7d37aaf43b9f4d4fa2d228b6ecd241ba75bdae99831 https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.7.0-hotfix3/spacetime-x86_64-unknown-linux-gnu.tar.gz /tmp/spacetime-amd64.tar.gz
-ADD --checksum=sha256:befd13f796d93d0c5b7c1751c73d15cfd0821990e95dd9059bf1563d344ba9ea https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.7.0-hotfix3/spacetime-aarch64-unknown-linux-gnu.tar.gz /tmp/spacetime-arm64.tar.gz
+ADD --checksum=sha256:154853dd882abe1e6f8b96e169f9ca43a075df006dd33116b85d03c59a912f89 https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.12.0/spacetime-x86_64-unknown-linux-gnu.tar.gz /tmp/spacetime-amd64.tar.gz
+ADD --checksum=sha256:3dd4785cf525d1029ab61177db2dc8cd303e04a73728ee611f5e1f4d2065b4ab https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.12.0/spacetime-aarch64-unknown-linux-gnu.tar.gz /tmp/spacetime-arm64.tar.gz
 ARG BUILDARCH
 RUN tar -xzf "/tmp/spacetime-$BUILDARCH.tar.gz" -C /tmp spacetimedb-cli && /tmp/spacetimedb-cli build -p spacetimedb && rm -rf node_modules
 # Nitro traced the build platform's native binary; the target platform's copy is added below.

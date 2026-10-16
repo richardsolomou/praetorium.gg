@@ -150,8 +150,8 @@ importers:
         specifier: 0.32.0
         version: 0.32.0
       spacetimedb:
-        specifier: 2.7.0
-        version: 2.7.0(@tanstack/react-query@5.102.8(react@19.2.8))(react@19.2.8)
+        specifier: 2.12.0
+        version: 2.12.0(@tanstack/react-query@5.102.8(react@19.2.8))(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -320,8 +320,8 @@ importers:
   spacetimedb:
     dependencies:
       spacetimedb:
-        specifier: 2.7.0
-        version: 2.7.0(@tanstack/react-query@5.102.8(react@19.2.8))(react@19.2.8)
+        specifier: 2.12.0
+        version: 2.12.0(@tanstack/react-query@5.102.8(react@19.2.8))(react@19.2.8)
     devDependencies:
       typescript:
         specifier: ^7.0.2
@@ -6776,11 +6776,6 @@ packages:
       preact-render-to-string:
         optional: true
 
-  prettier@3.9.6:
-    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
-    engines: {node: '>=14'}
-    hasBin: true
-
   prettier@3.9.9:
     resolution: {integrity: sha512-Z/CJHIkdujO/OtN7nXUii0Rf3VT5SRuhjBA82Xvu2XhBUgX3nhP67T0LHceBdQLex7OOFGTox+Q5Yg8Jk2Qivg==}
     engines: {node: '>=14'}
@@ -7258,8 +7253,8 @@ packages:
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
-  spacetimedb@2.7.0:
-    resolution: {integrity: sha512-WY1bp8RfzdPilo4XbwHvjAMWZS4WeGT+QGEQyyEJSgylEurUOerYx1rxr0M6LWpuwA0dcM/FRL7sGpx8TV7nOA==}
+  spacetimedb@2.12.0:
+    resolution: {integrity: sha512-dUaSih1l+A0qZISPM5Yy3GPvfSq28MSdp7Y7+llxP7eZmHPqFvbg3iBGFTnHwvLMUS4WvNwEJbR0u2DQiT7EVg==}
     peerDependencies:
       '@angular/core': '>=17.0.0'
       '@tanstack/react-query': ^5.0.0
@@ -14525,8 +14520,6 @@ snapshots:
 
   preact@10.29.8: {}
 
-  prettier@3.9.6: {}
-
   prettier@3.9.9: {}
 
   pretty-format@29.7.0:
@@ -15116,12 +15109,12 @@ snapshots:
 
   space-separated-tokens@2.0.2: {}
 
-  spacetimedb@2.7.0(@tanstack/react-query@5.102.8(react@19.2.8))(react@19.2.8):
+  spacetimedb@2.12.0(@tanstack/react-query@5.102.8(react@19.2.8))(react@19.2.8):
     dependencies:
       base64-js: 1.5.1
       headers-polyfill: 4.0.3
       object-inspect: 1.13.4
-      prettier: 3.9.6
+      prettier: 3.9.9
       pure-rand: 7.0.1
       safe-stable-stringify: 2.5.0
       statuses: 2.0.2

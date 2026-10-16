@@ -20,8 +20,13 @@ export function isRealtimeServiceUnavailable(error: unknown): error is RealtimeH
   return error instanceof RealtimeHttpError && error.status >= 500
 }
 
+function isSocketErrorEvent(value: unknown) {
+  return typeof Event !== 'undefined' && value instanceof Event && value.type === 'error'
+}
+
 export function isExpectedRealtimeDisconnect(error: unknown): boolean {
-  if (typeof Event !== 'undefined' && error instanceof Event && error.type === 'error') return true
+  // The SDK wraps the browser's socket error event in an Error.
+  if (isSocketErrorEvent(error) || (error instanceof Error && isSocketErrorEvent(error.cause))) return true
   if (isRealtimeServiceUnavailable(error)) return true
   if (error instanceof RealtimeHttpError) return error.status === 401 || error.status === 408 || error.status === 429
   if (isFetchNetworkFailure(error)) return true
@@ -29,5 +34,10 @@ export function isExpectedRealtimeDisconnect(error: unknown): boolean {
   const { name, message } = error as { name?: unknown; message?: unknown }
   if (name === 'UnauthorizedError' || name === 'TimeoutError') return true
   if (typeof message !== 'string') return false
-  return message.includes('connection closed') || message.startsWith('Failed to verify token')
+  return (
+    message.includes('connection closed') ||
+    message.startsWith('WebSocket closed') ||
+    message === 'Session busy' ||
+    message.startsWith('Failed to verify token')
+  )
 }

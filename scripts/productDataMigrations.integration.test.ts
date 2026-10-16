@@ -8,8 +8,9 @@ import { expect, it, vi } from 'vitest'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { migrateProductData } from './lib/productDataMigrations'
 import { reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack'
+import { moduleEnvironment } from './lib/spacetimeEnvironment'
 
-const cli = process.env.SPACETIME_BIN ?? path.join(os.homedir(), '.local/share/spacetime/bin/2.7.0/spacetimedb-cli')
+const cli = process.env.SPACETIME_BIN ?? path.join(os.homedir(), '.local/share/spacetime/bin/2.12.0/spacetimedb-cli')
 const execute = promisify(execFile)
 const fixture = `
 export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx, { broken }) => {
@@ -71,9 +72,14 @@ it.skipIf(!existsSync(cli))(
       await vi.waitFor(async () => expect((await fetch(`${url}/v1/database/${database}`)).status).toBe(404), { timeout: 15_000 })
       const identity = (await (await fetch(`${url}/v1/identity`, { method: 'POST' })).json()) as { identity: string; token: string }
       const send = async (pathname: string, body: BodyInit, token = identity.token, method: 'POST' | 'PUT' = 'POST') => {
+        const headers = new Headers(
+          method === 'PUT' ? moduleEnvironment({ issuer: `${url}/api/auth`, audience: database, operator: identity.identity }) : [],
+        )
+        headers.set('authorization', `Bearer ${token}`)
+        headers.set('content-type', pathname === '/sql' ? 'text/plain' : 'application/json')
         const response = await fetch(`${url}/v1/database/${database}${pathname}`, {
           method,
-          headers: { authorization: `Bearer ${token}`, 'content-type': pathname === '/sql' ? 'text/plain' : 'application/json' },
+          headers,
           body,
           signal: AbortSignal.timeout(10_000),
         })
@@ -81,7 +87,6 @@ it.skipIf(!existsSync(cli))(
         return response
       }
       await send('?host_type=Js', await readFile(path.join(root, 'spacetimedb/dist/bundle.js')), identity.token, 'PUT')
-      await send('/call/configure', JSON.stringify([`${url}/api/auth`, database, identity.identity]))
       await send('/call/seed_migration_fixture', '[true]')
       const source = { url, database, ownerToken: identity.token, operatorToken: identity.token }
       const rawRoster = async (id: string) =>

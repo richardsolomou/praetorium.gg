@@ -6,7 +6,13 @@ const mocks = vi.hoisted(() => ({
   getQueryData: vi.fn(),
   captureException: vi.fn(),
   useQuery: vi.fn(),
-  sockets: [] as { connected?: (current: unknown) => void; failed?: (current: unknown, error: unknown) => void; applied?: () => void }[],
+  sockets: [] as {
+    connected?: (current: unknown) => void
+    failed?: (current: unknown, error: unknown, retrying?: number) => void
+    dropped?: (current: unknown, error?: unknown, retrying?: number) => void
+    renew?: () => Promise<string>
+    applied?: () => void
+  }[],
 }))
 
 vi.mock('react', () => ({
@@ -34,11 +40,19 @@ vi.mock('../spacetime/generated', () => ({
         withUri: () => builder,
         withDatabaseName: () => builder,
         withToken: () => builder,
+        withAutomaticReconnect: () => builder,
+        withTokenProvider: (provider: typeof socket.renew) => {
+          socket.renew = provider
+          return builder
+        },
         onConnect: (callback: typeof socket.connected) => {
           socket.connected = callback
           return builder
         },
-        onDisconnect: () => builder,
+        onDisconnect: (callback: typeof socket.dropped) => {
+          socket.dropped = callback
+          return builder
+        },
         onConnectError: (callback: typeof socket.failed) => {
           socket.failed = callback
           return builder
@@ -142,7 +156,7 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   }
   mount()
   await vi.advanceTimersByTimeAsync(0)
-  mocks.sockets[0]!.failed!(null, new Event('error'))
+  mocks.sockets[0]!.failed!(null, new Error('WebSocket error', { cause: new Event('error') }))
   await vi.advanceTimersByTimeAsync(5_000)
   const socket = mocks.sockets[1]!
   const signal = { onInsert: vi.fn(), onUpdate: vi.fn(), onDelete: vi.fn(), iter: () => [].values() }
@@ -161,7 +175,7 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   })
   socket.applied!()
   await vi.advanceTimersByTimeAsync(30_000)
-  socket.failed!(null, new Event('error'))
+  socket.failed!(null, new Error('WebSocket error', { cause: new Event('error') }))
   await vi.advanceTimersByTimeAsync(5_000)
   expect([mocks.sockets.length, mocks.captureException.mock.calls.length]).toEqual([3, 0])
 })
@@ -328,4 +342,44 @@ it.each([401, 403, 404])('stops asking for a battle ticket the viewer is refused
   mount()
   await vi.advanceTimersByTimeAsync(5 * 60_000)
   expect(fetch).toHaveBeenCalledOnce()
+})
+
+it.each(['product', 'battle'] as const)('keeps a %s connection while the SDK reconnects its socket', async (surface) => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  if (surface === 'product') useSpacetimeLiveProduct(product, true)
+  else useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply()
+  mocks.sockets[0]!.dropped!(null, new Error('WebSocket closed (code 1006)'), 1)
+  await vi.advanceTimersByTimeAsync(60_000)
+  expect(mocks.sockets.length).toBe(1)
+})
+
+it.each(['product', 'battle'] as const)('replaces a %s connection the SDK has given up on', async (surface) => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  if (surface === 'product') useSpacetimeLiveProduct(product, true)
+  else useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply()
+  mocks.sockets[0]!.dropped!(null, new Error('WebSocket closed (code 1002)'))
+  await vi.advanceTimersByTimeAsync(5_000)
+  expect(mocks.sockets.length).toBe(2)
+})
+
+it('reconnects with a freshly issued token', async () => {
+  const fetch = vi.fn(async () =>
+    Response.json({
+      token: `ticket-${fetch.mock.calls.length}`,
+      database: 'test',
+      uri: 'https://praetorium.gg/spacetime/',
+      battleId: null,
+    }),
+  )
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveProduct(product, true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(await mocks.sockets[0]!.renew!()).toBe('ticket-2')
 })
