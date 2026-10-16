@@ -170,11 +170,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
   }
 
   const entrants = !accepted.length ? (
-    <div className="border border-edge bg-panel px-5 py-9 text-center">
-      <UserPlus className="mx-auto size-7 text-faint" />
-      <p className="mt-3 font-bold uppercase">No entrants yet</p>
-      <p className="mt-1 text-sm text-dim">Share the invite link to fill it.</p>
-    </div>
+    <p className="text-sm text-dim">No entrants yet. Share the invite link to fill it.</p>
   ) : league.format === '2v1' || league.format === '2v2' ? (
     <div className="space-y-4">
       {groups.map((group) => {

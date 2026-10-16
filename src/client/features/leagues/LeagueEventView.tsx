@@ -207,7 +207,8 @@ export function LeagueEventView({
   // A pair names the card it sealed once the reader may see it: its own members before the reveal, everyone after.
   const pairNames = (members: LeagueEntryView[]) => {
     const card = league.entries.find((entry) => entry.userId === members[0]?.userId)?.team?.disposition
-    const named = card ? (gameReferences?.dispositions.find((disposition) => disposition.id === card)?.name ?? card) : null
+    // Waits for the references rather than flashing the card's id.
+    const named = card && gameReferences ? (gameReferences.dispositions.find((disposition) => disposition.id === card)?.name ?? card) : null
     return [formatNames(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
   }
   const groups = entrantGroups(league, accepted, pairNames)
@@ -220,11 +221,7 @@ export function LeagueEventView({
     <section>
       <SectionHeading title="Entrants" count={accepted.length} />
       {!accepted.length ? (
-        <div className="border border-edge bg-panel px-5 py-9 text-center">
-          <UserPlus className="mx-auto size-7 text-faint" />
-          <p className="mt-3 font-bold uppercase">No entrants yet</p>
-          <p className="mt-1 text-sm text-dim">Players show up here once they’re in.</p>
-        </div>
+        <p className="text-sm text-dim">No entrants yet. Players show up here once they’re in.</p>
       ) : (
         <div className="space-y-4">
           {groups.map((group) =>
@@ -289,7 +286,7 @@ export function LeagueEventView({
             <section>
               {eventBattles.length ? (
                 <>
-                  <BattleShelf title="Battles" battles={eventBattles} />
+                  <BattleShelf title="Battles" battles={eventBattles} viewerId={viewerId ?? undefined} />
                   {battleHistory.hasNextPage ? (
                     <Button
                       className="mt-2"
@@ -307,11 +304,7 @@ export function LeagueEventView({
               ) : (
                 <>
                   <SectionHeading title="Battles" count={0} />
-                  <div className="border border-edge bg-panel px-5 py-7 text-center">
-                    <Swords className="mx-auto size-7 text-faint" />
-                    <p className="mt-3 font-bold uppercase">No battles yet</p>
-                    <p className="mt-1 text-sm text-dim">Battles started from this page show up here.</p>
-                  </div>
+                  <p className="text-sm text-dim">No battles yet. Battles started from this page show up here.</p>
                 </>
               )}
             </section>

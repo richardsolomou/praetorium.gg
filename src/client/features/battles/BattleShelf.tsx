@@ -104,7 +104,8 @@ export function BattleShelf({
                     <Side side={ours} viewerId={viewerId} className="order-2 sm:order-none" />
                     <span className="order-1 flex items-center justify-between gap-3 sm:order-none sm:flex-col sm:justify-center sm:gap-1.5">
                       <span className={`chip ${stage.tint}`}>{stage.name}</span>
-                      <span className="figure text-3xl leading-none font-bold">
+                      {/* Stacked sides on a phone have nothing between them for "vs" to stand for. */}
+                      <span className={`figure text-3xl leading-none font-bold ${scored ? '' : 'max-sm:hidden'}`}>
                         {scored ? (
                           <>
                             <span className="text-side-a">{a}</span>
@@ -121,7 +122,12 @@ export function BattleShelf({
                         </span>
                       ) : null}
                     </span>
-                    <Side side={theirs} viewerId={viewerId} mirrored className="order-3 sm:order-none" />
+                    <Side
+                      side={theirs}
+                      viewerId={viewerId}
+                      mirrored
+                      className="order-3 max-sm:border-t max-sm:border-edge max-sm:pt-3 sm:order-none"
+                    />
                   </span>
                   <span
                     className={`flex min-w-0 items-center justify-between gap-3 border-t border-edge bg-sunken/40 py-1.5 pl-4 text-2xs text-faint ${canDelete ? 'pr-10' : 'pr-4'}`}
