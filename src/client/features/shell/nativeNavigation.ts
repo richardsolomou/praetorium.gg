@@ -46,7 +46,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   if (root === 'leagues') {
     return id
       ? { back: { href: '/leagues', label: 'Back to leagues', preferHistory: true }, section: 'leagues', title: 'League' }
-      : { section: 'leagues', title: 'Leagues' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'leagues', title: 'Leagues' }
   }
   if (root === 'factions') {
     if (!id) return { section: 'factions', title: 'Factions' }
@@ -95,7 +95,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
       : { section: 'missions', title: 'Missions' }
   }
   if (root === 'rules') {
-    if (!id) return { section: 'rules', title: 'Rules' }
+    if (!id) return { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'rules', title: 'Rules' }
     if (child) {
       return { back: { href: `/rules/${id}`, label: 'Back to contents', preferHistory: true }, section: 'rules', title: 'Rules' }
     }
@@ -108,12 +108,13 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
           section: 'missions',
           title: 'Force disposition',
         }
-      : { section: 'missions', title: 'Force dispositions' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'missions', title: 'Force dispositions' }
   }
   if (root === 'more') return { title: 'More' }
   if (root === 'simulator') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Combat simulator' }
   if (root === 'profile') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }
-  if (root === 'leaderboard') return { section: 'leaderboard', title: 'Leaderboard' }
+  if (root === 'leaderboard')
+    return { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'leaderboard', title: 'Leaderboard' }
   if (root === 'users') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }
   if (root === 'friends') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Friends' }
   if (root === 'admin') return { back: { href: '/profile', label: 'Back to profile', preferHistory: true }, title: 'Admin' }
