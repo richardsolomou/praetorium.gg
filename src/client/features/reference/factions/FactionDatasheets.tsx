@@ -1,8 +1,9 @@
 import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Outlet, useParams, useRouterState } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, FileSearch } from 'lucide-react'
+import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useState } from 'react'
 import type { UnitSummary } from '../../../../contracts/catalogue'
 import { factionDatasheetsQuery, meQuery } from '../../../queries'
@@ -42,13 +43,19 @@ export function FactionDatasheets() {
         media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
       />
       <PageContent>
-        <FactionReferenceLink
-          to="/factions/$catalogueId"
-          params={{ catalogueId: faction.slug }}
-          className="eyebrow flex items-center gap-1 text-info hover:text-bone"
-        >
-          <ChevronLeft className="size-3.5" /> {faction.references[0]?.name ?? faction.displayName}
-        </FactionReferenceLink>
+        <Breadcrumb>
+          <BreadcrumbList className="eyebrow gap-1 text-info">
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="text-dim" />
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
+                {faction.displayName}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         <SearchField
           onboarding="datasheet-search"
           className="mt-4"

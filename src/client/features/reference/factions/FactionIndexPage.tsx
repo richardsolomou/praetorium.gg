@@ -60,13 +60,15 @@ export function FactionIndexPage() {
           label="Find a faction"
           clearLabel="Empty the faction filter"
         />
-        <FactionShelf
-          title="Favourites"
-          entries={favouriteFactions}
-          versions={data.factions}
-          favourites={favourites}
-          onFavourite={me ? toggleFavourite : undefined}
-        />
+        {favouriteFactions.length ? (
+          <FactionShelf
+            title="Favourites"
+            entries={favouriteFactions}
+            versions={data.factions}
+            favourites={favourites}
+            onFavourite={me ? toggleFavourite : undefined}
+          />
+        ) : null}
         {matching.length ? (
           [...groups.entries()]
             .toSorted(([left], [right]) => left.localeCompare(right))
@@ -125,88 +127,87 @@ function FactionShelf({
         <span>{title}</span>
         <span className="readout">{entries.length}</span>
       </p>
-      {entries.length ? (
-        <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
-          {entries.map((entry) => {
-            const editions = versions
-              .filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id))
-              .toSorted((left, right) => Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)))
-            return (
-              <div
-                key={entry.id}
-                data-onboarding="faction-entry"
-                data-faction={entry.displayName}
-                className="flex items-center border-l-2"
-                style={{ borderLeftColor: factionColour(entry.slug, entry.displayName) }}
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
-                  <FactionMark id={entry.slug} name={entry.displayName} edition={entry.edition} icon={entry.icon} />
-                  <div className="min-w-0 flex-1">
-                    <FactionReferenceLink
-                      to="/factions/$catalogueId"
-                      params={{ catalogueId: entry.slug }}
-                      className="block truncate font-bold uppercase"
-                    >
-                      {entry.displayName}
-                    </FactionReferenceLink>
-                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-dim">
-                      <span>{entry.references[0]?.detachments ?? 0} detachments</span>
-                      {editions.length > 1 ? (
-                        <>
-                          <span aria-hidden>·</span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={<Button variant="ghost" size="sm" aria-label={`Rules versions for ${entry.displayName}`} />}
-                              className="h-auto rounded-none p-0 text-xs font-normal text-dim underline-offset-4 hover:text-bone hover:underline"
-                            >
-                              {editions.length} rules versions
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="min-w-80 max-w-[calc(100vw-2rem)]">
-                              {editions.map((version) => (
-                                <DropdownMenuItem
-                                  key={version.id}
-                                  aria-label={rulesVersionLabel(version)}
-                                  render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: version.id }} />}
-                                >
-                                  <RulesVersionLabel faction={version} />
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </>
-                      ) : null}
-                    </div>
+      <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
+        {entries.map((entry) => {
+          const detachments = entry.references[0]?.detachments ?? 0
+          const editions = versions
+            .filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id))
+            .toSorted((left, right) => Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)))
+          return (
+            <div
+              key={entry.id}
+              data-onboarding="faction-entry"
+              data-faction={entry.displayName}
+              className="flex items-center border-l-2 transition-colors hover:bg-raised"
+              style={{ borderLeftColor: factionColour(entry.slug, entry.displayName) }}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
+                <FactionMark id={entry.slug} name={entry.displayName} edition={entry.edition} icon={entry.icon} />
+                <div className="min-w-0 flex-1">
+                  <FactionReferenceLink
+                    to="/factions/$catalogueId"
+                    params={{ catalogueId: entry.slug }}
+                    className="block truncate font-bold uppercase"
+                  >
+                    {entry.displayName}
+                  </FactionReferenceLink>
+                  <div className="flex flex-wrap items-center gap-x-2 text-xs text-dim">
+                    <span>
+                      {detachments} {detachments === 1 ? 'detachment' : 'detachments'}
+                    </span>
+                    {editions.length > 1 ? (
+                      <>
+                        <span aria-hidden>·</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button variant="ghost" size="sm" aria-label={`Rules versions for ${entry.displayName}`} />}
+                            className="h-auto rounded-none p-0 text-xs font-normal text-dim underline-offset-4 hover:text-bone hover:underline"
+                          >
+                            {editions.length} rules versions
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="min-w-80 max-w-[calc(100vw-2rem)]">
+                            {editions.map((version) => (
+                              <DropdownMenuItem
+                                key={version.id}
+                                aria-label={rulesVersionLabel(version)}
+                                render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: version.id }} />}
+                              >
+                                <RulesVersionLabel faction={version} />
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    ) : null}
                   </div>
                 </div>
-                {onFavourite ? (
-                  <Toggle
-                    variant="default"
-                    size="sm"
-                    className="m-1 size-7 bg-transparent p-0"
-                    aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
-                    pressed={favourites.has(entry.id)}
-                    onPressedChange={() => onFavourite(entry.id)}
-                  >
-                    <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-dim'}`} />
-                  </Toggle>
-                ) : (
-                  <Link
-                    to="/sign-in"
-                    search={{ next: '/factions' }}
-                    className="m-1 grid size-7 place-items-center"
-                    aria-label={`Sign in to add ${entry.displayName} to favourites`}
-                  >
-                    <Heart className="size-4 text-dim" />
-                  </Link>
-                )}
-                <ChevronRight className="mr-2 size-4 text-dim" aria-hidden />
               </div>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="mt-2 text-sm text-dim">No factions match.</p>
-      )}
+              <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
+              {onFavourite ? (
+                <Toggle
+                  variant="default"
+                  size="sm"
+                  className="m-1 mr-2 size-7 bg-transparent p-0"
+                  aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
+                  pressed={favourites.has(entry.id)}
+                  onPressedChange={() => onFavourite(entry.id)}
+                >
+                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-dim'}`} />
+                </Toggle>
+              ) : (
+                <Link
+                  to="/sign-in"
+                  search={{ next: '/factions' }}
+                  className="m-1 mr-2 grid size-7 place-items-center"
+                  aria-label={`Sign in to add ${entry.displayName} to favourites`}
+                >
+                  <Heart className="size-4 text-dim" />
+                </Link>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </section>
   )
 }

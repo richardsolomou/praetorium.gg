@@ -133,13 +133,13 @@ function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
         </h2>
         <p className="rubric readout">{rules} rules</p>
       </div>
-      <div className="mt-2 grid gap-px border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel sm:grid-cols-2 lg:grid-cols-3">
         {document.sections.map((section) => (
           <Link
             key={section.id}
             to="/rules/$documentId/$sectionId"
             params={{ documentId: document.slug, sectionId: section.slug }}
-            className="flex items-center gap-2 bg-panel px-3 py-2 hover:bg-raised"
+            className="flex items-center gap-2 bg-panel px-3 py-2 ring-1 ring-edge hover:bg-raised"
           >
             <span className="min-w-0 flex-1 truncate text-sm text-bone">{section.title}</span>
             <span className="readout text-xs text-faint">{section.entries.length}</span>

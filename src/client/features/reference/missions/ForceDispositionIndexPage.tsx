@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { ChevronRight } from 'lucide-react'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { PageState } from '../../../components/PageState'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { dispositionAccent, dispositionTone } from '../../../components/rosterSetup'
 import { gameReferencesQuery } from '../../../queries'
 
 export function ForceDispositionIndexPage() {
@@ -35,10 +36,13 @@ export function ForceDispositionIndexPage() {
                 key={disposition.id}
                 to="/force-dispositions/$dispositionId"
                 params={{ dispositionId: disposition.id }}
-                className="border border-edge bg-panel p-4 hover:border-info hover:bg-raised"
+                className={`flex items-start gap-3 border border-t-[3px] border-edge bg-panel p-4 transition-colors hover:bg-raised ${dispositionAccent(disposition.id)}`}
               >
-                <h2 className={`chip ${dispositionTone(disposition.id)}`}>{disposition.name}</h2>
-                {disposition.text ? <p className="mt-3 text-sm text-dim">{disposition.text}</p> : null}
+                <div className="min-w-0 flex-1">
+                  <h2 className={`chip ${dispositionTone(disposition.id)}`}>{disposition.name}</h2>
+                  {disposition.text ? <p className="mt-3 text-sm text-dim">{disposition.text}</p> : null}
+                </div>
+                <ChevronRight className="mt-1 size-4 shrink-0 text-dim" aria-hidden />
               </Link>
             ))}
           </div>

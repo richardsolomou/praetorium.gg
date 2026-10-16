@@ -31,6 +31,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
   const editions = index?.factions.filter((entry) => currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(faction.id)) ?? []
   editions.sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
   const reference = faction.references[0]
+  const favourite = <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
   const detachments = favouriteDetachmentsFirst(
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
     faction.id,
@@ -45,9 +46,9 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         title={faction.displayName}
         media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="lg" />}
         actions={
-          <>
-            {editions.length > 1 ? (
-              <div className="min-w-80 max-w-full">
+          editions.length > 1 ? (
+            <div className="grid grid-cols-[minmax(0,20rem)_auto] items-center gap-2">
+              <div className="min-w-0">
                 <SearchableSelect
                   id="reference-edition"
                   ariaLabel="Rules version"
@@ -70,9 +71,11 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                   }}
                 />
               </div>
-            ) : null}
-            <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
-          </>
+              {favourite}
+            </div>
+          ) : (
+            favourite
+          )
         }
       />
       <PageContent>
@@ -80,8 +83,11 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
         {faction.edition ? (
-          <details className="mt-4 border border-edge bg-panel px-3 py-2">
-            <summary className="rubric cursor-pointer">Rules history</summary>
+          <details className="group mt-4 border border-edge bg-panel px-3 py-2">
+            <summary className="rubric flex cursor-pointer items-center gap-2 hover:text-bone">
+              <ChevronRight className="size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
+              Rules history
+            </summary>
             <p className="mt-2 text-sm text-dim">
               These dates record status changes in Praetorium; publisher release and effective dates can differ.
             </p>
@@ -99,12 +105,12 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             </ol>
           </details>
         ) : null}
-        <section className="mt-4">
+        <section className="mt-4 divide-y divide-edge border border-edge bg-panel">
           <FactionReferenceLink
             data-onboarding="faction-datasheets"
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
-            className="flex items-center justify-between border border-edge bg-panel px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Datasheets</span>
             <span className="flex items-center gap-3">
@@ -116,7 +122,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             to="/data-updates/$catalogueId"
             params={{ catalogueId: faction.slug }}
             search={{}}
-            className="mt-2 flex items-center justify-between border border-edge bg-panel px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Data updates</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />
@@ -124,7 +130,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
           <Link
             to="/rosters/discover"
             search={{ faction: faction.slug }}
-            className="mt-2 flex items-center justify-between border border-edge bg-panel px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Public armies</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />

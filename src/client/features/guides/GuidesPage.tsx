@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList } from '@/components/ui/breadcrumb'
 import { PRODUCT_GUIDES, type ProductGuide } from '../../../contracts/productGuides'
 import { PageContent, PageHeader } from '../../components/Page'
 import { guideVisual } from './guideVisuals'
@@ -59,13 +59,9 @@ export function GuidePage({ guide }: { guide: ProductGuide }) {
       <PageHeader eyebrow="Player guide" title={guide.title} description={guide.description} />
       <PageContent className="space-y-8 pt-6">
         <Breadcrumb>
-          <BreadcrumbList className="text-xs">
+          <BreadcrumbList className="eyebrow gap-1 text-info">
             <BreadcrumbItem>
               <BreadcrumbLink render={<Link to="/guides" />}>Player guides</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{guide.title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
