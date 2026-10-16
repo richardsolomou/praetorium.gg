@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.151.5
+
+### Patch Changes
+
+- 3175a1a: Screen readers announce button-styled links, such as Build a roster, View list, and Edit roster, as links instead of buttons.
+- a069131: Live battles and lists pick up again on their own after a dropped connection or when you come back to the app, without waiting to reconnect.
+- 84b39f0: Outlined link buttons, such as Create an account, keep their border on devices set to a light appearance.
+
 ## 0.151.4
 
 ### Patch Changes
