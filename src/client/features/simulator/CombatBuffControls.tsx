@@ -62,7 +62,7 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
             />
           </div>
         ))}
-        {rules.map((rule) => {
+        {rules.map((rule, position) => {
           const choices = combatRuleChoices(rule)
             .map((choice, index) => ({ ...choice, value: index + 1 }))
             .filter((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords)))
@@ -76,7 +76,7 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
             />
           )
           return (
-            <div key={rule.id} className="space-y-2 border-t border-edge pt-3">
+            <div key={rule.id} className={`space-y-2 ${position || enhancements.length ? 'border-t border-edge pt-3' : ''}`}>
               {choices.length === 1 ? (
                 <Toggle
                   label={rule.name}

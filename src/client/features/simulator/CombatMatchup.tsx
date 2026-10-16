@@ -557,7 +557,7 @@ export function CombatMatchup({
               {target.error}
             </p>
           ) : null}
-          <div className="grid gap-3 @xl:grid-cols-2">
+          <div className="grid gap-x-3 gap-y-6 @xl:grid-cols-2">
             {phases.map(([phase, title]) => {
               const plan = plans[phase]
               const answer = outcome?.answer[phase]
@@ -595,8 +595,7 @@ export function CombatMatchup({
                     {plan?.choices.map((choice) => (
                       <Choice
                         key={choice.key}
-                        label="Weapon profile"
-                        ariaLabel={choice.label}
+                        label={choice.label}
                         value={choice.value}
                         choices={choice.options.map((option) => [option.value, option.label] as const)}
                         onChange={(value) => {
@@ -655,11 +654,31 @@ export function CombatMatchup({
               </summary>
               <div className="pb-3">
                 <Tabs defaultValue="all" className="flex-col gap-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="rubric">Modifiers</h2>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <h2 className="sr-only">Modifiers</h2>
+                    <TabsList
+                      aria-label="Attack modifiers"
+                      className="h-11! min-w-[min(100%,24rem)] flex-1 border border-edge bg-raised p-1"
+                    >
+                      {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
+                        const active = activeCount(scope)
+                        return (
+                          <TabsTrigger
+                            key={scope}
+                            value={scope}
+                            className="min-w-0 px-2 text-sm font-semibold data-active:bg-panel data-active:text-primary"
+                          >
+                            {scope === 'all' ? null : <PhaseIcon phase={scope} />}
+                            {title}
+                            {active ? <span className="readout text-xs text-primary">{active}</span> : null}
+                          </TabsTrigger>
+                        )
+                      })}
+                    </TabsList>
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="@max-[31rem]:order-first"
                       onClick={() => {
                         setAdjustments({})
                         setPreferences({})
@@ -671,22 +690,6 @@ export function CombatMatchup({
                       Reset
                     </Button>
                   </div>
-                  <TabsList aria-label="Attack modifiers" className="h-11! w-full border border-edge bg-raised p-1">
-                    {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
-                      const active = activeCount(scope)
-                      return (
-                        <TabsTrigger
-                          key={scope}
-                          value={scope}
-                          className="min-w-0 px-2 text-sm font-semibold data-active:bg-panel data-active:text-primary"
-                        >
-                          {scope === 'all' ? null : <PhaseIcon phase={scope} />}
-                          {title}
-                          {active ? <span className="readout text-xs text-primary">{active}</span> : null}
-                        </TabsTrigger>
-                      )
-                    })}
-                  </TabsList>
                   {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
                     const weapon = weaponAdjustment(scope)
                     const set =
