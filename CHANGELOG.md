@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.150.0
+
+### Minor Changes
+
+- 1548f27: A reported photo is hidden from everyone but its owner until an administrator reviews it.
+
+### Patch Changes
+
+- 1548f27: Collection photos and profile pictures upload as JPEG and are checked by TypeSafe for content that does not belong on the service. The privacy policy now covers collection photos.
+
 ## 0.149.0
 
 ### Minor Changes
