@@ -123,7 +123,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                     <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
                   </div>
                   {view.leagueToken ? (
-                    <span className="chip shrink-0 text-achieved">League roster</span>
+                    <span className="chip shrink-0 self-start text-achieved sm:self-auto">League roster</span>
                   ) : army.isViewer || army.automated ? (
                     <div className="flex shrink-0 items-center gap-1">
                       <Button
@@ -152,7 +152,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                       ) : null}
                     </div>
                   ) : (
-                    <span className={`chip shrink-0 ${army.roster ? 'text-achieved' : 'text-dim'}`}>
+                    <span className={`chip shrink-0 self-start sm:self-auto ${army.roster ? 'text-achieved' : 'text-dim'}`}>
                       {army.roster ? 'Ready' : 'Waiting'}
                     </span>
                   )}
@@ -165,7 +165,11 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                 {army.roster && !view.settings.manual ? (
                   <div className="flex items-center justify-between gap-2 border-t border-edge pt-2 text-xs">
                     <span className={army.painted ? 'text-achieved' : 'text-dim'}>
-                      {army.painted ? 'Battle ready' : 'Not battle ready'}
+                      {army.painted
+                        ? side.armies.length === 1 && side.paintedPoints
+                          ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
+                          : 'Battle ready'
+                        : 'Not battle ready'}
                     </span>
                     <Button
                       variant="outline"
@@ -187,17 +191,15 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
               </p>
             ) : null}
             {/*
-             * The bonus is the side's and pays once, so it is said under the side rather
-             * than beside each list — an allied pair fields one army between them, and
-             * an unpainted half costs the whole side the bonus.
+             * The bonus is the side's and pays once, so an allied pair hears it under the
+             * side rather than beside each list: an unpainted half costs the whole side
+             * the bonus. A lone army says it on its own line above.
              */}
-            {view.settings.manual ? null : (
+            {view.settings.manual || side.armies.length === 1 ? null : (
               <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
                 {side.paintedPoints
                   ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
-                  : side.armies.length > 1
-                    ? `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`
-                    : 'No battle ready bonus'}
+                  : `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`}
               </p>
             )}
           </SetupSidePanel>

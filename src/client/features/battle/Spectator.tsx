@@ -362,9 +362,16 @@ function SpectatorSide({
         <ManualScore side={side} actionable={false} pending={false} send={ignoreCommand} />
       ) : (
         <>
+          {/* Drawn like the players' own panels, so the same numbers read the same to a spectator. */}
           <dl className="grid grid-cols-2 gap-2 border-y border-edge py-2">
-            <Fact label="Victory points" value={`${side.total}`} />
-            <Fact label="Command points" value={`${side.cp}`} />
+            <div className="min-w-0">
+              <dt className="eyebrow">Victory points</dt>
+              <dd className="figure text-4xl leading-none font-bold">{side.total}</dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="eyebrow">Command points</dt>
+              <dd className={`figure text-4xl leading-none font-bold ${colours.text}`}>{side.cp}</dd>
+            </div>
           </dl>
           <PrimaryMission {...cardProps} />
           <SecondaryMissions {...cardProps} />

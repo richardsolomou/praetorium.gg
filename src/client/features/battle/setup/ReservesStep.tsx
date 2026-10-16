@@ -260,7 +260,7 @@ function TransportBoarding({
     : null
 
   return (
-    <div className="mt-2 rounded-sm border border-edge px-2.5 py-2">
+    <div className="mt-2 border-t border-edge px-0.5 pt-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-3xs font-bold text-dim uppercase">Transport</span>
         {candidates.length && canBoard ? (
@@ -327,7 +327,7 @@ function TransportBoarding({
 /** One inset line inside a unit: an icon, what it says, and what can be done about it. */
 function UnitFact({ icon, label, action }: { icon: ReactNode; label: ReactNode; action: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-edge px-2.5 py-1.5">
+    <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
       <span className="inline-flex min-w-0 items-center gap-1.5">
         {icon}
         {label}

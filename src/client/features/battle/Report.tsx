@@ -191,7 +191,7 @@ function colourNames(text: string, players: readonly ReportPlayer[]) {
     typeof part === 'string' ? (
       part
     ) : (
-      <span key={part.key} className={`break-all font-semibold ${part.className}`}>
+      <span key={part.key} className={`font-semibold ${part.className}`}>
         {part.name}
       </span>
     ),

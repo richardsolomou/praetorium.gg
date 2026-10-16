@@ -528,15 +528,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           }
         >
           {youHaveAnArmy ? (
-            <SetupPanel>
-              <Battlefield
-                view={view}
-                send={send}
-                pending={busy}
-                allowedIds={mission?.deploymentIds}
-                matchup={matchupName(table, nameDisposition)}
-              />
-            </SetupPanel>
+            <Battlefield
+              view={view}
+              send={send}
+              pending={busy}
+              allowedIds={mission?.deploymentIds}
+              matchup={matchupName(table, nameDisposition)}
+            />
           ) : null}
         </SetupSection>
 

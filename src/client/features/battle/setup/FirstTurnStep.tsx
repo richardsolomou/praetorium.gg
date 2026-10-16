@@ -1,6 +1,5 @@
 import type { Command } from '../../../../core/battle'
 import type { Side } from '../../../sides'
-import { SetupPanel } from './chrome'
 import { SetupSideChoice } from './SetupSideChoice'
 
 type Props = { sides: Side[]; first: number | null; disabled: boolean; send: (command: Command) => void }
@@ -15,7 +14,7 @@ type Props = { sides: Side[]; first: number | null; disabled: boolean; send: (co
  */
 export function FirstTurnStep({ sides, first, disabled, send }: Props) {
   return (
-    <SetupPanel onboarding="battle-setup-first">
+    <div data-onboarding="battle-setup-first">
       <SetupSideChoice
         label="First turn"
         sides={sides}
@@ -28,6 +27,6 @@ export function FirstTurnStep({ sides, first, disabled, send }: Props) {
           if (captain) send({ kind: 'set-first-turn', firstPlayerId: captain })
         }}
       />
-    </SetupPanel>
+    </div>
   )
 }
