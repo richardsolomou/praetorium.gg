@@ -1,7 +1,7 @@
 import type { AppStateStatus } from 'react-native'
 
 export type AppLifecycle = {
-  status: AppStateStatus
+  status: string | null | undefined
   backgrounded: boolean
 }
 
@@ -10,7 +10,7 @@ window.dispatchEvent(new Event('online'));
 document.dispatchEvent(new Event('visibilitychange'));
 true;`
 
-export function initialAppLifecycle(status: AppStateStatus): AppLifecycle {
+export function initialAppLifecycle(status: AppLifecycle['status']): AppLifecycle {
   return { status, backgrounded: status === 'background' }
 }
 

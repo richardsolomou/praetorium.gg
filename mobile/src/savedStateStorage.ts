@@ -38,7 +38,7 @@ export function writeSavedState(name: string, value: unknown, id: string, limit:
   const generation = Math.max(Date.now(), ...previous.map((entry) => Number(entry.split('-')[0]) + 1))
   const file = new File(root, `${id}.tmp`)
   try {
-    file.write(serialized)
+    file.writeSync(serialized)
     if (file.size !== size || file.textSync() !== serialized) throw new Error('Incomplete saved-data write')
     file.moveSync(new File(root, `${generation}-${id}.json`))
   } finally {

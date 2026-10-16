@@ -35,7 +35,7 @@ export function storeOfflineReference(pack: SavedReference, id: string) {
   const file = new File(root, `${newest}-${id}.json`)
   try {
     const serialized = JSON.stringify(pack)
-    file.write(serialized)
+    file.writeSync(serialized)
     if (file.size !== new TextEncoder().encode(serialized).byteLength) throw new Error('Incomplete reference download')
   } catch (error) {
     if (file.exists) file.delete()

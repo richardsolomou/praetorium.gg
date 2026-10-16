@@ -33,7 +33,7 @@ vi.mock('expo-file-system', () => {
     get size() {
       return new TextEncoder().encode(disk.files.get(this.uri) ?? '').byteLength
     }
-    write(text: string) {
+    writeSync(text: string) {
       disk.files.set(this.uri, disk.fault === 'short' ? text.slice(0, -1) : text)
       if (disk.fault === 'write') throw new Error('Disk full')
     }
