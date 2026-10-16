@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.147.5
+
+### Patch Changes
+
+- 31ca9cc: On iPhone and Android, Back now returns from a screen opened on the homepage or the More screen to the screen that opened it.
+
 ## 0.147.4
 
 ### Patch Changes
