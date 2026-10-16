@@ -219,7 +219,7 @@ export function AdminUsersTable({
                   return (
                     <TableHead
                       key={header.id}
-                      className={cn('px-2 text-dim', numeric(column) && 'text-right')}
+                      className={cn('px-2 text-[0.8rem] text-dim', numeric(column) && 'text-right')}
                       aria-sort={sorted ? (sorted === 'desc' ? 'descending' : 'ascending') : undefined}
                     >
                       {column.getCanSort() ? (

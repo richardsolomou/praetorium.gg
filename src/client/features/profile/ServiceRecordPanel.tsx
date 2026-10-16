@@ -85,9 +85,7 @@ export function ServiceRecordPanel({
           <CareerTables record={record} />
         </div>
       ) : (
-        <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">
-          {active(filter) ? 'No battles match that.' : 'No finished battles here yet.'}
-        </p>
+        <p className="mt-2 text-sm text-dim">{active(filter) ? 'No battles match that.' : 'No finished battles here yet.'}</p>
       )}
     </section>
   )
@@ -186,9 +184,9 @@ function Tallies({ label, items }: { label: string; items: readonly TallyItem[] 
   return (
     <div>
       <p className="eyebrow">{label}</p>
-      <dl className="mt-1 grid grid-cols-2 border-t border-l border-edge bg-panel sm:grid-cols-4">
+      <dl className="mt-1 flex flex-wrap border-t border-l border-edge bg-panel">
         {items.map((item) => (
-          <div key={item.label} className="min-w-0 border-r border-b border-edge px-3 py-2.5">
+          <div key={item.label} className="min-w-0 grow basis-1/2 border-r border-b border-edge px-3 py-2.5 sm:basis-1/4">
             <dt className="eyebrow truncate text-faint">{item.label}</dt>
             <dd className={`figure mt-1 text-xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</dd>
           </div>

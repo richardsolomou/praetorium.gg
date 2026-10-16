@@ -78,7 +78,7 @@ export function Standings({ table }: { table: StandingsTable }) {
           </table>
         </div>
       ) : (
-        <p className="mt-2 border border-edge bg-panel p-5 text-sm text-dim">Nobody has finished a public battle here yet.</p>
+        <p className="mt-2 text-sm text-dim">Nobody has finished a public battle here yet.</p>
       )}
     </section>
   )
@@ -117,7 +117,7 @@ export function FactionFilter({ factions, selected }: { factions: readonly Stand
       }}
       placeholder="Everyone"
       searchPlaceholder="Search factions…"
-      className="w-full sm:w-72"
+      className="w-72 max-w-full"
     />
   )
 }

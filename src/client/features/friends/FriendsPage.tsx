@@ -93,10 +93,7 @@ export function FriendsPage() {
         </div>
 
         <section>
-          <div className="flex items-baseline justify-between border-b border-edge pb-2">
-            <p className="rubric">Find players</p>
-            <UserPlus className="size-4 text-parchment" aria-hidden />
-          </div>
+          <p className="rubric border-b border-edge pb-2">Find players</p>
           <SearchField
             onboarding="friend-search"
             className="mt-2"
@@ -125,13 +122,11 @@ export function FriendsPage() {
               </>
             ) : null}
             {tooShort ? (
-              <p className="border border-edge bg-panel p-4 text-sm text-dim">
+              <p className="py-2 text-sm text-dim">
                 {typed ? `Type at least ${PLAYER_SEARCH_MIN_LENGTH} letters of a player’s name.` : 'Type a player’s name to find them.'}
               </p>
             ) : null}
-            {!tooShort && !searching && !found.length ? (
-              <p className="border border-edge bg-panel p-4 text-sm text-dim">No player matches that name.</p>
-            ) : null}
+            {!tooShort && !searching && !found.length ? <p className="py-2 text-sm text-dim">No player matches that name.</p> : null}
           </div>
         </section>
 
@@ -233,7 +228,7 @@ function People({
             />
           ))
         ) : (
-          <p className="border border-edge bg-panel p-4 text-sm text-dim">{empty}</p>
+          <p className="py-2 text-sm text-dim">{empty}</p>
         )}
       </div>
     </section>

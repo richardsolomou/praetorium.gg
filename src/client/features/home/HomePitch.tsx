@@ -83,7 +83,7 @@ export function HomeFeatures() {
 
 export function HomeIncluded() {
   return (
-    <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
+    <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-16">
       <div className="min-w-0 border-l-2 border-parchment bg-parchment/5 p-5 sm:p-6">
         <h2 className="text-2xl leading-none text-parchment sm:text-3xl">All free. No subscription.</h2>
         <p className="mt-4 max-w-2xl font-rules text-dim">

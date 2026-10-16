@@ -38,7 +38,7 @@ export function Choice<T extends string>({
           <button
             key={option.value}
             type="button"
-            className={`border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${value === option.value ? 'border-parchment bg-raised' : 'border-edge bg-sunken hover:border-info'}`}
+            className={`flex flex-col justify-start border p-3 text-left disabled:cursor-not-allowed disabled:opacity-60 ${value === option.value ? 'border-parchment bg-raised' : 'border-edge bg-sunken hover:border-info'}`}
             aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
           >

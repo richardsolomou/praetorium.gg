@@ -170,7 +170,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 ) : null}
               </>
             ) : (
-              <p className="border border-edge bg-panel p-5 text-sm text-dim">
+              <p className="text-sm text-dim">
                 {yourself
                   ? 'None of your battles are listed here. Only the ones your sharing setting allows appear.'
                   : 'This player has no battles anyone else can watch.'}

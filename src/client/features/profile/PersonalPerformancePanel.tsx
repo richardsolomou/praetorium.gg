@@ -40,7 +40,7 @@ export function PersonalPerformancePanel({ performance }: { performance: Persona
                 ))}
               </div>
             ) : (
-              <p className="border border-edge bg-panel p-3 text-xs text-dim">No recorded {label.toLowerCase()} results.</p>
+              <p className="py-2 text-xs text-dim">No recorded {label.toLowerCase()} results.</p>
             )}
           </section>
         ))}

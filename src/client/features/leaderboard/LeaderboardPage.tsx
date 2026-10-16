@@ -23,9 +23,9 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
         eyebrow="Who is winning"
         title="Leaderboard"
         description={`Public battles from the last ${data?.days ?? 90} days, ranked by rating.`}
+        actions={<FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />}
       />
       <PageContent className="space-y-6">
-        <FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />
         <Standings table={table} />
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
         <p className="text-sm text-faint">

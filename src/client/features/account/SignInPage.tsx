@@ -111,7 +111,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
           <p className="text-sm text-dim">Sign in on any device to get back to your army lists and games.</p>
         </div>
       </aside>
-      <section className="border-b border-edge bg-panel md:border-l">
+      <section className="border-b border-edge bg-panel">
         <div className="mr-auto h-full w-full max-w-lg p-6 sm:p-8">
           <p className="eyebrow text-parchment">{joining ? 'Create account' : 'Sign in'}</p>
           <h1 className="mt-1 text-3xl">{savingRoster ? 'Save your roster' : joining ? 'Make an account' : 'Welcome back'}</h1>
@@ -217,7 +217,6 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
 
               <Button
                 variant="outline"
-                size="sm"
                 className="mt-4"
                 onClick={() => {
                   setJoining((current) => !current)
