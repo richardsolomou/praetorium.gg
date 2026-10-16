@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.151.1
+
+### Patch Changes
+
+- f639d83: A detachment page's force disposition chips link to that disposition's page.
+- f639d83: A detachment page's header no longer repeats the faction name, which the breadcrumb already shows.
+
 ## 0.151.0
 
 ### Minor Changes
