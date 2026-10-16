@@ -22,7 +22,7 @@ function fakeRepository({ refuse = false } = {}) {
     photos,
     deletions,
     setCollectionPhoto: async ({ userId, entryId, photoId }: { userId: string; entryId: string; photoId: string }) => {
-      if (refuse) throw new Error('Add the datasheet to your collection before adding a photo')
+      if (refuse) throw new Error('refused')
       photos.set(photoId, { userId, entryId, published: true })
     },
     removeCollectionPhoto: async () => undefined,
@@ -56,7 +56,7 @@ describe('collectionPhotoStore', () => {
   it('deletes the stored object when the collection refuses the photo', async () => {
     const { stored, objects } = memoryObjects()
     await expect(collectionPhotoStore(fakeRepository({ refuse: true }), () => objects).upload('owner', 'warriors', image)).rejects.toThrow(
-      'Add the datasheet',
+      'refused',
     )
     expect(stored.size).toBe(0)
   })

@@ -9,7 +9,7 @@ type Profile = Datasheet['profiles'][number]
 
 export function UnitProfile({ profile }: { profile: Profile }) {
   const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')
-  const values = profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'invulnerable-save')
+  const values = profile.values.filter((value) => !['invulnerable-save', 'base-size'].includes(datasheetCharacteristicKindOf(value)))
   return (
     <section data-slot="unit-profile">
       <ProfileGrid values={values} />

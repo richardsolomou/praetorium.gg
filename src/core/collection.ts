@@ -16,7 +16,7 @@ export function collectionDatasheets(factions: readonly CollectionFaction[]) {
 }
 
 export function groupCollection(
-  entries: readonly { entryId: string; models: number; photoId?: string }[],
+  entries: readonly { entryId: string; models: number; photoIds?: string[] }[],
   factions: readonly CollectionFaction[],
 ) {
   const sheets = collectionDatasheets(factions)
@@ -26,7 +26,7 @@ export function groupCollection(
       catalogueId: string | null
       name: string
       models: number
-      entries: { entryId: string; slug: string | null; name: string; models: number; photoId?: string }[]
+      entries: { entryId: string; slug: string | null; name: string; models: number; photoIds?: string[] }[]
     }
   >()
   for (const entry of entries) {

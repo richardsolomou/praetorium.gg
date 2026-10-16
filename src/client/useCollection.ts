@@ -63,18 +63,29 @@ export function useCollectionCountMutation() {
   })
 }
 
-/** Adds, replaces or, with no file, removes a datasheet's photo; photos need a connection, so they are never queued. */
-export function useCollectionPhotoMutation() {
+function useInvalidatePhotos() {
   const queryClient = useQueryClient()
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: collectionPhotosQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: collectionCountsQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] }),
+      queryClient.invalidateQueries({ queryKey: ['collection-profile'] }),
+    ])
+}
+
+/** Adds a photo, and with it the datasheet to the collection; photos need a connection, so they are never queued. */
+export function useCollectionPhotoUpload() {
+  const onSettled = useInvalidatePhotos()
   return useMutation({
-    mutationFn: async ({ entryId, file }: { entryId: string; file: File | null }) => {
-      if (!file) return removeCollectionPhoto({ data: { entryId } })
-      return uploadCollectionPhoto({ data: { entryId, image: await prepareCollectionPhoto(file) } })
-    },
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: collectionPhotosQuery().queryKey }),
-        queryClient.invalidateQueries({ queryKey: ['collection-profile'] }),
-      ]),
+    mutationFn: async ({ entryId, file }: { entryId: string; file: File }) =>
+      uploadCollectionPhoto({ data: { entryId, image: await prepareCollectionPhoto(file) } }),
+    onSettled,
   })
+}
+
+export function useCollectionPhotoRemoval() {
+  const onSettled = useInvalidatePhotos()
+  return useMutation({ mutationFn: (photoId: string) => removeCollectionPhoto({ data: { photoId } }), onSettled })
 }
