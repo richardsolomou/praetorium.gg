@@ -1,5 +1,5 @@
 # Every architecture shares one build, so hashed assets match across image variants; only production dependencies differ.
-FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:24.21.0-bookworm-slim AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN npm install --global pnpm@11.28.5
@@ -41,7 +41,7 @@ RUN tar -xzf "/tmp/spacetime-$BUILDARCH.tar.gz" -C /tmp spacetimedb-cli && /tmp/
 # Nitro traced the build platform's native binary; the target platform's copy is added below.
 RUN rm -r .output/server/node_modules/@libsql/linux-*
 
-FROM node:24-bookworm-slim AS dependencies
+FROM node:24.21.0-bookworm-slim AS dependencies
 RUN npm install --global pnpm@11.28.5
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -51,7 +51,7 @@ COPY spacetimedb/package.json spacetimedb/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store CI=true pnpm install --filter praetorium.gg --prod --frozen-lockfile
 RUN mkdir /native && cp -RL node_modules/.pnpm/node_modules/@libsql/linux-* /native/
 
-FROM node:24-bookworm-slim
+FROM node:24.21.0-bookworm-slim
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
 COPY --from=dependencies --chown=node:node /app/node_modules /app/node_modules
