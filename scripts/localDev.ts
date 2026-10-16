@@ -10,6 +10,7 @@ import { promisify } from 'node:util'
 import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
+import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
@@ -141,10 +142,13 @@ async function credentials(): Promise<Credentials> {
   return value
 }
 
-async function spacetime(method: string, pathname: string, credentialToken: string, body: BodyInit) {
+async function spacetime(method: string, pathname: string, credentialToken: string, body: BodyInit, extra: [string, string][] = []) {
+  const headers = new Headers(extra)
+  headers.set('authorization', `Bearer ${credentialToken}`)
+  if (typeof body === 'string') headers.set('content-type', 'application/json')
   const response = await fetch(`${spacetimeUrl}${pathname}`, {
     method,
-    headers: { authorization: `Bearer ${credentialToken}`, ...(typeof body === 'string' ? { 'content-type': 'application/json' } : {}) },
+    headers,
     body,
     signal: AbortSignal.timeout(60_000),
   })
@@ -170,12 +174,12 @@ async function configure(value: Credentials) {
   } else if (migration.status !== 404) {
     throw new Error(`Local product migration planning failed with HTTP ${migration.status}.`)
   }
-  await spacetime('PUT', `/v1/database/${database}${query}`, value.owner.token, bundle)
   await spacetime(
-    'POST',
-    `/v1/database/${database}/call/configure`,
+    'PUT',
+    `/v1/database/${database}${query}`,
     value.owner.token,
-    JSON.stringify([`${publicUrl}/api/auth`, database, value.operator.identity]),
+    bundle,
+    moduleEnvironment({ issuer: `${publicUrl}/api/auth`, audience: database, operator: value.operator.identity }),
   )
   await spacetime('POST', `/v1/database/${database}/call/operator_health`, value.operator.token, '[]')
   const migrated = await migrateProductData({

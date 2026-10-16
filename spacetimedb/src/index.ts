@@ -30,7 +30,7 @@ import {
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
-import { admitConnection } from './admission'
+import { admitConnection, authConfiguration } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
 import { DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
 import type { Roster } from '../../src/core/battle'
@@ -38,6 +38,8 @@ import { z } from 'zod'
 import { productTables } from './productSchema'
 import { productSyncRefusal } from './syncOutcome'
 
+// Auth settings live in the module environment; the issuer, audience and operator columns stay
+// because automatic migration cannot remove columns.
 const settings = table(
   { name: 'settings' },
   {
@@ -108,17 +110,20 @@ const watchedBattles = table(
   },
 )
 
-const spacetime = schema({
-  settings,
-  sessionAccess,
-  adminSessions,
-  adminRevisions,
-  revokedSession,
-  accessExpiry,
-  revocationExpiry,
-  watchedBattles,
-  ...productTables,
-})
+const spacetime = schema(
+  {
+    settings,
+    sessionAccess,
+    adminSessions,
+    adminRevisions,
+    revokedSession,
+    accessExpiry,
+    revocationExpiry,
+    watchedBattles,
+    ...productTables,
+  },
+  { env: { AUTH_ISSUER: t.string(), AUTH_AUDIENCE: t.string(), OPERATOR_IDENTITY: t.string() } },
+)
 export default spacetime
 
 type Context = ReducerCtx<InferSchema<typeof spacetime>>
@@ -151,9 +156,16 @@ function activeSession(ctx: Context) {
   return current
 }
 
+function auth(ctx: Context) {
+  try {
+    return authConfiguration(ctx.env)
+  } catch {
+    throw new SenderError('Invalid auth configuration')
+  }
+}
+
 function requireOperator(ctx: Context) {
-  const configured = ctx.db.settings.id.find(0)
-  if (!configured?.operator || ctx.sender.toHexString() !== configured.operator) throw new SenderError('Operator required')
+  if (ctx.sender.toHexString() !== auth(ctx).operator) throw new SenderError('Operator required')
 }
 
 const ROSTER_LOANS_PER_ROSTER = 100
@@ -257,39 +269,18 @@ function leagueAdminIds(ctx: Context, leagueId: string) {
 }
 
 export const init = spacetime.init((ctx) => {
+  auth(ctx)
   ctx.db.settings.insert({ id: 0, owner: ctx.sender, operator: '', issuer: '', audience: '' })
 })
 
-export const configure = spacetime.reducer({ issuer: t.string(), audience: t.string(), operator: t.string() }, (ctx, input) => {
-  const current = ctx.db.settings.id.find(0)
-  if (!current || !ctx.sender.isEqual(current.owner)) throw new SenderError('Only the database owner can configure auth')
-  const secureIssuer = /^https:\/\/[^/?#@]+\/api\/auth(?:\/preview\/[0-9a-f]{40})?$/.test(input.issuer)
-  const localIssuer = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::[0-9]{1,5})?\/api\/auth$/.test(input.issuer)
-  if (
-    input.issuer.length > 256 ||
-    (!secureIssuer && !localIssuer) ||
-    !/^[a-z0-9][a-z0-9-]{0,127}$/.test(input.audience) ||
-    !/^[0-9a-f]{64}$/.test(input.operator)
-  ) {
-    throw new SenderError('Invalid auth configuration')
-  }
-  if (current.issuer) {
-    if (current.issuer !== input.issuer || current.audience !== input.audience || current.operator !== input.operator) {
-      throw new SenderError('Auth configuration is immutable')
-    }
-    return
-  }
-  ctx.db.settings.id.update({ ...current, ...input })
-})
-
 export const onConnect = spacetime.clientConnected((ctx) => {
-  const configured = ctx.db.settings.id.find(0)
+  const { issuer, audience, operator } = auth(ctx)
   const admission = admitConnection({
-    trusted: Boolean(configured?.owner.isEqual(ctx.sender) || (configured?.operator && configured.operator === ctx.sender.toHexString())),
+    trusted: ctx.db.settings.id.find(0)?.owner.isEqual(ctx.sender) || operator === ctx.sender.toHexString(),
     senderHex: ctx.sender.toHexString(),
     jwt: ctx.senderAuth.jwt,
-    issuer: configured?.issuer,
-    audience: configured?.audience,
+    issuer,
+    audience,
     now: nowSeconds(ctx),
     maxTokenSeconds: MAX_TOKEN_SECONDS,
     isRevoked: (subject) => Boolean(ctx.db.revokedSession.subject.find(subject)),
