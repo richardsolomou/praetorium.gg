@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
-import { BookOpen, Ellipsis, ScrollText, Swords, UsersRound } from 'lucide-react'
+import { Ellipsis, House, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType, type MouseEvent, type ReactNode } from 'react'
 import { setNativeAccount, setNativeHistoryBack, setNativeNavigation } from '../../nativeBridge'
 import { historyBackStaysInTab, openedByTab } from './nativeHistory'
@@ -12,10 +12,10 @@ import { forgetTab, recallTab, rememberTab, tabLocation } from './nativeTabs'
 type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
 
 const PRIMARY_TABS: readonly Tab[] = [
+  { icon: House, label: 'Home', section: 'home', to: '/' },
   { icon: ScrollText, label: 'Rosters', section: 'rosters', to: '/rosters' },
   { icon: Swords, label: 'Battles', section: 'battles', to: '/battles' },
   { icon: UsersRound, label: 'Factions', section: 'factions', to: '/factions' },
-  { icon: BookOpen, label: 'Missions', section: 'missions', to: '/missions' },
 ]
 
 const SCROLL_REGIONS = {
@@ -54,7 +54,7 @@ export function NativeAppNavigation({
   const index = router.history.location.state.__TSR_index
   const staysInTab = Boolean(navigation.back?.preferHistory) && historyBackStaysInTab(index, state)
   const notFound = useRouterState({ select: ({ matches }) => matches.some((match) => match.status === 'notFound' || match._notFound) })
-  const moreActive = path === '/more' || (!PRIMARY_TABS.some(({ section }) => section === active) && path !== '/')
+  const moreActive = path === '/more' || !PRIMARY_TABS.some(({ section }) => section === active)
 
   useEffect(() => {
     setNativeHistoryBack(staysInTab)

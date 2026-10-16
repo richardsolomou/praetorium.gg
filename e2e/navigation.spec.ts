@@ -37,20 +37,29 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
   await expect(primary).toBeHidden()
   await expect(sections).toBeVisible()
-  await expect(sections.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Factions', 'Missions', 'More'])
-  await expect(sections.locator('[aria-current="page"]')).toHaveCount(0)
+  await expect(sections.getByRole('link')).toHaveText(['Home', 'Rosters', 'Battles', 'Factions', 'More'])
+  await expect(sections.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
   await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
 
   await more.click()
   await expect(page).toHaveURL('/more')
   await expect(more).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('link', { name: /^Home/ })).toBeVisible()
   expect(
-    await page
-      .locator('main #more-navigation-heading + div a')
-      .evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
-  ).toEqual(['/', '/leagues', '/leaderboard', '/force-dispositions', '/rules', '/simulator', '/data-updates', '/whats-new'])
+    await page.locator('main section a').evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
+  ).toEqual([
+    '/missions',
+    '/force-dispositions',
+    '/rules',
+    '/data-updates',
+    '/simulator',
+    '/leagues',
+    '/leaderboard',
+    '/guides',
+    '/whats-new',
+    '/support',
+  ])
   await page.screenshot({ path: 'test-results/more-phone.png' })
+  await expect(page.locator('[data-web-app-footer]').getByRole('link', { name: "What's new" })).toBeHidden()
   await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(1)
   await page.keyboard.press('Escape')
@@ -61,14 +70,18 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 320, height: 568 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
 
-  await sections.getByRole('link', { name: 'Missions' }).click()
+  await more.click()
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: /^Missions/ })
+    .click()
   await expect(page).toHaveURL(/\/missions\//)
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(page.getByRole('main').getByRole('link', { name: 'Force dispositions' })).toBeVisible()
   await page.screenshot({ path: 'test-results/mission-reference-phone.png' })
   await page.getByRole('main').getByRole('link', { name: 'Force dispositions' }).click()
   await expect(page).toHaveURL('/force-dispositions')
-  await expect(sections.getByRole('link', { name: 'Missions' })).toHaveAttribute('aria-current', 'page')
+  await expect(more).toHaveAttribute('aria-current', 'page')
 
   await page.setViewportSize({ width: 859, height: 844 })
   await expect(webHeader).toBeHidden()
@@ -170,7 +183,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(sections.getByRole('link', { name: 'Factions' })).toHaveAttribute('aria-current', 'page')
   await expect(sections.getByRole('link', { name: 'Battles' })).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Rosters' })).toBeVisible()
-  await expect(sections.getByRole('link', { name: 'Missions' })).toBeVisible()
+  await expect(sections.getByRole('link', { name: 'Home' })).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Leagues' })).toHaveCount(0)
   expect((await more.boundingBox())?.width).toBeGreaterThanOrEqual(44)
   expect(hydrationErrors).toEqual([])
@@ -183,7 +196,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(morePage.getByRole('link', { name: /^Leagues/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Rules/ })).toBeVisible()
-  await expect(morePage.getByRole('link', { name: /^Dispositions/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Force dispositions/ })).toBeVisible()
   await expect(morePage.getByRole('button', { name: 'Search Praetorium' })).toHaveCount(0)
   await expect(morePage.getByRole('link', { name: /^Sign in/ })).toHaveCount(0)
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
@@ -1241,9 +1254,8 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await page.mouse.wheel(0, 600)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
   const factionScroll = await page.evaluate(() => window.scrollY)
-  // The missions tab lands on the current pack, so its memory is that redirect.
-  await sections.getByRole('link', { name: 'Missions' }).click()
-  await expect(page).toHaveURL(/\/missions\//)
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
 
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets/deathwing-terminator-squad')
@@ -1253,7 +1265,7 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
 
-  await sections.getByRole('link', { name: 'Missions' }).click()
+  await sections.getByRole('link', { name: 'Battles' }).click()
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
 

@@ -266,14 +266,14 @@ export function AppShell() {
                     className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[1000px]:flex-row min-[1000px]:justify-between"
                   >
                     <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
-                    <p className="space-x-3">
-                      <Link to="/guides" className="transition-colors hover:text-bone">
+                    <p className="flex flex-wrap justify-center gap-x-3">
+                      <Link to="/guides" data-listed-in-more className="transition-colors hover:text-bone">
                         Player guides
                       </Link>
-                      <Link to="/support" className="transition-colors hover:text-bone">
+                      <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
                         Support
                       </Link>
-                      <button type="button" onClick={openFeedback} className="transition-colors hover:text-bone">
+                      <button type="button" data-listed-in-more onClick={openFeedback} className="transition-colors hover:text-bone">
                         Send feedback
                       </button>
                       <Link to="/privacy" className="transition-colors hover:text-bone">
@@ -285,10 +285,10 @@ export function AppShell() {
                       <Link to="/sources" className="transition-colors hover:text-bone">
                         Data sources
                       </Link>
-                      <Link to="/data-updates" className="transition-colors hover:text-bone">
+                      <Link to="/data-updates" data-listed-in-more className="transition-colors hover:text-bone">
                         Data updates
                       </Link>
-                      <Link to="/whats-new" className="transition-colors hover:text-bone">
+                      <Link to="/whats-new" data-listed-in-more className="transition-colors hover:text-bone">
                         What's new
                       </Link>
                     </p>

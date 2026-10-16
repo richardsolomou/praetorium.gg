@@ -1,4 +1,4 @@
-export type NativeSection = 'battles' | 'factions' | 'leaderboard' | 'leagues' | 'missions' | 'rosters' | 'rules'
+export type NativeSection = 'battles' | 'factions' | 'home' | 'leaderboard' | 'leagues' | 'missions' | 'rosters' | 'rules'
 
 type NativeNavigation = {
   back?: { href: string; label: string; preferHistory?: boolean }
@@ -92,7 +92,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
           section: 'missions',
           title: 'Mission pack',
         }
-      : { section: 'missions', title: 'Missions' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'missions', title: 'Missions' }
   }
   if (root === 'rules') {
     if (!id) return { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'rules', title: 'Rules' }
@@ -130,5 +130,5 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   if (root === 'data-updates') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Data updates' }
   if (root === 'delete-account') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Delete account' }
   if (root) return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Praetorium' }
-  return { title: 'Praetorium' }
+  return { section: 'home', title: 'Praetorium' }
 }

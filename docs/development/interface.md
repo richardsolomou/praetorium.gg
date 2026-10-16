@@ -12,6 +12,8 @@ Keep contextual help brief and learning guidance in player guides; illustrative 
 
 `src/client/features/shell` owns shared web and native navigation; `src/styles.css` owns breakpoints and safe-area dimensions, so do not duplicate them in components. Only builder screens are immersive. The desktop header folds through rem container queries because media queries ignore page text size. `src/client/textSize.ts` sets `data-text-size` from an inline head script before first paint, and styles map it to the root font size so every rem scales together.
 
+Home and Battles are separate tabs so an open battle never highlights Home. The bar holds at most five tabs: a sixth truncates labels at the larger text sizes. Everything else is listed in More, and the footer leaves out what More lists while the tabs show.
+
 `nativeTabs.ts` preserves each section's URL, route state, and scroll position, and forgets a URL that renders not-found. Scroll-restoration tests must first confirm an interactive control and then use player input such as a wheel gesture; `window.scrollTo` does not cancel the restoration retries and races with them.
 
 Compact roster panes use browser history and stop above the application tabs; closing a datasheet returns to whatever opened it with its Close button usable. Verify the full picker → datasheet → picker → roster sequence. Required battle prompts leave application navigation reachable. [Mobile](mobile.md#shell-boundaries) owns native Back behavior.

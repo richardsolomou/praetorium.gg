@@ -116,6 +116,11 @@ html[data-native-app='true'] [data-native-app-tabs] {
   display: flex;
 }
 
+/* With the tabs showing, More lists these, so the footer leaves them out. */
+html[data-native-app='true'] [data-listed-in-more] {
+  display: none;
+}
+
 /* Drawn by the server before the browser knows it is the application, which never shows it. */
 html[data-native-app='true'] [data-spectator-invite] {
   display: none;
@@ -181,6 +186,10 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
 }
 
 @media (max-width: 859px) {
+  html [data-listed-in-more] {
+    display: none;
+  }
+
   html:not([data-native-app='true']) [data-release-update] {
     bottom: calc(5rem + env(safe-area-inset-bottom));
   }
