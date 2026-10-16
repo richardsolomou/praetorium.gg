@@ -473,7 +473,7 @@ export const SCORE_SETTLEMENT_MAX = SECONDARY_HISTORY_MAX + 1
  */
 export type SecondaryMode = 'fixed' | 'tactical'
 
-export const SECONDARY_MODES: SecondaryMode[] = ['fixed', 'tactical']
+export const SECONDARY_MODES: SecondaryMode[] = ['tactical', 'fixed']
 /** How many tactical cards a side draws at the top of each of its own turns. Unresolved cards from earlier turns are kept alongside them, not replaced. */
 export const TACTICAL_HAND_SIZE = 2
 
@@ -585,11 +585,14 @@ export const customPointsBudget = (limit: number, budget: number | null | undefi
 /** What a roster may spend: its custom budget, or else its battle size's points total. */
 export const pointsBudgetOf = (roster: { limit: number; pointsBudget?: number | null }): number => roster.pointsBudget ?? roster.limit
 
-export const battleSizeName = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit} points`
+export const battleSizeName = (limit: number): string =>
+  GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit.toLocaleString('en')} points`
 
 /** The battle size whose limits apply, and beside it any custom points budget. */
 export const battleSizeLabel = (limit: number, pointsBudget?: number | null): string =>
-  pointsBudget === null || pointsBudget === undefined ? battleSizeName(limit) : `${battleSizeName(limit)} · ${pointsBudget}-point budget`
+  pointsBudget === null || pointsBudget === undefined
+    ? battleSizeName(limit)
+    : `${battleSizeName(limit)} · ${pointsBudget.toLocaleString('en')}-point budget`
 export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
 /** Name every waivable format restriction here so legality and picker filtering read the same roster waiver. */
@@ -632,7 +635,7 @@ export function formatRules(limit: number | null, pointsBudget?: number | null):
   const pointsLimit: FormatRule = {
     id: 'points-limit',
     label: 'Points limit',
-    hint: `The roster costs at most ${pointsBudget ?? limit} points`,
+    hint: `The roster costs at most ${(pointsBudget ?? limit).toLocaleString('en')} points`,
   }
   if (isKotcLimit(limit)) {
     return [
@@ -2790,7 +2793,7 @@ export function battlePointsBudget(state: TableArmies & { settings: BattleSettin
 export function battleSizeText(state: TableArmies & { settings: BattleSettings }): string | null {
   if (!state.settings.limit) return null
   const budget = battlePointsBudget(state)
-  return budget === null ? `${state.settings.limit} points` : battleSizeLabel(state.settings.limit, budget)
+  return budget === null ? `${state.settings.limit.toLocaleString('en')} points` : battleSizeLabel(state.settings.limit, budget)
 }
 
 function inferBattleSize(state: BattleState) {

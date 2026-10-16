@@ -235,7 +235,7 @@ export function personalPerformance(battles: readonly RecordBattle[], playerId: 
     }),
     sizes: rows((one) => {
       const limit = one.battle.settings.limit
-      return limit ? [{ key: String(limit), label: `${limit} points` }] : []
+      return limit ? [{ key: String(limit), label: `${limit.toLocaleString('en')} points` }] : []
     }),
   }
 }
@@ -459,7 +459,11 @@ export function recordFacets(battles: readonly RecordBattle[], playerId: string)
     add('factions', battle.factions[seat]?.slug, battle.factions[seat]?.displayName ?? '')
     for (const detachment of battle.detachments[seat] ?? []) add('detachments', detachment, detachment)
     add('missionPacks', battle.settings.missionPackId, battle.settings.missionPackId ?? '')
-    add('limits', battle.settings.limit === null ? null : String(battle.settings.limit), `${battle.settings.limit} points`)
+    add(
+      'limits',
+      battle.settings.limit === null ? null : String(battle.settings.limit),
+      `${battle.settings.limit?.toLocaleString('en')} points`,
+    )
     // One battle counts once per dimension, so a 2v2 whose pair brought the same
     // army does not tally as two battles against it.
     const seats = opposingSeats(one)

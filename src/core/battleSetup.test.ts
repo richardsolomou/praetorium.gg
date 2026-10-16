@@ -164,7 +164,7 @@ describe('battle size from saved rosters', () => {
       [ALICE, BOB],
       log([ALICE, configure()], [ALICE, army(2000, undefined, 1500)], [BOB, army(2000, undefined, 1500)]),
     )
-    expect(battleSizeText(state)).toBe('Strike Force · 1500-point budget')
+    expect(battleSizeText(state)).toBe('Strike Force · 1,500-point budget')
   })
 
   it('asks players to align armies of one battle size with different points budgets', () => {
