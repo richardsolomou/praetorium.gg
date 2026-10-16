@@ -156,8 +156,8 @@ function AppShell() {
   const [offlineView, setOfflineView] = useState<{ path: string; html: string } | null>(null)
   const [offlineRenderKey, setOfflineRenderKey] = useState(0)
   const offlinePath = useRef('/')
-  const [initialSnapshotScript] = useState(appSnapshotScript)
-  const snapshotScript = useRef(initialSnapshotScript)
+  // Read only when a web view loads, so a saved snapshot changes what the next load restores.
+  const [snapshotScript, setSnapshotScript] = useState(appSnapshotScript)
   const [historyBack, setHistoryBack] = useState(false)
   const [backSwipeGated, setBackSwipeGated] = useState(canGateBackSwipe)
   const authOpen = useRef(false)
@@ -165,11 +165,12 @@ function AppShell() {
   const battleAwakeOperation = useRef<Promise<void>>(Promise.resolve())
   const handledAuthTokens = useRef(new Set<string>())
   const lifecycle = useRef(initialAppLifecycle(AppState.currentState))
-  const shellRef = useRef(initialAppShellState(AppState.currentState === 'active'))
+  const [initialShell] = useState(() => initialAppShellState(AppState.currentState === 'active'))
+  const shellRef = useRef(initialShell)
   const loadDrainTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGeneration = useRef(0)
   const mainFrameUrl = useRef<string | null>(null)
-  const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(shellRef.current))
+  const [renderedShell, setRenderedShell] = useState(() => appShellRenderState(initialShell))
 
   const commitShell = useCallback((state: AppShellState) => {
     const shouldRender = appShellRenderChanged(shellRef.current, state)
@@ -350,7 +351,7 @@ function AppShell() {
           let saved = false
           try {
             storeAppSnapshot(action.snapshot, action.id)
-            snapshotScript.current = appSnapshotScript(action.snapshot)
+            setSnapshotScript(appSnapshotScript(action.snapshot))
             saved = true
           } catch (error) {
             captureNativeException('app_snapshot_save', error)
@@ -616,7 +617,7 @@ function AppShell() {
           allowsLinkPreview={false}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${snapshotScript.current}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
+          injectedJavaScriptBeforeContentLoaded={`${snapshotScript}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
           onLoad={() => webView.current?.injectJavaScript(nativeWatchCapabilityScript(isWatchCompanionAvailable()))}
           onMessage={({ nativeEvent }) => {
             try {
@@ -647,7 +648,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript.current}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
