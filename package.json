@@ -97,7 +97,7 @@
     "http-proxy": "1.18.1",
     "idb-keyval": "6.3.0",
     "jose": "^6.2.12",
-    "lucide-react": "^1.31.0",
+    "lucide-react": "^1.54.0",
     "nodemailer": "^10.0.14",
     "openskill": "5.0.1",
     "p-retry": "^8.0.1",
