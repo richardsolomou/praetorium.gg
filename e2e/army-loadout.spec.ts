@@ -48,22 +48,21 @@ for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel'
         await expect(second).toHaveAttribute('aria-pressed', 'true')
         await expect(select).toHaveAttribute('aria-pressed', 'false')
         await expect(loadout).toHaveCount(1)
+        await expect(army.locator('[data-army-detail] [data-unit]')).toHaveCount(0)
         await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
         await expect.poll(async () => Math.abs((await second.boundingBox())!.y - secondBefore.y)).toBeLessThan(2)
         await page.keyboard.press('Escape')
         await expect(army).toBeHidden()
       } else {
-        // A compact screen shows the datasheet in place of the list and steps through the army from it.
+        // A compact screen shows only the datasheet in place of the list, and closing it goes back to the list.
         await expect(list).toBeHidden()
-        const name = await army.locator('[data-army-detail] [data-unit]').getAttribute('data-unit')
-        await army.getByRole('button', { name: /^Next unit: / }).click()
-        await expect(army.locator('[data-army-detail] [data-unit]')).not.toHaveAttribute('data-unit', name!)
-        await army.getByRole('button', { name: /^Previous unit: / }).click()
-        await expect(army.locator('[data-army-detail] [data-unit]')).toHaveAttribute('data-unit', name!)
-        await army.getByRole('button', { name: /^Back to / }).click()
+        await expect(army.locator('[data-army-detail] [data-unit]')).toHaveCount(0)
+        await army.getByRole('button', { name: 'Close', exact: true }).click()
         await expect(list).toBeVisible()
         await expect(loadout).toHaveCount(0)
         await expect(select).toBeInViewport()
+        await army.getByRole('button', { name: 'Close', exact: true }).click()
+        await expect(army).toBeHidden()
       }
     }
   })

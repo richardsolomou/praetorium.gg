@@ -23,7 +23,7 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
   const catalogueId = selected ? (picks[selected.key]?.catalogueId ?? built.catalogueId) : built.catalogueId
 
   return (
-    <div data-army-loadout className="mt-1 min-w-0 border border-edge bg-sunken">
+    <div data-army-loadout className="min-w-0 bg-sunken">
       {isError || (!isPending && (!priced || !matches)) ? (
         <p role="alert" className="p-3 text-xs text-destructive">
           This loadout could not be loaded. Try again shortly.
