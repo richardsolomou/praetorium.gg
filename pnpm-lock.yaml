@@ -166,8 +166,8 @@ importers:
         specifier: ^1.64.0
         version: 1.64.0
       '@posthog/cli':
-        specifier: 0.14.1
-        version: 0.14.1
+        specifier: 0.18.10
+        version: 0.18.10
       '@posthog/rollup-plugin':
         specifier: 1.6.1
         version: 1.6.1(rollup@4.63.2)
@@ -305,8 +305,8 @@ importers:
         version: 13.16.1(react-native@0.86.2(@babel/core@7.29.7(supports-color@10.2.2))(@types/react@19.2.18)(react@19.2.8)(supports-color@10.2.2))(react@19.2.8)
     devDependencies:
       '@posthog/cli':
-        specifier: ^0.14.1
-        version: 0.14.1
+        specifier: ^0.18.10
+        version: 0.18.10
       '@types/react':
         specifier: ~19.2.2
         version: 19.2.18
@@ -2037,13 +2037,13 @@ packages:
   '@posthog/browser-common@0.8.3':
     resolution: {integrity: sha512-4Hlbwyn+Hioc2+pjqSGWMTDrA5XsDshssPnGfv34khPKoJaeBe2YvPvsEPoH78jezOS6Wo3LJvCPhqyolg3S8w==}
 
-  '@posthog/cli@0.14.1':
-    resolution: {integrity: sha512-gTzcKpl9TZLf0LrlLHEjChlPc9LIK1gdQG0alMnX6+b+W1mTD+6nTN0W/MeEzjT4DiKDeK8FPhc1n7dT1tWKFw==}
+  '@posthog/cli@0.16.2':
+    resolution: {integrity: sha512-h8bpf9ffBUH/Z9IoyGV+wiI+vS8rIPorKT3eKQXuzuwawO0G7Qvy+hDd7HQ9YJjHByYZ77yPPQvrSs4WsqTUCg==}
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
 
-  '@posthog/cli@0.16.2':
-    resolution: {integrity: sha512-h8bpf9ffBUH/Z9IoyGV+wiI+vS8rIPorKT3eKQXuzuwawO0G7Qvy+hDd7HQ9YJjHByYZ77yPPQvrSs4WsqTUCg==}
+  '@posthog/cli@0.18.10':
+    resolution: {integrity: sha512-WFucXcIqUL35NkH4hVlch3TBSGRRAhjqvmh2/2z8sj+HsR7e+NUiG3QT5dy9Qs1C3hVe7uWkdNU6DKyKvONAXw==}
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
 
@@ -8931,11 +8931,11 @@ snapshots:
       '@posthog/core': 1.55.0
       '@posthog/types': 1.411.1
 
-  '@posthog/cli@0.14.1':
+  '@posthog/cli@0.16.2':
     dependencies:
       detect-libc: 2.1.2
 
-  '@posthog/cli@0.16.2':
+  '@posthog/cli@0.18.10':
     dependencies:
       detect-libc: 2.1.2
 
