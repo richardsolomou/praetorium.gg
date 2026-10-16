@@ -13,7 +13,7 @@ import {
   Swords,
   Users,
 } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { SOURCE, SPONSOR } from '../../projectLinks'
 
 const FEATURES = [
@@ -74,7 +74,7 @@ export function HomeFeatures() {
           </article>
         ))}
       </div>
-      <Link to="/simulator" className={buttonVariants({ variant: 'outline', className: 'mt-6' })}>
+      <Link to="/simulator" className={buttonClass({ variant: 'outline', className: 'mt-6' })}>
         Try a combat matchup <ChevronRight aria-hidden />
       </Link>
     </section>
@@ -109,7 +109,7 @@ export function HomeIncluded() {
           Paste a Games Workshop text export from BattleBase or New Recruit, or a Praetorium exchange code. Review any unmatched units or
           options.
         </p>
-        <Link to="/rosters" className={buttonVariants({ className: 'mt-5 w-full' })}>
+        <Link to="/rosters" className={buttonClass({ className: 'mt-5 w-full' })}>
           Try importing a list
         </Link>
       </aside>
@@ -130,13 +130,13 @@ export function HomeClosing() {
           <p className="mt-5 max-w-md font-rules text-dim">Free to use, and open source.</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonVariants({ size: 'lg' })}>
+          <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonClass({ size: 'lg' })}>
             Create an account
           </Link>
-          <a href={SOURCE} className={buttonVariants({ variant: 'outline', size: 'lg' })} rel="noreferrer noopener" target="_blank">
+          <a href={SOURCE} className={buttonClass({ variant: 'outline', size: 'lg' })} rel="noreferrer noopener" target="_blank">
             <Code /> View the source
           </a>
-          <a href={SPONSOR} className={buttonVariants({ variant: 'outline', size: 'lg' })} rel="noreferrer noopener" target="_blank">
+          <a href={SPONSOR} className={buttonClass({ variant: 'outline', size: 'lg' })} rel="noreferrer noopener" target="_blank">
             <Heart /> Sponsor
           </a>
         </div>

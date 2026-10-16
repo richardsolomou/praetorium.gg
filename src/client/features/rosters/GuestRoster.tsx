@@ -4,7 +4,8 @@ import { Link, useLocation, useNavigate, useRouter } from '@tanstack/react-route
 import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { attachedUnitCount } from '../../../core/attachedUnits'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { saveRoster } from '../../functions'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
@@ -110,7 +111,7 @@ export function GuestRoster({
                   onStart(started)
                 }}
               />
-              <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonVariants({ variant: 'outline' })}>
+              <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonClass({ variant: 'outline' })}>
                 Sign in
               </Link>
             </>

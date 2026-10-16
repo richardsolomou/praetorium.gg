@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useAuthAction } from 'ras-stack/auth/react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH } from '../../../authConfig'
@@ -38,7 +39,7 @@ export function ResetPasswordPage({ token, tokenError, next }: { token?: string;
               <Link
                 to="/sign-in"
                 search={{ next, error: undefined, reset: undefined }}
-                className={buttonVariants({ className: 'mt-6 h-11 text-base' })}
+                className={buttonClass({ className: 'mt-6 h-11 text-base' })}
               >
                 Return to sign in
               </Link>

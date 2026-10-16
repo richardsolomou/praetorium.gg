@@ -3,6 +3,7 @@ import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../../components/buttonClass'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -237,14 +238,14 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
           </p>
           <AlertDialogFooter className="sm:flex-wrap">
             {confirming ? (
-              <Button
-                variant="outline"
-                nativeButton={false}
-                className="sm:mr-auto"
-                render={<Link to="/rosters/$id" params={{ id: confirming.id }} />}
+              <Link
+                to="/rosters/$id"
+                params={{ id: confirming.id }}
+                data-slot="button"
+                className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
               >
                 <Pencil /> Edit roster
-              </Button>
+              </Link>
             ) : null}
             <AlertDialogCancel disabled={pending}>Choose another</AlertDialogCancel>
             <AlertDialogAction disabled={pending} onClick={confirm}>
@@ -267,14 +268,14 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:flex-wrap">
             {overLimit ? (
-              <Button
-                variant="outline"
-                nativeButton={false}
-                className="sm:mr-auto"
-                render={<Link to="/rosters/$id" params={{ id: overLimit.id }} />}
+              <Link
+                to="/rosters/$id"
+                params={{ id: overLimit.id }}
+                data-slot="button"
+                className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
               >
                 <Pencil /> Edit roster
-              </Button>
+              </Link>
             ) : null}
             <AlertDialogCancel>Choose another</AlertDialogCancel>
           </AlertDialogFooter>
@@ -378,13 +379,13 @@ function RosterChooser({
                       Choose a different battle size
                     </Button>
                   ) : null}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    render={<Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} />}
+                  <Link
+                    to="/rosters"
+                    search={requiredLimit === null ? {} : { limit: requiredLimit }}
+                    className={buttonClass({ variant: 'outline', size: 'sm' })}
                   >
                     Open your roster library
-                  </Button>
+                  </Link>
                 </div>
               </div>
             )}

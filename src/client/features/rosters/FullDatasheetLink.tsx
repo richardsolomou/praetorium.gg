@@ -1,6 +1,6 @@
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { ExternalLink } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Datasheet } from '../../../contracts/catalogue'
 
@@ -17,7 +17,7 @@ export function FullDatasheetLink({ route }: { route: NonNullable<Datasheet['ref
             target="_blank"
             rel="noreferrer"
             aria-label="Open full datasheet in a new tab"
-            className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+            className={buttonClass({ variant: 'ghost', size: 'icon-sm' })}
           />
         }
       >
@@ -32,7 +32,7 @@ export function FullDatasheetLink({ route }: { route: NonNullable<Datasheet['ref
 
 export function FullDatasheetLinkLoading() {
   return (
-    <span data-slot="full-datasheet-link" aria-hidden className={`${buttonVariants({ variant: 'ghost', size: 'icon-sm' })} text-faint`}>
+    <span data-slot="full-datasheet-link" aria-hidden className={`${buttonClass({ variant: 'ghost', size: 'icon-sm' })} text-faint`}>
       <ExternalLink />
     </span>
   )

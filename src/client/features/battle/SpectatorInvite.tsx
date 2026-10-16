@@ -3,7 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { X } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import type { BattleView } from '../../../core/battleView'
 import { meQuery, onboardingQuery } from '../../queries'
 import { dismissSpectatorInvite, spectatorInviteOffer, spectatorInviteSuppressed, subscribeSpectatorInvite } from './spectatorInviteState'
@@ -52,12 +53,12 @@ export function SpectatorInvite({ view, className }: { view: BattleView; classNa
         </div>
         <div className="flex flex-wrap gap-2">
           {offer === 'roster' ? (
-            <Link to="/rosters" onClick={follow('roster')} className={buttonVariants({ size: 'sm', className: ACTION })}>
+            <Link to="/rosters" onClick={follow('roster')} className={buttonClass({ size: 'sm', className: ACTION })}>
               Build an army
             </Link>
           ) : null}
           {me && offer === 'battle' ? (
-            <Link to="/battles" onClick={follow('battle')} className={buttonVariants({ size: 'sm', className: ACTION })}>
+            <Link to="/battles" onClick={follow('battle')} className={buttonClass({ size: 'sm', className: ACTION })}>
               Start a battle
             </Link>
           ) : null}
@@ -68,7 +69,7 @@ export function SpectatorInvite({ view, className }: { view: BattleView; classNa
               search={{ next: '/battles', join: true }}
               rel="nofollow"
               onClick={follow('battle')}
-              className={buttonVariants({ variant: 'outline', size: 'sm', className: ACTION })}
+              className={buttonClass({ variant: 'outline', size: 'sm', className: ACTION })}
             >
               Start a battle
             </Link>

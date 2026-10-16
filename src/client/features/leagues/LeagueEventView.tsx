@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import { GAME_SIZES } from '../../../core/battle'
 import {
   leagueRegistrationFull,
@@ -364,14 +365,14 @@ export function LeagueEventView({
           </p>
           <AlertDialogFooter className="sm:flex-wrap">
             {sealing ? (
-              <Button
-                variant="outline"
-                nativeButton={false}
-                className="sm:mr-auto"
-                render={<Link to="/rosters/$id" params={{ id: sealing.id }} />}
+              <Link
+                to="/rosters/$id"
+                params={{ id: sealing.id }}
+                data-slot="button"
+                className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
               >
                 <Pencil /> Edit roster
-              </Button>
+              </Link>
             ) : null}
             <AlertDialogCancel disabled={submit.isPending}>Choose another</AlertDialogCancel>
             <AlertDialogAction
@@ -584,15 +585,16 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
         </div>
         {action ? (
           'to' in action ? (
-            <Button
-              size="lg"
-              className="w-full pointer-coarse:h-11"
-              nativeButton={false}
-              variant={action.to === '/leagues' ? 'outline' : 'default'}
-              render={action.to === '/sign-in' ? <Link to="/sign-in" search={{ next: `/leagues/${token}` }} /> : <Link to="/leagues" />}
+            <Link
+              {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/leagues/${token}` } } : { to: '/leagues' })}
+              className={buttonClass({
+                size: 'lg',
+                variant: action.to === '/leagues' ? 'outline' : 'default',
+                className: 'w-full pointer-coarse:h-11',
+              })}
             >
               {action.label}
-            </Button>
+            </Link>
           ) : (
             <Button
               size="lg"

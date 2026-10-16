@@ -2,7 +2,8 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Swords } from 'lucide-react'
 import { useState } from 'react'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
 import type { Battle } from './battle'
 import { BattleShelf } from './BattleShelf'
 import { CreateBattle } from './CreateBattle'
@@ -51,7 +52,7 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
               <CreateBattle />
             )
           ) : (
-            <Link to="/sign-in" search={{ next: '/battles' }} className={buttonVariants()}>
+            <Link to="/sign-in" search={{ next: '/battles' }} className={buttonClass()}>
               Sign in to play
             </Link>
           )
