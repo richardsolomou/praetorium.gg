@@ -35,7 +35,7 @@ let publicUrl = ''
 let spacetimeUrl = ''
 let database = ''
 const credentialsPath = path.join(root, 'credentials.json')
-const installedCli = path.join(os.homedir(), '.local/share/spacetime/bin/2.11.0/spacetimedb-cli')
+const installedCli = path.join(os.homedir(), '.local/share/spacetime/bin/2.12.0/spacetimedb-cli')
 const cli = process.env.SPACETIME_BIN ?? (existsSync(installedCli) ? installedCli : 'spacetime')
 const buildDir = path.join(root, 'build')
 const environment: NodeJS.ProcessEnv = { ...process.env, LOCAL_BUILD_DIR: buildDir, LOCAL_TEST_MODE: String(testMode) }
@@ -242,7 +242,7 @@ async function main() {
   if (!testMode) await mkdir(path.dirname(previewFile), { recursive: true })
   await writePreview()
   const { stdout } = await execute(cli, ['--version'], { signal: abort.signal })
-  if (!stdout.includes('spacetimedb tool version 2.11.0;')) throw new Error('Local development requires SpacetimeDB CLI 2.11.0')
+  if (!stdout.includes('spacetimedb tool version 2.12.0;')) throw new Error('Local development requires SpacetimeDB CLI 2.12.0')
   await product.release()
   start(
     cli,
