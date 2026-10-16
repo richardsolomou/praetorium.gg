@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.148.0
+
+### Minor Changes
+
+- 8845886: Like other players' photos. The most liked lead a datasheet's Player photos and stand in for your own in the roster builder.
+- daceddc: Add a photo of your own models to each datasheet in your collection. It shows on your Collection page and, while your collection is shared, on your profile.
+- daceddc: Datasheet pages show Player photos from shared collections, and the roster builder shows your own photo of the selected unit, or a shared one when you have none. Report a photo that should not be there from its viewer.
+
 ## 0.147.6
 
 ### Patch Changes
