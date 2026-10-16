@@ -2,7 +2,7 @@
 FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN npm install --global pnpm@11.15.0
+RUN npm install --global pnpm@11.28.5
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -42,7 +42,7 @@ RUN tar -xzf "/tmp/spacetime-$BUILDARCH.tar.gz" -C /tmp spacetimedb-cli && /tmp/
 RUN rm -r .output/server/node_modules/@libsql/linux-*
 
 FROM node:24-bookworm-slim AS dependencies
-RUN npm install --global pnpm@11.15.0
+RUN npm install --global pnpm@11.28.5
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches/ patches/
