@@ -1,5 +1,43 @@
 # praetorium
 
+## 0.152.1
+
+### Patch Changes
+
+- 3a64684: The account menu and its page are called Account settings, and each settings section is one heading with one short line.
+- 3a64684: Battle errors read as sentences, and setup and scoring prompts repeat themselves less.
+- e47292f: The battle log names the player who chose to attack, not the one who took the first turn.
+- c8028b9: The battle phase rail shows every phase name in full.
+- 3a64684: Battle setup opens with both sides facing off, puts each step in its own panel without pinned bars, names each side once, and ends with Start battle.
+- c8028b9: Battle setup steps drop the extra panel around their choice cards, and spectators see victory and command points at full size.
+- 3a64684: Roster setup offers a custom points total as a battle size choice, naming whose limits it plays by, instead of a separate budget field.
+- 5d2253d: Buttons and fields look the same on every device, and chosen setup options show their highlighted border instead of only a ring.
+- 3a64684: Data updates list each faction as a flat row instead of a card inside a card.
+- 7537003: A force disposition's page lists each faction once instead of repeating it for every rules version.
+- 3a64684: Removing a friend asks first and names the friends-only battles and lent rosters that go with it.
+- 5c8b383: Battle cards on a league page mark your seat and show Won or Lost, as they do on Battles.
+- 3a64684: Once every roster is sealed, a league's next-action card offers Reveal all rosters, and an open event lists its entrants once.
+- 3a64684: Leagues call a sealed army a roster and use the same Battle format label as new battles.
+- b1e6416: A mission matchup's header names the primary mission each side plays and jumps to it, and each side's missions and actions carry its disposition colour.
+- b1e6416: Terrain layout cards on a mission matchup fill their row, with each layout's name beside its letter.
+- 3a64684: The compact header menu lists the reference pages directly instead of opening a second menu.
+- a7be774: Battle sizes and budgets show thousands separators, such as 2,000 points.
+- 6f5294d: Profiles, friends, and the leaderboard show quiet one-line empty states, and the leaderboard's faction picker sits in its header.
+- 3a64684: Home and profiles show records in the same won, drawn, lost order.
+- 3a64684: Reference pages share one heading style, list Core Rules first, and drop repeated labels and helper text.
+- f137abf: Faction, rules, and force disposition pages lose repeated labels and stray empty shelves, and their rows gain hover states.
+- 3d0a70a: The roster name in the builder no longer sits in a filled bar, keeps its full size on desktop, and shows keyboard focus.
+- 3a64684: Roster screens name their buttons and confirmations consistently, with New roster, Keep roster, and Archive roster as the main choice when deleting.
+- 3d0a70a: Roster library and discovery filters that match nothing show one short line, and long roster names wrap on phones.
+- 3a64684: Search on a touch screen has a Cancel button, no keyboard hints, and a Retry button when search fails.
+- 3c702e1: Search results with match details no longer overlap while the list first lays out.
+- e86e975: Battle setup records each side's stratagems and primary once instead of writing the same entry twice.
+- 3a64684: Sign-up uses one name for creating an account, and Home welcomes a new player instead of welcoming them back.
+- 204b1f4: Creating an account asks for your name instead of naming you after part of your email address.
+- 35e5e44: Rosters compared in the combat simulator show their faction instead of loading it forever, and weapon choices are named.
+- 3a64684: Discarding unsynced changes is marked as destructive, says why it needs a connection, and sign-out explains when it is waiting on them.
+- 3a64684: A unit lost in battle is marked Destroyed, so it no longer reads like a battle result.
+
 ## 0.152.0
 
 ### Minor Changes
