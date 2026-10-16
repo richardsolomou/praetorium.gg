@@ -403,8 +403,8 @@ export function app(): App {
   if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && instance.hotReloadToken !== hotReloadToken) {
     useCatalogueLoaders(instance, catalogueDirectory(path.resolve(process.env.DATA_DIR ?? '/data')))
     instance.hotReloadToken = hotReloadToken
-    const ready = warm(instance)
-    instance.ready = () => ready
+    // Not warmed again here: rebuilding every catalogue projection after an edit held the
+    // dev server's only thread for minutes, so each projection rebuilds when first read.
   }
   return instance
 }

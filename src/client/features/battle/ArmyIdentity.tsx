@@ -12,10 +12,13 @@ import { FactionMark, type FactionPresentation } from '../../components/FactionM
 export function ArmyIdentity({
   army,
   list = true,
+  leading,
   linked = true,
   className = '',
 }: {
   army: Army
+  /** Read first, as one more part of the line. */
+  leading?: ReactNode
   /** Whether to name the list too. Off where the list is already the headline above. */
   list?: boolean
   /** Off where the card around it is a control: a link inside a button cannot be pressed. */
@@ -30,6 +33,7 @@ export function ArmyIdentity({
     <IdentityLine
       faction={faction ? { ...faction, edition: army.roster?.built?.edition ?? null } : undefined}
       detachmentNames={detachmentNames}
+      leading={leading}
       trailing={list ? <span className="truncate">{army.roster?.name ?? 'No list'}</span> : null}
       linked={linked}
       className={className}
@@ -59,7 +63,16 @@ export function RosterIdentity({
     const named = faction?.detachments.find((candidate) => candidate.id === id)
     return named ? [named.name] : []
   })
-  return <IdentityLine faction={faction} detachmentNames={detachmentNames} trailing={null} linked={linked} className={className} />
+  return (
+    <IdentityLine
+      faction={faction}
+      detachmentNames={detachmentNames}
+      leading={null}
+      trailing={null}
+      linked={linked}
+      className={className}
+    />
+  )
 }
 
 type Faction = FactionPresentation & {
@@ -69,17 +82,24 @@ type Faction = FactionPresentation & {
 function IdentityLine({
   faction,
   detachmentNames,
+  leading,
   trailing,
   linked,
   className,
 }: {
   faction: Faction | undefined
   detachmentNames: readonly string[]
+  leading: ReactNode
   trailing: ReactNode
   linked: boolean
   className: string
 }) {
   const parts = [
+    leading ? (
+      <span key="leading" className="truncate">
+        {leading}
+      </span>
+    ) : null,
     faction ? (
       linked ? (
         <FactionReferenceLink

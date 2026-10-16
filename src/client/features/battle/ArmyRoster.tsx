@@ -1,4 +1,4 @@
-import { Calculator, Minus, Plus, Scroll } from 'lucide-react'
+import { Calculator, ChevronLeft, Minus, Plus, Scroll } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -146,11 +146,6 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
       <BattlePromptDialog
         open={open}
         onOpenChange={(next) => {
-          // A compact screen has no room for a back bar, so closing a datasheet returns to the army.
-          if (!next && selected && window.matchMedia('(max-width: 859px)').matches) {
-            setSelectedKey(null)
-            return
-          }
           setOpen(next)
           // Minimizing keeps the unit being read; closing starts the next look from the army.
           if (!next) setSelectedKey(null)
@@ -159,12 +154,29 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
         resumeLabel="Return to army"
       >
         <BattleDialogContent data-army-roster size={sheets ? 'lg' : 'md'} fill={sheets} className={tint(side.index).border}>
-          <DialogHeader className="px-(--dialog-actions) text-center">
-            <p className="eyebrow">{army.playerName}</p>
-            <DialogTitle>{roster.name}</DialogTitle>
-            <DialogDescription render={<div />}>
-              <ArmyIdentity army={army} list={false} className="justify-center" />
-            </DialogDescription>
+          <DialogHeader className={`flex-row items-center gap-2 py-3 ${selected ? 'max-[859px]:pl-2' : ''}`}>
+            {selected ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 min-[860px]:hidden"
+                aria-label={`Back to ${roster.name}`}
+                onClick={() => setSelectedKey(null)}
+              >
+                <ChevronLeft aria-hidden />
+              </Button>
+            ) : null}
+            <div className="min-w-0 space-y-1.5">
+              {/* A compact screen shows the datasheet without its card, so the header names the unit and the army it is in. */}
+              <DialogTitle className="truncate">
+                <span className={selected ? 'max-[859px]:hidden' : ''}>{roster.name}</span>
+                {selected ? <span className="min-[860px]:hidden">{selected.name}</span> : null}
+              </DialogTitle>
+              <DialogDescription render={<div />}>
+                <ArmyIdentity army={army} list={false} leading={army.playerName} className={selected ? 'max-[859px]:hidden' : ''} />
+                {selected ? <span className="block truncate text-2xs text-dim min-[860px]:hidden">{roster.name}</span> : null}
+              </DialogDescription>
+            </div>
           </DialogHeader>
 
           {sheets ? (

@@ -1,5 +1,5 @@
-import { spawn } from 'node:child_process'
-import { open, realpath, mkdir } from 'node:fs/promises'
+import { execFileSync, spawn } from 'node:child_process'
+import { open, readFile, realpath, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
@@ -40,6 +40,21 @@ async function stop(preview: LocalDevPreview) {
   throw new Error('Development runner did not finish shutting down')
 }
 
+const installed = () => readFile(path.join(worktree, 'node_modules/.pnpm/lock.yaml'), 'utf8').catch(() => '')
+
+/**
+ * Installs what the checked-out lockfile names and says whether that changed anything.
+ * A checkout or pull can change the lockfile under a running preview, whose dependency
+ * scan then fails against the old packages and leaves pages loading forever.
+ */
+async function installPackages() {
+  const before = await installed()
+  if (before === (await readFile(path.join(worktree, 'pnpm-lock.yaml'), 'utf8'))) return false
+  console.log('The lockfile changed; installing packages')
+  execFileSync('pnpm', ['install', '--frozen-lockfile'], { cwd: worktree, stdio: 'inherit' })
+  return (await installed()) !== before
+}
+
 function print(preview: LocalDevPreview) {
   console.log(`${preview.ready ? 'Ready' : 'Starting'}: http://127.0.0.1:${preview.appPort} (Vite, PID ${preview.pid})`)
   console.log(`Data: ${preview.dataDir}\nLog: ${logFile}`)
@@ -52,7 +67,8 @@ if (command === 'status') {
   if (existing) await stop(existing)
   console.log('Development server stopped for this worktree')
 } else {
-  if (command === 'restart' && existing) {
+  const reinstalled = await installPackages()
+  if ((command === 'restart' || reinstalled) && existing) {
     assertSavedDevData(existing, {
       dataDir: environment.LOCAL_DATA_DIR ?? existing.dataDir,
       appPort: Number(environment.LOCAL_APP_PORT ?? existing.appPort),

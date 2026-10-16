@@ -25,9 +25,9 @@ for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel'
       const loadout = army.locator('[data-army-loadout]')
       await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
       await expect(loadout).toContainText('Equipped')
-      await expect(loadout.locator('[data-slot="datasheet-content"]')).toHaveCount(0)
-      await expect(loadout.locator('[data-army-abilities]')).toContainText('abilities')
-      await expect(loadout.getByRole('heading', { name: 'Attachments', exact: true })).toHaveCount(0)
+      // The roster editor's datasheet, detachment rules and keywords included.
+      await expect(loadout.locator('[data-slot="datasheet-content"]')).toContainText('abilities')
+      await expect(loadout.locator('[data-slot="datasheet-content"]')).toContainText(/Detachment rules/i)
       await expect(army.getByRole('button', { name: /^Mark .* lost$/ })).toHaveCount(0)
       await expect(loadout.getByRole('combobox')).toHaveCount(0)
       await expect(loadout.locator('[data-slot="scroll-area"]')).toHaveCount(0)
@@ -54,10 +54,10 @@ for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel'
         await page.keyboard.press('Escape')
         await expect(army).toBeHidden()
       } else {
-        // A compact screen shows only the datasheet in place of the list, and closing it goes back to the list.
+        // A compact screen shows only the datasheet in place of the list, and goes back to it from the header.
         await expect(list).toBeHidden()
         await expect(army.locator('[data-army-detail] [data-unit]')).toHaveCount(0)
-        await army.getByRole('button', { name: 'Close', exact: true }).click()
+        await army.getByRole('button', { name: /^Back to / }).click()
         await expect(list).toBeVisible()
         await expect(loadout).toHaveCount(0)
         await expect(select).toBeInViewport()

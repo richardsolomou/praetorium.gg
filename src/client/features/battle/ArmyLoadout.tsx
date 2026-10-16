@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import type { UnitState } from '../../../core/battle'
-import type { Datasheet } from '../../../contracts/catalogue'
 import type { Army } from '../../sides'
-import { priceQuery } from '../../queries'
+import { factionQuery, priceQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
 import { normalisePicks } from '../rosters/rosterPicks'
-import { AbilitySummary } from '../rosters/builder/DatasheetPanel'
-import { ProfileRules } from '../rosters/ProfileRules'
-import { referenceAbilities } from '../../datasheet'
+import { DatasheetPanel } from '../rosters/builder/DatasheetPanel'
+import { UnitPhoto } from '../rosters/builder/UnitPhoto'
+import { useDetachmentRules } from '../rosters/builder/useDetachmentRules'
 
 export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
   const built = army.roster!.built!
@@ -21,6 +20,8 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
   const selected = priced?.units[army.units.findIndex((candidate) => candidate.key === unit.key)]
   const matches = selected?.entryId === unit.entryId
   const catalogueId = selected ? (picks[selected.key]?.catalogueId ?? built.catalogueId) : built.catalogueId
+  const { data: faction } = useQuery(factionQuery(built.catalogueId))
+  const detachmentRules = useDetachmentRules(built.catalogueId, faction?.detachments, detachmentIds)
 
   return (
     <div data-army-loadout className="min-w-0 bg-sunken">
@@ -42,7 +43,21 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
             editable={false}
             embedded
             showOptions={false}
-            reference={<ArmyAbilities />}
+            footer={matches ? <UnitPhoto entryId={selected!.entryId} name={selected!.name} /> : undefined}
+            // The roster editor's datasheet, so a unit reads the same in battle as where it was built.
+            reference={
+              <DatasheetPanel
+                catalogueId={catalogueId}
+                entryId={unit.entryId ?? null}
+                detachmentIds={detachmentIds}
+                picks={picks}
+                pickIndex={selected?.key ?? null}
+                showWeapons
+                embedded
+                hideSummary
+                detachmentRules={detachmentRules}
+              />
+            }
           />
         </div>
       )}
@@ -51,17 +66,3 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
 }
 
 const ignoreEdit = () => undefined
-
-function ArmyAbilities({ providedSheet }: { providedSheet?: Datasheet | null }) {
-  if (!providedSheet) return null
-  return (
-    <div data-army-abilities className="space-y-4 border-t border-edge pt-4">
-      <AbilitySummary
-        abilities={referenceAbilities(providedSheet.abilities, providedSheet.attachments)}
-        rules={providedSheet.keywordRules}
-        unitName={providedSheet.name}
-      />
-      <ProfileRules profiles={providedSheet.profiles} rules={providedSheet.keywordRules} compact />
-    </div>
-  )
-}
