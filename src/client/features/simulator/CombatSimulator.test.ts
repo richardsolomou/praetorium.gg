@@ -23,6 +23,8 @@ vi.mock('react', async (original) => ({
     return (hooks.slots[index] ??= { current: initial })
   },
   useCallback: (callback: unknown) => callback,
+  // Layout effects finish before any event handler can run, so the double runs them at once.
+  useLayoutEffect: (effect: () => void) => effect(),
   useEffect: () => {},
 }))
 vi.mock('./useCombatant', () => ({

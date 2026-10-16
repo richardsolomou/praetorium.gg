@@ -33,7 +33,7 @@
     "react-native-webview": "13.16.1"
   },
   "devDependencies": {
-    "@posthog/cli": "^0.14.1",
+    "@posthog/cli": "^0.18.10",
     "@types/react": "~19.2.2",
     "react-dom": "19.2.8",
     "typescript": "~6.0.3"

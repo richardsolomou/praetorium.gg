@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { Check, ChevronRight, Circle, Flag, RotateCcw, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent } from '@/components/ui/popover'
@@ -74,25 +74,34 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false)
   const [focus, setFocus] = useState<OnboardingFocus | undefined>(() => storedOnboardingFocus(userId))
   const currentFocus = useRef(focus)
-  const [target, setTarget] = useState<HTMLElement | undefined>()
+  // Kept with its step, so a step that has just moved on never points at the last step's control.
+  const [trackedTarget, setTrackedTarget] = useState<{ step: OnboardingStepId; element: HTMLElement | undefined }>()
   const [atTop, setAtTop] = useState(false)
   const [covered, setCovered] = useState(false)
-  // Named rather than a flag: a step that has just moved on must not read the step before it as lost.
-  const [lost, setLost] = useState<OnboardingStepId>()
+  // The focus whose control never arrived, rather than a flag, so a step that has moved on, or come back, starts unlost.
+  const [lost, setLost] = useState<OnboardingFocus>()
   const compact = useCompactChrome()
   const page = onboardingPage(location.pathname)
   const visible = useMemo(() => (data ? availableOnboardingTasks(data) : []), [data])
   const focusedStep = focus ? ONBOARDING_UI[focus.step] : undefined
 
-  const rememberFocus = useCallback(
-    (next: OnboardingFocus | undefined) => {
-      currentFocus.current = next
-      setFocus(next)
-      if (next) sessionStorage.setItem(storageKey, JSON.stringify(next))
-      else sessionStorage.removeItem(storageKey)
-    },
-    [storageKey],
-  )
+  // The ref answers event handlers that run before the next render; storage follows each committed step.
+  const rememberFocus = useCallback((next: OnboardingFocus | undefined) => {
+    currentFocus.current = next
+    setFocus(next)
+  }, [])
+  useEffect(() => {
+    currentFocus.current = focus
+    if (focus) sessionStorage.setItem(storageKey, JSON.stringify(focus))
+    else sessionStorage.removeItem(storageKey)
+  }, [focus, storageKey])
+  // Arriving on the next step's own page is the whole transition wherever a step changes page, and a task nobody can
+  // complete from the tooltip finishes when the server says the player did it.
+  const arrived = focusAfterOnboardingNavigation(focus, page)
+  const awaited = focusedStep?.awaitsTask && focusedStep.next
+  if (arrived !== focus) setFocus(arrived)
+  else if (focus && awaited && data?.completedTasks.includes(focus.task)) setFocus({ task: focus.task, step: awaited })
+  const target = focusedStep && trackedTarget?.step === focus?.step ? trackedTarget?.element : undefined
 
   const showStep = useCallback(
     async (next: OnboardingFocus) => {
@@ -126,34 +135,17 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
     return () => window.removeEventListener(ONBOARDING_ADVANCE_EVENT, advance)
   }, [rememberFocus])
 
-  // Arriving on the next step's own page is the whole transition wherever a step changes page.
-  useEffect(() => {
-    const next = focusAfterOnboardingNavigation(focus, page)
-    if (next !== focus) rememberFocus(next)
-  }, [focus, page, rememberFocus])
-
   // A control the data need not produce is stepped over, rather than stranding the tour on a faction with no enhancements.
-  useEffect(() => {
-    if (!focus || lost !== focus.step) return
-    const next = onboardingStepPastAbsentTarget(focus.step)
-    if (next) void showStep({ task: focus.task, step: next })
-  }, [focus, lost, showStep])
-
-  // A task nobody can complete from the tooltip finishes when the server says the player did it.
-  useEffect(() => {
-    const next = focusedStep?.awaitsTask && focusedStep.next
-    if (!focus || !next || !data?.completedTasks.includes(focus.task)) return
-    rememberFocus({ task: focus.task, step: next })
-  }, [data?.completedTasks, focus, focusedStep, rememberFocus])
+  const targetLost = useEffectEvent((waiting: OnboardingFocus) => {
+    setLost(waiting)
+    const next = focus === waiting && onboardingStepPastAbsentTarget(waiting.step)
+    if (next) void showStep({ task: waiting.task, step: next })
+  })
 
   useEffect(() => {
-    if (!focus || !focusedStep) {
-      setTarget(undefined)
-      setLost(undefined)
-      return
-    }
+    if (!focus || !focusedStep) return
+    const waiting = focus
     const step = focus.step
-    setLost(undefined)
     const selector = `[data-onboarding="${focusedStep.target}"]`
     let frame = 0
     let waited = 0
@@ -162,7 +154,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
       const element = [...document.querySelectorAll<HTMLElement>(selector)].find(
         (match) => match.getClientRects().length > 0 && !match.closest('[inert]'),
       )
-      setTarget(element)
+      setTrackedTarget((current) => (current?.step === step && current.element === element ? current : { step, element }))
       setCovered([...document.querySelectorAll('[data-slot="dialog-content"]')].some((dialog) => !dialog.contains(element ?? null)))
       setAtTop(onboardingPromptAtTop(element?.getBoundingClientRect().bottom, window.innerHeight))
       if (element) {
@@ -170,13 +162,13 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
         clearTimeout(waited)
         waited = 0
         setLost(undefined)
-      } else waited ||= window.setTimeout(() => setLost(step), TARGET_WAIT)
+      } else waited ||= window.setTimeout(() => targetLost(waiting), TARGET_WAIT)
     }
     // One answer a frame: the roster builder rewrites this subtree constantly while it saves.
     const schedule = () => {
       frame ||= requestAnimationFrame(refresh)
     }
-    refresh()
+    schedule()
     const observer = new MutationObserver(schedule)
     observer.observe(document.body, { childList: true, subtree: true })
     return () => {
@@ -184,7 +176,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
       cancelAnimationFrame(frame)
       clearTimeout(waited)
     }
-  }, [focus, focusedStep, page])
+  }, [focus, focusedStep])
 
   /*
    * A prompt either points at the control it describes or, where it cannot, sits
@@ -192,7 +184,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
    * so a popup beside it has nowhere to go, and `lost` is the control never arriving.
    * A compact card also waits while a full-screen dialog hides its control.
    */
-  const placed = target ? (!compact ? 'anchor' : covered ? undefined : 'card') : lost === focus?.step ? 'lost' : undefined
+  const placed = target ? (!compact ? 'anchor' : covered ? undefined : 'card') : lost && lost === focus ? 'lost' : undefined
   const prompted = !open && focusedStep ? placed : undefined
   const anchored = prompted === 'anchor' ? target : undefined
 

@@ -1,5 +1,4 @@
 import { Check } from 'lucide-react'
-import { useEffect, useRef } from 'react'
 
 export type RailStep = {
   name: string
@@ -14,23 +13,21 @@ type Props = {
   onGo: (step: number) => void
 }
 
+/** Attached only to the viewed step, so the rail centres each step as it becomes the viewed one. */
+function centreInRail(item: HTMLLIElement | null) {
+  const list = item?.parentElement
+  if (item && list) list.scrollTo({ left: item.offsetLeft - list.offsetLeft - (list.clientWidth - item.clientWidth) / 2 })
+}
+
 /** The viewed section and the table's next decision are independent. */
 export function StepRail({ steps, at, next, onGo }: Props) {
-  const current = useRef<HTMLLIElement>(null)
-  const rail = useRef<HTMLOListElement>(null)
-  useEffect(() => {
-    const item = current.current
-    const list = rail.current
-    if (item && list) list.scrollTo({ left: item.offsetLeft - list.offsetLeft - (list.clientWidth - item.clientWidth) / 2 })
-  }, [at])
-
   return (
     <nav aria-label="Setup sections">
-      <ol ref={rail} className="flex items-stretch gap-1 overflow-x-auto">
+      <ol className="flex items-stretch gap-1 overflow-x-auto">
         {steps.map((step, index) => {
           const here = index === at
           return (
-            <li key={step.name} ref={here ? current : undefined} className="min-w-36 flex-1">
+            <li key={step.name} ref={here ? centreInRail : undefined} className="min-w-36 flex-1">
               <button
                 type="button"
                 data-step={step.name}

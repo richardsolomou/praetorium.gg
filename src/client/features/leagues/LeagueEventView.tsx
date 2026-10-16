@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Check, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,11 +129,10 @@ export function LeagueEventView({
   const entryStatusNow = ownEntry?.status
   // A duel needs nothing from the organizer before a list, so a new entrant's next step opens straight away.
   const duel = league.format !== '2v1' && league.format !== '2v2'
-  useEffect(() => {
-    if (!chooseOnEntry || entryStatusNow !== 'accepted') return
+  if (chooseOnEntry && entryStatusNow === 'accepted') {
     setChooseOnEntry(false)
     if (duel && !league.revealedAt) setChoosing(true)
-  }, [chooseOnEntry, entryStatusNow, duel, league.revealedAt])
+  }
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const sealedEntrants = accepted.filter((entry) => entry.submitted)
   const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))

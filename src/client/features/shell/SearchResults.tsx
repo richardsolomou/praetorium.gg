@@ -1,13 +1,19 @@
-import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual'
+import { defaultRangeExtractor } from '@tanstack/react-virtual'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 import type { GlobalSearchResult } from '../../functions'
 import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'
+import { useVirtualRows } from '../../components/useVirtualRows'
 import { globalSearchGroups } from './globalSearchPages'
 import { SearchResultDetail } from './SearchResultDetail'
 
-export function SearchResults({
+/** Each search starts its list at the top. */
+export function SearchResults(props: Parameters<typeof ResultList>[0]) {
+  return <ResultList key={props.query} {...props} />
+}
+
+function ResultList({
   results,
   query,
   listId,
@@ -38,7 +44,7 @@ export function SearchResults({
     [results],
   )
   const activeRow = rows.findIndex((row) => row.kind === 'result' && row.index === selectedIndex)
-  const virtualizer = useVirtualizer({
+  const { items, totalSize, virtualizer } = useVirtualRows({
     count: rows.length,
     getScrollElement: () => scroller.current,
     estimateSize: (index) => (rows[index]?.kind === 'heading' ? 36 : 76),
@@ -52,9 +58,6 @@ export function SearchResults({
       [...new Set([...defaultRangeExtractor(range), ...(activeRow >= 0 ? [activeRow] : [])])].sort((a, b) => a - b),
   })
   useEffect(() => {
-    virtualizer.scrollToOffset(0)
-  }, [query, virtualizer])
-  useEffect(() => {
     if (activeRow >= 0) virtualizer.scrollToIndex(activeRow, { align: 'auto' })
   }, [activeRow, virtualizer])
 
@@ -67,8 +70,8 @@ export function SearchResults({
       aria-label="Search results"
       className="h-[min(60vh,30rem)] overflow-y-auto overscroll-contain"
     >
-      <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((item) => {
+      <div className="relative w-full" style={{ height: totalSize }}>
+        {items.map((item) => {
           const row = rows[item.index]!
           const content =
             row.kind === 'result' ? (

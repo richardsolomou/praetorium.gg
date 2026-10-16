@@ -4,7 +4,7 @@ Keep changes small and include tests for new behavior and failure paths. Discuss
 
 ## Start the app
 
-Install Node 24.x, pnpm 11.15.0, just 1.58.0, and SpacetimeDB CLI 2.12.0, then run:
+Install Node 24.x, pnpm 11.28.5, just 1.58.0, and SpacetimeDB CLI 2.12.0, then run:
 
 ```sh
 just install

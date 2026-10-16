@@ -8,6 +8,7 @@ import { CommandDialog } from '@/components/ui/command'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../functions'
 import { globalSearchQuery } from '../../queries'
+import { useClientValue } from '../../useClientValue'
 import { useSettled } from '../../useSettled'
 import { globalSearchGroups, matchingPages, SEARCH_DEBOUNCE_MS } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
@@ -18,6 +19,8 @@ type GlobalSearchContextValue = {
   shortcutModifier: string
 }
 
+const shortcutModifierOfBrowser = () => searchShortcutModifier(navigator.userAgent)
+
 const GlobalSearchContext = createContext<GlobalSearchContextValue | null>(null)
 
 export function GlobalSearchProvider({ children }: { children: ReactNode }) {
@@ -26,7 +29,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const listId = useId()
-  const [shortcutModifier, setShortcutModifier] = useState('Ctrl')
+  const shortcutModifier = useClientValue(shortcutModifierOfBrowser, 'Ctrl')
   const trimmed = query.trim()
   const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
   const { data = [], isFetching, isPending, isError } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
@@ -69,7 +72,6 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   }, [isError, isFetching, isPending, open, resultCount, settled, trimmed])
 
   useEffect(() => {
-    setShortcutModifier(searchShortcutModifier(navigator.userAgent))
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isSearchShortcut(event)) return
       event.preventDefault()

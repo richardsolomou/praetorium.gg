@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
-import { loadoutDatasheetsQuery } from '../../../queries'
+import { datasheetLoad, loadoutDatasheetsQuery } from '../../../queries'
 import type { loadoutDatasheets } from '../../../functions'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
@@ -79,7 +79,6 @@ export function Loadout({
   footer,
 }: Props) {
   const posthog = usePostHog()
-  const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
   const capturedAt = useRef(0)
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
@@ -88,18 +87,7 @@ export function Loadout({
   // A pane that swapped units keeps nothing from the last one; one that only had a
   // count changed keeps what it was showing, so the profiles do not blink.
   const forSameUnit = (previousQuery?: { queryKey: readonly unknown[] }) => previousQuery?.queryKey[2] === unit?.entryId
-  const recordTiming = (request: number) => {
-    timing.current = { request, resolvedAt: performance.now() }
-  }
-  const request = loadoutDatasheetsQuery(
-    catalogueId,
-    unit?.entryId ?? '',
-    detachments,
-    settledPicks,
-    pickIndex,
-    persistedRoster,
-    recordTiming,
-  )
+  const request = loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex, persistedRoster)
   const {
     data: fetchedSheets,
     dataUpdatedAt,
@@ -112,7 +100,7 @@ export function Loadout({
   })
   const sheets = providedSheets ?? fetchedSheets
   useEffect(() => {
-    const measured = timing.current
+    const measured = sheets && datasheetLoad(sheets)
     if (!sheets || !measured || dataUpdatedAt <= capturedAt.current) return
     capturedAt.current = dataUpdatedAt
     const frame = requestAnimationFrame(() => {

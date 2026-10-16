@@ -141,21 +141,21 @@ export function CombatMatchup({
   useEffect(() => {
     onSettingsChange?.({ adjustments, preferences, excluded: excludedWeapons, allocation: [...allocation] })
   }, [adjustments, preferences, excludedWeapons, allocation, onSettingsChange])
-  const matchup = combatMatchup(attacker, defender, { preferences, excluded: excludedWeapons, allocation })
+  const matchup = useMemo(
+    () => combatMatchup(attacker, defender, { preferences, excluded: excludedWeapons, allocation }),
+    [attacker, defender, preferences, excludedWeapons, allocation],
+  )
   const { target, labels, attackRules, defenceRules, inheritedOptions, plans, sequenceError } = matchup
-  useEffect(() => {
-    if (invalidatedPreferences && !pending && !failed) setInvalidatedChoice(true)
-  }, [invalidatedPreferences, pending, failed])
   const invalidChoices = JSON.stringify(
     !pending && !failed && !attacker?.allocationRequired
       ? phases.flatMap(([phase]) => (plans[phase]?.errors.length ? [] : invalidWeaponChoices(preferences, plans[phase]?.choices ?? [])))
       : [],
   )
+  // The notice that a choice stopped applying stays until the player picks again, after the choice itself is dropped.
+  if (!invalidatedChoice && ((invalidatedPreferences && !pending && !failed) || invalidChoices !== '[]')) setInvalidatedChoice(true)
   useEffect(() => {
     const keys = JSON.parse(invalidChoices) as string[]
-    if (!keys.length) return
-    setInvalidatedChoice(true)
-    setPreferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !keys.includes(key))))
+    if (keys.length) setPreferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !keys.includes(key))))
   }, [invalidChoices, setPreferences])
   const allocateEarlier = (index: number) =>
     setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
@@ -170,8 +170,10 @@ export function CombatMatchup({
   )
   const options = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.options(phase, settings)
   const scenario = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.scenario(phase, settings)
-  const scenarios: CombatRequest = { ranged: scenario('ranged'), melee: scenario('melee'), sequenceError }
-  const phaseSetup = (phase: Phase) => matchup.phaseSetup(phase, adjustments)
+  const scenarios = useMemo<CombatRequest>(
+    () => ({ ranged: matchup.scenario('ranged', adjustments), melee: matchup.scenario('melee', adjustments), sequenceError }),
+    [matchup, adjustments, sequenceError],
+  )
   const modifierChoiceHasEffect = (
     scope: PhaseScope,
     source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
@@ -331,22 +333,25 @@ export function CombatMatchup({
     return stop
   }, [requestKey, pending, failed, retry, entryPoint])
   // After the estimate's effect, so the matchup's own calculation starts first.
-  const loadoutScoring =
-    attacker && defender && !attacker.allocationRequired && !pending && !failed
-      ? {
-          sheet: attacker.sheet,
-          carriers: attacker.carriers,
-          models: attacker.models,
-          rules: attackRules,
-          ruleChoices: attacker.ruleChoices,
-          companions: attacker.companions,
-          sequenceError,
-          opponent: { keywords: combatUnitKeywords(defender), rules: defenceRules },
-          preferences,
-          excluded: excludedWeapons,
-          phases: { ranged: phaseSetup('ranged'), melee: phaseSetup('melee') },
-        }
-      : null
+  const loadoutScoring = useMemo(
+    () =>
+      attacker && defender && !attacker.allocationRequired && !pending && !failed
+        ? {
+            sheet: attacker.sheet,
+            carriers: attacker.carriers,
+            models: attacker.models,
+            rules: attackRules,
+            ruleChoices: attacker.ruleChoices,
+            companions: attacker.companions,
+            sequenceError,
+            opponent: { keywords: combatUnitKeywords(defender), rules: defenceRules },
+            preferences,
+            excluded: excludedWeapons,
+            phases: { ranged: matchup.phaseSetup('ranged', adjustments), melee: matchup.phaseSetup('melee', adjustments) },
+          }
+        : null,
+    [attacker, defender, pending, failed, attackRules, sequenceError, defenceRules, preferences, excludedWeapons, matchup, adjustments],
+  )
   const loadoutOdds = useLoadoutOdds({
     space: loadoutSpace,
     scoring: loadoutScoring,

@@ -67,11 +67,11 @@ test *args:
 
 # Fast tests without databases or subprocess-backed snapshot verification
 test-unit *args:
-    pnpm test:unit -- {{ args }}
+    pnpm test:unit {{ args }}
 
 # Database, service, authentication and snapshot integration tests
 test-integration *args:
-    pnpm test:integration -- {{ args }}
+    pnpm test:integration {{ args }}
 
 # Format, lint, database, catalogue pins, build, typecheck, unit tests
 check:

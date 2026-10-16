@@ -6,19 +6,19 @@ import { type NativePushAnswer, requestNativePush, supportsNativePush } from '..
 import { registerThisDevice } from '../../pushNotifications'
 import { notificationSettingsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { useStoredValue, writeStoredValue } from '../../storedValue'
 
 const DISMISSED_KEY = 'praetorium-notifications-dismissed'
 
 export function HomeNotifications() {
   const { data: settings } = useQuery(notificationSettingsQuery())
   const [device, setDevice] = useState<NativePushAnswer | null>(null)
-  const [dismissed, setDismissed] = useState(true)
+  const dismissed = useStoredValue(DISMISSED_KEY) === 'true'
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<unknown>(null)
 
   useEffect(() => {
     if (!supportsNativePush()) return
-    setDismissed(localStorage.getItem(DISMISSED_KEY) === 'true')
     void requestNativePush(false).then((answer) => setDevice(answer ?? { status: 'unavailable' }))
   }, [])
 
@@ -51,14 +51,7 @@ export function HomeNotifications() {
           <Button size="sm" disabled={pending} onClick={() => void allow()}>
             {device.status === 'undetermined' ? 'Allow notifications' : 'Retry notifications'}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              localStorage.setItem(DISMISSED_KEY, 'true')
-              setDismissed(true)
-            }}
-          >
+          <Button size="sm" variant="ghost" onClick={() => writeStoredValue(DISMISSED_KEY, 'true')}>
             Not now
           </Button>
         </div>

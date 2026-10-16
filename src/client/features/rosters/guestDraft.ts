@@ -3,7 +3,7 @@ import { GUEST_DRAFT_COOKIE } from '../../../contracts/rosterCookies'
 import { setRosterCookie } from './rosterCookie'
 import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
-import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { parseWorkspaceState, readStoredWorkspaceState, readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { currentRosterIds } from '../../../core/retiredCatalogueIds'
 
 /** Where a visitor's list is built, and so where every piece of its tab state is kept. */
@@ -98,6 +98,25 @@ export function readGuestDraft(): GuestDraft | null {
   const tab = validDraft(readWorkspaceState<GuestDraft>(GUEST_PATH, NAME))
   if (tab && writeGuestDraft(tab)) forget(() => writeWorkspaceState(GUEST_PATH, NAME, null))
   return tab
+}
+
+let peeked: { stored: string | null; tab: string | null; guest: GuestDraft | null } | null = null
+
+/**
+ * The draft `readGuestDraft` would return, without moving a tab's copy to the device, for rendering; it returns the
+ * same object until either copy changes, as `useSyncExternalStore` needs.
+ */
+export function peekGuestDraft(): GuestDraft | null {
+  let stored: string | null = null
+  try {
+    stored = localStorage.getItem(KEY)
+  } catch {
+    // Storage the browser refuses to read holds no draft; the tab's copy may still.
+  }
+  const tab = readStoredWorkspaceState(GUEST_PATH, NAME)
+  if (peeked?.stored !== stored || peeked.tab !== tab)
+    peeked = { stored, tab, guest: parseDraft(stored) ?? validDraft(parseWorkspaceState<GuestDraft>(tab)) }
+  return peeked.guest
 }
 
 /** Tells the server whether this browser holds a list, so a refresh draws the page it will become. */

@@ -12,12 +12,13 @@ import {
   ComboboxValue,
 } from '@/components/ui/combobox'
 import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
-import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual'
+import type { Virtualizer } from '@tanstack/react-virtual'
 import { type ReactNode, type RefObject, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { LoaderCircle } from 'lucide-react'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
 import type { OnboardingTarget } from '../onboardingTargets'
+import { useVirtualRows } from './useVirtualRows'
 
 /**
  * One choice, optionally with something drawn beside its name.
@@ -204,7 +205,7 @@ function VirtualOptions({ handle, selected }: { handle: RefObject<VirtualList | 
     })
     return { rows: built, rowByIndex: positions }
   }, [filtered])
-  const virtualizer = useVirtualizer({
+  const { items, totalSize, virtualizer } = useVirtualRows({
     count: rows.length,
     getScrollElement: () => scroller.current,
     estimateSize: (index) => (rows[index]?.kind === 'group' ? 28 : 32),
@@ -231,8 +232,8 @@ function VirtualOptions({ handle, selected }: { handle: RefObject<VirtualList | 
       role="presentation"
       className="no-scrollbar max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))] overflow-y-auto overscroll-contain p-1"
     >
-      <div role="presentation" className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((item) => {
+      <div role="presentation" className="relative w-full" style={{ height: totalSize }}>
+        {items.map((item) => {
           const row = rows[item.index]!
           const position = { transform: `translateY(${item.start}px)` }
           return row.kind === 'group' ? (

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useHydrated } from './useClientValue'
 
 /** The one date format every screen shows, so lists agree on how a moment reads. */
 const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' } as const
@@ -18,14 +18,7 @@ const utc = {
 }
 
 const local = { date: formatDate, time: formatTime, day: (day: string) => formatDay(day) }
-const subscribe = () => () => {}
-
 /** Match the server's first frame, then show dates in the reader's timezone. */
 export function useDateFormatting() {
-  const hydrated = useSyncExternalStore(
-    subscribe,
-    () => true,
-    () => false,
-  )
-  return hydrated ? local : utc
+  return useHydrated() ? local : utc
 }

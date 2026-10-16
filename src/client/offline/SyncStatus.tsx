@@ -108,8 +108,9 @@ export function SyncStatus() {
   const conflicts = operations.filter((operation) => operation.status !== 'pending')
   const pendingOnline = online && operations.length > 0
   const owner = me?.impersonatedBy ? undefined : me?.id
+  // Work that stops waiting, or another account, starts the ten seconds again.
+  if (pendingOwner !== null && (!pendingOnline || pendingOwner !== owner)) setPendingOwner(null)
   useEffect(() => {
-    setPendingOwner(null)
     if (!pendingOnline || !owner) return
     const timer = window.setTimeout(() => setPendingOwner(owner), 10_000)
     return () => window.clearTimeout(timer)

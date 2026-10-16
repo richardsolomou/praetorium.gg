@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Eye, Shuffle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isKotcLimit } from '../../../../core/battle'
@@ -25,7 +25,8 @@ type Props = {
 
 export function Battlefield({ view, send, pending, allowedIds, matchup }: Props) {
   const [inspecting, setInspecting] = useState<string | null>(null)
-  const attempted = useRef<number | null>(null)
+  // The battle version whose fixed battlefield was already sent, so a failed attempt offers a retry instead of repeating.
+  const [attemptedSeq, setAttemptedSeq] = useState<number | null>(null)
   const patternsQuery = useQuery(deploymentsQuery())
   const allPatterns = patternsQuery.data
   // The card each side plays, as the domain folded it: an allied pair fields one army
@@ -52,10 +53,10 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   const fixedSelected = fixed && view.settings.terrainLayoutId === fixed.terrain.id && view.deploymentId === fixed.deployment.id
 
   useEffect(() => {
-    if (!fixedTerrainId || !fixedPatternId || fixedSelected || pending || attempted.current === view.seq) return
-    attempted.current = view.seq
-    send({ kind: 'set-battlefield', patternId: fixedPatternId, terrainLayoutId: fixedTerrainId })
-  }, [fixedTerrainId, fixedPatternId, fixedSelected, pending, send, view.seq])
+    if (!fixedTerrainId || !fixedPatternId || fixedSelected || pending || attemptedSeq === view.seq) return
+    const seq = view.seq
+    send({ kind: 'set-battlefield', patternId: fixedPatternId, terrainLayoutId: fixedTerrainId }, { complete: () => setAttemptedSeq(seq) })
+  }, [attemptedSeq, fixedTerrainId, fixedPatternId, fixedSelected, pending, send, view.seq])
 
   if (!matchupIds.length) {
     const viewerRoster = view.players.find((player) => player.isViewer)?.roster
@@ -96,7 +97,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
             size="sm"
             disabled={pending || !available.length}
             onClick={() => {
-              const option = available[Math.floor(Math.random() * available.length)]
+              const option = randomItem(available)
               if (option) send({ kind: 'set-battlefield', patternId: option.deployment.id, terrainLayoutId: option.terrain.id })
             }}
           >
@@ -170,15 +171,12 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
           })}
         </div>
       )}
-      {fixed && !fixedSelected && !pending && attempted.current === view.seq ? (
+      {fixed && !fixedSelected && !pending && attemptedSeq === view.seq ? (
         <Button
           variant="outline"
           size="sm"
           className="mt-3"
-          onClick={() => {
-            attempted.current = view.seq
-            send({ kind: 'set-battlefield', patternId: fixed.deployment.id, terrainLayoutId: fixed.terrain.id })
-          }}
+          onClick={() => send({ kind: 'set-battlefield', patternId: fixed.deployment.id, terrainLayoutId: fixed.terrain.id })}
         >
           Retry battlefield setup
         </Button>
@@ -205,6 +203,8 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
 }
 
 /** The three layout cards at their final geometry, while the pack is still being read. */
+const randomItem = <T,>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)]
+
 function LayoutsLoading() {
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">

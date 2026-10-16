@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -102,7 +102,9 @@ export function CombatSimulatorMatchup({
   const [attacker, defender] = reversed ? [second, first] : [first, second]
   const matchupKey = `${reversed}:${attacker.identity}:${defender.identity}`
   const activeMatchup = useRef(matchupKey)
-  activeMatchup.current = matchupKey
+  useLayoutEffect(() => {
+    activeMatchup.current = matchupKey
+  }, [matchupKey])
   const [displayKey, setDisplayKey] = useState(matchupKey)
   if (attacker.ready && defender.ready && displayKey !== matchupKey) setDisplayKey(matchupKey)
   const [settings, setSettings] = useState(() => ({ key: matchupKey, value: initial?.matchup }))
