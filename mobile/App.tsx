@@ -157,7 +157,6 @@ function AppShell() {
   const [offlineView, setOfflineView] = useState<{ path: string; html: string } | null>(null)
   const [offlineRenderKey, setOfflineRenderKey] = useState(0)
   const offlinePath = useRef('/')
-  // Read only when a web view loads, so a saved snapshot changes what the next load restores.
   const [snapshotScript, setSnapshotScript] = useState(appSnapshotScript)
   const [historyBack, setHistoryBack] = useState(false)
   const [backSwipeGated, setBackSwipeGated] = useState(canGateBackSwipe)
@@ -600,6 +599,12 @@ function AppShell() {
     commitShell(rendererTerminated(state))
   }
 
+  // react-native-webview reinstalls a live page's scripts and message handler whenever its start script changes, after
+  // which that page's bridge requests go unanswered, so each web view keeps the restore script it was created with.
+  const webViewKey = offlineView ? `saved-${offlineRenderKey}` : String(renderedShell.renderKey)
+  const [mountedSnapshot, setMountedSnapshot] = useState({ key: webViewKey, script: snapshotScript })
+  if (mountedSnapshot.key !== webViewKey) setMountedSnapshot({ key: webViewKey, script: snapshotScript })
+
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
@@ -618,7 +623,7 @@ function AppShell() {
           allowsLinkPreview={false}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${snapshotScript}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
+          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
           onLoad={() => webView.current?.injectJavaScript(nativeWatchCapabilityScript(isWatchCompanionAvailable()))}
           onMessage={({ nativeEvent }) => {
             try {
@@ -649,7 +654,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${snapshotScript}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
