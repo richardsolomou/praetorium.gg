@@ -265,6 +265,8 @@ const collectionPhotos = table(
     at: t.u64(),
     /** How many `collection_photo_like` rows name this photo, kept in the same transactions. */
     likes: t.option(t.u32()).default(undefined),
+    /** `held` from a player's report until an administrator keeps it, after which reports no longer hold it. */
+    review: t.option(t.string()).default(undefined),
   },
 )
 

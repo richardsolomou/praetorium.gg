@@ -43,6 +43,7 @@ export function PhotoViewer({
   const [confirming, setConfirming] = useState(false)
   const report = useMutation({
     mutationFn: (photoId: string) => reportCollectionPhoto({ data: { photoId, reason } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] }),
   })
   const own = Boolean(me && photo && me.id === photo.owner.id)
   const removeOwn = useCollectionPhotoRemoval()

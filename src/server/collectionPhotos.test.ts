@@ -16,7 +16,7 @@ function memoryObjects() {
 }
 
 function fakeRepository({ refuse = false } = {}) {
-  const photos = new Map<string, { userId: string; entryId: string; published: boolean }>()
+  const photos = new Map<string, { userId: string; entryId: string; published: boolean; held?: boolean }>()
   const deletions: string[] = []
   return {
     photos,
@@ -36,8 +36,18 @@ function fakeRepository({ refuse = false } = {}) {
       new Map(ids.filter((id) => id !== 'deleted').map((id) => [id, { id, name: `Player ${id}` }] as const)),
     collectionPhoto: async (photoId: string, viewerId: string | null) => {
       const photo = photos.get(photoId)
-      return photo && (photo.published || photo.userId === viewerId) ? { userId: photo.userId, entryId: photo.entryId } : null
+      return photo && ((photo.published && !photo.held) || photo.userId === viewerId)
+        ? { userId: photo.userId, entryId: photo.entryId }
+        : null
     },
+    collectionPhotoForAdmin: async (photoId: string) => {
+      const photo = photos.get(photoId)
+      return photo ? { userId: photo.userId, entryId: photo.entryId } : null
+    },
+    reportCollectionPhoto: async ({ photoId }: { photoId: string }) => void (photos.get(photoId)!.held = true),
+    keepCollectionPhoto: async (photoId: string) => void (photos.get(photoId)!.held = false),
+    heldCollectionPhotos: async () =>
+      [...photos].filter(([, photo]) => photo.held).map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1 })),
     collectionPhotoDeletions: async (limit: number) => deletions.slice(0, limit),
     clearCollectionPhotoDeletions: async (photoIds: readonly string[]) => {
       for (const photoId of photoIds) deletions.splice(deletions.indexOf(photoId), 1)
@@ -79,6 +89,22 @@ describe('collectionPhotoStore', () => {
     const photoId = await store.upload('owner', 'warriors', image)
     repository.photos.get(photoId)!.published = false
     expect([(await store.response(photoId, 'reader')).status, (await store.response(photoId, 'owner')).status]).toEqual([404, 200])
+  })
+
+  it('shows a photo a report holds to administrators only', async () => {
+    const { objects } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    await store.report('reader', photoId)
+    expect([(await store.response(photoId, 'reader')).status, (await store.response(photoId, 'admin', true)).status]).toEqual([404, 200])
+  })
+
+  it('lists held photos named for their owners, keeping a deleted owner’s photo reviewable', async () => {
+    const { objects } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    const photoId = await store.upload('deleted', 'warriors', image)
+    await store.report('reader', photoId)
+    expect((await store.held()).map(({ owner }) => owner.name)).toEqual(['Deleted player'])
   })
 
   it('answers a malformed photo id as not found without asking the collection', async () => {

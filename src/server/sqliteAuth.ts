@@ -45,7 +45,11 @@ type AuthOptions = {
   deleteUserData: (userId: string) => Promise<void>
   revokeSessionAccess: (sessionId: string) => Promise<void>
   storeSocialAvatar: (url: string) => Promise<string | null>
-  updateProfile: (data: Record<string, unknown>) => Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }>
+  updateProfile: (
+    data: Record<string, unknown>,
+  ) => Promise<{ ok: true; data: Record<string, unknown>; uploaded?: string } | { ok: false; error: string }>
+  /** A picture a signed-in player has just uploaded for their own profile, as sent. */
+  profilePictureUploaded?: (userId: string, image: string) => void
   /** Called after a player links GitHub, so their sponsorship shows before they leave the callback. */
   githubLinked?: () => Promise<void>
   captureAuthentication?: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) => Promise<void>
@@ -242,6 +246,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
             if (context?.path !== '/update-user') return
             const result = await options.updateProfile(data)
             if (!result.ok) throw new APIError('BAD_REQUEST', { message: result.error })
+            const userId = context.context.session?.user.id
+            if (result.uploaded && userId) options.profilePictureUploaded?.(userId, result.uploaded)
             return { data: result.data }
           },
         },

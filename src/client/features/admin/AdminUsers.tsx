@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ArrowDownUp, ListFilter, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,21 +11,30 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { AdminUser, AdminUserFilter, AdminUserSort } from '../../../admin'
-import { adminUsersQuery } from '../../queries'
+import { adminUsersQuery, heldCollectionPhotosQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useSettled } from '../../useSettled'
 import { PageContent, PageHeader } from '../../components/Page'
+import { PageTabsList } from '../../components/PageTabs'
 import { SearchField } from '../../components/SearchField'
+import { AdminHeldPhotos } from './AdminHeldPhotos'
 import { AdminUserPanel } from './AdminUserPanel'
 import { AdminUsersTable } from './AdminUsersTable'
 
-export function AdminUsers({ currentUserId }: { currentUserId: string }) {
+export type AdminTab = 'players' | 'photos'
+
+/** Players is the default, so it stays out of the address. */
+export const readAdminSearch = (search: Record<string, unknown>): { tab?: Exclude<AdminTab, 'players'> } =>
+  search.tab === 'photos' ? { tab: 'photos' } : {}
+
+export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: string; tab: AdminTab; onTab: (tab: AdminTab) => void }) {
   const [search, setSearch] = useState('')
   const query = useSettled(search.trim())
   const [sort, setSort] = useState<AdminUserSort>('joined')
   const [filter, setFilter] = useState<AdminUserFilter>('all')
   const usersResult = useInfiniteQuery(adminUsersQuery(query, sort, filter))
   const users = useMemo(() => usersResult.data?.pages.flatMap((page) => page.users) ?? [], [usersResult.data])
+  const held = useQuery(heldCollectionPhotosQuery())
   // Held rather than looked up, so a new search or sort does not close the player being worked on.
   const [opened, setOpened] = useState<AdminUser>()
   const selected = opened && (users.find((user) => user.id === opened.id) ?? opened)
@@ -34,7 +44,7 @@ export function AdminUsers({ currentUserId }: { currentUserId: string }) {
       <PageHeader
         eyebrow="Praetorium"
         title="Administration"
-        description="Find a player to change their access, help them sign in, or delete their account."
+        description="Find a player to change their access, help them sign in, or delete their account, or review reported photos."
         media={
           <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
@@ -43,53 +53,63 @@ export function AdminUsers({ currentUserId }: { currentUserId: string }) {
       />
 
       <PageContent>
-        <section>
-          <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            <span>Players</span>
-            {usersResult.data ? <span className="readout">{users.length}</span> : null}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <SearchField
-              className="min-w-56 flex-1"
-              value={search}
-              onChange={setSearch}
-              placeholder="Search by name or email"
-              label="Search users"
-              clearLabel="Empty the user search"
-              maxLength={100}
-            />
-            <ChoiceMenu label="Show" icon={<ListFilter />} value={filter} options={FILTERS} onChange={setFilter} />
-            <ChoiceMenu label="Sort" icon={<ArrowDownUp />} value={sort} options={SORTS} onChange={setSort} />
-          </div>
-          <div className="mt-2 space-y-2">
-            <AdminUsersTable
-              users={users}
-              currentUserId={currentUserId}
-              openedUserId={opened?.id}
-              pending={usersResult.isPending}
-              empty={usersResult.isSuccess && !users.length}
-              sort={sort}
-              onSort={setSort}
-              onOpen={setOpened}
-            />
-            {usersResult.error ? (
-              <p role="alert" className="border border-edge bg-panel p-4 text-sm text-destructive">
-                {errorMessage(usersResult.error)}
-              </p>
-            ) : null}
-          </div>
-          {usersResult.hasNextPage ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-3"
-              disabled={usersResult.isFetchingNextPage || usersResult.isPlaceholderData}
-              onClick={() => void usersResult.fetchNextPage()}
-            >
-              {usersResult.isFetchingNextPage ? 'Loading…' : 'Load more'}
-            </Button>
-          ) : null}
-        </section>
+        {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
+        <Tabs value={tab} className="flex-col gap-0" onValueChange={(value) => onTab(value as AdminTab)}>
+          <PageTabsList
+            tabs={[
+              { value: 'players', label: 'Players', count: usersResult.data ? users.length : undefined },
+              { value: 'photos', label: 'Reported photos', count: held.data?.length },
+            ]}
+          />
+          <TabsContent value="players" className="mt-4">
+            <section>
+              <div className="flex flex-wrap gap-2">
+                <SearchField
+                  className="min-w-56 flex-1"
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Search by name or email"
+                  label="Search users"
+                  clearLabel="Empty the user search"
+                  maxLength={100}
+                />
+                <ChoiceMenu label="Show" icon={<ListFilter />} value={filter} options={FILTERS} onChange={setFilter} />
+                <ChoiceMenu label="Sort" icon={<ArrowDownUp />} value={sort} options={SORTS} onChange={setSort} />
+              </div>
+              <div className="mt-2 space-y-2">
+                <AdminUsersTable
+                  users={users}
+                  currentUserId={currentUserId}
+                  openedUserId={opened?.id}
+                  pending={usersResult.isPending}
+                  empty={usersResult.isSuccess && !users.length}
+                  sort={sort}
+                  onSort={setSort}
+                  onOpen={setOpened}
+                />
+                {usersResult.error ? (
+                  <p role="alert" className="border border-edge bg-panel p-4 text-sm text-destructive">
+                    {errorMessage(usersResult.error)}
+                  </p>
+                ) : null}
+              </div>
+              {usersResult.hasNextPage ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3"
+                  disabled={usersResult.isFetchingNextPage || usersResult.isPlaceholderData}
+                  onClick={() => void usersResult.fetchNextPage()}
+                >
+                  {usersResult.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                </Button>
+              ) : null}
+            </section>
+          </TabsContent>
+          <TabsContent value="photos" className="mt-4">
+            <AdminHeldPhotos />
+          </TabsContent>
+        </Tabs>
       </PageContent>
 
       {selected ? (

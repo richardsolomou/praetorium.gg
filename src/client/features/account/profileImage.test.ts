@@ -43,29 +43,30 @@ function file() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('prepareProfileImage', () => {
-  it('keeps WebP when the browser can encode it', async () => {
+  it('encodes JPEG even where the browser can encode WebP', async () => {
     installBrowser(['image/webp', 'image/jpeg', 'image/png'], () => 1000)
 
-    await expect(prepareProfileImage(file())).resolves.toMatch(/^data:image\/webp;base64,/)
-  })
-
-  it('falls back to JPEG when the browser cannot encode WebP', async () => {
-    const toBlob = installBrowser(['image/jpeg', 'image/png'], () => 1000)
-
     await expect(prepareProfileImage(file())).resolves.toMatch(/^data:image\/jpeg;base64,/)
-    expect(toBlob.mock.calls.some((call) => call[1] === 'image/jpeg')).toBe(true)
   })
 
   it('shrinks the edge when quality alone leaves the image over the cap', async () => {
-    const toBlob = installBrowser(['image/webp'], (edge) => (edge === 256 ? PROFILE_IMAGE_MAX_LENGTH : 10))
+    const toBlob = installBrowser(['image/jpeg'], (edge) => (edge === 320 ? PROFILE_IMAGE_MAX_LENGTH : 10))
 
     await prepareProfileImage(file())
 
-    expect(toBlob.mock.calls.some((call) => call[3] === 192)).toBe(true)
+    expect(toBlob.mock.calls.some((call) => call[3] === 288)).toBe(true)
+  })
+
+  it('never shrinks below the 280 pixels screening needs', async () => {
+    const toBlob = installBrowser(['image/jpeg'], () => PROFILE_IMAGE_MAX_LENGTH)
+
+    await prepareProfileImage(file()).catch(() => undefined)
+
+    expect(Math.min(...toBlob.mock.calls.map((call) => call[3]))).toBeGreaterThanOrEqual(280)
   })
 
   it('reports failure when no pass fits under the cap', async () => {
-    installBrowser(['image/webp'], () => PROFILE_IMAGE_MAX_LENGTH)
+    installBrowser(['image/jpeg'], () => PROFILE_IMAGE_MAX_LENGTH)
 
     await expect(prepareProfileImage(file())).rejects.toThrow('could not be made small enough')
   })

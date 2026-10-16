@@ -464,7 +464,7 @@ async function expectNoHorizontalOverflow(page: Page, ...elements: Locator[]) {
 /** The page header reads left to right as label, avatar, then the organizer's name. */
 async function expectOrganizerAvatar(row: Locator, ownerName: string) {
   const avatar = row.locator('img').first()
-  await expect(avatar).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
+  await expect(avatar).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   const [label, image, name] = await Promise.all([
     row.getByText('Organized by', { exact: true }).boundingBox(),
     avatar.boundingBox(),
@@ -1068,7 +1068,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await owner.setViewportSize({ width: 1440, height: 900 })
   let card = owner.locator(`[data-league="${leagueToken}"]`)
   // A card without a description names its organizer beside their avatar.
-  await expect(card.locator('img').first()).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.webp$/)
+  await expect(card.locator('img').first()).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await expect(card).toContainText(`Organized by ${ownerName}`)
   await expectNoHorizontalOverflow(owner, card)
 

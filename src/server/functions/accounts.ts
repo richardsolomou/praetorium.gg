@@ -8,6 +8,7 @@ import {
   collectionPhotoSchema,
 } from '../../contracts/collection'
 import { collectionPhotoReportEmail } from '../collectionPhotos'
+import { COLLECTION_PHOTO_QUESTIONS, recordScreening } from '../photoScreening'
 import { app } from '../app'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
 import { currentUser, currentUserId, requireUser, requireUserId } from '../playerSession'
@@ -340,6 +341,9 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
       if (limited) throw limited
       const photoId = await app().collectionPhotos.upload(player.id, data.entryId, data.image)
       await app().telemetry.capture(player.id, 'collection_photo_uploaded')
+      void recordScreening(app().photoScreening, data.image, COLLECTION_PHOTO_QUESTIONS, (properties) =>
+        app().telemetry.capture(player.id, 'collection_photo_screened', { photo_id: photoId, ...properties }),
+      )
       return photoId
     }),
   )
@@ -372,7 +376,7 @@ export const likeCollectionPhoto = createServerFn({ method: 'POST' })
 
 const reportRateLimit = fixedWindowRateLimit('too many photo reports')
 
-/** Emails every administrator a photo the reporter can see; a no-op where this instance sends no email. */
+/** Holds a photo the reporter can see for review and emails every administrator, where this instance sends email. */
 export const reportCollectionPhoto = createServerFn({ method: 'POST' })
   .validator(collectionPhotoReportSchema)
   .handler(({ data }) =>
@@ -382,6 +386,7 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
       if (limited) throw limited
       const photo = await app().collectionPhotos.visibleTo(data.photoId, reporter.id)
       if (!photo) throw new Response('that photo is no longer shown', { status: 404 })
+      await app().collectionPhotos.report(reporter.id, data.photoId)
       const delivery = app().email
       if (delivery && process.env.APP_URL) {
         const email = collectionPhotoReportEmail({ ...data, ownerId: photo.userId }, reporter, process.env.APP_URL)
