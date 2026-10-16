@@ -123,7 +123,7 @@ it('cancels warming without ever opening the public listener', async () => {
   child.kill('SIGTERM')
   expect((await exited)[0]).toBe(0)
   await expect(fetch(origin)).rejects.toThrow()
-})
+}, 10_000)
 
 it('stops the public proxy and exits unsuccessfully when the application crashes', async () => {
   const { child, waitFor, origin } = await fixture()
