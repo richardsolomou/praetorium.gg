@@ -508,39 +508,42 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
   const discardable = active ? discardableSecondaries(active) : []
 
-  const previousReminderMoment = useRef<{
-    status: BattleView['status']
-    round: number
-    activePlayerId: string | null
-    phase: BattleView['phase']
-    turn: ReminderTiming['turn'] | null
-  } | null>(null)
-  useEffect(() => {
-    const current = {
-      status: view.status,
-      round: view.round,
-      activePlayerId: view.activePlayerId,
-      phase: view.phase,
-      turn: reminderTurn,
-    }
-    const previous = previousReminderMoment.current
-    previousReminderMoment.current = current
+  // A phase that ends queues its reminders ahead of the next moment's, so they show in the order they happened.
+  const reminderMoment = {
+    status: view.status,
+    round: view.round,
+    activePlayerId: view.activePlayerId,
+    phase: view.phase,
+    turn: reminderTurn,
+  }
+  const [previousReminderMoment, setPreviousReminderMoment] = useState(reminderMoment)
+  if (
+    previousReminderMoment.status !== reminderMoment.status ||
+    previousReminderMoment.round !== reminderMoment.round ||
+    previousReminderMoment.activePlayerId !== reminderMoment.activePlayerId ||
+    previousReminderMoment.phase !== reminderMoment.phase ||
+    previousReminderMoment.turn !== reminderMoment.turn
+  ) {
+    const previous = previousReminderMoment
+    setPreviousReminderMoment(reminderMoment)
+    const phaseChanged =
+      previous.round !== reminderMoment.round ||
+      previous.activePlayerId !== reminderMoment.activePlayerId ||
+      previous.phase !== reminderMoment.phase
     if (
-      !dismissalsReady ||
-      !previous ||
-      previous.status !== 'playing' ||
-      current.status !== 'playing' ||
-      previous.phase === 'end' ||
-      !previous.turn ||
-      (previous.round === current.round && previous.activePlayerId === current.activePlayerId && previous.phase === current.phase)
-    )
-      return
-    const moment: ReminderTiming = { moment: 'phase-end', phase: previous.phase, turn: previous.turn }
-    const context = { round: previous.round, activePlayerId: previous.activePlayerId, phase: previous.phase }
-    const reminders = remindersAt([moment], context)
-    if (!reminders.length) return
-    enqueueReminderPrompt({ reminders, moment: reminderTimingLabel(moment), confirmLabel: 'Dismiss', context })
-  }, [dismissalsReady, enqueueReminderPrompt, reminderTurn, remindersAt, view.activePlayerId, view.phase, view.round, view.status])
+      dismissalsReady &&
+      phaseChanged &&
+      previous.status === 'playing' &&
+      reminderMoment.status === 'playing' &&
+      previous.phase !== 'end' &&
+      previous.turn
+    ) {
+      const moment: ReminderTiming = { moment: 'phase-end', phase: previous.phase, turn: previous.turn }
+      const context = { round: previous.round, activePlayerId: previous.activePlayerId, phase: previous.phase }
+      const reminders = remindersAt([moment], context)
+      if (reminders.length) enqueueReminderPrompt({ reminders, moment: reminderTimingLabel(moment), confirmLabel: 'Dismiss', context })
+    }
+  }
 
   useEffect(() => {
     if (!dismissalsReady) return
