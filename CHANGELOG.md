@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.151.3
+
+### Patch Changes
+
+- 85f7fb0: Cancelling the file picker after choosing to add a unit photo in the roster no longer leaves the loadout pane blank.
+- 18148ef: Photo prompts invite you to show off your own models instead of warning you to add only photos you took.
+
 ## 0.151.2
 
 ### Patch Changes
