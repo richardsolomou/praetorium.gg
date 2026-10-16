@@ -7,7 +7,7 @@ import { attachedUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { orderVariantGroup } from '../../src/core/rosterVariants'
 import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
-import { rankCollectionPhotos } from '../../src/core/collectionPhotos'
+import { MAX_DATASHEET_PHOTOS, rankCollectionPhotos } from '../../src/core/collectionPhotos'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
 import { customPointsBudget, pointsBudgetError, reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
@@ -371,7 +371,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     const leagueId = ctx.db.leagueEvents.id.find(eventId)?.leagueId
     if (leagueId) touchLeague(ctx, leagueId, eventId)
   }
-  for (const row of Array.from(ctx.db.collectionPhotos.userId.filter(userId))) dropCollectionPhoto(ctx, row.key)
+  for (const row of Array.from(ctx.db.collectionPhotos.userId.filter(userId))) dropCollectionPhoto(ctx, row)
   for (const row of Array.from(ctx.db.collectionPhotoLikes.userId.filter(userId))) setLike(ctx, row.photoId, userId, false, 0n)
   for (const row of Array.from(ctx.db.collection.userId.filter(userId))) ctx.db.collection.key.delete(row.key)
   for (const row of Array.from(ctx.db.collectionStock.userId.filter(userId))) ctx.db.collectionStock.key.delete(row.key)
@@ -1500,18 +1500,22 @@ export const setCollectionPhoto = spacetime.reducer(
     const { userId, entryId, photoId } = z
       .object({ userId: z.string().min(1).max(128), entryId: z.string().min(1).max(2_000_000), photoId: z.uuid() })
       .parse(input)
-    moveHeartsToFavourites(ctx, userId)
+    addToCollectionIn(ctx, [userId, entryId, input.at])
     const key = JSON.stringify([userId, entryId])
-    if (!ctx.db.collection.key.find(key)) throw new SenderError('Add the datasheet to your collection before adding a photo')
-    dropCollectionPhoto(ctx, key)
+    if (Array.from(ctx.db.collectionPhotos.row.filter(key)).length >= MAX_DATASHEET_PHOTOS)
+      throw new SenderError(`You can add up to ${MAX_DATASHEET_PHOTOS} photos of a datasheet`)
     ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId, at: input.at, likes: 0 })
     touchCollection(ctx, userId)
   },
 )
 
-export const removeCollectionPhoto = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, { userId, entryId }) => {
+/** The owner's removal of one of their photos; another player's photo is left alone. */
+export const removeCollectionPhoto = spacetime.reducer({ userId: t.string(), photoId: t.string() }, (ctx, { userId, photoId }) => {
   requireOperator(ctx)
-  if (dropCollectionPhoto(ctx, JSON.stringify([userId, entryId]))) touchCollection(ctx, userId)
+  const photo = ctx.db.collectionPhotos.photoId.find(photoId)
+  if (photo?.userId !== userId) return
+  dropCollectionPhoto(ctx, photo)
+  touchCollection(ctx, userId)
 })
 
 /** The photo's owner while it may be shown to `viewerId`: always to its owner, to anyone else while the collection is shared. */
@@ -1582,7 +1586,9 @@ function setLike(ctx: Context, photoId: string, userId: string, liked: boolean, 
 export const removeCollectionPhotoById = spacetime.reducer({ photoId: t.string() }, (ctx, { photoId }) => {
   requireOperator(ctx)
   const photo = ctx.db.collectionPhotos.photoId.find(photoId)
-  if (photo && dropCollectionPhoto(ctx, photo.key)) touchCollection(ctx, photo.userId)
+  if (!photo) return
+  dropCollectionPhoto(ctx, photo)
+  touchCollection(ctx, photo.userId)
 })
 
 export const collectionPhotoDeletions = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
@@ -1602,20 +1608,23 @@ export const clearCollectionPhotoDeletions = spacetime.reducer({ photoIds: t.arr
   for (const photoId of photoIds.slice(0, 1_000)) ctx.db.collectionPhotoDeletions.photoId.delete(photoId)
 })
 
-/** Absent rather than null when there is no photo, because `productJson` writes undefined fields as null. */
+/** A collection row's photos, oldest first; absent rather than empty when there are none, because `productJson` writes undefined fields as null. */
 function collectionPhotoField(ctx: Context, key: string) {
-  const photo = ctx.db.collectionPhotos.key.find(key)
-  return photo ? { photoId: photo.photoId } : {}
+  const photos = Array.from(ctx.db.collectionPhotos.row.filter(key)).toSorted(
+    (left, right) => Number(left.at - right.at) || left.photoId.localeCompare(right.photoId),
+  )
+  return photos.length ? { photoIds: photos.map((photo) => photo.photoId) } : {}
 }
 
-/** Drops a collection row's photo, leaving its id for the web server to delete the stored object. */
-function dropCollectionPhoto(ctx: Context, key: string) {
-  const photo = ctx.db.collectionPhotos.key.find(key)
-  if (!photo) return false
+/** Drops a photo and its likes, leaving its id for the web server to delete the stored object. */
+function dropCollectionPhoto(ctx: Context, photo: { photoId: string }) {
   ctx.db.collectionPhotos.photoId.delete(photo.photoId)
   for (const like of Array.from(ctx.db.collectionPhotoLikes.photoId.filter(photo.photoId))) ctx.db.collectionPhotoLikes.key.delete(like.key)
   ctx.db.collectionPhotoDeletions.insert({ photoId: photo.photoId })
-  return true
+}
+
+function dropCollectionRowPhotos(ctx: Context, key: string) {
+  for (const photo of Array.from(ctx.db.collectionPhotos.row.filter(key))) dropCollectionPhoto(ctx, photo)
 }
 
 export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
@@ -2417,7 +2426,7 @@ function migrateCollectionHeart(ctx: Context, row: { key: string; userId: string
   const key = JSON.stringify([row.userId, row.entryId])
   if (!ctx.db.favouriteDatasheets.key.find(key))
     ctx.db.favouriteDatasheets.insert({ key, userId: row.userId, entryId: row.entryId, at: row.at })
-  dropCollectionPhoto(ctx, row.key)
+  dropCollectionRowPhotos(ctx, row.key)
   ctx.db.collection.key.delete(row.key)
   return true
 }
@@ -2453,7 +2462,7 @@ function removeFromCollectionIn(ctx: Context, args: unknown[]) {
   requireOperator(ctx)
   moveHeartsToFavourites(ctx, input.userId)
   const key = JSON.stringify([input.userId, input.entryId])
-  dropCollectionPhoto(ctx, key)
+  dropCollectionRowPhotos(ctx, key)
   if (ctx.db.collection.key.delete(key)) touchCollection(ctx, input.userId)
 }
 

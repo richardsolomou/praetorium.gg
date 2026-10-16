@@ -63,10 +63,10 @@ export function PlayerCollection({
                 <ul className="divide-y divide-edge">
                   {group.entries.map((entry) => (
                     <li key={entry.entryId} data-collection-unit={entry.name} className="flex min-h-12 items-center gap-3 px-3 py-2">
-                      {entry.photoId ? (
-                        <a href={collectionPhotoPath(entry.photoId)} target="_blank" rel="noreferrer" className="shrink-0">
+                      {entry.photoIds?.[0] ? (
+                        <a href={collectionPhotoPath(entry.photoIds[0])} target="_blank" rel="noreferrer" className="shrink-0">
                           <img
-                            src={collectionPhotoPath(entry.photoId)}
+                            src={collectionPhotoPath(entry.photoIds[0])}
                             alt={entry.name}
                             loading="lazy"
                             className="size-8 border border-edge bg-sunken object-cover"
