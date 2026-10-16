@@ -1,7 +1,7 @@
 import { captureAppSnapshot, reconcileAppAccount } from '../offline/appSnapshot'
 import { clearSavedApp, writeAppSnapshot } from '../offline/appStorage'
-import { infiniteQueryOptions, keepPreviousData, queryOptions, type QueryClient } from '@tanstack/react-query'
-import type { AdminUserFilter, AdminUserSort, AdminUsersCursor } from '../../admin'
+import { keepPreviousData, queryOptions, type QueryClient } from '@tanstack/react-query'
+import type { AdminUsersRequest } from '../../admin'
 import {
   accountMethods,
   activeFriendInvite,
@@ -69,12 +69,10 @@ export async function refreshAdminQueries(queryClient: QueryClient) {
   await queryClient.cancelQueries({ queryKey: ADMIN_QUERY_KEY })
   await queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEY })
 }
-export const adminUsersQuery = (query: string, sort: AdminUserSort, filter: AdminUserFilter) =>
-  infiniteQueryOptions({
-    queryKey: [...ADMIN_QUERY_KEY, 'users', query, sort, filter],
-    queryFn: ({ pageParam }) => adminUsers({ data: { query, sort, filter, cursor: pageParam } }),
-    initialPageParam: null as AdminUsersCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+export const adminUsersQuery = (request: AdminUsersRequest) =>
+  queryOptions({
+    queryKey: [...ADMIN_QUERY_KEY, 'users', request],
+    queryFn: () => adminUsers({ data: request }),
     placeholderData: keepPreviousData,
     staleTime: SSR_STALE_TIME,
   })

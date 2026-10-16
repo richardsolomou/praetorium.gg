@@ -1,4 +1,4 @@
-import { ADMIN_USER_FILTERS, ADMIN_USER_SORTS } from '../admin'
+import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
@@ -237,8 +237,10 @@ export const adminBattleSchema = z.object({ battle: token })
 export const adminUsersSchema = z.object({
   query: z.string().trim().max(100).default(''),
   sort: z.enum(ADMIN_USER_SORTS).default('joined'),
-  filter: z.enum(ADMIN_USER_FILTERS).default('all'),
-  cursor: z.object({ at: z.coerce.date().nullable(), id }).nullable().default(null),
+  descending: z.boolean().default(true),
+  role: z.array(z.enum(ADMIN_USER_ROLES)).max(ADMIN_USER_ROLES.length).default([]),
+  page: z.number().int().min(0).max(10_000).default(0),
+  pageSize: z.number().int().min(1).max(100).default(25),
 })
 
 /**

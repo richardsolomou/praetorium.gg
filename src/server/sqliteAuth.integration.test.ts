@@ -9,6 +9,8 @@ import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
 import { account, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
 import { SqliteAccountRepository } from './accountRepository'
+import type { SpacetimeOperator } from './spacetimeOperator'
+import { SpacetimeRepository } from './spacetimeRepository'
 import { createSqliteAuth } from './sqliteAuth'
 import { localAuthDatabase } from './localAuthDatabase'
 import { validConsentQuery } from './mcpConsent'
@@ -392,31 +394,90 @@ it('pages through players by last seen with never-seen players last', async () =
     { name: `Sorted ${tag} newer`, lastSeenAt: new Date(2_000) },
   ])
   const accounts = new SqliteAccountRepository(local.database)
-  const seen: string[] = []
-  let cursor: Awaited<ReturnType<typeof accounts.adminUserRows>>['nextCursor'] = null
-  do {
-    const page = await accounts.adminUserRows({ query: `Sorted ${tag}`, sort: 'seen', cursor, limit: 1 }, [])
-    seen.push(...page.users.map((row) => row.id))
-    cursor = page.nextCursor
-  } while (cursor)
-  expect(seen).toEqual([newer, older, never])
+  const pages = await Promise.all(
+    [0, 1, 2].map((page) => accounts.adminUserRows({ query: `Sorted ${tag}`, sort: 'seen', page, pageSize: 1 }, [])),
+  )
+  expect(pages.map(({ users, total }) => ({ id: users[0]?.id, total }))).toEqual([
+    { id: newer, total: 3 },
+    { id: older, total: 3 },
+    { id: never, total: 3 },
+  ])
 })
 
-it('narrows players to administrators, players without two-factor, or unverified emails', async () => {
+it('sorts players by name in either direction', async () => {
   const tag = randomUUID()
-  await insertPlayers([
-    { name: `Filtered ${tag} admin`, role: 'admin', twoFactorEnabled: true },
-    { name: `Filtered ${tag} secured`, twoFactorEnabled: true },
-    { name: `Filtered ${tag} unverified`, twoFactorEnabled: true, emailVerified: false },
-    { name: `Filtered ${tag} open` },
-  ])
+  await insertPlayers([{ name: `Named ${tag} b` }, { name: `Named ${tag} A` }, { name: `Named ${tag} c` }])
   const accounts = new SqliteAccountRepository(local.database)
-  const ids = async (filter: 'admins' | 'no-two-factor' | 'unverified') =>
-    (await accounts.adminUserRows({ query: `Filtered ${tag}`, filter }, [])).users.map((row) => row.name.split(' ').at(-1))
-  expect({ admins: await ids('admins'), noTwoFactor: await ids('no-two-factor'), unverified: await ids('unverified') }).toEqual({
+  const names = async (descending: boolean) =>
+    (await accounts.adminUserRows({ query: `Named ${tag}`, sort: 'name', descending }, [])).users.map((row) => row.name.split(' ').at(-1))
+  expect({ ascending: await names(false), descending: await names(true) }).toEqual({
+    ascending: ['A', 'b', 'c'],
+    descending: ['c', 'b', 'A'],
+  })
+})
+
+it('narrows players by role', async () => {
+  const tag = randomUUID()
+  await insertPlayers([{ name: `Filtered ${tag} admin`, role: 'admin' }, { name: `Filtered ${tag} user` }])
+  const accounts = new SqliteAccountRepository(local.database)
+  const names = async (role: ('admin' | 'user')[]) =>
+    (await accounts.adminUserRows({ query: `Filtered ${tag}`, sort: 'name', descending: false, role }, [])).users.map((row) =>
+      row.name.split(' ').at(-1),
+    )
+  expect({ admins: await names(['admin']), users: await names(['user']), either: await names(['admin', 'user']) }).toEqual({
     admins: ['admin'],
-    noTwoFactor: ['open'],
-    unverified: ['unverified'],
+    users: ['user'],
+    either: ['admin', 'user'],
+  })
+})
+
+function productWithRosters(rosters: Map<string, number>) {
+  const product = {
+    practiceOpponentIds: async () => [],
+    productStats: async (ids: readonly string[]) => {
+      if (ids.length > 100) throw new Error('Invalid product stats query')
+      return new Map(
+        ids.map((id) => [
+          id,
+          { userId: id, rosterCount: rosters.get(id) ?? 0, battleCount: 0, leagueCount: 0, friendCount: 0, practiceOpponent: false },
+        ]),
+      )
+    },
+  }
+  return new SpacetimeRepository(new SqliteAccountRepository(local.database), product as unknown as SpacetimeOperator)
+}
+
+it('sorts players by roster count either way, newest first among ties, a page at a time', async () => {
+  const tag = randomUUID()
+  const [newest, middle, oldest] = await insertPlayers([
+    { name: `Counted ${tag} newest` },
+    { name: `Counted ${tag} middle` },
+    { name: `Counted ${tag} oldest` },
+  ])
+  const repository = productWithRosters(
+    new Map([
+      [newest!, 2],
+      [oldest!, 2],
+    ]),
+  )
+  const ids = async (descending: boolean, page = 0, pageSize = 25) =>
+    (await repository.adminUsers({ query: `Counted ${tag}`, sort: 'rosters', descending, page, pageSize })).users.map((row) => row.id)
+  expect({ descending: await ids(true), ascending: await ids(false), secondPage: await ids(true, 1, 2) }).toEqual({
+    descending: [newest, oldest, middle],
+    ascending: [middle, newest, oldest],
+    secondPage: [middle],
+  })
+})
+
+it('counts every matching player when sorting by a count beyond one stats batch', async () => {
+  const tag = randomUUID()
+  const players = await insertPlayers(Array.from({ length: 101 }, (_, index) => ({ name: `Batched ${tag} ${index}` })))
+  const repository = productWithRosters(new Map([[players.at(-1)!, 1]]))
+  const page = await repository.adminUsers({ query: `Batched ${tag}`, sort: 'rosters', pageSize: 1 })
+  expect({ first: page.users[0]?.id, rosters: page.users[0]?.rosterCount, total: page.total }).toEqual({
+    first: players.at(-1),
+    rosters: 1,
+    total: 101,
   })
 })
 

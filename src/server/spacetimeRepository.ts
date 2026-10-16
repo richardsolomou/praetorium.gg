@@ -1,4 +1,4 @@
-import type { AdminUserPage } from '../admin'
+import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type AdminUserPage, type AdminUsersRequest } from '../admin'
 import type { BattlesCursor } from '../contracts/battles'
 import { parseRosterSnapshot } from '../core/commands'
 import { leagueArmy, leagueTeams, requiredLeagueRosterLimit, type LeagueAdmission, type LeagueVisibility } from '../core/league'
@@ -13,6 +13,26 @@ type BattlePlayer = NonNullable<Awaited<ReturnType<SqliteAccountRepository['prof
 type RosterSummary = Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser']>>[number]
 export type BattleSeats = { battle: Snapshot['battle']; players: BattlePlayer[] }
 export type BattleHistory = BattleSeats & { log: Snapshot['log'] }
+
+const ADMIN_USER_COUNT_FIELDS = {
+  rosters: 'rosterCount',
+  battles: 'battleCount',
+  friends: 'friendCount',
+  leagues: 'leagueCount',
+} as const satisfies Record<AdminUserCountSort, keyof AdminUser>
+
+function withProductStats<Row extends Omit<AdminUser, (typeof ADMIN_USER_COUNT_FIELDS)[AdminUserCountSort]>>(
+  rows: Row[],
+  stats: Awaited<ReturnType<SpacetimeOperator['productStats']>>,
+) {
+  return rows.map((row) => ({
+    ...row,
+    rosterCount: stats.get(row.id)?.rosterCount ?? 0,
+    battleCount: stats.get(row.id)?.battleCount ?? 0,
+    leagueCount: stats.get(row.id)?.leagueCount ?? 0,
+    friendCount: stats.get(row.id)?.friendCount ?? 0,
+  }))
+}
 
 export class SpacetimeRepository {
   constructor(
@@ -40,20 +60,23 @@ export class SpacetimeRepository {
     return this.product.updateOnboardingProgress(...args)
   }
 
-  async adminUsers(input: Parameters<SqliteAccountRepository['adminUserRows']>[0] = {}): Promise<AdminUserPage> {
+  async adminUsers(input: Partial<AdminUsersRequest> = {}): Promise<AdminUserPage> {
     const practice = await this.product.practiceOpponentIds()
-    const page = await this.accounts.adminUserRows(input, practice)
-    const stats = await this.product.productStats(page.users.map((row) => row.id))
-    return {
-      users: page.users.map((row) => ({
-        ...row,
-        rosterCount: stats.get(row.id)?.rosterCount ?? 0,
-        battleCount: stats.get(row.id)?.battleCount ?? 0,
-        leagueCount: stats.get(row.id)?.leagueCount ?? 0,
-        friendCount: stats.get(row.id)?.friendCount ?? 0,
-      })),
-      nextCursor: page.nextCursor,
+    const sort = input.sort ?? 'joined'
+    if (!isAdminUserCountSort(sort)) {
+      const page = await this.accounts.adminUserRows({ ...input, sort }, practice)
+      return { users: withProductStats(page.users, await this.product.productStats(page.users.map((row) => row.id))), total: page.total }
     }
+    const ids = await this.accounts.adminUserIds(input, practice)
+    const batches = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, (index + 1) * 100))
+    const stats = new Map((await Promise.all(batches.map((batch) => this.product.productStats(batch)))).flatMap((batch) => [...batch]))
+    const field = ADMIN_USER_COUNT_FIELDS[sort]
+    const count = (id: string) => stats.get(id)?.[field] ?? 0
+    // A stable sort keeps tied players newest first.
+    const ranked = ids.toSorted((a, b) => ((input.descending ?? true) ? count(b) - count(a) : count(a) - count(b)))
+    const pageSize = input.pageSize ?? 25
+    const start = (input.page ?? 0) * pageSize
+    return { users: withProductStats(await this.accounts.adminUsersByIds(ranked.slice(start, start + pageSize)), stats), total: ids.length }
   }
 
   unlinkAccount(...args: Parameters<SqliteAccountRepository['unlinkAccount']>) {
