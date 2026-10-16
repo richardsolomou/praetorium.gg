@@ -140,7 +140,8 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
 }
 
 function AppShell() {
-  const webView = useRef<WebView>(null)
+  // react-native-webview 14 defaults its props generic to undefined, which types every prop as never (react-native-webview#3977).
+  const webView = useRef<WebView<object>>(null)
   const [watchAvailable, setWatchAvailable] = useState(isWatchCompanionAvailable)
   useEffect(() => subscribeWatchAvailability(setWatchAvailable), [])
   useEffect(() => {
@@ -316,7 +317,7 @@ function AppShell() {
           const file = new File(Paths.cache, `praetorium-offline-${action.id}.json`)
           try {
             if (Platform.OS !== 'ios') throw new Error('File export is currently available on iOS and the website.')
-            file.write(JSON.stringify(action.state, null, 2))
+            file.writeSync(JSON.stringify(action.state, null, 2))
             await Share.share({ url: file.uri, title: 'Praetorium saved changes' })
           } catch (problem) {
             error = problem instanceof Error ? problem.message : 'Your saved changes could not be exported.'
@@ -604,7 +605,7 @@ function AppShell() {
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
       <StatusBar style="light" />
       {offlineView ? (
-        <WebView
+        <WebView<object>
           key={`saved-${offlineRenderKey}`}
           ref={webView}
           source={{ html: offlineView.html, baseUrl: APP_URL + offlineView.path }}
@@ -640,7 +641,7 @@ function AppShell() {
           onRenderProcessGone={recoverSavedRenderer}
         />
       ) : renderedShell.sourceUrl ? (
-        <WebView
+        <WebView<object>
           key={renderedShell.renderKey}
           ref={webView}
           source={{ uri: renderedShell.sourceUrl }}

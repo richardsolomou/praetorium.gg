@@ -1,14 +1,12 @@
-const { expo } = require('./app.json')
-
-module.exports = () => {
+module.exports = ({ config }) => {
   const channel = process.env.MOBILE_UPDATE_CHANNEL
-  if (!channel) return expo
+  if (!channel) return config
 
   return {
-    ...expo,
-    plugins: expo.plugins.map((plugin) => (plugin === 'expo-notifications' ? ['expo-notifications', { mode: 'production' }] : plugin)),
+    ...config,
+    plugins: config.plugins.map((plugin) => (plugin === 'expo-notifications' ? ['expo-notifications', { mode: 'production' }] : plugin)),
     updates: {
-      ...expo.updates,
+      ...config.updates,
       requestHeaders: { 'expo-channel-name': channel },
     },
   }
