@@ -131,7 +131,7 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
   const { id, operator } = await savedArmy(page)
   await page.goto('/rosters')
   const row = page.locator('[data-roster="Reviewed army"]')
-  const editSetup = page.getByRole('menuitem', { name: 'Edit setup' })
+  const editSetup = page.getByRole('menuitem', { name: 'Edit roster setup' })
   await retryUntilVisible(editSetup, () => row.getByRole('button', { name: 'Actions for Reviewed army' }).click())
   await editSetup.click()
   let setup = page.getByRole('dialog', { name: 'Edit roster setup' })

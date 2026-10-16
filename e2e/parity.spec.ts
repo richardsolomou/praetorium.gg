@@ -90,7 +90,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   const row = page.locator('[data-roster="Shareable roster"]')
 
   await page.setViewportSize({ width: 390, height: 900 })
-  const libraryEdit = page.getByRole('menuitem', { name: 'Edit setup', exact: true })
+  const libraryEdit = page.getByRole('menuitem', { name: 'Edit roster setup', exact: true })
   await retryUntilVisible(libraryEdit, () => page.getByRole('button', { name: 'Actions for Shareable roster' }).click())
   await libraryEdit.click()
   const librarySetup = page.getByRole('dialog', { name: 'Edit roster setup' })

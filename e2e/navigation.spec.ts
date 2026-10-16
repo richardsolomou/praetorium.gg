@@ -557,7 +557,7 @@ test('signed-out faction browsing does not load account collection data before b
   })
 
   await page.goto('/factions/necrons/datasheets')
-  await expect(page.getByRole('heading', { name: 'Datasheets' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Datasheets', exact: true })).toBeVisible()
   await page.waitForTimeout(500)
   expect(serverReads).toHaveLength(0)
 })
@@ -755,7 +755,7 @@ test('a mission opens while its terrain layouts load', async ({ page }) => {
   const opening = page.locator('a[href*="/matchups/"]').first().click()
   await started
   try {
-    await expect(page.getByText('Mission matchup', { exact: true })).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText(/^Mission matchup ·/)).toBeVisible({ timeout: 5_000 })
     await expect(page.getByRole('heading', { name: 'Loading terrain layouts' })).toBeVisible()
     await expect(page.getByText('Mission pack', { exact: true })).toHaveCount(0)
   } finally {

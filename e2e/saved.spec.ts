@@ -577,7 +577,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await printedRoster.close()
 
   await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
@@ -588,7 +588,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   // Public reads exactly as unlisted does. What it adds is being listed on the
   // owner's profile, which is the only place the two values look different.
   await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit setup' }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
   const publishing = page.getByRole('dialog', { name: 'Edit roster setup' })
   await publishing.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Public — listed on your profile' }).click()
@@ -607,7 +607,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   // Back to unlisted, so the rest of this test reads the link the way it did before.
   await page.goto('/rosters')
-  const revertSetup = page.getByRole('menuitem', { name: 'Edit setup' })
+  const revertSetup = page.getByRole('menuitem', { name: 'Edit roster setup' })
   await retryUntilVisible(revertSetup, () => page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click())
   await revertSetup.click()
   const reverting = page.getByRole('dialog', { name: 'Edit roster setup' })

@@ -323,7 +323,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
     await expect(menu.getByRole('menuitem')).toHaveText([
       'View',
-      'Edit setup',
+      'Edit roster setup',
       'Convert rules version',
       'Create variant',
       'Duplicate',
@@ -340,7 +340,7 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: test.info().outputPath(`library-menu-${width}.png`) })
     await page.keyboard.press('Escape')
     await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
-    await expect(menu.getByRole('menuitem').first()).toHaveText('Edit setup')
+    await expect(menu.getByRole('menuitem').first()).toHaveText('Edit roster setup')
     await expect(menu.getByRole('menuitem').last()).toHaveText('Delete')
     await expect(menu.getByRole('separator')).toHaveCount(2)
   })
