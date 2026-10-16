@@ -1,5 +1,26 @@
 # praetorium
 
+## 0.151.4
+
+### Patch Changes
+
+- 2531165: The army dialog's datasheet pane shows just the datasheet, edge to edge, without repeating the unit's card; on a phone it fills the dialog and the close button returns to the list.
+
+## 0.151.3
+
+### Patch Changes
+
+- 85f7fb0: Cancelling the file picker after choosing to add a unit photo in the roster no longer leaves the loadout pane blank.
+- 18148ef: Photo prompts invite you to show off your own models instead of warning you to add only photos you took.
+
+## 0.151.2
+
+### Patch Changes
+
+- e144650: A unit's datasheet in the battle army dialog opens beside the list on wide screens, and in its own view with previous and next on phones, instead of unfolding inside the list.
+- e144650: Recording wounds, models, or a lost unit no longer fills the battle log or takes Undo away from the last action.
+- e144650: Casualty buttons stay usable while a change saves, so a squad can be tapped down several models at once.
+
 ## 0.151.1
 
 ### Patch Changes

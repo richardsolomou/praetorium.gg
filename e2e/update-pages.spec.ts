@@ -39,7 +39,8 @@ for (const width of [1440, 390]) {
       await page.waitForLoadState('networkidle')
       await expect(page.locator(`[id="${anchor}"]`)).toHaveAttribute('open', '')
       await expect(page.locator(`[id="${target}"]`)).toBeVisible()
-      await page.getByRole('link', { name: 'Older updates', exact: true }).click()
+      // The reloaded page scrolls back to its fragment on its own schedule, which can move the link out from under a pointer click.
+      await page.getByRole('link', { name: 'Older updates', exact: true }).press('Enter')
       await expect(page).toHaveURL(/\/data-updates\?before=/)
       await expect(navigation.getByRole('link', { name: 'Data updates', exact: true })).toHaveAttribute('aria-current', 'page')
       await expectNoHorizontalOverflow(page.locator('main'))

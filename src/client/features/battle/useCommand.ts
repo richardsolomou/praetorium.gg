@@ -12,7 +12,11 @@ import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 
 type SubmittedCommand = Command | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
-export type SendCommand = (command: Command, options?: { background?: boolean; complete?: (appended: boolean) => void }) => void
+export type SendCommand = (
+  command: Command,
+  /** `blocking: false` leaves other controls enabled while it is in flight, for presses meant to be repeated. */
+  options?: { background?: boolean; blocking?: boolean; complete?: (appended: boolean) => void },
+) => void
 type QueuedCommand = { command: SubmittedCommand; basedOn: number; background?: boolean; complete?: (appended: boolean) => void }
 
 function explain(result: SubmitResult, setup: boolean) {
@@ -72,9 +76,10 @@ async function drainCommands({
         if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
         queryClient.setQueryData(battleQuery(token).queryKey, screen)
         if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
+        // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.
+        item.complete?.(result.outcome === 'appended')
         void queryClient.invalidateQueries({ queryKey: ['report', token] })
         await writeAppSnapshot(captureAppSnapshot(queryClient)).catch(() => {})
-        item.complete?.(result.outcome === 'appended')
         if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
         if (result.outcome !== 'appended') {
           const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
@@ -139,7 +144,7 @@ export function useCommand(token: string, seq: number) {
   const send: SendCommand = useCallback(
     (command, options) => {
       queued.current.push({ command, basedOn: seq, background: options?.background, complete: options?.complete })
-      if (!options?.background) setPending(true)
+      if (!options?.background && options?.blocking !== false) setPending(true)
       void drain()
     },
     [drain, seq],

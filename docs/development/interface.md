@@ -57,7 +57,7 @@ Setup is one page in rules order under `StepRail`. Keep secondary choices, reser
 
 A mission choice opens by itself once when its moment arrives and stays recordable from its card while the moment lasts. Required prompts open one at a time. Minimize preserves local answers; battle-changing controls stay disabled until parked dialogs are resumed or closed. Undo preserves answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 
-Players, spectators, and replay share the frozen loadout view; only seated players receive casualty controls. Readers without a seat get one in-flow invitation to build an army or start a battle; it never covers the scoreboard or timeline, stays out of the native application, and is not shown to accounts that have played.
+Players, spectators, and replay share the frozen loadout view; only seated players receive casualty controls. The army dialog (`ArmyRoster`) keeps the list beside the selected unit's datasheet from 860 pixels; narrower, the datasheet replaces the list and the close button returns to the list. The datasheet pane holds only the datasheet; casualty controls stay on the list. Readers without a seat get one in-flow invitation to build an army or start a battle; it never covers the scoreboard or timeline, stays out of the native application, and is not shown to accounts that have played.
 
 League entrants and organizers share one event page, whose next-action card and progress use the same state decision. Sealing requires choosing a list and confirming it by name. Touch controls meet a 44-pixel target. [Leagues](leagues.md) owns access, sealing, and reveal rules.
 

@@ -58,7 +58,7 @@ export function PhotoDropZone({ entryId, name, className = '' }: { entryId: stri
       <label
         data-photo-drop
         data-dragging={dragging || undefined}
-        className="grid min-h-20 flex-1 cursor-pointer place-items-center content-center gap-1 border border-dashed border-edge-strong bg-sunken/60 p-2 text-center text-xs text-dim transition-colors focus-within:border-info hover:border-info hover:text-info data-dragging:border-info data-dragging:bg-info/10 data-dragging:text-info"
+        className="relative grid min-h-20 flex-1 cursor-pointer place-items-center content-center gap-1 border border-dashed border-edge-strong bg-sunken/60 p-2 text-center text-xs text-dim transition-colors focus-within:border-info hover:border-info hover:text-info data-dragging:border-info data-dragging:bg-info/10 data-dragging:text-info"
       >
         <input
           type="file"

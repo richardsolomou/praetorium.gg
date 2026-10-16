@@ -268,33 +268,11 @@ function describe(
       const secondary = player?.secondaries.find((candidate) => candidate.key === player.secretSecondary)
       return `${who} reveals ${secondary?.name ?? 'a secret mission'}${forTarget}`
     }
-    case 'set-unit': {
-      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
-      if (targetId === by) return command.destroyed ? `${who} loses ${unit}` : `${who} brings ${unit} back`
-      return command.destroyed ? `${who} marks ${whose} ${unit} lost` : `${who} brings ${whose} ${unit} back`
-    }
-    case 'wound-unit': {
-      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)
-      const name = unit?.name ?? 'a unit'
-      if (unit && unit.alive === 0) return targetId === by ? `${who} loses ${name}` : `${who} removes the last model from ${whose} ${name}`
-      const count = Math.abs(command.delta)
-      const models = count === 1 ? 'model' : 'models'
-      if (targetId === by)
-        return command.delta < 0 ? `${who} loses ${count} ${models} from ${name}` : `${who} returns ${count} ${models} to ${name}`
-      return command.delta < 0
-        ? `${who} removes ${count} ${models} from ${whose} ${name}`
-        : `${who} returns ${count} ${models} to ${whose} ${name}`
-    }
-    case 'damage-unit': {
-      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)
-      const name = unit?.name ?? 'a unit'
-      if (unit && unit.alive === 0) return targetId === by ? `${who} loses ${name}` : `${who} destroys ${whose} ${name}`
-      const count = Math.abs(command.delta)
-      const wounds = count === 1 ? 'wound' : 'wounds'
-      if (command.delta > 0)
-        return targetId === by ? `${who} heals ${count} ${wounds} on ${name}` : `${who} heals ${count} ${wounds} on ${whose} ${name}`
-      return targetId === by ? `${who} takes ${count} ${wounds} on ${name}` : `${who} puts ${count} ${wounds} on ${whose} ${name}`
-    }
+    // Running casualty counts, not events: the roster shows what is left.
+    case 'set-unit':
+    case 'wound-unit':
+    case 'damage-unit':
+      return null
     case 'select-mission': {
       const card =
         player?.primaryCard?.key === command.cardKey

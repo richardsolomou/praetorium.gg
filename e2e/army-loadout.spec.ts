@@ -19,7 +19,7 @@ for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel'
         expect(bounds.width).toBe(width)
         expect(bounds.y + bounds.height).toBe((await page.locator('[data-native-app-tabs]').boundingBox())!.y)
       }
-      const unit = army.locator('[data-unit]').first()
+      const unit = army.locator('[data-army-list] [data-unit]').first()
       const select = unit.locator('button[aria-pressed]')
       await select.click()
       const loadout = army.locator('[data-army-loadout]')
@@ -38,40 +38,30 @@ for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel'
       )
       expect(overflowing).toBe(false)
       await page.screenshot({ path: `test-results/army-loadout-${token}-${width}.png` })
-      await army.locator('[data-slot="dialog-body"]').evaluate((element) => {
-        const details = element.querySelector('[data-army-loadout]')!.getBoundingClientRect()
-        element.scrollTop += details.top - element.getBoundingClientRect().top + details.height / 2
-      })
-      const header = army.locator('[data-army-unit-header]').first()
-      await expect(select).toBeInViewport()
-      const dialogBounds = (await army.boundingBox())!
-      const headerBounds = (await header.boundingBox())!
-      expect(headerBounds.y).toBeGreaterThanOrEqual(dialogBounds.y)
-      expect(headerBounds.y + headerBounds.height).toBeLessThanOrEqual(dialogBounds.y + dialogBounds.height)
-      await page.screenshot({ path: `test-results/army-loadout-sticky-${token}-${width}.png` })
-      await select.click()
-      await expect(loadout).toHaveCount(0)
-      await expect(select).toBeInViewport()
-      await select.click()
-      await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
-      const second = army.locator('[data-unit]').nth(1).locator('button[aria-pressed]')
-      await second.scrollIntoViewIfNeeded()
-      const secondBefore = (await second.boundingBox())!
-      await second.click()
-      await expect(select).toHaveAttribute('aria-pressed', 'true')
-      await expect(second).toHaveAttribute('aria-pressed', 'true')
-      await expect(loadout).toHaveCount(2)
-      await expect(loadout.nth(1).locator('[data-slot="unit-profile"]')).toBeVisible()
-      await expect.poll(async () => Math.abs((await second.boundingBox())!.y - secondBefore.y)).toBeLessThan(2)
-      await page.screenshot({ path: `test-results/army-loadout-independent-${token}-${width}.png` })
-      await select.click()
-      await expect(loadout).toHaveCount(1)
-      await expect(second).toHaveAttribute('aria-pressed', 'true')
-      await expect(select).toBeInViewport()
-      if (width === 1440) {
+      const list = army.locator('[data-army-list]')
+      const second = list.locator('[data-unit]').nth(1).locator('button[aria-pressed]')
+      if (width >= 860) {
+        // The army stays beside the datasheet, so changing unit neither scrolls nor reflows the list.
+        await expect(list).toBeVisible()
+        const secondBefore = (await second.boundingBox())!
         await second.click()
-        await expect(loadout).toHaveCount(0)
+        await expect(second).toHaveAttribute('aria-pressed', 'true')
+        await expect(select).toHaveAttribute('aria-pressed', 'false')
+        await expect(loadout).toHaveCount(1)
+        await expect(army.locator('[data-army-detail] [data-unit]')).toHaveCount(0)
+        await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
+        await expect.poll(async () => Math.abs((await second.boundingBox())!.y - secondBefore.y)).toBeLessThan(2)
         await page.keyboard.press('Escape')
+        await expect(army).toBeHidden()
+      } else {
+        // A compact screen shows only the datasheet in place of the list, and closing it goes back to the list.
+        await expect(list).toBeHidden()
+        await expect(army.locator('[data-army-detail] [data-unit]')).toHaveCount(0)
+        await army.getByRole('button', { name: 'Close', exact: true }).click()
+        await expect(list).toBeVisible()
+        await expect(loadout).toHaveCount(0)
+        await expect(select).toBeInViewport()
+        await army.getByRole('button', { name: 'Close', exact: true }).click()
         await expect(army).toBeHidden()
       }
     }
@@ -88,6 +78,6 @@ test('an unavailable loadout leaves the frozen army readable', async ({ page }) 
   })
   await army.getByRole('button', { name: 'Ghazghkull Thraka', exact: true }).click()
   await expect(army.getByRole('alert')).toContainText('This loadout could not be loaded')
-  await expect(army.locator('[data-unit="Ghazghkull Thraka"]')).toContainText('Mork’s Roar')
+  await expect(army.locator('[data-army-list] [data-unit="Ghazghkull Thraka"]')).toContainText('Mork’s Roar')
   await expect(army.getByRole('button', { name: 'Close' })).toBeEnabled()
 })
