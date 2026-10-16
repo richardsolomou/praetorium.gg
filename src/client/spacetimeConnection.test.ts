@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { maintainSpacetimeConnection } from './spacetimeConnection'
+import { maintainSpacetimeConnection, type SpacetimeLink } from './spacetimeConnection'
 import { RealtimeHttpError } from './realtimeErrors'
 
 beforeEach(() => {
@@ -15,7 +15,7 @@ it('reconnects promptly after an unexpected socket disconnect', async () => {
   vi.useFakeTimers()
   const issued = vi.fn(async () => 'ticket')
   let fail: (() => void) | undefined
-  const open = vi.fn((_ticket: string, failed: () => void) => {
+  const open = vi.fn((_ticket: string, { failed }: SpacetimeLink<string>) => {
     fail = failed
     return { disconnect: vi.fn() }
   })
@@ -30,7 +30,7 @@ it('reconnects promptly after an unexpected socket disconnect', async () => {
 it('does not retry an intentional token refresh or a stopped connection twice', async () => {
   vi.useFakeTimers()
   let fail: (() => void) | undefined
-  const open = vi.fn((_ticket: string, failed: () => void) => {
+  const open = vi.fn((_ticket: string, { failed }: SpacetimeLink<string>) => {
     fail = failed
     return { disconnect: () => failed() }
   })
@@ -71,7 +71,7 @@ it('reports an unexpected failure once until the subscription has recovered', as
   const report = vi.fn()
   const stop = maintainSpacetimeConnection({
     issue: async () => 'ticket',
-    open: (_ticket, failed, _isCurrent, connected) => {
+    open: (_ticket, { failed, ready: connected }) => {
       fail = failed
       ready = connected
       return { disconnect: vi.fn() }
@@ -102,7 +102,7 @@ it('keeps backing off when sockets open but subscriptions fail or flap', async (
   const issue = vi.fn(async () => 'ticket')
   const stop = maintainSpacetimeConnection({
     issue,
-    open: (_ticket, failed, _isCurrent, connected) => {
+    open: (_ticket, { failed, ready: connected }) => {
       fail = failed
       ready = connected
       return { disconnect: vi.fn() }
@@ -202,4 +202,54 @@ it('does not report a sustained network failure', async () => {
   await vi.advanceTimersByTimeAsync(10 * 60_000)
   stop()
   expect(report).not.toHaveBeenCalled()
+})
+
+/** Opens one connection and hands back its link and the hooks it was given. */
+async function linked(issue: () => Promise<string | null>) {
+  let link: SpacetimeLink<string> | undefined
+  const disconnect = vi.fn()
+  const inactive = vi.fn()
+  const open = vi.fn((_ticket: string, current: SpacetimeLink<string>) => {
+    link = current
+    return { disconnect }
+  })
+  const stop = maintainSpacetimeConnection({ issue, open, inactive, report: vi.fn() })
+  await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1))
+  return { link: link!, open, disconnect, inactive, stop }
+}
+
+it('polls while the SDK reconnects a dropped socket', async () => {
+  vi.useFakeTimers()
+  const { link, inactive, stop } = await linked(async () => 'ticket')
+  link.interrupted()
+  stop()
+  expect(inactive).toHaveBeenCalledTimes(2)
+})
+
+it('leaves a dropped socket to the SDK instead of opening another connection', async () => {
+  vi.useFakeTimers()
+  const { link, open, stop } = await linked(async () => 'ticket')
+  link.interrupted()
+  await vi.advanceTimersByTimeAsync(60_000)
+  stop()
+  expect(open).toHaveBeenCalledTimes(1)
+})
+
+it('renews the ticket the SDK reconnects with', async () => {
+  vi.useFakeTimers()
+  const issue = vi.fn(async () => `ticket-${issue.mock.calls.length}`)
+  const { link, stop } = await linked(issue)
+  const renewed = await link.renew()
+  stop()
+  expect(renewed).toBe('ticket-2')
+})
+
+it('ends the connection when a renewal finds access withdrawn', async () => {
+  vi.useFakeTimers()
+  const issue = vi.fn(async (): Promise<string | null> => (issue.mock.calls.length === 1 ? 'ticket' : null))
+  const { link, disconnect, stop } = await linked(issue)
+  await link.renew().catch(() => {})
+  const ended = disconnect.mock.calls.length
+  stop()
+  expect(ended).toBe(1)
 })

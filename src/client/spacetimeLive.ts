@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
-import { maintainSpacetimeConnection } from './spacetimeConnection'
+import { maintainSpacetimeConnection, type SpacetimeLink } from './spacetimeConnection'
 import {
   coalescedBy,
   invalidateAdminProductQueries,
@@ -64,6 +64,20 @@ function report(error: unknown) {
   console.error({ event: 'spacetime_realtime_failed', error })
 }
 
+type Ticket = { token: string; database: string; uri: string }
+
+/** The SDK rides out a dropped socket on its own; the loop replaces the connection only once it gives up. */
+function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>) {
+  return DbConnection.builder()
+    .withUri(issued.uri)
+    .withDatabaseName(issued.database)
+    .withToken(issued.token)
+    .withAutomaticReconnect()
+    .withTokenProvider(async () => (await link.renew()).token)
+    .onDisconnect((_current, _error, retrying) => (retrying === undefined ? link.failed() : link.interrupted()))
+    .onConnectError((_current, error, retrying) => (retrying === undefined ? link.failed(error) : link.interrupted(error)))
+}
+
 export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
@@ -95,12 +109,10 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
         const battleId = issued?.battleId
         return issued && battleId ? { ...issued, battleId } : null
       },
-      open: (issued, failed, isCurrent, ready) => {
+      open: (issued, link) => {
+        const { failed, isCurrent, ready } = link
         const battleId = issued.battleId
-        return DbConnection.builder()
-          .withUri(issued.uri)
-          .withDatabaseName(issued.database)
-          .withToken(issued.token)
+        return connection(issued, link)
           .onConnect((current) => {
             if (!isCurrent()) return
             current.db.mySession.onDelete(() => failed())
@@ -126,8 +138,6 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
               .onError((context) => failed(new Error(context.event?.message || 'Battle subscription failed')))
               .subscribe([tables.mySession, tables.myBattleSignals])
           })
-          .onDisconnect(() => failed())
-          .onConnectError((_current, error) => failed(error))
           .build()
       },
       inactive: () => setSubscribed(false),
@@ -204,11 +214,9 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
               throw error
             })
         : () => guestTicket(config),
-      open: (issued, failed, isCurrent, ready) =>
-        DbConnection.builder()
-          .withUri(issued.uri)
-          .withDatabaseName(issued.database)
-          .withToken(issued.token)
+      open: (issued, link) => {
+        const { failed, isCurrent, ready } = link
+        return connection(issued, link)
           .onConnect((current) => {
             if (!isCurrent()) return
             let applied = false
@@ -252,9 +260,8 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
                   : [tables.publicProductSignals],
               )
           })
-          .onDisconnect(() => failed())
-          .onConnectError((_current, error) => failed(error))
-          .build(),
+          .build()
+      },
       inactive: () => setSubscribed(false),
       report,
     })

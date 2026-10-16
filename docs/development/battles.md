@@ -72,7 +72,7 @@ Standings rate finished guided, non-practice results with OpenSkill from bounded
 
 Subscriptions carry IDs, sequences, or bounded revision counters, never product state; refetch through permission-checked reads. The public battles signal refreshes feeds, not an open battle, which follows its own signal. Use internal battle IDs, not share tokens. User, shared, and admin revisions have separate access boundaries.
 
-Signed-in tokens are deployment-bound; guests get restricted identities and no private rows. A failed subscription must fall back to polling even if the transport is connected. Only a sustained applied subscription resets backoff. Only token HTTP 401 rechecks the account; outages never sign the player out.
+Signed-in tokens are deployment-bound; guests get restricted identities and no private rows. A failed subscription must fall back to polling even if the transport is connected. Only a sustained applied subscription resets backoff. Only token HTTP 401 rechecks the account; outages never sign the player out. The SDK's automatic reconnect rides out a dropped socket with a renewed ticket; `spacetimeConnection.ts` replaces the connection only when the first connection fails, the SDK gives up, `my_session` disappears, or every four minutes, because only a new connection extends `session_access` past a five-minute token.
 
 ## Offline battles
 
