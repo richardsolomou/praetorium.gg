@@ -21,7 +21,9 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
       <h2 id="player-photos" className="rubric">
         Player photos
       </h2>
-      {me ? <p className="mt-1 text-sm text-dim">Show off your own models. Adding a photo puts this datasheet in your collection.</p> : null}
+      {me ? (
+        <p className="mt-1 text-sm text-dim">Show off your own models. Adding a photo puts this datasheet in your collection.</p>
+      ) : null}
       {photos.data.length || me ? (
         <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
           {me ? (
