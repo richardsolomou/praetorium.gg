@@ -68,9 +68,9 @@ export function HomeView({
   const played = mine
     .filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some((player) => player.automated))
     .slice(0, PLAYED)
-  // A visitor's hero is the most recent public battle, so the shelf below must not
-  // print it again two inches further down.
-  const hero = me ? undefined : open[0]
+  // A visitor's hero is the most recent public battle that has started, since a table still
+  // being set reads 0–0; the shelf below must not print it again two inches further down.
+  const hero = me ? undefined : (open.find((battle) => battle.status !== 'setup') ?? open[0])
   const { friends: shownFriends, open: rest } = watchedTables(friends, open, hero)
   // Without a game going or played, the lists are what the player comes back for, so they lead.
   const listsFirst = !going.length && !played.length
@@ -80,6 +80,7 @@ export function HomeView({
       <main className="w-full">
         <Welcome
           name={me.name}
+          returning={mine.length > 0 || rosterCount > 0}
           newBattle={newBattle}
           // A player who only builds lists has no record to show, and a strip of dashes would say they are losing.
           stats={onboarding?.completedTasks.includes('battle') ? <HomeRecord userId={me.id} data={record} /> : null}
@@ -147,14 +148,15 @@ export function HomeView({
  * of the page is one width: a second tall gradient panel would make one page look
  * like two.
  */
-function Welcome({ name, newBattle, stats }: { name: string; newBattle?: ReactNode; stats: ReactNode }) {
+function Welcome({ name, returning, newBattle, stats }: { name: string; returning: boolean; newBattle?: ReactNode; stats: ReactNode }) {
   const firstName = name.trim().split(/\s+/)[0]
+  const greeting = returning ? 'Welcome back' : 'Welcome'
   return (
     <section data-onboarding="home-activity" className="relative overflow-hidden border-b border-edge bg-panel">
       <div className="plot-grid" />
       <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 py-6 sm:px-6 sm:py-7">
         <div className="w-full sm:w-auto">
-          <h1 className="text-2xl leading-none sm:text-3xl">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</h1>
+          <h1 className="text-2xl leading-none sm:text-3xl">{firstName ? `${greeting}, ${firstName}` : greeting}</h1>
           {stats}
         </div>
         <div className="flex flex-wrap gap-2">

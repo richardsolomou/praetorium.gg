@@ -191,6 +191,21 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
 
   if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to see the army lists saved to your account." />
 
+  const filtered = Boolean(search.limit !== undefined || search.faction || search.visibility || search.updates)
+  const archivable = Boolean(deleting && !deleting.archived)
+  const deleteAction = (
+    <AlertDialogAction
+      variant="destructive"
+      className={archivable ? 'sm:mr-auto' : undefined}
+      onClick={() => {
+        if (deleting) actions.remove.mutate(deleting.id)
+        setDeleting(null)
+      }}
+    >
+      Delete roster
+    </AlertDialogAction>
+  )
+
   return (
     <main className="w-full">
       <PageHeader
@@ -208,7 +223,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         }
       />
 
-      <PageContent className="space-y-4">
+      <PageContent className="space-y-6">
         <RosterFilters
           value={{ ...search, sort: selectedSort }}
           factionGroups={factionGroups}
@@ -241,14 +256,14 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
 
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
-            <span className="mr-auto">Rosters</span>
+            <h2 className="mr-auto">Rosters</h2>
             {olderLists && search.updates !== 'older' ? (
               <Link
                 to="/rosters"
                 search={{ updates: 'older' }}
                 className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone"
               >
-                {olderLists} {olderLists === 1 ? 'list uses' : 'lists use'} older rules
+                {olderLists} {olderLists === 1 ? 'roster uses' : 'rosters use'} older rules
               </Link>
             ) : null}
             {changedLists && search.updates !== 'changed' ? (
@@ -257,7 +272,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                 search={{ updates: 'changed' }}
                 className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone"
               >
-                {changedLists} {changedLists === 1 ? 'list' : 'lists'} changed by a data update
+                {changedLists} {changedLists === 1 ? 'roster' : 'rosters'} changed by a data update
               </Link>
             ) : null}
             {libraryPending ? (
@@ -312,18 +327,20 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                 ) : null}
               </>
             ) : saved.length ? (
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border border-dashed border-edge px-3 py-3 text-sm">
-                <h2 className="font-sans text-sm font-semibold tracking-normal normal-case">
-                  {archived.length ? 'Every roster here is archived' : 'No rosters match these filters'}
-                </h2>
-                {archived.length ? <p className="text-dim">Archived rosters are listed below.</p> : null}
-              </div>
+              <p className="flex flex-wrap items-center gap-x-3 py-2 text-sm text-dim">
+                {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
+                {filtered ? (
+                  <Button variant="outline" size="sm" onClick={() => void navigate({ to: '/rosters', search: {} })}>
+                    Clear filters
+                  </Button>
+                ) : null}
+              </p>
             ) : (
               <PageState
                 headingLevel={2}
                 eyebrow="Roster library"
                 title="No rosters yet"
-                explanation="No rosters yet. Create one or bring one from another app."
+                explanation="Create one, or import a list from another app."
                 icon={ScrollText}
               />
             )}
@@ -343,10 +360,9 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         ) : null}
         {lent.length ? (
           <section>
-            <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
-              <span className="mr-auto">Lent to you</span>
-              <span className="readout">{lent.length}</span>
-            </div>
+            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+              Lent to you <span className="readout">{lent.length}</span>
+            </h2>
             <div className="mt-2">
               <LentRosterList rosters={lent} />
             </div>
@@ -361,30 +377,24 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             <AlertDialogDescription>
               {deleting?.archived
                 ? 'This removes the saved roster for good. Frozen copies in battles and leagues are kept.'
-                : 'Deleting removes the saved roster for good. Archiving moves it out of the way, and you can unarchive it later. Frozen copies in battles and leagues are kept either way.'}
+                : 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and leagues are kept either way.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (deleting) actions.remove.mutate(deleting.id)
-                setDeleting(null)
-              }}
-            >
-              Delete roster
-            </AlertDialogAction>
-            {deleting && !deleting.archived ? (
+            {archivable ? deleteAction : null}
+            <AlertDialogCancel>Keep roster</AlertDialogCancel>
+            {archivable ? (
               <AlertDialogAction
                 onClick={() => {
-                  actions.archive.mutate({ id: deleting.id, archived: true })
+                  if (deleting) actions.archive.mutate({ id: deleting.id, archived: true })
                   setDeleting(null)
                 }}
               >
-                Archive instead
+                Archive roster
               </AlertDialogAction>
-            ) : null}
+            ) : (
+              deleteAction
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

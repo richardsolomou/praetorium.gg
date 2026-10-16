@@ -131,7 +131,7 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
   await expect(row.getByRole('cell').nth(5)).toHaveText('1')
   await page.getByRole('button', { name: 'Role', exact: true }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Administrator', exact: true }).click()
-  await expect(table.getByText('No player matches this search.')).toBeVisible()
+  await expect(table.getByText('No players match this search.')).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Reset' }).click()
   await expect(playerButton).toBeVisible()
@@ -168,7 +168,7 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
   await supportPage.goto('/admin')
   await expect(supportPage.getByRole('heading', { name: 'Administration' })).toBeVisible()
 
-  await details.getByRole('button', { name: /^User/ }).click()
+  await details.getByRole('button', { name: /^Player/ }).click()
   await confirm.getByRole('button', { name: 'Make user' }).click()
   await expect(details.getByText(`${supportName} is now a user.`)).toBeVisible()
   const renamed = `${supportName} Renamed`
@@ -185,6 +185,6 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
 
   await details.getByRole('button', { name: 'Delete account' }).click()
   await confirm.getByRole('button', { name: 'Delete account' }).click()
-  await expect(page.getByText('No player matches this search.')).toBeVisible()
+  await expect(page.getByText('No players match this search.')).toBeVisible()
   await supportContext.close()
 })

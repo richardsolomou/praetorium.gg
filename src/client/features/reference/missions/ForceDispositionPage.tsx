@@ -1,6 +1,7 @@
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Skeleton } from '@/components/ui/skeleton'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queries'
 import { FactionMark } from '../../../components/FactionMark'
@@ -24,8 +25,16 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Force disposition" title={disposition.name} description={disposition.text} />
-      <PageContent className="space-y-7">
+      <PageHeader
+        eyebrow={
+          <Link to="/force-dispositions" className="text-info hover:text-bone">
+            Force dispositions
+          </Link>
+        }
+        title={disposition.name}
+        description={disposition.text}
+      />
+      <PageContent className="space-y-6">
         {packs.map(({ pack, matchups }) => (
           <section key={pack.id}>
             <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
@@ -34,7 +43,6 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
                 {pack.name}
               </Link>
             </h2>
-            <p className="mt-2 text-sm text-dim">Your primary mission depends on your opponent’s force disposition.</p>
             <div className="mt-3 grid gap-px border border-edge bg-edge">
               {matchups.map(({ opponent, mission }) => (
                 <Link
@@ -57,7 +65,10 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
             {factions ? <span className="readout">{detachmentCount}</span> : null}
           </h2>
           {!factions ? (
-            <p className="mt-2 text-sm text-dim">Loading the detachments that offer {disposition.name}.</p>
+            <div aria-busy className="mt-3 grid gap-3 md:grid-cols-2">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+            </div>
           ) : factions.length ? (
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {factions.map((faction) => (
@@ -79,7 +90,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
                           className="flex items-center justify-between gap-3 px-3 py-1.5 text-sm hover:bg-raised hover:text-info"
                         >
                           <span className="min-w-0 truncate">{detachment.name}</span>
-                          {detachment.points === null ? null : <span className="chip shrink-0">{detachment.points} DP</span>}
+                          {detachment.points === null ? null : <span className="chip shrink-0 text-info">{detachment.points} DP</span>}
                         </FactionReferenceLink>
                       </li>
                     ))}
@@ -88,7 +99,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-sm text-dim">No detachment in the current data offers {disposition.name}.</p>
+            <p className="py-2 text-sm text-dim">No detachment in the current data offers {disposition.name}.</p>
           )}
         </section>
 

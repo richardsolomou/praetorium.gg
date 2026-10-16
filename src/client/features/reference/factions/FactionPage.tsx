@@ -2,7 +2,7 @@ import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, ShieldQuestion } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../../favouriteDetachments'
 import { factionIndexQuery, factionQuery } from '../../../queries'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
@@ -10,7 +10,6 @@ import { FavouriteFactionToggle } from './FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { RuleText } from '../../../components/RuleText'
-import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { SearchableSelect } from '../../../components/SearchableSelect'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
@@ -78,34 +77,11 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
           )
         }
       />
-      <PageContent>
+      <PageContent className="space-y-6">
         <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
-        {faction.edition ? (
-          <details className="group mt-4 border border-edge bg-panel px-3 py-2">
-            <summary className="rubric flex cursor-pointer items-center gap-2 hover:text-bone">
-              <ChevronRight className="size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
-              Rules history
-            </summary>
-            <p className="mt-2 text-sm text-dim">
-              These dates record status changes in Praetorium; publisher release and effective dates can differ.
-            </p>
-            <ol className="mt-2 space-y-1 text-sm text-dim">
-              {faction.edition.releases.map((release) => (
-                <li key={release.at}>
-                  {date(release.at)} ·{' '}
-                  {release.status === 'preview'
-                    ? 'Preview recorded'
-                    : release.status === 'released'
-                      ? 'Release recorded'
-                      : 'Archive recorded'}
-                </li>
-              ))}
-            </ol>
-          </details>
-        ) : null}
-        <section className="mt-4 divide-y divide-edge border border-edge bg-panel">
+        <section className="divide-y divide-edge border border-edge bg-panel">
           <FactionReferenceLink
             data-onboarding="faction-datasheets"
             to="/factions/$catalogueId/datasheets"
@@ -137,34 +113,25 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
           </Link>
         </section>
         {faction.armyRules.length ? (
-          <section data-onboarding="faction-army-rules" className="mt-6">
-            <p className="rubric border-b border-edge pb-2">Faction abilities</p>
+          <section data-onboarding="faction-army-rules">
+            <h2 className="rubric border-b border-edge pb-2">Faction abilities</h2>
             <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
               {faction.armyRules.map((rule) => (
                 <article key={rule.name} className="p-3">
-                  <h2 className="text-sm">{rule.name}</h2>
+                  <h3 className="text-sm">{rule.name}</h3>
                   <RuleText text={rule.description} />
                 </article>
               ))}
             </div>
           </section>
         ) : null}
-        <section data-onboarding="faction-detachments" className="mt-6">
-          <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+        <section data-onboarding="faction-detachments">
+          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
             <span>Detachments</span>
             <span className="readout">{detachments.length}</span>
-          </p>
+          </h2>
           <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
-            {!detachments.length ? (
-              <PageState
-                headingLevel={2}
-                eyebrow="Detachments"
-                title="No detachments available"
-                explanation="No detachment rules are available for this faction."
-                icon={ShieldQuestion}
-                className="border-0"
-              />
-            ) : null}
+            {!detachments.length ? <p className="px-3 py-2 text-sm text-dim">No detachment rules are available for this faction.</p> : null}
             {detachments.map((detachment) => {
               const content = (
                 <>
@@ -172,8 +139,13 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                     <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
                     {detachment.reference ? (
                       <span className="text-xs text-dim">
-                        {detachment.reference.stratagems} stratagems · {detachment.reference.enhancements} enhancements
-                        {detachment.reference.upgrades ? ` · ${detachment.reference.upgrades} unit upgrades` : ''}
+                        {[
+                          [detachment.reference.stratagems, 'stratagems'],
+                          [detachment.reference.enhancements, 'enhancements'],
+                          [detachment.reference.upgrades, 'unit upgrades'],
+                        ]
+                          .flatMap(([count, label]) => (count ? [`${count} ${label}`] : []))
+                          .join(' · ')}
                       </span>
                     ) : (
                       <span className="text-xs text-dim">Reference details unavailable</span>
@@ -186,7 +158,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                           {disposition}
                         </span>
                       ))}
-                      {detachment.points == null ? null : <span className="chip">{detachment.points} DP</span>}
+                      {detachment.points == null ? null : <span className="chip text-info">{detachment.points} DP</span>}
                     </span>
                   ) : null}
                   {detachment.reference ? <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden /> : null}
@@ -214,6 +186,29 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             })}
           </div>
         </section>
+        {faction.edition ? (
+          <details className="group border border-edge bg-panel px-3 py-2">
+            <summary className="rubric flex cursor-pointer items-center gap-2 hover:text-bone">
+              <ChevronRight className="size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
+              Rules history
+            </summary>
+            <p className="mt-2 text-sm text-dim">
+              These dates record status changes in Praetorium; publisher release and effective dates can differ.
+            </p>
+            <ol className="mt-2 space-y-1 text-sm text-dim">
+              {faction.edition.releases.map((release) => (
+                <li key={release.at}>
+                  {date(release.at)} ·{' '}
+                  {release.status === 'preview'
+                    ? 'Preview recorded'
+                    : release.status === 'released'
+                      ? 'Release recorded'
+                      : 'Archive recorded'}
+                </li>
+              ))}
+            </ol>
+          </details>
+        ) : null}
       </PageContent>
     </main>
   )

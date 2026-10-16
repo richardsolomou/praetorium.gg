@@ -14,7 +14,7 @@ import { RosterSummary } from '../rosters/RosterSummary'
 import { EntrantGroup } from './LeagueEntrants'
 import { UnsealRoster } from './LeagueUnseal'
 
-/** One titled side or team of lists, or a duel's single untitled run. */
+/** One titled side or team of rosters, or a duel's single untitled run. */
 export type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
 
 export type RevealedEntry = LeagueEntryView & {
@@ -24,11 +24,11 @@ export type RevealedEntry = LeagueEntryView & {
 }
 
 /**
- * Every revealed list as a card: whose it is, what army it fields, and what it leans on.
+ * Every revealed roster as a card: whose it is, what army it fields, and what it leans on.
  *
- * This is what a reveal is for, so it leads the page once the lists are out. `groups` splits the
- * lists by 2v1 side or doubles team as the entrant list does, and one untitled group holds a duel's;
- * `onSimulate` is offered only to a reader with a sealed list of their own to set against another.
+ * This is what a reveal is for, so it leads the page once the rosters are out. `groups` splits the
+ * rosters by 2v1 side or doubles team as the entrant list does, and one untitled group holds a duel's;
+ * `onSimulate` is offered only to a reader with a sealed roster of their own to set against another.
  */
 export function LeagueArmies({
   token,
@@ -46,7 +46,7 @@ export function LeagueArmies({
   viewerId: string | null
   revealedBy: string | null
   label: (entry: LeagueEntryView) => string
-  /** The organizer's: sends a revealed list back to its player to seal a replacement. */
+  /** The organizer's: sends a revealed roster back to its player to seal a replacement. */
   canUnseal: boolean
   onSimulate: ((userId: string) => void) | null
 }) {
@@ -56,7 +56,7 @@ export function LeagueArmies({
     <section data-league-armies aria-labelledby="league-armies">
       <div className="mb-2 flex min-h-8 items-end justify-between gap-3 border-b border-edge pb-2">
         <h2 id="league-armies" className="rubric">
-          The lists
+          The rosters
         </h2>
         {revealedBy ? <p className="text-xs text-dim">Revealed by {revealedBy}</p> : null}
       </div>
@@ -111,13 +111,13 @@ export function LeagueArmies({
             ) : null}
             {army ? (
               <IconAction
-                tooltip="View list"
+                tooltip="View roster"
                 trigger={
                   <Link
                     to="/rosters/$id"
                     params={{ id: entry.userId }}
                     search={{ league: token, event: eventToken }}
-                    aria-label={`View ${named}’s list`}
+                    aria-label={`View ${named}’s roster`}
                     className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: ICON_ACTION })}
                   />
                 }
@@ -158,7 +158,7 @@ export function LeagueArmies({
           <p className="p-3 font-bold uppercase">{army.name}</p>
         ) : (
           <p className="p-3 text-sm text-dim">
-            {entry.submitted ? 'This list can’t be shown.' : 'No list yet. The organizer unsealed it for a replacement.'}
+            {entry.submitted ? 'This roster can’t be shown.' : 'No roster yet. The organizer unsealed it for a replacement.'}
           </p>
         )}
       </article>

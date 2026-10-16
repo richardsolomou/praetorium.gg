@@ -21,7 +21,7 @@ export function LeagueIndex() {
       <PageHeader
         eyebrow="Organized play"
         title="Leagues"
-        description="Everyone seals a list in secret, the lists open together, then you play each other and the results build up."
+        description="Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up."
         actions={me ? <CreateLeague /> : null}
       />
       <PageContent className="space-y-6">
@@ -52,10 +52,9 @@ function LeagueShelf({
 }) {
   return (
     <section>
-      <div className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
-        <h2>{title}</h2>
-        <span className="readout">{leagues.length}</span>
-      </div>
+      <h2 className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
+        {title} <span className="readout">{leagues.length}</span>
+      </h2>
       <div className="grid gap-3 md:grid-cols-2">
         {leagues.map((league) => {
           const organizer = isLeagueOrganizer(league, league.adminIds, viewerId)
@@ -126,6 +125,6 @@ function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; su
   if (entry.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
   if (entry.status === 'rejected') return { label: 'Not in this league', tint: 'text-faint' }
   if (entry.submitted)
-    return revealed ? { label: 'Lists revealed', tint: 'text-achieved' } : { label: 'Your list is sealed', tint: 'text-achieved' }
-  return revealed ? { label: 'No list', tint: 'text-faint' } : { label: 'Seal your list', tint: 'text-discarded' }
+    return revealed ? { label: 'Rosters revealed', tint: 'text-achieved' } : { label: 'Your roster is sealed', tint: 'text-achieved' }
+  return revealed ? { label: 'No roster', tint: 'text-faint' } : { label: 'Seal your roster', tint: 'text-discarded' }
 }

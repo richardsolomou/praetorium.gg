@@ -129,6 +129,9 @@ export function CombatMatchup({
   /** The attacker's weapon choices, when its loadout can change in this matchup. */
   loadoutSpace?: LoadoutSpace | null
 }) {
+  // Stays true once both units have loaded, so a unit reloading after an edit does not fold the controls away.
+  const [paired, setPaired] = useState(Boolean(attacker && defender))
+  if (!paired && attacker && defender) setPaired(true)
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
   const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>(initialSettings?.excluded ?? { ranged: [], melee: [] })
@@ -499,7 +502,7 @@ export function CombatMatchup({
       ['Wound', resolved.woundModifier],
     ] as const)
       if (Math.abs(modifier) > 1) limits.push(`${roll} roll modifier capped at ${modifier > 0 ? '+1' : '−1'}`)
-    return [...sourced, applied.length ? `Manual: ${applied.join(', ')}` : 'No manual overrides', ...limits]
+    return [...sourced, ...(applied.length ? [`Manual: ${applied.join(', ')}`] : []), ...limits]
   }
   const sources = [
     ...new Set(
@@ -510,6 +513,10 @@ export function CombatMatchup({
       ),
     ),
   ]
+  const applied = phases.flatMap(([phase, title]) => {
+    const lines = scenarios[phase] ? phaseSummary(phase) : []
+    return lines.length ? [[phase, title, lines] as const] : []
+  })
   return (
     <>
       <div className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
@@ -524,417 +531,417 @@ export function CombatMatchup({
                 {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
               </LoadoutOptimizationContext.Provider>
             </LoadoutOddsContext.Provider>
-            <CombatDefences unit={attacker} />
+            {attacker || paired ? <CombatDefences unit={attacker} /> : null}
           </section>
           <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0">
             {defenderControl ?? <CombatantHeading side="Defender" unit={defender} />}
-            <CombatDefences
-              unit={defender}
-              feelNoPain={feelNoPain}
-              configured={
-                rangedDefences && meleeDefences && JSON.stringify(rangedDefences.groups) === JSON.stringify(meleeDefences.groups)
-                  ? { target: rangedDefences, labels }
-                  : undefined
-              }
-              onAllocateEarlier={allocateEarlier}
-            />
+            {defender || paired ? (
+              <CombatDefences
+                unit={defender}
+                feelNoPain={feelNoPain}
+                configured={
+                  rangedDefences && meleeDefences && JSON.stringify(rangedDefences.groups) === JSON.stringify(meleeDefences.groups)
+                    ? { target: rangedDefences, labels }
+                    : undefined
+                }
+                onAllocateEarlier={allocateEarlier}
+              />
+            ) : null}
           </section>
         </div>
 
-        <div className="border-t border-edge p-3 sm:p-4">
-          {!pending && !failed && (invalidatedPreferences || invalidatedChoice) ? (
-            <output className="mb-3 block text-xs text-dim">
-              Some previous weapon choices no longer apply to this equipment. Current profiles are used.
-            </output>
-          ) : null}
-          {attacker?.allocationRequired ? (
-            <p role="alert" className="mb-3 text-sm text-discarded">
-              Choose the attacker's surviving models and weapons to calculate attacks.
-            </p>
-          ) : null}
-          {target?.error ? (
-            <p role="alert" className="mb-3 text-sm text-discarded">
-              {target.error}
-            </p>
-          ) : null}
-          <div className="grid gap-x-3 gap-y-6 @xl:grid-cols-2">
-            {phases.map(([phase, title]) => {
-              const plan = plans[phase]
-              const answer = outcome?.answer[phase]
-              const valid = Boolean(scenario(phase))
-              const error = outcome?.key === requestKey ? answer?.error : undefined
-              return (
-                <section key={phase} aria-label={`${title} results`} aria-busy={valid && updating && !failed} className="min-w-0 space-y-2">
-                  <h2 className="rubric flex items-center gap-2">
-                    {phase === 'ranged' ? (
-                      <Crosshair className="size-4 text-info" aria-hidden />
-                    ) : (
-                      <Swords className="size-4 text-info" aria-hidden />
-                    )}
-                    {title}
-                  </h2>
-                  {!plan?.used.length ? (
-                    <p className="text-xs text-dim">
-                      {attacker ? `No ${title.toLowerCase()} weapons equipped.` : 'Equipped weapons appear here.'}
-                    </p>
-                  ) : null}
-                  {plan?.errors.map((message) => (
-                    <p key={message} role="alert" className="mt-2 text-xs text-discarded">
-                      {message}
-                    </p>
-                  ))}
-                  {error ? (
-                    <div role="alert" className="mt-2 text-xs text-discarded">
-                      {error}{' '}
-                      <Button size="sm" variant="outline" onClick={() => setRetry((value) => value + 1)}>
-                        Retry
-                      </Button>
-                    </div>
-                  ) : null}
-                  <div className="space-y-2">
-                    {plan?.choices.map((choice) => (
-                      <Choice
-                        key={choice.key}
-                        label={choice.label}
-                        value={choice.value}
-                        choices={choice.options.map((option) => [option.value, option.label] as const)}
-                        onChange={(value) => {
-                          setInvalidatedChoice(false)
-                          setPreferences((current) => ({ ...current, [choice.key]: value }))
-                        }}
-                      />
-                    ))}
-                    <div className="space-y-1.5">
-                      {weaponToggleGroups(plan?.used ?? []).map(([key, group]) => {
-                        const included = !excludedWeapons[phase].includes(key)
-                        return (
-                          <div key={group[0]!.id} data-weapon-card className="relative min-w-0 border border-edge bg-panel [&_h3]:pr-10">
-                            <Switch
-                              className="absolute top-2 right-3 z-10 border-edge data-checked:border-primary data-checked:bg-primary data-unchecked:bg-zinc-600 [&_[data-slot=switch-thumb]]:bg-white"
-                              aria-label={`Include ${group[0]!.name} in ${title.toLowerCase()} calculation`}
-                              checked={included}
-                              onCheckedChange={(checked) =>
-                                setExcludedWeapons((current) => ({
-                                  ...current,
-                                  [phase]: checked ? current[phase].filter((candidate) => candidate !== key) : [...current[phase], key],
-                                }))
-                              }
-                            />
-                            <div className={`min-w-0 ${included ? '' : 'opacity-50'}`}>
-                              <WeaponProfiles weapons={group} rules={attacker?.sheet.keywordRules ?? []} embedded />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </section>
-              )
-            })}
-          </div>
-          <details data-combat-buffs className="mt-3 border-t border-edge">
-            <summary
-              data-onboarding="simulator-buffs"
-              className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              Rules & buffs
-            </summary>
-            <div className="grid gap-4 pb-3 @xl:grid-cols-2">
-              {attackerBuffs ?? <CombatUnitRules side="Attacker" unit={attacker} />}
-              {defenderBuffs ?? <CombatUnitRules side="Defender" unit={defender} />}
-            </div>
-          </details>
-          <section aria-label="Modifiers" className="border-t border-edge">
-            <details data-manual-modifiers open={modifiersOpen} onToggle={(event) => setModifiersOpen(event.currentTarget.open)}>
-              <summary
-                data-onboarding="simulator-modifiers"
-                className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                Manual modifiers
-              </summary>
-              <div className="pb-3">
-                <Tabs defaultValue="all" className="flex-col gap-3">
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <h2 className="sr-only">Modifiers</h2>
-                    <TabsList
-                      aria-label="Attack modifiers"
-                      className="h-11! min-w-[min(100%,24rem)] flex-1 border border-edge bg-raised p-1"
-                    >
-                      {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
-                        const active = activeCount(scope)
-                        return (
-                          <TabsTrigger
-                            key={scope}
-                            value={scope}
-                            className="min-w-0 px-2 text-sm font-semibold data-active:bg-panel data-active:text-primary"
-                          >
-                            {scope === 'all' ? null : <PhaseIcon phase={scope} />}
-                            {title}
-                            {active ? <span className="readout text-xs text-primary">{active}</span> : null}
-                          </TabsTrigger>
-                        )
-                      })}
-                    </TabsList>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="@max-[31rem]:order-first"
-                      onClick={() => {
-                        setAdjustments({})
-                        setPreferences({})
-                        setInvalidatedChoice(false)
-                        setExcludedWeapons({ ranged: [], melee: [] })
-                      }}
-                    >
-                      <RotateCcw aria-hidden />
-                      Reset
-                    </Button>
-                  </div>
-                  {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
-                    const weapon = weaponAdjustment(scope)
-                    const set =
-                      <K extends keyof WeaponAdjustment>(field: K) =>
-                      (value: WeaponAdjustment[K]) =>
-                        changeWeapon(scope, field, value)
-                    const skill = scope === 'ranged' ? 'BS' : scope === 'melee' ? 'WS' : 'BS/WS'
-                    return (
-                      <TabsContent key={scope} value={scope} aria-label={`${title} modifiers`} className="space-y-2.5">
-                        <ChipRow label="Rolls">
-                          <ChipFamily
-                            value={adjustments[scope]?.hitModifier}
-                            options={signedOptions([1, -1], 'Hit')}
-                            onChange={(value) => change(scope, 'hitModifier', value)}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'hitModifier', option)}
-                            reason={(option) => noEffectReason(scope, 'attack', 'hitModifier', option)}
-                          />
-                          <ChipFamily
-                            value={adjustments[scope]?.woundModifier}
-                            options={signedOptions([1, -1], 'Wound')}
-                            onChange={(value) => change(scope, 'woundModifier', value)}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'woundModifier', option)}
-                            reason={(option) => noEffectReason(scope, 'attack', 'woundModifier', option)}
-                          />
-                          <ChipFamily
-                            value={adjustments[scope]?.hitReroll}
-                            options={
-                              scope !== 'all' && adjustments.all?.hitReroll
-                                ? ([...hitRerolls, ['none', 'No hit re-roll']] as const)
-                                : hitRerolls
-                            }
-                            onChange={(value) => change(scope, 'hitReroll', value)}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'hitReroll', option)}
-                            reason={(option) => noEffectReason(scope, 'attack', 'hitReroll', option)}
-                          />
-                          <ChipFamily
-                            value={adjustments[scope]?.woundReroll}
-                            options={
-                              scope !== 'all' && adjustments.all?.woundReroll
-                                ? ([...woundRerolls, ['none', 'No wound re-roll']] as const)
-                                : woundRerolls
-                            }
-                            onChange={(value) => change(scope, 'woundReroll', value)}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'woundReroll', option)}
-                            reason={(option) => noEffectReason(scope, 'attack', 'woundReroll', option)}
-                          />
-                          <ChipFamily
-                            value={weapon.criticalHit}
-                            options={rollOptions(
-                              scope !== 'all' && adjustments.weapons?.all?.criticalHit ? [5, 4, 6] : [5, 4],
-                              'Crit hits ',
-                            )}
-                            onChange={set('criticalHit')}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'criticalHit', option)}
-                            reason={(option) => noEffectReason(scope, 'weapon', 'criticalHit', option)}
-                          />
-                          <ChipFamily
-                            value={weapon.criticalWound}
-                            options={rollOptions(
-                              scope !== 'all' && adjustments.weapons?.all?.criticalWound ? [5, 4, 3, 2, 6] : [5, 4, 3, 2],
-                              'Crit wounds ',
-                            )}
-                            onChange={set('criticalWound')}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'criticalWound', option)}
-                            reason={(option) => noEffectReason(scope, 'weapon', 'criticalWound', option)}
-                          />
-                        </ChipRow>
-                        <ChipRow label="Stats">
-                          <ChipFamily
-                            value={weapon.skill}
-                            options={signedOptions([1, -1], skill)}
-                            onChange={set('skill')}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'skill', option)}
-                          />
-                          <ChipFamily
-                            value={weapon.strength}
-                            options={signedOptions([1, 2, 3, -1], 'S')}
-                            onChange={set('strength')}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'strength', option)}
-                          />
-                          <ChipFamily
-                            value={weapon.attacks}
-                            options={signedOptions([1, 2, -1], 'A')}
-                            onChange={set('attacks')}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'attacks', option)}
-                          />
-                          <ChipFamily
-                            value={weapon.ap}
-                            options={signedOptions([1, 2, -1], 'AP')}
-                            onChange={set('ap')}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'ap', option)}
-                          />
-                          <ChipFamily
-                            value={weapon.damage}
-                            options={signedOptions([1, 2, -1], 'D')}
-                            onChange={set('damage')}
-                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'damage', option)}
-                          />
-                        </ChipRow>
-                        <ChipRow label="Abilities">
-                          <ChipFamily
-                            value={sustainedKey(weapon.sustained)}
-                            options={
-                              scope !== 'all' && adjustments.weapons?.all?.sustained
-                                ? [...sustainedOptions, ['0', 'No Sustained Hits']]
-                                : sustainedOptions
-                            }
-                            onChange={(value) =>
-                              changeWeapon(
-                                scope,
-                                'sustained',
-                                value === undefined ? undefined : value === '0' ? 0 : sustainedAmounts[value],
-                              )
-                            }
-                            ineffective={(option) =>
-                              !modifierChoiceHasEffect(scope, 'weapon', 'sustained', option === '0' ? 0 : sustainedAmounts[option])
-                            }
-                          />
-                          {grants.map(([field, name]) => (
-                            <ChipFamily
-                              key={field}
-                              value={weapon[field]}
-                              options={
-                                scope !== 'all' && adjustments.weapons?.all?.[field]
-                                  ? [
-                                      [true, name],
-                                      [false, `No ${name}`],
-                                    ]
-                                  : [[true, name]]
-                              }
-                              onChange={set(field)}
-                              ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', field, option)}
-                            />
-                          ))}
-                        </ChipRow>
-                        {scope === 'all' ? null : (
-                          <ChipRow label="Situation">
-                            {situations[scope].map(([field, label]) => (
-                              <span key={field} className="inline-flex items-center gap-1">
-                                <Chip
-                                  label={label}
-                                  checked={inheritedOptions(scope)[field] || Boolean(adjustments[scope]?.[field])}
-                                  disabled={inheritedOptions(scope)[field]}
-                                  onChange={(value) => change(scope, field, value ? true : undefined)}
-                                  ineffectiveReason={
-                                    !inheritedOptions(scope)[field] && !modifierChoiceHasEffect(scope, 'attack', field, true)
-                                      ? noEffectReason(scope, 'attack', field)
-                                      : undefined
-                                  }
-                                />
-                              </span>
-                            ))}
-                            {scope === 'ranged' && plans.ranged?.weapons.some((entry) => entry.indirectFire) ? (
-                              <ChipFamily
-                                value={adjustments.ranged?.indirectFire === 'direct' ? undefined : adjustments.ranged?.indirectFire}
-                                options={
-                                  [
-                                    ['unobserved', 'Indirect, unobserved or moving'],
-                                    ['spotted', 'Indirect, stationary and spotted'],
-                                  ] as const
-                                }
-                                onChange={(value) => change('ranged', 'indirectFire', value ?? 'direct')}
-                                ineffective={(option) => !modifierChoiceHasEffect('ranged', 'attack', 'indirectFire', option)}
-                              />
-                            ) : null}
-                            {plans[scope]?.weapons.some((entry) => entry.lethal) ? (
-                              <Chip
-                                label="Decline Lethal Hits"
-                                checked={!options(scope).lethal}
-                                onChange={(value) => change(scope, 'lethal', !value)}
-                              />
-                            ) : null}
-                          </ChipRow>
-                        )}
-                      </TabsContent>
-                    )
-                  })}
-                </Tabs>
-                <div className="mt-3 space-y-2.5 border-t border-edge pt-3">
-                  <h3 className="rubric">Defender</h3>
-                  <ChipRow label="Stats">
-                    <ChipFamily
-                      value={adjustments.target?.toughness}
-                      options={signedOptions([1, -1], 'T')}
-                      onChange={(value) => changeTarget('toughness', value)}
-                      ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'toughness', option)}
-                    />
-                    <ChipFamily
-                      value={adjustments.target?.save}
-                      options={signedOptions([1, -1], 'Sv')}
-                      onChange={(value) => changeTarget('save', value)}
-                      ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'save', option)}
-                    />
-                  </ChipRow>
-                  <ChipRow label="Protection">
-                    <ChipFamily
-                      value={adjustments.target?.invulnerable ?? undefined}
-                      options={[6, 5, 4, 3].map((roll) => [roll, `${roll}++`] as const)}
-                      onChange={(value) => changeTarget('invulnerable', value)}
-                      ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'invulnerable', option)}
-                      reason={(option) => noEffectReason('all', 'target', 'invulnerable', option)}
-                    />
-                    <ChipFamily
-                      value={extraFeelNoPain ?? undefined}
-                      options={rollOptions([6, 5, 4, 3, 2], 'FNP ')}
-                      onChange={(value) => setAdjustments((current) => ({ ...current, feelNoPain: value ?? null }))}
-                      ineffective={(option) => !modifierChoiceHasEffect('all', 'feelNoPain', 'feelNoPain', option)}
-                    />
-                    <ChipFamily
-                      value={adjustments.target?.saveReroll}
-                      options={saveRerolls}
-                      onChange={(value) => changeTarget('saveReroll', value)}
-                      ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'saveReroll', option)}
-                    />
-                    <ChipFamily
-                      value={adjustments.target?.damageReduction}
-                      options={[[true, '−1 Damage']]}
-                      onChange={(value) => changeTarget('damageReduction', value)}
-                      ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'damageReduction', option)}
-                    />
-                    <ChipFamily
-                      value={adjustments.target?.halveDamage}
-                      options={[[true, 'Half damage']]}
-                      onChange={(value) => changeTarget('halveDamage', value)}
-                      ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'halveDamage', option)}
-                    />
-                  </ChipRow>
-                </div>
-              </div>
-            </details>
-            <section aria-label="Applied modifiers" className="space-y-2 border-t border-edge pt-3 text-xs">
-              <h3 className="rubric">Calculation uses</h3>
-              {sources.length ? <p className="text-dim">Profile changes: {sources.join(' · ')}.</p> : null}
+        {attacker || paired ? (
+          <div className="border-t border-edge p-3 sm:p-4">
+            {!pending && !failed && (invalidatedPreferences || invalidatedChoice) ? (
+              <output className="mb-3 block text-xs text-dim">
+                Some previous weapon choices no longer apply to this equipment. Current profiles are used.
+              </output>
+            ) : null}
+            {attacker?.allocationRequired ? (
+              <p role="alert" className="mb-3 text-sm text-discarded">
+                Choose the attacker's surviving models and weapons to calculate attacks.
+              </p>
+            ) : null}
+            {target?.error ? (
+              <p role="alert" className="mb-3 text-sm text-discarded">
+                {target.error}
+              </p>
+            ) : null}
+            <div className="grid gap-x-3 gap-y-6 @xl:grid-cols-2">
               {phases.map(([phase, title]) => {
-                const applied = phaseSummary(phase)
+                const plan = plans[phase]
+                const answer = outcome?.answer[phase]
+                const valid = Boolean(scenario(phase))
+                const error = outcome?.key === requestKey ? answer?.error : undefined
                 return (
-                  <p key={phase}>
-                    <span className="font-semibold text-bone">{title}.</span>{' '}
-                    <span className="text-dim">{scenarios[phase] ? applied.join('. ') : 'No attack calculated'}.</span>
-                  </p>
+                  <section
+                    key={phase}
+                    aria-label={`${title} results`}
+                    aria-busy={valid && updating && !failed}
+                    className="min-w-0 space-y-2"
+                  >
+                    <h2 className="rubric flex items-center gap-2 border-b border-edge pb-2">
+                      {phase === 'ranged' ? (
+                        <Crosshair className="size-4 text-info" aria-hidden />
+                      ) : (
+                        <Swords className="size-4 text-info" aria-hidden />
+                      )}
+                      {title}
+                    </h2>
+                    {attacker && !plan?.used.length ? <p className="text-xs text-dim">No {title.toLowerCase()} weapons equipped.</p> : null}
+                    {plan?.errors.map((message) => (
+                      <p key={message} role="alert" className="mt-2 text-xs text-discarded">
+                        {message}
+                      </p>
+                    ))}
+                    {error ? (
+                      <div role="alert" className="mt-2 text-xs text-discarded">
+                        {error}{' '}
+                        <Button size="sm" variant="outline" onClick={() => setRetry((value) => value + 1)}>
+                          Retry
+                        </Button>
+                      </div>
+                    ) : null}
+                    <div className="space-y-2">
+                      {plan?.choices.map((choice) => (
+                        <Choice
+                          key={choice.key}
+                          label={choice.label}
+                          value={choice.value}
+                          choices={choice.options.map((option) => [option.value, option.label] as const)}
+                          onChange={(value) => {
+                            setInvalidatedChoice(false)
+                            setPreferences((current) => ({ ...current, [choice.key]: value }))
+                          }}
+                        />
+                      ))}
+                      <div className="space-y-1.5">
+                        {weaponToggleGroups(plan?.used ?? []).map(([key, group]) => {
+                          const included = !excludedWeapons[phase].includes(key)
+                          return (
+                            <div key={group[0]!.id} data-weapon-card className="relative min-w-0 border border-edge bg-panel [&_h3]:pr-10">
+                              <Switch
+                                className="absolute top-2 right-3 z-10 border-edge data-checked:border-primary data-checked:bg-primary data-unchecked:bg-zinc-600 [&_[data-slot=switch-thumb]]:bg-white"
+                                aria-label={`Include ${group[0]!.name} in ${title.toLowerCase()} calculation`}
+                                checked={included}
+                                onCheckedChange={(checked) =>
+                                  setExcludedWeapons((current) => ({
+                                    ...current,
+                                    [phase]: checked ? current[phase].filter((candidate) => candidate !== key) : [...current[phase], key],
+                                  }))
+                                }
+                              />
+                              <div className={`min-w-0 ${included ? '' : 'opacity-50'}`}>
+                                <WeaponProfiles weapons={group} rules={attacker?.sheet.keywordRules ?? []} embedded />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </section>
                 )
               })}
-            </section>
-          </section>
-        </div>
+            </div>
+            {paired ? (
+              <>
+                <details data-combat-buffs className="mt-3 border-t border-edge">
+                  <summary data-onboarding="simulator-buffs" className="rubric w-fit cursor-pointer py-3 text-info">
+                    Rules & buffs
+                  </summary>
+                  <div className="grid gap-4 pb-3 @xl:grid-cols-2">
+                    {attackerBuffs ?? <CombatUnitRules side="Attacker" unit={attacker} />}
+                    {defenderBuffs ?? <CombatUnitRules side="Defender" unit={defender} />}
+                  </div>
+                </details>
+                <section aria-label="Modifiers" className="border-t border-edge">
+                  <details data-manual-modifiers open={modifiersOpen} onToggle={(event) => setModifiersOpen(event.currentTarget.open)}>
+                    <summary data-onboarding="simulator-modifiers" className="rubric w-fit cursor-pointer py-3 text-info">
+                      Manual modifiers
+                    </summary>
+                    <div className="pb-3">
+                      <Tabs defaultValue="all" className="flex-col gap-3">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <h2 className="sr-only">Modifiers</h2>
+                          <TabsList
+                            aria-label="Attack modifiers"
+                            className="h-11! min-w-[min(100%,24rem)] flex-1 border border-edge bg-raised p-1"
+                          >
+                            {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
+                              const active = activeCount(scope)
+                              return (
+                                <TabsTrigger
+                                  key={scope}
+                                  value={scope}
+                                  className="min-w-0 px-2 text-sm font-semibold data-active:bg-panel data-active:text-primary"
+                                >
+                                  {scope === 'all' ? null : <PhaseIcon phase={scope} />}
+                                  {title}
+                                  {active ? <span className="readout text-xs text-primary">{active}</span> : null}
+                                </TabsTrigger>
+                              )
+                            })}
+                          </TabsList>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="@max-[31rem]:order-first"
+                            onClick={() => {
+                              setAdjustments({})
+                              setPreferences({})
+                              setInvalidatedChoice(false)
+                              setExcludedWeapons({ ranged: [], melee: [] })
+                            }}
+                          >
+                            <RotateCcw aria-hidden />
+                            Reset
+                          </Button>
+                        </div>
+                        {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
+                          const weapon = weaponAdjustment(scope)
+                          const set =
+                            <K extends keyof WeaponAdjustment>(field: K) =>
+                            (value: WeaponAdjustment[K]) =>
+                              changeWeapon(scope, field, value)
+                          const skill = scope === 'ranged' ? 'BS' : scope === 'melee' ? 'WS' : 'BS/WS'
+                          return (
+                            <TabsContent key={scope} value={scope} aria-label={`${title} modifiers`} className="space-y-2.5">
+                              <ChipRow label="Rolls">
+                                <ChipFamily
+                                  value={adjustments[scope]?.hitModifier}
+                                  options={signedOptions([1, -1], 'Hit')}
+                                  onChange={(value) => change(scope, 'hitModifier', value)}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'hitModifier', option)}
+                                  reason={(option) => noEffectReason(scope, 'attack', 'hitModifier', option)}
+                                />
+                                <ChipFamily
+                                  value={adjustments[scope]?.woundModifier}
+                                  options={signedOptions([1, -1], 'Wound')}
+                                  onChange={(value) => change(scope, 'woundModifier', value)}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'woundModifier', option)}
+                                  reason={(option) => noEffectReason(scope, 'attack', 'woundModifier', option)}
+                                />
+                                <ChipFamily
+                                  value={adjustments[scope]?.hitReroll}
+                                  options={
+                                    scope !== 'all' && adjustments.all?.hitReroll
+                                      ? ([...hitRerolls, ['none', 'No hit re-roll']] as const)
+                                      : hitRerolls
+                                  }
+                                  onChange={(value) => change(scope, 'hitReroll', value)}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'hitReroll', option)}
+                                  reason={(option) => noEffectReason(scope, 'attack', 'hitReroll', option)}
+                                />
+                                <ChipFamily
+                                  value={adjustments[scope]?.woundReroll}
+                                  options={
+                                    scope !== 'all' && adjustments.all?.woundReroll
+                                      ? ([...woundRerolls, ['none', 'No wound re-roll']] as const)
+                                      : woundRerolls
+                                  }
+                                  onChange={(value) => change(scope, 'woundReroll', value)}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'woundReroll', option)}
+                                  reason={(option) => noEffectReason(scope, 'attack', 'woundReroll', option)}
+                                />
+                                <ChipFamily
+                                  value={weapon.criticalHit}
+                                  options={rollOptions(
+                                    scope !== 'all' && adjustments.weapons?.all?.criticalHit ? [5, 4, 6] : [5, 4],
+                                    'Crit hits ',
+                                  )}
+                                  onChange={set('criticalHit')}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'criticalHit', option)}
+                                  reason={(option) => noEffectReason(scope, 'weapon', 'criticalHit', option)}
+                                />
+                                <ChipFamily
+                                  value={weapon.criticalWound}
+                                  options={rollOptions(
+                                    scope !== 'all' && adjustments.weapons?.all?.criticalWound ? [5, 4, 3, 2, 6] : [5, 4, 3, 2],
+                                    'Crit wounds ',
+                                  )}
+                                  onChange={set('criticalWound')}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'criticalWound', option)}
+                                  reason={(option) => noEffectReason(scope, 'weapon', 'criticalWound', option)}
+                                />
+                              </ChipRow>
+                              <ChipRow label="Stats">
+                                <ChipFamily
+                                  value={weapon.skill}
+                                  options={signedOptions([1, -1], skill)}
+                                  onChange={set('skill')}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'skill', option)}
+                                />
+                                <ChipFamily
+                                  value={weapon.strength}
+                                  options={signedOptions([1, 2, 3, -1], 'S')}
+                                  onChange={set('strength')}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'strength', option)}
+                                />
+                                <ChipFamily
+                                  value={weapon.attacks}
+                                  options={signedOptions([1, 2, -1], 'A')}
+                                  onChange={set('attacks')}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'attacks', option)}
+                                />
+                                <ChipFamily
+                                  value={weapon.ap}
+                                  options={signedOptions([1, 2, -1], 'AP')}
+                                  onChange={set('ap')}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'ap', option)}
+                                />
+                                <ChipFamily
+                                  value={weapon.damage}
+                                  options={signedOptions([1, 2, -1], 'D')}
+                                  onChange={set('damage')}
+                                  ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'damage', option)}
+                                />
+                              </ChipRow>
+                              <ChipRow label="Abilities">
+                                <ChipFamily
+                                  value={sustainedKey(weapon.sustained)}
+                                  options={
+                                    scope !== 'all' && adjustments.weapons?.all?.sustained
+                                      ? [...sustainedOptions, ['0', 'No Sustained Hits']]
+                                      : sustainedOptions
+                                  }
+                                  onChange={(value) =>
+                                    changeWeapon(
+                                      scope,
+                                      'sustained',
+                                      value === undefined ? undefined : value === '0' ? 0 : sustainedAmounts[value],
+                                    )
+                                  }
+                                  ineffective={(option) =>
+                                    !modifierChoiceHasEffect(scope, 'weapon', 'sustained', option === '0' ? 0 : sustainedAmounts[option])
+                                  }
+                                />
+                                {grants.map(([field, name]) => (
+                                  <ChipFamily
+                                    key={field}
+                                    value={weapon[field]}
+                                    options={
+                                      scope !== 'all' && adjustments.weapons?.all?.[field]
+                                        ? [
+                                            [true, name],
+                                            [false, `No ${name}`],
+                                          ]
+                                        : [[true, name]]
+                                    }
+                                    onChange={set(field)}
+                                    ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', field, option)}
+                                  />
+                                ))}
+                              </ChipRow>
+                              {scope === 'all' ? null : (
+                                <ChipRow label="Situation">
+                                  {situations[scope].map(([field, label]) => (
+                                    <span key={field} className="inline-flex items-center gap-1">
+                                      <Chip
+                                        label={label}
+                                        checked={inheritedOptions(scope)[field] || Boolean(adjustments[scope]?.[field])}
+                                        disabled={inheritedOptions(scope)[field]}
+                                        onChange={(value) => change(scope, field, value ? true : undefined)}
+                                        ineffectiveReason={
+                                          !inheritedOptions(scope)[field] && !modifierChoiceHasEffect(scope, 'attack', field, true)
+                                            ? noEffectReason(scope, 'attack', field)
+                                            : undefined
+                                        }
+                                      />
+                                    </span>
+                                  ))}
+                                  {scope === 'ranged' && plans.ranged?.weapons.some((entry) => entry.indirectFire) ? (
+                                    <ChipFamily
+                                      value={adjustments.ranged?.indirectFire === 'direct' ? undefined : adjustments.ranged?.indirectFire}
+                                      options={
+                                        [
+                                          ['unobserved', 'Indirect, unobserved or moving'],
+                                          ['spotted', 'Indirect, stationary and spotted'],
+                                        ] as const
+                                      }
+                                      onChange={(value) => change('ranged', 'indirectFire', value ?? 'direct')}
+                                      ineffective={(option) => !modifierChoiceHasEffect('ranged', 'attack', 'indirectFire', option)}
+                                    />
+                                  ) : null}
+                                  {plans[scope]?.weapons.some((entry) => entry.lethal) ? (
+                                    <Chip
+                                      label="Decline Lethal Hits"
+                                      checked={!options(scope).lethal}
+                                      onChange={(value) => change(scope, 'lethal', !value)}
+                                    />
+                                  ) : null}
+                                </ChipRow>
+                              )}
+                            </TabsContent>
+                          )
+                        })}
+                      </Tabs>
+                      <div className="mt-3 space-y-2.5 border-t border-edge pt-3">
+                        <h3 className="rubric">Defender</h3>
+                        <ChipRow label="Stats">
+                          <ChipFamily
+                            value={adjustments.target?.toughness}
+                            options={signedOptions([1, -1], 'T')}
+                            onChange={(value) => changeTarget('toughness', value)}
+                            ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'toughness', option)}
+                          />
+                          <ChipFamily
+                            value={adjustments.target?.save}
+                            options={signedOptions([1, -1], 'Sv')}
+                            onChange={(value) => changeTarget('save', value)}
+                            ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'save', option)}
+                          />
+                        </ChipRow>
+                        <ChipRow label="Protection">
+                          <ChipFamily
+                            value={adjustments.target?.invulnerable ?? undefined}
+                            options={[6, 5, 4, 3].map((roll) => [roll, `${roll}++`] as const)}
+                            onChange={(value) => changeTarget('invulnerable', value)}
+                            ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'invulnerable', option)}
+                            reason={(option) => noEffectReason('all', 'target', 'invulnerable', option)}
+                          />
+                          <ChipFamily
+                            value={extraFeelNoPain ?? undefined}
+                            options={rollOptions([6, 5, 4, 3, 2], 'FNP ')}
+                            onChange={(value) => setAdjustments((current) => ({ ...current, feelNoPain: value ?? null }))}
+                            ineffective={(option) => !modifierChoiceHasEffect('all', 'feelNoPain', 'feelNoPain', option)}
+                          />
+                          <ChipFamily
+                            value={adjustments.target?.saveReroll}
+                            options={saveRerolls}
+                            onChange={(value) => changeTarget('saveReroll', value)}
+                            ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'saveReroll', option)}
+                          />
+                          <ChipFamily
+                            value={adjustments.target?.damageReduction}
+                            options={[[true, '−1 Damage']]}
+                            onChange={(value) => changeTarget('damageReduction', value)}
+                            ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'damageReduction', option)}
+                          />
+                          <ChipFamily
+                            value={adjustments.target?.halveDamage}
+                            options={[[true, 'Half damage']]}
+                            onChange={(value) => changeTarget('halveDamage', value)}
+                            ineffective={(option) => !modifierChoiceHasEffect('all', 'target', 'halveDamage', option)}
+                          />
+                        </ChipRow>
+                      </div>
+                    </div>
+                  </details>
+                  <section aria-label="Applied modifiers" className="space-y-2 border-t border-edge pt-3 text-xs">
+                    <h3 className="rubric">Calculation uses</h3>
+                    {sources.length ? <p className="text-dim">Profile changes: {sources.join(' · ')}.</p> : null}
+                    {applied.map(([phase, title, lines]) => (
+                      <p key={phase}>
+                        <span className="font-semibold text-bone">{title}.</span> <span className="text-dim">{lines.join('. ')}.</span>
+                      </p>
+                    ))}
+                    {sources.length || applied.length ? null : <p className="text-dim">No manual modifiers.</p>}
+                  </section>
+                </section>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         {outcome?.key === requestKey && outcome.answer.combined?.error ? (
           <div role="alert" className="mt-3 text-sm text-discarded">
             Combined estimate: {outcome.answer.combined.error}

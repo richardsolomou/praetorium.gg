@@ -1,15 +1,14 @@
 import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { ChevronRight, Heart } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { Toggle } from '@/components/ui/toggle'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
-import { factionIndexQuery, meQuery } from '../../../queries'
+import { factionIndexQuery } from '../../../queries'
+import { FavouriteFactionToggle } from './FavouriteFactionToggle'
 import { useFavouriteFactions } from '../../../favouriteFactions'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { SearchField } from '../../../components/SearchField'
@@ -18,9 +17,8 @@ import { PageContent, PageHeader } from '../../../components/Page'
 
 export function FactionIndexPage() {
   const { data } = useQuery(factionIndexQuery())
-  const { data: me } = useQuery(meQuery())
   const [factionQueryText, setFactionQueryText] = useState('')
-  const { favourites, toggleFavourite } = useFavouriteFactions()
+  const { favourites } = useFavouriteFactions()
   if (!data)
     return (
       <main className="flex w-full">
@@ -47,12 +45,8 @@ export function FactionIndexPage() {
 
   return (
     <main className="w-full">
-      <PageHeader
-        eyebrow="Army reference"
-        title="Factions"
-        description="Browse faction rules, detachments, datasheets, loadouts and points."
-      />
-      <PageContent>
+      <PageHeader eyebrow="Reference" title="Factions" description="Browse faction rules, detachments, datasheets, loadouts and points." />
+      <PageContent className="space-y-6">
         <SearchField
           value={factionQueryText}
           onChange={setFactionQueryText}
@@ -60,31 +54,13 @@ export function FactionIndexPage() {
           label="Find a faction"
           clearLabel="Empty the faction filter"
         />
-        {favouriteFactions.length ? (
-          <FactionShelf
-            title="Favourites"
-            entries={favouriteFactions}
-            versions={data.factions}
-            favourites={favourites}
-            onFavourite={me ? toggleFavourite : undefined}
-          />
-        ) : null}
+        {favouriteFactions.length ? <FactionShelf title="Favourites" entries={favouriteFactions} versions={data.factions} /> : null}
         {matching.length ? (
           [...groups.entries()]
             .toSorted(([left], [right]) => left.localeCompare(right))
-            .map(([title, entries]) => (
-              <FactionShelf
-                key={title}
-                title={title}
-                entries={entries}
-                versions={data.factions}
-                favourites={favourites}
-                onFavourite={me ? toggleFavourite : undefined}
-              />
-            ))
+            .map(([title, entries]) => <FactionShelf key={title} title={title} entries={entries} versions={data.factions} />)
         ) : (
           <PageState
-            className="mt-6"
             headingLevel={2}
             eyebrow="Faction search"
             title="No factions match"
@@ -108,25 +84,13 @@ type Faction = {
   references: { id: string; name: string; datasheets: number; detachments: number }[]
 }
 
-function FactionShelf({
-  title,
-  entries,
-  versions,
-  favourites,
-  onFavourite,
-}: {
-  title: string
-  entries: Faction[]
-  versions: Faction[]
-  favourites: Set<string>
-  onFavourite?: (id: string) => void
-}) {
+function FactionShelf({ title, entries, versions }: { title: string; entries: Faction[]; versions: Faction[] }) {
   return (
-    <section data-shelf={title} className="mt-6">
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+    <section data-shelf={title}>
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>{title}</span>
         <span className="readout">{entries.length}</span>
-      </p>
+      </h2>
       <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
         {entries.map((entry) => {
           const detachments = entry.references[0]?.detachments ?? 0
@@ -138,7 +102,7 @@ function FactionShelf({
               key={entry.id}
               data-onboarding="faction-entry"
               data-faction={entry.displayName}
-              className="flex items-center border-l-2 transition-colors hover:bg-raised"
+              className="relative flex items-center border-l-2 transition-colors hover:bg-raised"
               style={{ borderLeftColor: factionColour(entry.slug, entry.displayName) }}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
@@ -147,7 +111,7 @@ function FactionShelf({
                   <FactionReferenceLink
                     to="/factions/$catalogueId"
                     params={{ catalogueId: entry.slug }}
-                    className="block truncate font-bold uppercase"
+                    className="block truncate font-bold uppercase after:absolute after:inset-0"
                   >
                     {entry.displayName}
                   </FactionReferenceLink>
@@ -161,7 +125,7 @@ function FactionShelf({
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={<Button variant="ghost" size="sm" aria-label={`Rules versions for ${entry.displayName}`} />}
-                            className="h-auto rounded-none p-0 text-xs font-normal text-dim underline-offset-4 hover:text-bone hover:underline"
+                            className="relative h-auto rounded-none p-0 text-xs font-normal text-dim underline-offset-4 hover:text-bone hover:underline"
                           >
                             {editions.length} rules versions
                           </DropdownMenuTrigger>
@@ -183,27 +147,7 @@ function FactionShelf({
                 </div>
               </div>
               <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
-              {onFavourite ? (
-                <Toggle
-                  variant="default"
-                  size="sm"
-                  className="m-1 mr-2 size-7 bg-transparent p-0"
-                  aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
-                  pressed={favourites.has(entry.id)}
-                  onPressedChange={() => onFavourite(entry.id)}
-                >
-                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-dim'}`} />
-                </Toggle>
-              ) : (
-                <Link
-                  to="/sign-in"
-                  search={{ next: '/factions' }}
-                  className="m-1 mr-2 grid size-7 place-items-center"
-                  aria-label={`Sign in to add ${entry.displayName} to favourites`}
-                >
-                  <Heart className="size-4 text-dim" />
-                </Link>
-              )}
+              <FavouriteFactionToggle catalogueId={entry.id} name={entry.displayName} className="relative m-1 mr-2 size-7" />
             </div>
           )
         })}

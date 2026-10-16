@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ImagePlus, ShieldCheck, Trash2 } from 'lucide-react'
+import { ImagePlus, Trash2, UserRound } from 'lucide-react'
 import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { useRef, useState } from 'react'
@@ -112,11 +112,11 @@ function ProfileForm({
     <main className="ph-no-capture w-full">
       <PageHeader
         eyebrow="Your account"
-        title="Profile"
-        description="Choose how your name and picture appear on Praetorium."
+        title="Account settings"
+        description="Your name and picture, sign-in, privacy and roster defaults."
         media={
-          <span className="grid size-12 shrink-0 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
-            <ShieldCheck className="size-5" aria-hidden />
+          <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
+            <UserRound className="size-5" aria-hidden />
           </span>
         }
       />
@@ -138,7 +138,7 @@ function ProfileForm({
           }}
         >
           <section>
-            <p className="rubric border-b border-edge pb-2">Profile picture</p>
+            <h2 className="rubric border-b border-edge pb-2">Profile picture</h2>
             <div className="mt-4 flex items-center gap-4">
               <PlayerAvatar name={name || me.name} image={image} className="size-24 text-3xl" />
               <div className="flex flex-wrap gap-2">
@@ -174,7 +174,7 @@ function ProfileForm({
           </section>
 
           <section className="space-y-4">
-            <p className="rubric border-b border-edge pb-2">Details</p>
+            <h2 className="rubric border-b border-edge pb-2">Details</h2>
             <div className="space-y-2">
               <Label htmlFor="profile-name">Display name</Label>
               <Input
@@ -189,12 +189,12 @@ function ProfileForm({
                 autoComplete="nickname"
                 required
               />
-              <p className="text-xs text-dim">This is the name shown in battles, rosters and friend lists.</p>
+              <p className="text-xs text-dim">Shown in battles, rosters and friend lists.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="profile-email">Email</Label>
               <Input id="profile-email" value={me.email} readOnly className="text-dim" />
-              <p className="text-xs text-dim">Your email is private and used to sign in.</p>
+              <p className="text-xs text-dim">Private. Used to sign in.</p>
             </div>
           </section>
 

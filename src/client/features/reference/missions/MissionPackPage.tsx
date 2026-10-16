@@ -35,7 +35,6 @@ export function MissionPackPage({ packId }: { packId: string }) {
       <PageHeader
         eyebrow="Mission pack"
         title={pack.name}
-        description={'Choose your disposition down the left and your opponent’s across the top.'}
         actions={
           <Link to="/force-dispositions" className={buttonClass({ variant: 'outline' })}>
             Force dispositions
@@ -44,10 +43,10 @@ export function MissionPackPage({ packId }: { packId: string }) {
       >
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
       </PageHeader>
-      <PageContent className="space-y-7">
+      <PageContent className="space-y-6">
         <section id="matrix" data-onboarding="mission-dispositions">
           <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
-          <p className="mt-2 text-sm text-dim">Select the resulting mission to read its scoring rules.</p>
+          <p className="mt-2 text-sm text-dim">Your disposition down the left, your opponent’s across the top.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
           <div className="-mx-3 mt-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
             <div

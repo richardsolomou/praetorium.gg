@@ -40,12 +40,8 @@ export function RulesIndex() {
   const matches = matchingRules(data.documents, wanted)
   return (
     <main className="w-full">
-      <PageHeader
-        eyebrow="Reference"
-        title="Rules"
-        description="The core rules, the mission sequence, and the event and Combat Patrol rules, as the community data writes them."
-      />
-      <PageContent>
+      <PageHeader eyebrow="Reference" title="Rules" description="Core rules, mission sequence, event and Combat Patrol rules." />
+      <PageContent className="space-y-6">
         <SearchField
           onboarding="rules-search"
           value={wanted}
@@ -59,7 +55,7 @@ export function RulesIndex() {
         ) : (
           data.documents.map((document) => <DocumentShelf key={document.id} document={document} />)
         )}
-        <p className="mt-8 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )
@@ -91,7 +87,6 @@ function FoundRules({ matches }: { matches: Found[] }) {
   if (!matches.length) {
     return (
       <PageState
-        className="mt-4"
         headingLevel={2}
         eyebrow="Rules"
         title="No rule found"
@@ -100,7 +95,7 @@ function FoundRules({ matches }: { matches: Found[] }) {
     )
   }
   return (
-    <div className="mt-4 border border-edge bg-panel">
+    <div className="border border-edge bg-panel">
       {matches.map((found) => (
         <Link
           key={found.key}
@@ -124,15 +119,13 @@ function FoundRules({ matches }: { matches: Found[] }) {
 function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
   const rules = document.sections.reduce((count, section) => count + section.entries.length, 0)
   return (
-    <section data-onboarding="rules-documents" className="mt-6">
-      <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2">
-        <h2 className="rubric">
-          <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">
-            {document.title}
-          </Link>
-        </h2>
-        <p className="rubric readout">{rules} rules</p>
-      </div>
+    <section data-onboarding="rules-documents">
+      <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
+        <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">
+          {document.title}
+        </Link>
+        <span className="readout">{rules}</span>
+      </h2>
       <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel sm:grid-cols-2 lg:grid-cols-3">
         {document.sections.map((section) => (
           <Link

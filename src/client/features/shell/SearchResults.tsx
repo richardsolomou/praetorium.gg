@@ -72,7 +72,7 @@ function ResultList({
       id={listId}
       role={onSelect ? 'listbox' : 'region'}
       aria-label="Search results"
-      className="h-[min(60vh,30rem)] overflow-y-auto overscroll-contain"
+      className="max-h-[min(60vh,30rem)] overflow-y-auto overscroll-contain"
     >
       <div className="relative w-full" style={{ height: totalSize }}>
         {items.map((item) => {

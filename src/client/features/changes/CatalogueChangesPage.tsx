@@ -28,7 +28,7 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
       <PageHeader
         onboarding="roster-data-updates"
         tint={faction ? factionColour(faction.slug, faction.name) : undefined}
-        eyebrow="Reference"
+        eyebrow="Updates"
         title={faction ? `${faction.name} data updates` : 'Data updates'}
         description={
           faction
@@ -38,7 +38,7 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
       >
         <UpdatesNavigation current="data" />
       </PageHeader>
-      <PageContent className="space-y-4 sm:pt-6">
+      <PageContent className="space-y-6">
         {faction ? (
           <Link to="/data-updates" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
             <ChevronLeft className="size-3.5" /> All data updates
@@ -54,9 +54,7 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
             loading={!updates}
             icon={History}
             explanation={
-              updates
-                ? 'Nothing has changed since this site started keeping track. The next update that changes points or datasheets appears here.'
-                : 'The list of army data updates is loading.'
+              updates ? 'Points and datasheet changes appear here after the next data update.' : 'The list of army data updates is loading.'
             }
           />
         )}
@@ -128,7 +126,7 @@ function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
           <p className="chip border-info/25 bg-info/5 px-2 py-1 text-info">{changesLabel(update.total)}</p>
         </div>
         {named ? (
-          <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid gap-x-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
             {update.factions.map((faction) => {
               const linked = update.changes.factions.find((entry) => entry.anchor === faction.anchor)
               return (
@@ -136,7 +134,7 @@ function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
                   key={faction.anchor}
                   href={`#${faction.anchor}`}
                   aria-label={`${faction.faction}, ${changesLabel(faction.count)}`}
-                  className="flex min-w-0 items-start justify-between gap-3 border border-edge bg-sunken/40 p-3 hover:border-info/50 hover:bg-raised"
+                  className="flex min-w-0 items-start justify-between gap-3 px-3 py-2 hover:bg-raised"
                 >
                   <span
                     className="mt-0.5 h-4 w-0.5 shrink-0"

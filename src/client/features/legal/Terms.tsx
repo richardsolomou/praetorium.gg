@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="12 October 2026">
+    <LegalPage eyebrow="Legal" title="Terms of service" updated="12 October 2026">
       <LegalSection title="The service">
         <p>
           Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. You

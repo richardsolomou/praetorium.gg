@@ -9,11 +9,10 @@ const AUDIENCES: ChoiceOption<BattleAudience>[] = [
   {
     value: 'public',
     name: 'Anyone',
-    detail:
-      'Anyone can watch unless another player chooses a narrower audience. Public games without practice opponents appear in the battle list. Finished ones count towards the leaderboard.',
+    detail: 'Listed with public games. Finished games count on the leaderboard.',
   },
-  { value: 'friends', name: 'Friends', detail: 'Confirmed friends of any seated player can watch, unless someone chooses Players only.' },
-  { value: 'private', name: 'Players only', detail: 'Only the players seated in a battle can find or watch it.' },
+  { value: 'friends', name: 'Friends', detail: 'Friends of any seated player can watch.' },
+  { value: 'private', name: 'Players only', detail: 'Only the seated players can find or watch it.' },
 ]
 
 export function BattleSharing() {
@@ -37,15 +36,13 @@ export function BattleSharing() {
       className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2"
     >
       <div>
-        <p className="rubric border-b border-edge pb-2">Privacy</p>
-        <h2 className="mt-4 text-base">Who can watch your battles</h2>
-        <p className="mt-1 text-sm text-dim">
-          Changes apply immediately to past and live battles, including league battles. The most private choice at the table applies to
-          everyone. Spectators cannot make changes or see a face-down Secret Mission.
+        <h2 className="rubric border-b border-edge pb-2">Battle privacy</h2>
+        <p className="mt-2 text-sm text-dim">
+          Who can watch your past and live battles, league games included. The most private choice at the table applies to everyone.
         </p>
       </div>
       <Choice
-        label="Audience"
+        label="Who can watch"
         value={audience ?? DEFAULT_BATTLE_AUDIENCE}
         options={AUDIENCES}
         disabled={save.isPending}

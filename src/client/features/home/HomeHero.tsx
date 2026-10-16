@@ -29,7 +29,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             <span className="block text-parchment">Test it. Play it.</span>
           </h1>
           <p className="mt-5 max-w-lg font-rules text-base text-dim sm:text-lg">
-            Build lists, test matchups and track battles with friends. All free.
+            Build lists, test matchups and track battles with friends.
           </p>
           {/*
             The builder leads because it needs no account. Sign in stays here because a
@@ -57,7 +57,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             >
               open source
             </a>
-            . Try the builder and combat simulator without an account.
+            .
           </p>
         </div>
         {battle ? <HeroBattle battle={battle} /> : <HeroMark />}
@@ -84,7 +84,7 @@ function HeroBattle({ battle }: { battle: Battle }) {
       to="/battles/$token"
       params={{ token: battle.token }}
       data-home-featured
-      className="group relative block w-full max-w-md overflow-hidden border border-edge-strong bg-sunken shadow-[0_1.5rem_3rem_-1rem_rgba(0,0,0,0.6)] transition-colors hover:border-faint"
+      className="group relative block w-full max-w-md overflow-hidden border border-edge-strong bg-sunken shadow-[0_1.5rem_3rem_-1rem_rgba(0,0,0,0.6)] transition-colors hover:border-info hover:bg-raised"
       aria-label={`Watch ${battle.players.join(' versus ')}`}
     >
       <span className="flex h-1" aria-hidden>

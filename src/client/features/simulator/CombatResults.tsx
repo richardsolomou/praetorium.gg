@@ -84,9 +84,7 @@ export function CombatResults({
           </div>
         </section>
         <details className="group/breakdown">
-          <summary className="cursor-pointer px-3 py-1.5 text-xs text-info outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4">
-            Breakdown
-          </summary>
+          <summary className="cursor-pointer px-3 py-1.5 text-xs text-info sm:px-4">Breakdown</summary>
           <div className="@container max-h-[45dvh] overflow-y-auto overscroll-contain border-t border-edge p-3 sm:p-4">
             <p className="mb-3 text-xs text-dim">
               Each phase alone starts at the target’s current health. Together, melee attacks what survives shooting.

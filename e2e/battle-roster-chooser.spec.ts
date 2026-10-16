@@ -59,7 +59,7 @@ test('a roster chooser with no list for the battle size hands over to the battle
   await page.goto(`/battles/${token}`)
 
   const chooser = await openChooser(page)
-  await expect(chooser).toContainText('is built for 2000 points')
+  await expect(chooser).toContainText('is built for 2,000 points')
   await chooser.getByRole('button', { name: 'Choose a different battle size' }).click()
   await expect(chooser).toBeHidden()
   const size = page.getByRole('combobox', { name: 'Battle size' })

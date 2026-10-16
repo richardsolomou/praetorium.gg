@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
 import {
   addLeagueEntrants,
@@ -105,7 +106,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
     const sealed = accepted.filter(
       (entry) => entry.submitted && (userIds.includes(entry.userId) || (entry.teamId && touched.has(entry.teamId))),
     )
-    // Doubles teams share a Warlord, so a new pairing clears their lists; a 2v1 ally's list stands on its own.
+    // Doubles teams share a Warlord, so a new pairing clears their rosters; a 2v1 ally's roster stands on its own.
     if (league.format === '2v2' && sealed.length) setClearing({ userIds, sealed })
     else assignTeam.mutate(userIds)
   }
@@ -339,8 +340,8 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
                   ? accepted.find((entry) => entry.teamId === removing.teamId && entry.userId !== removing.userId)
                   : undefined
                 return teammate && removing
-                  ? `This also unpairs ${label(teammate)} and clears both their sealed lists. ${label(removing)} has to join again and seal another list to come back.`
-                  : 'Their sealed list goes with them. They have to join again and seal another to come back.'
+                  ? `This also unpairs ${label(teammate)} and clears both their sealed rosters. ${label(removing)} has to join again and seal another roster to come back.`
+                  : 'Their sealed roster goes with them. They have to join again and seal another to come back.'
               })()}
             </AlertDialogDescription>
             {moderate.error ? (
@@ -366,7 +367,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
           <AlertDialogHeader>
             <AlertDialogTitle>Change {reassigning ? label(reassigning.entry) : ''}’s roster size?</AlertDialogTitle>
             <AlertDialogDescription>
-              Their sealed list is cleared. They have to seal one at the new size before you can reveal.
+              Their sealed roster is cleared. They have to seal one at the new size before you can reveal.
             </AlertDialogDescription>
             {assign.isPending ? <output className="sr-only">Changing roster size…</output> : null}
             {assign.error ? (
@@ -458,10 +459,8 @@ export function NextEventPanel({ league }: { league: League }) {
   const next = league.eventCount + 1
   return (
     <section className="border border-edge bg-panel p-4">
-      <h2 className="rubric">Next event</h2>
-      <p className="mt-1 text-xs text-dim">
-        When this event’s games are done: everyone joins and seals a new list. This event keeps its lists and results.
-      </p>
+      <h2 className="rubric border-b border-edge pb-2">Next event</h2>
+      <p className="mt-1 text-xs text-dim">For when this event’s games are done. This event keeps its rosters and results.</p>
       <Button variant="outline" className="mt-3 w-full pointer-coarse:h-11" onClick={() => setOpen(true)}>
         Start event {next}
       </Button>
@@ -476,7 +475,7 @@ export function InvitePanel({ league }: { league: League }) {
   const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
   return (
     <section className="border border-edge bg-panel p-4">
-      <h2 className="rubric">Invite players</h2>
+      <h2 className="rubric border-b border-edge pb-2">Invite players</h2>
       <p className="mt-1 text-xs text-dim">
         {league.visibility === 'private' ? 'Unlisted, so this link is the way in.' : 'Also listed on the leagues page.'}
       </p>
@@ -551,7 +550,15 @@ function AddFriends({ league, token }: { league: League; token: string }) {
           </DialogHeader>
           <DialogBody>
             {!friendships ? (
-              <p className="text-sm text-dim">Loading friends…</p>
+              <ul aria-label="Loading friends" className="divide-y divide-edge border border-edge bg-panel">
+                {Array.from({ length: 3 }, (_, index) => (
+                  <li key={index} className="flex items-center gap-3 p-3" aria-hidden>
+                    <Skeleton className="size-5" />
+                    <Skeleton className="size-8 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
+                  </li>
+                ))}
+              </ul>
             ) : !candidates.length ? (
               <p className="text-sm text-dim">
                 {friendships.friends.length ? 'Every friend is already in this event.' : 'Add friends first, then enter them here.'}

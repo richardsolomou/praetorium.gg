@@ -7,9 +7,9 @@ import { errorMessage } from '../../queryClient'
 import { useLeagueRefresh } from './leagueEvent'
 
 /**
- * The one Force Disposition a fixed pair plays, chosen before the reveal from every card either sealed list offers.
+ * The one Force Disposition a fixed pair plays, chosen before the reveal from every card either sealed roster offers.
  *
- * Choosing it here, while the other side's lists are still hidden, is the point: once the lists are out it is fixed.
+ * Choosing it here, while the other side's rosters are still hidden, is the point: once the rosters are out it is fixed.
  */
 export function TeamDispositionPanel({
   token,
@@ -29,13 +29,13 @@ export function TeamDispositionPanel({
   const shown = choose.isPending ? choose.variables : team.disposition
   return (
     <section data-team-disposition aria-labelledby="team-disposition" className="border border-edge bg-panel p-4">
-      <h2 id="team-disposition" className="rubric">
+      <h2 id="team-disposition" className="rubric border-b border-edge pb-2">
         Team Force Disposition
       </h2>
       <p className="mt-1 text-xs text-dim">
         {team.disposition
-          ? 'Your team plays this card. You can change it until the lists are revealed.'
-          : 'Your team plays one, from any card either list offers. Choose it before the lists are revealed.'}
+          ? 'Your team plays this card. You can change it until the rosters are revealed.'
+          : 'Your team plays one, from any card either roster offers. Choose it before the rosters are revealed.'}
       </p>
       <fieldset className="mt-3 grid gap-2">
         <legend className="sr-only">Force Disposition your team plays</legend>

@@ -149,9 +149,7 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
             <div className="flex items-baseline justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                 <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />
-                {secondary.secret ? (
-                  <span className="text-3xs font-semibold text-discarded uppercase">{secondary.revealed ? 'revealed' : 'secret'}</span>
-                ) : null}
+                {secondary.secret ? <span className="chip text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
               </div>
               {tacticalActive ? (
                 <span className="readout shrink-0 text-sm font-bold text-dim">

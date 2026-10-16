@@ -17,7 +17,6 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   allowsPointsBudget,
-  battleSizeName,
   borrowedDispositionError,
   customPointsBudget,
   detachmentLimit,
@@ -33,14 +32,12 @@ import {
   BORROWED_DISPOSITION_BUDGET,
   plays,
   pointsBudgetError,
-  POINTS_BUDGET_MAX,
-  POINTS_BUDGET_MIN,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../../core/battle'
 import { normalizedName } from '../../../core/name'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
-import { VISIBILITY_DETAIL, VISIBILITY_REACH } from './visibility'
+import { VISIBILITY_DETAIL, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
 import { factionQuery } from '../../queries'
 import { DetachmentReference } from '../reference/factions/DetachmentReference'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -138,10 +135,18 @@ function matchesQuery(detachment: Detachment, query: string) {
   )
 }
 
+const CUSTOM_SIZE = 'custom:'
 const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
   {
     label: '',
-    items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit} points`, value: String(size.limit) })),
+    items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit.toLocaleString('en')} points`, value: String(size.limit) })),
+  },
+  {
+    label: 'Custom points',
+    items: GAME_SIZES.filter((size) => allowsPointsBudget(size.limit)).map((size) => ({
+      label: `Custom · ${size.name} limits`,
+      value: `${CUSTOM_SIZE}${size.limit}`,
+    })),
   },
 ]
 
@@ -165,6 +170,7 @@ export function RosterSetupDialog({
   canKeepOriginal = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
+  const [customSize, setCustomSize] = useState(value.pointsBudget != null)
   const [budgetText, setBudgetText] = useState(value.pointsBudget == null ? '' : String(value.pointsBudget))
   const [review, setReview] = useState<SetupReview | null>(null)
   const [keepOriginal, setKeepOriginal] = useState(false)
@@ -314,11 +320,35 @@ export function RosterSetupDialog({
   }
 
   const typedBudget = (text: string) => (text.trim() ? Number(text) : null)
-  const budgetError = pointsBudgetError(draft.limit, typedBudget(budgetText))
+  const savedBudget = (limit: number, text: string) => {
+    const budget = typedBudget(text)
+    return pointsBudgetError(limit, budget) ? null : customPointsBudget(limit, budget)
+  }
+  const budgetError = !customSize
+    ? null
+    : budgetText.trim()
+      ? pointsBudgetError(draft.limit, typedBudget(budgetText))
+      : 'Enter the points limit.'
   const changeBudget = (text: string) => {
     setBudgetText(text)
-    const budget = typedBudget(text)
-    changeDraft({ ...draft, pointsBudget: pointsBudgetError(draft.limit, budget) ? null : budget })
+    changeDraft({ ...draft, pointsBudget: savedBudget(draft.limit, text) })
+  }
+  const changeSize = (next: string) => {
+    advanceOnboarding('roster', 'roster-size', 'roster-detachment')
+    const custom = next.startsWith(CUSTOM_SIZE)
+    const limit = Number(custom ? next.slice(CUSTOM_SIZE.length) : next)
+    // A points limit the player typed survives a change of size; one still at the old size's total follows the new size.
+    const typed = typedBudget(budgetText)
+    const text = !custom ? '' : customSize && typed !== draft.limit ? budgetText : String(limit)
+    setCustomSize(custom)
+    setBudgetText(text)
+    changeDraft({
+      ...draft,
+      limit,
+      pointsBudget: custom ? savedBudget(limit, text) : null,
+      detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit, draft.waivedRules)),
+      disposition: limit === draft.limit ? draft.disposition : null,
+    })
   }
 
   const title = mode === 'create' ? 'Create roster' : mode === 'convert' ? 'Convert rules version' : 'Edit roster setup'
@@ -330,7 +360,7 @@ export function RosterSetupDialog({
       : mode === 'convert' && draft.catalogueId === (sourceCatalogueId ?? value.catalogueId)
         ? 'Choose a different rules version.'
         : budgetError
-          ? 'Fix the custom points budget.'
+          ? 'Fix the points limit.'
           : !draft.detachmentIds.length
             ? 'Choose a detachment.'
             : unavailableDetachmentIds.length
@@ -432,55 +462,41 @@ export function RosterSetupDialog({
             id="setup-size"
             disabled={mode === 'convert'}
             ariaLabel="Battle size"
-            value={String(draft.limit)}
+            value={customSize ? `${CUSTOM_SIZE}${draft.limit}` : String(draft.limit)}
             groups={BATTLE_SIZE_GROUPS}
-            onValueChange={(next) => {
-              advanceOnboarding('roster', 'roster-size', 'roster-detachment')
-              const limit = Number(next)
-              const budget = allowsPointsBudget(limit) ? customPointsBudget(limit, draft.pointsBudget) : null
-              setBudgetText(budget === null ? '' : String(budget))
-              changeDraft({
-                ...draft,
-                limit,
-                pointsBudget: budget,
-                detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit, draft.waivedRules)),
-                disposition: null,
-              })
-            }}
+            onValueChange={changeSize}
             placeholder="Battle size"
             className="mt-1 h-11"
           />
+          {customSize ? (
+            <div className="mt-2">
+              <div className="flex items-center gap-2">
+                <Input
+                  id="setup-budget"
+                  aria-label="Points limit"
+                  disabled={mode === 'convert'}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={budgetText}
+                  onChange={(event) => changeBudget(event.target.value)}
+                  placeholder={String(draft.limit)}
+                  aria-invalid={Boolean(budgetError)}
+                  aria-describedby={budgetError ? 'setup-budget-error' : undefined}
+                  className="h-11 w-32 text-base"
+                />
+                <Label htmlFor="setup-budget" className="text-sm font-normal text-dim">
+                  points
+                </Label>
+              </div>
+              {budgetError ? (
+                <p id="setup-budget-error" role="alert" className="mt-1.5 text-xs text-destructive">
+                  {budgetError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
-
-      {allowsPointsBudget(draft.limit) ? (
-        <div>
-          <Label className="eyebrow block" htmlFor="setup-budget">
-            Custom points budget
-          </Label>
-          <Input
-            id="setup-budget"
-            disabled={mode === 'convert'}
-            inputMode="numeric"
-            autoComplete="off"
-            value={budgetText}
-            onChange={(event) => changeBudget(event.target.value)}
-            placeholder={`${draft.limit} (standard)`}
-            aria-invalid={Boolean(budgetError)}
-            aria-describedby="setup-budget-hint"
-            className="mt-1 h-11 w-full text-base sm:w-48"
-          />
-          {budgetError ? (
-            <p role="alert" className="mt-1.5 text-xs text-destructive">
-              {budgetError}
-            </p>
-          ) : null}
-          <p id="setup-budget-hint" className="mt-1.5 text-xs text-dim">
-            Optional, {POINTS_BUDGET_MIN}–{POINTS_BUDGET_MAX.toLocaleString('en')} points. {battleSizeName(draft.limit)} still sets
-            detachment points, enhancement and unit limits.
-          </p>
-        </div>
-      ) : null}
 
       <fieldset data-onboarding="setup-detachments">
         <div className="flex items-end justify-between gap-3">
@@ -582,6 +598,7 @@ export function RosterSetupDialog({
             )
           })}
         </div>
+        {draft.catalogueId ? null : <p className="mt-2 text-sm text-dim">Choose a faction to see its detachments.</p>}
         {offeredDetachments.length && !availableDetachments.length ? (
           <p className="mt-2 text-sm text-dim">No detachments match this search.</p>
         ) : null}
@@ -648,7 +665,7 @@ export function RosterSetupDialog({
       ) : null}
 
       <div data-onboarding="setup-name">
-        <Label className="rubric block" htmlFor="setup-name">
+        <Label className="eyebrow block" htmlFor="setup-name">
           Roster name
         </Label>
         <Input
@@ -658,13 +675,13 @@ export function RosterSetupDialog({
           onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
           placeholder={placeholder}
           maxLength={ROSTER_NAME_MAX_LENGTH}
-          className="mt-2 h-11 text-base"
+          className="mt-1 h-11 text-base"
         />
         <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
       </div>
 
       <div hidden={guest}>
-        <Label className="rubric block" htmlFor="setup-visibility">
+        <Label className="eyebrow block" htmlFor="setup-visibility">
           Access
         </Label>
         <Select
@@ -672,10 +689,8 @@ export function RosterSetupDialog({
           value={draft.visibility}
           onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
         >
-          <SelectTrigger id="setup-visibility" aria-describedby="setup-visibility-reach" className="mt-2 h-11 w-full">
-            <SelectValue>
-              {(visibility: unknown) => VISIBILITY_DETAIL[visibility as RosterVisibility] ?? VISIBILITY_DETAIL.private}
-            </SelectValue>
+          <SelectTrigger id="setup-visibility" aria-describedby="setup-visibility-reach" className="mt-1 h-11 w-full">
+            <SelectValue>{(visibility: unknown) => VISIBILITY_NAME[visibility as RosterVisibility] ?? VISIBILITY_NAME.private}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {ROSTER_VISIBILITIES.map((visibility) => (
@@ -703,7 +718,7 @@ export function RosterSetupDialog({
         </output>
       ) : null}
       {inline ? null : (
-        <Button variant="ghost" disabled={confirming.isPending} onClick={() => onOpenChange(false)}>
+        <Button variant="outline" disabled={confirming.isPending} onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
       )}

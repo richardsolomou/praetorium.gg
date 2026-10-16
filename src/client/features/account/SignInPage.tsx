@@ -42,6 +42,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const [joining, setJoining] = useState(Boolean(join))
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [resetSent, setResetSent] = useState(false)
+  const [resetNeedsEmail, setResetNeedsEmail] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const submit = useAuthAction()
@@ -102,24 +103,25 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
     <main className="grid w-full flex-1 md:grid-cols-2">
       <aside className="relative hidden overflow-hidden border-r border-edge bg-sunken md:block">
         <div className="plot-grid" />
-        <div className="relative ml-auto grid h-full w-full max-w-lg content-between p-8">
+        <div className="relative ml-auto grid h-full w-full max-w-lg grid-rows-[auto_1fr] p-8">
           <div>
             <p className="eyebrow text-parchment">Build. Plan. Play.</p>
             <h2 className="mt-1 text-3xl">Your armies and battles, ready when you are.</h2>
           </div>
-          <img src="/logo.svg" alt="" className="mx-auto size-40" />
-          <p className="text-sm text-dim">Sign in on any device to get back to your army lists and games.</p>
+          <img src="/logo.svg" alt="" className="mx-auto size-40 self-center" />
         </div>
       </aside>
       <section className="border-b border-edge bg-panel">
         <div className="mr-auto h-full w-full max-w-lg p-6 sm:p-8">
           <p className="eyebrow text-parchment">{joining ? 'Create account' : 'Sign in'}</p>
-          <h1 className="mt-1 text-3xl">{savingRoster ? 'Save your roster' : joining ? 'Make an account' : 'Welcome back'}</h1>
-          <p className="mt-3 text-sm text-dim">
-            {savingRoster
-              ? 'Create a free account or sign in to save your roster. Until then it stays on this device.'
-              : 'Save your army lists, start games with friends and pick up battles already in progress.'}
-          </p>
+          <h1 className="mt-1 text-3xl">{savingRoster ? 'Save your roster' : joining ? 'Join Praetorium' : 'Welcome back'}</h1>
+          {savingRoster || joining ? (
+            <p className="mt-3 text-sm text-dim">
+              {savingRoster
+                ? 'Create a free account or sign in to save your roster. Until then it stays on this device.'
+                : 'Save your army lists and play battles with friends. Free.'}
+            </p>
+          ) : null}
           {savingRoster ? (
             <Link to="/rosters" className="mt-3 inline-block text-sm text-info underline underline-offset-2">
               Back to your roster
@@ -188,19 +190,28 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                       ? 'Create account and save roster'
                       : 'Sign in and save roster'
                     : joining
-                      ? 'Create the account'
+                      ? 'Create account'
                       : 'Sign in'}
                 </Button>
-                {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
+                {submit.error ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {submit.error}
+                  </p>
+                ) : null}
                 {!joining && options?.passwordReset ? (
                   <Button
                     type="button"
                     variant="link"
                     className="h-auto p-0"
-                    disabled={submit.busy || !email}
+                    disabled={submit.busy}
                     onClick={async () => {
                       setResetSent(false)
                       submit.clearError()
+                      if (!email) {
+                        setResetNeedsEmail(true)
+                        document.getElementById('email')?.focus()
+                        return
+                      }
                       const redirectTo = next ? `/reset-password?${new URLSearchParams({ next })}` : '/reset-password'
                       const result = await submit.run(() => authClient.requestPasswordReset({ email, redirectTo }))
                       if (!result.error) {
@@ -213,6 +224,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                   </Button>
                 ) : null}
                 {resetSent ? <output className="block text-sm text-dim">If that account exists, a reset link has been sent.</output> : null}
+                {resetNeedsEmail && !email ? <output className="block text-sm text-dim">Enter your email first.</output> : null}
               </form>
 
               <Button

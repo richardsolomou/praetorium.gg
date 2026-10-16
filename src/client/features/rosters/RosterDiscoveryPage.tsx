@@ -129,9 +129,9 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
           ) : null
         }
       />
-      <PageContent className="space-y-4">
+      <PageContent className="space-y-6">
         <Dialog>
-          <DialogTrigger render={<Button variant="outline" size="lg" />}>
+          <DialogTrigger render={<Button variant="outline" />}>
             <ListFilter />
             Filter
             {active ? <span className="chip readout">{active}</span> : null}
@@ -192,15 +192,13 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
                 }
               />
             ) : result.isPending ? (
-              <div aria-busy="true">
-                <output className="block py-3 text-sm text-dim">Loading public armies…</output>
-                {[0, 1, 2].map((key) => (
-                  <Skeleton key={key} className="mb-3 h-28 w-full" />
-                ))}
+              <div aria-busy="true" className="space-y-3">
+                <output className="sr-only">Loading public armies…</output>
+                <DiscoveredRosterSkeleton />
               </div>
             ) : shown.length || result.hasNextPage ? (
               <>
-                {shown.length ? null : <p className="py-3 text-sm text-dim">None of the most recently saved armies match yet.</p>}
+                {shown.length ? null : <p className="py-2 text-sm text-dim">None of the most recently saved armies match yet.</p>}
                 {shown.map((entry) => (
                   <DiscoveredRoster
                     key={entry.roster.id}
@@ -215,19 +213,17 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
                 ))}
                 {result.hasNextPage ? (
                   <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
-                    {result.isFetchingNextPage ? 'Loading more armies…' : 'Show more armies'}
+                    {result.isFetchingNextPage ? 'Loading…' : 'Show more armies'}
                   </Button>
                 ) : null}
               </>
             ) : active ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-dashed border-edge px-3 py-2 text-sm">
-                <h3 className="mr-auto font-sans text-sm font-semibold tracking-normal normal-case">
-                  No public armies match these filters
-                </h3>
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
+                No public armies match these filters
                 <Button variant="outline" size="sm" onClick={() => choose({})}>
                   Clear filters
                 </Button>
-              </div>
+              </p>
             ) : (
               <PageState
                 headingLevel={2}
@@ -264,7 +260,7 @@ function DiscoveredRoster({
   const { roster, owner } = entry
   const title = rosterTitle(roster, faction)
   return (
-    <article data-discovered-roster={title} className="border border-edge bg-panel hover:border-azure">
+    <article data-discovered-roster={title} className="border border-edge bg-panel hover:border-info hover:bg-raised">
       <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 p-3">
         <RosterSummary roster={roster} faction={faction} points={entry.points} problem={entry.problem} showLock={false} showLegality />
       </Link>
@@ -287,4 +283,26 @@ function DiscoveredRoster({
       </div>
     </article>
   )
+}
+
+function DiscoveredRosterSkeleton() {
+  return Array.from({ length: 3 }, (_, index) => (
+    <div key={index} className="border border-edge bg-panel" aria-hidden>
+      <div className="flex min-h-[5.25rem] items-center gap-3 p-3">
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-4 w-1/3" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+        <Skeleton className="h-5 w-20" />
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-edge px-3 py-2">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-8 w-28" />
+      </div>
+    </div>
+  ))
 }

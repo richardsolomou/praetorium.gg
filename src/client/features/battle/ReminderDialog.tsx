@@ -43,11 +43,11 @@ export function ReminderDialog({
                         variant="outline"
                         size="sm"
                         className="h-7 shrink-0 px-2 text-xs"
-                        aria-label={`Dismiss ${reminder.ability} for a period`}
+                        aria-label={`Hide ${reminder.ability} for a period`}
                       />
                     }
                   >
-                    Dismiss…
+                    Hide for…
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem onClick={() => onDismiss(reminder, 'phase')}>This phase</DropdownMenuItem>

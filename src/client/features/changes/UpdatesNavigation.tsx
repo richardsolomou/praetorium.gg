@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router'
+import { pageLinkTabClass, pageLinkTabsClass } from '../../components/PageTabs'
 
 export function UpdatesNavigation({ current }: { current: 'app' | 'data' }) {
   return (
-    <nav aria-label="Updates" className="flex gap-6">
+    <nav aria-label="Updates" className={pageLinkTabsClass}>
       {(
         [
           ['app', '/whats-new', "What's new"],
@@ -13,7 +14,7 @@ export function UpdatesNavigation({ current }: { current: 'app' | 'data' }) {
           key={section}
           to={to}
           aria-current={current === section ? 'page' : undefined}
-          className={`min-h-11 content-center border-b-2 text-sm font-semibold ${current === section ? 'border-parchment text-parchment' : 'border-transparent text-dim hover:border-edge-strong hover:text-bone'}`}
+          className={pageLinkTabClass(current === section)}
         >
           {label}
         </Link>

@@ -56,6 +56,42 @@ export function CollectionPage() {
   const models = [...owned].reduce((total, id) => total + countOf(id), 0)
   const pending = collection.isPending || units.isPending
   const add = (entryId: string) => setOwned({ entryId, owned: true })
+  // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
+  const fieldedShelf = suggestions.length ? (
+    <section aria-labelledby="fielded-heading">
+      <h2 id="fielded-heading" className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
+        <span className="flex items-center gap-2">
+          <Swords className="size-4 text-info" aria-hidden /> From your battles
+        </span>
+        <span className="text-xs text-dim normal-case">Fielded, not yet in your collection</span>
+      </h2>
+      <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {(allSuggestions ? suggestions : suggestions.slice(0, SUGGESTIONS_SHOWN)).map((sheet) => (
+          <li
+            key={sheet.id}
+            data-suggestion={sheet.name}
+            className="flex items-center gap-3 border border-dashed border-edge-strong bg-sunken/60 py-2 pr-2 pl-3"
+          >
+            {sheet.presentation ? <Mark faction={sheet.presentation} /> : null}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-bone uppercase">{sheet.name}</span>
+              <span className="block text-xs text-dim">
+                {sheet.battles} {sheet.battles === 1 ? 'battle' : 'battles'}
+              </span>
+            </span>
+            <Button size="sm" variant="outline" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
+              <Plus /> Add
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {suggestions.length > SUGGESTIONS_SHOWN ? (
+        <Button variant="link" size="sm" className="mt-1 px-0 text-info" onClick={() => setAllSuggestions((shown) => !shown)}>
+          {allSuggestions ? 'Show fewer' : `Show all ${suggestions.length}`}
+        </Button>
+      ) : null}
+    </section>
+  ) : null
 
   return (
     <main className="w-full">
@@ -64,7 +100,7 @@ export function CollectionPage() {
         title="Collection"
         description="The models on your shelf, counted by datasheet. Add them here or from any datasheet’s page."
       />
-      <PageContent className="space-y-8">
+      <PageContent className="space-y-6">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <SearchableSelect
             ariaLabel="Add a datasheet to your collection"
@@ -94,41 +130,7 @@ export function CollectionPage() {
           </p>
         </div>
 
-        {suggestions.length ? (
-          <section aria-labelledby="fielded-heading">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-edge pb-2">
-              <h2 id="fielded-heading" className="rubric mr-auto flex items-center gap-2">
-                <Swords className="size-4 text-info" aria-hidden /> From your battles
-              </h2>
-              <span className="text-xs text-dim">Fielded, but not in your collection</span>
-            </div>
-            <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {(allSuggestions ? suggestions : suggestions.slice(0, SUGGESTIONS_SHOWN)).map((sheet) => (
-                <li
-                  key={sheet.id}
-                  data-suggestion={sheet.name}
-                  className="flex items-center gap-3 border border-dashed border-edge-strong bg-sunken/60 py-2 pr-2 pl-3"
-                >
-                  {sheet.presentation ? <Mark faction={sheet.presentation} /> : null}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-bone uppercase">{sheet.name}</span>
-                    <span className="block text-xs text-dim">
-                      {sheet.battles} {sheet.battles === 1 ? 'battle' : 'battles'}
-                    </span>
-                  </span>
-                  <Button size="sm" variant="outline" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
-                    <Plus /> Add
-                  </Button>
-                </li>
-              ))}
-            </ul>
-            {suggestions.length > SUGGESTIONS_SHOWN ? (
-              <Button variant="link" size="sm" className="mt-1 px-0 text-info" onClick={() => setAllSuggestions((shown) => !shown)}>
-                {allSuggestions ? 'Show fewer' : `Show all ${suggestions.length}`}
-              </Button>
-            ) : null}
-          </section>
-        ) : null}
+        {owned.size ? null : fieldedShelf}
 
         {pending ? (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -139,7 +141,7 @@ export function CollectionPage() {
           <PageState
             headingLevel={2}
             icon={Boxes}
-            eyebrow="Collection"
+            eyebrow="Your collection"
             title="Your shelf is empty"
             explanation={
               suggestions.length
@@ -209,6 +211,7 @@ export function CollectionPage() {
             ) : null}
           </div>
         )}
+        {owned.size ? fieldedShelf : null}
       </PageContent>
       <RemoveFromCollection datasheet={removing} onClose={() => setRemoving(null)} />
     </main>

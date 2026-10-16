@@ -187,7 +187,7 @@ test('sign-out finishes when saved-device storage is unavailable', async ({ page
   await expect(page).toHaveURL('/')
   expect(await page.evaluate(() => (window as Window & { failedStorageAttempts?: number }).failedStorageAttempts)).toBeGreaterThan(0)
   await page.reload()
-  await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: new RegExp(`^Welcome(?: back)?, ${player}`) })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 

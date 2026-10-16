@@ -62,7 +62,7 @@ export function ServiceRecordPanel({
   return (
     <section data-onboarding="profile-record" data-service-record>
       <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2">
-        <p className="rubric">Service record</p>
+        <h2 className="rubric">Service record</h2>
         <RecordFilters facets={facets} filter={filter} onFilter={onFilter} />
       </div>
       {record.battles ? (
@@ -73,8 +73,9 @@ export function ServiceRecordPanel({
             items={[
               { label: 'Victory points', value: oneDecimal(record.averagePoints) },
               { label: 'In wins', value: oneDecimal(record.averageInWins) },
-              { label: 'In losses', value: oneDecimal(record.averageInLosses) },
-              { label: 'Behind when losing', value: oneDecimal(record.lossDifferential) },
+              // Without a loss these are not zero but absent.
+              { label: 'In losses', value: record.lost ? oneDecimal(record.averageInLosses) : '—' },
+              { label: 'Behind when losing', value: record.lost ? oneDecimal(record.lossDifferential) : '—' },
               { label: 'Primary', value: oneDecimal(record.averagePrimary) },
               { label: 'Secondary', value: oneDecimal(record.averageSecondary) },
               { label: 'CP spent', value: oneDecimal(record.averageCpSpent) },
@@ -85,7 +86,18 @@ export function ServiceRecordPanel({
           <CareerTables record={record} />
         </div>
       ) : (
-        <p className="mt-2 text-sm text-dim">{active(filter) ? 'No battles match that.' : 'No finished battles here yet.'}</p>
+        <p className="py-2 text-sm text-dim">
+          {active(filter) ? (
+            <>
+              No battles match these filters.{' '}
+              <button type="button" className="text-info hover:text-parchment" onClick={() => onFilter({})}>
+                Clear filters
+              </button>
+            </>
+          ) : (
+            'No finished battles here yet.'
+          )}
+        </p>
       )}
     </section>
   )
@@ -162,7 +174,7 @@ function RecordFilters({
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" disabled={!narrowed} onClick={() => onFilter({})} className="sm:mr-auto sm:ml-0">
-            Clear
+            Clear filters
           </Button>
           <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
         </DialogFooter>

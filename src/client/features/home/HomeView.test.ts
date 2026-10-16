@@ -41,8 +41,12 @@ describe('home greeting', () => {
     ['a whitespace-only name', ' \t\n ', 'Welcome back'],
     ['a first name', 'Alex', 'Welcome back, Alex'],
     ['a full name with extra whitespace', '  Alex \t Smith  ', 'Welcome back, Alex'],
-  ])('greets a player with %s', (_, name, greeting) => {
-    expect(render({ me: { id: 'player', name } }).match(/<h1\b[^>]*>(.*?)<\/h1>/)?.[1]).toBe(greeting)
+  ])('greets a returning player with %s', (_, name, greeting) => {
+    expect(render({ me: { id: 'player', name }, rosterCount: 1 }).match(/<h1\b[^>]*>(.*?)<\/h1>/)?.[1]).toBe(greeting)
+  })
+
+  it('does not welcome a player back before they have a list or a game', () => {
+    expect(render().match(/<h1\b[^>]*>(.*?)<\/h1>/)?.[1]).toBe('Welcome, Alex')
   })
 })
 
@@ -79,7 +83,7 @@ describe('home record', () => {
 
   it('reads the record, win rate, streak and leaderboard place', () => {
     expect(text(battled({ record: record({ place: 4, of: 31 }) }))).toContain(
-      'Record 7 – 4 – 1 Win rate 63% Streak 3 wins Leaderboard #4 of 31',
+      'W · D · L 7 – 1 – 4 Win rate 63% Streak 3 wins Leaderboard #4 of 31',
     )
   })
 

@@ -54,7 +54,7 @@ export function OneOnOneBattleChooser({
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-2xl">{startBattleLabel('1v1')}</DialogTitle>
-          <DialogDescription>Pick who you are playing. Both sealed lists are added for you.</DialogDescription>
+          <DialogDescription>Pick who you are playing. Both sealed rosters are added for you.</DialogDescription>
         </DialogHeader>
         <DialogBody>
           <div className="space-y-1.5">
@@ -267,7 +267,7 @@ export function DoublesBattleChooser({
       <DialogContent aria-busy={pending}>
         <DialogHeader>
           <DialogTitle className="text-2xl">{startBattleLabel('2v2')}</DialogTitle>
-          <DialogDescription>Pick the team you are playing. Your teammate and all four sealed lists are added for you.</DialogDescription>
+          <DialogDescription>Pick the team you are playing. Your teammate and all four sealed rosters are added for you.</DialogDescription>
         </DialogHeader>
         <DialogBody>
           <div className="space-y-1.5">

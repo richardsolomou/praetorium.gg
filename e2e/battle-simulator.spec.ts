@@ -47,8 +47,8 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
     }
     await squad.getByRole('button', { name: 'Take a wound off Intercessor Squad', exact: true }).click()
     await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
-    await army.locator('[data-unit="Rhino"]').getByRole('button', { name: 'Mark Rhino lost', exact: true }).click()
-    await expect(army.getByRole('button', { name: 'Mark Rhino lost', exact: true })).toHaveCount(0)
+    await army.locator('[data-unit="Rhino"]').getByRole('button', { name: 'Mark Rhino destroyed', exact: true }).click()
+    await expect(army.getByRole('button', { name: 'Mark Rhino destroyed', exact: true })).toHaveCount(0)
     await army.getByRole('button', { name: 'Close', exact: true }).click()
   }
   await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
@@ -104,7 +104,10 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await otherSquad.getByRole('button', { name: 'Take a wound off Intercessor Squad', exact: true }).click()
   await expect(table.getByRole('columnheader').filter({ hasText: 'Intercessor Squad' })).toContainText('4 models · 7 wounds')
   await expect(planner).toContainText('4 / 4 matchups · Complete')
-  await otherArmy.locator('[data-unit="Terminator Squad"]').getByRole('button', { name: 'Mark Terminator Squad lost', exact: true }).click()
+  await otherArmy
+    .locator('[data-unit="Terminator Squad"]')
+    .getByRole('button', { name: 'Mark Terminator Squad destroyed', exact: true })
+    .click()
   await expect(planner).toContainText('2 / 2 matchups · Complete')
   await expect(table.getByRole('columnheader').filter({ hasText: 'Terminator Squad' })).toHaveCount(0)
   await otherArmy.getByRole('button', { name: 'Close', exact: true }).click()
@@ -405,8 +408,11 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
   const army = page.locator('[data-army-roster]')
-  await army.locator('[data-unit="Nekrosor Ammentar"]').getByRole('button', { name: 'Mark Nekrosor Ammentar lost', exact: true }).click()
-  await expect(army.getByRole('button', { name: 'Mark Nekrosor Ammentar lost', exact: true })).toHaveCount(0)
+  await army
+    .locator('[data-unit="Nekrosor Ammentar"]')
+    .getByRole('button', { name: 'Mark Nekrosor Ammentar destroyed', exact: true })
+    .click()
+  await expect(army.getByRole('button', { name: 'Mark Nekrosor Ammentar destroyed', exact: true })).toHaveCount(0)
   await army.getByRole('button', { name: 'Close', exact: true }).click()
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
   await openCombatControls(simulator)

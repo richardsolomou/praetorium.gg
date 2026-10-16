@@ -1,6 +1,7 @@
+import { pageLinkTabClass, pageLinkTabsClass } from '../../components/PageTabs'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Swords } from 'lucide-react'
+import { Swords, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
@@ -11,7 +12,6 @@ import { DeleteBattleDialog } from './DeleteBattle'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { battlesFrom, battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../../queries'
-import { FriendTables } from '../home/HomeFeed'
 
 /** Which whole list the page shows: Home lists the head of each, and links here for the rest. */
 export type BattlesView = 'mine' | 'friends' | 'public'
@@ -31,7 +31,7 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
   const [deleting, setDeleting] = useState<Battle | null>(null)
   const more = feed.hasNextPage ? (
     <Button variant="outline" size="sm" className="mt-2" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
-      {feed.isFetchingNextPage ? 'Loading…' : 'Show earlier battles'}
+      {feed.isFetchingNextPage ? 'Loading…' : 'Show more battles'}
     </Button>
   ) : null
 
@@ -41,9 +41,7 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
         eyebrow={me ? 'Your battles' : 'Community'}
         title={me ? 'Battles' : 'Public battles'}
         description={
-          me
-            ? 'Start a game, return to one in progress, or look back over every game you, your friends and everyone else have played.'
-            : 'Watch a game in progress or review a finished battle.'
+          me ? 'Start a game, pick one up, or watch your friends and others play.' : 'Watch a game in progress or review a finished battle.'
         }
         actions={
           me ? (
@@ -59,14 +57,14 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
         }
       >
         {me ? (
-          <nav aria-label="Battles" className="flex gap-6">
+          <nav aria-label="Battles" className={pageLinkTabsClass}>
             {VIEWS.map(([section, label]) => (
               <Link
                 key={section}
                 to="/battles"
                 search={{ view: section === 'mine' ? undefined : section }}
                 aria-current={view === section ? 'page' : undefined}
-                className={`min-h-11 content-center border-b-2 text-sm font-semibold ${view === section ? 'border-parchment text-parchment' : 'border-transparent text-dim hover:border-edge-strong hover:text-bone'}`}
+                className={pageLinkTabClass(view === section)}
               >
                 {label}
               </Link>
@@ -74,7 +72,7 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
           </nav>
         ) : null}
       </PageHeader>
-      <PageContent className="space-y-10 sm:pt-6">
+      <PageContent className="space-y-6">
         {view === 'mine' ? (
           battles.length ? (
             <>
@@ -107,15 +105,28 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
         ) : view === 'friends' ? (
           battles.length ? (
             <div>
-              <BattleShelf title="Friends' games" battles={battles} />
+              <BattleShelf name="Friends' games" battles={battles} />
               {more}
             </div>
           ) : (
-            <FriendTables battles={[]} />
+            <div data-friends-empty>
+              <PageState
+                headingLevel={2}
+                eyebrow="Friends' games"
+                title="No friends' games yet."
+                explanation="Games your friends play appear here, apart from the ones you sit in."
+                icon={Users}
+                action={
+                  <Link to="/friends" className={buttonClass({ variant: 'outline' })}>
+                    <Users /> Your friends
+                  </Link>
+                }
+              />
+            </div>
           )
         ) : battles.length ? (
           <div>
-            <BattleShelf title="Public games" battles={battles} />
+            <BattleShelf name="Public games" battles={battles} />
             {more}
           </div>
         ) : (

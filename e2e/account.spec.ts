@@ -48,7 +48,7 @@ test('account forms show the server error', async ({ page }) => {
   await page.getByRole('button', { name: 'I need an account' }).click()
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('a-long-enough-password')
-  await page.getByRole('button', { name: 'Create the account' }).click()
+  await page.getByRole('button', { name: 'Create account', exact: true }).click()
   await expect(page.getByText('User already exists. Use another email.', { exact: true })).toBeVisible()
 })
 
@@ -179,7 +179,7 @@ test('password reset failures are announced', async ({ page }) => {
 test('a player can edit their display name and profile picture', async ({ page }) => {
   await signUp(page, uniqueName('Alice'))
   await page.getByRole('button', { name: /Account menu for/ }).click()
-  await page.getByRole('menuitem', { name: 'Edit profile' }).click()
+  await page.getByRole('menuitem', { name: 'Account settings' }).click()
 
   await page.getByLabel('Display name').fill('Commander Alice')
   await page.getByLabel('Choose profile picture').setInputFiles({
@@ -213,18 +213,19 @@ test('profile defaults apply to rosters while battles infer their format', async
   await signUp(page, uniqueName('Alice'))
   // Neither choice is a new account's default, so each assertion below needs its press to have saved.
   await chooseRosterDefault(page, 'Unlisted')
-  await choosePlayerDefault(page, 'Roster size', 'Incursion')
+  await choosePlayerDefault(page, 'Battle size', 'Incursion')
   await page.reload()
   const visibility = page.getByRole('group', { name: 'Roster visibility' })
-  const size = page.getByRole('group', { name: 'Roster size' })
+  const size = page.getByRole('group', { name: 'Battle size' })
   await expect(visibility.getByRole('button', { name: /^Unlisted/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(size.getByRole('button', { name: /^Incursion/ })).toHaveAttribute('aria-pressed', 'true')
 
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Create roster', exact: true }).click())
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
   await expect(dialog.getByRole('combobox', { name: 'Battle size' })).toContainText('Incursion')
-  await expect(dialog.locator('#setup-visibility')).toContainText('Unlisted — anyone with the link')
+  await expect(dialog.locator('#setup-visibility')).toContainText('Unlisted')
+  await expect(dialog.locator('#setup-visibility-reach')).toHaveText('Anyone with the link')
   await page.keyboard.press('Escape')
 
   await createBattle(page, { practice: true })
@@ -316,11 +317,11 @@ test('a one-time link connects a new player after they create an account and acc
 
   await recipient.getByRole('link', { name: 'Create an account' }).click()
   await recipient.waitForLoadState('networkidle')
-  await expect(recipient.getByRole('heading', { name: 'Make an account' })).toBeVisible()
+  await expect(recipient.getByRole('heading', { name: 'Join Praetorium' })).toBeVisible()
   await recipient.getByLabel('Your name').fill(recipientName)
   await recipient.getByLabel('Email').fill(`friend-invite-${crypto.randomUUID()}@example.test`)
   await recipient.getByLabel('Password').fill('a-long-enough-password')
-  await recipient.getByRole('button', { name: 'Create the account' }).click()
+  await recipient.getByRole('button', { name: 'Create account', exact: true }).click()
 
   await expect(recipient.getByRole('heading', { name: `Become friends with ${inviterName}` })).toBeVisible()
   await recipient.getByRole('button', { name: 'Accept invite' }).click()
@@ -330,7 +331,7 @@ test('a one-time link connects a new player after they create an account and acc
   await inviter.reload()
   await expect(inviter.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
   await recipient.goto(inviteUrl)
-  await expect(recipient.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await expect(recipient.getByRole('heading', { name: 'This invite link no longer works' })).toBeVisible()
 
   await inviterContext.close()
   await recipientContext.close()
@@ -401,7 +402,7 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
       await expect(incoming).toHaveCount(0, { timeout: 1_000 })
     }).toPass({ timeout: 15_000 })
     await recipient.goto('/')
-    await expect(recipient.getByRole('heading', { name: 'Welcome back', exact: false })).toBeVisible()
+    await expect(recipient.getByRole('heading', { name: /^Welcome/ })).toBeVisible()
     await expect(recipient.getByText('Needs your attention')).toHaveCount(0)
     await requester.reload()
     await expect(requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`)).toHaveCount(
@@ -481,7 +482,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await page.getByLabel('Your name').fill('Alice')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill('a-long-enough-password')
-  await page.getByRole('button', { name: 'Create the account' }).click()
+  await page.getByRole('button', { name: 'Create account', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
   await expectOnboardingProgress(page, 0)
@@ -510,7 +511,7 @@ test('a list saved under an account is there on another device', async ({ browse
   await elsewhere.getByRole('button', { name: 'Actions for Kept list' }).click()
   await elsewhere.getByRole('menuitem', { name: 'Delete' }).click()
   await expect(elsewhere.getByRole('alertdialog', { name: 'Delete Kept list?' })).toBeVisible()
-  await elsewhere.getByRole('button', { name: 'Cancel' }).click()
+  await elsewhere.getByRole('button', { name: 'Keep roster' }).click()
   await expect(elsewhere.getByRole('link', { name: /Kept list/ })).toBeVisible()
 
   await elsewhere.getByRole('button', { name: 'Actions for Kept list' }).click()
@@ -531,7 +532,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.getByLabel('Your name').fill(bobName)
   await guest.getByLabel('Email').fill(bobEmail)
   await guest.getByLabel('Password').fill('a-long-enough-password')
-  await guest.getByRole('button', { name: 'Create the account' }).click()
+  await guest.getByRole('button', { name: 'Create account', exact: true }).click()
   const accountMenu = guest.getByRole('button', { name: `Account menu for ${bobName}` })
   await accountMenu.waitFor()
   await signUp(host, aliceName)

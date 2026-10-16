@@ -38,7 +38,7 @@ test('reserve choices over the points limit are disabled with the reason beside 
   await expect(army.getByText('420/500 reserve points')).toBeVisible()
   const ark = army.getByRole('button', { name: 'Start Doomsday Ark in Strategic reserves', exact: true })
   await expect(ark).toBeDisabled()
-  await expect(ark).toHaveAccessibleDescription('over the 500 pt reserve limit')
+  await expect(ark).toHaveAccessibleDescription('Over the 500 pt reserve limit.')
   await expect(army.getByRole('button', { name: 'Start Immortals in Strategic reserves', exact: true })).toBeEnabled()
 
   await army.getByRole('button', { name: 'Start Monolith in Battlefield', exact: true }).click()

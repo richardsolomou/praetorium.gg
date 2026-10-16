@@ -17,8 +17,8 @@ export const globalSearchGroups: GlobalSearchResult['group'][] = [
 const pages: GlobalSearchResult[] = [
   { id: 'page:home', group: 'Pages', label: 'Home', detail: 'Praetorium home', href: '/' },
   { id: 'page:battles', group: 'Pages', label: 'Battles', detail: 'Your current and finished games', href: '/battles' },
-  { id: 'page:rosters', group: 'Pages', label: 'Rosters', detail: 'Manage army lists', href: '/rosters' },
-  { id: 'page:new-roster', group: 'Pages', label: 'New roster', detail: 'Build an army list', href: '/rosters/new' },
+  { id: 'page:rosters', group: 'Pages', label: 'Rosters', detail: 'Your saved rosters', href: '/rosters' },
+  { id: 'page:new-roster', group: 'Pages', label: 'New roster', detail: 'Build a roster', href: '/rosters/new' },
   { id: 'page:factions', group: 'Pages', label: 'Factions', detail: 'Datasheets and detachment references', href: '/factions' },
   { id: 'page:missions', group: 'Pages', label: 'Missions', detail: 'Mission packs, scoring and deployments', href: '/missions' },
   {

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 export function PageState({
   title,
   explanation,
-  eyebrow = 'Praetorium',
+  eyebrow,
   icon: Icon = CircleAlert,
   loading = false,
   action,
@@ -30,8 +30,8 @@ export function PageState({
         <span className="grid size-14 place-items-center rounded-full border border-edge-strong bg-sunken text-parchment">
           <Mark className={`size-6 ${loading ? 'animate-spin' : ''}`} aria-hidden />
         </span>
-        <p className="eyebrow mt-4 text-parchment">{eyebrow}</p>
-        <Heading className="mt-1 text-2xl">{title}</Heading>
+        {eyebrow ? <p className="eyebrow mt-4 text-parchment">{eyebrow}</p> : null}
+        <Heading className={`${eyebrow ? 'mt-1' : 'mt-4'} text-2xl`}>{title}</Heading>
         <p className="mt-2 text-sm text-dim">{explanation}</p>
         {action ? <div className="mt-6 flex w-full justify-center">{action}</div> : null}
       </div>

@@ -43,7 +43,7 @@ test('greets a signed-in player whose provider supplied no name', async ({ page 
   await withAuthSql((database) => database.prepare('UPDATE user SET name = ? WHERE email = ?').run('', email))
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome back')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome')
   await page.screenshot({ path: 'test-results/home-nameless-greeting.png' })
 })
 
@@ -62,7 +62,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
   await page.setViewportSize({ width: 1440, height: 900 })
 
   await switchAccount.click()
-  await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Join Praetorium' })).toBeVisible()
   await expect(page.getByLabel('Your name')).toBeVisible()
   await expect(page).toHaveURL('/sign-in?next=%2Frosters')
 
@@ -131,7 +131,7 @@ test('explains supported features before public activity and opens an account-fr
   }
   const activity = page.locator('[data-battle-shelf="Public games"], [data-public-empty]')
   expect((await features.boundingBox())!.y).toBeLessThan((await activity.boundingBox())!.y)
-  await features.getByRole('link', { name: 'Try a combat matchup' }).click()
+  await page.getByRole('link', { name: /Simulate a fight/ }).click()
 
   await expect(page).toHaveURL('/simulator')
   await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
@@ -148,7 +148,7 @@ test('creating an account from the home page opens the sign-up form', async ({ p
   await page.goto('/')
   await followLink(page.getByRole('link', { name: 'Create an account', exact: true }).first(), /\/sign-in/)
 
-  await expect(page.getByRole('heading', { name: 'Make an account' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Join Praetorium' })).toBeVisible()
 })
 
 test('importing from the home page opens the guest builder', async ({ page }) => {

@@ -24,10 +24,10 @@ export type HomeRoster = {
 export function HomeRosters({ rosters, count, changed }: { rosters: readonly HomeRoster[]; count: number; changed: number }) {
   return (
     <section data-home-rosters>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>Your rosters</span>
         <span className="readout">{count}</span>
-      </p>
+      </h2>
       {rosters.length ? (
         <ul className="divide-y divide-edge border-b border-edge">
           {rosters.map(({ roster, faction, points, label, problem }) => (

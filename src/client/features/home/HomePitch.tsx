@@ -1,18 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import {
-  Bell,
-  Calculator,
-  ChevronRight,
-  ClipboardPaste,
-  Code,
-  Crosshair,
-  Heart,
-  Layers3,
-  LockKeyhole,
-  RotateCcw,
-  Swords,
-  Users,
-} from 'lucide-react'
+import { Bell, Calculator, ClipboardPaste, Code, Crosshair, Heart, Layers3, LockKeyhole, RotateCcw, Swords, Users } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
 import { SOURCE, SPONSOR } from '../../projectLinks'
 
@@ -55,7 +42,7 @@ const FEATURES = [
   {
     icon: RotateCcw,
     title: 'Battle replay & stats',
-    text: 'Revisit each turn. Track your results by detachment, mission and game size.',
+    text: 'Revisit each turn. Track your results by detachment, mission and battle size.',
   },
 ]
 
@@ -74,9 +61,6 @@ export function HomeFeatures() {
           </article>
         ))}
       </div>
-      <Link to="/simulator" className={buttonClass({ variant: 'outline', className: 'mt-6' })}>
-        Try a combat matchup <ChevronRight aria-hidden />
-      </Link>
     </section>
   )
 }

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { OnboardingTarget } from '../../../onboardingTargets'
 import type { ReactNode } from 'react'
 import { gameReferencesQuery } from '../../../queries'
-import type { Side } from '../../../sides'
+import { sideName, type Side } from '../../../sides'
 import { tint } from '../battleTints'
 import { SidePlayers } from '../PlayerName'
 import { dispositionTone } from '../../../components/rosterSetup'
@@ -40,16 +40,27 @@ export function SetupNote({ children, className = '' }: { children: ReactNode; c
 }
 
 /**
- * One side's own surface, tinted like the panel that will draw it once the battle
- * starts, so the two sides are the same two colours from the first screen to the last.
+ * One side's column: the side's colour as a rule across the top and its content
+ * directly under it, so the two sides are the same two colours from the first
+ * screen to the last without a panel around each.
  */
-export function SetupSidePanel({ side, children, className = '' }: { side: Side; children: ReactNode; className?: string }) {
+export function SetupSidePanel({
+  side,
+  named = false,
+  children,
+  className = '',
+}: {
+  side: Side
+  /** Pictured and named where the side is introduced; later columns keep the name for screen readers only. */
+  named?: boolean
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <SetupPanel className={`space-y-2 border-t-2 p-3 ${tint(side.index).edge} ${className}`}>
-      {/* Pictured and named, the way every other screen introduces a side. */}
-      <SidePlayers side={side} />
+    <div className={`min-w-0 space-y-2 border-t-[3px] pt-3 ${tint(side.index).edge} ${className}`}>
+      {named ? <SidePlayers side={side} /> : <h3 className="sr-only">{sideName(side)}</h3>}
       {children}
-    </SetupPanel>
+    </div>
   )
 }
 

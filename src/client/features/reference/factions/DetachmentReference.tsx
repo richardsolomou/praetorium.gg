@@ -53,25 +53,14 @@ export function DetachmentReference({
     <div id="summary">
       <PageHeader
         tint={faction ? factionColour(faction.slug, faction.displayName) : undefined}
-        eyebrow="Detachment"
+        eyebrow={faction ? `${faction.displayName} · Detachment` : 'Detachment'}
         title={detachment.name}
         media={
           faction ? <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} /> : undefined
         }
         actions={
-          detachment.dispositions.length || detachment.points !== null || detachmentId || action ? (
+          detachmentId || action ? (
             <div className="flex flex-wrap items-center gap-1">
-              {detachment.dispositions.map((disposition) => (
-                <Link
-                  key={disposition}
-                  to="/force-dispositions/$dispositionId"
-                  params={{ dispositionId: routeSlug(disposition) }}
-                  className={`chip hover:text-bone ${dispositionTone(disposition)}`}
-                >
-                  {disposition}
-                </Link>
-              ))}
-              {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
               {detachmentId ? (
                 <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
               ) : null}
@@ -79,7 +68,23 @@ export function DetachmentReference({
             </div>
           ) : null
         }
-      />
+      >
+        {detachment.dispositions.length || detachment.points !== null ? (
+          <div className="flex flex-wrap gap-1">
+            {detachment.dispositions.map((disposition) => (
+              <Link
+                key={disposition}
+                to="/force-dispositions/$dispositionId"
+                params={{ dispositionId: routeSlug(disposition) }}
+                className={`chip hover:text-bone ${dispositionTone(disposition)}`}
+              >
+                {disposition}
+              </Link>
+            ))}
+            {detachment.points === null ? null : <span className="chip text-info">{detachment.points} DP</span>}
+          </div>
+        ) : null}
+      </PageHeader>
       <div id="keyword-rules">
         <PageContent className="space-y-6">
           {afterHero}
@@ -101,7 +106,7 @@ export function DetachmentReference({
           <section data-onboarding="detachment-enhancements">
             <SectionTitle title="Enhancements" count={detachment.enhancements.length} />
             <div className="mt-2 grid gap-2 md:grid-cols-2">
-              {!detachment.enhancements.length ? <p className="text-sm text-dim">No enhancement details are available.</p> : null}
+              {!detachment.enhancements.length ? <p className="py-2 text-sm text-dim">No enhancement details are available.</p> : null}
               {detachment.enhancements.map((enhancement) => (
                 <article
                   id={`enhancement-${routeSlug(enhancement.name)}`}
@@ -110,7 +115,7 @@ export function DetachmentReference({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="text-base">{enhancement.name}</h2>
-                    {enhancement.points === null ? null : <span className="chip shrink-0">{enhancement.points} pts</span>}
+                    {enhancement.points === null ? null : <span className="chip shrink-0 text-info">{enhancement.points} pts</span>}
                   </div>
                   {enhancement.description ? <RuleText text={enhancement.description} rules={detachment.keywordRules} /> : <Unavailable />}
                 </article>
@@ -126,7 +131,7 @@ export function DetachmentReference({
                   <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="border border-edge bg-panel p-4">
                     <div className="flex items-start justify-between gap-3">
                       <h2 className="text-base">{upgrade.name}</h2>
-                      {upgrade.points === null ? null : <span className="chip shrink-0">{upgrade.points} pts</span>}
+                      {upgrade.points === null ? null : <span className="chip shrink-0 text-info">{upgrade.points} pts</span>}
                     </div>
                     {upgrade.description ? <RuleText text={upgrade.description} rules={detachment.keywordRules} /> : <Unavailable />}
                   </article>
@@ -141,7 +146,7 @@ export function DetachmentReference({
               <p className="mt-2 text-sm text-dim">Some stratagem descriptions are not available.</p>
             ) : null}
             <div className="mt-2 grid gap-2 md:grid-cols-2">
-              {!detachment.stratagems.length ? <p className="text-sm text-dim">No stratagem details are available.</p> : null}
+              {!detachment.stratagems.length ? <p className="py-2 text-sm text-dim">No stratagem details are available.</p> : null}
               {detachment.stratagems.map((stratagem) => (
                 <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="border border-edge bg-panel p-4">
                   <div className="flex items-start justify-between gap-3">

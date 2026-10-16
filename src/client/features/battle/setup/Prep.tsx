@@ -40,7 +40,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   const requests = side.armies.map((army) => armyRulesRequest(army.roster))
   const { data: references } = useQuery(gameReferencesQuery())
   const results = useQueries({ queries: requests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)) })
-  // The cards, the mission text and the attribution are the instance's rather than
+  // The cards and the mission text are the instance's rather than
   // any one army's, so the first army to answer settles them for the side.
   const rules = results.map((result) => result.data).find((data) => data) ?? null
   const stratagems = sideStratagems(
@@ -224,11 +224,6 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
           }}
         />
       ) : null}
-
-      <p className="text-2xs text-dim">
-        {rules.attribution}
-        {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
-      </p>
     </div>
   )
 }

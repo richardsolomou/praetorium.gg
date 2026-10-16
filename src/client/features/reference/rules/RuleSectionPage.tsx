@@ -42,13 +42,13 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         }
         title={data.section.title}
       />
-      <PageContent>
+      <PageContent className="space-y-6">
         <div className="space-y-5">
           {data.section.entries.map((entry) => (
             <Rule key={entry.anchor} entry={entry} links={links} />
           ))}
         </div>
-        <nav className="mt-8 flex items-stretch justify-between gap-2 border-t border-edge pt-4">
+        <nav className="flex items-stretch justify-between gap-2 border-t border-edge pt-4">
           {[sections[at - 1], sections[at + 1]].map((section, side) =>
             section ? (
               <Link
@@ -64,7 +64,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
             ) : null,
           )}
         </nav>
-        <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{index.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{index.attribution}</p>
       </PageContent>
     </main>
   )

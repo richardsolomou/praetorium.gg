@@ -113,7 +113,7 @@ export function OptionalRulesDialog({
                   })}
                 </div>
               ) : (
-                <p className="mt-2 border border-dashed border-edge px-3 py-4 text-center text-sm text-dim">
+                <p className="py-2 text-sm text-dim">
                   This roster has no detachment points left over, so there is no disposition it can borrow.
                 </p>
               )}

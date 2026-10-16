@@ -297,7 +297,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
             ) : null}
           </DialogBody>
           <DialogFooter>
-            <Button variant="ghost" disabled={working} onClick={() => setOpen(false)}>
+            <Button variant="outline" disabled={working} onClick={() => setOpen(false)}>
               Cancel
             </Button>
           </DialogFooter>

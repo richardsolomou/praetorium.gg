@@ -92,11 +92,9 @@ export function LeagueFormFields({
             <p className="eyebrow">Format and points</p>
             <p className="font-semibold">
               {TABLE_SHAPE_LABELS[value.format].name} ·{' '}
-              {leagueRosterSplit(value.format, value.rosterLimit) ?? `${value.rosterLimit.toLocaleString()} points`}
+              {leagueRosterSplit(value.format, value.rosterLimit) ?? `${value.rosterLimit.toLocaleString('en')} points`}
             </p>
-            <p className="text-xs text-dim">
-              {ROSTER_RULE[value.format]} {ruleLock}
-            </p>
+            <p className="text-xs text-dim">{[ROSTER_RULE[value.format], ruleLock].filter(Boolean).join(' ')}</p>
           </div>
         ) : (
           <LeagueEventRuleFields
@@ -116,19 +114,10 @@ export function LeagueFormFields({
         )}
       </div>
       {ownerPlays === undefined || !onOwnerPlaysChange ? null : (
-        <div className="flex items-start gap-3">
-          <Switch
-            id={`${idPrefix}-owner-plays`}
-            className="mt-0.5"
-            checked={ownerPlays}
-            disabled={disabled}
-            onCheckedChange={onOwnerPlaysChange}
-          />
-          <Label htmlFor={`${idPrefix}-owner-plays`} className="block cursor-pointer">
-            <span className="block text-sm font-bold uppercase">I’m playing too</span>
-            <span className="block text-xs font-normal tracking-normal text-dim normal-case">
-              You can seal your own list straight away.
-            </span>
+        <div className="flex items-center gap-3">
+          <Switch id={`${idPrefix}-owner-plays`} checked={ownerPlays} disabled={disabled} onCheckedChange={onOwnerPlaysChange} />
+          <Label htmlFor={`${idPrefix}-owner-plays`} className="cursor-pointer text-sm font-bold uppercase">
+            I’m playing too
           </Label>
         </div>
       )}
@@ -170,15 +159,15 @@ export function LeagueFormFields({
               disabled={disabled}
               onChange={(event) => onChange({ ...value, playerLimit: event.target.value ? Number(event.target.value) : null })}
             />
-            <p className="text-xs text-dim">
-              {seated
-                ? `No lower than ${minimum} while this event is open.`
-                : limitFormat === '2v2'
-                  ? 'Doubles needs an even number of places, at least four.'
-                  : limitFormat === '2v1'
-                    ? 'A 2v1 league needs at least three places.'
-                    : 'Leave it empty for no limit.'}
-            </p>
+            {seated || limitFormat === '2v1' || limitFormat === '2v2' ? (
+              <p className="text-xs text-dim">
+                {seated
+                  ? `No lower than ${minimum} while this event is open.`
+                  : limitFormat === '2v2'
+                    ? 'Doubles needs an even number of places, at least four.'
+                    : 'A 2v1 league needs at least three places.'}
+              </p>
+            ) : null}
           </div>
           <Choice
             label="Who can find it"
@@ -196,8 +185,8 @@ export function LeagueFormFields({
             value={value.admission}
             columns={2}
             options={[
-              { value: 'automatic', name: 'Anyone who joins', detail: 'No approval needed.' },
-              { value: 'approval', name: 'You approve', detail: 'You let each player in.' },
+              { value: 'automatic', name: 'Anyone who joins' },
+              { value: 'approval', name: 'You approve' },
             ]}
             disabled={disabled}
             onChange={(admission) => onChange({ ...value, admission })}

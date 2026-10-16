@@ -3,11 +3,11 @@ import { LegalPage, LegalSection } from './LegalPage'
 
 export function DeleteAccount() {
   return (
-    <LegalPage title="Delete account" updated="1 September 2026">
+    <LegalPage eyebrow="Help" title="Delete account" updated="16 October 2026">
       <LegalSection title="Delete from Praetorium">
         <p>
-          Sign in, open Profile, find Account security, and choose Permanently delete account. The confirmation names everything that will
-          be removed before the deletion runs.
+          Sign in, choose Account settings from the account menu, and choose Delete account at the bottom of the page. The confirmation
+          names everything that will be removed before the deletion runs.
         </p>
         <p>
           <Link to="/sign-in" search={{ next: '/profile' }} className="text-info hover:text-parchment">

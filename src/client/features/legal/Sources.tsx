@@ -4,7 +4,7 @@ const linkClass = 'text-info hover:text-parchment'
 
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="10 October 2026">
+    <LegalPage eyebrow="About the data" title="Data sources" updated="10 October 2026">
       <LegalSection title="Community data">
         <p>Praetorium uses rules and reference data from these community projects:</p>
         <LegalLinks>

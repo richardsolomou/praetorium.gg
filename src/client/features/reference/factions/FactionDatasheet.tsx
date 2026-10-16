@@ -57,13 +57,17 @@ export function FactionDatasheet() {
         media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
         actions={
           <div className="flex flex-wrap items-center gap-1">
-            {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
-            {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
             <DatasheetAddMenu faction={faction} entryId={sheet.id} name={sheet.name} />
             <SimulateDatasheet catalogueId={faction.id} entryId={sheet.id} />
           </div>
         }
       >
+        {sheet.composition.length || sheet.points !== null ? (
+          <div className="flex flex-wrap gap-1">
+            {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
+            {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
+          </div>
+        ) : null}
         <div id="keyword-rules" data-onboarding="datasheet-keywords" className="mt-2 flex flex-wrap gap-1">
           {sheet.keywords.map((keyword) => (
             <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
@@ -108,7 +112,7 @@ export function FactionDatasheet() {
         ) : null}
         {unit.length > 1 && invulnerable.length ? (
           <section>
-            <h2 className="rubric">Invulnerable save</h2>
+            <h2 className="rubric border-b border-edge pb-2">Invulnerable save</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               {invulnerable.map((profile) => (
                 <div key={profile.name} className="border border-edge bg-panel px-3 py-2">
@@ -167,8 +171,8 @@ export function Abilities({
     if (kind === 'core' || kind === 'faction') {
       return (
         <section key={kind} data-onboarding={onboarding}>
-          <h2 className="rubric">
-            {title} <span className="readout text-faint">{found.length}</span>
+          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+            <span>{title}</span> <span className="readout">{found.length}</span>
           </h2>
           <div className="mt-2 flex flex-wrap gap-1">
             {found.map((ability) => (
@@ -192,8 +196,8 @@ export function Abilities({
     }
     return (
       <section key={kind} data-onboarding={onboarding}>
-        <h2 className="rubric">
-          {title} <span className="readout text-faint">{found.length}</span>
+        <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+          <span>{title}</span> <span className="readout">{found.length}</span>
         </h2>
         {cards}
       </section>
@@ -202,10 +206,12 @@ export function Abilities({
 }
 
 function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rules: KeywordRule[]; onboarding?: OnboardingTarget }) {
-  if (!sheet.composition.length && !sheet.loadout && !sheet.wargearOptions.length && !sheet.costs.length) return null
+  // Sources print a lone "None" when a unit has no wargear options.
+  const wargearOptions = sheet.wargearOptions.filter((option) => option.trim().toLowerCase() !== 'none')
+  if (!sheet.composition.length && !sheet.loadout && !wargearOptions.length && !sheet.costs.length) return null
   return (
     <section data-onboarding={onboarding}>
-      <h2 className="rubric">Unit configuration</h2>
+      <h2 className="rubric border-b border-edge pb-2">Unit configuration</h2>
       <div className="mt-2 overflow-hidden border border-edge bg-panel">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
           <div className="space-y-2 p-3">
@@ -241,11 +247,11 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
             <RuleText text={sheet.loadout} rules={rules} className="mt-0" />
           </div>
         ) : null}
-        {sheet.wargearOptions.length ? (
+        {wargearOptions.length ? (
           <div id="wargear" className="border-t border-edge p-3">
             <h3 className="eyebrow mb-2">Wargear options</h3>
             <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
-              {sheet.wargearOptions.map((option) => (
+              {wargearOptions.map((option) => (
                 <li key={option}>
                   <RuleText text={option} rules={rules} />
                 </li>
@@ -265,7 +271,7 @@ function PointsChanges({ faction, slug }: { faction: { slug: string; displayName
   if (!changes?.length) return null
   return (
     <section id="points-changes">
-      <h2 className="rubric">Points changes</h2>
+      <h2 className="rubric border-b border-edge pb-2">Points changes</h2>
       <ul className="mt-2 border border-edge bg-panel">
         {changes.map(({ recordedAt, change }) => (
           <li
@@ -300,7 +306,7 @@ export function Relationships({
   return (
     <section id="relationships">
       <ReferenceAnchors prefix="ability" ids={abilityIds} />
-      <h2 className="rubric">Attachments</h2>
+      <h2 className="rubric border-b border-edge pb-2">Attachments</h2>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         {groups.map(({ title, relationships }) => (
           <div key={title} className="border border-edge bg-panel p-3">
@@ -402,8 +408,8 @@ export function ProfileTable({
       : profiles.map((profile) => [profile])
   return (
     <section data-onboarding={onboarding}>
-      <h2 className="rubric">
-        {title} <span className="readout text-faint">{groups.length}</span>
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+        <span>{title}</span> <span className="readout">{groups.length}</span>
       </h2>
       <div className="mt-2 overflow-x-auto border border-edge bg-panel">
         <table className="w-full min-w-max text-left text-sm">
@@ -481,7 +487,7 @@ export function TransportReference({
   return (
     <section>
       {anchors}
-      <h2 className="rubric">Transport</h2>
+      <h2 className="rubric border-b border-edge pb-2">Transport</h2>
       <div className="mt-2 border border-edge bg-panel p-3">
         <RuleText text={transport} rules={rules} className="mt-0" />
       </div>

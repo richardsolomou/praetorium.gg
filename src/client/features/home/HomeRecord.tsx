@@ -37,12 +37,12 @@ export function HomeRecord({ userId, data }: { userId: string; data: HomeRecordD
   return (
     <div className={TILES} data-home-record>
       <Link {...profile}>
-        <Stat label="Record">
+        <Stat label="W · D · L">
           <span className="text-achieved">{record.won}</span>
           <span className="text-faint">–</span>
-          <span className="text-rust">{record.lost}</span>
-          <span className="text-faint">–</span>
           <span className="text-dim">{record.drawn}</span>
+          <span className="text-faint">–</span>
+          <span className="text-rust">{record.lost}</span>
         </Stat>
       </Link>
       <Link {...profile}>
@@ -71,7 +71,7 @@ export function HomeRecord({ userId, data }: { userId: string; data: HomeRecordD
 
 /** The leaderboard opens on its own tile; the other figures open the profile that breaks them down. */
 const TILE =
-  'relative flex h-16 min-w-0 flex-col justify-center overflow-hidden border border-edge bg-sunken/60 px-3 transition-colors hover:border-edge-strong hover:bg-raised'
+  'relative flex h-16 min-w-0 flex-col justify-center overflow-hidden border border-edge bg-sunken/60 px-3 transition-colors hover:border-info hover:bg-raised'
 
 function Stat({ label, bar, children }: { label: string; bar?: number; children: ReactNode }) {
   return (

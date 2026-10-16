@@ -22,3 +22,9 @@ export function PageTabsList({
     </TabsList>
   )
 }
+
+/** Tabs that are destinations: links in a nav, drawn like `PageTabsList`. */
+export const pageLinkTabsClass = 'flex gap-4 border-b border-edge'
+
+export const pageLinkTabClass = (current: boolean) =>
+  `rubric relative -mb-px flex min-h-11 items-end border-b-2 pb-2 hover:text-bone ${current ? 'border-parchment text-parchment' : 'border-transparent'}`

@@ -8,9 +8,9 @@ export function PersonalPerformancePanel({ performance }: { performance: Persona
   ]
   return (
     <section aria-label="Personal performance" className="space-y-3">
-      <div className="border-b border-edge pb-2">
-        <h2 className="rubric">Performance over time</h2>
-        <p className="mt-1 text-xs text-dim">Win rate counts a draw as half a win. Open a row for results by month.</p>
+      <div>
+        <h2 className="rubric border-b border-edge pb-2">Performance over time</h2>
+        <p className="mt-2 text-xs text-dim">Win rate counts a draw as half a win. Open a row for results by month.</p>
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         {groups.map(({ label, rows }) => (

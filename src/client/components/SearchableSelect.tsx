@@ -122,7 +122,7 @@ export function SearchableSelect({
         )}
       >
         {trigger ?? (
-          <span className="min-w-0 flex-1 overflow-hidden text-left">
+          <span className="min-w-0 flex-1 truncate text-left">
             <ComboboxValue placeholder={placeholder}>
               {selected ? selectedFaction ? <FactionLabel faction={selectedFaction} /> : <OptionLabel option={selected} /> : null}
             </ComboboxValue>

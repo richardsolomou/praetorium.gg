@@ -35,7 +35,7 @@ Send feedback opens one dialog over the current page. Do not add another entry p
 
 ## Rosters
 
-Call the catalogue selector “Rules version”: versions may contain codex, points, or other rules updates. `FactionMark` and `FactionLabel` own faction and version presentation; do not add a version text chip beside the faction name or repeat preview status in a warning sentence. Carry version metadata through summary projections; frozen armies retain their recorded status. Name a custom points budget beside the battle size with `battleSizeLabel`; the budget is the points ceiling and the battle size still sets the other limits.
+Call the catalogue selector “Rules version”: versions may contain codex, points, or other rules updates. `FactionMark` and `FactionLabel` own faction and version presentation; do not add a version text chip beside the faction name or repeat preview status in a warning sentence. Carry version metadata through summary projections; frozen armies retain their recorded status. Name a custom points budget beside the battle size with `battleSizeLabel`; the budget is the points ceiling and the battle size still sets the other limits. Setup offers a custom budget as a battle size choice that names whose limits apply, not as a separate field.
 
 The builder has one picker and one loadout instance, moved between desktop columns and compact panes by `src/client/features/rosters/builder/Pane.tsx`. Reserve the desktop workspace before hydration. Edit squad size only on the roster card; `modelCountChoices` in `src/core/unitSize.ts` decides listed counts for the builder and simulator.
 
@@ -55,7 +55,7 @@ Specs: `e2e/roster-discovery.spec.ts`, `e2e/roster-setup-review.spec.ts`, `e2e/g
 
 ## Battles and leagues
 
-Setup is one page in rules order under `StepRail`. Keep secondary choices, reserves, deployment units, and pre-battle units visible; only settled format and twist choices may fold. Render battle controls by side, not seat; allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts.
+Setup is one page in rules order with no pinned bars: each section names its state beside its heading, and Start battle ends the page. Keep secondary choices, reserves, deployment units, and pre-battle units visible; only settled format and twist choices may fold. Render battle controls by side, not seat; allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts.
 
 A mission choice opens by itself once when its moment arrives and stays recordable from its card while the moment lasts. Required prompts open one at a time. Minimize preserves local answers; battle-changing controls stay disabled until parked dialogs are resumed or closed. Undo preserves answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 

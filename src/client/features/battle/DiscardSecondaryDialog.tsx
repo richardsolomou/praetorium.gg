@@ -51,16 +51,13 @@ export function DiscardSecondaryDialog({
             <p className="eyebrow text-discarded">End of turn</p>
             <DialogTitle>Discard tactical secondaries?</DialogTitle>
             <DialogDescription>
-              {sideName(side)} can discard any of their active tactical secondaries, or keep the hand as is. Discarding several at once
-              still gains at most 1 CP.
+              Discard any of {sideName(side)}’s tactical secondaries, or keep the hand.{' '}
+              {side.canGainCp
+                ? 'Discarding gains 1 CP, however many you discard.'
+                : 'This side already gained its additional CP this round.'}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <div className="flex items-center justify-end">
-              <span className={`chip ${side.canGainCp ? 'border-parchment text-parchment' : 'border-edge-strong text-faint'}`}>
-                {side.canGainCp ? 'Will gain 1 CP' : 'CP already gained this round'}
-              </span>
-            </div>
             <div className="space-y-1.5">
               {cards.map((card) => {
                 const chosen = selected.includes(card.key)

@@ -25,7 +25,7 @@ export function FactionDatasheets() {
   const faction = useReferenceFaction()
   const [query, setQuery] = useState('')
   const settledQuery = useSettled(query.trim())
-  const { data: units = [] } = useQuery({
+  const { data: units = [], isPending } = useQuery({
     ...factionDatasheetsQuery(faction?.id ?? '', settledQuery),
     placeholderData: keepPreviousData,
   })
@@ -38,11 +38,11 @@ export function FactionDatasheets() {
     <main className="w-full">
       <PageHeader
         tint={factionColour(faction.slug, faction.displayName)}
-        eyebrow={`${faction.displayName} · Reference`}
+        eyebrow={faction.displayName}
         title="Datasheets"
         media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
       />
-      <PageContent>
+      <PageContent className="space-y-6">
         <Breadcrumb>
           <BreadcrumbList className="eyebrow gap-1 text-info">
             <BreadcrumbItem>
@@ -58,45 +58,52 @@ export function FactionDatasheets() {
         </Breadcrumb>
         <SearchField
           onboarding="datasheet-search"
-          className="mt-4"
           value={query}
           onChange={setQuery}
           placeholder="Find a datasheet"
           label="Find a datasheet"
           clearLabel="Empty the datasheet filter"
         />
-        <p className="rubric mt-5 flex items-baseline justify-between border-b border-edge pb-2">
-          <span>Datasheets</span>
-          <span className="readout">{query.trim() ? units.length : (faction.references[0]?.datasheets ?? units.length)}</span>
-        </p>
-        <div className="mt-2">
-          {units.length ? (
-            GROUPS.map((group) => {
-              const rows = favouritesFirst(
-                units.filter((unit) => unit.group === group.id),
-                favourites,
-              )
-              return rows.length ? (
-                <Section key={group.id} title={group.plural} count={rows.length}>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {rows.map((unit) => (
-                      <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} query={settledQuery} />
-                    ))}
-                  </div>
-                </Section>
-              ) : null
-            })
-          ) : (
-            <PageState
-              headingLevel={2}
-              loading={!query.trim()}
-              icon={FileSearch}
-              eyebrow={query.trim() ? 'Datasheet search' : faction.displayName}
-              title={query.trim() ? 'No datasheets match' : 'Loading datasheets'}
-              explanation={query.trim() ? 'Try another datasheet name or clear the search.' : 'Loading datasheets and points.'}
-            />
-          )}
-        </div>
+        <section>
+          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+            <span>Datasheets</span>
+            <span className="readout">{query.trim() ? units.length : (faction.references[0]?.datasheets ?? units.length)}</span>
+          </h2>
+          <div className="mt-2">
+            {units.length ? (
+              GROUPS.map((group) => {
+                const rows = favouritesFirst(
+                  units.filter((unit) => unit.group === group.id),
+                  favourites,
+                )
+                return rows.length ? (
+                  <Section key={group.id} title={group.plural} count={rows.length}>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {rows.map((unit) => (
+                        <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} query={settledQuery} />
+                      ))}
+                    </div>
+                  </Section>
+                ) : null
+              })
+            ) : (
+              <PageState
+                headingLevel={2}
+                loading={isPending}
+                icon={FileSearch}
+                eyebrow={query.trim() ? 'Datasheet search' : faction.displayName}
+                title={isPending ? 'Loading datasheets' : query.trim() ? 'No datasheets match' : 'No datasheets available'}
+                explanation={
+                  isPending
+                    ? 'Loading datasheets and points.'
+                    : query.trim()
+                      ? 'Try another datasheet name or clear the search.'
+                      : 'This faction has no datasheets in the current data.'
+                }
+              />
+            )}
+          </div>
+        </section>
       </PageContent>
     </main>
   )
@@ -126,7 +133,7 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
           <span className="block truncate text-sm font-bold uppercase">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
         </span>
-        {unit.points === null ? null : <span className="chip ml-2 shrink-0">{unit.points} pts</span>}
+        {unit.points === null ? null : <span className="chip ml-2 shrink-0 text-info">{unit.points} pts</span>}
         <ChevronRight className="ml-2 size-4 shrink-0 text-dim" aria-hidden />
       </FactionReferenceLink>
       <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} className="size-11" />

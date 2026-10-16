@@ -88,9 +88,9 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     mode.kind !== 'edit' || !league
       ? null
       : league.revealedAt
-        ? 'The lists are out; start the next event to play a different format.'
+        ? 'The rosters are out; start the next event to play a different format.'
         : league.entries.some((entry) => entry.submitted)
-          ? 'Locked now that a list is sealed.'
+          ? 'Locked now that a roster is sealed.'
           : null
   // A revealed event no longer holds the limit to its shape; the limit only governs the events after it.
   const limitFormat = mode.kind === 'edit' && league?.revealedAt ? null : value.format
@@ -132,9 +132,9 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const title = mode.kind === 'create' ? 'New league' : mode.kind === 'next' ? `Start event ${next}` : 'Edit league'
   const description =
     mode.kind === 'create'
-      ? 'Everyone seals a list in secret, then you reveal them together.'
+      ? 'Everyone seals a roster in secret, then you reveal them together.'
       : mode.kind === 'next'
-        ? 'Starts empty: everyone joins and seals a new list. Earlier events keep their lists and results.'
+        ? 'Starts empty: everyone joins and seals a new roster.'
         : 'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
   const submit =
     mode.kind === 'create'

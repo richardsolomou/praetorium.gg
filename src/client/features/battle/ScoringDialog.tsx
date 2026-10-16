@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Stepper } from '../../components/Stepper'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import type { Command } from '../../../core/battle'
@@ -229,11 +229,10 @@ export function ScoringDialog({
           undo, so which side is being paid is readable before the sentence naming them. */}
         <BattleDialogContent minimizeDisabled={pending} size="md" className={colours.border}>
           <DialogHeader className="px-(--dialog-actions) text-center">
-            <p className="eyebrow text-discarded">Now</p>
             <DialogTitle className={colours.text}>
               Scoring {moment} points · {sideName(side)}
             </DialogTitle>
-            <DialogDescription>Recording points for {sideName(side)}. Press what the board actually paid on each card.</DialogDescription>
+            <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
             {finalAwardsDue ? (
               <p className="text-sm text-dim">
                 Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.
@@ -329,7 +328,7 @@ export function ScoringDialog({
             <UndoLatestButton disabled={pending || undoable === null} onClick={undo.request} />
             {onCancel ? (
               <Button variant="outline" disabled={pending} onClick={onCancel}>
-                Go back
+                Back
               </Button>
             ) : null}
             <Button className={colours.fill} disabled={pending} onClick={confirm}>
@@ -388,27 +387,13 @@ function AwardRow({
       </span>
       {counted(award) ? (
         <>
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon-xs"
-              aria-label={`One fewer for ${card.name}`}
-              disabled={pending || times === 0}
-              onClick={() => onAnswer(times - 1)}
-            >
-              <Minus />
-            </Button>
-            <span className="readout min-w-5 text-center text-sm font-bold">{times}</span>
-            <Button
-              variant="outline"
-              size="icon-xs"
-              aria-label={`${card.name} plus ${award.vp} per ${award.per?.replaceAll('-', ' ')}`}
-              disabled={pending || (limit !== null && times >= limit)}
-              onClick={() => onAnswer(times + 1)}
-            >
-              <Plus />
-            </Button>
-          </div>
+          <Stepper
+            label={`${card.name}: ${award.per?.replaceAll('-', ' ') ?? 'times scored'}`}
+            count={times}
+            countLabel={`${card.name}: scored ${times} times`}
+            onRemove={pending || times === 0 ? undefined : () => onAnswer(times - 1)}
+            onAdd={pending || (limit !== null && times >= limit) ? undefined : () => onAnswer(times + 1)}
+          />
           <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-edge-strong'}`}>{awardTotal(award, times)} VP</span>
         </>
       ) : (

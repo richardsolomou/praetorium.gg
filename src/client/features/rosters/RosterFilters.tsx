@@ -124,7 +124,7 @@ export function RosterFilters({
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label="Roster filters">
       <Dialog>
-        <DialogTrigger render={<Button variant="outline" size="lg" />}>
+        <DialogTrigger render={<Button variant="outline" />}>
           <ListFilter />
           Filter
           {active ? <span className="chip readout">{active}</span> : null}
@@ -170,7 +170,7 @@ export function RosterFilters({
       </Dialog>
 
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" size="lg" aria-label={`Sort: ${sortLabel}`} />}>
+        <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Sort: ${sortLabel}`} />}>
           <ArrowDownUp />
           {sortLabel}
         </DropdownMenuTrigger>

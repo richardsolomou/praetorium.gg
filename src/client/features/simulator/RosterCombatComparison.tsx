@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, Crosshair, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -321,16 +322,30 @@ export function RosterCombatComparison({
           </Button>
         </div>
       </div>
+      {!sources && usingBenchmarks ? (
+        <BenchmarkTargets
+          targets={targets}
+          index={catalogue.data ?? []}
+          disabled={running || !catalogue.data || !targetsLoaded}
+          onChange={editTargets}
+          onReset={() => editTargets(null)}
+        />
+      ) : null}
       {storageProblem ? (
         <p role="alert" className="text-xs text-discarded">
           {storageProblem}
         </p>
       ) : null}
       {!sources && !currentRoster && !me.isPending && !me.data ? (
-        <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
+        <p className="text-sm text-dim">
+          <Link to="/sign-in" search={{ next: '/simulator' }} className="text-info hover:text-bone">
+            Sign in
+          </Link>{' '}
+          to compare your saved rosters.
+        </p>
       ) : null}
       {!sources && me.data && saved.isSuccess && !activeRosters.length && !currentRoster ? (
-        <p className="text-sm text-dim">Save or import two rosters to start comparing targets.</p>
+        <p className="text-sm text-dim">Save or import a roster to compare it here.</p>
       ) : null}
       {readError ? (
         <p role="alert" className="text-sm text-discarded">
@@ -370,15 +385,6 @@ export function RosterCombatComparison({
         {liveKey === undefined ? 'Full health' : 'Live models and wounds'} · Default conditions
         <span className="hidden sm:inline">. Supported passive rules apply; cover, range bonuses and conditional buffs stay off.</span>
       </p>
-      {!sources && usingBenchmarks ? (
-        <BenchmarkTargets
-          targets={targets}
-          index={catalogue.data ?? []}
-          disabled={running || !catalogue.data || !targetsLoaded}
-          onChange={editTargets}
-          onReset={() => editTargets(null)}
-        />
-      ) : null}
       {comparison ? (
         <RosterCombatTable
           attackers={comparison.attackers}

@@ -22,15 +22,15 @@ export function RuleContents({ documentId }: { documentId: string }) {
         title={document.title}
         description={
           <>
-            {document.sections.length} sections. Open one to read it.
+            {document.sections.length} sections.
             {/* When the source last wrote this document, which is how current these rules are. */}
             {document.updated ? ` Updated ${date(document.updated)}.` : null}
           </>
         }
       />
-      <PageContent>
-        {document.sections.map((section, at) => (
-          <section key={section.id} data-onboarding="rule-contents" className={at ? 'mt-5' : undefined}>
+      <PageContent className="space-y-6">
+        {document.sections.map((section) => (
+          <section key={section.id} data-onboarding="rule-contents">
             <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
               <Link
                 to="/rules/$documentId/$sectionId"
@@ -58,7 +58,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
             </div>
           </section>
         ))}
-        <p className="mt-8 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

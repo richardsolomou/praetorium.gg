@@ -172,14 +172,14 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
               columns={2}
               disabled={current}
               options={[
-                { value: 'user', name: 'User', detail: 'Plays with no administration access.' },
+                { value: 'user', name: 'Player', detail: 'No administration access.' },
                 { value: 'admin', name: 'Administrator', detail: 'Manages, views as, and deletes players.' },
               ]}
               onChange={(role) => role !== user.role && setConfirming({ kind: 'role', role })}
             />
             <SettingRow
               icon={<Eye className="size-4 text-parchment" aria-hidden />}
-              title="View as user"
+              title="View as player"
               detail={
                 current
                   ? 'This is you.'
@@ -261,9 +261,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
                 }
               />
             ))}
-            {user.signInMethods.length ? null : (
-              <p className="border border-edge bg-sunken p-3 text-sm text-dim">No sign-in method is linked.</p>
-            )}
+            {user.signInMethods.length ? null : <p className="py-2 text-sm text-dim">No sign-in method is linked.</p>}
             <SettingRow
               icon={<ShieldCheck className="size-4 text-parchment" aria-hidden />}
               title="Authenticator app"
@@ -284,7 +282,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
 
           {current ? null : (
             <section className="border border-destructive/40 p-4">
-              <p className="rubric border-b border-edge pb-2 text-destructive">Delete account</p>
+              <h2 className="rubric border-b border-edge pb-2 text-destructive">Delete account</h2>
               <div className="mt-3 flex flex-col items-start gap-3">
                 <p className="text-sm text-dim">
                   {isAdmin ? 'Remove the administrator role before deleting this account.' : deletionImpact(user)}
@@ -431,10 +429,10 @@ function confirmationCopy(user: AdminUser, confirming: Confirming) {
 function Section({ title, total, children }: { title: string; total?: number; children: ReactNode }) {
   return (
     <section>
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>{title}</span>
         {total === undefined ? null : <span className="readout">{total}</span>}
-      </p>
+      </h2>
       <div className="mt-3 space-y-2">{children}</div>
     </section>
   )
@@ -501,9 +499,7 @@ function Sessions({
           />
         )
       })}
-      {sessions.isSuccess && !list.length ? (
-        <p className="border border-edge bg-sunken p-3 text-sm text-dim">{user.name} is not signed in anywhere.</p>
-      ) : null}
+      {sessions.isSuccess && !list.length ? <p className="py-2 text-sm text-dim">{user.name} is not signed in anywhere.</p> : null}
       {!current && list.length > 1 ? (
         <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => revokeAll.mutate()}>
           <LogOut /> Sign out everywhere
@@ -546,9 +542,7 @@ function Connections({ user, notice, onDone }: { user: AdminUser; notice: ReactN
           }
         />
       ))}
-      {connections.isSuccess && !list.length ? (
-        <p className="border border-edge bg-sunken p-3 text-sm text-dim">No app has access to this account.</p>
-      ) : null}
+      {connections.isSuccess && !list.length ? <p className="py-2 text-sm text-dim">No app has access to this account.</p> : null}
       {connections.error ? <Problem error={connections.error} /> : null}
       {revoke.error ? <Problem error={revoke.error} /> : null}
       {notice}
@@ -565,9 +559,7 @@ function RecentBattles({ user }: { user: AdminUser }) {
       {list.map((battle) => (
         <AdminBattleRow key={battle.token} battle={battle} />
       ))}
-      {battles.isSuccess && !list.length ? (
-        <p className="border border-edge bg-sunken p-3 text-sm text-dim">{user.name} has not played a battle.</p>
-      ) : null}
+      {battles.isSuccess && !list.length ? <p className="py-2 text-sm text-dim">{user.name} has not played a battle.</p> : null}
       {battles.error ? <Problem error={battles.error} /> : null}
     </Section>
   )

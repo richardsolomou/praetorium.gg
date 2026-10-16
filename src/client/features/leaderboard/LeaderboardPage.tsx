@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { PageContent, PageHeader } from '../../components/Page'
 import { FactionFilter, Standings } from './Standings'
-import { standingsQuery } from '../../queries'
+import { meQuery, standingsQuery } from '../../queries'
 
 const EMPTY = { faction: null, players: 0, rows: [] }
 
@@ -13,6 +13,7 @@ const EMPTY = { faction: null, players: 0, rows: [] }
  */
 export function LeaderboardPage({ faction }: { faction?: string }) {
   const { data } = useQuery(standingsQuery())
+  const { data: me } = useQuery(meQuery())
   const chosen = data?.factions.find((table) => table.faction?.slug === faction)
   // An address that names a faction nobody has played falls back to everyone
   // rather than an empty page insisting the faction does not exist.
@@ -26,12 +27,11 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
         actions={<FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />}
       />
       <PageContent className="space-y-6">
-        <Standings table={table} />
+        <Standings table={table} viewerId={me?.id} />
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
         <p className="text-sm text-faint">
-          Everyone starts at 1000. Beating a higher-rated player gains more, and a rating stays cautious until it has a few battles behind
-          it. Conceding is a loss whatever the score. Allies share their side's result. Practice games and battles kept private are not
-          counted.
+          Everyone starts at 1000, and beating a higher-rated player gains more. A concession is a loss and allies share their side's
+          result. Practice, private and manually tracked battles do not count.
         </p>
       </PageContent>
     </main>

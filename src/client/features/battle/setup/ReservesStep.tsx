@@ -18,6 +18,7 @@ import { RuleText } from '../../../components/RuleText'
 import { type Army, type Side } from '../../../sides'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections, reserveUnitLabel } from './reservesModel'
+import { asSentence } from '../useCommand'
 
 type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>
 type Props = {
@@ -52,12 +53,12 @@ export function ReservesStep({ view, sides, send, problem, sentFrom, onSent }: P
   const redeploy = view.firstPlayerId !== null
   return (
     <div data-onboarding="battle-setup-reserves" className="space-y-4">
-      <SetupNote>
-        {redeploy
-          ? 'If an army rule lets you redeploy a unit after the first-turn roll, record that move here. It does not count towards the limit.'
-          : 'Anyone at the table can set each army’s reserves. Each transport takes only the passengers and space its printed rule allows.'}
-      </SetupNote>
-      <div className="grid gap-3 lg:grid-cols-2">
+      {redeploy ? (
+        <SetupNote>
+          If an army rule lets you redeploy a unit after the first-turn roll, record that move here. It does not count towards the limit.
+        </SetupNote>
+      ) : null}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         {sides.map((side) => (
           <ReserveSide key={side.index} side={side} moves={moves} />
         ))}
@@ -226,7 +227,8 @@ function UnitFormationRow({
 /** The refusal the server would give this move, judged against the view of the same battle. */
 function formationRefusal(view: BattleView, command: FormationCommand): string | null {
   const player = view.players.find((candidate) => candidate.id === command.playerId)
-  return player ? (unitFormationRefusal(view, player, command)?.message ?? null) : null
+  const refusal = player ? unitFormationRefusal(view, player, command) : null
+  return refusal ? asSentence(refusal.message) : null
 }
 
 function TransportBoarding({

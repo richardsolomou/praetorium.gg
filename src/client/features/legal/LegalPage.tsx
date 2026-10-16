@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 import { PageContent, PageHeader } from '../../components/Page'
 
-export function LegalPage({ title, updated, children }: { title: string; updated: string; children: ReactNode }) {
+export function LegalPage({ eyebrow, title, updated, children }: { eyebrow: string; title: string; updated: string; children: ReactNode }) {
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Praetorium" title={title} description={`Last updated ${updated}`} />
-      <PageContent className="pt-8">
+      <PageHeader eyebrow={eyebrow} title={title} description={`Last updated ${updated}`} />
+      <PageContent>
         {/* Narrower than the page, so a paragraph of legal prose keeps a readable measure. */}
         <div className="max-w-2xl space-y-10 font-rules">{children}</div>
       </PageContent>

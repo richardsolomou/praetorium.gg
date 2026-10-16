@@ -51,7 +51,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
               {at ? <span className="grid place-items-center px-1 text-sm font-bold text-dim">VS</span> : null}
               <a
                 href={`#mission-${side.mission.id}`}
-                className={`flex min-h-16 min-w-0 flex-col justify-center border px-3 py-2 transition-[filter] hover:brightness-125 focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'} ${dispositionTone(side.disposition.id, true)}`}
+                className={`flex min-h-16 min-w-0 flex-col justify-center border px-3 py-2 transition-colors hover:border-info hover:bg-raised focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'} ${dispositionTone(side.disposition.id, true)}`}
               >
                 <span className="eyebrow text-bone/75">{side.disposition.name}</span>
                 <span className="mt-0.5 font-bold break-words sm:text-lg">{side.mission.name}</span>
@@ -60,8 +60,8 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
           ))}
         </div>
       </PageHeader>
-      <PageContent>
-        <section data-onboarding="matchup-primary" className="mt-3">
+      <PageContent className="space-y-6">
+        <section data-onboarding="matchup-primary">
           <h2 className="rubric border-b border-edge pb-2">Primary missions</h2>
           <div className="mt-4 grid gap-6 md:grid-cols-2">
             {sides.map((side) => (
@@ -71,14 +71,18 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
                 className={`scroll-mt-16 border-t-[3px] pt-3 ${dispositionAccent(side.disposition.id)}`}
               >
                 <h3 className="text-xl">{side.mission.name}</h3>
-                {side.mission.card ? <MissionCardReference card={side.mission.card} type={side.disposition.name} /> : null}
+                {side.mission.card ? (
+                  <div className="mt-3">
+                    <MissionCardReference card={side.mission.card} />
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
         </section>
 
         {sides.some((side) => side.actions.length) ? (
-          <section data-onboarding="matchup-actions" className="mt-7">
+          <section data-onboarding="matchup-actions">
             <h2 className="rubric flex justify-between border-b border-edge pb-2">
               <span>Actions</span>
               <span className="readout">{sides.reduce((total, side) => total + side.actions.length, 0)}</span>
@@ -105,7 +109,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
           </section>
         ) : null}
 
-        <section data-onboarding="matchup-terrain" className="mt-7">
+        <section data-onboarding="matchup-terrain">
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
             <span>Terrain layouts</span>
             <span className="readout" aria-label={terrainQuery.isPending ? 'Loading terrain layout count' : undefined}>
@@ -154,7 +158,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
             />
           )}
         </section>
-        <p className="mt-6 border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
+        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

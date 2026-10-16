@@ -742,16 +742,16 @@ test('simulator first frame reserves its layout', async ({ browser, baseURL }) =
   await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
   const initialAttacker = page.getByRole('region', { name: 'Attacker', exact: true })
   for (const name of ['Fewer attacker models', 'More attacker models', 'Loadout', 'Optimize']) {
-    await expect(initialAttacker.getByRole('button', { name, exact: true })).toBeDisabled()
+    await expect(initialAttacker.getByRole('button', { name, exact: true })).toHaveCount(0)
   }
   for (const side of ['Attacker', 'Defender']) {
     const card = page.getByRole('region', { name: side, exact: true })
-    await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveAttribute('aria-busy', 'false')
-    await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveText('—')
+    await expect(card.getByLabel(`${side} models`, { exact: true })).toHaveCount(0)
     await expect(card.getByRole('combobox', { name: `${side} unit`, exact: true })).toContainText('Choose a unit')
     await expect(card.locator('.animate-pulse, .animate-spin')).toHaveCount(0)
   }
-  await expect(initialAttacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeDisabled()
+  await expect(initialAttacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Applied modifiers' })).toHaveCount(0)
   const interactive = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
   await interactive.goto(`${baseURL}/simulator`)
   for (const width of [1440, 390, 860, 1024]) {
@@ -1090,7 +1090,7 @@ test('a simulator link reopens the same units, swap, and modifiers', async ({ pa
 test('a link that does not decode opens an empty simulator', async ({ page }) => {
   await page.goto('/simulator?s=broken')
   await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toBeVisible()
-  await expect(page.getByText('Choose a unit to see its buffs.')).toHaveCount(2)
+  await expect(page.locator('[data-combat-buffs], [data-manual-modifiers]')).toHaveCount(0)
 })
 
 test("combined shooting and melee against Lion El'Jonson", async ({ page }) => {
