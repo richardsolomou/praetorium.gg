@@ -1,4 +1,6 @@
-import { collectionDatasheets } from '../../../core/collection'
+import { CollectionGroupsDialog } from './CollectionGroupsDialog'
+import { CollectionGroupsSummary } from './CollectionGroupsSummary'
+import { collectionAvailability, collectionDatasheets } from '../../../core/collection'
 import { useQuery } from '@tanstack/react-query'
 import { Boxes, Plus, Swords, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -10,8 +12,8 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { SignInRequired } from '../../components/SignInRequired'
-import { collectionCountsQuery, collectionQuery, combatUnitsQuery, factionIndexQuery, fieldedDatasheetsQuery, meQuery } from '../../queries'
-import { useCollectionMutation } from '../../useCollection'
+import { collectionInventoryQuery, combatUnitsQuery, factionIndexQuery, fieldedDatasheetsQuery, meQuery } from '../../queries'
+import { useCollectionCountMutation, useCollectionMutation } from '../../useCollection'
 import { CollectionCount } from './CollectionCount'
 import { CollectionPhoto } from './CollectionPhoto'
 import { RemoveFromCollection } from './RemoveFromCollection'
@@ -22,13 +24,14 @@ const SUGGESTIONS_SHOWN = 6
 
 export function CollectionPage() {
   const { data: me } = useQuery(meQuery())
-  const collection = useQuery({ ...collectionQuery(), enabled: Boolean(me) })
-  const counts = useQuery({ ...collectionCountsQuery(), enabled: Boolean(me) })
+  const inventory = useQuery({ ...collectionInventoryQuery(), enabled: Boolean(me) })
   const fielded = useQuery({ ...fieldedDatasheetsQuery(), enabled: Boolean(me) })
   const units = useQuery(combatUnitsQuery())
   const factions = useQuery(factionIndexQuery())
   const { mutate: setOwned } = useCollectionMutation()
+  const { mutate: setModels } = useCollectionCountMutation()
   const [removing, setRemoving] = useState<Datasheet | null>(null)
+  const [editing, setEditing] = useState<Datasheet | null>(null)
   const [allSuggestions, setAllSuggestions] = useState(false)
   if (!me) return <SignInRequired title="Your collection" explanation="Sign in to keep track of the models you own." next="/collection" />
 
@@ -38,8 +41,9 @@ export function CollectionPage() {
       { ...sheet, presentation: factions.data?.factions.find((entry) => entry.id === sheet.catalogueId) },
     ]),
   )
-  const owned = new Set(collection.data ?? [])
-  const countOf = (entryId: string) => counts.data?.[entryId] ?? 1
+  const supported = new Set(Object.keys(collectionAvailability(inventory.data ?? [])))
+  const owned = new Set((inventory.data ?? []).map((entry) => entry.entryId))
+  const countOf = (entryId: string) => inventory.data?.find((entry) => entry.entryId === entryId)?.models ?? 1
   const byFaction = new Map<string, Datasheet[]>()
   for (const id of owned) {
     const sheet = datasheets.get(id)
@@ -51,11 +55,12 @@ export function CollectionPage() {
   const retired = [...owned].filter((id) => !datasheets.has(id))
   const suggestions = (fielded.data ?? []).flatMap(({ entryId, battles }) => {
     const sheet = datasheets.get(entryId)
-    return sheet && !owned.has(entryId) ? [{ ...sheet, battles }] : []
+    return sheet && !supported.has(entryId) ? [{ ...sheet, battles }] : []
   })
   const models = [...owned].reduce((total, id) => total + countOf(id), 0)
-  const pending = collection.isPending || units.isPending
-  const add = (entryId: string) => setOwned({ entryId, owned: true })
+  const pending = inventory.isPending || units.isPending
+  const add = (entryId: string) =>
+    supported.has(entryId) && !owned.has(entryId) ? setModels({ entryId, models: 1 }) : setOwned({ entryId, owned: true })
   // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
   const fieldedShelf = suggestions.length ? (
     <section aria-labelledby="fielded-heading">
@@ -98,7 +103,7 @@ export function CollectionPage() {
       <PageHeader
         eyebrow="Your account"
         title="Collection"
-        description="The models on your shelf, counted by datasheet. Add them here or from any datasheet’s page."
+        description="Each entry counts separate physical models. Use model groups for unbuilt or interchangeable builds."
       />
       <PageContent className="space-y-6">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -180,8 +185,15 @@ export function CollectionPage() {
                           >
                             {sheet.name}
                           </FactionReferenceLink>
-                          <div className="flex items-center justify-between gap-2">
+                          <CollectionGroupsSummary
+                            groups={inventory.data?.find((entry) => entry.entryId === sheet.id)?.groups}
+                            datasheets={[...datasheets.values()]}
+                          />
+                          <div className="flex flex-wrap items-center justify-between gap-2">
                             <CollectionCount entryId={sheet.id} name={sheet.name} />
+                            <Button variant="outline" size="sm" onClick={() => setEditing(sheet)}>
+                              Model groups
+                            </Button>
                             <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
                           </div>
                         </div>
@@ -199,7 +211,20 @@ export function CollectionPage() {
                 <ul className="divide-y divide-edge">
                   {retired.map((entryId) => (
                     <li key={entryId} className="flex min-h-12 items-center gap-2 py-1.5 pr-1.5 pl-3 text-sm text-dim">
-                      <span className="min-w-0 flex-1">A datasheet from earlier rules</span>
+                      <div className="min-w-0 flex-1">
+                        <span>A datasheet from earlier rules</span>
+                        <CollectionGroupsSummary
+                          groups={inventory.data?.find((entry) => entry.entryId === entryId)?.groups}
+                          datasheets={[...datasheets.values()]}
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing({ id: entryId, slug: entryId, name: 'Earlier datasheet', catalogueId: '', faction: '' })}
+                      >
+                        Model groups
+                      </Button>
                       <RemoveButton
                         name="this datasheet"
                         onRemove={() => setRemoving({ id: entryId, slug: entryId, name: 'this datasheet', catalogueId: '', faction: '' })}
@@ -213,6 +238,14 @@ export function CollectionPage() {
         )}
         {owned.size ? fieldedShelf : null}
       </PageContent>
+      {editing && inventory.data?.find((entry) => entry.entryId === editing.id) ? (
+        <CollectionGroupsDialog
+          entry={inventory.data.find((entry) => entry.entryId === editing.id)!}
+          name={editing.name}
+          datasheets={[...datasheets.values()]}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
       <RemoveFromCollection datasheet={removing} onClose={() => setRemoving(null)} />
     </main>
   )

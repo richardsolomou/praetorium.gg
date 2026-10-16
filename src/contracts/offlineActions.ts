@@ -1,8 +1,10 @@
+import { collectionGroupsInputSchema } from './collection'
 import { z } from 'zod'
 import * as schemas from './schemas'
 
 export const offlineActionSchemas = {
   setOwned: schemas.ownedSchema,
+  setCollectionGroups: collectionGroupsInputSchema,
   setCollectionModels: schemas.collectionModelsSchema,
   setFavouriteFaction: schemas.favouriteFactionSchema,
   setFavouriteDetachment: schemas.favouriteDetachmentSchema,

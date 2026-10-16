@@ -1,5 +1,7 @@
+import { CollectionGroupsSummary } from '../collection/CollectionGroupsSummary'
+import { collectionDatasheets } from '../../../core/collection'
 import { useQuery } from '@tanstack/react-query'
-import { factionIndexQuery } from '../../queries'
+import { combatUnitsQuery, factionIndexQuery } from '../../queries'
 import { Link } from '@tanstack/react-router'
 import type { CollectionGroup } from '../../../contracts/collection'
 import { FactionMark, factionColour } from '../../components/FactionMark'
@@ -16,6 +18,8 @@ export function PlayerCollection({
   yourself: boolean
 }) {
   const factions = useQuery({ ...factionIndexQuery(), enabled: groups.length > 0 })
+  const units = useQuery({ ...combatUnitsQuery(), enabled: groups.some((group) => group.entries.some((entry) => entry.groups)) })
+  const datasheetNames = [...collectionDatasheets(units.data ?? []).values()]
   const models = groups.reduce((total, group) => total + group.models, 0)
   const datasheets = groups.reduce((total, group) => total + group.entries.length, 0)
   return (
@@ -73,17 +77,20 @@ export function PlayerCollection({
                           />
                         </a>
                       ) : null}
-                      {group.catalogueId && entry.slug ? (
-                        <FactionReferenceLink
-                          to="/factions/$catalogueId/datasheets/$entryId"
-                          params={{ catalogueId: group.catalogueId, entryId: entry.slug }}
-                          className="min-w-0 flex-1 text-sm font-semibold text-bone uppercase hover:text-info hover:underline"
-                        >
-                          {entry.name}
-                        </FactionReferenceLink>
-                      ) : (
-                        <span className="min-w-0 flex-1 text-sm text-dim">{entry.name}</span>
-                      )}
+                      <div className="min-w-0 flex-1">
+                        {group.catalogueId && entry.slug ? (
+                          <FactionReferenceLink
+                            to="/factions/$catalogueId/datasheets/$entryId"
+                            params={{ catalogueId: group.catalogueId, entryId: entry.slug }}
+                            className="min-w-0 flex-1 text-sm font-semibold text-bone uppercase hover:text-info hover:underline"
+                          >
+                            {entry.name}
+                          </FactionReferenceLink>
+                        ) : (
+                          <span className="min-w-0 flex-1 text-sm text-dim">{entry.name}</span>
+                        )}
+                        <CollectionGroupsSummary groups={entry.groups} datasheets={datasheetNames} />
+                      </div>
                       <span className="readout shrink-0 text-sm text-bone" aria-label={`${entry.name}: ${entry.models} models`}>
                         {entry.models}
                       </span>

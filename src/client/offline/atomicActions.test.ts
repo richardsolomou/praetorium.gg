@@ -7,12 +7,15 @@ import {
   setFavouriteDetachment,
   setFavouriteDatasheet,
   setCollectionModels,
+  setCollectionGroups,
   collection,
+  collectionInventory,
 } from './actionFunctions'
 import { configureLocalRuntime, localEngine, stopLocalRuntime } from './localRuntime'
 const mocks = vi.hoisted(() => ({ storage: vi.fn(), collection: vi.fn(), collectionCounts: vi.fn(), syncAction: vi.fn() }))
 vi.mock('../../server/functions', () => ({
   collection: mocks.collection,
+  availableCollection: mocks.collection,
   collectionCounts: mocks.collectionCounts,
   favouriteDatasheets: mocks.collection,
   favouriteFactions: mocks.collection,
@@ -202,4 +205,66 @@ it('does not flash an older download into the cache before retaining a newer sav
   await loading
   unsubscribe()
   expect(displayed).toEqual([['A']])
+})
+
+it('saves shared stock and its derived ownership together before an offline reload', async () => {
+  state.documents['query:["collection-inventory"]'] = { data: [{ entryId: 'ark', models: 1 }], serverVersion: null }
+  state.documents['query:["collection"]'] = { data: ['ark'], serverVersion: null }
+  state.documents['query:["collection-counts"]'] = { data: { ark: 1 }, serverVersion: null }
+  const groups = [
+    {
+      models: 1,
+      state: 'interchangeable' as const,
+      builds: [
+        { entryId: 'ark', equipment: '' },
+        { entryId: 'ghost', equipment: '' },
+      ],
+    },
+  ]
+  await setCollectionGroups({ data: { entryId: 'ark', groups, expectedModels: 1, expectedGroups: null } })
+  expect({
+    inventory: state.documents['query:["collection-inventory"]']?.data,
+    owned: state.documents['query:["collection"]']?.data,
+    counts: state.documents['query:["collection-counts"]']?.data,
+  }).toEqual({ inventory: [{ entryId: 'ark', models: 1, groups }], owned: ['ark', 'ghost'], counts: { ark: 1 } })
+})
+
+it('refuses a second window editing an older stock count before enqueueing', async () => {
+  state.documents['query:["collection-inventory"]'] = { data: [{ entryId: 'ark', models: 2 }], serverVersion: null }
+  await expect(setCollectionGroups({ data: { entryId: 'ark', groups: null, expectedModels: 1, expectedGroups: null } })).rejects.toThrow(
+    'The collection changed',
+  )
+})
+
+it('does not rewrite shared inventory through the legacy count path', async () => {
+  const groups = [{ models: 1, state: 'fixed' as const, builds: [{ entryId: 'lord', equipment: 'Staff' }] }]
+  state.documents['query:["collection-inventory"]'] = { data: [{ entryId: 'lord', models: 1, groups }], serverVersion: null }
+  state.documents['query:["collection-counts"]'] = { data: { lord: 1 }, serverVersion: null }
+  await expect(setCollectionModels({ data: { entryId: 'lord', models: 2 } })).rejects.toThrow('Edit model groups')
+})
+
+it('reads a pre-group offline collection without requiring a new download', async () => {
+  state.documents['query:["collection"]'] = { data: ['lord'], serverVersion: null }
+  state.documents['query:["collection-counts"]'] = { data: { lord: 2 }, serverVersion: null }
+  expect(await collectionInventory()).toEqual([{ entryId: 'lord', models: 2 }])
+})
+
+it('edits counts offline using the inventory downloaded by the collection page', async () => {
+  state.documents['query:["collection-inventory"]'] = { data: [{ entryId: 'lord', models: 2 }], serverVersion: null }
+  await setCollectionModels({ data: { entryId: 'lord', models: 3 } })
+  expect(state.documents['query:["collection-inventory"]']?.data).toEqual([{ entryId: 'lord', models: 3 }])
+})
+
+it('removes stock offline using the inventory without a separate membership download', async () => {
+  state.documents['query:["collection-inventory"]'] = { data: [{ entryId: 'lord', models: 2 }], serverVersion: null }
+  await setOwned({ data: { entryId: 'lord', owned: false } })
+  expect(state.documents['query:["collection-inventory"]']?.data).toEqual([])
+})
+
+it('keeps a pre-group offline collection editable after restoring it', async () => {
+  state.documents['query:["collection"]'] = { data: ['lord'], serverVersion: null }
+  state.documents['query:["collection-counts"]'] = { data: { lord: 2 }, serverVersion: null }
+  await collectionInventory()
+  await setOwned({ data: { entryId: 'lord', owned: false } })
+  expect(state.documents['query:["collection-inventory"]']?.data).toEqual([])
 })

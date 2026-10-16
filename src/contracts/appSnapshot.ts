@@ -44,6 +44,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'league-battles',
   'collection',
   'collection-counts',
+  'collection-inventory',
   'fielded-datasheets',
   'favourite-factions',
   'favourite-detachments',

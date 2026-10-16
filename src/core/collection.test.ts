@@ -1,5 +1,53 @@
 import { describe, expect, it } from 'vitest'
-import { groupCollection } from './collection'
+import { collectionAvailability, collectionGroupsSchema, groupCollection } from './collection'
+
+const arkGroups = [
+  {
+    models: 1,
+    state: 'interchangeable' as const,
+    builds: [
+      { entryId: 'doomsday', equipment: '' },
+      { entryId: 'ghost', equipment: '' },
+    ],
+  },
+]
+
+it('counts one interchangeable model once for each supported datasheet', () => {
+  expect(collectionAvailability([{ entryId: 'doomsday', models: 1, groups: arkGroups }])).toEqual({ doomsday: 1, ghost: 1 })
+})
+
+it('does not multiply physical stock by its equipment combinations', () => {
+  const builds = ['staff, orb', 'blade, orb', 'staff, scarab', 'blade, scarab'].map((equipment) => ({ entryId: 'lord', equipment }))
+  expect(collectionAvailability([{ entryId: 'lord', models: 1, groups: [{ models: 1, state: 'interchangeable', builds }] }])).toEqual({
+    lord: 1,
+  })
+})
+
+it('adds separate fixed and interchangeable models without merging their stock', () => {
+  expect(
+    collectionAvailability([
+      { entryId: 'doomsday', models: 1, groups: arkGroups },
+      { entryId: 'ghost', models: 2 },
+    ]),
+  ).toEqual({ doomsday: 1, ghost: 3 })
+})
+
+it('preserves older datasheet identities when the current rules no longer offer them', () => {
+  expect(collectionAvailability([{ entryId: 'retired', models: 2 }])).toEqual({ retired: 2 })
+})
+
+it('refuses a fixed model with alternative builds', () => {
+  expect(collectionGroupsSchema.safeParse([{ ...arkGroups[0], state: 'fixed' }]).success).toBe(false)
+})
+
+it('refuses a group total above the collection count limit', () => {
+  expect(
+    collectionGroupsSchema.safeParse([
+      { ...arkGroups[0], models: 10_000 },
+      { ...arkGroups[0], models: 1 },
+    ]).success,
+  ).toBe(false)
+})
 
 const factions = [
   {

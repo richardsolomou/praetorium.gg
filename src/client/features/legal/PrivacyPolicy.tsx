@@ -25,7 +25,7 @@ export function PrivacyPolicy() {
         <p>
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
           and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their model
-          counts and photos, favourites, and practice opponents you seat.
+          counts, assembly and equipment configurations, and photos, favourites, and practice opponents you seat.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
@@ -79,9 +79,10 @@ export function PrivacyPolicy() {
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
-            Your collection's datasheets, model counts and photos are shown on your profile by default, and its photos on their datasheet
-            pages. Turn off Show collection on profile in your account settings to hide them; turning it back on shows them again. A photo
-            another player reports is hidden from everyone but you until an administrator reviews it.
+            Your collection's datasheets, model counts, assembly and equipment configurations, and photos are shown on your profile by
+            default, and its photos on their datasheet pages. Turn off Show collection on profile in your account settings to hide them;
+            turning it back on shows them again. A photo another player reports is hidden from everyone but you until an administrator
+            reviews it.
           </li>
           <li>
             Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can

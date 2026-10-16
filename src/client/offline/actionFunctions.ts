@@ -1,3 +1,4 @@
+import { collectionAvailability, physicalCollectionCounts, type CollectionEntry } from '../../core/collection'
 import { leagueWarlordRefusal, leagueWarlords } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
@@ -19,7 +20,12 @@ async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>)
   const owner = localOwner()?.id
   const resource = queryResource(key)
   const local = await localDocument<T>(resource)
-  if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return local
+  const collectionWork =
+    ['collection', 'collection-counts', 'collection-inventory'].includes(String(key[0])) &&
+    (await localEngine()?.storage.read())?.operations.some((operation) =>
+      ['setOwned', 'setCollectionModels', 'setCollectionGroups'].includes(operation.kind),
+    )
+  if (local !== undefined && (!navigator.onLine || collectionWork || (await hasLocalChanges(resource)))) return local
   const result = await cachedRead(key, online, { updateCache: false })
   const saved = await rememberDocument(resource, result, null, owner, undefined, JSON.stringify({ data: local }))
   if (localOwner()?.id !== owner) throw accountChanged()
@@ -28,7 +34,30 @@ async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>)
   return retained
 }
 
-export const collection = () => accountRead(['collection'], () => server.collection())
+export const collection = () => accountRead(['collection'], () => server.availableCollection())
+export async function collectionInventory(): Promise<CollectionEntry[]> {
+  const owner = localOwner()?.id
+  if (typeof window !== 'undefined' && !navigator.onLine && !(await localDocument(queryResource(['collection-inventory'])))) {
+    const owned = (await localDocument<string[]>(queryResource(['collection']))) ?? localClient()?.getQueryData<string[]>(['collection'])
+    const counts =
+      (await localDocument<Record<string, number>>(queryResource(['collection-counts']))) ??
+      localClient()?.getQueryData<Record<string, number>>(['collection-counts'])
+    if (owned && counts) {
+      const fallback = owned.map((entryId) => ({ entryId, models: counts[entryId] ?? 1 }))
+      const saved = await rememberDocument(
+        queryResource(['collection-inventory']),
+        fallback,
+        null,
+        owner,
+        undefined,
+        JSON.stringify({ data: undefined }),
+      )
+      if (localOwner()?.id !== owner) throw accountChanged()
+      return (saved?.data as CollectionEntry[] | undefined) ?? fallback
+    }
+  }
+  return accountRead(['collection-inventory'], () => server.collectionInventory())
+}
 export const collectionCounts = () => accountRead(['collection-counts'], () => server.collectionCounts())
 export const fieldedDatasheets = () => cachedRead(['fielded-datasheets'], () => server.fieldedDatasheets())
 export const favouriteFactions = () => accountRead(['favourite-factions'], () => server.favouriteFactions())
@@ -121,7 +150,9 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
   if (!localEngine()) return server.setOwned(args)
   const input = offlineActionSchemas.setOwned.parse(args.data)
   const resource = queryResource(['collection'])
-  const owned = (await localDocument<string[]>(resource)) ?? (await collection())
+  const inventory = await localDocument<CollectionEntry[]>(queryResource(['collection-inventory']))
+  const owned =
+    (await localDocument<string[]>(resource)) ?? (inventory ? Object.keys(collectionAvailability(inventory)) : await collection())
   await queueLocal(
     'setOwned',
     { input, identifiers: {} },
@@ -134,29 +165,106 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
       const entries = (current as typeof owned | undefined) ?? owned
       return input.owned ? [...new Set([...entries, input.entryId])] : entries.filter((id) => id !== input.entryId)
     },
-    input.owned
-      ? undefined
-      : {
-          [queryResource(['collection-counts'])]: (current) => {
-            if (!current) return undefined
-            const { [input.entryId]: _removed, ...counts } = current as Record<string, number>
-            return counts
-          },
-        },
+    collectionRelatedUpdates(
+      (entries) => {
+        if (!input.owned && !entries.some((entry) => entry.entryId === input.entryId) && collectionAvailability(entries)[input.entryId])
+          throw new Error('These models are shared. Edit their model groups in Collection.')
+        return input.owned
+          ? entries.some((entry) => entry.entryId === input.entryId)
+            ? entries
+            : [...entries, { entryId: input.entryId, models: 1 }]
+          : entries.filter((entry) => entry.entryId !== input.entryId)
+      },
+      input.owned ? undefined : input.entryId,
+    ),
   )
   return undefined
 }
 export async function setCollectionModels(
   args: Parameters<typeof server.setCollectionModels>[0],
 ): ReturnType<typeof server.setCollectionModels> {
-  const defer = deferredForAccount(false)
+  const owner = localOwner()?.id
   if (!localEngine()) return server.setCollectionModels(args)
-  const counts = (await localDocument<Record<string, number>>(queryResource(['collection-counts']))) ?? (await collectionCounts())
-  await defer('setCollectionModels', args.data, queryResource(['collection-counts']), undefined, {}, undefined, (current) => ({
-    ...(current ?? counts),
-    [args.data.entryId]: args.data.models,
-  }))
+  const input = offlineActionSchemas.setCollectionModels.parse(args.data)
+  const inventory = await localDocument<CollectionEntry[]>(queryResource(['collection-inventory']))
+  const counts =
+    (await localDocument<Record<string, number>>(queryResource(['collection-counts']))) ??
+    (inventory ? physicalCollectionCounts(inventory) : await collectionCounts())
+  await queueLocal(
+    'setCollectionModels',
+    { input, identifiers: {} },
+    queryResource(['collection-counts']),
+    undefined,
+    undefined,
+    undefined,
+    owner,
+    (current) => ({ ...(current ?? counts), [input.entryId]: input.models }),
+    collectionRelatedUpdates((entries) => {
+      if (entries.some((entry) => entry.entryId === input.entryId && entry.groups))
+        throw new Error('Edit model groups to change this count.')
+      return [...entries.filter((entry) => entry.entryId !== input.entryId), { entryId: input.entryId, models: input.models }]
+    }),
+  )
 }
+
+function collectionRelatedUpdates(update: (entries: CollectionEntry[]) => CollectionEntry[], removed?: string) {
+  let next: CollectionEntry[] | undefined
+  return {
+    [queryResource(['collection-inventory'])]: (current: unknown) => {
+      if (!current) return undefined
+      next = update(current as CollectionEntry[])
+      return next
+    },
+    [queryResource(['collection'])]: (current: unknown) => (next ? Object.keys(collectionAvailability(next)) : current),
+    [queryResource(['collection-counts'])]: (current: unknown) => {
+      if (next) return physicalCollectionCounts(next)
+      if (!removed || !current) return current
+      const { [removed]: _removed, ...counts } = current as Record<string, number>
+      return counts
+    },
+  }
+}
+
+export async function setCollectionGroups(
+  args: Parameters<typeof server.setCollectionGroups>[0],
+): ReturnType<typeof server.setCollectionGroups> {
+  const owner = localOwner()?.id
+  if (!localEngine()) return server.setCollectionGroups(args)
+  const input = offlineActionSchemas.setCollectionGroups.parse(args.data)
+  const inventory = await collectionInventory()
+  let next: CollectionEntry[] = inventory
+  await queueLocal(
+    'setCollectionGroups',
+    { input, identifiers: {} },
+    queryResource(['collection-inventory']),
+    undefined,
+    undefined,
+    undefined,
+    owner,
+    (current) => {
+      const entries = (current as CollectionEntry[] | undefined) ?? inventory
+      const existing = entries.find((entry) => entry.entryId === input.entryId)
+      if (
+        !existing ||
+        existing.models !== input.expectedModels ||
+        JSON.stringify(existing.groups ?? null) !== JSON.stringify(input.expectedGroups)
+      )
+        throw new Error('The collection changed. Reopen model groups and review your changes.')
+      const replacement: CollectionEntry = {
+        entryId: input.entryId,
+        models: input.groups?.reduce((sum, group) => sum + group.models, 0) ?? existing.models,
+        ...(input.groups ? { groups: input.groups } : {}),
+      }
+      next = entries.map((entry) => (entry.entryId === input.entryId ? replacement : entry))
+      return next
+    },
+    {
+      [queryResource(['collection'])]: () => Object.keys(collectionAvailability(next)),
+      [queryResource(['collection-counts'])]: () => physicalCollectionCounts(next),
+    },
+  )
+}
+
 export async function setFavouriteFaction(
   args: Parameters<typeof server.setFavouriteFaction>[0],
 ): ReturnType<typeof server.setFavouriteFaction> {

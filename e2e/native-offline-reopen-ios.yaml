@@ -16,7 +16,7 @@ appId: gg.praetorium
 - takeScreenshot: native-battle-after-cold-reopen
 - tapOn: More
 - tapOn:
-    text: RULES Game reference
+    text: '(?i)^Rules Core rules.*'
 # The sync banner appears ten seconds into unsynced work and, without WebKit scroll anchoring, shifts the list under a tap.
 - extendedWaitUntil:
     visible: '.*change.*waiting to sync'

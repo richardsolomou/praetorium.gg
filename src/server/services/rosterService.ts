@@ -1,3 +1,4 @@
+import { collectionAvailability, physicalCollectionCounts } from '../../core/collection'
 import { randomId } from 'ras-stack/auth'
 import { attachedUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../core/battle'
@@ -275,9 +276,24 @@ export class RosterService {
   }
 
   /** The datasheets a user owns, as a set the picker can ask about directly. */
+  async collectionInventory(userId: string) {
+    return (await this.repository.collectionByUser(userId)).map(({ entryId, models, groups }) => ({
+      entryId,
+      models,
+      ...(groups ? { groups } : {}),
+    }))
+  }
+
+  setCollectionGroups(...args: Parameters<RepositoryPort['setCollectionGroups']>) {
+    return this.repository.setCollectionGroups(...args)
+  }
+
   async collection(userId: string) {
-    const rows = await this.repository.collectionByUser(userId)
-    return rows.map((row) => row.entryId)
+    return (await this.repository.collectionByUser(userId)).map((row) => row.entryId)
+  }
+
+  async availableCollection(userId: string) {
+    return Object.keys(collectionAvailability(await this.repository.collectionByUser(userId)))
   }
 
   async setOwned(userId: string, entryId: string, owned: boolean) {
@@ -287,7 +303,7 @@ export class RosterService {
 
   async collectionCounts(userId: string): Promise<Record<string, number>> {
     const rows = await this.repository.collectionByUser(userId)
-    return Object.fromEntries(rows.map((row) => [row.entryId, row.models]))
+    return physicalCollectionCounts(rows)
   }
 
   async collectionPhotos(userId: string): Promise<Record<string, string[]>> {

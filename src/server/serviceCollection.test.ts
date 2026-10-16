@@ -57,3 +57,42 @@ it('orders datasheets by how many battles used them and ignores the opponent’s
     { entryId: 'warriors', battles: 1 },
   ])
 })
+
+function sharedShelf() {
+  const rows = [
+    {
+      userId: ALICE,
+      entryId: 'ark',
+      models: 1,
+      at: 0,
+      groups: [
+        {
+          models: 1,
+          state: 'interchangeable' as const,
+          builds: [
+            { entryId: 'ark', equipment: '' },
+            { entryId: 'ghost', equipment: '' },
+          ],
+        },
+      ],
+    },
+  ]
+  const repository = { collectionByUser: vi.fn().mockResolvedValue(rows) } as unknown as RepositoryPort
+  return new PraetoriumService(
+    repository,
+    () => 0,
+    () => 0,
+  )
+}
+
+it('keeps the existing collection API limited to physical stock entries', async () => {
+  expect(await sharedShelf().collection(ALICE)).toEqual(['ark'])
+})
+
+it('keeps the existing count API from counting alternative builds as extra stock', async () => {
+  expect(await sharedShelf().collectionCounts(ALICE)).toEqual({ ark: 1 })
+})
+
+it('offers alternative datasheets to the owned filter without changing physical stock APIs', async () => {
+  expect(await sharedShelf().availableCollection(ALICE)).toEqual(['ark', 'ghost'])
+})

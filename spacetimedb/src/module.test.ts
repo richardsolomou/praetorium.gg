@@ -216,3 +216,96 @@ describe('roster lock', () => {
     ])
   })
 })
+
+describe('physical collection groups', () => {
+  const groups = [
+    {
+      models: 1,
+      state: 'interchangeable',
+      builds: [
+        { entryId: 'doomsday', equipment: '' },
+        { entryId: 'ghost', equipment: '' },
+      ],
+    },
+  ]
+  function shelf() {
+    const host = harness()
+    host.call(host.operator, (ctx) => module.setCollectionModels(ctx, { userId: 'alice', entryId: 'doomsday', models: 1, at: 1n }))
+    return host
+  }
+  function configure(host: ReturnType<typeof shelf>, expectedGroups: unknown = null) {
+    return host.call(host.operator, (ctx) =>
+      module.setCollectionGroups(ctx, {
+        userId: 'alice',
+        input: JSON.stringify({ entryId: 'doomsday', groups, expectedModels: 1, expectedGroups }),
+      }),
+    )
+  }
+  it('returns physical groups without duplicating the collection row', () => {
+    const host = shelf()
+    configure(host)
+    const rows = JSON.parse(module.collectionByUser(host.procedure(host.operator), { userId: 'alice' }))
+    expect(rows).toEqual([{ userId: 'alice', entryId: 'doomsday', models: 1, at: 1, groups }])
+  })
+  it('refuses a stale model-group edit', () => {
+    const host = shelf()
+    configure(host)
+    expect(() => configure(host)).toThrow('The collection changed')
+  })
+  it('refuses a count-only write that would erase configured stock', () => {
+    const host = shelf()
+    configure(host)
+    expect(() =>
+      host.call(host.operator, (ctx) => module.setCollectionModels(ctx, { userId: 'alice', entryId: 'doomsday', models: 2, at: 2n })),
+    ).toThrow('Edit model groups')
+  })
+  it('records separate physical models when an alternative datasheet is explicitly added', () => {
+    const host = shelf()
+    configure(host)
+    host.call(host.operator, (ctx) => module.addToCollection(ctx, { userId: 'alice', entryId: 'ghost', at: 2n }))
+    expect(Array.from(host.test.db.collection.iter()).length).toBe(2)
+  })
+  it('keeps model groups out of a hidden collection', () => {
+    const host = shelf()
+    configure(host)
+    module.setCollectionPublished(host.procedure(host.operator), { userId: 'alice', published: false })
+    expect(JSON.parse(module.collectionProfile(host.procedure(host.operator), { userId: 'alice', viewerId: 'bob' }))).toBe(null)
+  })
+  it('refuses to configure another account using the current account count', () => {
+    const host = shelf()
+    expect(() =>
+      host.call(host.operator, (ctx) =>
+        module.setCollectionGroups(ctx, {
+          userId: 'bob',
+          input: JSON.stringify({ entryId: 'doomsday', groups, expectedModels: 1, expectedGroups: null }),
+        }),
+      ),
+    ).toThrow('The collection changed')
+  })
+})
+
+it('does not leave a collection photo without a physical parent for an alternative build', () => {
+  const host = harness()
+  host.call(host.operator, (ctx) => module.setCollectionModels(ctx, { userId: 'alice', entryId: 'ark', models: 1, at: 1n }))
+  const groups = [
+    {
+      models: 1,
+      state: 'interchangeable',
+      builds: [
+        { entryId: 'ark', equipment: '' },
+        { entryId: 'ghost', equipment: '' },
+      ],
+    },
+  ]
+  host.call(host.operator, (ctx) =>
+    module.setCollectionGroups(ctx, {
+      userId: 'alice',
+      input: JSON.stringify({ entryId: 'ark', groups, expectedModels: 1, expectedGroups: null }),
+    }),
+  )
+  expect(() =>
+    host.call(host.operator, (ctx) =>
+      module.setCollectionPhoto(ctx, { userId: 'alice', entryId: 'ghost', photoId: 'a8f7b86e-8b52-4f54-bb15-80b868d21d75', at: 2n }),
+    ),
+  ).toThrow('Add photos from their owning datasheet')
+})

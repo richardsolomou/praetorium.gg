@@ -2,6 +2,7 @@ import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
 import {
+  collectionGroupsInputSchema,
   collectionPhotoIdSchema,
   collectionPhotoLikeSchema,
   collectionPhotoReportSchema,
@@ -294,6 +295,30 @@ export const setOwned = createServerFn({ method: 'POST' })
       const result = await app().service.setOwned(player.id, data.entryId, data.owned)
       await app().telemetry.capture(player.id, 'player_collection_updated', { owned: data.owned })
       return result
+    }),
+  )
+
+export const availableCollection = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.availableCollection(id) : []
+  }),
+)
+
+export const collectionInventory = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.collectionInventory(id) : []
+  }),
+)
+
+export const setCollectionGroups = createServerFn({ method: 'POST' })
+  .validator(collectionGroupsInputSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.setCollectionGroups(player.id, data)
+      await app().telemetry.capture(player.id, 'player_collection_configured', { groups: data.groups?.length ?? 0 })
     }),
   )
 
