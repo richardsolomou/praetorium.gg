@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import type { CollectionGroup } from '../../../contracts/collection'
 import { FactionMark, factionColour } from '../../components/FactionMark'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
+import { collectionPhotoPath } from '../../../contracts/collection'
 
 export function PlayerCollection({
   groups,
@@ -62,6 +63,16 @@ export function PlayerCollection({
                 <ul className="divide-y divide-edge">
                   {group.entries.map((entry) => (
                     <li key={entry.entryId} data-collection-unit={entry.name} className="flex min-h-12 items-center gap-3 px-3 py-2">
+                      {entry.photoId ? (
+                        <a href={collectionPhotoPath(entry.photoId)} target="_blank" rel="noreferrer" className="shrink-0">
+                          <img
+                            src={collectionPhotoPath(entry.photoId)}
+                            alt={entry.name}
+                            loading="lazy"
+                            className="size-8 border border-edge bg-sunken object-cover"
+                          />
+                        </a>
+                      ) : null}
                       {group.catalogueId && entry.slug ? (
                         <FactionReferenceLink
                           to="/factions/$catalogueId/datasheets/$entryId"

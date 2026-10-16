@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Boxes, ChevronDown, ChevronRight, Heart, Plus, ScrollText, Trash2 } from 'lucide-react'
+import { Boxes, Camera, ChevronDown, ChevronRight, Heart, Plus, ScrollText, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { collectionPhotoPath } from '../../../../contracts/collection'
 import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
-import { collectionQuery, meQuery } from '../../../queries'
+import { collectionPhotosQuery, collectionQuery, meQuery } from '../../../queries'
 import { useCollectionMutation } from '../../../useCollection'
 import { CollectionCount } from '../../collection/CollectionCount'
+import { CollectionPhotoDialog } from '../../collection/CollectionPhoto'
 import { RemoveFromCollection } from '../../collection/RemoveFromCollection'
 import { AddToRoster } from '../../rosters/ReferenceRosterActions'
 import type { RosterSetupFaction } from '../../rosters/RosterSetupDialog'
@@ -22,11 +24,13 @@ const ROW = 'flex min-h-10 w-full items-center gap-2.5 rounded-md px-2 text-left
 export function DatasheetAddMenu({ faction, entryId, name }: { faction: RosterSetupFaction; entryId: string; name: string }) {
   const [open, setOpen] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [photographing, setPhotographing] = useState(false)
   const path = useRouterState({ select: (state) => state.location.href })
   const { data: me } = useQuery(meQuery())
   const signedIn = Boolean(me)
   const { favourites, toggleFavourite } = useFavouriteDatasheets(signedIn)
   const { data: collection } = useQuery({ ...collectionQuery(), enabled: signedIn })
+  const { data: photos } = useQuery({ ...collectionPhotosQuery(), enabled: signedIn })
   const { mutate: setOwned } = useCollectionMutation()
   const favourite = favourites.has(entryId)
   const owned = (collection ?? []).includes(entryId)
@@ -41,7 +45,7 @@ export function DatasheetAddMenu({ faction, entryId, name }: { faction: RosterSe
             <PopoverTrigger render={<Button variant="outline" size="sm" />}>
               <Plus /> Add to <ChevronDown />
             </PopoverTrigger>
-            <PopoverContent align="end" aria-label={`Add ${name} to`} className="w-64 gap-0 p-1">
+            <PopoverContent align="end" aria-label={`Add ${name} to`} className="w-72 gap-0 p-1">
               <button
                 type="button"
                 className={ROW}
@@ -98,6 +102,22 @@ export function DatasheetAddMenu({ faction, entryId, name }: { faction: RosterSe
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    className="overflow-hidden text-faint hover:text-info"
+                    aria-label={photos?.[entryId] ? `Photo of your ${name}` : `Add a photo of your ${name}`}
+                    onClick={() => {
+                      setOpen(false)
+                      setPhotographing(true)
+                    }}
+                  >
+                    {photos?.[entryId] ? (
+                      <img src={collectionPhotoPath(photos[entryId])} alt="" className="size-full object-cover" />
+                    ) : (
+                      <Camera />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     className="text-faint hover:text-destructive"
                     aria-label={`Remove ${name} from your collection`}
                     onClick={() => {
@@ -119,6 +139,13 @@ export function DatasheetAddMenu({ faction, entryId, name }: { faction: RosterSe
         )}
       />
       <RemoveFromCollection datasheet={removing ? { id: entryId, name } : null} onClose={() => setRemoving(false)} />
+      <CollectionPhotoDialog
+        entryId={entryId}
+        name={name}
+        photoId={photos?.[entryId]}
+        open={photographing}
+        onOpenChange={setPhotographing}
+      />
     </>
   )
 }

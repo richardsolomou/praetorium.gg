@@ -354,6 +354,10 @@ export class PraetoriumService {
     return this.rosterService.collectionCounts(...args)
   }
 
+  collectionPhotos(...args: Parameters<RosterService['collectionPhotos']>) {
+    return this.rosterService.collectionPhotos(...args)
+  }
+
   setCollectionModels(...args: Parameters<RosterService['setCollectionModels']>) {
     return this.rosterService.setCollectionModels(...args)
   }

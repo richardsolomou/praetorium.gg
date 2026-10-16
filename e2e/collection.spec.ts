@@ -13,6 +13,18 @@ async function addDatasheet(page: Page, name: string, faction: string) {
   await expect(page.locator(`[data-unit="${name}"]`)).toBeVisible()
 }
 
+const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+
+async function addPhoto(page: Page, name: string) {
+  const dialog = page.getByRole('dialog', { name: `Your ${name}` })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: `Add a photo of your ${name}`, exact: true }).click())
+  await dialog.getByLabel(`Choose a photo of your ${name}`).setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: PIXEL })
+  await expect(dialog.getByRole('button', { name: 'Replace photo', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+}
+
+const loaded = (image: Locator) => expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0)
+
 const owned = (scope: Page | Locator, name: string) => scope.getByRole('spinbutton', { name: `${name} models owned`, exact: true })
 
 test('starts a datasheet at one model and saves multiple', async ({ page }) => {
@@ -224,4 +236,98 @@ test('profiles show a new collection by default and settings hide it', async ({ 
   await expect(collection).toContainText('31 models · 2 datasheets')
   await expect(collection).toContainText('Only you can see your collection here.')
   await guestContext.close()
+})
+
+test('a collection photo is replaced, removed, and shown only while the collection is shared', async ({ page, browser }) => {
+  await signUp(page, uniqueName('Collection photo'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Overlord', 'Necrons')
+  const dialog = page.getByRole('dialog', { name: 'Your Overlord' })
+  const choose = (name: string) =>
+    dialog.getByLabel('Choose a photo of your Overlord').setInputFiles({ name, mimeType: 'image/png', buffer: PIXEL })
+  const shown = dialog.getByRole('img', { name: 'The Overlord in this collection' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Add a photo of your Overlord', exact: true }).click())
+  await choose('first.png')
+  await loaded(shown)
+  const first = (await shown.getAttribute('src'))!
+  await choose('second.png')
+  await expect(shown).not.toHaveAttribute('src', first)
+  const second = (await shown.getAttribute('src'))!
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Photo of your Overlord', exact: true })).toBeVisible()
+
+  const owner = (await savedWork(page))!.owner
+  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const guest = await guestContext.newPage()
+  const status = async (reader: Page, src: string) => (await reader.request.get(new URL(src, page.url()).href)).status()
+  const served = await guest.request.get(new URL(second, page.url()).href)
+  expect([served.status(), served.headers()['cache-control'], await status(guest, first)]).toEqual([200, 'private, no-store', 404])
+  await guest.goto(new URL(`/users/${owner}?tab=collection`, page.url()).href)
+  const thumbnail = guest.locator('[data-collection-unit="Overlord"]').getByRole('img', { name: 'Overlord', exact: true })
+  await loaded(thumbnail)
+  await expectNoHorizontalOverflow(guest.locator('main'))
+
+  const operator = await productOperator()
+  await operator.setCollectionPublished(owner, false)
+  expect([await status(guest, second), await status(page, second)]).toEqual([404, 200])
+  await operator.setCollectionPublished(owner, true)
+
+  await page.getByRole('button', { name: 'Photo of your Overlord', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Remove photo', exact: true }).click()
+  await expect(dialog.getByText('No photo yet')).toBeVisible()
+  expect(await status(page, second)).toBe(404)
+  await guestContext.close()
+})
+
+test('datasheet pages and rosters show shared photos, and a player sees their own in their rosters', async ({ page, browser }) => {
+  const sharer = uniqueName('Photo sharer')
+  await signUp(page, sharer)
+  await page.goto('/collection')
+  await addDatasheet(page, 'Overlord', 'Necrons')
+  await addPhoto(page, 'Overlord')
+
+  const builderContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const builder = await builderContext.newPage()
+  const builderName = uniqueName('Photo builder')
+  await signUp(builder, builderName)
+  await builder.goto('/factions/necrons/datasheets/overlord')
+  const gallery = builder.locator('[data-datasheet-photos]')
+  const shared = gallery.getByRole('button', { name: `Overlord from ${sharer}’s collection`, exact: true })
+  await loaded(shared.locator('img'))
+  await shared.click()
+  const viewer = builder.getByRole('dialog', { name: 'Overlord' })
+  await viewer.getByRole('button', { name: 'Report', exact: true }).click()
+  await viewer.getByLabel('What is wrong with this photo?').fill('Not a model')
+  await viewer.getByRole('button', { name: 'Send report', exact: true }).click()
+  await expect(viewer.getByText('Thanks. An administrator will review it.')).toBeVisible()
+  await builder.keyboard.press('Escape')
+
+  await createRoster(builder, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await waitForRosterSave(builder, () => builder.getByRole('button', { name: 'Add Overlord', exact: true }).first().click())
+  await builder.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
+  const photo = builder.locator('aside[aria-label="Loadout"] [data-unit-photo]')
+  await expect(photo).toContainText(`From ${sharer}’s collection`)
+  await loaded(photo.locator('img'))
+
+  const rosterUrl = builder.url()
+  await builder.goto('/collection')
+  await addDatasheet(builder, 'Overlord', 'Necrons')
+  await addPhoto(builder, 'Overlord')
+  await builder.goto(rosterUrl)
+  await builder.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
+  await expect(photo).toContainText('Your models')
+
+  await builder.goto('/factions/necrons/datasheets/overlord')
+  const owners = gallery.locator('li span.truncate')
+  await expect(owners).toHaveText([builderName, sharer])
+  const like = gallery.getByRole('button', { name: /^Like this photo of Overlord, 0 likes$/ })
+  await like.click()
+  await expect(owners).toHaveText([sharer, builderName])
+  await builder.reload()
+  await expect(gallery.getByRole('button', { name: 'Like this photo of Overlord, 1 like', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(owners).toHaveText([sharer, builderName])
+  await builderContext.close()
 })

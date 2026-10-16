@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FEEDBACK_SCREENSHOT_ID, FEEDBACK_SCREENSHOT_MAX_BYTES } from '../contracts/feedback'
-import { feedbackScreenshotResponse, storeFeedbackScreenshot, type PrivateObjects } from './feedbackScreenshots'
+import { feedbackScreenshotResponse, storeFeedbackScreenshot } from './feedbackScreenshots'
+import type { PrivateObjects } from './privateImages'
 
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
 
@@ -12,6 +13,7 @@ function memoryObjects() {
       const object = stored.get(key)
       return object?.body ?? null
     },
+    delete: async (key) => void stored.delete(key),
   }
   return { stored, objects }
 }

@@ -45,6 +45,8 @@ type Props = {
   providedSheets?: Awaited<ReturnType<typeof loadoutDatasheets>>
   /** The roster's own fields for this unit, scrolled with the loadout. */
   header?: ReactNode
+  /** Shown below everything else the pane holds. */
+  footer?: ReactNode
 }
 
 /**
@@ -74,6 +76,7 @@ export function Loadout({
   optionNote,
   providedSheets,
   header,
+  footer,
 }: Props) {
   const posthog = usePostHog()
   const timing = useRef<{ request: number; resolvedAt: number } | null>(null)
@@ -280,6 +283,7 @@ export function Loadout({
             </section>
           ) : null}
           {sheet && reference ? cloneElement(reference, { providedSheet: sheet }) : null}
+          {footer}
         </div>
       </Container>
     </div>

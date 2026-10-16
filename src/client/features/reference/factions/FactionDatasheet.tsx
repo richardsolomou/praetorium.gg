@@ -21,6 +21,7 @@ import { changeDetail } from '../../../catalogueChanges'
 import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { DatasheetAddMenu } from './DatasheetAddMenu'
+import { DatasheetPhotos } from './DatasheetPhotos'
 import { SimulateDatasheet } from '../../simulator/SimulateDatasheet'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../../../components/Keyword'
 import { ProfileRules } from '../../rosters/ProfileRules'
@@ -130,6 +131,7 @@ export function FactionDatasheet() {
         <PointsChanges faction={faction} slug={sheet.slug} />
         <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
+        <DatasheetPhotos entryId={sheet.id} name={sheet.name} />
         {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
       </PageContent>
     </main>

@@ -7,6 +7,8 @@ import type { RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/ro
 import {
   collection,
   collectionCounts,
+  collectionPhotos,
+  datasheetPhotos,
   fieldedDatasheets,
   datasheet,
   datasheetOfferedBy,
@@ -44,6 +46,15 @@ export const fieldedDatasheetsQuery = () =>
   queryOptions({ queryKey: ['fielded-datasheets'], queryFn: () => fieldedDatasheets(), staleTime: SSR_STALE_TIME })
 export const collectionCountsQuery = () =>
   queryOptions({ queryKey: ['collection-counts'], queryFn: () => collectionCounts(), staleTime: SSR_STALE_TIME })
+/** Never saved for offline reading: a photo whose owner stops sharing must leave the page on the next read. */
+export const datasheetPhotosQuery = (entryId: string) =>
+  queryOptions({
+    queryKey: ['datasheet-photos', entryId],
+    queryFn: () => datasheetPhotos({ data: { entryId } }),
+    staleTime: SSR_STALE_TIME,
+  })
+export const collectionPhotosQuery = () =>
+  queryOptions({ queryKey: ['collection-photos'], queryFn: () => collectionPhotos(), staleTime: SSR_STALE_TIME })
 
 export const unitsQuery = (
   catalogueId: string,

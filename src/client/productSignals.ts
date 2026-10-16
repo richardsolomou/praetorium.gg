@@ -20,7 +20,7 @@ const queryFamilies = {
     'rosters-lent-to-me',
     'outdated-league-entries',
   ],
-  collection: ['collection', 'collection-counts', 'collection-profile'],
+  collection: ['collection', 'collection-counts', 'collection-photos', 'collection-profile', 'datasheet-photos'],
   favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets'],
   friends: ['friendships', 'friend-battles', 'shared-battles', 'opponents', 'player-profile', 'player-search'],
   invites: ['friend-invite'],
@@ -32,7 +32,7 @@ const queryFamilies = {
 } as const
 
 const publicQueryFamilies = {
-  collection: ['collection-profile'],
+  collection: ['collection-profile', 'datasheet-photos'],
   // An open battle follows its own signal, or polls while it has none, so every command elsewhere does not refetch it.
   battles: ['public-battles', 'friend-battles', 'shared-battles', 'player-profile', 'league-battles'],
   standings: ['standings', 'player-rankings'],
