@@ -126,6 +126,11 @@ export const datasheetQuery = (
     staleTime: Infinity,
   })
 
+const datasheetLoads = new WeakMap<object, { request: number; resolvedAt: number }>()
+
+/** How long a loadout's datasheets took to arrive and when they did, for measuring how long they then take to draw. */
+export const datasheetLoad = (sheets: object) => datasheetLoads.get(sheets)
+
 export const loadoutDatasheetsQuery = (
   catalogueId: string,
   entryId: string,
@@ -133,7 +138,6 @@ export const loadoutDatasheetsQuery = (
   picks: readonly RosterPick[],
   pickIndex: number | null,
   persistedRoster?: { id: string; battle?: string },
-  onLoaded?: (durationMs: number) => void,
 ) =>
   queryOptions({
     queryKey: persistedRoster
@@ -151,7 +155,8 @@ export const loadoutDatasheetsQuery = (
               data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex },
               signal,
             })
-      onLoaded?.(performance.now() - startedAt)
+      const resolvedAt = performance.now()
+      if (result) datasheetLoads.set(result, { request: resolvedAt - startedAt, resolvedAt })
       return result
     },
     enabled: Boolean((persistedRoster && pickIndex !== null) || (catalogueId && entryId)),

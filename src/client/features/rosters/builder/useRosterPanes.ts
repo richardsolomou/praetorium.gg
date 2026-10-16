@@ -170,7 +170,7 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
       paneClosing.current = false
       return
     }
-    if (!workspaceMeasured || paneHistoryRef.current || paneClosing.current) return
+    if (!workspaceMeasured || paneHistory || paneHistoryRef.current || paneClosing.current) return
     if (showing === 'picker' && !wideWorkspace) pushPaneHistory({ workspace: workspacePath, pane: 'picker' })
     if (showing !== 'loadout' || loadoutInline) return
     if (preview) pushPaneHistory({ workspace: workspacePath, pane: 'loadout', preview })

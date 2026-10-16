@@ -1,4 +1,4 @@
-import { memo, type ComponentProps, useLayoutEffect, useMemo, useRef } from 'react'
+import { memo, type ComponentProps, useMemo, useState } from 'react'
 import type { PickerUnit } from '../../../contracts/catalogue'
 import { availableChoices, newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
 import type { KeyedPick } from './rosterPicks'
@@ -84,8 +84,7 @@ export function useCardRelationships(
   units: Parameters<typeof attachmentRows>[1],
   discovery: AttachDiscovery | null,
 ) {
-  const previous = useRef(new Map<number, CardRelationships>())
-  const relationships = useMemo(() => {
+  const computed = useMemo(() => {
     const next = new Map<number, CardRelationships>()
     const candidates = discovery?.candidates ?? []
     const added = (options: PickerUnit[]): AttachChoice[] =>
@@ -110,15 +109,22 @@ export function useCardRelationships(
           ...added(newJoiners(candidates, picks, units, index)),
         ]),
       }
-      const current = previous.current.get(pick.key)
-      next.set(pick.key, current && sameRelationships(current, candidate) ? current : candidate)
+      next.set(pick.key, candidate)
     }
     return next
   }, [picks, units, discovery])
-  useLayoutEffect(() => {
-    previous.current = relationships
-  }, [relationships])
-  return relationships
+  // A card whose relationships read the same keeps the same object, so it does not redraw; this is React's pattern for
+  // keeping information from the previous render in state.
+  const [kept, setKept] = useState({ from: computed, relationships: computed })
+  if (kept.from !== computed) {
+    const relationships = new Map<number, CardRelationships>()
+    for (const [key, candidate] of computed) {
+      const current = kept.relationships.get(key)
+      relationships.set(key, current && sameRelationships(current, candidate) ? current : candidate)
+    }
+    setKept({ from: computed, relationships })
+  }
+  return kept.relationships
 }
 
 function sameRelationships(left: CardRelationships, right: CardRelationships) {

@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -74,12 +74,6 @@ export function ReminderEditorDialog({
   const nextTimingId = useRef(draft.timings.length || 1)
   const [whileDestroyed, setWhileDestroyed] = useState(draft.whileDestroyed === true)
   const [timings, setTimings] = useState<TimingDraft[]>(() => timingDrafts(draft.timings, id))
-
-  useEffect(() => {
-    setWhileDestroyed(draft.whileDestroyed === true)
-    nextTimingId.current = draft.timings.length || 1
-    setTimings(timingDrafts(draft.timings, id))
-  }, [draft, id])
 
   const completed = timings.map(completeTiming)
   const valid = completed.every((timing) => timing !== null)
