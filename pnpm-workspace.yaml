@@ -11,6 +11,17 @@ allowBuilds:
   workerd: true
 minimumReleaseAgeExclude:
   - ras-stack@3.1.0
+  # better-auth 1.7.10 carries the oauth-provider resource-seeding fix; drop these once it is
+  # seven days old (2026-10-22).
+  - better-auth@1.7.10
+  - '@better-auth/cimd@1.7.10'
+  - '@better-auth/core@1.7.10'
+  - '@better-auth/drizzle-adapter@1.7.10'
+  - '@better-auth/kysely-adapter@1.7.10'
+  - '@better-auth/mcp@1.7.10'
+  - '@better-auth/memory-adapter@1.7.10'
+  - '@better-auth/mongo-adapter@1.7.10'
+  - '@better-auth/oauth-provider@1.7.10'
+  - '@better-auth/prisma-adapter@1.7.10'
+  - '@better-auth/telemetry@1.7.10'
 minimumReleaseAge: 10080
-patchedDependencies:
-  '@better-auth/oauth-provider@1.7.7': patches/@better-auth__oauth-provider@1.7.7.patch
