@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
@@ -52,7 +53,7 @@ export function DetachmentReference({
     <div id="summary">
       <PageHeader
         tint={faction ? factionColour(faction.slug, faction.displayName) : undefined}
-        eyebrow={faction ? `${faction.displayName} · Detachment` : 'Detachment'}
+        eyebrow="Detachment"
         title={detachment.name}
         media={
           faction ? <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} /> : undefined
@@ -61,9 +62,14 @@ export function DetachmentReference({
           detachment.dispositions.length || detachment.points !== null || detachmentId || action ? (
             <div className="flex flex-wrap items-center gap-1">
               {detachment.dispositions.map((disposition) => (
-                <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                <Link
+                  key={disposition}
+                  to="/force-dispositions/$dispositionId"
+                  params={{ dispositionId: routeSlug(disposition) }}
+                  className={`chip hover:text-bone ${dispositionTone(disposition)}`}
+                >
                   {disposition}
-                </span>
+                </Link>
               ))}
               {detachment.points === null ? null : <span className="chip">{detachment.points} DP</span>}
               {detachmentId ? (
