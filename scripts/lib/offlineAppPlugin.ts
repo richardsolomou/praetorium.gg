@@ -1,8 +1,8 @@
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile, rename } from 'node:fs/promises'
+import { tsImport } from 'tsx/esm/api'
 import { build, type Plugin } from 'vite'
-import { writeReferenceBundle } from './offlineReferenceBundle'
 
 export function offlineAppPlugin(): Plugin {
   return {
@@ -47,7 +47,9 @@ export function offlineAppPlugin(): Plugin {
         path.resolve(outDir, 'offline-app-version.json'),
         JSON.stringify({ revision, css: '/' + css.fileName, script: scriptPath }),
       )
-      await writeReferenceBundle(outDir)
+      // tsx loads the reference compiler at build time, so the Vite config does not load application modules.
+      const reference: typeof import('./offlineReferenceBundle.ts') = await tsImport('./offlineReferenceBundle.ts', import.meta.url)
+      await reference.writeReferenceBundle(outDir)
     },
   }
 }
