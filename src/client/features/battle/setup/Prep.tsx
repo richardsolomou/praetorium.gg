@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Secondary, SecondaryMode } from '../../../../core/battle'
@@ -103,6 +103,9 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   const armiesIn = view.players.every((player) => player.roster)
   const recorded = captain.stratagems.map((stratagem) => stratagem.key).join()
   const wanted = stratagems.map((stratagem) => stratagem.key).join()
+  // The write in flight. Effects re-run before it lands, and another side's write can
+  // land first, so without this the same write goes out twice; a failed one may retry.
+  const sent = useRef<string | null>(null)
   useEffect(() => {
     // The deck is part of what a write records, and it comes from the references rather
     // than from this side's rules, so an unanswered references request is as much a
@@ -118,8 +121,19 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     const missingDeck = deck.length > 0 && !captain.secondaryDeckReady
     const invalidMode = tacticalOnly && storedMode !== 'tactical'
     if (!wrongStratagems && !wrongPrimary && !missingDeck && !invalidMode) return
+    const attempt = [wanted, primary?.key, deck.length, tacticalOnly].join('|')
+    if (sent.current === attempt) return
+    sent.current = attempt
     // Any seated device may settle the derived cards, so an absent player cannot hold setup up.
-    save({}, { background: true })
+    save(
+      {},
+      {
+        background: true,
+        complete: (appended) => {
+          if (!appended && sent.current === attempt) sent.current = null
+        },
+      },
+    )
     // A stale automatic write redraws at a newer sequence, where the still-missing
     // fact retries instead of remaining blocked behind the command another device won.
     // eslint-disable-next-line react-hooks/exhaustive-deps
