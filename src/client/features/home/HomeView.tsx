@@ -68,9 +68,9 @@ export function HomeView({
   const played = mine
     .filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some((player) => player.automated))
     .slice(0, PLAYED)
-  // A visitor's hero is the most recent public battle that has started, since a table still
-  // being set reads 0–0; the shelf below must not print it again two inches further down.
-  const hero = me ? undefined : (open.find((battle) => battle.status !== 'setup') ?? open[0])
+  // A visitor's hero is the most recent public battle, so the shelf below must not
+  // print it again two inches further down.
+  const hero = me ? undefined : open[0]
   const { friends: shownFriends, open: rest } = watchedTables(friends, open, hero)
   // Without a game going or played, the lists are what the player comes back for, so they lead.
   const listsFirst = !going.length && !played.length

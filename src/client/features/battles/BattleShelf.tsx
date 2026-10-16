@@ -57,7 +57,8 @@ export function BattleShelf({
     <section data-onboarding={onboarding} data-battle-shelf={name ?? ''}>
       {title ? (
         <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-          {title} <span className="readout">{battles.length}</span>
+          <span>{title}</span>
+          <span className="readout">{battles.length}</span>
         </h2>
       ) : null}
       <div className={`grid gap-3 ${title ? 'mt-3' : ''}`}>
