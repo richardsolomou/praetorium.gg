@@ -101,7 +101,7 @@ export function CollectionPage() {
               </h2>
               <span className="text-xs text-dim">Fielded, but not in your collection</span>
             </div>
-            <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {(allSuggestions ? suggestions : suggestions.slice(0, SUGGESTIONS_SHOWN)).map((sheet) => (
                 <li
                   key={sheet.id}
