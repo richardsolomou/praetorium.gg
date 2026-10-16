@@ -136,7 +136,7 @@ export function collectionPhotoReportEmail(
       '',
       report.reason || 'No reason given.',
       '',
-      `It stays hidden until you keep or remove it at ${new URL('/admin', appUrl).href}, unless an administrator has kept it before.`,
+      `It stays hidden until you keep or remove it at ${new URL('/admin?tab=photos', appUrl).href}, unless an administrator has kept it before.`,
     ].join('\n'),
   }
 }

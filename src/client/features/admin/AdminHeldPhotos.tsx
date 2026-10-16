@@ -18,14 +18,12 @@ export function AdminHeldPhotos() {
       keep ? keepCollectionPhotoAsAdmin({ data: { photoId } }) : removeCollectionPhotoAsAdmin({ data: { photoId } }),
     onSuccess: () => refreshAdminQueries(queryClient),
   })
-  if (!held.data?.length && !held.error) return null
   return (
-    <section className="mb-8">
-      <p className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>Reported photos</span>
-        {held.data ? <span className="readout">{held.data.length}</span> : null}
-      </p>
-      <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    <section>
+      {held.isSuccess && !held.data.length ? (
+        <p className="border border-edge bg-panel p-4 text-sm text-dim">No reported photos are waiting for review.</p>
+      ) : null}
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {held.data?.map((photo) => (
           <li key={photo.photoId} className="flex flex-col gap-2 border border-edge bg-sunken p-3">
             <img
