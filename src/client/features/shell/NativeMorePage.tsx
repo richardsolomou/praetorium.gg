@@ -1,96 +1,122 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, type LinkProps } from '@tanstack/react-router'
 import {
-  Calculator,
+  BookOpen,
   Boxes,
+  Calculator,
+  ChevronRight,
+  CircleHelp,
   Gavel,
+  GraduationCap,
   History,
-  Sparkles,
-  House,
   Layers3,
   Medal,
   MessageSquareWarning,
   ShieldCheck,
+  Sparkles,
   Trophy,
+  UserRound,
   Users,
   type LucideIcon,
 } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { meQuery } from '../../queries'
-import { PageContent, PageHeader } from '../../components/Page'
+import { PageContent } from '../../components/Page'
 import { openFeedback } from '../feedback/FeedbackDialog'
 
-type MoreLink = {
-  description: string
-  icon: LucideIcon
-  label: string
-  to: '/' | '/leagues' | '/force-dispositions' | '/rules' | '/simulator' | '/leaderboard' | '/data-updates' | '/whats-new'
-}
+type MoreLink = { description: string; icon: LucideIcon; label: string; to: LinkProps['to'] }
 
-const MORE_LINKS: readonly MoreLink[] = [
-  { description: 'Live battles and activity', icon: House, label: 'Home', to: '/' },
+const REFERENCE: readonly MoreLink[] = [
+  { description: 'Mission packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
+  { description: 'Primary mission matchups', icon: Layers3, label: 'Force dispositions', to: '/force-dispositions' },
+  { description: 'Core rules, missions and event rules', icon: Gavel, label: 'Rules', to: '/rules' },
+  { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
+]
+
+const PLAY: readonly MoreLink[] = [
+  { description: 'Damage and kill probabilities', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
   { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
-  { description: 'Primary mission matchups', icon: Layers3, label: 'Dispositions', to: '/force-dispositions' },
-  { description: 'Game reference', icon: Gavel, label: 'Rules', to: '/rules' },
-  { description: 'Damage and kill probabilities', icon: Calculator, label: 'Simulator', to: '/simulator' },
-  { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
+]
+
+const FRIENDS: MoreLink = { description: 'Invite friends to private battles', icon: Users, label: 'Friends', to: '/friends' }
+
+const ACCOUNT: readonly MoreLink[] = [
+  { description: 'Your name, picture and account', icon: UserRound, label: 'Profile', to: '/profile' },
+  { description: 'The models on your shelf', icon: Boxes, label: 'Collection', to: '/collection' },
+]
+
+const HELP: readonly MoreLink[] = [
+  { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Player guides', to: '/guides' },
   { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' },
 ]
 
+const rowClass = 'flex min-h-14 w-full items-center gap-3 px-3 py-2.5 text-left text-bone hover:bg-raised'
+
+function Row({ icon: Icon, label, description }: Omit<MoreLink, 'to'>) {
+  return (
+    <>
+      <Icon className="size-5 shrink-0 text-info" />
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{label}</span>
+        <span className="block text-xs text-dim">{description}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-faint" />
+    </>
+  )
+}
+
+function Group({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id} className="eyebrow mb-2 text-dim">
+        {title}
+      </h2>
+      <div className="divide-y divide-edge border border-edge bg-panel">{children}</div>
+    </section>
+  )
+}
+
+function Links({ links }: { links: readonly MoreLink[] }) {
+  return links.map(({ to, ...row }) => (
+    <Link key={to} to={to} className={rowClass}>
+      <Row {...row} />
+    </Link>
+  ))
+}
+
 export function NativeMorePage() {
   const { data: me } = useQuery(meQuery())
-  const secondaryClass =
-    'flex min-h-13 items-center gap-3 border border-edge bg-panel px-4 py-3 font-semibold hover:border-info hover:bg-raised'
 
   return (
     <main className="w-full bg-sunken">
-      <PageHeader eyebrow="Application" title="More" />
-      <PageContent className="grid content-start gap-8">
-        <section aria-labelledby="more-navigation-heading">
-          <h2 id="more-navigation-heading" className="eyebrow mb-3 text-dim">
-            Explore
-          </h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {MORE_LINKS.map(({ description, icon: Icon, label, to }) => (
-              <Link
-                key={to}
-                to={to}
-                className="flex min-h-28 flex-col justify-between border border-edge bg-panel p-3 text-bone hover:border-info hover:bg-raised"
-              >
-                <Icon className="size-6 text-info" />
-                <span>
-                  <span className="block font-semibold uppercase">{label}</span>
-                  <span className="mt-0.5 block text-xs text-dim">{description}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-        <section aria-labelledby="more-other-heading">
-          <h2 id="more-other-heading" className="eyebrow mb-3 text-dim">
-            Other
-          </h2>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {me ? (
-              <>
-                <Link to="/collection" className={secondaryClass}>
-                  <Boxes className="size-5 text-info" /> Collection
-                </Link>
-                <Link to="/friends" className={secondaryClass}>
-                  <Users className="size-5 text-info" /> Friends
-                </Link>
-              </>
-            ) : null}
-            {me?.role === 'admin' ? (
-              <Link to="/admin" className={secondaryClass}>
-                <ShieldCheck className="size-5 text-info" /> Admin
+      <h1 className="sr-only">More</h1>
+      <PageContent className="grid content-start gap-6 sm:grid-cols-2">
+        <Group id="more-reference-heading" title="Reference">
+          <Links links={REFERENCE} />
+        </Group>
+        <Group id="more-play-heading" title="Play">
+          <Links links={me ? [...PLAY, FRIENDS] : PLAY} />
+        </Group>
+        {me ? (
+          <Group id="more-account-heading" title="Account">
+            <Links links={ACCOUNT} />
+            {me.role === 'admin' ? (
+              <Link to="/admin" className={rowClass}>
+                <Row icon={ShieldCheck} label="Admin" description="Players and reported photos" />
               </Link>
             ) : null}
-            <button type="button" onClick={openFeedback} className={`${secondaryClass} text-left`}>
-              <MessageSquareWarning className="size-5 text-info" /> Send feedback
-            </button>
-          </div>
-        </section>
+          </Group>
+        ) : null}
+        <Group id="more-help-heading" title="Help">
+          <Links links={HELP} />
+          <button type="button" onClick={openFeedback} className={rowClass}>
+            <Row icon={MessageSquareWarning} label="Send feedback" description="Report a problem or suggest a change" />
+          </button>
+          <Link to="/support" className={rowClass}>
+            <Row icon={CircleHelp} label="Support" description="Get help or recover your account" />
+          </Link>
+        </Group>
       </PageContent>
     </main>
   )

@@ -12,7 +12,7 @@ describe('native application navigation', () => {
     ['/rosters', { section: 'rosters', title: 'Rosters' }],
     ['/battles', { section: 'battles', title: 'Battles' }],
     ['/factions', { section: 'factions', title: 'Factions' }],
-    ['/missions', { section: 'missions', title: 'Missions' }],
+    ['/', { section: 'home', title: 'Praetorium' }],
     ['/more', { title: 'More' }],
   ])('leaves %s without a back action, because it is the bottom of its tab', (path, expected) => {
     expect(nativeNavigation(path)).toEqual(expected)
@@ -22,6 +22,7 @@ describe('native application navigation', () => {
     ['/leagues', 'leagues', 'Leagues'],
     ['/rules', 'rules', 'Rules'],
     ['/leaderboard', 'leaderboard', 'Leaderboard'],
+    ['/missions', 'missions', 'Missions'],
     ['/force-dispositions', 'missions', 'Force dispositions'],
   ])('returns from %s to the More screen that lists it', (path, section, title) => {
     expect(nativeNavigation(path)).toEqual({ back: { href: '/more', label: 'Back to more', preferHistory: true }, section, title })
