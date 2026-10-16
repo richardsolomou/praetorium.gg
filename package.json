@@ -108,7 +108,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "10.1.0",
-    "satori": "0.32.0",
+    "satori": "0.44.1",
     "spacetimedb": "2.7.0",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.5"
