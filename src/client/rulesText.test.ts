@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadRuleText, textSourceChoiceFrom } from './rulesText'
+import { TEXT_SOURCES_SCRIPT, applyTextSourceChoice, loadRuleText, textSourceChoiceFrom } from './rulesText'
 
 const file = JSON.stringify({
   id: 'core-rules-document',
@@ -62,5 +62,45 @@ describe('the sources a reader has chosen', () => {
 
   it('reads only the sources it knows', () => {
     expect(textSourceChoiceFrom('bsdata,elsewhere').sources).toEqual(new Set(['bsdata']))
+  })
+})
+
+describe('the first frame’s choice', () => {
+  /** The document attribute a page starts with when storage holds `stored`, as the head script sets it and as the app keeps it. */
+  function attributes(stored: string | null | Error) {
+    const fromScript: DOMStringMap = {}
+    const fromApp: DOMStringMap = {}
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        if (stored instanceof Error) throw stored
+        return stored
+      },
+    })
+    vi.stubGlobal('document', { documentElement: { dataset: fromScript } })
+    new Function(TEXT_SOURCES_SCRIPT)()
+    vi.stubGlobal('document', { documentElement: { dataset: fromApp } })
+    applyTextSourceChoice(textSourceChoiceFrom(stored instanceof Error ? null : stored))
+    const sources = (dataset: DOMStringMap) => dataset.textSources?.split(' ').filter(Boolean).sort()
+    return { script: sources(fromScript), app: sources(fromApp) }
+  }
+
+  it.each([null, '', 'bsdata', 'game-datacards,bsdata', 'bsdata,retired-source'])(
+    'is the same from the head script and the app for %j',
+    (stored) => {
+      const { script, app } = attributes(stored)
+      expect(script).toEqual(app)
+    },
+  )
+
+  it('leaves an undecided device without the attribute', () => {
+    expect(attributes(null).script).toBeUndefined()
+  })
+
+  it('reads storage that refuses as undecided', () => {
+    expect(attributes(new Error('blocked')).script).toBeUndefined()
+  })
+
+  it('marks a device that chose none as decided', () => {
+    expect(attributes('').script).toEqual([])
   })
 })

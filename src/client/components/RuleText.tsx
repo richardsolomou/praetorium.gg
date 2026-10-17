@@ -84,7 +84,8 @@ export function RuleText({
   const choice = useTextSourceChoice()
   if (hasTextTokens(text)) return <SourcedRuleText text={text} rules={rules} className={className} />
   // BSData's words reach this device to compute from, and show only where the reader chose to load BSData text.
-  if (!authored && !choice.sources.has('bsdata')) return <SourceTextPrompt missing="unchosen" className={cn('mt-2', className)} />
+  if (!authored && !choice.sources.has('bsdata'))
+    return <SourceTextPrompt missing="unchosen" source="bsdata" className={cn('mt-2', className)} />
   return <RuleTextBody text={text} rules={rules} className={className} />
 }
 

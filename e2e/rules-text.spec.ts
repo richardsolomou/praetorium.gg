@@ -113,11 +113,13 @@ test('a datasheet gap opens the dialog and loads only the source turned on', asy
   expect(await response?.text()).not.toContain(ability)
   await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
   await expect(page.getByText(ability)).toHaveCount(0)
-  await expect(page.getByText('Rules text isn’t loaded.').first()).toBeVisible()
-  // One way to ask per page, however many rules are waiting on their text.
+  const gaps = page.getByRole('main').getByText('Rules text isn’t loaded.')
+  await expect(gaps.first()).toBeVisible()
+  // Every gap asks, so a reader who skipped the first still finds a way where they are reading.
   const choose = page.getByRole('main').getByRole('button', { name: 'Choose sources' })
-  await expect(choose).toHaveCount(1)
-  await choose.click()
+  expect(await gaps.count()).toBeGreaterThan(1)
+  await expect(choose).toHaveCount(await gaps.count())
+  await choose.last().click()
   await loadFromDialog(page, ['BSData'])
   await expect(page.getByText(ability)).toBeVisible()
   await page.goto('/rules/core-rules/moving')
@@ -143,4 +145,56 @@ test('Game Datacards text loads while BSData text stays unloaded', async ({ page
   await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
   await expect(page.getByText('Rules text isn’t loaded.').first()).toBeVisible()
   await expect(page.getByText(ability)).toHaveCount(0)
+})
+
+/** Opens `path` as the server and head script draw it, with no application script to hydrate it, for a device that stored `stored`. */
+async function firstFrame(page: Page, path: string, stored: string | null) {
+  await page.addInitScript((value) => {
+    if (value === null) localStorage.removeItem('praetorium-text-sources')
+    else localStorage.setItem('praetorium-text-sources', value)
+  }, stored)
+  await page.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
+  await page.goto(path, { waitUntil: 'domcontentloaded' })
+}
+
+// The first frame holds both sides of every gap, so only the side the document's choice shows counts.
+const gapAsk = (page: Page) => page.getByRole('main').getByText('Rules text isn’t loaded.').filter({ visible: true })
+const rulesWait = (page: Page) => page.getByRole('main').getByText('Loading rules text…').filter({ visible: true })
+const gapWait = (page: Page) => page.getByRole('main').getByRole('status', { name: 'Loading rules text' })
+
+test.describe('the first frame draws the device’s own choice', () => {
+  test('an undecided device is asked from the first frame', async ({ page }) => {
+    await firstFrame(page, '/factions/necrons/datasheets/overlord', null)
+    await expect(notice(page)).toBeVisible()
+    await expect(gapAsk(page).first()).toBeVisible()
+    await expect(gapWait(page)).toHaveCount(0)
+  })
+
+  test('a device that chose none sees its gaps and no question', async ({ page }) => {
+    await firstFrame(page, '/factions/necrons/datasheets/overlord', '')
+    await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
+    await expect(notice(page)).toHaveCount(0)
+    await expect(gapAsk(page).first()).toBeVisible()
+  })
+
+  test('a device that chose its sources waits for the words without being asked', async ({ page }) => {
+    await firstFrame(page, '/factions/necrons/datasheets/overlord', 'bsdata,game-datacards')
+    await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
+    await expect(gapWait(page).first()).toBeVisible()
+    await expect(gapAsk(page)).toHaveCount(0)
+    await expect(notice(page)).toHaveCount(0)
+  })
+
+  test('a rules page waits for a chosen source without asking', async ({ page }) => {
+    await firstFrame(page, '/rules/core-rules/moving', 'game-datacards')
+    await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
+    await expect(rulesWait(page)).toBeVisible()
+    await expect(page.getByRole('main').getByRole('button', { name: 'Choose sources' })).toHaveCount(0)
+  })
+
+  test('a rules page asks a device that chose only the other source', async ({ page }) => {
+    await firstFrame(page, '/rules/core-rules/moving', 'bsdata')
+    await expect(page.getByRole('main').getByRole('button', { name: 'Choose sources' })).toBeVisible()
+    await expect(rulesWait(page)).toHaveCount(0)
+  })
 })

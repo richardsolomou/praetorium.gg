@@ -28,6 +28,7 @@ import { FeedbackDialog, openFeedback } from '../feedback/FeedbackDialog'
 import { meQuery } from '../../queries'
 import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
 import { restoreTextSize } from '../../textSize'
+import { followTextSourceChoice } from '../../rulesText'
 import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
 // A local dev server shares the production project token, so gate the browser
 // SDK on a built bundle to keep localhost sessions out of the production project.
@@ -166,6 +167,7 @@ export function AppShell() {
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(restoreTextSize, [])
+  useLayoutEffect(followTextSourceChoice, [])
   // Browser tests wait for this before interacting: a click before hydration does nothing.
   useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return (

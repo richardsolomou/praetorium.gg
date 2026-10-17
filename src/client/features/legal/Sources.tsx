@@ -8,7 +8,7 @@ const linkClass = 'text-info hover:text-parchment'
 
 function TextSourceSwitches() {
   const choice = useTextSourceChoice()
-  // The stored choice is unknown until hydration, so the switches wait rather than flipping.
+  // The stored choice is unknown until hydration, so the switches wait unseen rather than flipping (styles.css).
   const ready = useHydrated()
   return (
     <div className="space-y-2">
