@@ -162,13 +162,15 @@ function collectUnitChoices(
   const roster = [...(options.roster ?? []), selection]
   const entry = index.definitions.get(entryId)
   if (!entry) return []
-  const visibility = new Map<Definition, boolean>()
+  // Keyed by path: the same entry can be offered by more than one model.
+  const visibility = new Map<string, boolean>()
   const minima = new Map<Definition, number>()
-  const visible = (definition: Definition) => {
-    const cached = visibility.get(definition)
+  const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) => {
+    const key = path.join('/')
+    const cached = visibility.get(key)
     if (cached !== undefined) return cached
-    const value = !hiddenByRules(definition, index, { ...options, roster }, entry)
-    visibility.set(definition, value)
+    const value = !hiddenByRules(definition, index, { ...options, roster }, lineage)
+    visibility.set(key, value)
     return value
   }
   const minimum = (definition: Definition) => {
@@ -191,15 +193,23 @@ function collectUnitChoices(
   const forbidden = knownForbidden ?? exclusiveSetsIn(entry, depth + 1, index)
 
   const choices: UnitChoice[] = []
-  const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>, carriers: number) => {
+  const walk = (
+    definition: Definition,
+    trail: string[],
+    left: number,
+    seen: Set<string>,
+    carriers: number,
+    lineage: readonly Definition[],
+  ) => {
     const target = resolve(definition, index)
     if (left <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
+    const enclosing = [...lineage, definition]
 
     for (const child of childrenOf(target, index)) {
-      if (!visible(child.definition)) continue
-      const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
+      if (!visible(child.definition, enclosing, here)) continue
+      const inner = resolve(child.definition, index)
 
       const repeatingEntry = inner.type === 'upgrade' ? repeatedModelOn(trail, index) : null
       const lower = minimum(child.definition)
@@ -256,7 +266,9 @@ function collectUnitChoices(
 
       if (inner.type === undefined) {
         const choosable = childrenOf(inner, index).filter(
-          (option) => visible(option.definition) && resolve(option.definition, index).type !== undefined,
+          (option) =>
+            visible(option.definition, [...enclosing, child.definition], [...here, option.id]) &&
+            resolve(option.definition, index).type !== undefined,
         )
         const repeating = repeatedCarrierOn(here, index)
         const scale = repeating
@@ -342,7 +354,7 @@ function collectUnitChoices(
         const optionalSingle = !fixed && adjustable.length === 1 && minimum(child.definition) === 0
         const defaultId = 'defaultSelectionEntryId' in inner ? inner.defaultSelectionEntryId : undefined
         if (
-          (adjustable.length > 1 || optionalSingle || (separate && adjustable.length > 0)) &&
+          (adjustable.length > 1 || optionalSingle || ((separate || sized) && adjustable.length > 0)) &&
           adjustableRoom >= 1 &&
           adjustableRoom !== UNBOUNDED
         ) {
@@ -351,7 +363,9 @@ function collectUnitChoices(
             key: here.join('/'),
             name: inner.name ?? 'Choice',
             chosen: taken?.id ?? '',
-            optional: minimum(child.definition) === 0,
+            // The model the unit is sized by fills whatever specialists are not taken.
+            optional:
+              minimum(child.definition) === 0 || (sized !== undefined && adjustable.every((option) => minimum(option.definition) === 0)),
             room: adjustableRoom,
             options: adjustable.map((option) => ({
               id: option.id,
@@ -373,12 +387,12 @@ function collectUnitChoices(
 
       // What is inside an entry is held by however many of it the selection holds.
       if (inner.type !== 'upgrade' || allAt(selection, here).some((selected) => (selected.count ?? 1) > 0)) {
-        walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1))
+        walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1), enclosing)
       }
     }
   }
 
-  walk(entry, [], depth, new Set(), 1)
+  walk(entry, [], depth, new Set(), 1, [])
   // Keep a lone owner only when its mandatory range distinguishes that model from the squad.
   const distinguishesOwner = choices.some(
     (choice) => choice.owner && choice.options.some((option) => option.min > 0 && option.max > option.min),
@@ -400,22 +414,22 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
   const root = index.definitions.get(entryId)
   if (!root) return []
   const roster = [...(options.roster ?? []), selection]
-  const visible = (definition: Definition) => !hiddenByRules(definition, index, { ...options, roster }, root)
   const found: UnitToggle[] = []
-  const walk = (definition: Definition, trail: string[], seen: Set<string>) => {
+  const walk = (definition: Definition, trail: string[], seen: Set<string>, lineage: readonly Definition[]) => {
     const target = resolve(definition, index)
     if (seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
+    const enclosing = [...lineage, definition]
     for (const child of childrenOf(target, index)) {
-      if (!visible(child.definition)) continue
+      if (hiddenByRules(child.definition, index, { ...options, roster }, enclosing)) continue
       const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
       if (isRosterToggle(inner.name ?? child.definition.name)) {
         found.push({ key: here.join('/'), name: 'Warlord', selected: (at(selection, here)?.count ?? 0) > 0 })
-      } else walk(child.definition, here, visited)
+      } else if (inner.type !== 'upgrade' || (at(selection, here)?.count ?? 0) > 0) walk(child.definition, here, visited, enclosing)
     }
   }
-  walk(root, [], new Set())
+  walk(root, [], new Set(), [])
   return found
 }
 

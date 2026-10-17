@@ -6,6 +6,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { DokployClient, dokployPreviewFromEnvironment, loadPreviewAppSecrets, pullRequestNumber } from 'ras-stack/preview/dokploy'
+import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 
 const execFile = promisify(execFileCallback)
@@ -47,35 +48,30 @@ function internalSpacetimeHost() {
   return host
 }
 
-async function spacetime(method: string, pathname: string, body?: BodyInit, token?: string, extra: [string, string][] = []) {
-  const headers = new Headers(extra)
-  headers.set('CF-Access-Client-Id', required('SPACETIME_ACCESS_CLIENT_ID'))
-  headers.set('CF-Access-Client-Secret', required('SPACETIME_ACCESS_CLIENT_SECRET'))
-  if (token) headers.set('authorization', `Bearer ${token}`)
-  if (typeof body === 'string') headers.set('content-type', 'application/json')
-  const response = await fetch(new URL(pathname, spacetimeOrigin()), {
-    method,
-    headers,
-    body,
+async function createIdentity() {
+  const response = await fetch(new URL('/v1/identity', spacetimeOrigin()), {
+    method: 'POST',
+    headers: accessHeaders(),
     redirect: 'error',
     signal: AbortSignal.timeout(90_000),
   })
-  if (!response.ok) throw new Error(`SpacetimeDB ${method} ${pathname} failed with HTTP ${response.status}`)
-  return response
+  if (!response.ok) throw new Error(`SpacetimeDB identity creation failed with HTTP ${response.status}`)
+  return (await response.json()) as { identity?: unknown; token?: unknown }
+}
+
+function accessHeaders() {
+  return {
+    'CF-Access-Client-Id': required('SPACETIME_ACCESS_CLIENT_ID'),
+    'CF-Access-Client-Secret': required('SPACETIME_ACCESS_CLIENT_SECRET'),
+  }
+}
+
+function spacetimeConnection(database: string, token: string): SpacetimeConnection {
+  return { url: spacetimeOrigin().href, database, token, headers: accessHeaders() }
 }
 
 async function removeDatabase(number: string) {
-  const name = previewDatabase(number)
-  const response = await fetch(new URL(`/v1/database/${name}`, spacetimeOrigin()), {
-    headers: {
-      'CF-Access-Client-Id': required('SPACETIME_ACCESS_CLIENT_ID'),
-      'CF-Access-Client-Secret': required('SPACETIME_ACCESS_CLIENT_SECRET'),
-    },
-    signal: AbortSignal.timeout(15_000),
-  })
-  if (response.status === 404) return
-  if (!response.ok) throw new Error(`SpacetimeDB lookup failed with HTTP ${response.status}`)
-  await spacetime('DELETE', `/v1/database/${name}`, undefined, required('SPACETIME_ADMIN_TOKEN'))
+  await deleteSpacetimeDatabase(spacetimeConnection(previewDatabase(number), required('SPACETIME_ADMIN_TOKEN')))
 }
 
 async function productModule(image: string) {
@@ -109,19 +105,15 @@ async function deploy() {
   const admin = required('SPACETIME_ADMIN_TOKEN')
   const internalHost = internalSpacetimeHost()
   await removeDatabase(number)
-  const identity = (await (await spacetime('POST', '/v1/identity')).json()) as { identity?: unknown; token?: unknown }
+  const identity = await createIdentity()
   if (typeof identity.identity !== 'string' || !/^[0-9a-f]{64}$/.test(identity.identity) || typeof identity.token !== 'string') {
     throw new Error('Invalid SpacetimeDB operator identity')
   }
   const issuer = `${previewUrl}/api/auth/preview/${revision}`
-  await spacetime(
-    'PUT',
-    `/v1/database/${name}?host_type=Js`,
-    module,
-    admin,
-    moduleEnvironment({ issuer, audience: name, operator: identity.identity }),
-  )
-  await spacetime('POST', `/v1/database/${name}/call/operator_health`, '[]', identity.token)
+  await publishSpacetimeModule(spacetimeConnection(name, admin), module, {
+    environment: moduleEnvironment({ issuer, audience: name, operator: identity.identity }),
+  })
+  await callSpacetime(spacetimeConnection(name, identity.token), 'operator_health', [])
   process.env.PREVIEW_ENVIRONMENT = [
     'APP_URL={{PREVIEW_URL}}',
     `AUTH_SECRET=${randomBytes(32).toString('hex')}`,

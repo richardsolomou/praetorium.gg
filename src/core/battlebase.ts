@@ -3,7 +3,7 @@ import type { TextRoster, TextRosterUnit } from './textRoster'
 const unitHeader = /^(.*?)\s+\(\d[\d,]* Points?\)$/i
 const selection = /^\s*[•◦]\s*(?:(\d+)x\s+)?(.+?)\s*$/
 const titlePattern = /^(.*?)\s+\((\d[\d,]*) Points?(?:;[^)]*)?\)$/i
-const sectionHeading = /^(CHARACTERS?|BATTLELINE|DEDICATED TRANSPORTS|OTHER DATASHEETS|ALLIED UNITS)$/i
+const sectionHeading = /^(ATTACHED UNITS|CHARACTERS?|BATTLELINE|DEDICATED TRANSPORTS|OTHER DATASHEETS|ALLIED UNITS)$/i
 
 export function fromBattleBaseText(input: string): TextRoster | null {
   const lines = input.replaceAll('\r', '').split('\n')
@@ -18,15 +18,21 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   const faction = setup[0] ?? ''
   const sizeLine = setup.find((line) => /\([\d,]+ Points?\)$/i.test(line))
   if (!/Exported with (?:BattleBase|Praetorium\.gg)/i.test(input) && (!titleMatch || !faction || !sizeLine || firstSection < 0)) return null
-  const dispositionLine = setup.find((line) => /^Force Dispositions?:/i.test(line))
-  const detachmentLine =
-    setup.find((line) => /\(\d+ Detachment Points?\)$/i.test(line)) ??
-    setup.slice(1).find((line) => line !== sizeLine && line !== dispositionLine)
+  const pricedDetachment = setup.find((line) => /\(\d+ Detachment Points?\)$/i.test(line))
+  // New Recruit writes the disposition alone on the line after a priced detachment.
+  const unlabelled = setup.slice(1).filter((line) => line !== sizeLine && line !== pricedDetachment)
+  const dispositionLine =
+    setup.find((line) => /^Force Dispositions?:/i.test(line)) ?? (pricedDetachment && unlabelled.length === 1 ? unlabelled[0] : undefined)
+  const detachmentLine = pricedDetachment ?? setup.slice(1).find((line) => line !== sizeLine && line !== dispositionLine)
   const size = sizeLine?.match(/^(.*?)\s*\(([\d,]+) Points?\)$/i)
   const units: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null
   let unitSection = false
   const unread: string[] = []
+  // New Recruit lists a leader and its bodyguard together under "Attached unit N".
+  type AttachedGroup = { leaders: TextRosterUnit[]; bodyguards: TextRosterUnit[] }
+  let attachedGroup: AttachedGroup | null = null
+  const attachedGroups: AttachedGroup[] = []
 
   for (const line of lines.slice(factionAt + 1)) {
     const trimmed = line.trim()
@@ -36,7 +42,14 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     }
     if (sectionHeading.test(trimmed)) {
       current = null
+      attachedGroup = null
       unitSection = true
+      continue
+    }
+    if (unitSection && /^Attached unit \d+$/i.test(trimmed)) {
+      current = null
+      attachedGroup = { leaders: [], bodyguards: [] }
+      attachedGroups.push(attachedGroup)
       continue
     }
     const header = trimmed.match(unitHeader)
@@ -65,7 +78,17 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     else if (/^Warlord$/i.test(name)) current.warlord = true
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
+    else if (attachedGroup && /^Attached as:\s*Leader\b/i.test(name)) attachedGroup.leaders.push(current)
+    else if (attachedGroup && /^Attached as:\s*Bodyguard\b/i.test(name)) attachedGroup.bodyguards.push(current)
     else current.selections.push({ name, count: Number(picked[1] ?? 1) })
+  }
+
+  // Entries the text never numbers itself, so they cannot collide with ones it does.
+  let entry = Math.max(0, ...units.map((unit) => unit.entry ?? 0))
+  for (const { leaders, bodyguards } of attachedGroups) {
+    if (bodyguards.length !== 1) continue
+    bodyguards[0]!.entry = ++entry
+    for (const leader of leaders) leader.attachedToEntry = entry
   }
 
   return {

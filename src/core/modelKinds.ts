@@ -13,7 +13,7 @@ import { childrenOf, MAX_DEPTH, modelProfileOf, resolve } from './definitions'
 import { hiddenByRules, type Selection } from './evaluate'
 import { defaultSelection } from './expand'
 import { allAt, updateSelection } from './selection'
-import { type ChoiceOptions, unitChoices } from './unitChoices'
+import { type ChoiceOptions, type UnitChoice, unitChoices } from './unitChoices'
 import { sameWargear, wargearOf } from './wargear'
 
 /**
@@ -38,7 +38,8 @@ export type ModelKind = {
    * simply one each — a swap having taken some of them away.
    */
   fixed: { name: string; count?: number }[]
-  members: { id: string; choiceKey: string | null; baseCount: number }[]
+  /** `within` names the choice option a standing model came with, such as a two-model weapons team. */
+  members: { id: string; choiceKey: string | null; baseCount: number; within?: ModelRowSource }[]
   /** Wargear taken through a choice, in the order the data holds it. */
   rows: ModelRow[]
 }
@@ -97,7 +98,7 @@ export function optionWargear(optionId: string, index: CatalogueIndex, options: 
   return [...found.values()]
 }
 
-type Member = { id: string; name: string; choiceKey: string | null; baseCount: number }
+type Member = { id: string; name: string; choiceKey: string | null; baseCount: number; within?: ModelRowSource }
 
 /** One entry the catalogue offers as a model, and the profile it names it by, if any. */
 type Loadout = { profile: string | null; member: Member }
@@ -130,7 +131,7 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
   }
   // The models the data insists on complete a set of cards; they do not begin one.
   if (!found.length) return []
-  for (const standing of standingModels(entryId, selection, index, options)) remember(standing.profile, standing.member)
+  for (const standing of standingModels(entryId, selection, index, choices, options)) remember(standing.profile, standing.member)
 
   // Read defaults for unselected variants, excluding owned choices but retaining their fixed siblings.
   const carriedBy = new Map(
@@ -263,7 +264,7 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
         ...shared.filter((name) => !rows.some((row) => row.name === name)).map((name) => ({ name })),
         ...[...apart].map(([name, count]) => ({ name, count })),
       ],
-      members: members.map(({ id, choiceKey, baseCount }) => ({ id, choiceKey, baseCount })),
+      members: members.map(({ id, choiceKey, baseCount, within }) => ({ id, choiceKey, baseCount, ...(within ? { within } : {}) })),
       rows,
     }
   })
@@ -276,9 +277,18 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
 }
 
 /** Count required models from the current selection, including those nested in upgrades; choices describe only what the player can change. */
-function standingModels(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions): Loadout[] {
+function standingModels(
+  entryId: string,
+  selection: Selection,
+  index: CatalogueIndex,
+  choices: readonly UnitChoice[],
+  options: ChoiceOptions,
+): Loadout[] {
   const entry = index.definitions.get(entryId)
   if (!entry) return []
+  const offered = choices.flatMap((choice) =>
+    choice.options.map((option) => ({ choiceKey: choice.key, optionId: option.id, path: `${choice.key}/${option.id}/` })),
+  )
   const roster = [...(options.roster ?? []), selection]
   const found: Loadout[] = []
   const walk = (definition: Definition, trail: string[], left: number, seen: Set<string>) => {
@@ -291,9 +301,16 @@ function standingModels(entryId: string, selection: Selection, index: CatalogueI
       const here = [...trail, child.id]
       const held = allAt(selection, here).reduce((total, node) => total + (node.count ?? 1), 0)
       if (inner.type === 'model' && held > 0) {
+        const option = offered.find((candidate) => `${here.join('/')}/`.startsWith(candidate.path))
         found.push({
           profile: modelProfileOf(child.definition, index),
-          member: { id: child.id, name: inner.name ?? child.id, choiceKey: null, baseCount: held },
+          member: {
+            id: child.id,
+            name: inner.name ?? child.id,
+            choiceKey: null,
+            baseCount: held,
+            ...(option ? { within: { choiceKey: option.choiceKey, optionId: option.optionId } } : {}),
+          },
         })
       }
       walk(child.definition, here, left - 1, visited)

@@ -9,6 +9,7 @@ import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { migrateProductData } from './lib/productDataMigrations'
 import { reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack'
 import { moduleEnvironment } from './lib/spacetimeEnvironment'
+import { moduleEnvironmentHeaders } from 'ras-stack/spacetime'
 
 const cli = process.env.SPACETIME_BIN ?? path.join(os.homedir(), '.local/share/spacetime/bin/2.12.0/spacetimedb-cli')
 const execute = promisify(execFile)
@@ -73,7 +74,9 @@ it.skipIf(!existsSync(cli))(
       const identity = (await (await fetch(`${url}/v1/identity`, { method: 'POST' })).json()) as { identity: string; token: string }
       const send = async (pathname: string, body: BodyInit, token = identity.token, method: 'POST' | 'PUT' = 'POST') => {
         const headers = new Headers(
-          method === 'PUT' ? moduleEnvironment({ issuer: `${url}/api/auth`, audience: database, operator: identity.identity }) : [],
+          method === 'PUT'
+            ? moduleEnvironmentHeaders(moduleEnvironment({ issuer: `${url}/api/auth`, audience: database, operator: identity.identity }))
+            : [],
         )
         headers.set('authorization', `Bearer ${token}`)
         headers.set('content-type', pathname === '/sql' ? 'text/plain' : 'application/json')

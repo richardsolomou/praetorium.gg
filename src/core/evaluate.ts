@@ -507,10 +507,10 @@ export function hiddenByRules(
   definition: Definition,
   index: CatalogueIndex,
   options: EvaluateOptions = {},
-  enclosingRoot?: Definition,
+  lineage: readonly Definition[] = [],
 ): boolean {
   const census = new Census(0, options.modifierCache)
-  const { root, node } = candidateContext(definition, index, options, census, enclosingRoot)
+  const { root, node } = candidateContext(definition, index, options, census, lineage)
 
   let hidden = Boolean(definition.hidden || node.target.hidden)
   for (const modifier of modifiersOf(node, census)) {
@@ -687,7 +687,7 @@ function candidateContext(
   index: CatalogueIndex,
   options: EvaluateOptions,
   census: Census,
-  enclosingRoot?: Definition,
+  lineage: readonly Definition[] = [],
 ) {
   const counter = { next: 0 }
   const root: Node = {
@@ -700,29 +700,19 @@ function candidateContext(
     parent: null,
     children: [],
   }
-  const link = isLink(definition) ? definition : null
-  const target = link ? (index.definitions.get(link.targetId) ?? definition) : definition
   root.children = (options.roster ?? [])
     .map((selection) => build(selection, root, index, census, counter))
     .filter((each): each is Node => each !== null)
-  let parent = root
-  if (enclosingRoot) {
-    const enclosingLink = isLink(enclosingRoot) ? enclosingRoot : null
-    const enclosingTarget = enclosingLink ? (index.definitions.get(enclosingLink.targetId) ?? enclosingRoot) : enclosingRoot
-    parent = {
-      target: enclosingTarget,
-      order: counter.next++,
-      link: enclosingLink,
-      id: enclosingRoot.id,
-      count: 1,
-      parent: root,
-      children: [],
-    }
-    root.children = [...root.children, parent]
+  // The candidate sits inside every entry and group that offers it, so an `ancestor`
+  // condition sees the model carrying it as well as the unit.
+  let node = root
+  for (const each of [...lineage, definition]) {
+    const link = isLink(each) ? each : null
+    const target = link ? (index.definitions.get(link.targetId) ?? each) : each
+    const child: Node = { target, order: counter.next++, link, id: each.id, count: 1, parent: node, children: [] }
+    node.children = node === root ? [...root.children, child] : [child]
+    node = child
   }
-  const node: Node = { target, order: counter.next++, link, id: definition.id, count: 1, parent, children: [] }
-  if (parent === root) root.children = [...root.children, node]
-  else parent.children = [node]
   return { root, node }
 }
 

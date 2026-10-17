@@ -96,7 +96,10 @@ const faction: CatalogueFile = {
             id: 'enhancements',
             name: 'Enhancements',
             constraints: [{ id: 'enhancement-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
-            selectionEntries: [{ id: 'relic', name: 'Demanding Leader', type: 'upgrade' }],
+            selectionEntries: [
+              { id: 'relic', name: 'Demanding Leader', type: 'upgrade' },
+              { id: 'assault', name: 'Furious Assault (Upgrade)', type: 'upgrade' },
+            ],
           },
         ],
       },
@@ -192,7 +195,133 @@ const faction: CatalogueFile = {
           },
         ],
       },
+      {
+        id: 'recon-squad',
+        name: 'Recon Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'recon-troopers',
+            name: '9 Recon Troopers',
+            defaultSelectionEntryId: 'recon-lasgun',
+            constraints: [
+              { id: 'recon-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'recon-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'recon-lasgun',
+                name: 'Recon Trooper w/ Lasgun',
+                type: 'model',
+                constraints: [
+                  { id: 'recon-lasgun-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                  { id: 'recon-lasgun-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  {
+                    id: 'lasgun',
+                    name: 'Lasgun',
+                    type: 'upgrade',
+                    constraints: [{ id: 'lasgun-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+              {
+                id: 'recon-vox',
+                name: 'Recon Trooper w/ Vox-caster',
+                type: 'model',
+                constraints: [{ id: 'recon-vox-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'vox',
+                    name: 'Vox-caster',
+                    type: 'upgrade',
+                    constraints: [{ id: 'vox-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                  {
+                    id: 'vox-lasgun',
+                    name: 'Lasgun',
+                    type: 'upgrade',
+                    constraints: [{ id: 'vox-lasgun-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'tempestor',
+        name: 'Tempestor Prime',
+        type: 'model',
+        selectionEntries: [
+          {
+            id: 'scion-warlord',
+            name: 'Warlord',
+            type: 'upgrade',
+            constraints: [{ id: 'scion-warlord-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            entryLinks: [
+              {
+                id: 'renamed-warlord',
+                name: 'Warlord',
+                targetId: 'warlord-ability',
+                type: 'selectionEntry',
+                modifiers: [{ type: 'set', field: 'name', value: 'Militarum Tempestus Warlord' }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'battle-tank',
+        name: 'Battle Tank',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'hull',
+            name: 'Hull weapon',
+            defaultSelectionEntryId: 'hull-bolter',
+            constraints: [
+              { id: 'hull-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'hull-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              { id: 'hull-bolter', name: 'Heavy bolter', type: 'upgrade' },
+              { id: 'hull-lascannon', name: 'Lascannon', type: 'upgrade' },
+            ],
+          },
+          {
+            id: 'sponsons',
+            name: 'Sponsons',
+            defaultSelectionEntryId: 'sponson-bolters',
+            constraints: [
+              { id: 'sponsons-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'sponsons-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'sponson-bolters',
+                name: '2 Heavy bolters',
+                type: 'upgrade',
+                selectionEntries: [
+                  {
+                    id: 'sponson-bolter',
+                    name: 'Heavy bolter',
+                    type: 'upgrade',
+                    constraints: [
+                      { id: 'sponson-bolter-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                      { id: 'sponson-bolter-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
+                    ],
+                  },
+                ],
+              },
+              { id: 'sponson-flamers', name: '2 Heavy flamers', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
     ],
+    sharedSelectionEntries: [{ id: 'warlord-ability', name: 'Warlord', type: 'upgrade' }],
   },
 }
 
@@ -882,6 +1011,123 @@ Exported with BattleBase, Data Version: v20260826`,
     )
 
     expect(imported.units.map((unit) => unit.attachedTo)).toEqual([3, 4, 5, undefined, undefined, undefined])
+  })
+})
+
+describe('New Recruit text import', () => {
+  const list = (units: string) => `List (500 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+${units}
+
+Exported with New Recruit v36.49, Data Version: v2`
+
+  it('reads the force disposition it writes on its own line', () => {
+    const imported = importRosterFile(
+      { file: list('CHARACTERS\n\nLokhust Lord (80 Points)').replace('Detachment Points)\n', 'Detachment Points)\nPurge the Foe\n') },
+      loaded,
+    )
+
+    expect(imported).toMatchObject({ disposition: 'purge-the-foe', detachmentIds: ['pantheon'] })
+  })
+
+  it('attaches a leader listed with its bodyguard', () => {
+    const imported = importRosterFile(
+      {
+        file: list(`ATTACHED UNITS
+
+Attached unit 1
+
+Lokhust Lord (80 Points)
+• Attached as: Leader (Character)
+
+Immortals (70 Points)
+• Attached as: Bodyguard (Battleline)
+• 5x Immortal`),
+      },
+      loaded,
+    )
+
+    expect(imported.units.map((unit) => unit.attachedTo)).toEqual([1, undefined])
+  })
+
+  it('matches an enhancement it marks as an upgrade', () => {
+    const imported = importRosterFile(
+      { file: list('CHARACTERS\n\nLokhust Lord (80 Points)\n• Enhancements: Demanding Leader (Upgrade)') },
+      loaded,
+    )
+
+    expect(imported.units[0]?.choices?.enhancements).toBe('relic')
+  })
+
+  it('matches an enhancement the catalogue itself names as an upgrade', () => {
+    const imported = importRosterFile(
+      { file: list('CHARACTERS\n\nLokhust Lord (80 Points)\n• Enhancements: Furious Assault (Upgrade)') },
+      loaded,
+    )
+
+    expect(imported.units[0]?.choices?.enhancements).toBe('assault')
+  })
+
+  it('reads a model named without its loadout', () => {
+    const imported = importRosterFile(
+      { file: list('OTHER DATASHEETS\n\nRecon Squad (80 Points)\n• 9x Recon Trooper\n◦ 9x Lasgun') },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([])
+  })
+
+  it('swaps a default trooper for the specialist a list names', () => {
+    const imported = importRosterFile(
+      { file: list('OTHER DATASHEETS\n\nRecon Squad (80 Points)\n• 9x Recon Trooper\n◦ 9x Lasgun\n◦ 1x Vox-caster') },
+      loaded,
+    )
+    const unit = imported.units[0]!
+    const built = buildUnit(unit.entryId, loaded.index, unit.models, unit.choices, {
+      primaryCatalogueId: 'necrons',
+      spreads: unit.spreads,
+    })!
+
+    expect(wargearOf(built.selection, loaded.index)).toEqual([
+      { name: 'Lasgun', count: 9 },
+      { name: 'Vox-caster', count: 1 },
+    ])
+  })
+
+  it('keeps the default troopers when a list names no specialist', () => {
+    const imported = importRosterFile(
+      { file: list('OTHER DATASHEETS\n\nRecon Squad (80 Points)\n• 9x Recon Trooper\n◦ 9x Lasgun') },
+      loaded,
+    )
+    const unit = imported.units[0]!
+    const built = buildUnit(unit.entryId, loaded.index, unit.models, unit.choices, {
+      primaryCatalogueId: 'necrons',
+      spreads: unit.spreads,
+    })!
+
+    expect(wargearOf(built.selection, loaded.index)).toEqual([{ name: 'Lasgun', count: 9 }])
+  })
+
+  it('crowns a unit whose Warlord entry the catalogue renames', () => {
+    const imported = importRosterFile(
+      { file: list('CHARACTERS\n\nTempestor Prime (100 Points)\n• 1x Militarum Tempestus Warlord') },
+      loaded,
+    )
+
+    expect(imported.units[0]?.toggles).toEqual({ 'scion-warlord': 1 })
+  })
+
+  it('reads a hull weapon apart from the sponsons that share a name with the other option', () => {
+    const imported = importRosterFile(
+      { file: list('OTHER DATASHEETS\n\nBattle Tank (150 Points)\n• 2x Heavy bolter\n• 1x Lascannon') },
+      loaded,
+    )
+
+    expect(imported.units[0]?.choices?.hull).toBe('hull-lascannon')
   })
 })
 

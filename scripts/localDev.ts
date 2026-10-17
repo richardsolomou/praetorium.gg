@@ -11,6 +11,7 @@ import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDe
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
+import { callSpacetime, publishSpacetimeModule } from 'ras-stack/spacetime'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
@@ -142,46 +143,14 @@ async function credentials(): Promise<Credentials> {
   return value
 }
 
-async function spacetime(method: string, pathname: string, credentialToken: string, body: BodyInit, extra: [string, string][] = []) {
-  const headers = new Headers(extra)
-  headers.set('authorization', `Bearer ${credentialToken}`)
-  if (typeof body === 'string') headers.set('content-type', 'application/json')
-  const response = await fetch(`${spacetimeUrl}${pathname}`, {
-    method,
-    headers,
-    body,
-    signal: AbortSignal.timeout(60_000),
-  })
-  if (!response.ok)
-    throw new Error(
-      `Local SpacetimeDB ${pathname.split('?')[0]} failed with HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`,
-    )
-}
-
 async function configure(value: Credentials) {
   const bundle = await readFile(path.join(root, 'module/spacetimedb/dist/bundle.js'))
-  const migration = await fetch(`${spacetimeUrl}/v1/database/${database}/pre_publish?host_type=Js`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${value.owner.token}`, 'content-type': 'application/octet-stream' },
-    body: bundle,
-    signal: AbortSignal.timeout(60_000),
+  await publishSpacetimeModule({ url: spacetimeUrl, database, token: value.owner.token }, bundle, {
+    environment: moduleEnvironment({ issuer: `${publicUrl}/api/auth`, audience: database, operator: value.operator.identity }),
+    breakClients: true,
+    timeoutMs: 60_000,
   })
-  let query = '?host_type=Js'
-  if (migration.status === 200) {
-    const plan = (await migration.json()) as { AutoMigrate?: { token?: string } }
-    if (!plan.AutoMigrate?.token) throw new Error('The local product module requires a manual migration; saved data was retained.')
-    query += `&policy=BreakClients&token=${encodeURIComponent(plan.AutoMigrate.token)}`
-  } else if (migration.status !== 404) {
-    throw new Error(`Local product migration planning failed with HTTP ${migration.status}.`)
-  }
-  await spacetime(
-    'PUT',
-    `/v1/database/${database}${query}`,
-    value.owner.token,
-    bundle,
-    moduleEnvironment({ issuer: `${publicUrl}/api/auth`, audience: database, operator: value.operator.identity }),
-  )
-  await spacetime('POST', `/v1/database/${database}/call/operator_health`, value.operator.token, '[]')
+  await callSpacetime({ url: spacetimeUrl, database, token: value.operator.token }, 'operator_health', [])
   const migrated = await migrateProductData({
     url: spacetimeUrl,
     database,

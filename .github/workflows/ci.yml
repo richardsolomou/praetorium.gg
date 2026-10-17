@@ -45,6 +45,20 @@ jobs:
       - run: pnpm test:integration
       - run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
 
+  spacetime-bindings:
+    name: SpacetimeDB bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
+        with:
+          version: '2.12.0'
+          sha256: 154853dd882abe1e6f8b96e169f9ca43a075df006dd33116b85d03c59a912f89
+      - uses: richardsolomou/ras-stack/actions/check-spacetime-bindings@v1
+        with:
+          out-dir: src/spacetime/generated
+          format-command: pnpm exec oxfmt src/spacetime/generated
   build:
     runs-on: ubuntu-latest
     # A compile that no build has shared yet is uploaded under its key for every later build and deployment.

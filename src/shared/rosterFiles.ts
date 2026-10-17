@@ -3,7 +3,7 @@ import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, nameOf } from '../core/catalogue'
-import { childrenOf, modelProfileOf, resolve } from '../core/definitions'
+import { childrenOf, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText, toCompactText } from '../core/newRecruit'
 import { defaultSelection } from '../core/expand'
@@ -371,7 +371,8 @@ function textRosterPick(
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
   for (const selection of unit.selections) {
-    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*/i, '').trim()
+    // New Recruit marks a unit upgrade it lists among enhancements with "(Upgrade)".
+    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+?)(?:\s+\(Upgrade\))?$/i, '$1').trim()
     const name = normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
@@ -383,24 +384,33 @@ function textRosterPick(
   const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const selection = built?.selection ?? { id: entryId, count: 1 }
   const choices = unitChoices(entryId, selection, loaded.index, context)
-  const toggles = Object.fromEntries(
-    unitToggles(entryId, selection, loaded.index, context).map((toggle) => [toggle.key, unit.warlord ? 1 : 0]),
-  )
+  const warlordNames = warlordAliases(entryId, loaded.index)
+  const warlord = unit.warlord || [...warlordNames].some((name) => stated.has(name))
+  const toggles = Object.fromEntries(unitToggles(entryId, selection, loaded.index, context).map((toggle) => [toggle.key, warlord ? 1 : 0]))
   const aliases = choices.map((choice) => optionAliases(choice.options, loaded, context))
-  const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated)]))
-  const placed = placeableNames(selection, aliases, models, unit.name, loaded)
+  const held = new Map<string, number>()
+  for (const piece of wargearOf(selection, loaded.index))
+    held.set(normalized(piece.name), (held.get(normalized(piece.name)) ?? 0) + piece.count)
+  const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated, held)]))
+  const offeredBy = new Map<string, number>()
+  for (const choice of aliases) {
+    for (const name of new Set([...choice.values()].flatMap((names) => [...names.keys()]))) {
+      offeredBy.set(name, (offeredBy.get(name) ?? 0) + 1)
+    }
+  }
+  const placed = new Set([...placeableNames(selection, aliases, models, unit.name, loaded), ...warlordNames])
   const pick = {
     entryId,
     catalogueId,
     models: built?.size.models ?? 1,
     choices: Object.fromEntries(
-      choices
-        .filter((choice) => choice.room === 1)
-        .map((choice) => [
-          choice.key,
-          choice.options.find((option) => statedChoiceCounts.get(choice.key)?.has(option.id))?.id ?? choice.chosen,
-        ])
-        .filter(([, chosen]) => Boolean(chosen)),
+      choices.flatMap((choice, at) => {
+        if (choice.room !== 1) return []
+        // An optional choice takes nothing the list gives it no count for.
+        const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(([, count]) => !choice.optional || count > 0)
+        const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), stated, offeredBy) ?? choice.chosen
+        return chosen ? [[choice.key, chosen]] : []
+      }),
     ),
     spreads: Object.fromEntries(
       choices
@@ -410,7 +420,9 @@ function textRosterPick(
           const explicit = counts.size > 0
           return [
             choice.key,
-            Object.fromEntries(choice.options.map((option) => [option.id, counts.get(option.id) ?? (explicit ? 0 : option.count)])),
+            Object.fromEntries(
+              choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
+            ),
           ]
         }),
     ),
@@ -428,14 +440,17 @@ function textRosterPick(
   // A crown this datasheet cannot wear, and a squad size it does not field, are both
   // choices the list states and this build could not take. Only a stated size counts:
   // an export that prints no model count leaves one to be inferred from its weapons.
-  if (unit.warlord && !Object.keys(toggles).length) unplaced.push({ name: 'Warlord', reason: WARLORD_REASON })
+  if (warlord && !Object.keys(toggles).length) unplaced.push({ name: 'Warlord', reason: WARLORD_REASON })
   if (unit.models !== undefined && unit.models !== null && built && built.size.models !== unit.models) {
     unplaced.push({ name: `${unit.models} models`, reason: squadSizeReason(built.size) })
   }
   return { pick, unplaced }
 }
 
-/** Every kind of model a datasheet can field, by entry and stat-line name, so stated model lines size the squad. */
+/**
+ * Every kind of model a datasheet can field, by entry and stat-line name, so stated model lines size the squad.
+ * Exporters can name a "Recon Trooper w/ Long-las" by the model alone.
+ */
 function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Set<string>()
   const seen = new Set<string>()
@@ -444,9 +459,11 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
     if (seen.has(target.id)) return
     seen.add(target.id)
     if (target.type === 'model') {
-      names.add(normalized(nameOf(definition, index.definitions)))
-      const profile = modelProfileOf(definition, index)
-      if (profile) names.add(normalized(profile))
+      for (const name of [nameOf(definition, index.definitions), modelProfileOf(definition, index)]) {
+        if (!name) continue
+        names.add(normalized(name))
+        names.add(normalized(name.replace(/\s+w\/\s.+$/i, '')))
+      }
     }
     for (const child of childrenOf(target, index)) walk(child.definition)
   }
@@ -455,7 +472,31 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   return names
 }
 
-/** Each option under every name a list could call it by: its own, and the wargear taking it brings. */
+/** What a datasheet's Warlord entries are renamed to, such as "Militarum Tempestus Warlord", which exporters list as wargear. */
+function warlordAliases(entryId: string, index: LoadedCatalogue['index']) {
+  const names = new Set<string>()
+  const seen = new Set<string>()
+  const walk = (definition: Definition, inWarlord: boolean) => {
+    if (seen.has(definition.id)) return
+    seen.add(definition.id)
+    const target = resolve(definition, index)
+    const warlord = inWarlord || isRosterToggle(target.name ?? definition.name)
+    if (warlord) {
+      for (const modifier of definition.modifiers ?? []) {
+        const unconditional = !modifier.conditions?.length && !modifier.conditionGroups?.length
+        if (modifier.field === 'name' && modifier.type === 'set' && unconditional && typeof modifier.value === 'string') {
+          names.add(normalized(modifier.value))
+        }
+      }
+    }
+    for (const child of childrenOf(target, index)) walk(child.definition, warlord)
+  }
+  const root = index.definitions.get(entryId)
+  if (root) walk(root, false)
+  return names
+}
+
+/** Each option under every name a list could call it by, its own and the wargear taking it brings, with how many one option holds. */
 function optionAliases(
   options: readonly { id: string; name: string }[],
   loaded: LoadedCatalogue,
@@ -464,8 +505,10 @@ function optionAliases(
   return new Map(
     options.map((option) => {
       const selection = defaultSelection(option.id, loaded.index, context)
-      const names = [option.name, ...(selection ? wargearOf(selection, loaded.index).map((piece) => piece.name) : [])]
-      return [option.id, new Set(names.map(normalized))]
+      // Some catalogues name an enhancement with the "(Upgrade)" New Recruit adds to others.
+      const names = new Map([option.name, option.name.replace(/\s+\(Upgrade\)$/i, '')].map((name) => [normalized(name), 1]))
+      for (const piece of selection ? wargearOf(selection, loaded.index) : []) names.set(normalized(piece.name), piece.count)
+      return [option.id, names]
     }),
   )
 }
@@ -479,13 +522,13 @@ function optionAliases(
  */
 function placeableNames(
   selection: Selection,
-  aliases: readonly ReadonlyMap<string, Set<string>>[],
+  aliases: readonly ReadonlyMap<string, ReadonlyMap<string, number>>[],
   models: ReadonlySet<string>,
   unitName: string,
   loaded: LoadedCatalogue,
 ) {
   const names = new Set([normalized(unitName), ...models])
-  for (const choice of aliases) for (const option of choice.values()) for (const name of option) names.add(name)
+  for (const choice of aliases) for (const option of choice.values()) for (const name of option.keys()) names.add(name)
   for (const piece of wargearOf(selection, loaded.index)) names.add(normalized(piece.name))
   const walk = (node: Selection) => {
     const definition = loaded.index.definitions.get(node.id)
@@ -496,21 +539,48 @@ function placeableNames(
   return names
 }
 
-function countsForChoice(
-  options: readonly { id: string; name: string }[],
-  aliases: ReadonlyMap<string, Set<string>>,
+/**
+ * The option a one-pick choice takes. A name no other choice offers decides it, so a
+ * hull lascannon is not read as one of the heavy bolters the sponsons account for.
+ */
+function singleChoice(
+  options: readonly { id: string }[],
+  aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
+  counts: ReadonlyMap<string, number> | undefined,
   stated: ReadonlyMap<string, number>,
+  offeredBy: ReadonlyMap<string, number>,
+) {
+  const candidates = options.filter((option) => counts?.has(option.id))
+  const exclusive = candidates.find((option) =>
+    [...(aliases.get(option.id)?.keys() ?? [])].some((name) => offeredBy.get(name) === 1 && stated.has(name)),
+  )
+  return (exclusive ?? candidates[0])?.id
+}
+
+function countsForChoice(
+  options: readonly { id: string; name: string; count: number }[],
+  aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
+  stated: ReadonlyMap<string, number>,
+  held: ReadonlyMap<string, number>,
 ) {
   const owners = new Map<string, number>()
-  for (const names of aliases.values()) for (const name of names) owners.set(name, (owners.get(name) ?? 0) + 1)
+  for (const names of aliases.values()) for (const name of names.keys()) owners.set(name, (owners.get(name) ?? 0) + 1)
 
+  // The fewest any distinctive name allows: a lasgun the sergeant also carries is
+  // stated for more models than took the option that brings one. What the rest of the
+  // unit already carries is not this choice's to claim, so troopers' lasguns are not
+  // vox-casters; a name nobody else carries says it best.
+  const inChoice = (name: string) => options.reduce((total, option) => total + option.count * (aliases.get(option.id)?.get(name) ?? 0), 0)
   const distinctiveCounts = new Map<string, number>()
   for (const option of options) {
-    const distinctive = [...(aliases.get(option.id) ?? [])]
-      .filter((name) => owners.get(name) === 1)
-      .map((name) => stated.get(name))
-      .filter((count): count is number => count !== undefined)
-    if (distinctive.length) distinctiveCounts.set(option.id, Math.max(...distinctive))
+    const owned = [...(aliases.get(option.id) ?? [])]
+      .filter(([name]) => owners.get(name) === 1 && stated.has(name))
+      .map(([name, each]) => ({ elsewhere: Math.max(0, (held.get(name) ?? 0) - inChoice(name)), stated: stated.get(name)!, each }))
+    const alone = owned.filter((name) => name.elsewhere === 0)
+    const distinctive = (alone.length ? alone : owned).map(({ elsewhere, stated: count, each }) =>
+      Math.ceil(Math.max(0, count - elsewhere) / Math.max(1, each)),
+    )
+    if (distinctive.length) distinctiveCounts.set(option.id, Math.min(...distinctive))
   }
   if (distinctiveCounts.size) return distinctiveCounts
 

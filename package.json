@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.155.0",
+  "version": "0.155.2",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
@@ -104,7 +104,7 @@
     "posthog-js": "^1.438.4",
     "posthog-node": "^5.55.1",
     "qrcode": "^1.5.4",
-    "ras-stack": "^4.0.0",
+    "ras-stack": "^4.2.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "10.1.0",
