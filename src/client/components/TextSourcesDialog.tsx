@@ -38,7 +38,7 @@ export function TextSourceRow({
       </div>
       <span className="flex shrink-0 items-center gap-2 text-xs text-dim">
         <span className="hidden sm:inline">Load on this device</span>
-        <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+        <Switch id={id} data-text-source-switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
       </span>
     </div>
   )

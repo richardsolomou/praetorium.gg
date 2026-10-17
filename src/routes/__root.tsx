@@ -8,6 +8,7 @@ import { PageState } from '../client/components/PageState'
 import { siteMeta } from '../client/linkPreview'
 import { AppShell } from '../client/features/shell/AppShell'
 import { meQuery } from '../client/queries'
+import { TEXT_SOURCES_SCRIPT } from '../client/rulesText'
 import { TEXT_SIZE_SCRIPT } from '../client/textSize'
 import appCss from '../styles.css?url'
 
@@ -29,7 +30,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
       { name: 'theme-color', content: '#0e1316' },
       ...siteMeta(match.context.origin),
     ],
-    scripts: [{ children: TEXT_SIZE_SCRIPT }],
+    scripts: [{ children: TEXT_SIZE_SCRIPT }, { children: TEXT_SOURCES_SCRIPT }],
     links: [
       ...(offlineData() ? [] : [{ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }]),
       ...(offlineData() ? [] : [{ rel: 'stylesheet', href: appCss }]),

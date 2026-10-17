@@ -831,3 +831,24 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 }
+
+/*
+ * Before hydration the server draws both sides of every rules-text gap and the head script
+ * puts this device's choice on the document (`TEXT_SOURCES_SCRIPT`), so the first frame is
+ * already the reader's own: a wait where a chosen source will fill it, the question where none
+ * will. A gap that cannot name its source yet counts any chosen source as its own.
+ */
+html[data-text-sources] [data-text-sources-notice],
+html:not([data-text-sources~='bsdata']) [data-text-gap='bsdata'] > [data-text-gap-wait],
+html:not([data-text-sources~='game-datacards']) [data-text-gap='game-datacards'] > [data-text-gap-wait],
+html:is(:not([data-text-sources]), [data-text-sources='']) [data-text-gap='any'] > [data-text-gap-wait],
+html[data-text-sources~='bsdata'] [data-text-gap='bsdata'] > [data-text-gap-ask],
+html[data-text-sources~='game-datacards'] [data-text-gap='game-datacards'] > [data-text-gap-ask],
+html[data-text-sources]:not([data-text-sources='']) [data-text-gap='any'] > [data-text-gap-ask] {
+  display: none;
+}
+
+/* A data sources switch waits for the stored choice unseen, keeping its place, rather than drawing off and flipping on. */
+[data-text-source-switch][data-disabled] {
+  visibility: hidden;
+}

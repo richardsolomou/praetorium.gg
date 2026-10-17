@@ -28,7 +28,8 @@ export function writeStoredValue(key: string, value: string | null) {
   return kept
 }
 
-function subscribe(changed: () => void) {
+/** Calls `changed` after any stored value changes, in this tab or another. */
+export function subscribeStoredValues(changed: () => void) {
   const fromOtherTab = (event: StorageEvent) => {
     if (event.key !== null) written.delete(event.key)
     changed()
@@ -44,7 +45,7 @@ function subscribe(changed: () => void) {
 /** A browser storage entry as rendering state: null on the server and while hydrating, then current in every tab. */
 export function useStoredValue(key: string) {
   return useSyncExternalStore(
-    subscribe,
+    subscribeStoredValues,
     () => readStoredValue(key),
     () => null,
   )

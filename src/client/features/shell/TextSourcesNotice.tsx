@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { openTextSourcesDialog } from '../../components/TextSourcesDialog'
 import { chooseTextSources, useTextSourceChoice } from '../../rulesText'
-import { useHydrated } from '../../useClientValue'
 
 /**
  * Asks every new device, signed in or not, where its rules text should come from, until it
@@ -9,9 +8,8 @@ import { useHydrated } from '../../useClientValue'
  */
 export function TextSourcesNotice({ path }: { path: string }) {
   const choice = useTextSourceChoice()
-  // The stored answer is unknown until hydration, so a device that answered never sees it flash.
-  const hydrated = useHydrated()
-  if (!hydrated || choice.decided || path === '/sources') return null
+  // Drawn by the server too, so it never pushes the page down late; a device that answered hides it from the first frame (styles.css).
+  if (choice.decided || path === '/sources') return null
   return (
     <aside
       aria-label="Rules text"
