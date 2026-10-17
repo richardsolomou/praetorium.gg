@@ -16,6 +16,7 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
         slug: 'core',
         title: 'Core Rules',
         updated: null,
+        text: null,
         sections: [
           {
             id: 'movement',

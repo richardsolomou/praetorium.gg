@@ -17,6 +17,8 @@ import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
+import { TextSourcesNotice } from './TextSourcesNotice'
+import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
@@ -230,6 +232,7 @@ export function AppShell() {
                   <OfflineReference />
                   <AppPersistence />
                   <SyncStatus />
+                  <TextSourcesNotice path={path} />
                   <WebMcp />
                   <Outlet />
                 </div>
@@ -242,14 +245,14 @@ export function AppShell() {
                 />
                 <OnboardingGuide />
                 <FeedbackDialog />
+                <TextSourcesDialog />
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.
-                 * The community data has its own attribution, which appears where that
-                 * data does — see `ATTRIBUTION` in `src/server/rules.ts`.
+                 * The community data is credited on /sources, where readers choose its text.
                  */}
                 {immersive ? null : (
                   <footer

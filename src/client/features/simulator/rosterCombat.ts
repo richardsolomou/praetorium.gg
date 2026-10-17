@@ -1,4 +1,5 @@
 import type { RosterPick } from '../../../core/roster'
+import { readableCombatant } from './readableRules'
 import { combatRuleSelections } from '../../../core/combatRules'
 import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
 import type { CombatResult } from '../../../core/combat'
@@ -35,10 +36,11 @@ export function rosterCombatIndices(picks: readonly RosterPick[]) {
 }
 
 export function rosterCombatSnapshot(
-  data: ProjectedCombatant,
+  combatant: ProjectedCombatant,
   picks: readonly RosterPick[],
   live?: { units: NonNullable<CombatRoster['battle']>['units']; pickIndex: number },
 ): CombatantSnapshot {
+  const data = readableCombatant(combatant)
   const selections = combatRuleSelections([...data.rules, ...data.companions.flatMap((member) => member.rules)], {})
   const snapshot: CombatantSnapshot = {
     sheet: data.selected,

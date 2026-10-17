@@ -1,7 +1,9 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { ruleDocumentFrom } from '../shared/ruleDocuments'
 import { loadRuleDocuments, ruleIndexOf, ruleSectionOf } from './rulesCore'
 
 let directory: string
@@ -102,7 +104,12 @@ beforeEach(() => {
   })
 })
 
-const load = () => loadRuleDocuments(directory)
+const origin = { repository: 'owner/datasources', revision: 'a'.repeat(40), path: '11th/gdc' }
+const load = () => loadRuleDocuments(directory, origin)
+const coreRulesFile = () => path.join(directory, 'core', 'core_rules.json')
+/** The document as a reader's browser reads it from the same file. */
+const full = () => ruleDocumentFrom(JSON.parse(fs.readFileSync(coreRulesFile(), 'utf8')))
+const entries = (document: ReturnType<typeof full>) => (document?.sections ?? []).flatMap((section) => section.entries)
 
 describe('reading a rules document', () => {
   it('reads every document the snapshot holds', () => {
@@ -145,7 +152,7 @@ describe('reading a rules document', () => {
   })
 
   it('orders a rule’s own prose, headings and clarifications as the source does', () => {
-    expect(load()[0]?.sections[0]?.entries[1]?.blocks.map((block) => block.kind)).toEqual(['prose', 'heading', 'clarification'])
+    expect(full()?.sections[0]?.entries[1]?.blocks.map((block) => block.kind)).toEqual(['prose', 'heading', 'clarification'])
   })
 
   it('leaves the printed rulebook photography out', () => {
@@ -160,11 +167,7 @@ describe('reading a rules document', () => {
 })
 
 describe('what a rule states beside its prose', () => {
-  const entry = (code: string) =>
-    load()
-      .flatMap((document) => document.sections)
-      .flatMap((section) => section.entries)
-      .find((candidate) => candidate.code === code)
+  const entry = (code: string) => entries(full()).find((candidate) => candidate.code === code)
 
   it('labels each field the way the source names it', () => {
     expect(entry('09.04')?.facts.map((fact) => fact.label)).toEqual(['Eligible if', 'After moving', 'Effect', 'Something new'])
@@ -184,6 +187,45 @@ describe('what a rule states beside its prose', () => {
 
   it('keeps the lore apart from what the stratagem does', () => {
     expect(entry('09.05')?.lore).toBe('A great commander can bend fate.')
+  })
+})
+
+describe('what the server publishes of a document', () => {
+  const entry = (code: string) => entries(load()[0] ?? null).find((candidate) => candidate.code === code)
+
+  it('leaves out the rules prose', () => {
+    expect(entries(load()[0] ?? null).flatMap((candidate) => candidate.blocks.filter((block) => block.kind === 'prose'))).toEqual([])
+  })
+
+  it('names a clarification without its text', () => {
+    expect(entry('03.01')?.blocks.find((block) => block.kind === 'clarification')).toMatchObject({
+      title: 'Rotating a Model',
+      markup: null,
+    })
+  })
+
+  it('leaves out what a stratagem states', () => {
+    expect(entry('09.05')?.facts).toEqual([])
+  })
+
+  it('leaves out a stratagem’s lore', () => {
+    expect(entry('09.05')?.lore).toBeNull()
+  })
+
+  it('keeps what a stratagem costs', () => {
+    expect(entry('09.05')?.cost).toBe(1)
+  })
+
+  it('points at the pinned upstream file the text is read from', () => {
+    expect(load()[0]?.text?.url).toBe(`https://raw.githubusercontent.com/owner/datasources/${'a'.repeat(40)}/11th/gdc/core/core_rules.json`)
+  })
+
+  it('names the SHA-256 of the file it read, so a reader’s browser can refuse any other', () => {
+    expect(load()[0]?.text?.sha256).toBe(createHash('sha256').update(fs.readFileSync(coreRulesFile())).digest('hex'))
+  })
+
+  it('gives every rule the address the full document gives it', () => {
+    expect(entries(load()[0] ?? null).map((candidate) => candidate.anchor)).toEqual(entries(full()).map((candidate) => candidate.anchor))
   })
 })
 

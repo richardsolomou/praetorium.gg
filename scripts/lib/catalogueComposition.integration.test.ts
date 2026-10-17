@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { wordsFrom } from '../../src/server/sourceTexts.fixtures'
 import os from 'node:os'
 import path from 'node:path'
 import { zipSync } from 'fflate'
@@ -280,7 +281,7 @@ it('keeps explicitly pinned preview points and army-rule text out of the release
     currentPoints: price(current, 'cat'),
     previewPoints: price(preview, 'custodes-codex~cat'),
     currentText: current.datacards.armyRules.get('test-army-rule'),
-    previewText: preview.datacards.armyRules.get('test-army-rule'),
+    previewText: wordsFrom(directory)(preview.datacards.armyRules.get('test-army-rule') ?? ''),
   }).toEqual({ currentPoints: 110, previewPoints: 135, currentText: undefined, previewText: 'Preview-only rule text.' })
 })
 

@@ -18,7 +18,7 @@ import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
-import { type Passenger, type TransportLoad, transportLoad, transportRule } from './transport'
+import { type Passenger, type PrintedTransport, type TransportLoad, transportLoad, transportRule } from './transport'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
 import { applyMissionSelection, missionSelectionRefusal, recordBeaconDestruction, type SavedMissionSelection } from './missionSelections'
@@ -160,8 +160,10 @@ type SubmittedUnit = {
   strategicReserveExempt?: boolean
   /** Whether the frozen datasheet can carry other units. */
   transport?: boolean
-  /** The transport's printed rule, frozen with the roster. */
+  /** The transport's printed rule, frozen with the roster: its text in older logs, a token for it in newer ones. */
   transportRule?: string
+  /** What the printed rule states, frozen with the roster since its text is published only as a token; absent from older logs. */
+  transportCapacity?: PrintedTransport
   /** The datasheet's keywords, which a transport's rule names to say who may ride; absent from older logs. */
   keywords?: string[]
 }
@@ -207,10 +209,10 @@ export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[]
 
 /** What a transport holds if these passengers ride in it, or why they cannot. */
 export function transportLoadOf(
-  transport: Pick<UnitState, 'transportRule' | 'wargear'> | undefined,
+  transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
   passengers: readonly Passenger[],
 ): TransportLoad | Refusal {
-  const rule = transportRule(transport?.transportRule, transport?.wargear)
+  const rule = transportRule(transport?.transportCapacity ?? transport?.transportRule, transport?.wargear)
   return rule ? transportLoad(rule, passengers) : refuse('transport-capacity-unknown', 'this transport has no known model capacity')
 }
 

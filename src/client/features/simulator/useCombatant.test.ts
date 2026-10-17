@@ -82,6 +82,8 @@ vi.mock('../../queries', () => ({
   combatLoadoutsQuery: () => ({ kind: 'loadouts' }),
 }))
 vi.mock('../../useSettled', () => ({ useSettled: (picks: readonly RosterPick[]) => hooks.settled ?? picks }))
+// Rules here carry their words, so nothing needs loading.
+vi.mock('../../sourceText', () => ({ useSourceTexts: () => ({ chosen: false, loaded: 0 }), loadedWords: (text: string) => text }))
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ kind, args }: { kind: string; args: unknown[] }) => ({
     data:

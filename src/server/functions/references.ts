@@ -5,7 +5,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { unitWoundsIn } from '../../shared/catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
-import { detachmentReference } from '../../shared/detachmentReference'
+import { publishedTextFiles } from '../publishedTextFiles'
 import { unitsIn } from '../../shared/cataloguePicker'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
@@ -21,7 +21,7 @@ import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
-import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
+import { publishedDetachmentReference, referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
   datasheetOfferedBySchema,
@@ -292,7 +292,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
       cacheUntilSnapshotChanges()
       const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
-      return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
+      return rules && catalogue ? publishedDetachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
     }),
   )
 
@@ -321,6 +321,14 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
     const rules = await app().battleReadRulesFor()
     if (!rules) return null
     return gameReferencesFor(rules)
+  }),
+)
+
+/** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
+export const textSources = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    cacheUntilSnapshotChanges()
+    return publishedTextFiles()
   }),
 )
 

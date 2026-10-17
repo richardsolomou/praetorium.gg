@@ -3,8 +3,18 @@ import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { datasheetInBySlug } from '../shared/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
+import { detachmentReference } from '../shared/detachmentReference'
+import { withDefinitionTokens } from './sourceTexts'
 import type { LoadedRules } from './rules'
 import { ruleIndexOf, ruleSectionOf } from './rulesCore'
+
+/** A faction as the browser gets it: BSData's words in its army rules published as tokens, like every page. */
+export const publishedFaction = <T>(faction: T, catalogue: LoadedCatalogue | null) =>
+  withDefinitionTokens(faction, catalogue?.definitionTexts)
+
+/** A detachment's reference page data, with BSData's words published as tokens; rules that compute from it read `detachmentReference`. */
+export const publishedDetachmentReference = (catalogue: LoadedCatalogue, rules: LoadedRules, catalogueId: string, slug: string) =>
+  withDefinitionTokens(detachmentReference(catalogue, rules, catalogueId, slug), catalogue.definitionTexts)
 
 type ReferenceSources = {
   canonicalCatalogue: () => CanonicalCatalogue | null

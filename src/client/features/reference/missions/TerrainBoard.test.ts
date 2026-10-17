@@ -126,7 +126,7 @@ it('marks traced placement distances as approximate while preserving printed dis
   expect([...markup.matchAll(/<text[^>]+>([^<]*″)<\/text>/g)].map((match) => match[1])).toEqual(['8″', '≈14¾″'])
 })
 
-it('credits the publisher whose diagrams a traced layout follows', () => {
+it('says a traced layout places its pieces approximately', () => {
   const markup = renderToStaticMarkup(
     createElement(TerrainBoard, {
       layout: {
@@ -139,7 +139,7 @@ it('credits the publisher whose diagrams a traced layout follows', () => {
       detailed: true,
     }),
   )
-  expect(markup).toContain('href="https://playontabletop.com/kotc/"')
+  expect(markup).toContain('those positions are approximate')
 })
 
 it('keeps a detailed traced square battlefield free of edge rulers', () => {

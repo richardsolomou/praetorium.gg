@@ -20,6 +20,7 @@ export const PRAETORIUM_GUIDE = {
   dataModel: [
     'Game data is fetched from verified community snapshots and does not live in the repository.',
     'Reference results carry canonical URLs, source revisions, and attribution.',
+    'Praetorium returns names, numbers, points, and computed results, never rules text. A record or section that withholds rules text lists textSources: the pinned upstream file, its source, and the record id to find in it. Fetch that file yourself if you need the wording.',
     'Missing, conflicting, or unavailable source facts remain explicit. They must not be repaired or guessed from model memory.',
     'Battle state is derived from an append-only command log rather than stored as a second mutable score or phase.',
   ],
@@ -27,7 +28,7 @@ export const PRAETORIUM_GUIDE = {
     'Use list_reference to discover factions, rule documents, mission packs, kinds, and the active snapshot.',
     'For roster planning, call list_units once with the faction, battle size, and optional detachment to get unit-size costs, composition, attachments, limits, and detachment rules instead of reading every datasheet.',
     'To compare two units in combat, call simulate_combat with unit ids from list_units instead of calculating odds yourself; report refused or notCalculated rules rather than estimating them.',
-    'Use search_reference to locate source text, then get_reference or get_reference_record before answering.',
+    'Use search_reference to find a record by name or number, then get_reference or get_reference_record before answering. Fetch the textSources URLs when the answer depends on a rule’s exact wording.',
     'Use faction, pack, and document filters when names or rule numbers are ambiguous.',
     'Cite the canonical URL and preserve the result attribution. Say when the source does not provide an answer.',
   ],
@@ -38,6 +39,7 @@ export const PRAETORIUM_MCP_INSTRUCTIONS = [
   'Public reference tools work without signing in. Account tools require OAuth sign-in; read and write access have separate scopes.',
   ...PRAETORIUM_GUIDE.agentWorkflow,
   PRAETORIUM_GUIDE.dataModel[2],
+  PRAETORIUM_GUIDE.dataModel[3],
 ].join(' ')
 
 export function praetoriumGuideMarkdown() {

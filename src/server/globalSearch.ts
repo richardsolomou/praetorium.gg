@@ -1,4 +1,6 @@
 import { searchAll, type OwnSearchData } from '../core/referenceSearch'
+import { withoutText } from '../shared/sourceText'
+
 import type {
   GlobalSearchIndex,
   GlobalSearchResult,
@@ -6,6 +8,7 @@ import type {
   IndexedDatasheet,
   IndexedDetachment,
 } from '../contracts/referenceSearch'
+
 export type { GlobalSearchIndex, GlobalSearchResult } from '../contracts/referenceSearch'
 import { nameOf, targetOf } from '../core/catalogue'
 import { datasheetSearchFieldsIn } from '../shared/catalogue'
@@ -18,6 +21,9 @@ import { gameReferencesFor } from '../shared/gameReferences'
 import { ruleIndexOf } from './rulesCore'
 import { factionReferenceHref } from '../core/factionReferenceRoute'
 import type { LoadedRules } from './rules'
+
+/** Search reads what a text says where it says it here; a token says nothing to search. */
+const searchable = <T extends string | null>(text: T) => (text === null ? text : withoutText(text)) as T
 
 type Sources = {
   catalogue: LoadedCatalogue | null
@@ -57,10 +63,26 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
       detachments.push({
         search: detachment.name.toLowerCase(),
         cards: [
-          ...(detail?.rules ?? []).map((card) => ({ kind: 'detachment rule' as const, name: card.name, description: card.description })),
-          ...(detail?.enhancements ?? []).map((card) => ({ kind: 'enhancement' as const, name: card.name, description: card.description })),
-          ...(detail?.upgrades ?? []).map((card) => ({ kind: 'upgrade' as const, name: card.name, description: card.description })),
-          ...(detail?.stratagems ?? []).map((card) => ({ kind: 'stratagem' as const, name: card.name, description: card.description })),
+          ...(detail?.rules ?? []).map((card) => ({
+            kind: 'detachment rule' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
+          ...(detail?.enhancements ?? []).map((card) => ({
+            kind: 'enhancement' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
+          ...(detail?.upgrades ?? []).map((card) => ({
+            kind: 'upgrade' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
+          ...(detail?.stratagems ?? []).map((card) => ({
+            kind: 'stratagem' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
         ],
         result: {
           id: `detachment:${faction.id}:${detachment.id}`,

@@ -80,7 +80,11 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
               {join ? <AwardJoin join={join} /> : null}
               <div className="flex items-center justify-between gap-4 py-2">
                 <div className="text-base text-bone">
-                  <RuleText text={conditionLabel(award) ?? payoutLabel(award, awards)} className="mt-0 inline text-base text-bone" />
+                  <RuleText
+                    text={conditionLabel(award) ?? payoutLabel(award, awards)}
+                    authored={conditionLabel(award) === null}
+                    className="mt-0 inline text-base text-bone"
+                  />
                 </div>
                 <span className="chip shrink-0 text-lg text-bone">{award.vp} VP</span>
               </div>

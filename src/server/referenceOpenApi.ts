@@ -1,3 +1,4 @@
+import { TEXT_SOURCES } from '../shared/sourceText'
 import { REFERENCE_KINDS, type ReferenceKind } from '../contracts/reference'
 import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX } from './referenceSearch'
 
@@ -159,8 +160,23 @@ export function referenceOpenApi(request: Request) {
           },
           ['corpusRevision', 'revisions', 'kinds', 'factions', 'missionPacks', 'ruleDocuments'],
         ),
+        TextSources: {
+          type: 'array',
+          description:
+            'Where withheld rules text lives upstream: the pinned file, its source, and the id of the record holding it there when the file has one.',
+          items: objectSchema(
+            { source: { type: 'string', enum: TEXT_SOURCES }, url: { type: 'string', format: 'uri' }, id: { type: 'string' } },
+            ['source', 'url'],
+          ),
+        },
         ReferenceSection: objectSchema(
-          { id: { type: 'string' }, title: { type: 'string' }, text: { type: 'string' }, url: { type: 'string' } },
+          {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            text: { type: 'string' },
+            url: { type: 'string' },
+            textSources: schemaRef('TextSources'),
+          },
           ['id', 'title', 'text', 'url'],
         ),
         ReferenceDocument: objectSchema(
@@ -183,7 +199,10 @@ export function referenceOpenApi(request: Request) {
             title: { type: 'string' },
             faction: { type: ['string', 'null'] },
             url: { type: 'string' },
-            section: objectSchema({ id: { type: 'string' }, title: { type: 'string' }, url: { type: 'string' } }, ['id', 'title', 'url']),
+            section: objectSchema(
+              { id: { type: 'string' }, title: { type: 'string' }, url: { type: 'string' }, textSources: schemaRef('TextSources') },
+              ['id', 'title', 'url'],
+            ),
             excerpt: { type: 'string', maxLength: 322 },
             revisions: schemaRef('Revisions'),
             attribution: schemaRef('Attribution'),

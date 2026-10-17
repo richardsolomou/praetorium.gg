@@ -10,7 +10,6 @@ export type BattleDetachmentData = {
   details: NonNullable<ReturnType<LoadedRules['detachmentDetails']['get']>>
   core: LoadedRules['core']
   coreDetails: LoadedRules['coreDetails']
-  attribution: string
   dataslate: string | null
 }
 
@@ -28,7 +27,6 @@ export function battleDetachmentData(
     details: rules.detachmentDetails.get(rulesId) ?? new Map(),
     core: rules.core,
     coreDetails: rules.coreDetails,
-    attribution: rules.attribution,
     dataslate: rules.dataslate,
   }
 }
@@ -37,7 +35,6 @@ export function selectedBattleDetachmentData(data: BattleDetachmentData, names: 
   const selected = selectedDetachmentRules(names, data.live, data.details)
   const written = [...selected.written, ...data.coreDetails]
   return {
-    attribution: data.attribution,
     dataslate: data.dataslate,
     stratagems: selected.live,
     core: data.core,

@@ -12,6 +12,8 @@ import {
   combatRuleProfiles,
   combatRuleWeapons,
   type CombatRule,
+  type CombatRuleJudge,
+  judgedCombatRule,
 } from './combatRules'
 
 const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule => ({
@@ -81,6 +83,43 @@ describe('combat rule eligibility', () => {
     expect(combatRuleEligible('**Target:** One **ARMY INFANTRY** or **ARMY MOUNTED** unit.', ['Army', 'Mounted'])).toBe(true))
   it('requires every keyword in a compound target', () =>
     expect(combatRuleEligible('**Target:** One **ARMY INFANTRY** unit.', ['Army', 'Vehicle'])).toBe(false))
+})
+
+describe('judging a rule in its place in a roster', () => {
+  const pulse = rule(
+    '**Target:** One **CRYPTEK** model from your army.\n\n**Effect:** Until the end of the phase, weapons equipped by friendly **NECRONS** models have the **[IGNORES COVER]** ability.',
+    { scope: 'stratagem', phases: ['ranged'] },
+  )
+  const immortals: CombatRuleJudge = {
+    origin: 'listed',
+    keywords: ['Necrons', 'Infantry'],
+    unitKeywords: ['Necrons', 'Infantry'],
+    supportKeywords: [],
+  }
+  it('keeps a support stratagem off a unit while nothing in the roster can be its source', () =>
+    expect(judgedCombatRule(pulse, immortals)).toBeNull())
+  it('applies a support stratagem to its eligible recipient once the roster holds its source', () =>
+    expect(judgedCombatRule(pulse, { ...immortals, supportKeywords: [['Necrons', 'Cryptek']] })?.scope).toBe('stratagem'))
+  it('reads another unit’s aura as reaching this unit nearby', () =>
+    expect(
+      judgedCombatRule(
+        rule(
+          'While a friendly **NECRONS** unit is within 6" of this model, each time a model in that unit makes an attack, re-roll a Hit roll of 1.',
+        ),
+        { ...immortals, origin: 'support' },
+      )?.scope,
+    ).toBe('nearby'))
+  it('leaves out another unit’s ability that reaches no other unit', () =>
+    expect(
+      judgedCombatRule(rule('Each time this model makes an attack, re-roll a Hit roll of 1.'), { ...immortals, origin: 'support' }),
+    ).toBeNull())
+  it('leaves out its own ability that selects another unit', () =>
+    expect(
+      judgedCombatRule(rule('In your Shooting phase, select one other friendly **NECRONS** unit within 6" of this model.'), {
+        ...immortals,
+        origin: 'own',
+      }),
+    ).toBeNull())
 })
 
 describe('combat rule effects', () => {

@@ -1,12 +1,43 @@
+import { TEXT_SOURCES } from '../../../shared/sourceText'
+import { TextSourceRow } from '../../components/TextSourcesDialog'
+import { chooseTextSource, useTextSourceChoice } from '../../rulesText'
+import { useHydrated } from '../../useClientValue'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 const linkClass = 'text-info hover:text-parchment'
 
+function TextSourceSwitches() {
+  const choice = useTextSourceChoice()
+  // The stored choice is unknown until hydration, so the switches wait rather than flipping.
+  const ready = useHydrated()
+  return (
+    <div className="space-y-2">
+      {TEXT_SOURCES.map((source) => (
+        <TextSourceRow
+          key={source}
+          source={source}
+          checked={choice.sources.has(source)}
+          disabled={!ready}
+          onCheckedChange={(on) => chooseTextSource(source, on)}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function Sources() {
   return (
-    <LegalPage eyebrow="About the data" title="Data sources" updated="10 October 2026">
+    <LegalPage eyebrow="About the data" title="Data sources" updated="17 October 2026">
+      <LegalSection title="Rules text">
+        <p>
+          Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text
+          directly from that community project, and it stays on your device.
+        </p>
+        <TextSourceSwitches />
+      </LegalSection>
+
       <LegalSection title="Community data">
-        <p>Praetorium uses rules and reference data from these community projects:</p>
+        <p>Praetorium also serves reference data from these community projects:</p>
         <LegalLinks>
           <li>
             Faction entries, constraints, modifiers, and costs from{' '}
@@ -16,9 +47,9 @@ export function Sources() {
             .
           </li>
           <li>
-            Faction descriptions, stratagems, missions, scoring, and layout names from{' '}
+            Stratagem, detachment, mission, and layout names and numbers from{' '}
             <a href="https://github.com/game-datacards/datasources" className={linkClass}>
-              game-datacards
+              Game Datacards
             </a>
             .
           </li>

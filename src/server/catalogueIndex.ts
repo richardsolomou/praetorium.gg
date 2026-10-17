@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { publishedTexts } from './sourceTexts'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
@@ -28,8 +29,11 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
 
   const strings = new Map<string, string>()
   const files: CatalogueFile[] = []
+  const paths = new Map<CatalogueFile, string>()
   for (const name of fs.readdirSync(definitions).filter((entry) => entry.endsWith('.json'))) {
-    files.push(readSharedJson(path.join(definitions, name), strings) as CatalogueFile)
+    const file = readSharedJson(path.join(definitions, name), strings) as CatalogueFile
+    files.push(file)
+    paths.set(file, path.join(definitions, name))
     yield
   }
   if (!files.length) return null
@@ -46,6 +50,7 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   yield
   return {
     ...loaded,
+    definitionTexts: definitionTexts(paths),
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
     mfm: yield* loadMfmSteps(directory),
     ...(edition ? { edition } : {}),
@@ -55,4 +60,29 @@ export function catalogueRevision(revisions: Record<string, string>) {
   return createHash('sha256')
     .update(JSON.stringify(Object.entries(revisions).sort(([left], [right]) => left.localeCompare(right))))
     .digest('hex')
+}
+
+/**
+ * Each BSData rules text — a profile's characteristic or a rule's description — by its words,
+ * published as a token naming the file that states it. Built when first asked: only what
+ * the server publishes reads it.
+ */
+function definitionTexts(paths: ReadonlyMap<CatalogueFile, string>) {
+  let tokens: Map<string, string> | undefined
+  return (raw: string) => {
+    if (!tokens) {
+      tokens = new Map()
+      for (const [file, location] of paths) {
+        const texts = publishedTexts(location)
+        const visit = (value: unknown, key?: string) => {
+          if (typeof value === 'string') {
+            if ((key === '$text' || key === 'description') && value.trim() && !tokens!.has(value)) tokens!.set(value, texts(value, 'plain'))
+          } else if (Array.isArray(value)) for (const entry of value) visit(entry)
+          else if (value && typeof value === 'object') for (const [field, entry] of Object.entries(value)) visit(entry, field)
+        }
+        visit(file)
+      }
+    }
+    return tokens.get(raw) ?? null
+  }
 }

@@ -16,4 +16,11 @@ export type WhenDrawn = {
   condition: string | null
 }
 
-export type MissionTwist = { id: string; name: string; lore: string | null; rules: string | null }
+export type MissionTwist = {
+  id: string
+  name: string
+  lore: string | null
+  rules: string | null
+  /** Whether its rules rewrite the Primary Mission cards, read from its words before they are published as a token. */
+  changesPrimary?: boolean
+}

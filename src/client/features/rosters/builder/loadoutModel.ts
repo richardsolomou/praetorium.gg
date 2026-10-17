@@ -1,4 +1,5 @@
 import type { Datasheet } from '../../../../contracts/catalogue'
+import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
 import { modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
 import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
 
@@ -95,12 +96,15 @@ export function loadoutInstructions(
   model: LoadoutModel,
   models: readonly LoadoutModel[],
   groups: NonNullable<Datasheet['wargearGroups']>,
+  /** An instruction's words, or null while they are not loaded, when it is read as naming no model. */
+  wordsOf: (instruction: string) => string | null = (instruction) => instruction,
 ) {
   const names = row.pieces ?? [row.name]
   const candidates = groups.flatMap((group) => {
-    if (group.instruction === 'Default Wargear') return []
+    if (group.instruction === DEFAULT_WARGEAR) return []
+    const words = wordsOf(group.instruction) ?? ''
     const namedModels = models.filter((candidate) =>
-      new RegExp(`\\b${candidate.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:s\\b|\\b)`, 'i').test(group.instruction),
+      new RegExp(`\\b${candidate.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:s\\b|\\b)`, 'i').test(words),
     )
     if (namedModels.length && !namedModels.includes(model)) return []
     const matches = group.options.filter((option) => names.some((name) => sameWargear(wargearBaseName(option), name))).length

@@ -51,6 +51,9 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')
   await signUp(page, player)
+  // Rules text loads from its source while online and stays on the device for the offline launch.
+  await page.goto('/rules/core-rules/moving')
+  await expect(page.locator('main details').first()).toBeAttached()
   await page.goto('/rules')
   await expect
     .poll(() => page.evaluate(async () => Boolean(await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))), {

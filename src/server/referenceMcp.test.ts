@@ -42,6 +42,7 @@ vi.mock('./referenceApi', () => ({
   activeReferenceCorpus: () => corpus,
   referenceRateLimit: rateLimit,
 }))
+vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
 vi.mock('./app', () => ({
   app: () => ({
     catalogueFor: async () => null,

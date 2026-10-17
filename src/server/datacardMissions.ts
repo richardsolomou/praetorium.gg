@@ -1,7 +1,8 @@
 import { routeSlug } from '../core/slug'
+import { whenDrawnCondition } from '../shared/datacards'
 import { compareText } from '../core/text'
 import type { Mission, MissionCard, Award, AwardTrigger } from './rulesCards'
-import { english, type MissionPack } from './missionPacks'
+import { english, type MissionPack, packText } from './missionPacks'
 import { actionsIn } from './missionActions'
 import { criteriaKey } from './missionCriteria'
 import type { WhenDrawn } from '../contracts/missions'
@@ -41,7 +42,8 @@ function triggers(when: string | null, periods: unknown): AwardTrigger[] {
   return []
 }
 
-function whenDrawn(text: string | null, ids: ReadonlyMap<string, string>): WhenDrawn | null {
+/** Read from the card's words; the condition a replacement names is published as a token for those words. */
+function whenDrawn(text: string | null, ids: ReadonlyMap<string, string>, condition: string | null): WhenDrawn | null {
   if (!text) return null
   const plain = text.replaceAll('**', '').replaceAll('‑', '-').replaceAll(/\s+/g, ' ')
   const firstRound =
@@ -57,17 +59,14 @@ function whenDrawn(text: string | null, ids: ReadonlyMap<string, string>): WhenD
     const id = ids.get(criteriaKey(paired[1]!))
     return id ? { operation: 'redraw', roundMax: null, required: false, heldCards: [id], condition: null } : null
   }
-  const replacement = /^WHEN DRAWN: If (.+?), you can discard this card and draw one new Secondary Mission card\.?$/i.exec(plain)
-  return replacement
-    ? { operation: 'replace', roundMax: null, heldCards: [], condition: replacement[1]!.replace(/^there /i, 'there ') }
-    : null
+  return whenDrawnCondition(plain) && condition ? { operation: 'replace', roundMax: null, heldCards: [], condition } : null
 }
 
 function cardOf(
   raw: RecordValue,
   actions: ReturnType<typeof actionsIn>,
   ids: ReadonlyMap<string, string>,
-  packId: unknown,
+  pack: MissionPack,
 ): MissionCard | null {
   const name = english(raw.name)
   if (!name || typeof raw.id !== 'string') return null
@@ -90,7 +89,7 @@ function cardOf(
         mode: mode || null,
         group: exclusiveModes.has(mode) && typeof objective.id === 'string' ? `${objective.id}:${mode}` : null,
         cumulative: scoring.isCumulative === true,
-        criteria,
+        criteria: packText(pack, scoring.scoringCriteria)!,
         trigger,
       }))
     })
@@ -98,11 +97,11 @@ function cardOf(
   return {
     key: raw.id,
     name,
-    text: english(raw.description),
+    text: packText(pack, raw.description),
     awards,
     actions: actions.get(criteriaKey(name)) ?? [],
-    whenDrawn: whenDrawn(english(raw.description), ids),
-    selection: missionSelectionKind(packId, raw),
+    whenDrawn: whenDrawn(english(raw.description), ids, packText(pack, raw.description, 'condition')),
+    selection: missionSelectionKind(pack.id, raw),
   }
 }
 
@@ -119,7 +118,7 @@ export function missionCardsFromDatacards(packs: readonly MissionPack[]): { prim
   const collect = (field: 'primaryMissions' | 'secondaryMissions') =>
     packs
       .filter((pack) => pack.isCombatPatrol !== true)
-      .flatMap((pack) => records(pack[field]).flatMap((raw) => cardOf(raw, actions, ids, pack.id) ?? []))
+      .flatMap((pack) => records(pack[field]).flatMap((raw) => cardOf(raw, actions, ids, pack) ?? []))
       .sort((a, b) => compareText(a.name, b.name))
   return { primaries: collect('primaryMissions'), secondaries: collect('secondaryMissions') }
 }
@@ -173,7 +172,7 @@ export function dispositionsFromDatacards(packs: readonly MissionPack[]) {
   for (const pack of packs) {
     for (const value of records(pack.forceDispositions)) {
       const name = english(value.name)
-      if (name) found.set(routeSlug(name), { id: routeSlug(name), name, text: english(value.description) })
+      if (name) found.set(routeSlug(name), { id: routeSlug(name), name, text: packText(pack, value.description) })
     }
   }
   return [...found.values()]

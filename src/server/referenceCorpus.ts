@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { hasTextTokens, textPointersIn, type TextLocations } from '../shared/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import type { ReferenceDocument, ReferenceSection } from '../contracts/reference'
 import type { RuleDocument, RuleEntry } from '../contracts/rules'
@@ -15,6 +16,8 @@ export type ReferenceSources = {
   canonicalCatalogue: () => CanonicalCatalogue | null
   catalogue: () => LoadedCatalogue | null
   rules: () => LoadedRules | null
+  /** Where each file a token names lives upstream; without it, withheld words say only that they are withheld. */
+  textLocations?: TextLocations
 }
 
 export type ReferenceCorpus = {
@@ -24,7 +27,8 @@ export type ReferenceCorpus = {
   revision: string
 }
 
-type CachedCorpus = { catalogue: LoadedCatalogue | null; rules: LoadedRules | null; corpus: ReferenceCorpus }
+const NO_LOCATIONS: TextLocations = { files: {}, holds: () => false }
+type CachedCorpus = { catalogue: LoadedCatalogue | null; rules: LoadedRules | null; files: TextLocations; corpus: ReferenceCorpus }
 const corpora = new WeakMap<CanonicalCatalogue, CachedCorpus>()
 
 export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus | null {
@@ -32,23 +36,24 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   if (!canonical) return null
   const loaded = sources.catalogue()
   const rules = sources.rules()
+  const files = sources.textLocations ?? NO_LOCATIONS
   const cached = corpora.get(canonical)
-  if (cached?.catalogue === loaded && cached.rules === rules) return cached.corpus
+  if (cached?.catalogue === loaded && cached.rules === rules && cached.files === files) return cached.corpus
   const catalogue =
     canonical.detachments.length || !loaded || !rules
       ? canonical
       : { ...canonical, detachments: compileCanonicalDetachments(loaded, canonical.revisions, rules) }
   const documents = [
-    ...catalogue.datasheets.map(datasheetDocument),
-    ...catalogue.detachments.map(detachmentDocument),
-    ...(rules ? gameReferenceDocuments(gameReferencesFor(rules), rules, catalogue.revisions) : []),
-    ...catalogue.ruleDocuments.flatMap(ruleDocuments),
+    ...catalogue.datasheets.map((sheet) => datasheetDocument(files, sheet)),
+    ...catalogue.detachments.map((detachment) => detachmentDocument(files, detachment)),
+    ...(rules ? gameReferenceDocuments(files, gameReferencesFor(rules), rules, catalogue.revisions) : []),
+    ...catalogue.ruleDocuments.flatMap((document) => ruleDocuments(files, document)),
   ].toSorted(
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
   const revision = createHash('sha256').update(JSON.stringify({ catalogue, documents })).digest('hex')
   const corpus = { catalogue, documents, byId: new Map(documents.map((document) => [document.id, document])), revision }
-  corpora.set(canonical, { catalogue: loaded, rules, corpus })
+  corpora.set(canonical, { catalogue: loaded, rules, files, corpus })
   return corpus
 }
 
@@ -56,19 +61,21 @@ type GameReferences = ReturnType<typeof gameReferencesFor>
 type GameReferencePack = GameReferences['packs'][number]
 
 function gameReferenceDocuments(
+  files: TextLocations,
   references: GameReferences,
   rules: LoadedRules,
   revisions: CanonicalCatalogue['revisions'],
 ): ReferenceDocument[] {
   return [
-    ...references.packs.flatMap((pack) => missionDocuments(pack, references, revisions)),
-    ...secondaryDocuments(references, revisions),
-    ...deploymentDocuments(references, rules, revisions),
-    ...terrainDocuments(references, rules, revisions),
+    ...references.packs.flatMap((pack) => missionDocuments(files, pack, references, revisions)),
+    ...secondaryDocuments(files, references, revisions),
+    ...deploymentDocuments(files, references, rules, revisions),
+    ...terrainDocuments(files, references, rules, revisions),
   ]
 }
 
 function missionDocuments(
+  files: TextLocations,
   pack: GameReferencePack,
   references: GameReferences,
   revisions: CanonicalCatalogue['revisions'],
@@ -86,6 +93,7 @@ function missionDocuments(
     attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
   }
   const matrix = section(
+    files,
     url,
     'matrix',
     'Force disposition mission matrix',
@@ -94,12 +102,13 @@ function missionDocuments(
     ),
   )
   const dispositions = section(
+    files,
     url,
     'force-dispositions',
     'Force dispositions',
     references.dispositions.flatMap((disposition) => [disposition.name, disposition.text]),
   )
-  const limits = section(url, 'mission-limits', 'Mission limits', [
+  const limits = section(files, url, 'mission-limits', 'Mission limits', [
     pack.fixedSecondaryCap === null ? null : `Each fixed secondary mission can score at most ${pack.fixedSecondaryCap} VP.`,
     ...pack.missions.flatMap((mission) => [
       mission.roundCap === null ? null : `${mission.name}: at most ${mission.roundCap} primary VP per battle round.`,
@@ -109,7 +118,7 @@ function missionDocuments(
     ]),
   ])
   const twists = pack.twists.map((twist) =>
-    section(url, `twist-${twist.id}`, twist.name, [twist.lore, twist.rules ?? 'Rules unavailable.']),
+    section(files, url, `twist-${twist.id}`, twist.name, [twist.lore, twist.rules ?? 'Rules unavailable.'], twist.id),
   )
   return [
     {
@@ -127,13 +136,17 @@ function missionDocuments(
         id: `mission:${pack.id}:${mission.id}`,
         title: mission.name,
         url: `${missionUrl}#mission-${mission.id}`,
-        sections: present([section(missionUrl, `mission-${mission.id}`, mission.name, missionReferenceLines(mission))]),
+        sections: present([section(files, missionUrl, `mission-${mission.id}`, mission.name, missionReferenceLines(mission), mission.id)]),
       }
     }),
   ]
 }
 
-function secondaryDocuments(references: GameReferences, revisions: CanonicalCatalogue['revisions']): ReferenceDocument[] {
+function secondaryDocuments(
+  files: TextLocations,
+  references: GameReferences,
+  revisions: CanonicalCatalogue['revisions'],
+): ReferenceDocument[] {
   const pack = references.packs[0]
   if (!pack) return []
   return references.secondaries.map((card) => {
@@ -146,12 +159,13 @@ function secondaryDocuments(references: GameReferences, revisions: CanonicalCata
       url,
       revisions: missionRevisions(revisions),
       attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
-      sections: present([section(url, `secondary-${card.key}`, card.name, missionCardLines(card))]),
+      sections: present([section(files, url, `secondary-${card.key}`, card.name, missionCardLines(card), card.key)]),
     }
   })
 }
 
 function deploymentDocuments(
+  files: TextLocations,
   references: GameReferences,
   rules: LoadedRules,
   revisions: CanonicalCatalogue['revisions'],
@@ -169,17 +183,29 @@ function deploymentDocuments(
       revisions: missionRevisions(revisions),
       attribution: [RULES_DATA_ATTRIBUTION],
       sections: present([
-        section(pageUrl, `deployment-${deployment.id}`, deployment.name, [
-          deployment.description,
-          ...deployment.zones.map((zone) => `${zone.name} (${zone.player}): ${zone.points.length} boundary points.`),
-          `${deployment.objectives.length} objective markers.`,
-        ]),
+        section(
+          files,
+          pageUrl,
+          `deployment-${deployment.id}`,
+          deployment.name,
+          [
+            deployment.description,
+            ...deployment.zones.map((zone) => `${zone.name} (${zone.player}): ${zone.points.length} boundary points.`),
+            `${deployment.objectives.length} objective markers.`,
+          ],
+          deployment.id,
+        ),
       ]),
     }
   })
 }
 
-function terrainDocuments(references: GameReferences, rules: LoadedRules, revisions: CanonicalCatalogue['revisions']): ReferenceDocument[] {
+function terrainDocuments(
+  files: TextLocations,
+  references: GameReferences,
+  rules: LoadedRules,
+  revisions: CanonicalCatalogue['revisions'],
+): ReferenceDocument[] {
   const deployments = new Map((rules.deployments ?? []).map((deployment) => [deployment.id, deployment]))
   return (rules.terrainLayouts ?? []).map((layout) => {
     const url = terrainUrl(references, layout.matchupId, layout.id)
@@ -199,7 +225,7 @@ function terrainDocuments(references: GameReferences, rules: LoadedRules, revisi
       ),
       attribution: [RULES_DATA_ATTRIBUTION, ...(layout.geometry ? ['Terrain geometry provided by Battlemaster'] : [])],
       sections: present([
-        section(url.split('#')[0]!, `terrain-${layout.id}`, layout.name, [
+        section(files, url.split('#')[0]!, `terrain-${layout.id}`, layout.name, [
           layout.description,
           matchup ? `Matchup: ${matchup.you.name} vs ${matchup.opponent.name}` : null,
           layout.variant === null ? null : `Variant: ${layout.variant}`,
@@ -308,21 +334,40 @@ function missionTiming(trigger: NonNullable<GameReferencePack['missions'][number
   return fields.length ? `Timing: ${fields.join('; ')}` : null
 }
 
-const section = (baseUrl: string, id: string, title: string, lines: (string | null | undefined)[]): ReferenceSection | null => {
+/** Said where a section's only words are rules text, which Praetorium publishes as names and numbers alone. */
+export const TEXT_NOT_PUBLISHED = 'Rules text not published here; read it upstream at this section’s textSources.'
+
+/**
+ * A section, where any withheld words say where to read them upstream, located by `record`:
+ * the id the record holding them carries in its source file.
+ */
+const section = (
+  files: TextLocations,
+  baseUrl: string,
+  id: string,
+  title: string,
+  lines: (string | null | undefined)[],
+  record?: string,
+): ReferenceSection | null => {
   const text = lines
     .map((line) => (line ? referenceText(line) : ''))
     .filter(Boolean)
     .join('\n')
-  return text ? { id, title, text, url: `${baseUrl}#${id}` } : null
+  // A rule whose words are withheld is still a rule an agent can find by name and be told where its words are.
+  const textSources = textPointersIn(lines, files, record)
+  const withheld = !text && lines.some((line) => line && hasTextTokens(line))
+  if (!text && !withheld) return null
+  return { id, title, text: text || TEXT_NOT_PUBLISHED, url: `${baseUrl}#${id}`, ...(textSources.length ? { textSources } : {}) }
 }
 
 const present = (sections: (ReferenceSection | null)[]) => sections.filter((entry): entry is ReferenceSection => Boolean(entry))
 const attribution = (value: string | null) => (value ? [value] : [])
 
-function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
+function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet): ReferenceDocument {
   const route = sheet.referenceRoute ?? { catalogueId: sheet.catalogueId, slug: sheet.slug }
   const url = `/factions/${route.catalogueId}/datasheets/${route.slug}`
   const relationships = [...sheet.attachments, ...sheet.leaders, ...sheet.supporters].map((entry) => entry.name)
+  const { entryId } = sheet.provenance.definitions
   return {
     id: `datasheet:${route.catalogueId}:${route.slug}`,
     kind: 'datasheet',
@@ -332,16 +377,24 @@ function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
     revisions: revisionsForDatasheet(sheet),
     attribution: attribution(sheet.attribution),
     sections: present([
-      section(url, 'summary', 'Summary', [
-        sheet.faction,
-        sheet.points === null ? null : `${sheet.points} points`,
-        sheet.keywords.join(', '),
-        ...sheet.composition,
-        sheet.baseSize ? `Base size: ${sheet.baseSize}` : null,
-        sheet.transport,
-      ]),
+      section(
+        files,
+        url,
+        'summary',
+        'Summary',
+        [
+          sheet.faction,
+          sheet.points === null ? null : `${sheet.points} points`,
+          sheet.keywords.join(', '),
+          ...sheet.composition,
+          sheet.baseSize ? `Base size: ${sheet.baseSize}` : null,
+          sheet.transport,
+        ],
+        entryId,
+      ),
       ...sheet.profiles.map((profile) =>
         section(
+          files,
           url,
           `profile-${profile.id}`,
           profile.name,
@@ -351,20 +404,33 @@ function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
         ),
       ),
       ...sheet.abilities.map((ability) =>
-        section(url, `ability-${ability.id}`, ability.name, [ability.source, ability.description ?? 'Description unavailable.']),
+        section(
+          files,
+          url,
+          `ability-${ability.id}`,
+          ability.name,
+          [ability.source, ability.description ?? 'Description unavailable.'],
+          ability.id,
+        ),
       ),
       section(
+        files,
         url,
         'keyword-rules',
         'Keyword rules',
         sheet.keywordRules.flatMap((rule) => [rule.name, rule.description]),
       ),
-      section(url, 'loadout', 'Loadout', [sheet.loadout]),
-      section(url, 'wargear', 'Wargear', [
-        ...sheet.wargearOptions,
-        ...(sheet.wargearGroups ?? []).flatMap((group) => [group.instruction, ...group.options]),
-      ]),
+      section(files, url, 'loadout', 'Loadout', [sheet.loadout], entryId),
       section(
+        files,
+        url,
+        'wargear',
+        'Wargear',
+        [...sheet.wargearOptions, ...(sheet.wargearGroups ?? []).flatMap((group) => [group.instruction, ...group.options])],
+        entryId,
+      ),
+      section(
+        files,
         url,
         'points',
         'Points',
@@ -372,7 +438,7 @@ function datasheetDocument(sheet: CanonicalDatasheet): ReferenceDocument {
           [cost.models, 'models', cost.cost, 'points', cost.keyword, cost.faction, cost.detachment, cost.copies].filter(Boolean).join(' '),
         ),
       ),
-      section(url, 'relationships', 'Attachments', relationships),
+      section(files, url, 'relationships', 'Attachments', relationships),
     ]),
   }
 }
@@ -387,7 +453,7 @@ function revisionsForDatasheet(sheet: CanonicalDatasheet) {
   )
 }
 
-function detachmentDocument(detachment: CanonicalDetachment): ReferenceDocument {
+function detachmentDocument(files: TextLocations, detachment: CanonicalDetachment): ReferenceDocument {
   const url = `/factions/${detachment.factionSlug}/detachments/${detachment.slug}`
   return {
     id: `detachment:${detachment.factionSlug}:${detachment.slug}`,
@@ -401,36 +467,59 @@ function detachmentDocument(detachment: CanonicalDetachment): ReferenceDocument 
     },
     attribution: [detachment.attribution],
     sections: present([
-      section(url, 'summary', 'Summary', [
+      section(files, url, 'summary', 'Summary', [
         detachment.faction,
         detachment.points === null ? null : `${detachment.points} detachment points`,
         detachment.dispositions.join(', '),
       ]),
       ...detachment.rules.map((rule, index) =>
-        section(url, `rule-${routeSlug(rule.name) || index + 1}`, rule.name, [rule.description ?? 'Description unavailable.']),
+        section(
+          files,
+          url,
+          `rule-${routeSlug(rule.name) || index + 1}`,
+          rule.name,
+          [rule.description ?? 'Description unavailable.'],
+          detachment.id,
+        ),
       ),
       ...detachment.enhancements.map((enhancement, index) =>
-        section(url, `enhancement-${routeSlug(enhancement.name) || index + 1}`, enhancement.name, [
-          enhancement.points === null ? null : `${enhancement.points} points`,
-          enhancement.description ?? 'Description unavailable.',
-        ]),
+        section(
+          files,
+          url,
+          `enhancement-${routeSlug(enhancement.name) || index + 1}`,
+          enhancement.name,
+          [enhancement.points === null ? null : `${enhancement.points} points`, enhancement.description ?? 'Description unavailable.'],
+          detachment.id,
+        ),
       ),
       ...detachment.upgrades.map((upgrade, index) =>
-        section(url, `upgrade-${routeSlug(upgrade.name) || index + 1}`, upgrade.name, [
-          upgrade.points === null ? null : `${upgrade.points} points`,
-          upgrade.description ?? 'Description unavailable.',
-        ]),
+        section(
+          files,
+          url,
+          `upgrade-${routeSlug(upgrade.name) || index + 1}`,
+          upgrade.name,
+          [upgrade.points === null ? null : `${upgrade.points} points`, upgrade.description ?? 'Description unavailable.'],
+          detachment.id,
+        ),
       ),
       ...detachment.stratagems.map((stratagem, index) =>
-        section(url, `stratagem-${routeSlug(stratagem.name) || index + 1}`, stratagem.name, [
-          `${stratagem.cp} CP`,
-          stratagem.type,
-          stratagem.phases.join(', '),
-          stratagem.turn,
-          stratagem.description ?? 'Description unavailable.',
-        ]),
+        section(
+          files,
+          url,
+          `stratagem-${routeSlug(stratagem.name) || index + 1}`,
+          stratagem.name,
+          [
+            `${stratagem.cp} CP`,
+            stratagem.type,
+            stratagem.phases.join(', '),
+            stratagem.turn,
+            stratagem.description ?? 'Description unavailable.',
+          ],
+          stratagem.id,
+        ),
       ),
       section(
+        files,
         url,
         'keyword-rules',
         'Keyword rules',
@@ -440,13 +529,17 @@ function detachmentDocument(detachment: CanonicalDetachment): ReferenceDocument 
   }
 }
 
-function ruleDocuments(document: RuleDocument & { provenance: { datacards: { revision: string } } }): ReferenceDocument[] {
+function ruleDocuments(
+  files: TextLocations,
+  document: RuleDocument & { provenance: { datacards: { revision: string } } },
+): ReferenceDocument[] {
   return document.sections.flatMap((ruleSection) =>
-    ruleSection.entries.map((entry) => ruleDocument(document, ruleSection.slug, ruleSection.title, entry)),
+    ruleSection.entries.map((entry) => ruleDocument(files, document, ruleSection.slug, ruleSection.title, entry)),
   )
 }
 
 function ruleDocument(
+  files: TextLocations,
   document: RuleDocument & { provenance: { datacards: { revision: string } } },
   sectionSlug: string,
   sectionTitle: string,
@@ -454,15 +547,24 @@ function ruleDocument(
 ): ReferenceDocument {
   const baseUrl = `/rules/${document.slug}/${sectionSlug}`
   const url = `${baseUrl}#${entry.anchor}`
-  const main = section(baseUrl, entry.anchor, entry.title, [
-    entry.code,
-    entry.cost === null ? null : `${entry.cost} CP`,
-    entry.lore,
-    ...entry.facts.map((fact) => `${fact.label}: ${fact.markup}`),
-    ...entry.blocks.flatMap((block) => (block.kind === 'clarification' ? [] : [block.kind === 'heading' ? block.text : block.markup])),
-  ])
+  const main = section(
+    files,
+    baseUrl,
+    entry.anchor,
+    entry.title,
+    [
+      entry.code,
+      entry.cost === null ? null : `${entry.cost} CP`,
+      entry.lore,
+      ...entry.facts.map((fact) => `${fact.label}: ${fact.markup}`),
+      ...entry.blocks.flatMap((block) => (block.kind === 'clarification' ? [] : [block.kind === 'heading' ? block.text : block.markup])),
+    ],
+    entry.id,
+  )
   const clarifications = entry.blocks.flatMap((block) =>
-    block.kind === 'clarification' ? [section(baseUrl, block.anchor ?? entry.anchor, block.title, [block.code, block.markup])] : [],
+    block.kind === 'clarification'
+      ? [section(files, baseUrl, block.anchor ?? entry.anchor, block.title, [block.code, block.markup], entry.id)]
+      : [],
   )
   return {
     id: `rule:${document.slug}:${entry.anchor}`,
@@ -472,13 +574,22 @@ function ruleDocument(
     url,
     revisions: { datacards: document.provenance.datacards.revision },
     attribution: [DATACARDS_ATTRIBUTION],
-    sections: present([main, ...clarifications, section(baseUrl, `context-${entry.anchor}`, 'Context', [document.title, sectionTitle])]),
+    sections: present([
+      main,
+      ...clarifications,
+      section(files, baseUrl, `context-${entry.anchor}`, 'Context', [document.title, sectionTitle]),
+    ]),
   }
 }
 
 export function referenceDocumentMarkdown(document: ReferenceDocument): string {
   const context = [document.faction, document.kind].filter(Boolean).join(' · ')
-  const sections = document.sections.map((entry) => `## ${entry.title}\n\n${entry.text}`).join('\n\n')
+  const sections = document.sections
+    .map((entry) => {
+      const upstream = (entry.textSources ?? []).map((pointer) => `- ${pointer.url}${pointer.id ? ` (id ${pointer.id})` : ''}`)
+      return `## ${entry.title}\n\n${entry.text}${upstream.length ? `\n\nRules text upstream:\n${upstream.join('\n')}` : ''}`
+    })
+    .join('\n\n')
   const sources = document.attribution.length ? `\n\nSources: ${document.attribution.join('; ')}` : ''
   return `# ${document.title}\n\n${context}\n\n${sections}${sources}\n\nCanonical URL: ${document.url}\n`
 }

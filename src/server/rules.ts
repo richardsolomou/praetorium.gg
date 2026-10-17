@@ -1,13 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
-import {
-  DATACARDS_ATTRIBUTION,
-  factionRestrictions,
-  type LoadedDatacards,
-  keywordAbilityDescriptions,
-  loadDatacardsSteps,
-} from './datacards'
+import { factionRestrictions, type LoadedDatacards, keywordAbilityDescriptions, loadDatacardsSteps } from './datacards'
 import { type LoadedCards, coreFromDatacards } from './rulesCards'
 import { factionsFromDatacards } from './datacardFactions'
 import { dispositionsFromDatacards, missionCardsFromDatacards, missionsFromDatacards } from './datacardMissions'
@@ -22,8 +16,6 @@ import { joinKey } from '../shared/rulesSource'
 import { type LoadedRules } from '../shared/rules'
 import { completeSteps, type Steps } from '../shared/steps'
 export * from '../shared/rules'
-const BATTLEMASTER_ATTRIBUTION = 'Terrain geometry provided by Battlemaster'
-const KOTC_ATTRIBUTION = 'King of the Colosseum battlefield diagrams provided by Play On Tabletop'
 export function loadRules(...args: Parameters<typeof loadRulesSteps>): LoadedRules | null {
   return completeSteps(loadRulesSteps(...args))
 }
@@ -71,7 +63,6 @@ export function* loadRulesSteps(
   // nothing to offer from it. Reporting that is what lets the app fall back cleanly.
   if (!factions.byDetachment.size && !cards.secondaries.length) return null
 
-  const hasBattlemaster = terrainLayouts.some((layout) => layout.geometry)
   const abilityDescriptions = new Map(datacards.armyRules)
   for (const rules of supplementalArmyRules.values()) {
     for (const rule of rules) {
@@ -80,14 +71,6 @@ export function* loadRulesSteps(
     }
   }
   return {
-    attribution: [
-      DATACARDS_ATTRIBUTION,
-      hasBattlemaster ? BATTLEMASTER_ATTRIBUTION : null,
-      kotc ? KOTC_ATTRIBUTION : null,
-      catalogueRules.size ? 'Army rules provided by BSData' : null,
-    ]
-      .filter(Boolean)
-      .join('. '),
     abilityDescriptions,
     factionRestrictions: factionRestrictions(datacards),
     factionKeys: factions.factionKeys,

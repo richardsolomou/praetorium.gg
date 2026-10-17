@@ -54,7 +54,6 @@ export function ForceDispositionIndexPage() {
             explanation="No force dispositions are available in the current rules."
           />
         )}
-        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { loadedWords } from '../../sourceText'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Calculator,
@@ -811,8 +812,10 @@ export function ListBuilder({
           ability: subject.name,
           description: subject.description ?? '',
           ...(armyReminder(subject) || selected === null ? {} : { unit: { index: selected, name: unitName } }),
-          timings: suggestReminderTimings(subject.description ?? ''),
-          ...(!armyReminder(subject) && suggestReminderWhileDestroyed(subject.description ?? '') ? { whileDestroyed: true } : {}),
+          timings: suggestReminderTimings(loadedWords(subject.description ?? '') ?? ''),
+          ...(!armyReminder(subject) && suggestReminderWhileDestroyed(loadedWords(subject.description ?? '') ?? '')
+            ? { whileDestroyed: true }
+            : {}),
         },
       )
     },

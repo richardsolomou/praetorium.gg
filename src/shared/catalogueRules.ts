@@ -1,19 +1,14 @@
-import { bracketedRuleReferences, normalizeRuleReference, ruleReferenceKeys } from '../core/ruleReference'
+import { normalizeRuleReference, ruleReferenceKeys } from '../core/ruleReference'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { referencesIn } from './textFacts'
 
-type RuleSource = { index: Pick<LoadedCatalogue['index'], 'rules'>; datacards?: Pick<LoadedCatalogue['datacards'], 'keywordRules'> }
+type RuleSource = {
+  index: Pick<LoadedCatalogue['index'], 'rules'>
+  datacards?: Pick<LoadedCatalogue['datacards'], 'keywordRules' | 'textFacts'>
+}
 
 export function rulesReferencedIn(loaded: RuleSource, texts: readonly (string | null)[]) {
-  return rulesNamed(
-    loaded,
-    texts.flatMap((text) => [
-      ...[...(text ?? '').matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].flatMap((match) => {
-        const name = (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, '')
-        return name ? [name] : []
-      }),
-      ...bracketedRuleReferences(text ?? '').filter((name): name is string => Boolean(name)),
-    ]),
-  )
+  return rulesNamed(loaded, referencesIn(texts, loaded.datacards?.textFacts))
 }
 
 type NamedRule = { name: string; descriptions: Set<string>; order: number }

@@ -1,3 +1,4 @@
+import { TEXT_SOURCES } from '../shared/sourceText'
 import { z } from 'zod'
 import { REFERENCE_KINDS } from '../contracts/reference'
 import { app } from './app'
@@ -20,9 +21,9 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Search the Praetorium game reference',
       description:
-        'Searches the verified mission, rules, detachment, and datasheet text used by Praetorium. Returns bounded excerpts with canonical URLs, source revisions, and attribution.',
+        'Searches Praetorium’s missions, rules, detachments, and datasheets by name, number, keyword, and value. Returns bounded excerpts with canonical URLs, source revisions, and attribution. Rules text is not included; records point to it upstream.',
       inputSchema: {
-        query: z.string().trim().min(2).max(120).describe('Words, a printed rule number, an ability, a weapon, or a rules phrase.'),
+        query: z.string().trim().min(2).max(120).describe('A name, a printed rule number, an ability, a weapon, or a keyword.'),
         kinds: z.array(z.enum(REFERENCE_KINDS)).max(REFERENCE_KINDS.length).optional(),
         faction: z.string().trim().min(1).max(160).optional(),
         pack: z.string().trim().min(1).max(160).optional(),
@@ -49,7 +50,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Read one Praetorium reference result',
       description:
-        'Reads the complete bounded document returned by search_reference, with its source location, revisions, and attribution.',
+        'Reads the complete bounded document returned by search_reference, with its revisions and attribution. A section that withholds rules text lists textSources: the pinned upstream file and record id to fetch if you need the wording.',
       inputSchema: { id: z.string().min(1).max(400).describe('The stable result id returned by search_reference.') },
       outputSchema: referenceDocumentOutputSchema,
       annotations: READ_ONLY_TOOL,
@@ -68,7 +69,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Read structured Praetorium reference data',
       description:
-        'Returns the source-faithful structured record behind a search result, including mission cards, deployments, terrain geometry, detachments, and datasheets.',
+        'Returns the structured record behind a search result, including mission cards, deployments, terrain geometry, detachments, and datasheets. Records that withhold rules text carry textSources pointing at the pinned upstream file and record id.',
       inputSchema: { id: z.string().min(1).max(400).describe('The stable id returned by search_reference or list_reference.') },
       outputSchema: { document: referenceDocumentSchema, data: z.unknown() },
       annotations: READ_ONLY_TOOL,
@@ -126,7 +127,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'List compact faction units for roster planning',
       description:
-        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Include a detachment to receive its complete rules, enhancements, upgrades, and stratagems without opening every unit page.',
+        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Include a detachment to receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources.',
       inputSchema: {
         faction: z.string().trim().min(1).max(160).describe('Faction id, URL slug, or display name from list_reference.'),
         battleSize: z.number().int().min(1).max(10_000).optional().describe('Battle size in points for size-dependent limits.'),
@@ -167,7 +168,17 @@ const factionSchema = z.object({
   detachments: z.number().int().nonnegative(),
 })
 const documentSummarySchema = z.object({ id: z.string(), title: z.string(), url: z.string() })
-const referenceSectionSchema = z.object({ id: z.string(), title: z.string(), text: z.string(), url: z.string() })
+const textPointerSchema = z.object({ source: z.enum(TEXT_SOURCES), url: z.string(), id: z.string().optional() })
+const referenceSectionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  text: z.string(),
+  url: z.string(),
+  textSources: z
+    .array(textPointerSchema)
+    .optional()
+    .describe('Where withheld rules text lives upstream; fetch it there if you need the wording.'),
+})
 const referenceDocumentSchema = z.object({
   id: z.string(),
   kind: z.enum(REFERENCE_KINDS),
@@ -188,7 +199,7 @@ const searchOutputSchema = {
       title: z.string(),
       faction: z.string().nullable(),
       url: z.string(),
-      section: z.object({ id: z.string(), title: z.string(), url: z.string() }),
+      section: z.object({ id: z.string(), title: z.string(), url: z.string(), textSources: z.array(textPointerSchema).optional() }),
       excerpt: z.string(),
       revisions: revisionsSchema,
       attribution: z.array(z.string()),

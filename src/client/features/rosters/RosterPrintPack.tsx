@@ -329,7 +329,6 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               ) : (
                 <p>No detachment rule description is available.</p>
               )}
-              <p>{detachment.attribution}</p>
             </section>
           ))}
         </section>
@@ -359,7 +358,6 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               </section>
             )
           })}
-          <p>{data.cards.attribution}</p>
         </section>
         <section className="pack-section">
           <h2>Referenced abilities and weapon rules</h2>
@@ -370,6 +368,8 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             </section>
           ))}
         </section>
+        {/* A printed pack leaves the app and its sources page, so it names where its words and prices came from. */}
+        <p>Rules text from BSData and Game Datacards; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
       </div>
     </div>
   )

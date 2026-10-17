@@ -1,3 +1,5 @@
+import type { TextPointer } from '../shared/sourceText'
+
 export const REFERENCE_KINDS = ['datasheet', 'deployment', 'detachment', 'mission', 'rule', 'terrain'] as const
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number]
 
@@ -6,6 +8,8 @@ export type ReferenceSection = {
   title: string
   text: string
   url: string
+  /** Where the rules text this section withholds lives upstream, for an agent that needs the wording. */
+  textSources?: TextPointer[]
 }
 
 export type ReferenceDocument = {
@@ -25,7 +29,7 @@ export type ReferenceSearchResult = {
   title: string
   faction: string | null
   url: string
-  section: Pick<ReferenceSection, 'id' | 'title' | 'url'>
+  section: Pick<ReferenceSection, 'id' | 'title' | 'url' | 'textSources'>
   excerpt: string
   revisions: Record<string, string>
   attribution: string[]
