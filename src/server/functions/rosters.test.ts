@@ -1,11 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { ROSTER_DISCOVERY_PAGE_SIZE, type RosterAudience, type RosterDiscoveryFilter } from '../../core/rosterDiscovery'
-import { discoverRosters, rosterAccess } from './rosters'
+import { discoverRosters, rosterAccess, rostersLentToMe } from './rosters'
 
 const mocks = vi.hoisted(() => ({
   factionIndexFor: vi.fn(),
   factionFor: vi.fn(),
   discover: vi.fn(),
+  lent: vi.fn(),
   access: vi.fn(),
   assessments: vi.fn(),
   viewerId: null as string | null,
@@ -19,7 +20,7 @@ vi.mock('../app', () => ({
   app: () => ({
     factionIndexFor: mocks.factionIndexFor,
     factionFor: mocks.factionFor,
-    service: { discoverRosters: mocks.discover, rosterAccess: mocks.access, copySource: async () => null },
+    service: { discoverRosters: mocks.discover, rostersLentTo: mocks.lent, rosterAccess: mocks.access, copySource: async () => null },
   }),
 }))
 vi.mock('../playerSession', () => ({ currentUserId: async () => mocks.viewerId }))
@@ -101,4 +102,11 @@ it('opens a roster saved on an exact root book the faction index does not list',
   mocks.factionFor.mockImplementation(async (id: string) => (id === 'necrons-root' ? { id, name: 'Necrons' } : null))
   const read = rosterAccess as unknown as (input: { data: { id: string } }) => Promise<{ faction: { name: string } | null }>
   expect((await read({ data: { id: 'roster' } })).faction?.name).toBe('Necrons')
+})
+
+it('prices a lent roster for its card without sending its unit notes', async () => {
+  mocks.viewerId = 'borrower'
+  mocks.lent.mockResolvedValue([{ ...entry('lent', 'necrons'), lentAt: 1 }])
+  const lent = JSON.stringify(await (rostersLentToMe as unknown as () => Promise<unknown>)())
+  expect([lent.includes('"points":990'), lent.includes('Hold the left flank.')]).toEqual([true, false])
 })

@@ -340,10 +340,18 @@ export const rosterLoans = createServerFn({ method: 'GET' })
     }),
   )
 
+/** Rosters friends have lent this player, with the points and legality their cards show. */
 export const rostersLentToMe = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.rostersLentTo(id) : []
+    if (!id) return []
+    const lent = await app().service.rostersLentTo(id)
+    const assessments = await cachedRosterAssessmentsFor(lent.map(({ priceable }) => priceable))
+    return lent.map(({ priceable: _priceable, ...entry }, index) => ({
+      ...entry,
+      points: assessments[index]!.points,
+      problem: assessments[index]!.verdict.problem,
+    }))
   }),
 )
 

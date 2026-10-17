@@ -27,10 +27,11 @@ export type RosterDiscoveryFilter = z.infer<typeof rosterDiscoveryFilterSchema>
 /**
  * What the product database is asked for: the saved IDs a roster inside the filter is stored under, and whose rosters.
  * The public audience leaves out the viewer's own; the friends audience holds only the viewer's accepted friends'.
+ * Both default, because the module is published before the web build that sends them.
  */
 export const rosterDiscoveryQuerySchema = z.strictObject({
-  audience: z.enum(ROSTER_AUDIENCES),
-  viewerId: id.nullable(),
+  audience: z.enum(ROSTER_AUDIENCES).default('public'),
+  viewerId: id.nullable().default(null),
   catalogueIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).nullable(),
   detachmentIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).nullable(),
   before: rosterDiscoveryCursorSchema.nullable(),

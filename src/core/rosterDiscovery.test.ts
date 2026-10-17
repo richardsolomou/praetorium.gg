@@ -117,6 +117,11 @@ describe('roster discovery pages', () => {
     expect([...first.rows.map((r) => r.id), ...ids(rows, { limit: 2, before: first.nextCursor })]).toEqual(['c', 'b', 'a', 'd'])
   })
 
+  it('reads a query from a web build that names no audience as public', () => {
+    const { audience: _audience, viewerId: _viewerId, ...previous } = query()
+    expect(rosterDiscoveryQuerySchema.parse(previous)).toMatchObject({ audience: 'public', viewerId: null })
+  })
+
   it('refuses a page larger than the bound', () => {
     expect(rosterDiscoveryQuerySchema.safeParse(query({ limit: ROSTER_DISCOVERY_MAX_PAGE_SIZE + 1 })).success).toBe(false)
   })

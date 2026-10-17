@@ -11,7 +11,7 @@ import { requestCookie } from '../server/requestCookie'
 import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
 import { discoveryFilter, RosterDiscoveryPage, type RosterDiscoverySearch } from '../client/features/rosters/RosterDiscoveryPage'
 import { RULES_VERSION_STATUSES, type RulesVersionStatus } from '../core/rosterDiscovery'
-import { discoveredRostersQuery, factionIndexQuery, meQuery } from '../client/queries'
+import { discoveredRostersQuery, factionIndexQuery, meQuery, rostersLentToMeQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 
@@ -47,10 +47,13 @@ export const Route = createFileRoute('/rosters/')({
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-      await context.queryClient.infiniteQuery({
-        ...discoveredRostersQuery(discoveryFilter(search, index?.factions ?? []), me ? view : 'public'),
-        staleTime: 'static',
-      })
+      await Promise.all([
+        context.queryClient.infiniteQuery({
+          ...discoveredRostersQuery(discoveryFilter(search, index?.factions ?? []), me ? view : 'public'),
+          staleTime: 'static',
+        }),
+        me && view === 'friends' ? context.queryClient.query({ ...rostersLentToMeQuery(), staleTime: 'static' }) : null,
+      ])
     }
     // A visitor's page is the roster setup, which offers every faction.
     else if (!me) await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })

@@ -47,7 +47,7 @@ const rosterRow = z.object({
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true, copiedFromRosterId: true }).extend({
   unitCount: z.number().int().nonnegative(),
 })
-const lentRosterRow = rosterSummaryRow.extend({ ownerId: z.string(), lentAt: z.number().int() })
+const lentRosterRow = rosterSummaryRow.extend({ ownerId: z.string(), lentAt: z.number().int(), picks: z.string() })
 const collectionRow = z.object({
   userId: z.string(),
   entryId: z.string(),

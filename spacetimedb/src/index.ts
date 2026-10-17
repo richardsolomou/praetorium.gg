@@ -1413,7 +1413,7 @@ export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.strin
         .filter((loan) => activeLoan(tx, loan.rosterId, userId))
         .flatMap((loan) => {
           const row = tx.db.rosters.id.find(loan.rosterId)
-          return row ? [{ ...rosterSummary(row), ownerId: row.userId, lentAt: safeNumber(loan.lentAt) }] : []
+          return row ? [{ ...rosterSummary(row), ownerId: row.userId, lentAt: safeNumber(loan.lentAt), picks: row.picks }] : []
         })
         .sort((left, right) => right.lentAt - left.lentAt || left.id.localeCompare(right.id)),
     )
