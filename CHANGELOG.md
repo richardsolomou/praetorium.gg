@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.157.2
+
+### Patch Changes
+
+- 6dcd5a4: Screen readers now announce failures in account security, sign-in, sharing settings, battle setup and creation, friend invites and notifications as soon as they appear.
+- 6dcd5a4: Copying recovery codes or a collection CSV now says when the browser refuses the copy instead of failing silently.
+- 6dcd5a4: Friend invite links now show a titled preview card when shared.
+- 6dcd5a4: A league list refused for marking three or more Warlords names them as "A, B and C" instead of "A, B, and C".
+- 6dcd5a4: Battle setup names three or more waiting players as "A, B and C" instead of "A and B and C".
+- 6dcd5a4: Switching a roster between building and viewing, and remembering open panes and tabs, no longer breaks when the browser blocks storage.
+
 ## 0.157.1
 
 ### Patch Changes
