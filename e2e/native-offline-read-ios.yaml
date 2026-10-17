@@ -69,7 +69,7 @@ appId: gg.praetorium
 - takeScreenshot: native-reference-offline
 - tapOn: More
 - tapOn:
-    text: RULES Game reference
+    text: '(?i)^Rules Core rules.*'
 - scrollUntilVisible:
     element:
       text: '03\. Moving.*'
