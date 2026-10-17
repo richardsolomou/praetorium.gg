@@ -93,7 +93,12 @@ export function rankReferencePart(corpus: ReferenceCorpus, input: ReferenceSearc
       title: document.title,
       faction: document.faction,
       url: document.url,
-      section: { id: section.id, title: section.title, url: section.url },
+      section: {
+        id: section.id,
+        title: section.title,
+        url: section.url,
+        ...(section.textSources ? { textSources: section.textSources } : {}),
+      },
       excerpt: excerpt(section.text, query, tokens),
       revisions: document.revisions,
       attribution: document.attribution,

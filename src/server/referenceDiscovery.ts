@@ -101,7 +101,7 @@ Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tra
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
 - [MCP](${origin}/mcp): public reference and combat simulator tools with optional account sign-in for rosters and battles
 
-For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` or add \`format=markdown\` for compact source-faithful text. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
+For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` or add \`format=markdown\` for compact text. Responses carry names, numbers, points, and computed results, never rules text: a record that withholds it lists \`textSources\`, the pinned upstream file and record id to fetch it from. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
 
 ## Human reference
 

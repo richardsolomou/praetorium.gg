@@ -9,6 +9,7 @@ const { ownRoster, submit, userBattleId, screen } = vi.hoisted(() => ({
   userBattleId: vi.fn(),
   screen: vi.fn(),
 }))
+vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
 vi.mock('./app', () => ({
   app: () => ({
     service: { ownRoster, submit, userBattleId, screen },

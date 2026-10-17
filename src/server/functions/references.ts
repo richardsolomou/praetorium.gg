@@ -4,9 +4,8 @@ import { rosterDatasheetLoadedProperties } from '../../shared/rosterTelemetry'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { unitWoundsIn } from '../../shared/catalogue'
-import { catalogueDirectory, isReferenceDatasheet } from '../catalogueIndex'
-import { readCatalogueComposition } from '../catalogueComposition'
-import { textSourceFiles } from '../sourceTexts'
+import { isReferenceDatasheet } from '../catalogueIndex'
+import { publishedTextFiles } from '../publishedTextFiles'
 import { detachmentReference } from '../../shared/detachmentReference'
 import { unitsIn } from '../../shared/cataloguePicker'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
@@ -330,10 +329,7 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 export const textSources = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     cacheUntilSnapshotChanges()
-    return memoUntilSnapshotChanges('text-sources', null, async () => {
-      const directory = catalogueDirectory()
-      return textSourceFiles(directory, readCatalogueComposition(directory))
-    })
+    return publishedTextFiles()
   }),
 )
 

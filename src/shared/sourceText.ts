@@ -78,6 +78,48 @@ export function withoutTexts<T>(value: T): T {
   return value
 }
 
+/**
+ * Where a withheld text can be read instead: its pinned upstream file, that file's source,
+ * and the id of the record holding it there, when the record names one.
+ */
+export type TextPointer = { source: TextSource; url: string; id?: string }
+
+/** Where every file a token names lives upstream, and whether one of those files holds a record by its id. */
+export type TextLocations = {
+  files: Readonly<Record<string, TextSourceFile>>
+  holds: (url: string, id: string) => boolean
+}
+
+/**
+ * The upstream files the tokens in these texts name, once each, located by `id` in each file
+ * that holds a record by it; a text drawn from a shared rule elsewhere is pointed at by file alone.
+ */
+export function textPointersIn(texts: readonly (string | null | undefined)[], locations: TextLocations, id?: string): TextPointer[] {
+  const pointers = new Map<string, TextPointer>()
+  for (const text of texts)
+    for (const { file } of text ? textTokensIn(text) : []) {
+      const found = locations.files[file]
+      if (found && !pointers.has(found.url)) pointers.set(found.url, { ...found, ...(id && locations.holds(found.url, id) ? { id } : {}) })
+    }
+  return [...pointers.values()]
+}
+
+/**
+ * A value with every token removed, where each record that lost text says where to read it:
+ * `textSources` beside its fields, located by the record's own `id`. Agents and other
+ * programs get names, numbers and these pointers, never the words.
+ */
+export function withTextPointers<T>(value: T, locations: TextLocations): T {
+  if (typeof value === 'string') return withoutTexts(value)
+  if (Array.isArray(value)) return value.map((entry) => withTextPointers(entry, locations)) as T
+  if (!value || typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype) return value
+  const record = value as Record<string, unknown>
+  const strings = Object.values(record).filter((entry): entry is string => typeof entry === 'string' && hasTextTokens(entry))
+  const pointers = textPointersIn(strings, locations, typeof record.id === 'string' ? record.id : undefined)
+  const published = Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, withTextPointers(entry, locations)]))
+  return (pointers.length ? { ...published, textSources: pointers } : published) as T
+}
+
 /** Every string a parsed source file holds, the strings a token can name. */
 export function sourceStrings(parsed: unknown): Set<string> {
   const found = new Set<string>()

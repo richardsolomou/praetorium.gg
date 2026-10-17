@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { withoutTexts } from '../shared/sourceText'
+import { withTextPointers, withoutTexts, type TextLocations } from '../shared/sourceText'
+import { publishedTextLocations } from './publishedTextFiles'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
 import type { AgentToolDescriptor } from '../contracts/agentTools'
@@ -17,6 +18,31 @@ type RegisteredTool = {
   registerMcp: (server: McpServer) => void
   parse: (input: unknown) => Promise<Record<string, unknown>>
   execute: (input: unknown) => Promise<CallToolResult>
+}
+
+/**
+ * A tool's answer as agents get it: facts and pointers to where withheld rules text lives
+ * upstream, never the words. JSON text mirrors the structured answer, so it gets the same
+ * pointers; any other text only loses its tokens.
+ */
+async function published(result: CallToolResult): Promise<CallToolResult> {
+  const locations = await publishedTextLocations()
+  return {
+    ...result,
+    content: result.content.map((item) =>
+      item.type === 'text' ? { ...item, text: publishedText(item.text, locations) } : withoutTexts(item),
+    ),
+    ...(result.structuredContent ? { structuredContent: withTextPointers(result.structuredContent, locations) } : {}),
+  }
+}
+
+function publishedText(text: string, locations: TextLocations) {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return JSON.stringify(withTextPointers(parsed, locations), null, text.startsWith('{\n  ') || text.startsWith('[\n  ') ? 2 : undefined)
+  } catch {
+    return withoutTexts(text)
+  }
 }
 
 export class AgentTools {
@@ -45,11 +71,10 @@ export class AgentTools {
       },
       registerMcp: (server) =>
         server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(name, { ...config, inputSchema: schema }, async (input) =>
-          withoutTexts(await execute(await schema.parseAsync(input))),
+          published(await execute(await schema.parseAsync(input))),
         ),
       parse,
-      // Agents get facts: rules text is published only as tokens a reader's browser loads.
-      execute: async (input) => withoutTexts(await execute(await parse(input))),
+      execute: async (input) => published(await execute(await parse(input))),
     })
   }
 

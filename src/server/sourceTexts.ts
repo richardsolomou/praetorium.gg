@@ -116,13 +116,9 @@ export const retainedSnapshots =
     }
   }
 
-/**
- * Where every file a token can name lives upstream, by file id: each JSON file of the
- * three text sources the snapshot holds, at the root and in every rules version, so a
- * token built by another process — the offline download's — still finds its file.
- */
-export function textSourceFiles(root: string, composition: CatalogueComposition | null): Record<string, TextSourceFile> {
-  const files: Record<string, TextSourceFile> = {}
+/** Each JSON file of the text sources a snapshot holds, at the root and in every rules version, with where it lives upstream. */
+export function textSourcePaths(root: string, composition: CatalogueComposition | null) {
+  const found: (TextSourceFile & { path: string })[] = []
   const retained = retainedSnapshots(root)
   const visit = (directory: string, source: TextSource) => {
     for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
@@ -130,7 +126,7 @@ export function textSourceFiles(root: string, composition: CatalogueComposition 
       if (entry.isDirectory()) visit(file, source)
       else if (entry.name.endsWith('.json')) {
         const url = upstreamUrl(file, composition, retained)
-        if (url) files[textFileId(url)] = { url, source }
+        if (url) found.push({ url, source, path: path.join(root, file) })
       }
     }
   }
@@ -142,7 +138,33 @@ export function textSourceFiles(root: string, composition: CatalogueComposition 
       ['datacards', 'game-datacards'],
     ] as const)
       if (fs.existsSync(path.join(root, prefix, directory))) visit(`${prefix}${directory}`, source)
-  return files
+  return found
+}
+
+/**
+ * Where every file a token can name lives upstream, by file id, so a token built by another
+ * process — the offline download's — still finds its file.
+ */
+export function textSourceFiles(root: string, composition: CatalogueComposition | null) {
+  return textFilesFrom(textSourcePaths(root, composition))
+}
+
+export const textFilesFrom = (paths: readonly TextSourceFile[]): Record<string, TextSourceFile> =>
+  Object.fromEntries(paths.map(({ url, source }) => [textFileId(url), { url, source }]))
+
+/** The ids a source file gives its records, read once per file: what lets a pointer name a record an agent can find there. */
+export function recordIdsIn(file: string) {
+  const ids = new Set<string>()
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) for (const entry of value) visit(entry)
+    else if (value && typeof value === 'object')
+      for (const [key, entry] of Object.entries(value)) {
+        if (key === 'id' && typeof entry === 'string') ids.add(entry)
+        else visit(entry)
+      }
+  }
+  visit(JSON.parse(fs.readFileSync(file, 'utf8')))
+  return ids
 }
 
 const TOKENS_AND_WORDS = /(\u27E6[^\u27E7]*\u27E7)/

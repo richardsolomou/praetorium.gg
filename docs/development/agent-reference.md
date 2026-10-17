@@ -4,7 +4,7 @@ Browser pages, HTTP, MCP, sitemap, and Markdown responses read one verified cano
 
 ## Reference corpus
 
-Preserve canonical URLs, source revisions, attribution, unavailable fields, and source prose; keep geometry in structured records, not excerpts. Game Datacards rules text never reaches the corpus, the API, or agent tools: core rules documents carry only their outline, and `referenceText`, `referenceResponse`, and `AgentTools` remove [tokens](catalogue-data.md#published-rules-text) from everything else. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
+Preserve canonical URLs, source revisions, attribution, and unavailable fields; keep geometry in structured records, not excerpts. Agents get names, numbers, points, and computed results, never rules text: the corpus, the API, and agent tools carry no [tokens](catalogue-data.md#published-rules-text) and no words. Where text is withheld they point to it instead. `withTextPointers` (`src/shared/sourceText.ts`) adds `textSources` to each record that lost text, and corpus sections carry their own. Each pointer has the pinned upstream URL from `textSourceFiles`, its source, and the record's id when that file holds a record by it (`publishedTextLocations`). The server never fetches or relays the words. `scripts/agentText.integration.test.ts` walks every public tool and the reference API over the installed snapshot and fails on any source sentence, token, or pointer that misses its file. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
 
 ## HTTP API
 

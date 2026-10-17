@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { withoutTexts } from '../shared/sourceText'
+import { withTextPointers, withoutText } from '../shared/sourceText'
+import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
 import { referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
@@ -29,13 +30,20 @@ type ReferenceRecord = {
 export async function activeReferenceCorpus(catalogueId?: string) {
   const instance = app()
   if (instance.sync().status !== 'ready') return null
-  if (!catalogueId || !catalogueEditionId(catalogueId)) return referenceCorpusFor(instance)
+  const textLocations = await publishedTextLocations()
+  if (!catalogueId || !catalogueEditionId(catalogueId))
+    return referenceCorpusFor({
+      catalogue: () => instance.catalogue(),
+      rules: () => instance.rules(),
+      canonicalCatalogue: () => instance.canonicalCatalogue(),
+      textLocations,
+    })
   const [catalogue, rules, canonical] = await Promise.all([
     instance.catalogueFor(catalogueId),
     instance.rulesFor(catalogueId),
     instance.canonicalCatalogueFor(catalogueId),
   ])
-  return referenceCorpusFor({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical })
+  return referenceCorpusFor({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical, textLocations })
 }
 
 export async function referenceSearchResponse(request: Request) {
@@ -265,8 +273,10 @@ export function parseReferenceSearch(url: URL):
   return { query, kinds: kinds.length ? (kinds as ReferenceKind[]) : undefined, faction, pack, document, limit, cursor }
 }
 
-function referenceResponse(request: Request, revision: string, key: string, published: unknown, markdown: string) {
-  const data = withoutTexts(published)
+async function referenceResponse(request: Request, revision: string, key: string, published: unknown, withTokens: string) {
+  // Programs get facts and where withheld rules text lives upstream, never the words.
+  const data = withTextPointers(published, await publishedTextLocations())
+  const markdown = withoutText(withTokens)
   // A query parameter as well as the header, so a plain link can name the Markdown representation.
   const asMarkdown =
     new URL(request.url).searchParams.get('format') === 'markdown' ||
