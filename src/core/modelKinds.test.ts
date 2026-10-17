@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile, type Constraint, type SelectionEntry } from './catalogue'
-import { modelKindsOf, optionWargear } from './modelKinds'
+import { heldWargear } from '../shared/heldWargear'
+import { choiceOptionWargear, modelKindsOf, optionWargear } from './modelKinds'
 import { buildUnit } from './roster'
 import { allAt } from './selection'
 import { wargearOf } from './wargear'
@@ -783,7 +784,7 @@ describe('models the datasheet stands in the unit itself', () => {
     const packed = modelKindsOf('squad', buildUnit('squad', index)!.selection, index)
 
     expect(packed.map((kind) => kind.name)).toEqual(['Jakhal', 'Gunner'])
-    expect(packed[0]?.members).toEqual([{ id: 'jakhal', choiceKey: null, baseCount: 8 }])
+    expect(packed[0]?.members).toEqual([{ id: 'jakhal', choiceKey: null, baseCount: 8, within: { choiceKey: 'pack', optionId: 'eight' } }])
   })
 
   /**
@@ -942,4 +943,85 @@ describe('models the datasheet stands in the unit itself', () => {
 
     expect(modelKindsOf('squad', buildUnit('squad', index)!.selection, index)).toEqual([])
   })
+})
+
+it('counts a two-model team once on the card', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'recon',
+        name: 'Recon Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'troopers',
+            name: '9 Recon Troopers',
+            defaultSelectionEntryId: 'rifleman',
+            constraints: [
+              { id: 'troopers-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'troopers-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'rifleman',
+                name: 'Recon Trooper w/ Lasgun',
+                type: 'model',
+                constraints: [
+                  { id: 'rifleman-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                  { id: 'rifleman-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [{ id: 'lasgun', name: 'Lasgun', type: 'upgrade', constraints: mandatory('lasgun-min') }],
+              },
+              {
+                id: 'voxman',
+                name: 'Recon Trooper w/ Vox-caster',
+                type: 'model',
+                constraints: [{ id: 'voxman-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'vox', name: 'Vox-caster', type: 'upgrade', constraints: mandatory('vox-min') }],
+              },
+              {
+                id: 'team',
+                name: 'Weapons Team',
+                type: 'upgrade',
+                constraints: [{ id: 'team-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'gunner',
+                    name: 'Recon Trooper w/ Missile launcher',
+                    type: 'model',
+                    constraints: mandatory('gunner-min'),
+                    selectionEntries: [
+                      { id: 'launcher', name: 'Missile launcher', type: 'upgrade', constraints: mandatory('launcher-min') },
+                    ],
+                  },
+                  {
+                    id: 'loader',
+                    name: 'Recon Trooper w/ Laspistol',
+                    type: 'model',
+                    constraints: mandatory('loader-min'),
+                    selectionEntries: [{ id: 'laspistol', name: 'Laspistol', type: 'upgrade', constraints: mandatory('laspistol-min') }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const built = buildUnit('recon', index, 9, undefined, { spreads: { troopers: { team: 1 } } })!
+  const choices = built.choices.map((choice) => ({
+    ...choice,
+    options: choice.options.map((option) => ({
+      ...option,
+      pieceCounts: choiceOptionWargear(choice.key, option.id, built.selection, index),
+    })),
+  }))
+
+  expect(heldWargear(modelKindsOf('recon', built.selection, index), choices, wargearOf(built.selection, index))).toEqual(
+    expect.arrayContaining([
+      { name: 'Missile launcher', count: 1 },
+      { name: 'Laspistol', count: 1 },
+    ]),
+  )
 })

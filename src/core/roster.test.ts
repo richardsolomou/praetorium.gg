@@ -2006,6 +2006,147 @@ describe('who the data lets a list nominate as its Warlord', () => {
   })
 })
 
+describe('options inside one model of a squad', () => {
+  // "OFFICER model only" is written as a condition on the option's ancestors, and the
+  // officer is the model carrying the option, not the unit around it.
+  const index = indexOf({
+    categoryEntries: [{ id: 'officer', name: 'Officer' }],
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Command Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'prime',
+            name: 'Tempestor Prime',
+            type: 'model',
+            constraints: mandatory('prime-min'),
+            categoryLinks: [{ id: 'prime-officer', targetId: 'officer' }],
+            selectionEntryGroups: [
+              {
+                id: 'enhancements',
+                name: 'Enhancements',
+                constraints: [{ id: 'enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'vox-array',
+                    name: 'Bombast-class Vox-array',
+                    type: 'upgrade',
+                    modifiers: [
+                      {
+                        type: 'set',
+                        field: 'hidden',
+                        value: true,
+                        conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'ancestor', childId: 'officer' }],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'troops',
+        name: 'Shock Troops',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'troopers',
+            name: '9 Shock Troopers',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'troopers-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'troopers-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Shock Trooper',
+                type: 'model',
+                constraints: [
+                  { id: 'trooper-min', type: 'min', value: 6, field: 'selections', scope: 'parent' },
+                  { id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [{ id: 'lasgun', name: 'Lasgun', type: 'upgrade', constraints: mandatory('lasgun-min') }],
+              },
+              {
+                id: 'vox-trooper',
+                name: 'Shock Trooper w/ Vox-caster',
+                type: 'model',
+                constraints: [{ id: 'vox-trooper-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'vox', name: 'Vox-caster', type: 'upgrade', constraints: mandatory('vox-min') }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('leaves the specialist out of a squad sized by a unit composition group', () => {
+    const composition = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'grenadiers',
+          name: 'Grenadier Squad',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Unit Composition',
+              defaultSelectionEntryId: 'grenadier',
+              constraints: [
+                { id: 'composition-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+                { id: 'composition-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+              ],
+              selectionEntries: [
+                {
+                  id: 'grenadier',
+                  name: 'Grenadier',
+                  type: 'model',
+                  constraints: [
+                    { id: 'grenadier-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+                    { id: 'grenadier-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                  ],
+                },
+                {
+                  id: 'weapons-team',
+                  name: 'Heavy Weapons Team',
+                  type: 'model',
+                  constraints: [{ id: 'weapons-team-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(buildUnit('grenadiers', composition)!.choices[0]?.options).toEqual([expect.objectContaining({ id: 'weapons-team', count: 0 })])
+  })
+
+  it('offers an enhancement to the officer model carrying it', () => {
+    expect(buildUnit('squad', index)!.choices.flatMap((choice) => choice.options.map((option) => option.name))).toContain(
+      'Bombast-class Vox-array',
+    )
+  })
+
+  it('offers the one specialist a squad can swap a default trooper for', () => {
+    expect(buildUnit('troops', index)!.choices).toContainEqual(expect.objectContaining({ key: 'troopers', optional: true }))
+  })
+
+  it('takes the specialist body from the default troopers', () => {
+    const built = buildUnit('troops', index, 9, undefined, { spreads: { troopers: { 'vox-trooper': 1 } } })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Lasgun', count: 8 },
+      { name: 'Vox-caster', count: 1 },
+    ])
+  })
+})
+
 describe('a squad the data will not let hold two things at once', () => {
   // The catalogue writes "all models must be equipped identically" as an error that
   // fires when the unit holds one of each, since there is no number in it to constrain.

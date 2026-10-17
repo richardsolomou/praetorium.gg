@@ -270,11 +270,8 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
 
     await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
     const loadout = page.getByRole('dialog', { name: 'Attacker · Intercessor Squad', exact: true })
-    const powerFist = loadout
-      .getByRole('group', { name: 'Intercessor Squad Weapon 2' })
-      .getByRole('button', { name: 'Select Power fist', exact: true })
-    await powerFist.click()
-    await expect(powerFist).toHaveAttribute('aria-pressed', 'true')
+    await loadout.getByRole('button', { name: 'More Power fist', exact: true }).click()
+    await expect(loadout.getByLabel('Power fist count', { exact: true })).toHaveText('1')
     await noOverflow(page)
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(melee).toHaveAttribute('aria-busy', 'false')

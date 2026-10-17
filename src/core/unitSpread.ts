@@ -150,11 +150,21 @@ function withModelOccupants(
     // disagree. The group's own maximum is the answer, and the models it says
     // nothing about are counted first because they are already standing there.
     const untouched = (held.selections ?? []).filter((child) => !optionIds.has(child.id))
-    let left =
+    const defaultId = 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
+    // A specialist the counts name takes the place of a model they leave out — the
+    // group's default, or else one the squad must field — down to that model's minimum.
+    const minimum = (child: Selection) => {
+      const definition = index.definitions.get(child.id)
+      return definition && resolve(definition, index).type === 'model' ? requiredCount(definition, index, options) : null
+    }
+    const filler =
+      untouched.find((child) => child.id === defaultId && minimum(child) !== null) ?? untouched.find((child) => (minimum(child) ?? 0) > 0)
+    const spare = filler ? Math.max(0, (filler.count ?? 1) - (minimum(filler) ?? 0)) : 0
+    const free =
       capacity === null || capacity === UNBOUNDED
         ? Number.POSITIVE_INFINITY
         : Math.max(0, capacity - untouched.reduce((total, child) => total + (child.count ?? 1), 0))
-    const defaultId = 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
+    let left = free + spare
     const allocated = new Map<string, number>()
     for (const option of occupants
       .filter((candidate) => Object.hasOwn(counts, candidate.id))
@@ -163,10 +173,15 @@ function withModelOccupants(
       allocated.set(option.id, count)
       left -= count
     }
+    const taken = Math.max(0, [...allocated.values()].reduce((total, count) => total + count, 0) - free)
     return {
       ...held,
       selections: [
-        ...untouched,
+        ...untouched.flatMap((child) => {
+          if (child !== filler || !taken) return [child]
+          const count = (child.count ?? 1) - taken
+          return count > 0 ? [{ ...child, count }] : []
+        }),
         ...occupants.flatMap((option) => {
           const count = allocated.get(option.id) ?? 0
           return count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
