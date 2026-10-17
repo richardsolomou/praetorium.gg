@@ -18,19 +18,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
       ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      PUBLIC_KEY: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+      PUBLIC_SECRET: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+      PRIVATE_KEY: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+      PRIVATE_SECRET: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
     steps:
+      # Each bucket has its own token, so the copy goes through the runner's disk.
       - name: Copy the published artifacts
         run: |
           set -euo pipefail
+          public() { AWS_ACCESS_KEY_ID="$PUBLIC_KEY" AWS_SECRET_ACCESS_KEY="$PUBLIC_SECRET" aws "$@" --endpoint-url "$ENDPOINT"; }
+          private() { AWS_ACCESS_KEY_ID="$PRIVATE_KEY" AWS_SECRET_ACCESS_KEY="$PRIVATE_SECRET" aws "$@" --endpoint-url "$ENDPOINT"; }
           # The compiled runtime holds no source files and stays where builds read it.
-          aws s3 sync s3://praetorium/catalogue/ s3://praetorium-private/catalogue/ --exclude 'runtime/*' --endpoint-url "$ENDPOINT" --only-show-errors
+          public s3 sync s3://praetorium/catalogue/ "$RUNNER_TEMP/catalogue/" --exclude 'runtime/*' --only-show-errors
+          du -sh "$RUNNER_TEMP/catalogue"
+          private s3 sync "$RUNNER_TEMP/catalogue/" s3://praetorium-private/catalogue/ --only-show-errors
       - name: Compare what each bucket holds
         run: |
           set -euo pipefail
-          list() { aws s3api list-objects-v2 --bucket "$1" --prefix catalogue/ --endpoint-url "$ENDPOINT" --query 'Contents[].[Key,Size]' --output text | grep -v '^catalogue/runtime/' | sort; }
-          diff <(list praetorium) <(list praetorium-private)
-          echo "Copied $(list praetorium-private | wc -l) catalogue artifacts"
+          list() { AWS_ACCESS_KEY_ID="$2" AWS_SECRET_ACCESS_KEY="$3" aws s3api list-objects-v2 --bucket "$1" --prefix catalogue/ --endpoint-url "$ENDPOINT" --query 'Contents[].[Key,Size]' --output text | grep -v '^catalogue/runtime/' | sort; }
+          diff <(list praetorium "$PUBLIC_KEY" "$PUBLIC_SECRET") <(list praetorium-private "$PRIVATE_KEY" "$PRIVATE_SECRET")
+          echo "Copied $(list praetorium-private "$PRIVATE_KEY" "$PRIVATE_SECRET" | wc -l) catalogue artifacts"
