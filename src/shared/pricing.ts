@@ -29,7 +29,8 @@ import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments
 import { detachmentPoints } from './detachmentPoints'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
 import { mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints } from './mfm'
-import { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
+import { deploymentRules } from './rosterDeployment'
+import { grantsReserveExemptionIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -38,7 +39,7 @@ import type { PriceInput } from '../contracts/schemas'
 
 export { rosterDetachments }
 export { heldWargear } from './heldWargear'
-export { deploymentRules, grantsStrategicReserveExemption, strategicReserveExemptionSelectors } from './rosterDeployment'
+export { deploymentRules } from './rosterDeployment'
 export { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
 
 /** Evicts the least recently used entry once it holds more than its limit. */
@@ -522,8 +523,9 @@ function calculateRoster(
         (catalogue?.forcedEnhancements ?? []).every((enhancement) => Boolean(enhancement.description))
       )
     })
-  const reserveExemptionSelectors = strategicReserveExemptionSelectors(
+  const reserveExemptionSelectors = reserveSelectorsIn(
     detachmentSpecials.flatMap(({ detail }) => detail?.rules.map((rule) => rule.description) ?? []),
+    loaded.datacards.textFacts,
   )
   const enhancementDescriptions = new Map(detachmentSpecials.flatMap(({ described }) => [...described]))
   const budget = detachmentPointBudget(data.limit)
@@ -787,7 +789,7 @@ function calculateRoster(
       const strategicReserveExempt =
         reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, keywordNames)) ||
         selectedEnhancements.some((enhancement) =>
-          grantsStrategicReserveExemption(findEnhancementDescription(enhancementDescriptions, chosen, enhancement)),
+          grantsReserveExemptionIn(findEnhancementDescription(enhancementDescriptions, chosen, enhancement), loaded.datacards.textFacts),
         )
       const wargear = heldWargear(models, choices, catalogued)
       const specialWargear = new Set(

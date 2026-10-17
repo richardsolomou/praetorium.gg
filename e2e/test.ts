@@ -1,4 +1,9 @@
-import { test as base, type Page, type Response } from '@playwright/test'
+import fs from 'node:fs'
+import path from 'node:path'
+import { test as base, type BrowserContext, type Page, type Response } from '@playwright/test'
+import { readCatalogueComposition } from '../src/server/catalogueComposition'
+import { retainedSnapshots, upstreamUrl } from '../src/server/sourceTexts'
+import { catalogue } from './stackEnv'
 
 /**
  * Resolves a page load once the app has hydrated, as `AppShell` marks the document,
@@ -24,11 +29,57 @@ function awaitHydration(page: Page) {
   }
 }
 
-export const test = base.extend<{ closeOpenedContexts: void }>({
-  context: async ({ context, javaScriptEnabled }, use) => {
+/** Each upstream file the snapshot was built from, by the address a reader's browser loads it at. */
+let upstream: Map<string, string> | undefined
+function upstreamFiles() {
+  if (upstream) return upstream
+  const root = fs.realpathSync(catalogue)
+  const composition = readCatalogueComposition(root)
+  upstream = new Map()
+  const visit = (directory: string) => {
+    for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
+      const file = `${directory}/${entry.name}`
+      if (entry.isDirectory()) visit(file)
+      else if (entry.name.endsWith('.json')) {
+        const url = upstreamUrl(file, composition, retainedSnapshots(root))
+        if (url && !upstream!.has(url)) upstream!.set(url, path.join(root, file))
+      }
+    }
+  }
+  const editions = fs.existsSync(path.join(root, 'editions')) ? fs.readdirSync(path.join(root, 'editions')) : []
+  for (const prefix of ['', ...editions.map((edition) => `editions/${edition}/`)])
+    for (const source of ['definitions', 'datacards']) if (fs.existsSync(path.join(root, prefix, source))) visit(`${prefix}${source}`)
+  return upstream
+}
+
+/**
+ * Rules text loads from GitHub in a reader's browser; here it is served from the snapshot it
+ * was verified into, so no test reaches GitHub. A string Praetorium corrected differs from
+ * upstream either way, and the browser shows it as unavailable as it would in production.
+ */
+async function serveRulesText(context: BrowserContext, chosen: boolean) {
+  await context.route('https://raw.githubusercontent.com/**', (route) => {
+    const file = upstreamFiles().get(route.request().url())
+    return file ? route.fulfill({ path: file, contentType: 'text/plain' }) : route.fulfill({ status: 404 })
+  })
+  if (chosen)
+    await context.addInitScript(() => {
+      // Chosen once per browser context, so a test that stops loading rules text keeps that choice.
+      if (localStorage.getItem('praetorium-e2e-rules-text') === null) {
+        localStorage.setItem('praetorium-e2e-rules-text', 'set')
+        localStorage.setItem('praetorium-rules-text', 'game-datacards')
+      }
+    })
+}
+
+export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean }>({
+  /** Whether the reader has chosen to load rules text; specs about the unloaded state turn it off. */
+  rulesText: [true, { option: true }],
+  context: async ({ context, javaScriptEnabled, rulesText }, use) => {
     // Playwright opens this context through `browser.newContext`, which attaches the wait before this option is known.
     context.off('page', awaitHydration)
     if (javaScriptEnabled) context.on('page', awaitHydration)
+    await serveRulesText(context, rulesText)
     await use(context)
   },
   /** Closes the contexts a test opens with `browser.newContext()`; Playwright closes only those its fixtures create. */
@@ -39,6 +90,7 @@ export const test = base.extend<{ closeOpenedContexts: void }>({
       browser.newContext = async (options) => {
         const context = await newContext(options)
         if (options?.javaScriptEnabled !== false) context.on('page', awaitHydration)
+        await serveRulesText(context, true)
         return context
       }
       await use()

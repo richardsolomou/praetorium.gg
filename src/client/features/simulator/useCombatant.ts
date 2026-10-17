@@ -5,6 +5,8 @@ import type { RosterPick } from '../../../core/roster'
 import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleSelections } from '../../../core/combatRules'
+import { useSourceTexts } from '../../sourceText'
+import { combatantTexts, readableCombatant } from './readableRules'
 import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
 import type { SimulatorSide } from '../../../contracts/simulatorState'
 import { useSettled } from '../../useSettled'
@@ -97,6 +99,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     enabled: Boolean(entryId && entryId === settled[pickIndex]?.entryId),
     placeholderData: (previous, query) => (query?.queryKey[5] === pickIndex ? previous : undefined),
   })
+  useSourceTexts(combatantTexts(sheets.data))
+  const readable = sheets.data ? readableCombatant(sheets.data) : undefined
   // A battle fields frozen loadouts, so there is nothing to choose between.
   const loadoutContext =
     !roster?.battle && entryId && entryId === settled[pickIndex]?.entryId ? { catalogueId, detachmentIds, picks: settled, pickIndex } : null
@@ -126,11 +130,11 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     active,
     sharedDefenceSources,
   } = combatRuleSelections(
-    [...(sheets.data?.rules ?? []), ...(sheets.data?.companions ?? []).flatMap((member) => member.rules)],
+    [...(readable?.rules ?? []), ...(readable?.companions ?? []).flatMap((member) => member.rules)],
     ruleSelections,
   )
-  const activeRules = active(sheets.data?.rules ?? [])
-  const companions = (sheets.data?.companions ?? []).map((member) => {
+  const activeRules = active(readable?.rules ?? [])
+  const companions = (readable?.companions ?? []).map((member) => {
     const battleMember = roster?.battle?.units[member.pickIndex]
     const memberModels = health[healthKey(member.pickIndex)]?.models ?? battleMember?.models ?? member.models
     const memberKey = JSON.stringify([identityAt(member.pickIndex), memberModels, member.carriers])
@@ -262,7 +266,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
             allocationRequired: !survivors || Boolean(sheets.data.attachmentErrors.length),
             rules: activeRules,
             ruleChoices,
-            sharedDefenceSources: sharedDefenceSources(sheets.data.rules),
+            sharedDefenceSources: sharedDefenceSources(readable?.rules ?? []),
             companions,
           }
         : null,

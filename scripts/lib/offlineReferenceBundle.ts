@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { textSourceFiles } from '../../src/server/sourceTexts'
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
@@ -162,6 +163,7 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
         )
     }
   }
+  put(['text-sources'], textSourceFiles(directory, readCatalogueComposition(directory)))
   const ruleIndex = referenceRuleIndex(sources)
   put(['rule-index'], ruleIndex)
   for (const document of ruleIndex!.documents)

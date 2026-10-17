@@ -1,4 +1,5 @@
 import { attachedUnit, attachmentErrors } from '../core/attach'
+import { hasTextTokens } from './sourceText'
 import { combatRuleEligible, combatRuleIsRelevant, combatRuleRecipient, type CombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
@@ -208,6 +209,16 @@ function rosterCombatRules(
   ]
   const supportKeywords = [sheet.keywords]
   const add = (rule: CombatRule) => {
+    // A rule published as a token cannot be judged here; it travels with the keywords it is judged against
+    // and a device that loads its words judges it there (`readableRules`).
+    if (hasTextTokens(rule.description)) {
+      candidates.push({
+        ...rule,
+        models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models,
+        keywords: rule.scope === 'stratagem' ? unitKeywords : sheet.keywords,
+      })
+      return
+    }
     const recipient = rule.scope === 'stratagem' ? combatRuleRecipient(rule.description) : undefined
     if (
       combatRuleIsRelevant({

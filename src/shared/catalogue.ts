@@ -1,4 +1,5 @@
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
+import { withoutText } from './sourceText'
 import { attachmentOf } from '../core/attach'
 import {
   flattenedModifiers,
@@ -32,6 +33,7 @@ import { mergeDetachmentRules } from './catalogueDescriptions'
 import { definitionTokens, displayRuleName, modifiedProfileField } from './catalogueDisplay'
 import { relationshipFor, relationshipsFor } from './catalogueRelationships'
 import { deploymentAbilities, parseAbilityGrants, parsedAbilityGrants, titleCaseAbility } from './catalogueAbilityGrants'
+import { weaponGrantsIn } from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 
 export type { Datasheet, DatasheetRelationship } from '../contracts/catalogue'
@@ -80,6 +82,7 @@ export function unitBattleDetailsIn(loaded: LoadedCatalogue, catalogueId: string
         entryId,
         ...(wounds === null ? {} : { wounds }),
         ...(sheet.transport ? { transportRule: sheet.transport } : {}),
+        ...(sheet.transportCapacity ? { transportCapacity: sheet.transportCapacity } : {}),
         keywords: sheet.keywords,
       },
     ]
@@ -219,7 +222,7 @@ export function datasheetSearchFieldsIn(
     abilityDescriptions: includeAbilityDescriptions
       ? walked.abilities.flatMap((ability) =>
           (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
-            ? [{ name: ability.name, description: ability.description }]
+            ? [{ name: ability.name, description: withoutText(ability.description) }]
             : [],
         )
       : undefined,
@@ -266,6 +269,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     profiles: walked.profiles,
     abilities: walked.abilities,
     composition: details?.composition ?? [],
+    ...(details?.modelCount ? { modelCount: details.modelCount } : {}),
     loadout: details?.loadout ?? null,
     wargearOptions: details?.wargear.length
       ? details.wargear
@@ -273,6 +277,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     ...(details?.wargearGroups?.length ? { wargearGroups: details.wargearGroups } : {}),
     baseSize: details?.baseSize ?? null,
     transport: details?.transport ?? null,
+    ...(details?.transportCapacity ? { transportCapacity: details.transportCapacity } : {}),
     costs: details?.points ?? [],
     attachments: attachment?.targets.map((target) => relationshipFor(loaded, catalogueId, target, attachment.kind)) ?? [],
     leaders: relationships.leaders.map((leader) => relationshipFor(loaded, catalogueId, leader.name, undefined, leader.entryId)),
@@ -783,7 +788,7 @@ function weaponAbilitiesFromDetachments(
     const rules = mergeDetachmentRules(catalogueRules, cardRules)
     for (const rule of rules) {
       if (!rule.description) continue
-      for (const grant of unconditionalWeaponAbilityGrants(rule.description)) {
+      for (const grant of weaponGrantsIn(rule.description, loaded.datacards.textFacts)) {
         if (!matchesKeywordSelector(grant.recipients, keywordNames)) continue
         if (grant.exclusions && matchesKeywordSelector(grant.exclusions, keywordNames)) continue
         const granted = { keyword: grant.keyword, source: rule.name, profileTypes: grant.profileTypes }
@@ -792,24 +797,6 @@ function weaponAbilitiesFromDetachments(
     }
   }
   return [...found.values()]
-}
-
-function unconditionalWeaponAbilityGrants(description: string) {
-  const grants: { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }[] = []
-  const pattern =
-    /(?:^|[.!?]\s+)(?:[-■]\s*)?(?:In addition,\s+)?(?:(ranged|melee)\s+)?weapons equipped by (.+?) models(?: \((?:excluding|except) (.+?) models\))? from your army have the \[([^\]]+)\] ability(?=[.,]|$)/giu
-  const normalized = description.normalize('NFKC').replaceAll(/\^\^|\*\*/g, '')
-  for (const match of normalized.matchAll(pattern)) {
-    const weaponType = match[1]?.toLowerCase()
-    grants.push({
-      keyword: titleCaseAbility(match[4]!),
-      recipients: match[2]!,
-      ...(match[3] ? { exclusions: match[3] } : {}),
-      profileTypes:
-        weaponType === 'ranged' ? ['Ranged Weapons'] : weaponType === 'melee' ? ['Melee Weapons'] : ['Ranged Weapons', 'Melee Weapons'],
-    })
-  }
-  return grants
 }
 
 function grantedAbilitiesInAttachedUnit(

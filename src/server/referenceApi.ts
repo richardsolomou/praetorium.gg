@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { withoutTexts } from '../shared/sourceText'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
 import { referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
@@ -264,7 +265,8 @@ export function parseReferenceSearch(url: URL):
   return { query, kinds: kinds.length ? (kinds as ReferenceKind[]) : undefined, faction, pack, document, limit, cursor }
 }
 
-function referenceResponse(request: Request, revision: string, key: string, data: unknown, markdown: string) {
+function referenceResponse(request: Request, revision: string, key: string, published: unknown, markdown: string) {
+  const data = withoutTexts(published)
   // A query parameter as well as the header, so a plain link can name the Markdown representation.
   const asMarkdown =
     new URL(request.url).searchParams.get('format') === 'markdown' ||

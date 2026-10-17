@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { RuleDocument, RuleTextSource } from '../contracts/rules'
 import { ruleDocumentFrom } from '../shared/ruleDocuments'
-import { useStoredValue, writeStoredValue } from './storedValue'
+import { readStoredValue, useStoredValue, writeStoredValue } from './storedValue'
 
 /** The only source a reader can choose today; kept as a value so another can join it. */
 export const GAME_DATACARDS = 'game-datacards'
@@ -11,6 +11,8 @@ const KEY = 'praetorium-rules-text'
 const CACHE = 'praetorium-rules-text-v1'
 
 export const useRulesTextChoice = () => useStoredValue(KEY) === GAME_DATACARDS
+/** The choice outside React, for reads that run where no component renders. */
+export const rulesTextChosen = () => readStoredValue(KEY) === GAME_DATACARDS
 export const chooseRulesText = (load: boolean) => writeStoredValue(KEY, load ? GAME_DATACARDS : null)
 
 const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -20,18 +22,24 @@ async function verified(response: Response, text: RuleTextSource) {
   return hex(await crypto.subtle.digest('SHA-256', bytes)) === text.sha256 ? bytes : null
 }
 
-async function sourceBytes(text: RuleTextSource) {
+/**
+ * A pinned upstream file's bytes, from this device's copy when it kept one that `accept`
+ * still takes. A copy is kept only once accepted, so a refused answer is asked again.
+ */
+export async function upstreamBytes(url: string, accept: (response: Response) => Promise<ArrayBuffer | null>) {
   const cache = 'caches' in globalThis ? await caches.open(CACHE).catch(() => null) : null
-  const kept = await cache?.match(text.url)
-  const keptBytes = kept ? await verified(kept, text) : null
+  const kept = await cache?.match(url)
+  const keptBytes = kept ? await accept(kept) : null
   if (keptBytes) return keptBytes
-  const response = await fetch(text.url, { credentials: 'omit', referrerPolicy: 'no-referrer' })
-  if (!response.ok) throw new Error(`Game Datacards answered ${response.status}`)
-  const bytes = await verified(response, text)
-  if (!bytes) throw new Error('The Game Datacards file does not match the pinned version')
-  await cache?.put(text.url, new Response(bytes, { headers: { 'Content-Type': 'application/json' } })).catch(() => undefined)
+  const response = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' })
+  if (!response.ok) throw new Error(`The source answered ${response.status}`)
+  const bytes = await accept(response)
+  if (!bytes) throw new Error('The source file does not match the pinned version')
+  await cache?.put(url, new Response(bytes, { headers: { 'Content-Type': 'application/json' } })).catch(() => undefined)
   return bytes
 }
+
+const sourceBytes = (text: RuleTextSource) => upstreamBytes(text.url, (response) => verified(response, text))
 
 /** The full document read from its pinned upstream file, refused unless it is the exact file the outline was built from. */
 export async function loadRuleText(text: RuleTextSource): Promise<RuleDocument> {

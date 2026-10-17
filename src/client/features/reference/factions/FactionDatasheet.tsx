@@ -8,7 +8,6 @@ import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile
 import {
   abilitySections,
   attachmentGroups,
-  compositionCount,
   profileTableColumns,
   profileTableValue,
   referenceAbilities,
@@ -62,9 +61,9 @@ export function FactionDatasheet() {
           </div>
         }
       >
-        {sheet.composition.length || sheet.points !== null ? (
+        {sheet.modelCount || sheet.points !== null ? (
           <div className="flex flex-wrap gap-1">
-            {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
+            {sheet.modelCount ? <span className="chip">{sheet.modelCount}</span> : null}
             {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
           </div>
         ) : null}

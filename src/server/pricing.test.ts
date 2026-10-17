@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { grantsReserveExemptionIn, reserveSelectorsIn } from '../shared/textFacts'
 import type { OptionalRuleId } from '../core/battle'
 import type { SelectionEntry } from '../core/catalogue'
 import {
@@ -11,11 +12,9 @@ import {
   isCatalogueSelfContradiction,
   factionRestrictionViolations,
   findEnhancementDescription,
-  grantsStrategicReserveExemption,
   kotcViolations,
   savedRosterPriceInput,
   resolveDisposition,
-  strategicReserveExemptionSelectors,
   uniqueNames,
 } from '../shared/pricing'
 import { descriptionKey } from './datacards'
@@ -755,16 +754,16 @@ describe('catalogue-backed deployment rules', () => {
 
   it('reads reserve-limit exemptions from detachment rules and enhancements', () => {
     expect(
-      strategicReserveExemptionSelectors([
+      reserveSelectorsIn([
         '- Friendly **Orks Aircraft** units do not count towards the combined points value of your **strategic reserves** units.',
       ]),
     ).toEqual(['Orks Aircraft'])
     expect(
-      grantsStrategicReserveExemption(
+      grantsReserveExemptionIn(
         "If the bearer's unit starts the battle in Strategic Reserves, its points value does not count towards the combined points limit for units from your army that are in Strategic Reserve.",
       ),
     ).toBe(true)
-    expect(grantsStrategicReserveExemption('This unit can be set up in Strategic Reserves.')).toBe(false)
+    expect(grantsReserveExemptionIn('This unit can be set up in Strategic Reserves.')).toBe(false)
   })
 
   it('marks a unit matching a compound detachment keyword exemption', () => {

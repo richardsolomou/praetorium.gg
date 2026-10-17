@@ -1,5 +1,5 @@
 import { criteriaKey } from './missionCriteria'
-import { english, type MissionPack, missionCards, readMissionPacks } from './missionPacks'
+import { english, type MissionPack, missionCards, packText, readMissionPacks } from './missionPacks'
 import type { MissionAction } from '../contracts/missions'
 
 export type { MissionAction } from '../contracts/missions'
@@ -18,7 +18,7 @@ export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAct
   for (const pack of packs) {
     for (const card of missionCards(pack)) {
       const name = english(card.name)
-      const actions = readActions(card.actions)
+      const actions = readActions(card.actions, pack)
       if (!name || !actions.length) continue
       const key = criteriaKey(name)
       if (found.has(key)) contested.add(key)
@@ -29,7 +29,7 @@ export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAct
   return found
 }
 
-function readActions(actions: unknown): MissionAction[] {
+function readActions(actions: unknown, pack: MissionPack): MissionAction[] {
   if (!Array.isArray(actions)) return []
   return actions.flatMap((entry: unknown) => {
     if (!entry || typeof entry !== 'object') return []
@@ -40,12 +40,12 @@ function readActions(actions: unknown): MissionAction[] {
       ? [
           {
             name,
-            starts: english(action.startsText),
-            completes: english(action.completesText),
-            effect: english(action.effectText),
-            units: english(action.unitsText),
-            useLimit: english(action.useLimitText),
-            restriction: english(action.restrictionText),
+            starts: packText(pack, action.startsText),
+            completes: packText(pack, action.completesText),
+            effect: packText(pack, action.effectText),
+            units: packText(pack, action.unitsText),
+            useLimit: packText(pack, action.useLimitText),
+            restriction: packText(pack, action.restrictionText),
           },
         ]
       : []

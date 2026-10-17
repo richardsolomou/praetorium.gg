@@ -50,7 +50,7 @@ The [combat simulator](combat-simulation.md#interface-and-context) reads logged 
 
 Personal roster reminders and frozen unit notes are owner-only: `battleView`, `visibleBattleLog`, and `leagueRoster` strip them from every other read. Reminder dismissals are local state, not commands, and reminders never replace shared scoring guards or prompts.
 
-Starting Strategic Reserves use one allowance per side, shared by allies; Deep Strike changes ingress, not membership. `unitFormationRefusal` is the formation authority for `validate` and setup controls. [`src/core/transport.ts`](../../src/core/transport.ts) refuses a transport rule with any sentence it cannot read rather than enforcing part of it; units frozen before keywords were recorded count one space per model. Incomplete source facts never invent restrictions.
+Starting Strategic Reserves use one allowance per side, shared by allies; Deep Strike changes ingress, not membership. `unitFormationRefusal` is the formation authority for `validate` and setup controls. [`src/core/transport.ts`](../../src/core/transport.ts) refuses a transport rule with any sentence it cannot read rather than enforcing part of it; rosters freeze what the rule states (`transportCapacity`), because its text is published only as a token, and older logs keep reading their frozen text; units frozen before keywords were recorded count one space per model. Incomplete source facts never invent restrictions.
 
 ## Prompts and replay
 

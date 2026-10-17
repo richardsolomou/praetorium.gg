@@ -5,6 +5,9 @@ import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
 import { RuleMarkup } from './RuleMarkup'
+import { SourceTextPrompt } from './SourceTextPrompt'
+import { useSourceText } from '../sourceText'
+import { hasTextTokens } from '../../shared/sourceText'
 
 const noRules: KeywordRule[] = []
 const Rules = createContext<KeywordRule[]>(noRules)
@@ -63,6 +66,23 @@ export function ruleSegments(text: string): RuleSegment[] {
 const noLinks: RuleLinks = new Map()
 
 export function RuleText({ text, rules = noRules, className }: { text: string; rules?: KeywordRule[]; className?: string }) {
+  return hasTextTokens(text) ? (
+    <SourcedRuleText text={text} rules={rules} className={className} />
+  ) : (
+    <RuleTextBody text={text} rules={rules} className={className} />
+  )
+}
+
+/** Published text names its source rather than stating it, so it is read from that source before it is drawn. */
+function SourcedRuleText({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {
+  const source = useSourceText(text)
+  // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
+  if (source.missing === 'unchosen' || source.missing === 'loading')
+    return <SourceTextPrompt missing={source.missing} className={cn('mt-2', className)} />
+  return <RuleTextBody text={source.text} rules={rules} className={className} />
+}
+
+function RuleTextBody({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {
   const segments = useMemo(() => ruleSegments(text), [text])
   return (
     <Rules value={rules}>

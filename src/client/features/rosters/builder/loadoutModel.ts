@@ -1,4 +1,5 @@
 import type { Datasheet } from '../../../../contracts/catalogue'
+import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
 import { modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
 import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
 
@@ -98,7 +99,7 @@ export function loadoutInstructions(
 ) {
   const names = row.pieces ?? [row.name]
   const candidates = groups.flatMap((group) => {
-    if (group.instruction === 'Default Wargear') return []
+    if (group.instruction === DEFAULT_WARGEAR) return []
     const namedModels = models.filter((candidate) =>
       new RegExp(`\\b${candidate.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:s\\b|\\b)`, 'i').test(group.instruction),
     )

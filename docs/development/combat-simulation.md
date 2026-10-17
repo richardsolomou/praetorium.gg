@@ -41,6 +41,8 @@ Do not apply evaluated profile changes twice or suppress other effects from the 
 
 Combine opposing modifiers before limits, and additive modifiers before caps. Preserve source stacking rules, conditional defences, automatic versus successful-only critical thresholds, and explicit choices between incomparable repeated numeric abilities. Automatic hits and wounds are not critical. Manual grants use the supported better value. A selected effect stays visibly selected even when it cannot change the result.
 
+Rules are compiled from their words. A Game Datacards rule reaches the simulator as a [token](catalogue-data.md#published-rules-text) with the keywords it is judged against; `rosterCombatant` passes it through unjudged and `readableRules` compiles and judges it once the device has loaded its text, so stratagem and detachment-rule effects need the text loaded and server-side calculations leave them out.
+
 Unsupported bearer ownership, attack targeting, sacrifices, or additional mechanics must not produce a confident estimate. Current support lives in the compiler/keyword tests and `pnpm catalogue:combat`, not a prose inventory.
 
 ## Calculation

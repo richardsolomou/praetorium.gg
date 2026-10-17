@@ -3,6 +3,9 @@ import { type ReactNode, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { parseRuleMarkup, type RuleInline, type RuleMarkupBlock } from '../ruleMarkup'
+import { useSourceText } from '../sourceText'
+import { hasTextTokens } from '../../shared/sourceText'
+import { SourceTextPrompt } from './SourceTextPrompt'
 
 /**
  * A rule as the rules documents write it.
@@ -12,6 +15,21 @@ import { parseRuleMarkup, type RuleInline, type RuleMarkupBlock } from '../ruleM
  * reader can reach that rule and stays the printed number when they cannot.
  */
 export function RuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
+  return hasTextTokens(markup) ? (
+    <SourcedRuleMarkup markup={markup} links={links} className={className} />
+  ) : (
+    <RuleMarkupBody markup={markup} links={links} className={className} />
+  )
+}
+
+function SourcedRuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
+  const source = useSourceText(markup)
+  if (source.missing === 'unchosen' || source.missing === 'loading')
+    return <SourceTextPrompt missing={source.missing} className={className} />
+  return <RuleMarkupBody markup={source.text} links={links} className={className} />
+}
+
+function RuleMarkupBody({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
   const blocks = useMemo(() => parseRuleMarkup(markup), [markup])
   return (
     <div className={cn('space-y-2 font-rules text-sm text-dim', className)}>

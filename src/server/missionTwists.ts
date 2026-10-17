@@ -1,5 +1,5 @@
 import { routeSlug } from '../core/slug'
-import { english, type MissionPack, readMissionPacks } from './missionPacks'
+import { english, type MissionPack, packText, readMissionPacks } from './missionPacks'
 
 /**
  * The optional twist a pack offers, which changes one rule for the whole battle.
@@ -30,7 +30,17 @@ export function twistsIn(packs: readonly MissionPack[]): Map<string, MissionTwis
       if (!entry || typeof entry !== 'object') return []
       const twist = entry as Record<string, unknown>
       const name = english(twist.name)
-      return typeof twist.id === 'string' && name ? [{ id: twist.id, name, lore: english(twist.lore), rules: english(twist.rules) }] : []
+      return typeof twist.id === 'string' && name
+        ? [
+            {
+              id: twist.id,
+              name,
+              lore: packText(pack, twist.lore),
+              rules: packText(pack, twist.rules),
+              ...(/primary mission/i.test(english(twist.rules) ?? '') ? { changesPrimary: true } : {}),
+            },
+          ]
+        : []
     })
     if (read.length) found.set(routeSlug(packName), read)
   }

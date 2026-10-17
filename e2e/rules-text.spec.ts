@@ -3,6 +3,9 @@ import path from 'node:path'
 import { catalogue } from './stackEnv'
 import { expect, test } from './test'
 
+// These tests start where a reader who has not chosen to load rules text starts.
+test.use({ rulesText: false })
+
 const coreRules = fs.readFileSync(path.join(catalogue, 'datacards', '11th', 'gdc', 'core', 'core_rules.json'))
 const prose = 'The principles of movement are explained here.'
 

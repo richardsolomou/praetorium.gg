@@ -1,4 +1,8 @@
 import { searchAll, type OwnSearchData } from '../core/referenceSearch'
+import { withoutText } from '../shared/sourceText'
+
+/** Search reads what a text says where it says it here; a token says nothing to search. */
+const searchable = <T extends string | null>(text: T) => (text === null ? text : withoutText(text)) as T
 import type {
   GlobalSearchIndex,
   GlobalSearchResult,
@@ -57,10 +61,26 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
       detachments.push({
         search: detachment.name.toLowerCase(),
         cards: [
-          ...(detail?.rules ?? []).map((card) => ({ kind: 'detachment rule' as const, name: card.name, description: card.description })),
-          ...(detail?.enhancements ?? []).map((card) => ({ kind: 'enhancement' as const, name: card.name, description: card.description })),
-          ...(detail?.upgrades ?? []).map((card) => ({ kind: 'upgrade' as const, name: card.name, description: card.description })),
-          ...(detail?.stratagems ?? []).map((card) => ({ kind: 'stratagem' as const, name: card.name, description: card.description })),
+          ...(detail?.rules ?? []).map((card) => ({
+            kind: 'detachment rule' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
+          ...(detail?.enhancements ?? []).map((card) => ({
+            kind: 'enhancement' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
+          ...(detail?.upgrades ?? []).map((card) => ({
+            kind: 'upgrade' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
+          ...(detail?.stratagems ?? []).map((card) => ({
+            kind: 'stratagem' as const,
+            name: card.name,
+            description: searchable(card.description),
+          })),
         ],
         result: {
           id: `detachment:${faction.id}:${detachment.id}`,

@@ -102,6 +102,7 @@ const canonicalDatasheetSchema = z.object({
     }),
   ),
   composition: z.array(z.string()),
+  modelCount: z.string().optional(),
   loadout: z.string().nullable(),
   wargearOptions: z.array(z.string()),
   wargearGroups: z.array(z.object({ instruction: z.string(), options: z.array(z.string()) })).optional(),

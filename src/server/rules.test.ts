@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { wordsFrom } from './sourceTexts.fixtures'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
@@ -431,7 +432,8 @@ it('uses an exact Game Datacards ability definition omitted from a faction file'
       { name: 'Super-heavy Walker', description: 'Unrelated keyword.', matchType: 'exact', appliesTo: ['keywords'] },
     ],
   })
-  expect(rules().supplementalArmyRules.get('adeptus-titanicus')).toEqual([
+  const words = wordsFrom(directory)
+  expect(rules().supplementalArmyRules.get('adeptus-titanicus')?.map((rule) => ({ ...rule, description: words(rule.description) }))).toEqual([
     { name: 'Super-heavy Walker', description: 'Walk through terrain.' },
   ])
 })
@@ -476,7 +478,8 @@ it('keeps a selected pack from falling through to another pack', () => {
 })
 
 it('schedules only scoring moments declared by the card', () => {
-  expect(rules().primaries[0]?.awards).toEqual([
+  const words = wordsFrom(directory)
+  expect(rules().primaries[0]?.awards.map((award) => ({ ...award, criteria: award.criteria && words(award.criteria) }))).toEqual([
     expect.objectContaining({
       vp: 5,
       per: 'each',
