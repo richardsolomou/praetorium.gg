@@ -342,18 +342,6 @@ export class PraetoriumService {
     return this.repository.setCollectionPublished(userId, published)
   }
 
-  availableCollection(...args: Parameters<RosterService['availableCollection']>) {
-    return this.rosterService.availableCollection(...args)
-  }
-
-  collectionInventory(...args: Parameters<RosterService['collectionInventory']>) {
-    return this.rosterService.collectionInventory(...args)
-  }
-
-  setCollectionGroups(...args: Parameters<RosterService['setCollectionGroups']>) {
-    return this.rosterService.setCollectionGroups(...args)
-  }
-
   collection(...args: Parameters<RosterService['collection']>) {
     return this.rosterService.collection(...args)
   }

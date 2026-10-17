@@ -247,7 +247,6 @@ const collection = table(
     entryId: t.string(),
     at: t.u64(),
     models: t.option(t.u32()).default(undefined),
-    groups: t.option(t.string()).default(undefined),
   },
 )
 

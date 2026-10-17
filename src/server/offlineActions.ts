@@ -9,7 +9,6 @@ function action<S extends z.ZodType>(schema: S, work: (owner: string, data: z.ou
 }
 const service = () => app().service
 export const offlineActions: Record<OfflineActionKind, (owner: string, input: unknown) => Promise<unknown>> = {
-  setCollectionGroups: action(schemas.setCollectionGroups, (owner, data) => service().setCollectionGroups(owner, data)),
   setOwned: action(schemas.setOwned, (owner, data) => service().setOwned(owner, data.entryId, data.owned)),
   setCollectionModels: action(schemas.setCollectionModels, (owner, data) =>
     service().setCollectionModels(owner, data.entryId, data.models),

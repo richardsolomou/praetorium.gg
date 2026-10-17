@@ -1,5 +1,3 @@
-import { collectionGroupsInputSchema } from '../../src/core/collection'
-import { collectionGroupsSchema, collectionAvailability } from '../../src/core/collection'
 import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server'
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
@@ -1421,12 +1419,11 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
     requireOperator(tx)
     moveHeartsToFavourites(tx, userId)
     return productJson(
-      Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models, groups }) => ({
+      Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models }) => ({
         userId: ownerId,
         entryId,
         at,
         models,
-        ...(groups ? { groups: collectionGroupsSchema.parse(JSON.parse(groups)) } : {}),
         ...collectionPhotoField(tx, key),
       })),
     )
@@ -1445,12 +1442,7 @@ export const collectionProfile = spacetime.procedure(
       const entries = []
       for (const row of tx.db.collection.userId.filter(userId)) {
         if (entries.length >= MAX_COLLECTION_DATASHEETS) throw new SenderError('Collection exceeds the supported limit')
-        entries.push({
-          entryId: row.entryId,
-          models: row.models,
-          ...(row.groups ? { groups: collectionGroupsSchema.parse(JSON.parse(row.groups)) } : {}),
-          ...collectionPhotoField(tx, row.key, viewerId === userId),
-        })
+        entries.push({ entryId: row.entryId, models: row.models, ...collectionPhotoField(tx, row.key, viewerId === userId) })
       }
       return productJson({ published, entries })
     }),
@@ -1492,27 +1484,6 @@ export const setCollectionModels = spacetime.reducer(
   },
 )
 
-export const setCollectionGroups = spacetime.reducer({ userId: t.string(), input: t.string() }, (ctx, { userId, input }) =>
-  setCollectionGroupsIn(ctx, [userId, input]),
-)
-
-function setCollectionGroupsIn(ctx: Context, args: unknown[]) {
-  requireOperator(ctx)
-  const [userId, raw] = z.tuple([z.string().min(1).max(128), z.string().max(250_000)]).parse(args)
-  const input = collectionGroupsInputSchema.parse(JSON.parse(raw))
-  const key = JSON.stringify([userId, input.entryId])
-  const current = ctx.db.collection.key.find(key)
-  if (
-    !current ||
-    current.models !== input.expectedModels ||
-    (current.groups ?? null) !== (input.expectedGroups ? JSON.stringify(input.expectedGroups) : null)
-  )
-    throw new SenderError('The collection changed. Reopen model groups and review your changes.')
-  const models = input.groups?.reduce((total, group) => total + group.models, 0) ?? current.models
-  ctx.db.collection.key.update({ ...current, models, groups: input.groups ? JSON.stringify(input.groups) : undefined })
-  touchCollection(ctx, userId)
-}
-
 export const setCollectionPhoto = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), photoId: t.string(), at: t.u64() },
   (ctx, input) => {
@@ -1520,19 +1491,8 @@ export const setCollectionPhoto = spacetime.reducer(
     const { userId, entryId, photoId } = z
       .object({ userId: z.string().min(1).max(128), entryId: z.string().min(1).max(2_000_000), photoId: z.uuid() })
       .parse(input)
-    const key = JSON.stringify([userId, entryId])
-    if (!ctx.db.collection.key.find(key)) {
-      const entries = Array.from(ctx.db.collection.userId.filter(userId))
-        .filter((row) => row.models !== undefined)
-        .map((row) => ({
-          entryId: row.entryId,
-          models: row.models!,
-          ...(row.groups ? { groups: collectionGroupsSchema.parse(JSON.parse(row.groups)) } : {}),
-        }))
-      if (collectionAvailability(entries)[entryId])
-        throw new SenderError('These models are shared. Add photos from their owning datasheet in Collection.')
-    }
     addToCollectionIn(ctx, [userId, entryId, input.at])
+    const key = JSON.stringify([userId, entryId])
     if (Array.from(ctx.db.collectionPhotos.row.filter(key)).length >= MAX_DATASHEET_PHOTOS)
       throw new SenderError(`You can add up to ${MAX_DATASHEET_PHOTOS} photos of a datasheet`)
     ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId, at: input.at, likes: 0, review: undefined })
@@ -2535,15 +2495,7 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
   moveHeartsToFavourites(ctx, input.userId)
   const key = JSON.stringify([input.userId, input.entryId])
   if (!ctx.db.collection.key.find(key)) {
-    const entries = Array.from(ctx.db.collection.userId.filter(input.userId))
-      .filter((row) => row.models !== undefined)
-      .map((row) => ({
-        entryId: row.entryId,
-        models: row.models!,
-        ...(row.groups ? { groups: collectionGroupsSchema.parse(JSON.parse(row.groups)) } : {}),
-      }))
-    if (entries.length >= MAX_COLLECTION_DATASHEETS) throw new SenderError('Collection exceeds the supported limit')
-    ctx.db.collection.insert({ key, ...input, models: 1, groups: undefined })
+    ctx.db.collection.insert({ key, ...input, models: 1 })
     touchCollection(ctx, input.userId)
   }
 }
@@ -2555,15 +2507,6 @@ function removeFromCollectionIn(ctx: Context, args: unknown[]) {
   requireOperator(ctx)
   moveHeartsToFavourites(ctx, input.userId)
   const key = JSON.stringify([input.userId, input.entryId])
-  if (
-    !ctx.db.collection.key.find(key) &&
-    Array.from(ctx.db.collection.userId.filter(input.userId)).some(
-      (row) =>
-        row.groups &&
-        collectionGroupsSchema.parse(JSON.parse(row.groups)).some((group) => group.builds.some((build) => build.entryId === input.entryId)),
-    )
-  )
-    throw new SenderError('These models are shared. Edit their model groups in Collection.')
   dropCollectionRowPhotos(ctx, key)
   if (ctx.db.collection.key.delete(key)) touchCollection(ctx, input.userId)
 }
@@ -2582,9 +2525,8 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   const current = ctx.db.collection.key.find(key)
-  if (current?.groups) throw new SenderError('Edit model groups to change this count.')
   if (current) ctx.db.collection.key.update({ ...current, models })
-  else ctx.db.collection.insert({ key, userId, entryId, at, models, groups: undefined })
+  else ctx.db.collection.insert({ key, userId, entryId, at, models })
   touchCollection(ctx, userId)
 }
 
@@ -3331,7 +3273,6 @@ const syncProductActions = {
   add_to_collection: addToCollectionIn,
   remove_from_collection: removeFromCollectionIn,
   set_collection_models: setCollectionModelsIn,
-  set_collection_groups: setCollectionGroupsIn,
   add_favourite_faction: addFavouriteFactionIn,
   remove_favourite_faction: removeFavouriteFactionIn,
   add_favourite_detachment: addFavouriteDetachmentIn,

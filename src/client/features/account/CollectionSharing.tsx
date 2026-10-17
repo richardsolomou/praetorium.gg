@@ -20,9 +20,7 @@ export function CollectionSharing({ userId }: { userId: string }) {
     <section id="collection-sharing" className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
       <div>
         <h2 className="rubric border-b border-edge pb-2">Collection</h2>
-        <p className="mt-2 text-sm text-dim">
-          Your profile’s Collection tab lists your datasheets, physical model counts, build and equipment configurations, and photos.
-        </p>
+        <p className="mt-2 text-sm text-dim">Your profile’s Collection tab lists your datasheets, model counts and photos.</p>
       </div>
       <label htmlFor={switchId} className="flex items-center justify-between gap-4 border border-edge bg-sunken p-3">
         <span>

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { collectionGroupsSchema, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../core/collection'
+import { MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../core/collection'
 import { MAX_DATASHEET_PHOTOS } from '../core/collectionPhotos'
 
 export const collectionProfileSchema = z
@@ -10,15 +10,12 @@ export const collectionProfileSchema = z
         z.object({
           entryId: z.string(),
           models: z.number().int().min(1).max(MAX_COLLECTION_MODELS),
-          groups: collectionGroupsSchema.optional(),
           photoIds: z.array(z.uuid()).max(MAX_DATASHEET_PHOTOS).optional(),
         }),
       )
       .max(MAX_COLLECTION_DATASHEETS),
   })
   .nullable()
-
-export { collectionGroupsInputSchema } from '../core/collection'
 
 /** Browsers downscale a photo to about 1280 pixels before upload, which keeps a typical one well under this. */
 export const COLLECTION_PHOTO_MAX_BYTES = 600_000

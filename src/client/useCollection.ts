@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { prepareCollectionPhoto } from './features/collection/preparePhoto'
 import { removeCollectionPhoto, setCollectionModels, setOwned, uploadCollectionPhoto } from './functions'
-import { collectionCountsQuery, collectionInventoryQuery, collectionPhotosQuery, collectionQuery } from './queries'
+import { collectionCountsQuery, collectionPhotosQuery, collectionQuery } from './queries'
 import { localEngine } from './offline/localRuntime'
 
 export function useCollectionMutation() {
@@ -36,7 +36,6 @@ export function useCollectionMutation() {
       return Promise.all([
         queryClient.invalidateQueries({ queryKey }),
         queryClient.invalidateQueries({ queryKey: collectionCountsQuery().queryKey }),
-        queryClient.invalidateQueries({ queryKey: collectionInventoryQuery().queryKey }),
       ])
     },
   })
@@ -59,11 +58,7 @@ export function useCollectionCountMutation() {
       if (!context?.durable) queryClient.setQueryData(queryKey, context?.previous)
     },
     onSettled: (_data, _error, _input, context) => {
-      if (!context?.durable)
-        return Promise.all([
-          queryClient.invalidateQueries({ queryKey }),
-          queryClient.invalidateQueries({ queryKey: collectionInventoryQuery().queryKey }),
-        ])
+      if (!context?.durable) return queryClient.invalidateQueries({ queryKey })
     },
   })
 }
@@ -73,7 +68,6 @@ function useInvalidatePhotos() {
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: collectionPhotosQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: collectionInventoryQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: collectionCountsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] }),

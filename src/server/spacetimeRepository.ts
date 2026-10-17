@@ -724,10 +724,6 @@ export class SpacetimeRepository {
     return this.product.setCollectionModels(...args)
   }
 
-  setCollectionGroups(...args: Parameters<SpacetimeOperator['setCollectionGroups']>) {
-    return this.product.setCollectionGroups(...args)
-  }
-
   setCollectionPhoto(...args: Parameters<SpacetimeOperator['setCollectionPhoto']>) {
     return this.product.setCollectionPhoto(...args)
   }
