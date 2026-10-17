@@ -26,6 +26,7 @@ import {
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, WargearRow } from './LoadoutControls'
+import { loadedWords, useSourceTexts } from '../../../sourceText'
 
 /**
  * One kind of model in the unit, and everything it can carry.
@@ -109,6 +110,7 @@ export function ModelCard({
       onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
     }
   }
+  const { chosen } = useSourceTexts((wargearGroups ?? []).map((group) => group.instruction))
   const counted = heading()
   if (!showOptions && !count) return null
   const statedInstructions = new Set<string>()
@@ -184,7 +186,9 @@ export function ModelCard({
             press(free(row)) ?? (removeDirect ? () => onChoose(removeDirect.source.choice.key, removeDirect.replacement ?? '') : undefined)
           const picked = choice.uniform || (choice.optional && choice.room === 1 && choice.options.length === 1)
           const instructions = showOptions
-            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? []).filter((instruction) => {
+            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? [], (text) =>
+                loadedWords(text, chosen),
+              ).filter((instruction) => {
                 if (statedInstructions.has(instruction)) return false
                 statedInstructions.add(instruction)
                 return true

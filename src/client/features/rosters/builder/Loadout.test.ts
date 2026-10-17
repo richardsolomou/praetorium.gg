@@ -186,40 +186,44 @@ it('keeps loadout weapon stats visible without a collapse control', () => {
 
 it('omits a loadout container when its nested choices already control every piece', () => {
   const markup = renderToStaticMarkup(
-    createElement(ModelCard, {
-      model: {
-        name: 'Leader',
-        fixed: [],
-        members: [{ id: 'leader', choiceKey: null, baseCount: 1 }],
-        rows: [
-          { name: 'Blade and Rifle', pieces: ['Blade', 'Rifle'], choiceKey: 'weapons', optionId: 'pair' },
-          { name: 'Blade', choiceKey: 'weapons/pair/melee', optionId: 'blade' },
-          { name: 'Rifle', choiceKey: 'weapons/pair/ranged', optionId: 'rifle' },
-        ],
-      },
-      choices: [
-        { key: 'weapons', id: 'pair', name: 'Blade and Rifle' },
-        { key: 'weapons/pair/melee', id: 'blade', name: 'Blade' },
-        { key: 'weapons/pair/ranged', id: 'rifle', name: 'Rifle' },
-      ].map(({ key, id, name }) => ({
-        key,
-        name,
-        chosen: id,
-        optional: false,
-        carried: false,
-        room: 1,
-        uniform: false,
-        owner: null,
-        options: [{ id, name, count: 1, points: 0, min: 0, max: 1 }],
-      })),
-      stands: null,
-      weapons: [],
-      abilities: [],
-      rules: [],
-      editable: true,
-      onChoose: () => undefined,
-      onSpread: () => undefined,
-    }),
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(ModelCard, {
+        model: {
+          name: 'Leader',
+          fixed: [],
+          members: [{ id: 'leader', choiceKey: null, baseCount: 1 }],
+          rows: [
+            { name: 'Blade and Rifle', pieces: ['Blade', 'Rifle'], choiceKey: 'weapons', optionId: 'pair' },
+            { name: 'Blade', choiceKey: 'weapons/pair/melee', optionId: 'blade' },
+            { name: 'Rifle', choiceKey: 'weapons/pair/ranged', optionId: 'rifle' },
+          ],
+        },
+        choices: [
+          { key: 'weapons', id: 'pair', name: 'Blade and Rifle' },
+          { key: 'weapons/pair/melee', id: 'blade', name: 'Blade' },
+          { key: 'weapons/pair/ranged', id: 'rifle', name: 'Rifle' },
+        ].map(({ key, id, name }) => ({
+          key,
+          name,
+          chosen: id,
+          optional: false,
+          carried: false,
+          room: 1,
+          uniform: false,
+          owner: null,
+          options: [{ id, name, count: 1, points: 0, min: 0, max: 1 }],
+        })),
+        stands: null,
+        weapons: [],
+        abilities: [],
+        rules: [],
+        editable: true,
+        onChoose: () => undefined,
+        onSpread: () => undefined,
+      }),
+    ),
   )
 
   expect(markup).not.toContain('Blade and Rifle')
@@ -229,40 +233,44 @@ it('omits a loadout container when its nested choices already control every piec
 
 it('keeps the weapons of an inactive customizable loadout in separate boxes', () => {
   const markup = renderToStaticMarkup(
-    createElement(ModelCard, {
-      model: {
-        name: 'Leader',
-        fixed: [],
-        members: [{ id: 'leader', choiceKey: null, baseCount: 1 }],
-        rows: [
-          { name: 'Blade and Rifle', pieces: ['Blade', 'Rifle'], separatePieces: true, choiceKey: 'weapons', optionId: 'pair' },
-          { name: 'Great axe', choiceKey: 'weapons', optionId: 'axe' },
-        ],
-      },
-      choices: [
-        {
-          key: 'weapons',
-          name: 'Weapons',
-          chosen: 'axe',
-          optional: false,
-          carried: false,
-          room: 1,
-          uniform: false,
-          owner: { id: 'leader', name: 'Leader', profile: null },
-          options: [
-            { id: 'pair', name: 'Blade and Rifle', count: 0, points: 0, min: 0, max: 1, default: true },
-            { id: 'axe', name: 'Great axe', count: 1, points: 0, min: 0, max: 1 },
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(ModelCard, {
+        model: {
+          name: 'Leader',
+          fixed: [],
+          members: [{ id: 'leader', choiceKey: null, baseCount: 1 }],
+          rows: [
+            { name: 'Blade and Rifle', pieces: ['Blade', 'Rifle'], separatePieces: true, choiceKey: 'weapons', optionId: 'pair' },
+            { name: 'Great axe', choiceKey: 'weapons', optionId: 'axe' },
           ],
         },
-      ],
-      stands: null,
-      weapons: [],
-      abilities: [],
-      rules: [],
-      editable: true,
-      onChoose: () => undefined,
-      onSpread: () => undefined,
-    }),
+        choices: [
+          {
+            key: 'weapons',
+            name: 'Weapons',
+            chosen: 'axe',
+            optional: false,
+            carried: false,
+            room: 1,
+            uniform: false,
+            owner: { id: 'leader', name: 'Leader', profile: null },
+            options: [
+              { id: 'pair', name: 'Blade and Rifle', count: 0, points: 0, min: 0, max: 1, default: true },
+              { id: 'axe', name: 'Great axe', count: 1, points: 0, min: 0, max: 1 },
+            ],
+          },
+        ],
+        stands: null,
+        weapons: [],
+        abilities: [],
+        rules: [],
+        editable: true,
+        onChoose: () => undefined,
+        onSpread: () => undefined,
+      }),
+    ),
   )
 
   expect(markup).not.toContain('Blade and Rifle')
