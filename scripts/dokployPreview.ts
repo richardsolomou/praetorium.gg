@@ -78,7 +78,11 @@ async function productModule(image: string) {
   const work = await mkdtemp(path.join(os.tmpdir(), 'praetorium-preview-module-'))
   let container: string | undefined
   try {
-    await execFile('docker', ['logout', 'ghcr.io'], { timeout: 30_000 })
+    const login = execFile('docker', ['login', 'ghcr.io', '--username', required('PREVIEW_REGISTRY_USERNAME'), '--password-stdin'], {
+      timeout: 30_000,
+    })
+    login.child.stdin?.end(required('PREVIEW_REGISTRY_PASSWORD'))
+    await login
     await execFile('docker', ['buildx', 'imagetools', 'inspect', '--raw', image], { maxBuffer: 4_000_000, timeout: 60_000 })
     await execFile('docker', ['pull', image], { maxBuffer: 4_000_000, timeout: 300_000 })
     container = (await execFile('docker', ['create', image], { timeout: 30_000 })).stdout.trim()

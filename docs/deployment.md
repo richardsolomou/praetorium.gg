@@ -12,7 +12,7 @@ Signed-out reference pages carry a 20-second `s-maxage` (`src/server/sharedPageC
 
 ## Delivery
 
-`.github/workflows/dokploy-web.yml` owns image publication, product migration, deployment, and health checks, deploying a digest-pinned image without rebuilding it. Staging uses separate data.
+`.github/workflows/dokploy-web.yml` owns image publication, product migration, deployment, and health checks, deploying a digest-pinned image without rebuilding it. Staging uses separate data. Images are private in GHCR because each one bakes in a catalogue snapshot; Dokploy pulls production and preview images with the `GHCR_PULL_TOKEN` repository secret, a classic token with only `read:packages`, so production and previews stop deploying if it expires.
 
 `.github/workflows/release.yml` runs on every push to `main`: with pending changesets it commits a `[skip ci]` release commit directly on `main`, tags it, creates the GitHub Release, and deploys it; otherwise it deploys the pushed commit. [Mobile release](development/mobile-release.md#build-and-upload) owns whether a release rebuilds the app. The release push uses the `CHANGESETS_TOKEN` repository secret, a fine-grained owner token that the `main` ruleset's admin bypass lets past required checks; if it expires or loses access, production is not deployed until the secret is replaced. A release deploy refuses a revision that does not contain the one production runs (the installed image's `sha-` tag), so re-running an older release cannot roll back; roll back explicitly through `dokploy-web.yml`'s `workflow_dispatch` with a `revision`.
 
