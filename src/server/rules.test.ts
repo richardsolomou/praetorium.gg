@@ -433,9 +433,11 @@ it('uses an exact Game Datacards ability definition omitted from a faction file'
     ],
   })
   const words = wordsFrom(directory)
-  expect(rules().supplementalArmyRules.get('adeptus-titanicus')?.map((rule) => ({ ...rule, description: words(rule.description) }))).toEqual([
-    { name: 'Super-heavy Walker', description: 'Walk through terrain.' },
-  ])
+  expect(
+    rules()
+      .supplementalArmyRules.get('adeptus-titanicus')
+      ?.map((rule) => ({ ...rule, description: words(rule.description) })),
+  ).toEqual([{ name: 'Super-heavy Walker', description: 'Walk through terrain.' }])
 })
 
 it('leaves conflicting Game Datacards ability definitions unresolved', () => {

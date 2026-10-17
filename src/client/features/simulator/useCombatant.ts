@@ -129,10 +129,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     choices: ruleChoices,
     active,
     sharedDefenceSources,
-  } = combatRuleSelections(
-    [...(readable?.rules ?? []), ...(readable?.companions ?? []).flatMap((member) => member.rules)],
-    ruleSelections,
-  )
+  } = combatRuleSelections([...(readable?.rules ?? []), ...(readable?.companions ?? []).flatMap((member) => member.rules)], ruleSelections)
   const activeRules = active(readable?.rules ?? [])
   const companions = (readable?.companions ?? []).map((member) => {
     const battleMember = roster?.battle?.units[member.pickIndex]

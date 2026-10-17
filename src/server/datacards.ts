@@ -231,7 +231,12 @@ export function keywordAbilityDescriptions(directory: string, textsFor: TextsFor
     keywordDescriptions(directory, ['abilities'], ['exact'], textsFor).map(({ name, description }) => [joinKey(name), description]),
   )
 }
-function keywordDescriptions(directory: string, appliesTo: readonly string[], matchTypes: readonly string[], textsFor: TextsFor): RuleCard[] {
+function keywordDescriptions(
+  directory: string,
+  appliesTo: readonly string[],
+  matchTypes: readonly string[],
+  textsFor: TextsFor,
+): RuleCard[] {
   const file = path.join(directory, 'keywords.json')
   if (!fs.existsSync(file)) return []
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as { keywords?: unknown }

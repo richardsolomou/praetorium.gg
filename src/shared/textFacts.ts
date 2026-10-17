@@ -101,7 +101,9 @@ export function strategicReserveExemptionSelectors(description: string): string[
 }
 
 export function grantsStrategicReserveExemption(description: string): boolean {
-  return /points value does not count towards the combined points (?:value|limit).+strategic reserves?/iu.test(normalizedRuleText(description))
+  return /points value does not count towards the combined points (?:value|limit).+strategic reserves?/iu.test(
+    normalizedRuleText(description),
+  )
 }
 
 /** The rule names a text marks out: in bold, between carets, or in brackets. */
