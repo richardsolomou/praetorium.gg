@@ -55,6 +55,7 @@ export function heldWargear(
   const modeled = new Set(
     models.flatMap((kind) => [
       ...kind.members.flatMap((member) => (member.choiceKey ? [replacementKey({ choiceKey: member.choiceKey, optionId: member.id })] : [])),
+      ...kind.members.flatMap((member) => (member.within ? [replacementKey(member.within)] : [])),
       ...kind.rows.flatMap((row) => modelRowSources(row).map(replacementKey)),
     ]),
   )

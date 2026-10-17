@@ -309,7 +309,10 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
       choice.room === 1 &&
       option?.points === 0 &&
       choice.options.every((candidate) => candidate.count === 0)
-    const defaultedComposition = isUnitCompositionChoice(choice) && choice.optional && choice.options.length === 1 && option?.points === 0
+    // The group the unit is sized by is filled by its own models, not by defaulting an option.
+    const sizing = choice.key === size.path.slice(0, -1).join('/')
+    const defaultedComposition =
+      isUnitCompositionChoice(choice) && choice.optional && choice.options.length === 1 && option?.points === 0 && !sizing
     if ((!missingRequired && !defaultedComposition) || !option || context?.spreads?.[choice.key] !== undefined) return tree
     return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index, context)
   }, selection)
