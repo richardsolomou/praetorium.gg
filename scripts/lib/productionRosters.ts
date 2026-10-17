@@ -12,7 +12,7 @@ import { calculateRosterPrice, savedRosterPriceInput, unavailablePriceSelections
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import type { LoadedRules } from '../../src/shared/rules'
 import type { SpacetimeOperator } from '../../src/server/spacetimeOperator'
-import { spacetimeSqlEndpoint } from './spacetimeSqlEndpoint'
+import { spacetimeDatabaseUrl } from 'ras-stack/spacetime'
 
 const rosterSchema = z.strictObject({
   id: z.string().min(1).max(64),
@@ -142,7 +142,7 @@ export async function fetchProductionRosters(
   source: { url: string; database: string; ownerToken: string; accessClientId?: string; accessClientSecret?: string },
   request: typeof fetch = fetch,
 ): Promise<ProductionRosterSnapshot> {
-  const endpoint = spacetimeSqlEndpoint(source.url, source.database)
+  const endpoint = spacetimeDatabaseUrl({ url: source.url, database: source.database }, '/sql')
   if (!source.ownerToken) throw new Error('Production SpacetimeDB owner token is required for private roster SQL reads')
   if (Boolean(source.accessClientId) !== Boolean(source.accessClientSecret)) throw new Error('Supply both Cloudflare Access credentials')
   const response = await request(endpoint, {

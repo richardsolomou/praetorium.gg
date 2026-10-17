@@ -1,3 +1,4 @@
+import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
 import { collectionProfileSchema } from '../contracts/collection'
@@ -199,44 +200,27 @@ type SaveRosterInput = {
   now: number
 }
 
-export class SpacetimeRequestError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message)
-  }
-}
-
 export class SpacetimeOperator {
-  private readonly baseUrl: URL
+  private readonly connection: SpacetimeConnection
 
   constructor(
-    baseUrl: string,
-    private readonly database: string,
-    private readonly token: string,
-    private readonly request: typeof fetch = fetch,
-    private readonly access?: { clientId: string; clientSecret: string },
+    url: string,
+    database: string,
+    token: string,
+    request: typeof fetch = fetch,
+    access?: { clientId: string; clientSecret: string },
     internalHost?: string,
   ) {
-    const parsed = new URL(baseUrl)
-    const local =
-      parsed.protocol === 'http:' &&
-      (['localhost', '127.0.0.1'].includes(parsed.hostname) ||
-        (/^[a-z][a-z0-9-]{1,63}$/.test(internalHost ?? '') && parsed.hostname === internalHost))
-    if (
-      (!local && parsed.protocol !== 'https:') ||
-      parsed.username ||
-      parsed.password ||
-      parsed.search ||
-      parsed.hash ||
-      parsed.pathname !== '/'
-    ) {
-      throw new Error('Invalid SpacetimeDB URL')
+    this.connection = {
+      url,
+      database,
+      token,
+      fetch: request,
+      ...(access ? { headers: { 'CF-Access-Client-Id': access.clientId, 'CF-Access-Client-Secret': access.clientSecret } } : {}),
+      ...(internalHost ? { internalHost } : {}),
     }
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(database)) throw new Error('Invalid SpacetimeDB database name')
+    spacetimeDatabaseUrl(this.connection)
     if (!token) throw new Error('SpacetimeDB operator token is required')
-    this.baseUrl = parsed
   }
 
   async revokeSession(sessionId: string) {
@@ -860,23 +844,6 @@ export class SpacetimeOperator {
       ])
       return new Response(z.string().parse(await response.json()), { headers: { 'content-type': 'application/json' } })
     }
-    const endpoint = new URL(`/v1/database/${this.database}/call/${reducer}`, this.baseUrl)
-    const response = await this.request(endpoint, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${this.token}`,
-        'content-type': 'application/json',
-        ...(this.access ? { 'CF-Access-Client-Id': this.access.clientId, 'CF-Access-Client-Secret': this.access.clientSecret } : {}),
-      },
-      body: JSON.stringify(arguments_),
-      redirect: 'manual',
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!response.ok)
-      throw new SpacetimeRequestError(
-        response.status,
-        `SpacetimeDB ${reducer} failed with HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`,
-      )
-    return response
+    return callSpacetime(this.connection, reducer, arguments_)
   }
 }
