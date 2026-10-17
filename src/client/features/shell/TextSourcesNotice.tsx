@@ -1,7 +1,5 @@
-import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
-import { buttonClass } from '../../components/buttonClass'
-import { TEXT_SOURCES } from '../../../shared/sourceText'
+import { openTextSourcesDialog } from '../../components/TextSourcesDialog'
 import { chooseTextSources, useTextSourceChoice } from '../../rulesText'
 import { useHydrated } from '../../useClientValue'
 
@@ -25,12 +23,9 @@ export function TextSourcesNotice({ path }: { path: string }) {
         Praetorium shows names, numbers and points. Rules text loads in your browser from community sources you choose.
       </p>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => chooseTextSources(TEXT_SOURCES)}>
-          Load rules text
-        </Button>
-        <Link to="/sources" className={buttonClass({ size: 'sm', variant: 'outline' })}>
+        <Button size="sm" onClick={() => openTextSourcesDialog()}>
           Choose sources
-        </Link>
+        </Button>
         <Button size="sm" variant="ghost" onClick={() => chooseTextSources([])}>
           Not now
         </Button>

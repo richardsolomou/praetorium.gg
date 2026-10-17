@@ -32,14 +32,14 @@ export function RuleMarkup({
 }) {
   const choice = useTextSourceChoice()
   if (hasTextTokens(markup)) return <SourcedRuleMarkup markup={markup} links={links} className={className} />
-  if (!authored && !choice.sources.has(source)) return <SourceTextPrompt missing="unchosen" needs={[source]} className={className} />
+  if (!authored && !choice.sources.has(source)) return <SourceTextPrompt missing="unchosen" className={className} />
   return <RuleMarkupBody markup={markup} links={links} className={className} />
 }
 
 function SourcedRuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
   const source = useSourceText(markup)
   if (source.missing === 'unchosen' || source.missing === 'loading')
-    return <SourceTextPrompt missing={source.missing} needs={source.needs} className={className} />
+    return <SourceTextPrompt missing={source.missing} className={className} />
   return <RuleMarkupBody markup={source.text} links={links} className={className} />
 }
 

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
 import { RuleMarkup } from './RuleMarkup'
-import { BSDATA, SourceTextPrompt } from './SourceTextPrompt'
+import { SourceTextPrompt } from './SourceTextPrompt'
 import { useSourceText } from '../sourceText'
 import { hasTextTokens } from '../../shared/sourceText'
 
@@ -84,8 +84,7 @@ export function RuleText({
   const choice = useTextSourceChoice()
   if (hasTextTokens(text)) return <SourcedRuleText text={text} rules={rules} className={className} />
   // BSData's words reach this device to compute from, and show only where the reader chose to load BSData text.
-  if (!authored && !choice.sources.has('bsdata'))
-    return <SourceTextPrompt missing="unchosen" needs={BSDATA} className={cn('mt-2', className)} />
+  if (!authored && !choice.sources.has('bsdata')) return <SourceTextPrompt missing="unchosen" className={cn('mt-2', className)} />
   return <RuleTextBody text={text} rules={rules} className={className} />
 }
 
@@ -94,7 +93,7 @@ function SourcedRuleText({ text, rules, className }: { text: string; rules: Keyw
   const source = useSourceText(text)
   // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
   if (source.missing === 'unchosen' || source.missing === 'loading')
-    return <SourceTextPrompt missing={source.missing} needs={source.needs} className={cn('mt-2', className)} />
+    return <SourceTextPrompt missing={source.missing} className={cn('mt-2', className)} />
   return <RuleTextBody text={source.text} rules={rules} className={className} />
 }
 

@@ -18,6 +18,7 @@ import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { TextSourcesNotice } from './TextSourcesNotice'
+import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
@@ -244,6 +245,7 @@ export function AppShell() {
                 />
                 <OnboardingGuide />
                 <FeedbackDialog />
+                <TextSourcesDialog />
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />

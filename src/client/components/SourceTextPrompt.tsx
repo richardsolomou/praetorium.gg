@@ -1,12 +1,7 @@
-import { Link } from '@tanstack/react-router'
 import { useEffect, useId, useSyncExternalStore } from 'react'
 import { cn } from '@/lib/utils'
-import { TEXT_SOURCES, type TextSource } from '../../shared/sourceText'
-import { TEXT_SOURCE_NAMES, chooseTextSource } from '../rulesText'
 import type { MissingText } from '../sourceText'
-
-/** Words the app holds from BSData without a token, such as option lists it builds from catalogue entries. */
-export const BSDATA: readonly TextSource[] = ['bsdata']
+import { openTextSourcesDialog } from './TextSourcesDialog'
 
 /** The prompts on screen in the order they mounted, so only the first asks and the rest say what is missing. */
 const shown: string[] = []
@@ -28,16 +23,7 @@ const subscribe = (listener: () => void) => {
  * the community sources they choose, and one choice loads them everywhere. A page shows
  * one way to ask, at its first gap, so a datasheet does not repeat it under every rule.
  */
-export function SourceTextPrompt({
-  missing,
-  needs,
-  className,
-}: {
-  missing: Exclude<MissingText, null>
-  /** The sources that would load this text; empty while the file list naming them has not arrived. */
-  needs: readonly TextSource[]
-  className?: string
-}) {
+export function SourceTextPrompt({ missing, className }: { missing: Exclude<MissingText, null>; className?: string }) {
   const id = useId()
   useEffect(() => {
     if (missing !== 'unchosen') return
@@ -56,27 +42,13 @@ export function SourceTextPrompt({
   )
   if (missing === 'loading') return <p className={cn('text-xs text-faint', className)}>Loading rules text…</p>
   if (missing === 'unavailable') return null
-  const named = needs.length ? needs : TEXT_SOURCES
-  const label = needs.length
-    ? `${needs.map((source) => TEXT_SOURCE_NAMES[source]).join(' and ')} text isn’t loaded.`
-    : 'Rules text isn’t loaded.'
-  if (!first) return <p className={cn('text-xs text-faint', className)}>{label}</p>
+  if (!first) return <p className={cn('text-xs text-faint', className)}>Rules text isn’t loaded.</p>
   return (
     <p className={cn('text-xs text-faint', className)}>
-      {label}{' '}
-      <button
-        type="button"
-        className="text-info hover:text-bone"
-        onClick={() => {
-          for (const source of named) chooseTextSource(source, true)
-        }}
-      >
-        Load
+      Rules text isn’t loaded.{' '}
+      <button type="button" className="text-info hover:text-bone" onClick={() => openTextSourcesDialog()}>
+        Choose sources
       </button>
-      {' · '}
-      <Link to="/sources" className="text-info hover:text-bone">
-        Data sources
-      </Link>
     </p>
   )
 }

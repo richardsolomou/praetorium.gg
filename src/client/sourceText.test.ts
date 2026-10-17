@@ -26,13 +26,12 @@ describe('rules text on this device', () => {
     expect(loadedText(`**Effect:** ${token('0000000a')}`, textSourceChoiceFrom(null))).toEqual({
       text: '**Effect:**',
       missing: 'unchosen',
-      needs: [],
     })
   })
 
-  it('names the source a text not chosen would load from', () => {
+  it('keeps a text unloaded while only another source is chosen', () => {
     file('00000010', 'bsdata')
-    expect(loadedText(token('00000010'), textSourceChoiceFrom('game-datacards')).needs).toEqual(['bsdata'])
+    expect(loadedText(token('00000010'), textSourceChoiceFrom('game-datacards')).missing).toBe('unchosen')
   })
 
   it('waits for the file a token names', () => {
@@ -44,7 +43,7 @@ describe('rules text on this device', () => {
     serve({ effect: { en: words } })
     file('0000000c')
     await loadTextFile('0000000c')
-    expect(loadedText(`**Effect:** ${token('0000000c')}`, all)).toEqual({ text: `**Effect:** ${words}`, missing: null, needs: [] })
+    expect(loadedText(`**Effect:** ${token('0000000c')}`, all)).toEqual({ text: `**Effect:** ${words}`, missing: null })
   })
 
   it('shows a loaded file’s words only while its source stays chosen', async () => {
@@ -72,7 +71,7 @@ describe('rules text on this device', () => {
     serve({ effect: { en: 'Something else entirely.' } })
     file('0000000d')
     await loadTextFile('0000000d')
-    expect(loadedText(token('0000000d'), all)).toEqual({ text: '—', missing: 'unavailable', needs: [] })
+    expect(loadedText(token('0000000d'), all)).toEqual({ text: '—', missing: 'unavailable' })
   })
 
   it('gives rules no words from a text it could only partly load', async () => {

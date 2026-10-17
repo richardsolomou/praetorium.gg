@@ -12,7 +12,21 @@ const KEY = 'praetorium-text-sources'
 /** Pinned files never change, so a verified copy serves every later visit, offline too. */
 const CACHE = 'praetorium-rules-text-v1'
 
-export const TEXT_SOURCE_NAMES: Record<TextSource, string> = { bsdata: 'BSData', 'game-datacards': 'Game Datacards' }
+/** Every source this browser can fetch rules text from; the dialog and the data sources page list exactly these. */
+export const TEXT_SOURCE_INFO: Record<TextSource, { name: string; repository: string; provides: string; licence: string }> = {
+  bsdata: {
+    name: 'BSData',
+    repository: 'https://github.com/BSData/wh40k-11e',
+    provides: 'Ability, wargear, and enhancement text from the faction catalogues.',
+    licence: 'No licence stated.',
+  },
+  'game-datacards': {
+    name: 'Game Datacards',
+    repository: 'https://github.com/game-datacards/datasources',
+    provides: 'Core rules, stratagems, detachment rules, and mission text.',
+    licence: 'No licence stated.',
+  },
+}
 
 export type TextSourceChoice = { decided: boolean; sources: ReadonlySet<TextSource> }
 

@@ -1,50 +1,26 @@
-import { useId } from 'react'
-import { Switch } from '@/components/ui/switch'
-import type { TextSource } from '../../../shared/sourceText'
-import { TEXT_SOURCE_NAMES, chooseTextSource, useTextSourceChoice } from '../../rulesText'
+import { TEXT_SOURCES } from '../../../shared/sourceText'
+import { TextSourceRow } from '../../components/TextSourcesDialog'
+import { chooseTextSource, useTextSourceChoice } from '../../rulesText'
 import { useHydrated } from '../../useClientValue'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 const linkClass = 'text-info hover:text-parchment'
 
-const TEXT_SOURCE_DETAILS: { source: TextSource; repository: string; provides: string; licence: string }[] = [
-  {
-    source: 'bsdata',
-    repository: 'https://github.com/BSData/wh40k-11e',
-    provides: 'Ability, wargear, and enhancement text from the faction catalogues.',
-    licence: 'No licence stated.',
-  },
-  {
-    source: 'game-datacards',
-    repository: 'https://github.com/game-datacards/datasources',
-    provides: 'Core rules, stratagems, detachment rules, and mission text.',
-    licence: 'No licence stated.',
-  },
-]
-
-function TextSourceSwitch({ source, repository, provides, licence }: (typeof TEXT_SOURCE_DETAILS)[number]) {
-  const id = useId()
+function TextSourceSwitches() {
   const choice = useTextSourceChoice()
-  // The stored choice is unknown until hydration, so the switch waits rather than flipping.
+  // The stored choice is unknown until hydration, so the switches wait rather than flipping.
   const ready = useHydrated()
   return (
-    <div className="flex items-start justify-between gap-4 border border-edge bg-sunken p-3 font-sans">
-      <div className="min-w-0">
-        <label htmlFor={id} className="block text-sm font-semibold text-bone">
-          {TEXT_SOURCE_NAMES[source]}
-        </label>
-        <p className="text-xs text-dim">{provides}</p>
-        <p className="text-xs text-faint">
-          <a href={repository} className={linkClass}>
-            {repository.replace('https://github.com/', '')}
-          </a>{' '}
-          · {licence}
-        </p>
-      </div>
-      <span className="flex shrink-0 items-center gap-2 text-xs text-dim">
-        Load on this device
-        <Switch id={id} checked={choice.sources.has(source)} disabled={!ready} onCheckedChange={(next) => chooseTextSource(source, next)} />
-      </span>
+    <div className="space-y-2">
+      {TEXT_SOURCES.map((source) => (
+        <TextSourceRow
+          key={source}
+          source={source}
+          checked={choice.sources.has(source)}
+          disabled={!ready}
+          onCheckedChange={(on) => chooseTextSource(source, on)}
+        />
+      ))}
     </div>
   )
 }
@@ -57,11 +33,7 @@ export function Sources() {
           Praetorium serves names, numbers, points, and battlefield geometry itself. Rules text loads in your browser, straight from the
           community sources you turn on here, and the choice stays on this device.
         </p>
-        <div className="space-y-2">
-          {TEXT_SOURCE_DETAILS.map((details) => (
-            <TextSourceSwitch key={details.source} {...details} />
-          ))}
-        </div>
+        <TextSourceSwitches />
       </LegalSection>
 
       <LegalSection title="Community data">

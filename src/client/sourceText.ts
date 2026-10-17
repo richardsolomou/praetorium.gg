@@ -88,8 +88,8 @@ export function registerTextSources(table: Readonly<Record<string, TextSourceFil
 
 /** What stands in for text this device has not chosen to load, is still loading, or cannot find. */
 export type MissingText = 'unchosen' | 'loading' | 'unavailable' | null
-/** Text as this device can show it, and for text it has not chosen, the sources that would load it, when known. */
-export type LoadedText = { text: string; missing: MissingText; needs: readonly TextSource[] }
+/** Text as this device can show it. */
+export type LoadedText = { text: string; missing: MissingText }
 
 /**
  * The sources a text's tokens need that this device has not chosen: the one authority for
@@ -113,22 +113,20 @@ const lookup = ({ file, transform, hash }: TextToken) => {
 
 /** Text as this device can show it now, and the reason any token in it is still missing. */
 export function loadedText(text: string, choice = textSourceChoice()): LoadedText {
-  if (!hasTextTokens(text)) return { text, missing: null, needs: [] }
+  if (!hasTextTokens(text)) return { text, missing: null }
   const tokens = textTokensIn(text)
   const needs = unchosenSources(tokens, choice)
-  if (needs === null ? choice.sources.size === 0 : needs.length > 0)
-    return { text: withoutText(text), missing: 'unchosen', needs: needs ?? [] }
+  if (needs === null ? choice.sources.size === 0 : needs.length > 0) return { text: withoutText(text), missing: 'unchosen' }
   const waiting = tokens.some(({ file }) => {
     const url = urls.get(file)
     if (!url) return urls.size === 0
     const loaded = files.get(url)
     return !loaded?.strings && !loaded?.failed
   })
-  if (waiting) return { text: withoutText(text), missing: 'loading', needs: [] }
+  if (waiting) return { text: withoutText(text), missing: 'loading' }
   return {
     text: resolvedText(text, lookup, () => '—'),
     missing: tokens.some((token) => lookup(token) === null) ? 'unavailable' : null,
-    needs: [],
   }
 }
 

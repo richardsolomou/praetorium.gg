@@ -13,6 +13,15 @@ const prose = 'The principles of movement are explained here.'
 const ability = 'subtract 1 from that attack’s Damage characteristic'
 
 const notice = (page: Page) => page.getByRole('complementary', { name: 'Rules text' })
+const dialog = (page: Page) => page.getByRole('dialog', { name: 'Load rules text from community sources' })
+
+/** Turns on exactly these sources in the dialog a prompt opened, then loads them. */
+async function loadFromDialog(page: Page, names: ('BSData' | 'Game Datacards')[]) {
+  await expect(dialog(page)).toBeVisible()
+  for (const name of names) await dialog(page).getByRole('switch', { name }).click()
+  await dialog(page).getByRole('button', { name: 'Load selected' }).click()
+  await expect(dialog(page)).toHaveCount(0)
+}
 
 /** Turns one source on or off from the data sources page. */
 async function setSource(page: Page, name: 'BSData' | 'Game Datacards', on: boolean) {
@@ -43,12 +52,26 @@ test('declining the question keeps it answered across a reload', async ({ page }
   await expect(notice(page)).toHaveCount(0)
 })
 
-test('choosing sources leads to the data sources page', async ({ page }) => {
+test('choosing sources asks which external sources to load, with none turned on', async ({ page }) => {
   await page.goto('/factions')
-  await notice(page).getByRole('link', { name: 'Choose sources' }).click()
-  await expect(page).toHaveURL(/\/sources$/)
-  await expect(page.getByRole('switch', { name: 'BSData' })).toBeVisible()
-  await expect(notice(page)).toHaveCount(0)
+  await notice(page).getByRole('button', { name: 'Choose sources' }).click()
+  await expect(dialog(page)).toContainText('Praetorium doesn’t host rules text.')
+  await expect(dialog(page).getByRole('switch', { name: 'BSData' })).not.toBeChecked()
+  await expect(dialog(page).getByRole('switch', { name: 'Game Datacards' })).not.toBeChecked()
+  await expect(dialog(page).getByRole('button', { name: 'Load selected' })).toBeDisabled()
+  await dialog(page).getByRole('button', { name: 'Select all' }).click()
+  await expect(dialog(page).getByRole('switch', { name: 'BSData' })).toBeChecked()
+  await expect(dialog(page).getByRole('switch', { name: 'Game Datacards' })).toBeChecked()
+})
+
+test('cancelling the dialog records nothing', async ({ page }) => {
+  await page.goto('/factions')
+  await notice(page).getByRole('button', { name: 'Choose sources' }).click()
+  await dialog(page).getByRole('switch', { name: 'BSData' }).click()
+  await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog(page)).toHaveCount(0)
+  await page.reload()
+  await expect(notice(page)).toBeVisible()
 })
 
 test('a rules page carries no rules text until the reader loads it', async ({ page }) => {
@@ -56,13 +79,17 @@ test('a rules page carries no rules text until the reader loads it', async ({ pa
   expect(await response?.text()).not.toContain(prose)
   await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
   await expect(page.getByText(prose)).toHaveCount(0)
-  await page.getByRole('button', { name: 'Load Game Datacards text' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).click()
+  await loadFromDialog(page, ['Game Datacards'])
   await expect(page.getByText(prose)).toBeVisible()
+  // Loaded text says nothing about where it came from; the data sources page does.
+  await expect(page.getByRole('main').getByText('Game Datacards')).toHaveCount(0)
 })
 
 test('a source turned on holds across a reload until it is turned off', async ({ page }) => {
   await page.goto('/rules/core-rules/moving')
-  await page.getByRole('button', { name: 'Load Game Datacards text' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).click()
+  await loadFromDialog(page, ['Game Datacards'])
   await expect(page.getByText(prose)).toBeVisible()
   await page.reload()
   await expect(page.getByText(prose)).toBeVisible()
@@ -75,22 +102,27 @@ test('a source turned on holds across a reload until it is turned off', async ({
 test('a file that is not the pinned one is refused', async ({ page }) => {
   replaceUpstreamFile(page.context(), '/core_rules.json', coreRules.replace(prose, 'Models move however they like.'))
   await page.goto('/rules/core-rules/moving')
-  await page.getByRole('button', { name: 'Load Game Datacards text' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Couldn’t load the rules text from Game Datacards.')
+  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).click()
+  await loadFromDialog(page, ['Game Datacards'])
+  await expect(page.getByRole('alert')).toHaveText('Couldn’t load the rules text.')
   await expect(page.getByText('Models move however they like.')).toHaveCount(0)
 })
 
-test('a datasheet names the source its missing text loads from', async ({ page }) => {
+test('a datasheet gap opens the dialog and loads only the source turned on', async ({ page }) => {
   const response = await page.goto('/factions/necrons/datasheets/overlord')
   expect(await response?.text()).not.toContain(ability)
   await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
   await expect(page.getByText(ability)).toHaveCount(0)
-  await expect(page.getByText('BSData text isn’t loaded.').first()).toBeVisible()
+  await expect(page.getByText('Rules text isn’t loaded.').first()).toBeVisible()
   // One way to ask per page, however many rules are waiting on their text.
-  const load = page.getByRole('main').getByRole('button', { name: 'Load', exact: true })
-  await expect(load).toHaveCount(1)
-  await load.click()
+  const choose = page.getByRole('main').getByRole('button', { name: 'Choose sources' })
+  await expect(choose).toHaveCount(1)
+  await choose.click()
+  await loadFromDialog(page, ['BSData'])
   await expect(page.getByText(ability)).toBeVisible()
+  await page.goto('/rules/core-rules/moving')
+  await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
+  await expect(page.getByText(prose)).toHaveCount(0)
 })
 
 test('BSData text loads while Game Datacards text stays unloaded', async ({ page }) => {
@@ -99,7 +131,7 @@ test('BSData text loads while Game Datacards text stays unloaded', async ({ page
   await expect(page.getByText(ability)).toBeVisible()
   await page.goto('/rules/core-rules/moving')
   await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Load Game Datacards text' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('button', { name: 'Choose sources' })).toBeVisible()
   await expect(page.getByText(prose)).toHaveCount(0)
 })
 
@@ -109,6 +141,6 @@ test('Game Datacards text loads while BSData text stays unloaded', async ({ page
   await expect(page.getByText(prose)).toBeVisible()
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
-  await expect(page.getByText('BSData text isn’t loaded.').first()).toBeVisible()
+  await expect(page.getByText('Rules text isn’t loaded.').first()).toBeVisible()
   await expect(page.getByText(ability)).toHaveCount(0)
 })
