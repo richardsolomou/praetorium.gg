@@ -154,7 +154,7 @@ describe('the tokens a snapshot file publishes', () => {
 })
 
 describe('publishing a canonical record', () => {
-  const token = (raw: string) => (raw.startsWith('While') ? `⟦0000000a:prose:${'1'.repeat(16)}⟧` : null)
+  const token = (text: string) => (text.startsWith('While') ? `⟦0000000a:prose:${'1'.repeat(16)}⟧` : null)
 
   it('swaps a rule-like profile’s characteristic for its token', () => {
     const profile = { kind: 'other', values: [{ name: 'Ability', value: 'While a friendly unit is within 6", re-roll the Hit roll.' }] }
