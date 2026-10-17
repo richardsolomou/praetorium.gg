@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { runInNewContext } from 'node:vm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TEXT_SOURCES_SCRIPT, applyTextSourceChoice, loadRuleText, textSourceChoiceFrom } from './rulesText'
 
@@ -70,14 +71,13 @@ describe('the first frame’s choice', () => {
   function attributes(stored: string | null | Error) {
     const fromScript: DOMStringMap = {}
     const fromApp: DOMStringMap = {}
-    vi.stubGlobal('localStorage', {
+    const localStorage = {
       getItem: () => {
         if (stored instanceof Error) throw stored
         return stored
       },
-    })
-    vi.stubGlobal('document', { documentElement: { dataset: fromScript } })
-    new Function(TEXT_SOURCES_SCRIPT)()
+    }
+    runInNewContext(TEXT_SOURCES_SCRIPT, { localStorage, document: { documentElement: { dataset: fromScript } } })
     vi.stubGlobal('document', { documentElement: { dataset: fromApp } })
     applyTextSourceChoice(textSourceChoiceFrom(stored instanceof Error ? null : stored))
     const sources = (dataset: DOMStringMap) => dataset.textSources?.split(' ').filter(Boolean).sort()

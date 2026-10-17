@@ -147,14 +147,14 @@ test('Game Datacards text loads while BSData text stays unloaded', async ({ page
   await expect(page.getByText(ability)).toHaveCount(0)
 })
 
-/** Opens `path` as the server and head script draw it, with no application script to hydrate it, for a device that stored `stored`. */
-async function firstFrame(page: Page, path: string, stored: string | null) {
+/** Opens `route` as the server and head script draw it, with no application script to hydrate it, for a device that stored `stored`. */
+async function firstFrame(page: Page, route: string, stored: string | null) {
   await page.addInitScript((value) => {
     if (value === null) localStorage.removeItem('praetorium-text-sources')
     else localStorage.setItem('praetorium-text-sources', value)
   }, stored)
-  await page.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
-  await page.goto(path, { waitUntil: 'domcontentloaded' })
+  await page.route('**/*', (handler) => (handler.request().resourceType() === 'script' ? handler.abort() : handler.continue()))
+  await page.goto(route, { waitUntil: 'domcontentloaded' })
 }
 
 // The first frame holds both sides of every gap, so only the side the document's choice shows counts.
