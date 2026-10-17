@@ -27,9 +27,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
         <span className="flex items-center gap-2">
           <Star className="size-4 text-info" aria-hidden /> Wishlist
         </span>
-        <span className="text-xs text-dim normal-case">
-          {total ? `${total} ${total === 1 ? 'model' : 'models'} to buy, apart from those you own` : 'Models you plan to buy'}
-        </span>
+        <span className="text-xs text-dim normal-case">{total ? `${total} to buy` : 'Models to buy'}</span>
       </h2>
       <SearchableSelect
         ariaLabel="Add a datasheet to your wishlist"
