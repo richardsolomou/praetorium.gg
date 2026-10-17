@@ -96,7 +96,10 @@ const faction: CatalogueFile = {
             id: 'enhancements',
             name: 'Enhancements',
             constraints: [{ id: 'enhancement-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
-            selectionEntries: [{ id: 'relic', name: 'Demanding Leader', type: 'upgrade' }],
+            selectionEntries: [
+              { id: 'relic', name: 'Demanding Leader', type: 'upgrade' },
+              { id: 'assault', name: 'Furious Assault (Upgrade)', type: 'upgrade' },
+            ],
           },
         ],
       },
@@ -1060,6 +1063,15 @@ Immortals (70 Points)
     expect(imported.units[0]?.choices?.enhancements).toBe('relic')
   })
 
+  it('matches an enhancement the catalogue itself names as an upgrade', () => {
+    const imported = importRosterFile(
+      { file: list('CHARACTERS\n\nLokhust Lord (80 Points)\n• Enhancements: Furious Assault (Upgrade)') },
+      loaded,
+    )
+
+    expect(imported.units[0]?.choices?.enhancements).toBe('assault')
+  })
+
   it('reads a model named without its loadout', () => {
     const imported = importRosterFile(
       { file: list('OTHER DATASHEETS\n\nRecon Squad (80 Points)\n• 9x Recon Trooper\n◦ 9x Lasgun') },
@@ -1084,6 +1096,20 @@ Immortals (70 Points)
       { name: 'Lasgun', count: 9 },
       { name: 'Vox-caster', count: 1 },
     ])
+  })
+
+  it('keeps the default troopers when a list names no specialist', () => {
+    const imported = importRosterFile(
+      { file: list('OTHER DATASHEETS\n\nRecon Squad (80 Points)\n• 9x Recon Trooper\n◦ 9x Lasgun') },
+      loaded,
+    )
+    const unit = imported.units[0]!
+    const built = buildUnit(unit.entryId, loaded.index, unit.models, unit.choices, {
+      primaryCatalogueId: 'necrons',
+      spreads: unit.spreads,
+    })!
+
+    expect(wargearOf(built.selection, loaded.index)).toEqual([{ name: 'Lasgun', count: 9 }])
   })
 
   it('crowns a unit whose Warlord entry the catalogue renames', () => {
