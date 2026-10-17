@@ -1,6 +1,6 @@
 import { attachedUnit, attachmentErrors } from '../core/attach'
 import { hasTextTokens } from './sourceText'
-import { combatRuleEligible, combatRuleIsRelevant, combatRuleRecipient, type CombatRule } from '../core/combatRules'
+import { type CombatRule, type CombatRuleJudge, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
 import { datasheetIn, datasheetAbilitiesIn } from './catalogue'
@@ -208,53 +208,41 @@ function rosterCombatRules(
     ]),
   ]
   const supportKeywords = [sheet.keywords]
-  const add = (rule: CombatRule) => {
-    // A rule published as a token cannot be judged here; it travels with the keywords it is judged against
-    // and a device that loads its words judges it there (`readableRules`).
-    if (hasTextTokens(rule.description)) {
-      candidates.push({
-        ...rule,
-        models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models,
-        keywords: rule.scope === 'stratagem' ? unitKeywords : sheet.keywords,
-      })
-      return
+  const models = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models
+  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>) => {
+    const placed: CombatRule = {
+      ...rule,
+      appliedDefences: (['save', 'invulnerable-save', 'toughness'] as const).filter(
+        (kind) =>
+          modelProfiles.length &&
+          modelProfiles.every((profile) =>
+            profile.values.some((value) => datasheetCharacteristicKind(value.name) === kind && value.modifiers?.includes(rule.name)),
+          ),
+      ),
+      models,
     }
-    const recipient = rule.scope === 'stratagem' ? combatRuleRecipient(rule.description) : undefined
-    if (
-      combatRuleIsRelevant({
-        ...rule,
-        models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models,
-        keywords: sheet.keywords,
-      }) &&
-      (combatRuleEligible(rule.description, rule.scope === 'stratagem' ? unitKeywords : sheet.keywords) ||
-        (recipient &&
-          combatRuleEligible(rule.description, sheet.keywords, recipient) &&
-          supportKeywords.some((keywords) => combatRuleEligible(rule.description, keywords))))
-    )
-      candidates.push({
-        ...rule,
-        appliedDefences: (['save', 'invulnerable-save', 'toughness'] as const).filter(
-          (kind) =>
-            modelProfiles.length &&
-            modelProfiles.every((profile) =>
-              profile.values.some((value) => datasheetCharacteristicKind(value.name) === kind && value.modifiers?.includes(rule.name)),
-            ),
-        ),
-        models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models,
-        keywords: sheet.keywords,
-      })
+    // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
+    const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
+    // A rule published as a token is judged where its words load (`readableRules`), against the same placement.
+    if (hasTextTokens(rule.description)) candidates.push({ ...placed, keywords: sheet.keywords, judge: placement })
+    else {
+      const judged = judgedCombatRule(placed, placement)
+      if (judged) candidates.push(judged)
+    }
   }
   for (const ability of sheet.abilities) {
-    if (!ability.description || /select (?:one|a) other friendly/i.test(ability.description)) continue
-    add({
-      id: `unit:${ability.id}`,
-      name: ability.name,
-      source: sheet.name,
-      description: ability.description,
-      scope:
-        selectedPick.attachedTo !== undefined && /^While this model is leading a unit,/i.test(ability.description) ? 'attached' : 'unit',
-      included: ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name),
-    })
+    if (!ability.description) continue
+    add(
+      {
+        id: `unit:${ability.id}`,
+        name: ability.name,
+        source: sheet.name,
+        description: ability.description,
+        scope: 'unit',
+        included: ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name),
+      },
+      { origin: 'own', attached: selectedPick.attachedTo !== undefined },
+    )
   }
   for (const unit of context.unitSelections) {
     if (unit.pickIndex === data.pickIndex || data.inactivePicks?.includes(unit.pickIndex)) continue
@@ -266,18 +254,10 @@ function rosterCombatRules(
     if (source) supportKeywords.push(source.keywords)
     for (const ability of source?.abilities ?? []) {
       if (!ability.description || ability.kind === 'core' || ability.kind === 'faction') continue
-      const linked =
-        attached.includes(unit.pickIndex) &&
-        /leading a unit|this model[’']s unit|bearer[’']s unit|(?:a model|models) in (?:this|that) unit/i.test(ability.description)
-      const nearby = Boolean(combatRuleRecipient(ability.description))
-      if (!linked && !nearby) continue
-      add({
-        id: `roster:${ability.id}`,
-        name: ability.name,
-        source: source!.name,
-        description: ability.description,
-        scope: linked ? 'attached' : 'nearby',
-      })
+      add(
+        { id: `roster:${ability.id}`, name: ability.name, source: source!.name, description: ability.description, scope: 'nearby' },
+        { origin: 'support', attached: attached.includes(unit.pickIndex) },
+      )
     }
   }
   if (rules) {
@@ -299,25 +279,31 @@ function rosterCombatRules(
       if (!stratagem.phases.length || stratagem.phases.includes('shooting')) phases.push('ranged')
       if (!stratagem.phases.length || stratagem.phases.includes('fight')) phases.push('melee')
       if (!phases.length) continue
-      add({
-        id: `stratagem:${stratagem.id}`,
-        name: stratagem.name,
-        source: `${stratagem.cp} CP`,
-        description: stratagem.description,
-        scope: 'stratagem',
-        phases,
-      })
+      add(
+        {
+          id: `stratagem:${stratagem.id}`,
+          name: stratagem.name,
+          source: `${stratagem.cp} CP`,
+          description: stratagem.description,
+          scope: 'stratagem',
+          phases,
+        },
+        { origin: 'listed' },
+      )
     }
     for (const option of options) {
       for (const rule of detachmentReference(loaded, rules, data.catalogueId, routeSlug(option.name))?.rules ?? []) {
         if (rule.description)
-          add({
-            id: `detachment:${option.id}:${rule.name}`,
-            name: rule.name,
-            source: option.name,
-            description: rule.description,
-            scope: 'detachment',
-          })
+          add(
+            {
+              id: `detachment:${option.id}:${rule.name}`,
+              name: rule.name,
+              source: option.name,
+              description: rule.description,
+              scope: 'detachment',
+            },
+            { origin: 'listed' },
+          )
       }
     }
   }
