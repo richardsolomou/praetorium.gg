@@ -47,7 +47,7 @@ Roster menus put setup, conversion, and copies first, then sharing, export, and 
 
 A copy records `copiedFromRosterId` once and names its source only while the reader may still open it, resolved through `rosterAccess` on every read. Sharing saves first only when edits are unsaved and reports its result beneath the header, not in the closed menu.
 
-Rosters has Mine, Friends and Public tabs in the URL (`?view=`), like Battles. Friends lists rosters lent to the player, then friends' public rosters; Public lists other players' public rosters and is the only view a visitor reaches, at `/rosters?view=public`. Both draw the library's roster summary with the owner, a Duplicate action and a Filter dialog for faction, detachment and rules version. `/rosters/discover` redirects there with its filters.
+Rosters has Mine, Friends and Public tabs in the URL (`?view=`), like Battles. Mine also lists rosters lent to the player, on the same card with the lender beneath. Friends lists friends' public rosters; Public lists other players' public rosters and is the only view a visitor reaches, at `/rosters?view=public`. Both draw the library's roster summary with the owner, a Duplicate action, a Filter dialog for faction, detachment and rules version, and the library's sort menu with the order kept in the URL; `discover_rosters` pages in that order through `compareRosters` in `src/core/rosterSort.ts`. `/rosters/discover` redirects there with its filters.
 
 A visitor draft uses the same builder; a cookie hints its layout for SSR without storing the list. If storage rejects the latest draft, keep the player in the builder rather than navigating into authentication and losing it.
 

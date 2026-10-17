@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from '../../components/Dialog'
 import { SearchableSelect, type SearchableGroup } from '../../components/SearchableSelect'
-import type { RosterSort } from './rosterSort'
+import type { RosterSort } from '../../../core/rosterSort'
 
 export type RosterUpdateFilter = 'older' | 'changed'
 export const ROSTER_UPDATE_FILTERS: readonly RosterUpdateFilter[] = ['older', 'changed']
@@ -119,7 +119,6 @@ export function RosterFilters({
   onChange: (next: RosterFilterState) => void
 }) {
   const active = [value.limit, value.faction, value.visibility, value.updates].filter((entry) => entry !== undefined).length
-  const sortLabel = SORT_GROUPS.flatMap((group) => group.items).find((item) => item.value === value.sort)?.label ?? ''
 
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label="Roster filters">
@@ -169,27 +168,35 @@ export function RosterFilters({
         </DialogContent>
       </Dialog>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Sort: ${sortLabel}`} />}>
-          <ArrowDownUp />
-          {sortLabel}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          <DropdownMenuRadioGroup value={value.sort} onValueChange={(chosen) => onChange({ ...value, sort: chosen as RosterSort })}>
-            {SORT_GROUPS.map((group) => (
-              <Fragment key={group.label}>
-                <DropdownMenuLabel className="eyebrow text-faint">{group.label}</DropdownMenuLabel>
-                {group.items.map((item) => (
-                  <DropdownMenuRadioItem key={item.value} value={item.value} closeOnClick>
-                    {item.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </Fragment>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <RosterSortMenu value={value.sort} onChange={(sort) => onChange({ ...value, sort })} />
     </div>
+  )
+}
+
+/** The order a roster list is shown in, for the library and the friends' and public rosters alike. */
+export function RosterSortMenu({ value, onChange }: { value: RosterSort; onChange: (sort: RosterSort) => void }) {
+  const label = SORT_GROUPS.flatMap((group) => group.items).find((item) => item.value === value)?.label ?? ''
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Sort: ${label}`} />}>
+        <ArrowDownUp />
+        {label}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuRadioGroup value={value} onValueChange={(chosen) => onChange(chosen as RosterSort)}>
+          {SORT_GROUPS.map((group) => (
+            <Fragment key={group.label}>
+              <DropdownMenuLabel className="eyebrow text-faint">{group.label}</DropdownMenuLabel>
+              {group.items.map((item) => (
+                <DropdownMenuRadioItem key={item.value} value={item.value} closeOnClick>
+                  {item.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </Fragment>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

@@ -12,6 +12,7 @@ import {
   type RulesVersionStatus,
 } from '../../../core/rosterDiscovery'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
+import type { RosterSort } from '../../../core/rosterSort'
 import { rulesVersionStatus } from '../../../core/rosterDiscoveryScope'
 import {
   Dialog,
@@ -29,17 +30,16 @@ import { PageState } from '../../components/PageState'
 import type { SearchableGroup } from '../../components/SearchableSelect'
 import { copyRoster } from '../../functions'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQuery, rostersLentToMeQuery } from '../../queries'
+import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
 import { CreateRoster } from './CreateRoster'
-import { LentRosterList } from './LentRosters'
-import { FilterField } from './RosterFilters'
+import { FilterField, RosterSortMenu } from './RosterFilters'
 import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle } from './RosterSummary'
 import { RosterViews } from './RosterViews'
 
-export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus }
+export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus; sort?: RosterSort }
 
 type IndexedFactions = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof factionIndexQuery>['queryFn']>>>>['factions']
 type DiscoveredPage = Awaited<ReturnType<NonNullable<ReturnType<typeof discoveredRostersQuery>['queryFn']>>>
@@ -78,7 +78,7 @@ export function discoveryFilter(search: RosterDiscoverySearch, factions: Indexed
   }
 }
 
-/** Other players' public rosters, or a signed-in player's friends' public rosters and the ones lent to them. */
+/** Other players' public rosters, or a signed-in player's friends' public rosters. */
 export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; search: RosterDiscoverySearch }) {
   const navigate = useNavigate()
   const path = useRouterState({ select: (state) => state.location.href })
@@ -109,12 +109,12 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
       new Set(families.filter((faction) => favourites.has(faction.id)).map((faction) => faction.slug)),
     ),
   ]
-  const choose = (next: RosterDiscoverySearch) => void navigate({ to: '/rosters', search: { view, ...next } })
+  const sort = search.sort ?? 'updated-desc'
+  const choose = (next: RosterDiscoverySearch) => void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next } })
   const active = [filter.faction, filter.detachment, filter.rules].filter(Boolean).length
 
-  const result = useInfiniteQuery({ ...discoveredRostersQuery(filter, view), enabled: !search.faction || indexResult.isSuccess })
+  const result = useInfiniteQuery({ ...discoveredRostersQuery(filter, view, sort), enabled: !search.faction || indexResult.isSuccess })
   const shown = result.data?.pages.flatMap((page) => page.rosters) ?? []
-  const lent = useQuery({ ...rostersLentToMeQuery(), enabled: view === 'friends' }).data ?? []
   const listed = view === 'friends' ? "friends' public rosters" : 'public rosters'
 
   const queryClient = useQueryClient()
@@ -153,61 +153,53 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
         {me ? <RosterViews view={view} /> : null}
       </PageHeader>
       <PageContent className="space-y-6">
-        <Dialog>
-          <DialogTrigger render={<Button variant="outline" />}>
-            <ListFilter />
-            Filter
-            {active ? <span className="chip readout">{active}</span> : null}
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Filter rosters</DialogTitle>
-              <DialogDescription>Narrow the {listed} to a faction, detachment or rules version.</DialogDescription>
-            </DialogHeader>
-            <DialogBody className="gap-3">
-              <FilterField
-                label="Faction"
-                value={family?.slug ?? 'all'}
-                groups={factionGroups}
-                onChange={(chosen) => choose({ rules: search.rules, ...(chosen === 'all' ? {} : { faction: chosen }) })}
-              />
-              <FilterField
-                label="Detachment"
-                value={filter.detachment ?? 'all'}
-                groups={detachmentGroups}
-                disabled={!family}
-                onChange={(chosen) => choose({ ...search, detachment: chosen === 'all' ? undefined : chosen })}
-              />
-              <FilterField
-                label="Rules version"
-                value={filter.rules ?? 'all'}
-                groups={RULES_GROUPS}
-                onChange={(chosen) => choose({ ...search, rules: chosen === 'all' ? undefined : (chosen as RulesVersionStatus) })}
-              />
-            </DialogBody>
-            <DialogFooter>
-              <Button variant="ghost" disabled={!active} onClick={() => choose({})} className="sm:mr-auto sm:ml-0">
-                Clear filters
-              </Button>
-              <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <div className="flex flex-wrap items-center gap-2">
+          <Dialog>
+            <DialogTrigger render={<Button variant="outline" />}>
+              <ListFilter />
+              Filter
+              {active ? <span className="chip readout">{active}</span> : null}
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Filter rosters</DialogTitle>
+                <DialogDescription>Narrow the {listed} to a faction, detachment or rules version.</DialogDescription>
+              </DialogHeader>
+              <DialogBody className="gap-3">
+                <FilterField
+                  label="Faction"
+                  value={family?.slug ?? 'all'}
+                  groups={factionGroups}
+                  onChange={(chosen) => choose({ rules: search.rules, ...(chosen === 'all' ? {} : { faction: chosen }) })}
+                />
+                <FilterField
+                  label="Detachment"
+                  value={filter.detachment ?? 'all'}
+                  groups={detachmentGroups}
+                  disabled={!family}
+                  onChange={(chosen) => choose({ ...search, detachment: chosen === 'all' ? undefined : chosen })}
+                />
+                <FilterField
+                  label="Rules version"
+                  value={filter.rules ?? 'all'}
+                  groups={RULES_GROUPS}
+                  onChange={(chosen) => choose({ ...search, rules: chosen === 'all' ? undefined : (chosen as RulesVersionStatus) })}
+                />
+              </DialogBody>
+              <DialogFooter>
+                <Button variant="ghost" disabled={!active} onClick={() => choose({})} className="sm:mr-auto sm:ml-0">
+                  Clear filters
+                </Button>
+                <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <RosterSortMenu value={sort} onChange={(chosen) => choose({ ...search, sort: chosen === 'updated-desc' ? undefined : chosen })} />
+        </div>
         {duplicate.isError ? (
           <p role="alert" className="text-sm text-destructive">
             Could not duplicate that roster: {errorMessage(duplicate.error)}
           </p>
-        ) : null}
-
-        {lent.length ? (
-          <section>
-            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-              Lent to you <span className="readout">{lent.length}</span>
-            </h2>
-            <div className="mt-2">
-              <LentRosterList rosters={lent} />
-            </div>
-          </section>
         ) : null}
 
         <section>
@@ -259,24 +251,20 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
                 </Button>
               </p>
             ) : view === 'friends' ? (
-              lent.length ? (
-                <p className="py-2 text-sm text-dim">None of your friends has a public roster yet.</p>
-              ) : (
-                <div data-friends-empty>
-                  <PageState
-                    headingLevel={2}
-                    eyebrow="Friends' rosters"
-                    title="No friends' rosters yet."
-                    explanation="Rosters your friends make public or lend you appear here."
-                    icon={Users}
-                    action={
-                      <Link to="/friends" className={buttonClass({ variant: 'outline' })}>
-                        <Users /> Your friends
-                      </Link>
-                    }
-                  />
-                </div>
-              )
+              <div data-friends-empty>
+                <PageState
+                  headingLevel={2}
+                  eyebrow="Friends' rosters"
+                  title="No friends' rosters yet."
+                  explanation="Rosters your friends make public appear here."
+                  icon={Users}
+                  action={
+                    <Link to="/friends" className={buttonClass({ variant: 'outline' })}>
+                      <Users /> Your friends
+                    </Link>
+                  }
+                />
+              </div>
             ) : (
               <PageState
                 headingLevel={2}

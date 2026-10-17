@@ -29,6 +29,7 @@ import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/re
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_AUDIENCES, rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
+import { ROSTER_SORTS } from '../core/rosterSort'
 import { isPlayerDefaults } from '../core/playerDefaults'
 import {
   LEAGUE_ADMISSIONS,
@@ -380,6 +381,7 @@ export const rosterIdsSchema = z.object({
 })
 export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({
   audience: z.enum(ROSTER_AUDIENCES).default('public'),
+  sort: z.enum(ROSTER_SORTS).default('updated-desc'),
   before: rosterDiscoveryCursorSchema.nullable().default(null),
 })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })

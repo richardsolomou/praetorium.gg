@@ -7,7 +7,7 @@ import { variantCards, variantGroups } from '../../../core/rosterVariants'
 import { factionIndexQuery, gameReferencesQuery } from '../../queries'
 import type { SavedRoster } from './rosterLibrary'
 import { useRosterPages } from './rosterPages'
-import { sortRosters } from './rosterSort'
+import { sortRosters } from '../../../core/rosterSort'
 import { type RosterRowLayout, rosterRowFrame } from './RosterRow'
 import { type RosterProblem, RosterSummary, RosterVariantSummary, rosterTitle } from './RosterSummary'
 

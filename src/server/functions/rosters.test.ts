@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { ROSTER_DISCOVERY_PAGE_SIZE, type RosterAudience, type RosterDiscoveryFilter } from '../../core/rosterDiscovery'
+import type { RosterSort } from '../../core/rosterSort'
 import { discoverRosters, rosterAccess, rostersLentToMe } from './rosters'
 
 const mocks = vi.hoisted(() => ({
@@ -28,10 +29,10 @@ vi.mock('../rosterPrices', () => ({ cachedRosterAssessmentsFor: mocks.assessment
 
 type Discovered = { rosters: { roster: { id: string }; owner: { name: string }; points: number | null; problem: string | null }[] }
 const discover = discoverRosters as unknown as (input: {
-  data: RosterDiscoveryFilter & { audience: RosterAudience; before: null }
+  data: RosterDiscoveryFilter & { audience: RosterAudience; sort: RosterSort; before: null }
 }) => Promise<Discovered>
-const invoke = ({ data }: { data: RosterDiscoveryFilter & { audience?: RosterAudience; before: null } }) =>
-  discover({ data: { audience: 'public', ...data } })
+const invoke = ({ data }: { data: RosterDiscoveryFilter & { audience?: RosterAudience; sort?: RosterSort; before: null } }) =>
+  discover({ data: { audience: 'public', sort: 'updated-desc', ...data } })
 
 const summary = (id: string, catalogueId: string) => ({ id, catalogueId, detachmentIds: ['awakened'], unitCount: 1 })
 const entry = (id: string, catalogueId: string) => ({
@@ -58,6 +59,7 @@ it('asks the product database for one bounded page of the rules versions in scop
   expect(mocks.discover).toHaveBeenCalledWith({
     audience: 'public',
     viewerId: null,
+    sort: 'updated-desc',
     catalogueIds: ['legacy~necrons'],
     detachmentIds: null,
     before: null,

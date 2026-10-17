@@ -11,7 +11,8 @@ import { requestCookie } from '../server/requestCookie'
 import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
 import { discoveryFilter, RosterDiscoveryPage, type RosterDiscoverySearch } from '../client/features/rosters/RosterDiscoveryPage'
 import { RULES_VERSION_STATUSES, type RulesVersionStatus } from '../core/rosterDiscovery'
-import { discoveredRostersQuery, factionIndexQuery, meQuery, rostersLentToMeQuery } from '../client/queries'
+import { ROSTER_SORTS } from '../core/rosterSort'
+import { discoveredRostersQuery, factionIndexQuery, meQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 
@@ -27,7 +28,14 @@ export const Route = createFileRoute('/rosters/')({
     if (view) {
       const detachment = faction && typeof search.detachment === 'string' && search.detachment.length <= 128 ? search.detachment : undefined
       const rules = RULES_VERSION_STATUSES.find((status): status is RulesVersionStatus => status === search.rules)
-      return { view, ...(faction ? { faction } : {}), ...(detachment ? { detachment } : {}), ...(rules ? { rules } : {}) }
+      const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
+      return {
+        view,
+        ...(faction ? { faction } : {}),
+        ...(detachment ? { detachment } : {}),
+        ...(rules ? { rules } : {}),
+        ...(sort ? { sort } : {}),
+      }
     }
     const visibility =
       typeof search.visibility === 'string' && ROSTER_VISIBILITIES.includes(search.visibility as RosterVisibility)
@@ -42,18 +50,15 @@ export const Route = createFileRoute('/rosters/')({
       ...(typeof search.add === 'string' && search.add && search.add.length <= 64 ? { add: search.add } : {}),
     }
   },
-  loaderDeps: ({ search: { view, faction, detachment, rules } }) => ({ view, faction, detachment, rules }),
-  loader: async ({ context, deps: { view, ...search } }) => {
+  loaderDeps: ({ search: { view, faction, detachment, rules, sort } }) => ({ view, faction, detachment, rules, sort }),
+  loader: async ({ context, deps: { view, sort, ...search } }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-      await Promise.all([
-        context.queryClient.infiniteQuery({
-          ...discoveredRostersQuery(discoveryFilter(search, index?.factions ?? []), me ? view : 'public'),
-          staleTime: 'static',
-        }),
-        me && view === 'friends' ? context.queryClient.query({ ...rostersLentToMeQuery(), staleTime: 'static' }) : null,
-      ])
+      await context.queryClient.infiniteQuery({
+        ...discoveredRostersQuery(discoveryFilter(search, index?.factions ?? []), me ? view : 'public', sort ?? 'updated-desc'),
+        staleTime: 'static',
+      })
     }
     // A visitor's page is the roster setup, which offers every faction.
     else if (!me) await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
@@ -89,7 +94,7 @@ export const Route = createFileRoute('/rosters/')({
  * player arriving with a visitor's list still on the device has it saved first.
  */
 function RosterLibraryRoute() {
-  const { add, view, detachment, rules, ...search } = Route.useSearch()
+  const { add, view, detachment, rules, sort: listSort, ...search } = Route.useSearch()
   const { guestDraft: hinted, sort } = Route.useLoaderData()
   const navigate = Route.useNavigate()
   const requested = useMemo(
@@ -101,7 +106,8 @@ function RosterLibraryRoute() {
   )
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest, revision }, setGuest] = useGuestDraft(hinted)
-  if (view) return <RosterDiscoveryPage view={me ? view : 'public'} search={{ faction: search.faction, detachment, rules }} />
+  if (view)
+    return <RosterDiscoveryPage view={me ? view : 'public'} search={{ faction: search.faction, detachment, rules, sort: listSort }} />
   if (!ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
   if (me) return <RosterLibraryPage search={search} sort={sort} />

@@ -220,3 +220,19 @@ for (const [width, label] of [
     }).toPass({ timeout: 15_000 })
   })
 }
+
+test('public rosters keep a chosen order in the address across filter changes', async ({ page }) => {
+  await page.goto('/rosters?view=public')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Sort: Recently updated' }).click()
+  await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
+  await expect(page).toHaveURL(/[?&]sort=name-asc/)
+  await page.goto('/rosters?view=public&sort=name-asc&faction=necrons')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Filter 1', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Filter rosters' })
+  await dialog.getByRole('button', { name: 'Clear filters' }).click()
+  await expect(page).toHaveURL(/\/rosters\?view=public&sort=name-asc$/)
+  await dialog.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('button', { name: 'Sort: A to Z' })).toBeVisible()
+})

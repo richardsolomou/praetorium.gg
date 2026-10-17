@@ -467,7 +467,7 @@ export function ListBuilder({
     mutationFn: () => endRosterLoan({ data: { id: savedId, borrowerId: me!.id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: rostersLentToMeQuery().queryKey })
-      await navigate({ to: '/rosters', search: { view: 'friends' } })
+      await navigate({ to: '/rosters' })
     },
   })
 

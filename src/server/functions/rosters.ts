@@ -110,14 +110,21 @@ export const playerRosters = createServerFn({ method: 'GET' })
  */
 export const discoverRosters = createServerFn({ method: 'GET' })
   .validator(rosterDiscoverySchema)
-  .handler(({ data: { audience, before, ...filter } }) =>
+  .handler(({ data: { audience, sort, before, ...filter } }) =>
     rpc(async () => {
       const instance = app()
       const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
       const factions = factionIndex?.factions ?? []
       const scope = discoveryScope(filter, factions)
       if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], nextCursor: null }
-      const page = await instance.service.discoverRosters({ ...scope, audience, viewerId, before, limit: ROSTER_DISCOVERY_PAGE_SIZE })
+      const page = await instance.service.discoverRosters({
+        ...scope,
+        audience,
+        viewerId,
+        sort,
+        before,
+        limit: ROSTER_DISCOVERY_PAGE_SIZE,
+      })
       const indexed = new Map(factions.map((faction) => [faction.id, faction]))
       const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
       const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))

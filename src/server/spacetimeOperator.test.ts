@@ -304,6 +304,7 @@ it('reads a roster discovery cursor carrying a field added after this build', as
       await operator.discoverRosters({
         audience: 'public',
         viewerId: null,
+        sort: 'updated-desc',
         catalogueIds: null,
         detachmentIds: null,
         before: null,

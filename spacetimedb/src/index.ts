@@ -1039,7 +1039,8 @@ export const discoverRosters = spacetime.procedure({ payload: t.string() }, t.st
     const { audience, viewerId } = parsed.data
     if (audience === 'friends' && !viewerId) throw new SenderError('Invalid roster discovery')
     const rows = function* () {
-      for (const row of tx.db.rosters.visibility.filter('public')) yield { ...row, updatedAt: safeNumber(row.updatedAt) }
+      for (const row of tx.db.rosters.visibility.filter('public'))
+        yield { ...row, createdAt: safeNumber(row.createdAt), updatedAt: safeNumber(row.updatedAt) }
     }
     return productJson(discoveryPage(rows(), parsed.data, audience === 'friends' ? acceptedFriendIds(tx, viewerId!) : undefined))
   }),

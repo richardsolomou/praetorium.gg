@@ -28,10 +28,19 @@ import { factionSelectGroups } from './builder/factions'
 import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
-import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
+import { keepRosterSort } from './rosterSort'
+import { type RosterSort, sortRosters } from '../../../core/rosterSort'
 import { parseWorkspaceState, readStoredWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { factionIndexQuery, gameReferencesQuery, meQuery, savedRosterChangedIdsQuery, savedRosterSummariesQuery } from '../../queries'
+import {
+  factionIndexQuery,
+  gameReferencesQuery,
+  meQuery,
+  rostersLentToMeQuery,
+  savedRosterChangedIdsQuery,
+  savedRosterSummariesQuery,
+} from '../../queries'
+import { LentRosterList } from './LentRosters'
 import { RosterViews } from './RosterViews'
 import { useOrigin } from '../../useOrigin'
 import { useClientValue } from '../../useClientValue'
@@ -68,6 +77,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
+  const lent = useQuery({ ...rostersLentToMeQuery(), enabled: Boolean(me) }).data ?? []
   const { data: references } = useQuery({ ...gameReferencesQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
   const available = availableResult.data
@@ -336,6 +346,16 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             )}
           </div>
         </section>
+        {lent.length ? (
+          <section>
+            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+              Lent to you <span className="readout">{lent.length}</span>
+            </h2>
+            <div className="mt-2">
+              <LentRosterList rosters={lent} />
+            </div>
+          </section>
+        ) : null}
         {!libraryPending && !libraryError && archived.length ? (
           <Collapsible render={<section />} open={archivedOpen} onOpenChange={setArchivedOpen}>
             <CollapsibleTrigger className="group rubric flex w-full items-baseline gap-3 border-b border-edge pb-2 text-left hover:text-bone">

@@ -60,6 +60,7 @@ it.skipIf(!url || !database || !token)('lists a roster for discovery only while 
       await store.discoverRosters({
         audience: 'public',
         viewerId: null,
+        sort: 'updated-desc',
         catalogueIds: [catalogueId],
         detachmentIds: null,
         before: null,
