@@ -306,3 +306,55 @@ describe('collection counts', () => {
     expect(test.db.collectionWishes.key.find(key)).toBeNull()
   })
 })
+
+describe('roster discovery', () => {
+  const save = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth, id: string, userId: string) =>
+    module.saveRoster(procedure(operator), {
+      payload: JSON.stringify({
+        id,
+        userId,
+        name: id,
+        automaticName: false,
+        catalogueId: 'catalogue-proof',
+        detachmentId: '["detachment-proof"]',
+        disposition: null,
+        limit: 1_000,
+        picks: '[]',
+        prep: null,
+        tags: '[]',
+        waivedRules: '[]',
+        optionalRules: '[]',
+        borrowedDetachmentId: null,
+        baseRosterId: null,
+        visibility: 'public',
+        source: 'editable',
+        now: NOW,
+      }),
+    })
+  const friendsPage = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth) =>
+    (
+      JSON.parse(
+        module.discoverRosters(procedure(operator), {
+          payload: JSON.stringify({
+            audience: 'friends',
+            viewerId: 'viewer',
+            catalogueIds: null,
+            detachmentIds: null,
+            before: null,
+            limit: 10,
+          }),
+        }),
+      ) as { rows: { id: string }[] }
+    ).rows.map((row) => row.id)
+
+  it('lists only accepted friends to the friends audience', () => {
+    const { operator, procedure } = harness()
+    save(procedure, operator, 'friend-list', 'friend')
+    save(procedure, operator, 'pending-list', 'pending')
+    save(procedure, operator, 'stranger-list', 'stranger')
+    module.requestFriend(procedure(operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })
+    module.acceptFriend(procedure(operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })
+    module.requestFriend(procedure(operator), { requesterId: 'pending', addresseeId: 'viewer', now: BigInt(NOW) })
+    expect(friendsPage(procedure, operator)).toEqual(['friend-list'])
+  })
+})

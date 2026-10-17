@@ -622,7 +622,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
 
   const widths: number[] = []
   for (const [path, heading] of [
-    ['/rosters', 'My rosters'],
+    ['/rosters', 'Rosters'],
     ['/battles', 'Battles'],
     ['/friends', 'Friends'],
   ]) {
@@ -633,7 +633,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   }
   expect(new Set(widths).size).toBe(1)
   await page.goto('/rosters')
-  await expect(page.getByRole('heading', { name: 'My rosters', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
   await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
   const heroRail = await page.locator('main > header').first().locator('div.relative').last().boundingBox()
   const contentRail = await page.getByLabel('Roster filters').locator('..').boundingBox()
@@ -803,9 +803,9 @@ test('a player can enter through the roster library and browse the product', asy
   await signUp(page, 'Alice')
   await page.goto('/rosters')
 
-  await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
   const rendered = await page.request.get('/rosters')
-  expect(await rendered.text()).toContain('My rosters')
+  expect(await rendered.text()).toContain('Your rosters')
   await expect(page.getByText('Create one, or import a list from another app.')).toBeVisible()
   await page.getByRole('button', { name: 'Filter' }).click()
   const filters = page.getByRole('dialog', { name: 'Filter rosters' })

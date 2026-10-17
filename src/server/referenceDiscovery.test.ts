@@ -157,7 +157,7 @@ it('lists the data updates page once for a snapshot that carries any', async () 
 
 it('lists the public pages no reference document names', async () => {
   expect(await sitemap()).toMatch(
-    /<loc>https:\/\/praetorium\.gg\/<\/loc>.*<loc>https:\/\/praetorium\.gg\/leaderboard<\/loc>.*<loc>https:\/\/praetorium\.gg\/rosters<\/loc>.*<loc>https:\/\/praetorium\.gg\/rosters\/discover<\/loc>.*<loc>https:\/\/praetorium\.gg\/simulator<\/loc>/s,
+    /<loc>https:\/\/praetorium\.gg\/<\/loc>.*<loc>https:\/\/praetorium\.gg\/leaderboard<\/loc>.*<loc>https:\/\/praetorium\.gg\/rosters<\/loc>.*<loc>https:\/\/praetorium\.gg\/rosters\?view=public<\/loc>.*<loc>https:\/\/praetorium\.gg\/simulator<\/loc>/s,
   )
 })
 

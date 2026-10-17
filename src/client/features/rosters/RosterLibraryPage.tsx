@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
-import { ChevronDown, Compass, ScrollText } from 'lucide-react'
+import { ChevronDown, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { buttonClass } from '../../components/buttonClass'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { currentRulesFor } from '../../../core/currentRules'
@@ -32,15 +31,8 @@ import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
 import { parseWorkspaceState, readStoredWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import {
-  factionIndexQuery,
-  gameReferencesQuery,
-  meQuery,
-  rostersLentToMeQuery,
-  savedRosterChangedIdsQuery,
-  savedRosterSummariesQuery,
-} from '../../queries'
-import { LentRosterList } from './LentRosters'
+import { factionIndexQuery, gameReferencesQuery, meQuery, savedRosterChangedIdsQuery, savedRosterSummariesQuery } from '../../queries'
+import { RosterViews } from './RosterViews'
 import { useOrigin } from '../../useOrigin'
 import { useClientValue } from '../../useClientValue'
 import type { RosterVisibility } from '../../../core/savedRoster'
@@ -76,7 +68,6 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   const { data: me } = useQuery(meQuery())
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
-  const lent = useQuery({ ...rostersLentToMeQuery(), enabled: Boolean(me) }).data ?? []
   const { data: references } = useQuery({ ...gameReferencesQuery(), enabled: Boolean(me) })
   const saved = savedResult.data ?? []
   const available = availableResult.data
@@ -210,18 +201,17 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     <main className="w-full">
       <PageHeader
         eyebrow="Your rosters"
-        title="My rosters"
-        description="Build, import, organize, and share the armies you bring to battle."
+        title="Rosters"
+        description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
-            <Link to="/rosters/discover" className={buttonClass({ variant: 'outline' })}>
-              <Compass /> Discover armies
-            </Link>
             <RosterImport />
             <CreateRoster factionOptions={available?.factions ?? []} limit={search.limit} />
           </>
         }
-      />
+      >
+        <RosterViews view="mine" />
+      </PageHeader>
 
       <PageContent className="space-y-6">
         <RosterFilters
@@ -357,16 +347,6 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
               <div className="mt-2 space-y-3">{archivedGroups.map(renderCard)}</div>
             </CollapsibleContent>
           </Collapsible>
-        ) : null}
-        {lent.length ? (
-          <section>
-            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-              Lent to you <span className="readout">{lent.length}</span>
-            </h2>
-            <div className="mt-2">
-              <LentRosterList rosters={lent} />
-            </div>
-          </section>
         ) : null}
       </PageContent>
 

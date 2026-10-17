@@ -104,8 +104,8 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             <ChevronRight className="size-4 text-dim" aria-hidden />
           </Link>
           <Link
-            to="/rosters/discover"
-            search={{ faction: faction.slug }}
+            to="/rosters"
+            search={{ view: 'public', faction: faction.slug }}
             className="flex items-center justify-between px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Public armies</span>

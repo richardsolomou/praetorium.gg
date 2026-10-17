@@ -74,8 +74,8 @@ export function PrivacyPolicy() {
           <li>Players seated in a battle see that battle's record, including its frozen copies of the armies played.</li>
           <li>
             Saved rosters start public unless you choose another default or access level. An unlisted roster can be read by anyone holding
-            its link; a public roster is also listed on your profile and in Discover armies, where any player can duplicate it into their
-            own rosters. Private access requires ownership or a seat in the named battle where the roster was attached.
+            its link; a public roster is also listed on your profile and in public rosters, where any player can duplicate it into their own
+            rosters. Private access requires ownership or a seat in the named battle where the roster was attached.
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>

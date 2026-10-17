@@ -5,6 +5,9 @@ export const ROSTER_DISCOVERY_PAGE_SIZE = 24
 export const ROSTER_DISCOVERY_MAX_PAGE_SIZE = 50
 const ROSTER_DISCOVERY_MAX_SCOPE_IDS = 1_000
 
+export const ROSTER_AUDIENCES = ['public', 'friends'] as const
+export type RosterAudience = (typeof ROSTER_AUDIENCES)[number]
+
 export const RULES_VERSION_STATUSES = ['current', 'archived', 'preview'] as const
 export type RulesVersionStatus = (typeof RULES_VERSION_STATUSES)[number]
 
@@ -21,8 +24,13 @@ export const rosterDiscoveryFilterSchema = z.strictObject({
 })
 export type RosterDiscoveryFilter = z.infer<typeof rosterDiscoveryFilterSchema>
 
-/** What the product database is asked for: the saved IDs a roster inside the filter is stored under. */
+/**
+ * What the product database is asked for: the saved IDs a roster inside the filter is stored under, and whose rosters.
+ * The public audience leaves out the viewer's own; the friends audience holds only the viewer's accepted friends'.
+ */
 export const rosterDiscoveryQuerySchema = z.strictObject({
+  audience: z.enum(ROSTER_AUDIENCES),
+  viewerId: id.nullable(),
   catalogueIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).nullable(),
   detachmentIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).nullable(),
   before: rosterDiscoveryCursorSchema.nullable(),
@@ -37,14 +45,15 @@ export type RosterDiscoveryQuery = z.infer<typeof rosterDiscoveryQuerySchema>
  * owner handed to somebody, so they never appear. Only `limit + 1` rows are held at once.
  */
 export function discoveryPage<
-  T extends { id: string; visibility: string; catalogueId: string; detachmentId?: string | null; updatedAt: number },
->(rows: Iterable<T>, query: RosterDiscoveryQuery) {
+  T extends { id: string; userId: string; visibility: string; catalogueId: string; detachmentId?: string | null; updatedAt: number },
+>(rows: Iterable<T>, query: RosterDiscoveryQuery, friendIds: ReadonlySet<string> = new Set()) {
   const catalogues = query.catalogueIds && new Set(query.catalogueIds)
   const detachments = query.detachmentIds && new Set(query.detachmentIds)
   const newer = (left: T, right: T) => left.updatedAt > right.updatedAt || (left.updatedAt === right.updatedAt && left.id > right.id)
   const kept: T[] = []
   for (const row of rows) {
     if (row.visibility !== 'public') continue
+    if (query.audience === 'friends' ? !friendIds.has(row.userId) : row.userId === query.viewerId) continue
     if (catalogues && !catalogues.has(row.catalogueId)) continue
     if (detachments && !detachmentIds(row.detachmentId).some((saved) => detachments.has(saved))) continue
     const { before } = query

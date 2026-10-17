@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, discoveryPage, rosterDiscoveryQuerySchema, type RosterDiscoveryQuery } from './rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from './rosterDiscoveryScope'
 
-type Row = { id: string; visibility: string; catalogueId: string; detachmentId: string | null; updatedAt: number }
+type Row = { id: string; userId: string; visibility: string; catalogueId: string; detachmentId: string | null; updatedAt: number }
 
 const row = (id: string, updatedAt: number, overrides: Partial<Row> = {}): Row => ({
   id,
+  userId: 'owner',
   visibility: 'public',
   catalogueId: 'necrons',
   detachmentId: '["awakened"]',
@@ -13,14 +14,16 @@ const row = (id: string, updatedAt: number, overrides: Partial<Row> = {}): Row =
   ...overrides,
 })
 const query = (overrides: Partial<RosterDiscoveryQuery> = {}): RosterDiscoveryQuery => ({
+  audience: 'public',
+  viewerId: null,
   catalogueIds: null,
   detachmentIds: null,
   before: null,
   limit: 10,
   ...overrides,
 })
-const ids = (rows: Iterable<Row>, overrides: Partial<RosterDiscoveryQuery> = {}) =>
-  discoveryPage(rows, query(overrides)).rows.map((r) => r.id)
+const ids = (rows: Iterable<Row>, overrides: Partial<RosterDiscoveryQuery> = {}, friendIds?: ReadonlySet<string>) =>
+  discoveryPage(rows, query(overrides), friendIds).rows.map((r) => r.id)
 
 const ultramarines = { retired: 'a603-5039-f08d-e841', current: '4029-9237-e8db-af55' }
 const factions = [
@@ -42,6 +45,32 @@ describe('roster discovery eligibility', () => {
 
   it('leaves out an unlisted roster', () => {
     expect(ids([row('unlisted', 1, { visibility: 'unlisted' })])).toEqual([])
+  })
+})
+
+describe('roster discovery audiences', () => {
+  it("leaves the viewer's own roster out of the public audience", () => {
+    expect(ids([row('own', 2, { userId: 'viewer' }), row('other', 1)], { viewerId: 'viewer' })).toEqual(['other'])
+  })
+
+  it("keeps a friend's public roster in the friends audience", () => {
+    expect(ids([row('friend', 1, { userId: 'friend' })], { audience: 'friends', viewerId: 'viewer' }, new Set(['friend']))).toEqual([
+      'friend',
+    ])
+  })
+
+  it("leaves a stranger's roster out of the friends audience", () => {
+    expect(ids([row('stranger', 1)], { audience: 'friends', viewerId: 'viewer' }, new Set(['friend']))).toEqual([])
+  })
+
+  it("leaves a friend's unlisted roster out of the friends audience", () => {
+    expect(
+      ids(
+        [row('unlisted', 1, { userId: 'friend', visibility: 'unlisted' })],
+        { audience: 'friends', viewerId: 'viewer' },
+        new Set(['friend']),
+      ),
+    ).toEqual([])
   })
 })
 

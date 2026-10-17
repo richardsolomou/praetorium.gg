@@ -103,19 +103,21 @@ export const playerRosters = createServerFn({ method: 'GET' })
   )
 
 /**
- * Public rosters anyone can find, most recently saved first, with their owner's name and
- * whether the current data can field them. A rare page can come back short, when a saved
- * ID read against current data falls outside the filter; its cursor still continues.
+ * Public rosters, most recently saved first, with their owner's name and whether the current
+ * data can field them: other players' for anyone, or a signed-in player's friends'. A rare page
+ * can come back short, when a saved ID read against current data falls outside the filter; its
+ * cursor still continues.
  */
 export const discoverRosters = createServerFn({ method: 'GET' })
   .validator(rosterDiscoverySchema)
-  .handler(({ data: { before, ...filter } }) =>
+  .handler(({ data: { audience, before, ...filter } }) =>
     rpc(async () => {
       const instance = app()
-      const factions = (await instance.factionIndexFor())?.factions ?? []
+      const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
+      const factions = factionIndex?.factions ?? []
       const scope = discoveryScope(filter, factions)
-      if (!scope) return { rosters: [], nextCursor: null }
-      const page = await instance.service.discoverRosters({ ...scope, before, limit: ROSTER_DISCOVERY_PAGE_SIZE })
+      if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], nextCursor: null }
+      const page = await instance.service.discoverRosters({ ...scope, audience, viewerId, before, limit: ROSTER_DISCOVERY_PAGE_SIZE })
       const indexed = new Map(factions.map((faction) => [faction.id, faction]))
       const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
       const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))

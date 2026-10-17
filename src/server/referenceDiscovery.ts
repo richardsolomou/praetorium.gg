@@ -18,7 +18,7 @@ const PUBLIC_PAGES = [
   '/leaderboard',
   '/leagues',
   '/rosters',
-  '/rosters/discover',
+  '/rosters?view=public',
   '/rules',
   '/simulator',
   '/sources',

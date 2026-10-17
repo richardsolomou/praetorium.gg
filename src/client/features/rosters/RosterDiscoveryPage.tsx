@@ -1,11 +1,16 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Copy, ListFilter, ScrollText } from 'lucide-react'
+import { Copy, ListFilter, ScrollText, Users } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { Skeleton } from '@/components/ui/skeleton'
-import { RULES_VERSION_STATUSES, type RosterDiscoveryFilter, type RulesVersionStatus } from '../../../core/rosterDiscovery'
+import {
+  RULES_VERSION_STATUSES,
+  type RosterAudience,
+  type RosterDiscoveryFilter,
+  type RulesVersionStatus,
+} from '../../../core/rosterDiscovery'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import { rulesVersionStatus } from '../../../core/rosterDiscoveryScope'
 import {
@@ -24,11 +29,15 @@ import { PageState } from '../../components/PageState'
 import type { SearchableGroup } from '../../components/SearchableSelect'
 import { copyRoster } from '../../functions'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQuery } from '../../queries'
+import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQuery, rostersLentToMeQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
+import { CreateRoster } from './CreateRoster'
+import { LentRosterList } from './LentRosters'
 import { FilterField } from './RosterFilters'
+import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle } from './RosterSummary'
+import { RosterViews } from './RosterViews'
 
 export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus }
 
@@ -69,7 +78,8 @@ export function discoveryFilter(search: RosterDiscoverySearch, factions: Indexed
   }
 }
 
-export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch }) {
+/** Other players' public rosters, or a signed-in player's friends' public rosters and the ones lent to them. */
+export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; search: RosterDiscoverySearch }) {
   const navigate = useNavigate()
   const path = useRouterState({ select: (state) => state.location.href })
   const { data: me } = useQuery(meQuery())
@@ -99,11 +109,13 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
       new Set(families.filter((faction) => favourites.has(faction.id)).map((faction) => faction.slug)),
     ),
   ]
-  const choose = (next: RosterDiscoverySearch) => void navigate({ to: '/rosters/discover', search: next })
+  const choose = (next: RosterDiscoverySearch) => void navigate({ to: '/rosters', search: { view, ...next } })
   const active = [filter.faction, filter.detachment, filter.rules].filter(Boolean).length
 
-  const result = useInfiniteQuery({ ...discoveredRostersQuery(filter), enabled: !search.faction || indexResult.isSuccess })
+  const result = useInfiniteQuery({ ...discoveredRostersQuery(filter, view), enabled: !search.faction || indexResult.isSuccess })
   const shown = result.data?.pages.flatMap((page) => page.rosters) ?? []
+  const lent = useQuery({ ...rostersLentToMeQuery(), enabled: view === 'friends' }).data ?? []
+  const listed = view === 'friends' ? "friends' public rosters" : 'public rosters'
 
   const queryClient = useQueryClient()
   const duplicate = useMutation({
@@ -118,17 +130,28 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Public armies"
-        title="Discover armies"
-        description="Find armies other players published, open them, and duplicate one to make it your own."
+        eyebrow={me ? 'Your rosters' : 'Community'}
+        title={me ? 'Rosters' : 'Public rosters'}
+        description={
+          me
+            ? 'Build, import, organize, and share your armies, or find one your friends and other players made public.'
+            : 'Find armies other players published, open them, and duplicate one to make it your own.'
+        }
         actions={
           me ? (
-            <Link to="/rosters" className={buttonClass({ variant: 'outline' })}>
-              My rosters
+            <>
+              <RosterImport />
+              <CreateRoster factionOptions={factions} />
+            </>
+          ) : (
+            <Link to="/rosters" className={buttonClass()}>
+              Build a roster
             </Link>
-          ) : null
+          )
         }
-      />
+      >
+        {me ? <RosterViews view={view} /> : null}
+      </PageHeader>
       <PageContent className="space-y-6">
         <Dialog>
           <DialogTrigger render={<Button variant="outline" />}>
@@ -138,8 +161,8 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Filter armies</DialogTitle>
-              <DialogDescription>Narrow the public armies to a faction, detachment or rules version.</DialogDescription>
+              <DialogTitle>Filter rosters</DialogTitle>
+              <DialogDescription>Narrow the {listed} to a faction, detachment or rules version.</DialogDescription>
             </DialogHeader>
             <DialogBody className="gap-3">
               <FilterField
@@ -172,19 +195,30 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
         </Dialog>
         {duplicate.isError ? (
           <p role="alert" className="text-sm text-destructive">
-            Could not duplicate that army: {errorMessage(duplicate.error)}
+            Could not duplicate that roster: {errorMessage(duplicate.error)}
           </p>
         ) : null}
 
+        {lent.length ? (
+          <section>
+            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+              Lent to you <span className="readout">{lent.length}</span>
+            </h2>
+            <div className="mt-2">
+              <LentRosterList rosters={lent} />
+            </div>
+          </section>
+        ) : null}
+
         <section>
-          <h2 className="rubric border-b border-edge pb-2">Armies</h2>
+          <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>
           <div className="mt-2 space-y-3">
             {result.isError && !shown.length ? (
               <PageState
                 headingLevel={2}
-                eyebrow="Public armies"
-                title="Could not load armies"
-                explanation="The public armies could not be loaded. Try again."
+                eyebrow="Rosters"
+                title="Could not load rosters"
+                explanation={`The ${listed} could not be loaded. Try again.`}
                 action={
                   <Button variant="outline" onClick={() => void result.refetch()} disabled={result.isFetching}>
                     Try again
@@ -193,12 +227,12 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
               />
             ) : result.isPending ? (
               <div aria-busy="true" className="space-y-3">
-                <output className="sr-only">Loading public armies…</output>
+                <output className="sr-only">Loading {listed}…</output>
                 <DiscoveredRosterSkeleton />
               </div>
             ) : shown.length || result.hasNextPage ? (
               <>
-                {shown.length ? null : <p className="py-2 text-sm text-dim">None of the most recently saved armies match yet.</p>}
+                {shown.length ? null : <p className="py-2 text-sm text-dim">None of the most recently saved rosters match yet.</p>}
                 {shown.map((entry) => (
                   <DiscoveredRoster
                     key={entry.roster.id}
@@ -213,23 +247,46 @@ export function RosterDiscoveryPage({ search }: { search: RosterDiscoverySearch 
                 ))}
                 {result.hasNextPage ? (
                   <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
-                    {result.isFetchingNextPage ? 'Loading…' : 'Show more armies'}
+                    {result.isFetchingNextPage ? 'Loading…' : 'Show more rosters'}
                   </Button>
                 ) : null}
               </>
             ) : active ? (
               <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
-                No public armies match these filters
+                No {listed} match these filters
                 <Button variant="outline" size="sm" onClick={() => choose({})}>
                   Clear filters
                 </Button>
               </p>
+            ) : view === 'friends' ? (
+              lent.length ? (
+                <p className="py-2 text-sm text-dim">None of your friends has a public roster yet.</p>
+              ) : (
+                <div data-friends-empty>
+                  <PageState
+                    headingLevel={2}
+                    eyebrow="Friends' rosters"
+                    title="No friends' rosters yet."
+                    explanation="Rosters your friends make public or lend you appear here."
+                    icon={Users}
+                    action={
+                      <Link to="/friends" className={buttonClass({ variant: 'outline' })}>
+                        <Users /> Your friends
+                      </Link>
+                    }
+                  />
+                </div>
+              )
             ) : (
               <PageState
                 headingLevel={2}
-                eyebrow="Public armies"
-                title="No public armies yet"
-                explanation="Players list an army here by choosing Public in its roster setup."
+                eyebrow="Public rosters"
+                title={me ? 'No other public rosters yet.' : 'No public rosters yet.'}
+                explanation={
+                  me
+                    ? "Other players' public rosters appear here; your own are under Mine."
+                    : 'Players list a roster here by choosing Public in its roster setup.'
+                }
                 icon={ScrollText}
               />
             )}

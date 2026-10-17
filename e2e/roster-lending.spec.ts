@@ -40,7 +40,7 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await expect(borrower.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
 
   await setLoan(owner, rosterUrl, borrowerName, true)
-  await borrower.goto('/rosters')
+  await borrower.goto('/rosters?view=friends')
   await expect(borrower.locator('[data-lent-rosters]').getByText(`Lent by ${ownerName}`)).toBeVisible()
   await borrower.locator('[data-lent-rosters]').getByRole('link').first().click()
   await expect(borrower.locator('[data-roster-lent-by]')).toContainText(`Lent to you by ${ownerName}`)
@@ -62,7 +62,8 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await expect(armies.getByText(`Lent by ${ownerName}`)).toBeVisible()
 
   await setLoan(owner, rosterUrl, borrowerName, false)
-  await borrower.goto('/rosters')
+  await borrower.goto('/rosters?view=friends')
+  await expect(borrower.getByRole('heading', { name: "Friends' public rosters" })).toBeVisible()
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await borrower.goto(battle)
   await expect(borrower.getByRole('region', { name: 'Armies' }).getByText(`Lent by ${ownerName}`)).toBeVisible()
@@ -84,7 +85,8 @@ test('a borrower hands a lent roster back', async ({ browser }) => {
 
   await borrower.goto(rosterUrl)
   // The button stays disabled until its navigation finishes, so a repeated press cannot return the roster twice.
-  await followLink(borrower.locator('[data-roster-lent-by]').getByRole('button', { name: 'Return it' }), /\/rosters$/)
+  await followLink(borrower.locator('[data-roster-lent-by]').getByRole('button', { name: 'Return it' }), /\/rosters\?view=friends$/)
+  await expect(borrower.getByRole('heading', { name: "Friends' public rosters" })).toBeVisible()
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await owner.goto(rosterUrl)
   await chooseRosterAction(owner, 'Lend to a friend')

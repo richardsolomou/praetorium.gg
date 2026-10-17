@@ -576,12 +576,8 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (input.scope === 'league' && (!league || !event || event.leagueId !== league.id || event.revealedAt === undefined)) {
       return productJson({ battles: [], nextCursor: null })
     }
-    const friendIds = new Set<string>()
     const friendViewer = input.scope === 'friends' ? input.userId : input.scope === 'league' ? input.viewerId : null
-    if (friendViewer) {
-      for (const row of tx.db.friendships.requesterId.filter(friendViewer)) if (row.acceptedAt !== undefined) friendIds.add(row.addresseeId)
-      for (const row of tx.db.friendships.addresseeId.filter(friendViewer)) if (row.acceptedAt !== undefined) friendIds.add(row.requesterId)
-    }
+    const friendIds = friendViewer ? acceptedFriendIds(tx, friendViewer) : new Set<string>()
 
     const rows: { id: string; token: string; createdAt: number; at: number }[] = []
     const candidates = function* () {
@@ -740,6 +736,13 @@ function friendshipKey(requesterId: string, addresseeId: string) {
     throw new SenderError('Invalid friendship')
   }
   return JSON.stringify([requesterId, addresseeId])
+}
+
+function acceptedFriendIds(ctx: Context, userId: string) {
+  const ids = new Set<string>()
+  for (const row of ctx.db.friendships.requesterId.filter(userId)) if (row.acceptedAt !== undefined) ids.add(row.addresseeId)
+  for (const row of ctx.db.friendships.addresseeId.filter(userId)) if (row.acceptedAt !== undefined) ids.add(row.requesterId)
+  return ids
 }
 
 function friendshipBetween(ctx: Context, leftId: string, rightId: string) {
@@ -1033,10 +1036,12 @@ export const discoverRosters = spacetime.procedure({ payload: t.string() }, t.st
     if (payload.length > 200_000) throw new SenderError('Invalid roster discovery')
     const parsed = rosterDiscoveryQuerySchema.safeParse(JSON.parse(payload))
     if (!parsed.success) throw new SenderError('Invalid roster discovery')
+    const { audience, viewerId } = parsed.data
+    if (audience === 'friends' && !viewerId) throw new SenderError('Invalid roster discovery')
     const rows = function* () {
       for (const row of tx.db.rosters.visibility.filter('public')) yield { ...row, updatedAt: safeNumber(row.updatedAt) }
     }
-    return productJson(discoveryPage(rows(), parsed.data))
+    return productJson(discoveryPage(rows(), parsed.data, audience === 'friends' ? acceptedFriendIds(tx, viewerId!) : undefined))
   }),
 )
 

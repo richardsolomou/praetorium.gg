@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { chooseRosterAction, confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { befriend, chooseRosterAction, confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, withAuthSql } from './storage'
 
@@ -35,7 +35,7 @@ async function addNotedUnit(page: Page) {
 
 async function filterTo(page: Page, choices: { faction: string; detachment: string; rules: string }) {
   await page.getByRole('button', { name: 'Filter', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Filter armies' })
+  const dialog = page.getByRole('dialog', { name: 'Filter rosters' })
   for (const [label, option] of [
     ['Faction', choices.faction],
     ['Detachment', choices.detachment],
@@ -61,7 +61,10 @@ for (const [width, label] of [
     const ownerName = uniqueName('Publisher')
     await signUp(owner, ownerName)
     await owner.goto('/rosters')
-    await expect(owner.getByRole('link', { name: 'Discover armies' })).toBeVisible()
+    await expect(owner.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Mine' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
     await shot(owner.locator('main header'), `test-results/roster-library-header-${label}.png`)
     const armyName = uniqueName('Found army')
     await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
@@ -73,7 +76,9 @@ for (const [width, label] of [
 
     const reader = await (await browser.newContext({ viewport })).newPage()
     await signUp(reader, uniqueName('Finder'))
-    await reader.goto('/rosters/discover')
+    await reader.goto('/rosters')
+    await reader.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Public', exact: true }).click()
+    await expect(reader).toHaveURL(/\/rosters\?view=public$/)
     await filterTo(reader, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
     await expect(reader).toHaveURL(/faction=necrons/)
     // Other tests publish Necrons armies meanwhile, and only these filters keep this one on the first page.
@@ -96,7 +101,7 @@ for (const [width, label] of [
       await reader.goBack()
     }
     await card.getByRole('button', { name: `Duplicate ${armyName}` }).click()
-    await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname) && !url.pathname.endsWith('/discover'))
+    await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
     const copyId = rosterId(reader)
     expect(copyId).not.toBe(sourceId)
     await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${armyName}`)
@@ -112,7 +117,7 @@ for (const [width, label] of [
     await setAccess(owner, 'Private', 'private')
     await expect(card).toHaveCount(0)
     await reader.reload()
-    await expect(reader.getByRole('heading', { name: 'Armies', exact: true })).toBeVisible()
+    await expect(reader.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
     await expect(card).toHaveCount(0)
     await reader.goto(`/rosters/${copyId}`)
     await expect(reader.getByLabel('List name')).toHaveValue('Edited copy')
@@ -124,13 +129,50 @@ test('a faction page leads to its public armies, and a filter none match explain
   const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
   await page.goto('/factions/necrons')
   await page.getByRole('link', { name: 'Public armies' }).click()
-  await expect(page).toHaveURL(/\/rosters\/discover\?faction=necrons$/)
-  await page.goto('/rosters/discover?rules=preview&faction=necrons')
-  await expect(page.getByText('No public armies match these filters')).toBeVisible()
+  await expect(page).toHaveURL(/\/rosters\?view=public&faction=necrons$/)
+  await page.goto('/rosters?view=public&rules=preview&faction=necrons')
+  await expect(page.getByText('No public rosters match these filters')).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('main'))
   await shot(page.locator('main'), 'test-results/roster-discovery-empty-phone.png')
   await page.getByRole('button', { name: 'Clear filters' }).click()
-  await expect(page).toHaveURL(/\/rosters\/discover$/)
+  await expect(page).toHaveURL(/\/rosters\?view=public$/)
+})
+
+test('the old discovery address keeps its filters on the public rosters', async ({ page }) => {
+  await page.goto('/rosters/discover?faction=necrons&rules=current')
+  await expect(page.getByRole('heading', { name: 'Public rosters', level: 1 })).toBeVisible()
+  const search = new URL(page.url()).searchParams
+  expect([new URL(page.url()).pathname, search.get('view'), search.get('faction'), search.get('rules')]).toEqual([
+    '/rosters',
+    'public',
+    'necrons',
+    'current',
+  ])
+})
+
+test("a friend's public roster is listed to friends, and a player's own stays off the public rosters", async ({ browser }) => {
+  test.setTimeout(120_000)
+  const owner = await (await browser.newContext()).newPage()
+  await signUp(owner, uniqueName('Sharing friend'))
+  const friend = await (await browser.newContext()).newPage()
+  await signUp(friend, uniqueName('Friend reader'))
+  const stranger = await (await browser.newContext()).newPage()
+  await signUp(stranger, uniqueName('Stranger reader'))
+  await befriend(owner, friend)
+  const armyName = uniqueName('Friend army')
+  await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
+  await setAccess(owner, 'Public — listed on your profile', 'public')
+
+  await friend.goto('/rosters?view=friends')
+  await expect(friend.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()
+  await stranger.goto('/rosters?view=friends')
+  await expect(stranger.locator('[data-friends-empty]')).toBeVisible()
+  await owner.goto('/rosters?view=public')
+  await filterTo(owner, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
+  await friend.goto(owner.url())
+  await expect(friend.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()
+  await expect(owner.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(owner.locator(`[data-discovered-roster="${armyName}"]`)).toHaveCount(0)
 })
 
 for (const [width, label] of [
@@ -138,8 +180,9 @@ for (const [width, label] of [
   [1440, 'desktop'],
 ] as const) {
   test(`a long list of public armies scrolls to Show more (${label})`, async ({ browser }) => {
-    const page = await (await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } })).newPage()
-    const account = await signUp(page, uniqueName('Prolific publisher'))
+    const viewport = { width, height: width === 390 ? 844 : 900 }
+    const publisher = await (await browser.newContext({ viewport })).newPage()
+    const account = await signUp(publisher, uniqueName('Prolific publisher'))
     const { id: userId } = (await withAuthSql((database) =>
       database.prepare('SELECT id FROM user WHERE email = ?').get(account.email),
     )) as { id: string }
@@ -158,8 +201,10 @@ for (const [width, label] of [
       })
     }
 
-    await page.goto('/rosters/discover')
-    const more = page.getByRole('button', { name: 'Show more armies' })
+    // A visitor, since a player's own rosters stay off the public list.
+    const page = await (await browser.newContext({ viewport })).newPage()
+    await page.goto('/rosters?view=public')
+    const more = page.getByRole('button', { name: 'Show more rosters' })
     await expect(more).toBeAttached()
     await page.mouse.move(width / 2, 400)
     await expect(async () => {
