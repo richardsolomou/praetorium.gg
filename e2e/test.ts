@@ -41,8 +41,9 @@ function upstreamFiles() {
       const file = `${directory}/${entry.name}`
       if (entry.isDirectory()) visit(file)
       else if (entry.name.endsWith('.json')) {
+        // Keyed as the browser requests it: BSData file names have spaces, which it sends encoded.
         const url = upstreamUrl(file, composition, retainedSnapshots(root))
-        if (url && !upstream!.has(url)) upstream!.set(url, path.join(root, file))
+        if (url && !upstream!.has(new URL(url).href)) upstream!.set(new URL(url).href, path.join(root, file))
       }
     }
   }
