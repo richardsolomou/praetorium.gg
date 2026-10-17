@@ -30,8 +30,8 @@ export function Sources() {
     <LegalPage eyebrow="About the data" title="Data sources" updated="17 October 2026">
       <LegalSection title="Rules text">
         <p>
-          Praetorium serves names, numbers, points, and battlefield geometry itself. Rules text loads in your browser, straight from the
-          community sources you turn on here, and the choice stays on this device.
+          Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text
+          directly from that community project, and it stays on your device.
         </p>
         <TextSourceSwitches />
       </LegalSection>

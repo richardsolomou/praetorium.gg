@@ -87,7 +87,8 @@ function TextSourcesForm({ close }: { close: () => void }) {
       <DialogHeader>
         <DialogTitle>Load rules text from community sources</DialogTitle>
         <DialogDescription>
-          Praetorium doesn’t host rules text. A source you turn on here is fetched by this browser straight from its project on GitHub.
+          Rules text is copyrighted material, so Praetorium doesn’t host or serve it. A source you turn on here is fetched by this browser
+          directly from that community project on GitHub.
         </DialogDescription>
       </DialogHeader>
       <DialogBody>

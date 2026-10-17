@@ -55,7 +55,7 @@ test('declining the question keeps it answered across a reload', async ({ page }
 test('choosing sources asks which external sources to load, with none turned on', async ({ page }) => {
   await page.goto('/factions')
   await notice(page).getByRole('button', { name: 'Choose sources' }).click()
-  await expect(dialog(page)).toContainText('Praetorium doesn’t host rules text.')
+  await expect(dialog(page)).toContainText('Praetorium doesn’t host or serve it.')
   await expect(dialog(page).getByRole('switch', { name: 'BSData' })).not.toBeChecked()
   await expect(dialog(page).getByRole('switch', { name: 'Game Datacards' })).not.toBeChecked()
   await expect(dialog(page).getByRole('button', { name: 'Load selected' })).toBeDisabled()
