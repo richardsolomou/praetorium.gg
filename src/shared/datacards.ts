@@ -670,12 +670,23 @@ const listedNames = (names: string | undefined) =>
         .toLowerCase(),
     )
     .filter(Boolean)
+/**
+ * The source names everything in eight languages. This product is in one, and a value
+ * that is only a string is taken as it is rather than skipped.
+ */
+export function english(value: unknown): string | null {
+  if (typeof value === 'string') return value.trim() || null
+  if (!value || typeof value !== 'object') return null
+  const translated = (value as Record<string, unknown>).en
+  return typeof translated === 'string' ? translated.trim() || null : null
+}
+
 export function localizedField(value: unknown, field: string): string | null {
   if (!value || typeof value !== 'object') return null
   const localized: unknown = (value as Record<string, unknown>)[field]
   if (!localized || typeof localized !== 'object') return null
-  const english: unknown = (localized as Record<string, unknown>).en
-  return typeof english === 'string' ? english : null
+  const translated: unknown = (localized as Record<string, unknown>).en
+  return typeof translated === 'string' ? translated : null
 }
 function localizedList(value: unknown, field: string): string[] {
   if (!value || typeof value !== 'object') return []
@@ -683,8 +694,8 @@ function localizedList(value: unknown, field: string): string[] {
   if (!Array.isArray(localized)) return []
   return localized.flatMap((entry: unknown) => {
     if (!entry || typeof entry !== 'object') return []
-    const english: unknown = (entry as Record<string, unknown>).en
-    return typeof english === 'string' ? [english] : []
+    const translated: unknown = (entry as Record<string, unknown>).en
+    return typeof translated === 'string' ? [translated] : []
   })
 }
 const LIST_ITEM = /<li>([^]*?)<\/li>/g

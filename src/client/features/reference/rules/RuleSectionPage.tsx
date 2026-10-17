@@ -7,6 +7,8 @@ import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
 import { RuleMarkup } from '../../../components/RuleMarkup'
 import { PageContent, PageHeader } from '../../../components/Page'
+import { useRuleText } from '../../../rulesText'
+import { RulesTextNotice } from './RulesTextNotice'
 
 /**
  * One section of one rules document, which is as much as anybody reads at a time.
@@ -17,16 +19,21 @@ import { PageContent, PageHeader } from '../../../components/Page'
 export function RuleSectionPage({ documentId, sectionId }: { documentId: string; sectionId: string }) {
   const { data: index } = useQuery(ruleIndexQuery())
   const { data } = useQuery(ruleSectionQuery(documentId, sectionId))
+  const text = useRuleText(data?.document.text ?? null)
   const hash = useLocation({ select: (location) => location.hash })
+  // The outline's addresses come from the same file, so the loaded section lands on them.
+  const shown = text.document?.sections.find((candidate) => candidate.slug === sectionId) ?? data?.section
   // A link to a clarification lands on a collapsed one, so the address opens it. Done
   // to the element rather than through a prop: the server cannot know the address, and
-  // a reader's own toggle must survive every later render.
+  // a reader's own toggle must survive every later render. Loaded text replaces the
+  // outline's elements, so it runs again once that text lands.
   useEffect(() => {
+    if (!shown) return
     const target = hash ? document.getElementById(hash) : null
     if (target instanceof HTMLDetailsElement) target.open = true
     target?.scrollIntoView()
-  }, [hash])
-  if (!data || !index) return null
+  }, [hash, shown])
+  if (!data || !index || !shown) return null
 
   const sections = index.documents.find((candidate) => candidate.slug === documentId)?.sections ?? []
   const at = sections.findIndex((candidate) => candidate.slug === sectionId)
@@ -40,11 +47,12 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
             {data.document.title}
           </Link>
         }
-        title={data.section.title}
+        title={shown.title}
       />
       <PageContent className="space-y-6">
+        <RulesTextNotice text={data.document.text} state={text} />
         <div className="space-y-5">
-          {data.section.entries.map((entry) => (
+          {shown.entries.map((entry) => (
             <Rule key={entry.anchor} entry={entry} links={links} />
           ))}
         </div>
@@ -101,6 +109,18 @@ function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {
           )
         }
         if (block.kind === 'prose') return <RuleMarkup key={key} markup={block.markup} links={links} className="mt-3" />
+        if (block.markup === null) {
+          return (
+            <div
+              key={key}
+              id={block.anchor ?? undefined}
+              className="mt-3 flex scroll-mt-16 items-center gap-2 border border-edge bg-sunken px-3 py-2"
+            >
+              {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
+              <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
+            </div>
+          )
+        }
         return (
           <details key={key} id={block.anchor ?? undefined} className="group mt-3 scroll-mt-16 border border-edge bg-sunken">
             <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-raised">

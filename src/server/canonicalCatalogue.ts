@@ -30,7 +30,7 @@ import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 10 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 11 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -197,7 +197,7 @@ const ruleBlockSchema = z.discriminatedUnion('kind', [
     code: z.string().nullable(),
     anchor: z.string().nullable(),
     title: z.string(),
-    markup: z.string(),
+    markup: z.string().nullable(),
   }),
 ])
 
@@ -206,6 +206,7 @@ const ruleDocumentSchema = z.object({
   slug: z.string(),
   title: z.string(),
   updated: z.string().nullable(),
+  text: z.object({ url: z.url(), sha256: z.string().regex(/^[0-9a-f]{64}$/) }).nullable(),
   sections: z.array(
     z.object({
       id: z.string(),

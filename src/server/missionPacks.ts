@@ -26,16 +26,7 @@ export function readMissionPacks(directory: string): MissionPack[] {
     })
 }
 
-/**
- * The pack names everything in eight languages. This product is in one, and a value
- * that is only a string is taken as it is rather than skipped.
- */
-export function english(value: unknown): string | null {
-  if (typeof value === 'string') return value.trim() || null
-  if (!value || typeof value !== 'object') return null
-  const translated = (value as Record<string, unknown>).en
-  return typeof translated === 'string' ? translated.trim() || null : null
-}
+export { english } from '../shared/datacards'
 
 /**
  * Every primary and secondary card a pack prints, in the order it prints them.

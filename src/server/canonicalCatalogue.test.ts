@@ -298,6 +298,7 @@ describe('canonical catalogue', () => {
           slug: 'core-rules',
           title: 'Core Rules',
           updated: null,
+          text: null,
           sections: [],
         },
       ],

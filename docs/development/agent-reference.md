@@ -4,7 +4,7 @@ Browser pages, HTTP, MCP, sitemap, and Markdown responses read one verified cano
 
 ## Reference corpus
 
-Preserve canonical URLs, source revisions, attribution, unavailable fields, and source prose; keep geometry in structured records, not excerpts. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
+Preserve canonical URLs, source revisions, attribution, unavailable fields, and source prose; keep geometry in structured records, not excerpts. Core rules documents carry only their outline: [Game rules](game-rules.md#rules-documents) owns why their text never reaches the corpus. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
 
 ## HTTP API
 

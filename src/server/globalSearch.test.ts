@@ -409,6 +409,7 @@ describe('global rules search', () => {
       slug: 'core-rules',
       title: 'Core Rules',
       updated: null,
+      text: null,
       sections: [
         {
           id: 'section-moving',
