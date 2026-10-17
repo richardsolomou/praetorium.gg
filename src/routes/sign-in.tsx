@@ -3,14 +3,15 @@ import { localRedirectPath } from 'ras-stack/auth/client'
 import { SignInPage } from '../client/features/account/SignInPage'
 import { signInOptionsQuery } from '../client/queries'
 import { signedInDestination } from '../client/features/account/signInGuard'
+import { searchFlag } from '../client/searchParams'
 
 export const Route = createFileRoute('/sign-in')({
   validateSearch: (search: Record<string, unknown>) => {
     const result: { next?: string; error?: string; reset?: boolean; join?: boolean } = {}
     result.next = localRedirectPath(search.next)
     if (typeof search.error === 'string' && search.error) result.error = search.error
-    if (search.reset === true || search.reset === 'true') result.reset = true
-    if (search.join === true || search.join === 'true') result.join = true
+    if (searchFlag(search.reset)) result.reset = true
+    if (searchFlag(search.join)) result.join = true
     return result
   },
   beforeLoad: async ({ context, location, preload, search }) => {

@@ -31,14 +31,15 @@ import { LoadoutOddsContext, LoadoutOptimizationContext, type LoadoutOptimizatio
 import { useLoadoutOdds } from './useLoadoutOdds'
 import type { MatchupSettings } from '../../../contracts/simulatorState'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
+import { groupBy } from '../../../core/collections'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
-  const groups = new Map<string, Datasheet['profiles']>()
-  for (const { profile, count } of entries) {
-    const key = wargearKey(profile.name, true)
-    groups.set(key, [...(groups.get(key) ?? []), { ...profile, count }])
-  }
-  return [...groups]
+  return [
+    ...groupBy(
+      entries.map(({ profile, count }) => ({ ...profile, count })),
+      (profile) => wargearKey(profile.name, true),
+    ),
+  ]
 }
 
 type Phase = CombatOptions['phase']

@@ -1,19 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
 import { Circle } from 'lucide-react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { leagueRevealChecklist, mayRevealLeague, type LeagueEntryView, type LeagueRevealCheck } from '../../../core/league'
 import { revealLeague } from '../../functions'
-import { errorMessage } from '../../queryClient'
 import { namesPhrase, useLeagueRefresh, type League } from './leagueEvent'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 /** What the organizer still has to do before every roster can open, said to everyone so nobody wonders what the wait is. */
 const ORGANIZER_STEPS: Partial<Record<LeagueRevealCheck['step'], string>> = {
@@ -145,38 +135,30 @@ export function RevealRostersDialog({
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const pending = league.entries.filter((entry) => entry.status === 'pending').length
   return (
-    <AlertDialog
+    <ConfirmDialog
       open={open}
-      onOpenChange={(next) => {
-        if (reveal.isPending) return
-        if (!next) reveal.reset()
-        onOpenChange(next)
+      title="Reveal every roster?"
+      description={
+        <>
+          {accepted.length === 1 ? 'The sealed roster opens' : `All ${accepted.length} sealed rosters open`} for everyone who can open this
+          league, and nobody else can join this event.{' '}
+          {pending ? `${pending} request${pending === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
+          You cannot undo this.
+        </>
+      }
+      cancel="Keep them sealed"
+      confirm="Reveal all rosters"
+      pendingLabel="Revealing…"
+      pending={reveal.isPending}
+      error={reveal.error}
+      onClose={() => {
+        reveal.reset()
+        onOpenChange(false)
       }}
+      onConfirm={() => reveal.mutate()}
     >
-      <AlertDialogContent aria-busy={reveal.isPending}>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Reveal every roster?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {accepted.length === 1 ? 'The sealed roster opens' : `All ${accepted.length} sealed rosters open`} for everyone who can open
-            this league, and nobody else can join this event.{' '}
-            {pending ? `${pending} request${pending === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
-            You cannot undo this.
-          </AlertDialogDescription>
-          {reveal.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(reveal.error)}
-            </p>
-          ) : null}
-          {reveal.isPending ? <output className="sr-only">Revealing rosters…</output> : null}
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={reveal.isPending}>Keep them sealed</AlertDialogCancel>
-          <AlertDialogAction disabled={reveal.isPending} onClick={() => reveal.mutate()}>
-            {reveal.isPending ? 'Revealing…' : 'Reveal all rosters'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      {reveal.isPending ? <output className="sr-only">Revealing rosters…</output> : null}
+    </ConfirmDialog>
   )
 }
 

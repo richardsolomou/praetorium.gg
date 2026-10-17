@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { pageMeta, playerPreview } from '../client/linkPreview'
+import { pageMeta, playerPreview, previewImage } from '../client/linkPreview'
 import { PlayerProfilePage, readSearch, recordFilter } from '../client/features/profile/PlayerProfilePage'
 import {
   deploymentsQuery,
@@ -37,7 +37,7 @@ export const Route = createFileRoute('/users/$userId')({
           title: preview.title,
           description: preview.description,
           path,
-          image: { path: `/api/previews${path}`, alt: preview.title },
+          image: previewImage(path, preview.title),
         }),
         { property: 'og:type', content: 'profile' },
       ],

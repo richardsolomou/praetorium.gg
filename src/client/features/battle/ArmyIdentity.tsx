@@ -1,9 +1,9 @@
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
+import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { routeSlug } from '../../../core/slug'
-import { factionFor } from '../../factions'
-import { factionIndexQuery, factionQuery } from '../../queries'
+import { factionQuery } from '../../queries'
 import { armyRulesRequest } from './sideRules'
 import type { Army } from '../../sides'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
@@ -35,40 +35,6 @@ export function ArmyIdentity({
       detachmentNames={detachmentNames}
       leading={leading}
       trailing={list ? <span className="truncate">{army.roster?.name ?? 'No list'}</span> : null}
-      linked={linked}
-      className={className}
-    />
-  )
-}
-
-/**
- * The same line for a list in the library, which knows its detachments by id.
- *
- * Written through the same renderer as a battle's armies, so a list reads the same
- * whether it is being chosen for a seat or already sitting in one.
- */
-export function RosterIdentity({
-  roster,
-  linked = true,
-  className = '',
-}: {
-  roster: { catalogueId: string; detachmentIds: readonly string[] }
-  /** Off where the line sits inside a control: a link inside a button steals its press. */
-  linked?: boolean
-  className?: string
-}) {
-  const { data: factions } = useQuery(factionIndexQuery())
-  const faction = factionFor(factions, roster.catalogueId)
-  const detachmentNames = roster.detachmentIds.flatMap((id) => {
-    const named = faction?.detachments.find((candidate) => candidate.id === id)
-    return named ? [named.name] : []
-  })
-  return (
-    <IdentityLine
-      faction={faction}
-      detachmentNames={detachmentNames}
-      leading={null}
-      trailing={null}
       linked={linked}
       className={className}
     />
@@ -149,7 +115,7 @@ function IdentityLine({
   return (
     // A block rather than an inline run, so a side of two armies reads as two lines
     // instead of one sentence with both of them in it.
-    <span className={`flex min-w-0 flex-wrap items-center gap-x-1 text-2xs text-dim ${className}`}>
+    <span className={cn('flex min-w-0 flex-wrap items-center gap-x-1 text-2xs text-dim', className)}>
       {parts.map((part, at) => (
         // The separator trails what it separates, so a line that wraps starts with a
         // name rather than with a dot belonging to the line above it.

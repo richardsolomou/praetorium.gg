@@ -1,0 +1,12 @@
+name: Verify the browser-test build
+description: Require data-dev/e2e-build to match this checkout's browser-test build fingerprint.
+runs:
+  using: composite
+  steps:
+    - name: Verify the shared browser-test build
+      shell: bash
+      run: |
+        set -euo pipefail
+        expected="$(pnpm exec tsx scripts/browserTestBuildKey.ts)"
+        stored="$(cat data-dev/e2e-build/fingerprint)"
+        test "$expected" = "$stored"

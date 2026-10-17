@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import type { OnboardingTarget } from '../../onboarding/onboarding'
+import { useCompactChrome } from '../../shell/useCompactChrome'
 
 type Props = {
   variant: 'picker' | 'loadout'
@@ -84,23 +85,15 @@ export function Pane({
    * a dialog at intermediate web widths. A screen does not take the page hostage:
    * keeping `aria-modal` and a focus trap here would hide tabs a thumb can reach.
    */
-  const [screen, setScreen] = useState(false)
+  const screen = useCompactChrome() && compactLoadout
 
   useLayoutEffect(() => {
     if (variant !== 'loadout') return
     const compact = window.matchMedia('(max-width: 1023px)')
-    const applicationNavigation = window.matchMedia('(max-width: 859px)')
-    const sync = () => {
-      setCompactLoadout(compact.matches)
-      setScreen(compact.matches && (applicationNavigation.matches || document.documentElement.dataset.nativeApp === 'true'))
-    }
+    const sync = () => setCompactLoadout(compact.matches)
     sync()
     compact.addEventListener('change', sync)
-    applicationNavigation.addEventListener('change', sync)
-    return () => {
-      compact.removeEventListener('change', sync)
-      applicationNavigation.removeEventListener('change', sync)
-    }
+    return () => compact.removeEventListener('change', sync)
   }, [variant])
 
   useEffect(() => {

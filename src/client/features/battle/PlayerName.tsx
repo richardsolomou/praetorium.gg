@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { cn } from '@/lib/utils'
 import type { Army, Side } from '../../sides'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { tint } from './battleTints'
@@ -19,9 +20,13 @@ export function PlayerName({ army, linked = true, className = '' }: { army: Army
   )
   // Unlinked where the card around it is already a control: a link inside a button is
   // neither valid nor pressable, and the way out to a profile is on screen elsewhere.
-  if (!linked) return <span className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}>{inner}</span>
+  if (!linked) return <span className={cn('inline-flex min-w-0 items-center gap-1.5', className)}>{inner}</span>
   return (
-    <Link to="/users/$userId" params={{ userId: army.playerId }} className={`group inline-flex min-w-0 items-center gap-1.5 ${className}`}>
+    <Link
+      to="/users/$userId"
+      params={{ userId: army.playerId }}
+      className={cn('group inline-flex min-w-0 items-center gap-1.5', className)}
+    >
       {inner}
     </Link>
   )
@@ -38,7 +43,7 @@ export function SidePlayers({ side, linked = true, className = '' }: { side: Sid
   return (
     <p
       data-players={side.index}
-      className={`flex flex-wrap items-center gap-x-2 text-sm font-bold uppercase ${tint(side.index).text} ${className}`}
+      className={cn('flex flex-wrap items-center gap-x-2 text-sm font-bold uppercase', tint(side.index).text, className)}
     >
       {side.armies.map((army, at) => (
         <span key={army.playerId} className="inline-flex min-w-0 items-center gap-x-2">

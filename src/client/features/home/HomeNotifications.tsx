@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { type NativePushAnswer, requestNativePush, supportsNativePush } from '../../nativeBridge'
 import { registerThisDevice } from '../../pushNotifications'
 import { notificationSettingsQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { useStoredValue, writeStoredValue } from '../../storedValue'
+import { Problem } from '../../components/Problem'
 
 const DISMISSED_KEY = 'praetorium-notifications-dismissed'
 
@@ -45,7 +45,7 @@ export function HomeNotifications() {
         <div>
           <p className="font-semibold">Get notified about your games</p>
           <p className="text-sm text-dim">Allow notifications for new battles, friend requests, and league updates.</p>
-          {error ? <p className="mt-1 text-sm text-destructive">{errorMessage(error)}</p> : null}
+          {error ? <Problem error={error} className="mt-1" /> : null}
         </div>
         <div className="flex gap-2">
           <Button size="sm" disabled={pending} onClick={() => void allow()}>

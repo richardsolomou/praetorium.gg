@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { meQuery } from '../../queries'
-import { PageState } from '../../components/PageState'
+import { FullPageState } from '../../components/PageState'
 import { SignInRequired } from '../../components/SignInRequired'
 
 /**
@@ -24,13 +24,10 @@ export function BattleUnavailable({ token }: { token: string }) {
     )
   }
   return (
-    <main className="flex w-full">
-      <PageState
-        className="flex-1 border-x-0 border-t-0"
-        eyebrow="Battle"
-        title="This battle is not open to you"
-        explanation="The players have limited who can watch this battle."
-      />
-    </main>
+    <FullPageState
+      eyebrow="Battle"
+      title="This battle is not open to you"
+      explanation="The players have limited who can watch this battle."
+    />
   )
 }

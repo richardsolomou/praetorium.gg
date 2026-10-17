@@ -8,6 +8,7 @@ import { SyncEngine, hasSyncableWork, type SyncAnswer, type LocalDocumentUpdate 
 import { nativeBridgeVersion, supportsNativeLocalState } from '../nativeBridge'
 import { localStateStorage } from './localStorage'
 import { invalidateSyncedQueries } from '../productSignals'
+import { localWorkKey, meKey } from '../queries/queryKeys'
 
 export type LocalRoster = NonNullable<Awaited<ReturnType<typeof server.rosterAccess>>>['roster']
 export type RosterInput = Parameters<typeof server.saveRoster>[0]['data']
@@ -24,12 +25,12 @@ export function configureLocalRuntime(queryClient: QueryClient, project: (state:
     const stamp = `${state.owner}:${state.epoch}:${state.revision}`
     if (projected === stamp) return
     projected = stamp
-    const previous = client?.getQueryData<LocalState>(['local-work'])
+    const previous = client?.getQueryData<LocalState>(localWorkKey())
     const acknowledged =
       previous?.owner === state.owner
         ? previous.operations.filter((operation) => !state.operations.some((current) => current.id === operation.id))
         : []
-    client?.setQueryData(['local-work'], state)
+    client?.setQueryData(localWorkKey(), state)
     project(state)
     if (client && acknowledged.length) void invalidateSyncedQueries(client, acknowledged)
   }
@@ -38,7 +39,7 @@ export function localClient() {
   return client
 }
 export function localOwner() {
-  return client?.getQueryData<{ id: string; impersonatedBy?: string | null } | null>(['me'])
+  return client?.getQueryData<{ id: string; impersonatedBy?: string | null } | null>(meKey())
 }
 export function localEngine() {
   if (nativeBridgeVersion() !== undefined && !supportsNativeLocalState()) return null

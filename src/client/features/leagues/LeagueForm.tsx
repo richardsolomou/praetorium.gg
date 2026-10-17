@@ -12,6 +12,7 @@ import {
   type LeagueAdmission,
   type LeagueVisibility,
 } from '../../../core/league'
+import { pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
 import { LeagueEventRuleFields, ROSTER_RULE } from './LeagueEventRuleFields'
@@ -92,7 +93,7 @@ export function LeagueFormFields({
             <p className="eyebrow">Format and points</p>
             <p className="font-semibold">
               {TABLE_SHAPE_LABELS[value.format].name} ·{' '}
-              {leagueRosterSplit(value.format, value.rosterLimit) ?? `${value.rosterLimit.toLocaleString('en')} points`}
+              {leagueRosterSplit(value.format, value.rosterLimit) ?? pointsLabel(value.rosterLimit)}
             </p>
             <p className="text-xs text-dim">{[ROSTER_RULE[value.format], ruleLock].filter(Boolean).join(' ')}</p>
           </div>

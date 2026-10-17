@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -12,6 +12,7 @@ import {
 import { fetchBattlemasterInto, fetchInto } from '../../src/server/sync'
 import { applyPatches } from './cataloguePatches'
 import type { CatalogueComposition } from '../../src/server/catalogueComposition'
+import { replaceDirectory } from './replaceDirectory'
 import { composeCatalogue, validateCatalogueImports } from './catalogueComposition'
 
 const root = path.resolve(import.meta.dirname, '..', '..')
@@ -96,15 +97,7 @@ export async function materializeCatalogue(directory: string, sources = catalogu
     }
     fs.rmSync(path.join(staged, '.git'), { recursive: true })
     checkOutput()
-    const previous = `${directory}.previous-${randomUUID()}`
-    if (fs.existsSync(directory)) fs.renameSync(directory, previous)
-    try {
-      fs.renameSync(staged, directory)
-    } catch (error) {
-      if (fs.existsSync(previous)) fs.renameSync(previous, directory)
-      throw error
-    }
-    if (fs.existsSync(previous)) fs.rmSync(previous, { recursive: true })
+    replaceDirectory(staged, directory)
   } finally {
     fs.rmSync(work, { recursive: true, force: true })
   }

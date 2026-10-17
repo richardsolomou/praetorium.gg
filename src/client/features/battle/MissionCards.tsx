@@ -1,5 +1,6 @@
 import { type ComponentProps, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { Command } from '../../../core/battle'
@@ -377,12 +378,12 @@ export function MissionName({
   /** A tint for the places where the card belongs to a named side rather than to the reader. */
   className?: string
 }) {
-  if (!card) return <span className={`${CARD_NAME} ${className}`}>{name}</span>
+  if (!card) return <span className={cn(CARD_NAME, className)}>{name}</span>
   const trigger = (
     <button
       type="button"
       aria-label={`Read ${name}`}
-      className={`${CARD_NAME} text-left hover:underline ${className}`}
+      className={cn(CARD_NAME, 'text-left hover:underline', className)}
       onClick={onRead ? () => onRead({ name, card, type, mode }) : undefined}
     >
       {name}

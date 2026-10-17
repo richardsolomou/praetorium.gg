@@ -79,7 +79,7 @@ export async function recordScreening(
     (result): Record<string, string | number> =>
       result ? { outcome: 'screened', model: result.model, ...result.probabilities } : { outcome: 'unreadable' },
     (error: unknown) => {
-      console.error('Image screening failed:', error instanceof Error ? error.message : String(error))
+      console.error({ event: 'image_screening_failed', error })
       return { outcome: 'failed' }
     },
   )

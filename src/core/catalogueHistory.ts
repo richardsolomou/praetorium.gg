@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { fromBase64Url, toBase64Url } from './base64'
 import { type CatalogueChangeSet, catalogueChangeSetSchema, isEmptyChangeSet, type RecordedChangeSet } from './catalogueChanges'
 import { routeSlug } from './slug'
 import { compareText } from './text'
@@ -85,18 +86,13 @@ export function historyPage(history: readonly CatalogueHistoryEntry[], limit: nu
 
 /** A cursor as it rides in an address: URL-safe base64 of its JSON. */
 export function encodeHistoryCursor(cursor: HistoryCursor) {
-  const bytes = new TextEncoder().encode(JSON.stringify([cursor.recordedAt, cursor.key]))
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/=+$/, '')
+  return toBase64Url(new TextEncoder().encode(JSON.stringify([cursor.recordedAt, cursor.key])))
 }
 
 /** The cursor an address names, or null for anything that is not one. */
 export function decodeHistoryCursor(text: string): HistoryCursor | null {
   try {
-    const binary = atob(text.replaceAll('-', '+').replaceAll('_', '/'))
-    const parsed: unknown = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0))))
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(fromBase64Url(text)))
     const cursor = z.tuple([z.number().int().nonnegative(), z.string().min(1)]).safeParse(parsed)
     return cursor.success ? { recordedAt: cursor.data[0], key: cursor.data[1] } : null
   } catch {

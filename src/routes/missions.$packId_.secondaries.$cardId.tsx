@@ -1,7 +1,7 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { SecondaryMissionPage } from '../client/features/reference/missions/SecondaryMissionPage'
 import { gameReferencesQuery } from '../client/queries'
-import { breadcrumbMeta, pageHead } from '../client/linkPreview'
+import { pageHead } from '../client/linkPreview'
 import { routeSlug } from '../core/slug'
 
 export const Route = createFileRoute('/missions/$packId_/secondaries/$cardId')({
@@ -26,22 +26,16 @@ export const Route = createFileRoute('/missions/$packId_/secondaries/$cardId')({
   head: ({ loaderData, match, params }) => {
     if (!loaderData) return {}
     const path = `/missions/${params.packId}/secondaries/${params.cardId}`
-    const head = pageHead(match.context.origin, {
+    return pageHead(match.context.origin, {
       title: `${loaderData.card} — ${loaderData.pack}`,
       description: `${loaderData.card} secondary mission scoring, timing, and actions.`,
       path,
       article: true,
-    })
-    return {
-      meta: [
-        ...head.meta,
-        breadcrumbMeta(match.context.origin, [
-          { name: loaderData.pack, path: `/missions/${params.packId}` },
-          { name: loaderData.card, path },
-        ]),
+      breadcrumbs: [
+        { name: loaderData.pack, path: `/missions/${params.packId}` },
+        { name: loaderData.card, path },
       ],
-      links: head.links,
-    }
+    })
   },
   component: () => <SecondaryMissionPage {...Route.useParams()} />,
 })

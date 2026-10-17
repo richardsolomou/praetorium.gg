@@ -55,6 +55,15 @@ export async function withAuthSql<T>(work: (database: DatabaseSync) => T, direct
   }
 }
 
+export async function userIdFor(email: string, directory = root) {
+  const user = await withAuthSql(
+    (database) => database.prepare('SELECT id FROM user WHERE email = ?').get(email) as { id: string } | undefined,
+    directory,
+  )
+  if (!user) throw new Error(`No account exists for ${email}.`)
+  return user.id
+}
+
 function literal(value: Value): string {
   if (value === null) return 'NULL'
   if (typeof value === 'string') return `'${value.replaceAll("'", "''")}'`

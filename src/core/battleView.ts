@@ -3,7 +3,6 @@ import {
   type BattleEndReason,
   type BattleSettings,
   type BattleState,
-  battleRoundLimit,
   mayNameCard,
   sideDisposition,
   sideDispositionChoices,
@@ -13,6 +12,7 @@ import {
   type Roster,
   SECONDARY_GUIDE,
   TACTICAL_HAND_SIZE,
+  type TurnScope,
   sameSide,
   playsSide,
   scoringDue,
@@ -149,7 +149,7 @@ export type BattleView = {
       cp: number
       limit: StratagemLimit
       phases?: Phase[]
-      turn?: 'your-turn' | 'opponent-turn' | 'either'
+      turn?: TurnScope
       /** The detachment that prints it, where the pool recorded one. */
       detachment?: string
       uses: number
@@ -231,7 +231,7 @@ export function battleView(
     setupStep: state.setupStep,
     round: state.round,
     phase: state.phase,
-    rounds: battleRoundLimit(state.settings.limit),
+    rounds: BATTLE_ROUNDS,
     endOfBattle: atBattleEnd(state),
     seq: state.seq,
     viewerId,
@@ -300,7 +300,7 @@ export function battleView(
          * reads the same number, the way they read the same command points.
          */
         paintedPoints: sidePaintedPoints(state, player.side),
-        rounds: Array.from({ length: battleRoundLimit(state.settings.limit) }, (_, round) => ({
+        rounds: Array.from({ length: BATTLE_ROUNDS }, (_, round) => ({
           round: round + 1,
           primary: resources.primaryByRound[round] ?? 0,
           secondary: resources.secondaryByRound[round] ?? 0,
@@ -352,10 +352,7 @@ export function battleView(
             name: nameable ? secondary.name : 'Secret mission',
             awards: nameable ? secondary.awards : undefined,
             points: resources.scored[secondary.key] ?? 0,
-            rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(
-              0,
-              battleRoundLimit(state.settings.limit),
-            ),
+            rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, BATTLE_ROUNDS),
             status: resources.secondaryStatus[secondary.key] ?? 'active',
             secret: resources.secretSecondary === secondary.key,
             revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,

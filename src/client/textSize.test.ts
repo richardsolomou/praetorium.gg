@@ -1,11 +1,18 @@
 import { runInNewContext } from 'node:vm'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { TEXT_SIZE_SCRIPT, chooseTextSize, restoreTextSize, savedTextSize } from './textSize'
 
 let stored: Map<string, string>
 let dataset: Record<string, string>
 
-beforeEach(() => {
+let TEXT_SIZE_SCRIPT: string
+let chooseTextSize: typeof import('./textSize').chooseTextSize
+let restoreTextSize: typeof import('./textSize').restoreTextSize
+let savedTextSize: typeof import('./textSize').savedTextSize
+
+beforeEach(async () => {
+  // Writes this page made outlive a test in the stored-value module, so each test starts from a fresh page.
+  vi.resetModules()
+  ;({ TEXT_SIZE_SCRIPT, chooseTextSize, restoreTextSize, savedTextSize } = await import('./textSize'))
   stored = new Map()
   dataset = {}
   vi.stubGlobal('localStorage', {

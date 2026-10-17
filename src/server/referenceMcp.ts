@@ -7,6 +7,7 @@ import { referenceRateLimit } from './referenceApi'
 import { PRAETORIUM_MCP_INSTRUCTIONS } from './referenceGuide'
 import { ACCOUNT_MCP_SCOPES } from './accountMcp'
 import { createAgentTools } from './createAgentTools'
+import { boundedText } from './boundedBody'
 import {
   referenceResources,
   rulesQuestionPrompt,
@@ -32,22 +33,22 @@ export async function handleReferenceMcp(request: Request) {
   const name = call && typeof call === 'object' && 'name' in call && typeof call.name === 'string' ? call.name : null
   const scope = name && Object.hasOwn(ACCOUNT_MCP_SCOPES, name) ? ACCOUNT_MCP_SCOPES[name] : undefined
   if (scope || request.headers.has('authorization')) {
-    const resource = new URL('/mcp', process.env.APP_URL).toString()
-    const issuer = process.env.SPACETIME_ISSUER ?? new URL('/api/auth', process.env.APP_URL).toString()
+    const { auth } = app()
+    const resource = auth.mcpResource
     const protectedHandler = requireMcpAuth(
-      app().auth,
+      auth,
       async (verified, claims) => {
         if (
           typeof claims.sub !== 'string' ||
           typeof claims.client_id !== 'string' ||
-          !(await app().auth.hasMcpConsent(claims.sub, claims.client_id, scope))
+          !(await auth.hasMcpConsent(claims.sub, claims.client_id, scope))
         )
           return revokedMcpResponse(resource)
         return serveMcp(verified, parsed, claims.sub)
       },
       {
         resource,
-        issuer,
+        issuer: auth.issuer,
         jwksUrl: new URL('/api/auth/jwks', process.env.APP_URL).toString(),
         ...(scope ? { requiredScopes: [scope] } : {}),
         challengeScopes: ['mcp:read', 'mcp:write'],
@@ -77,27 +78,11 @@ async function serveMcp(request: Request, parsed: unknown, userId: string | null
 }
 
 async function boundedMcpBody(request: Request): Promise<{ parsed: unknown } | { error: Response }> {
-  const contentLength = Number(request.headers.get('content-length') ?? 0)
-  if (contentLength > MCP_REQUEST_MAX_BYTES) return { error: mcpError(413, -32000, 'Request body is too large.') }
-  if (!request.body) return { error: mcpError(400, -32700, 'Parse error: Invalid JSON') }
-
-  const bytes = new Uint8Array(MCP_REQUEST_MAX_BYTES)
-  const reader = request.body.getReader()
-  let length = 0
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    if (length + value.byteLength > MCP_REQUEST_MAX_BYTES) {
-      await reader.cancel()
-      return { error: mcpError(413, -32000, 'Request body is too large.') }
-    }
-    bytes.set(value, length)
-    length += value.byteLength
-  }
-
+  const text = await boundedText(request, MCP_REQUEST_MAX_BYTES)
+  if (text === null) return { error: mcpError(413, -32000, 'Request body is too large.') }
   let parsed: unknown
   try {
-    parsed = JSON.parse(new TextDecoder().decode(bytes.subarray(0, length)))
+    parsed = JSON.parse(text)
   } catch {
     return { error: mcpError(400, -32700, 'Parse error: Invalid JSON') }
   }

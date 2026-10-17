@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { PHASES, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import { type BattleView } from '../../../core/battleView'
@@ -35,7 +36,7 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
   const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
 
   return (
-    <section data-onboarding="battle-live-turn" data-turn-control className={`space-y-2 ${className}`}>
+    <section data-onboarding="battle-live-turn" data-turn-control className={cn('space-y-2', className)}>
       <ol className="flex gap-0.5" aria-label={`${view.phase} phase`}>
         {PHASES.map((phase, index) => (
           <li key={phase} className="min-w-0 flex-auto" aria-current={phase === view.phase ? 'step' : undefined}>

@@ -1,5 +1,5 @@
-import { publicAssetsR2Client } from './r2Client'
-import { localObjectStore } from './localObjectStore'
+import { publicAssetsR2Client, r2Objects } from './r2Client'
+import { localDevelopmentObjectStore } from './localObjectStore'
 
 export const DEFAULT_PUBLIC_ASSETS_BASE_URL = 'https://s3.praetorium.gg'
 
@@ -14,33 +14,20 @@ export function publicAssetsBaseUrl(): string {
 }
 
 export function configuredObjectStore(): ObjectStore | null {
-  if (process.env.PRAETORIUM_LOCAL_DEV === 'true') {
-    if (!process.env.LOCAL_OBJECT_DIR) throw new Error('LOCAL_OBJECT_DIR is required for local development')
-    return { bucket: localObjectStore(process.env.LOCAL_OBJECT_DIR), publicBaseUrl: publicAssetsBaseUrl() }
-  }
+  const local = localDevelopmentObjectStore()
+  if (local) return { bucket: local, publicBaseUrl: publicAssetsBaseUrl() }
   const r2 = publicAssetsR2Client()
   if (!r2) return null
-  const { client, base } = r2
+  const objects = r2Objects(r2)
   return {
     publicBaseUrl: publicAssetsBaseUrl(),
     bucket: {
-      async head(key) {
-        const response = await client.fetch(`${base}${key}`, { method: 'HEAD', signal: AbortSignal.timeout(10_000) })
-        if (response.status === 404) return null
-        if (!response.ok) throw new Error(`R2 head failed with HTTP ${response.status}`)
-        return { key }
-      },
+      head: async (key) => ((await objects.head(key)) ? { key } : null),
       async put(key, body, options) {
-        const response = await client.fetch(`${base}${key}`, {
-          method: 'PUT',
-          body: new Uint8Array(body),
-          headers: {
-            'content-type': options.httpMetadata.contentType,
-            'cache-control': options.httpMetadata.cacheControl,
-          },
-          signal: AbortSignal.timeout(30_000),
+        await objects.put(key, body, {
+          'content-type': options.httpMetadata.contentType,
+          'cache-control': options.httpMetadata.cacheControl,
         })
-        if (!response.ok) throw new Error(`R2 put failed with HTTP ${response.status}`)
         return null
       },
     },

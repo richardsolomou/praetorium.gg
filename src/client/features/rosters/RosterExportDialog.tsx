@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Check, Copy, Download } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -6,37 +6,28 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { Choice } from '../../components/Choice'
 import { nativeBridgeVersion } from '../../nativeBridge'
 import type { exportRoster } from '../../functions'
+import { Problem } from '../../components/Problem'
+import { useCopyText } from '../../useCopyText'
+import { downloadFile } from '../../downloadFile'
 
 export type RosterTextExport = Awaited<ReturnType<typeof exportRoster>>
 
 export function RosterExportDialog({ exported, onClose }: { exported: RosterTextExport | null; onClose: () => void }) {
-  const [copied, setCopied] = useState(false)
   const [format, setFormat] = useState<'readable' | 'compact'>('readable')
-  const [problem, setProblem] = useState<string | null>(null)
-  const copyAttempt = useRef(0)
+  const { copy: copyText, copied, problem, reset } = useCopyText()
   const text = format === 'compact' ? exported?.compactText : exported?.text
   const copy = async () => {
     if (!text) return
-    const attempt = ++copyAttempt.current
-    setCopied(false)
-    setProblem(null)
-    try {
-      await navigator.clipboard.writeText(text)
+    if (await copyText(text, { failure: 'Copy failed. Select the text to copy it.', operation: 'roster_export_copy' }))
       posthog.capture('roster_export_copied', { format })
-      if (attempt === copyAttempt.current) setCopied(true)
-    } catch (error) {
-      posthog.captureException(error, { operation: 'roster_export_copy' })
-      if (attempt === copyAttempt.current) setProblem('Copy failed. Select the text to copy it.')
-    }
   }
   const download = () => {
     if (!text || !exported) return
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${exported.name.replaceAll(/[^\p{L}\p{N} ._-]/gu, '_').slice(0, 100) || 'roster'}-${format}.txt`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1_000)
+    downloadFile(
+      `${exported.name.replaceAll(/[^\p{L}\p{N} ._-]/gu, '_').slice(0, 100) || 'roster'}-${format}.txt`,
+      text,
+      'text/plain;charset=utf-8',
+    )
     posthog.capture('roster_export_downloaded', { format })
   }
 
@@ -45,10 +36,8 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
       open={exported !== null}
       onOpenChange={(open) => {
         if (!open) {
-          setCopied(false)
-          copyAttempt.current++
+          reset()
           setFormat('readable')
-          setProblem(null)
           onClose()
         }
       }}
@@ -68,10 +57,8 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
               { value: 'compact', name: 'Compact' },
             ]}
             onChange={(next) => {
-              copyAttempt.current++
+              reset()
               setFormat(next)
-              setCopied(false)
-              setProblem(null)
             }}
           />
           <p className="my-3 text-xs text-dim">
@@ -85,11 +72,7 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
             </p>
           ) : null}
           <pre className="whitespace-pre-wrap wrap-anywhere border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
-          {problem ? (
-            <p role="alert" className="mt-3 text-sm text-destructive">
-              {problem}
-            </p>
-          ) : null}
+          {problem ? <Problem className="mt-3">{problem}</Problem> : null}
         </DialogBody>
         <DialogFooter>
           {nativeBridgeVersion() === undefined ? (

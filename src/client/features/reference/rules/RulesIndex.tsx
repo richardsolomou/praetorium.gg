@@ -5,7 +5,7 @@ import { useState } from 'react'
 import type { RuleDocumentSummary } from '../../../../contracts/rules'
 import { ruleIndexQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { PageState } from '../../../components/PageState'
+import { FullPageState, PageState } from '../../../components/PageState'
 import { SearchField } from '../../../components/SearchField'
 
 /**
@@ -21,19 +21,14 @@ export function RulesIndex() {
 
   if (!data?.documents.length) {
     return (
-      <main className="flex w-full">
-        <PageState
-          className="flex-1 border-x-0 border-t-0"
-          loading={!data}
-          eyebrow="Rules"
-          title={data ? 'No rules available' : 'Getting the rules ready'}
-          explanation={
-            data
-              ? 'This instance has no rules documents to read yet.'
-              : 'The core rules and the mission documents will be available shortly.'
-          }
-        />
-      </main>
+      <FullPageState
+        loading={!data}
+        eyebrow="Rules"
+        title={data ? 'No rules available' : 'Getting the rules ready'}
+        explanation={
+          data ? 'This instance has no rules documents to read yet.' : 'The core rules and the mission documents will be available shortly.'
+        }
+      />
     )
   }
 

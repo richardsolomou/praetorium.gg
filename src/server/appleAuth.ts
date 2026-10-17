@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT, type JWTVerifyGetKey, type KeyInput } from 'jose'
 import { z } from 'zod'
+import { boundedText } from './boundedBody'
 
 export const APPLE_AUTH_ORIGIN = 'https://appleid.apple.com'
 const APPLE_ISSUER = APPLE_AUTH_ORIGIN
@@ -90,26 +91,6 @@ const notificationClaimsSchema = z.object({
   }),
 })
 
-async function boundedBody(request: Request) {
-  const declaredLength = Number(request.headers.get('content-length') ?? 0)
-  if (declaredLength > NOTIFICATION_BODY_LIMIT) return null
-  if (!request.body) return ''
-  const reader = request.body.getReader()
-  const decoder = new TextDecoder()
-  let body = ''
-  let size = 0
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) return body + decoder.decode()
-    size += value.byteLength
-    if (size > NOTIFICATION_BODY_LIMIT) {
-      await reader.cancel()
-      return null
-    }
-    body += decoder.decode(value, { stream: true })
-  }
-}
-
 export async function appleNotificationResponse(
   request: Request,
   deleteAccount: (appleSubject: string) => Promise<void>,
@@ -118,7 +99,7 @@ export async function appleNotificationResponse(
 ) {
   let event: z.infer<typeof notificationClaimsSchema>['events']
   try {
-    const rawBody = await boundedBody(request)
+    const rawBody = await boundedText(request, NOTIFICATION_BODY_LIMIT)
     if (rawBody === null) return new Response('Payload too large', { status: 413 })
     const body = notificationBodySchema.parse(JSON.parse(rawBody))
     const verified = await jwtVerify(body.payload, verificationKey, {

@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type BattleAudience, DEFAULT_BATTLE_AUDIENCE } from '../../../core/battleAudience'
 import { setBattleAudience } from '../../functions'
 import { battleAudienceQuery, friendBattlesQuery, publicBattlesQuery, standingsQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { Choice, type ChoiceOption } from '../../components/Choice'
+import { Problem } from '../../components/Problem'
+import { SettingsSection } from './SettingsSection'
 
 const AUDIENCES: ChoiceOption<BattleAudience>[] = [
   {
@@ -30,17 +31,12 @@ export function BattleSharing() {
     },
   })
   return (
-    <section
+    <SettingsSection
       id="battle-sharing"
       data-onboarding="battle-sharing"
-      className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2"
+      title="Battle privacy"
+      description="Who can watch your past and live battles, league games included. The most private choice at the table applies to everyone."
     >
-      <div>
-        <h2 className="rubric border-b border-edge pb-2">Battle privacy</h2>
-        <p className="mt-2 text-sm text-dim">
-          Who can watch your past and live battles, league games included. The most private choice at the table applies to everyone.
-        </p>
-      </div>
       <Choice
         label="Who can watch"
         value={audience ?? DEFAULT_BATTLE_AUDIENCE}
@@ -48,7 +44,7 @@ export function BattleSharing() {
         disabled={save.isPending}
         onChange={(next) => save.mutate(next)}
       />
-      {save.error ? <p className="text-sm text-destructive">{errorMessage(save.error)}</p> : null}
-    </section>
+      {save.error ? <Problem error={save.error} /> : null}
+    </SettingsSection>
   )
 }

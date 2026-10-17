@@ -1,5 +1,4 @@
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 const name = 'production auth backup to R2'
 const command = 'node /app/scripts/nodeAuthBackup.ts backup /data/auth.sqlite production'
@@ -82,6 +81,6 @@ export async function verifyProductionAuthBackup(environment: NodeJS.ProcessEnv,
   console.log(`Verified production auth backup schedule ${schedule.scheduleId}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   await verifyProductionAuthBackup(process.env)
 }

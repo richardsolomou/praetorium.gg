@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 type SpecReport = { title: string; tests?: { results?: { status: string; duration: number }[] }[] }
 type Suite = { title: string; file: string; specs?: SpecReport[]; suites?: Suite[] }
@@ -81,7 +81,7 @@ export function shardTitles(titles: readonly string[], durations: Durations, cur
 
 const readJson = <T>(file: string): T => JSON.parse(fs.readFileSync(file, 'utf8')) as T
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   const arguments_ = process.argv.slice(2)
   if (arguments_[0] === '--record') {
     const reports = arguments_.slice(1)

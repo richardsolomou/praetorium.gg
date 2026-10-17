@@ -1,3 +1,4 @@
+import { groupBy } from './collections'
 import { z } from 'zod'
 import { catalogueEditionId } from './catalogueEdition'
 import { routeSlug } from './slug'
@@ -117,8 +118,7 @@ const pointsOf = (value: number | null): Points => (value === null ? null : Stri
  * Exact repeats are one record said twice and collapse.
  */
 function byIdentity<T>(records: readonly T[], identity: (record: T) => string, same: (record: T) => string) {
-  const grouped = new Map<string, T[]>()
-  for (const record of records) grouped.set(identity(record), [...(grouped.get(identity(record)) ?? []), record])
+  const grouped = groupBy(records, identity)
   const unique = new Map<string, T>()
   const ambiguous: T[] = []
   for (const [id, group] of grouped) {
@@ -243,14 +243,7 @@ function compared<T extends { catalogueId: string; faction: string; id: string; 
   const next = byIdentity(after, identity, same)
   const oldUnmatched = [...old.unique].filter(([id]) => !next.unique.has(id))
   const newUnmatched = [...next.unique].filter(([id]) => !old.unique.has(id))
-  const byName = (records: readonly [string, T][]) => {
-    const grouped = new Map<string, [string, T][]>()
-    for (const entry of records) {
-      const name = key(entry[1].faction, entry[1].name)
-      grouped.set(name, [...(grouped.get(name) ?? []), entry])
-    }
-    return grouped
-  }
+  const byName = (records: readonly [string, T][]) => groupBy(records, ([, record]) => key(record.faction, record.name))
   const newNames = matchNames ? byName(newUnmatched) : new Map<string, [string, T][]>()
   const oldNames = matchNames ? byName(oldUnmatched) : new Map<string, [string, T][]>()
   const replacements = new Map<string, T>()
@@ -523,10 +516,6 @@ export function changesTouching(
       }
     }
   }
-  const groups = new Map<string, Fact[]>()
-  for (const fact of facts.values()) {
-    if (fact.from === fact.to || (fact.from === null && fact.to === PRESENT)) continue
-    groups.set(fact.group, [...(groups.get(fact.group) ?? []), fact])
-  }
-  return [...groups.values()].map(netChange)
+  const changed = [...facts.values()].filter((fact) => fact.from !== fact.to && !(fact.from === null && fact.to === PRESENT))
+  return [...groupBy(changed, (fact) => fact.group).values()].map(netChange)
 }

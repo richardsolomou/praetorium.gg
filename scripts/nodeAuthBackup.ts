@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { unzipSync, zipSync } from 'fflate'
 import { privateR2Client } from '../src/server/r2Client.ts'
 import { backupAuthSqlite, verifyAuthSqlite } from './nodeAuthSqlite.ts'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 const archiveKey = /^backups\/auth\/production\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/
 const maxArchiveBytes = 128 * 1024 * 1024
@@ -103,7 +103,7 @@ export async function restoreAuthFromR2(key: string, target: string) {
 }
 
 const [, , command, first, second] = process.argv
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   if (!first || !second) throw new Error('Usage: nodeAuthBackup.ts backup SQLITE_PATH production | restore R2_KEY TARGET_DIRECTORY')
   const result =
     command === 'backup' && second === 'production'

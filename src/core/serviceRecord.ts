@@ -1,6 +1,7 @@
 /** Fold a player’s visible finished battles with the same outcome and score functions as the leaderboard; store no second record. */
 
-import { type BattleState, mayNameCard, type PlayerId } from './battle'
+import { groupBy } from './collections'
+import { type BattleState, mayNameCard, type PlayerId, pointsLabel } from './battle'
 import { battleOutcome, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'
 
 /**
@@ -211,11 +212,7 @@ export function personalPerformance(battles: readonly RecordBattle[], playerId: 
     }
     return [...groups]
       .map(([key, { label, appearances: played }]) => {
-        const byMonth = new Map<string, Appearance[]>()
-        for (const one of played) {
-          const month = new Date(one.battle.lastActivity).toISOString().slice(0, 7)
-          byMonth.set(month, [...(byMonth.get(month) ?? []), one])
-        }
+        const byMonth = groupBy(played, (one) => new Date(one.battle.lastActivity).toISOString().slice(0, 7))
         return {
           key,
           label,
@@ -235,7 +232,7 @@ export function personalPerformance(battles: readonly RecordBattle[], playerId: 
     }),
     sizes: rows((one) => {
       const limit = one.battle.settings.limit
-      return limit ? [{ key: String(limit), label: `${limit.toLocaleString('en')} points` }] : []
+      return limit ? [{ key: String(limit), label: pointsLabel(limit) }] : []
     }),
   }
 }
@@ -459,11 +456,7 @@ export function recordFacets(battles: readonly RecordBattle[], playerId: string)
     add('factions', battle.factions[seat]?.slug, battle.factions[seat]?.displayName ?? '')
     for (const detachment of battle.detachments[seat] ?? []) add('detachments', detachment, detachment)
     add('missionPacks', battle.settings.missionPackId, battle.settings.missionPackId ?? '')
-    add(
-      'limits',
-      battle.settings.limit === null ? null : String(battle.settings.limit),
-      `${battle.settings.limit?.toLocaleString('en')} points`,
-    )
+    if (battle.settings.limit !== null) add('limits', String(battle.settings.limit), pointsLabel(battle.settings.limit))
     // One battle counts once per dimension, so a 2v2 whose pair brought the same
     // army does not tally as two battles against it.
     const seats = opposingSeats(one)

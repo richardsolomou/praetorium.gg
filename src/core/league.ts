@@ -1,3 +1,4 @@
+import { groupBy } from './collections'
 import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
 import type { TableShape } from './tableShape'
@@ -5,6 +6,7 @@ import type { FormatRuleId, Roster } from './battle'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
+import { formatList } from './text'
 
 export const LEAGUE_VISIBILITIES = ['public', 'private'] as const
 export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
@@ -253,10 +255,10 @@ export function leagueTeams(
   entries: readonly { userId: string; status: LeagueEntryStatus; teamId: string | null; roster: Roster | null }[],
   picks: ReadonlyMap<string, string>,
 ): LeagueTeam[] {
-  const members = new Map<string, (typeof entries)[number][]>()
-  for (const entry of entries) {
-    if (entry.status === 'accepted' && entry.teamId) members.set(entry.teamId, [...(members.get(entry.teamId) ?? []), entry])
-  }
+  const members = groupBy(
+    entries.filter((entry) => entry.status === 'accepted' && entry.teamId),
+    (entry) => entry.teamId!,
+  )
   return [...members].map(([id, team]) => {
     const sealed = team.length === 2 && team.every((entry) => entry.roster)
     const rosters = team.map((entry) => entry.roster)
@@ -284,8 +286,7 @@ export function leagueWarlordRefusal(roster: Roster, doubles: boolean) {
   const selected = sealedWarlords([roster])
   const ineligible = selected.find((unit) => !warlordEligible(unit))
   if (ineligible) return `${ineligible.name} can’t be your Warlord — only a Character or Epic Hero can`
-  if (selected.length > 1)
-    return `Choose one Warlord: ${new Intl.ListFormat('en', { type: 'conjunction' }).format(selected.map((unit) => unit.name))} are marked`
+  if (selected.length > 1) return `Choose one Warlord: ${formatList(selected.map((unit) => unit.name))} are marked`
   if (!doubles) return 'Choose a Warlord: this list has none'
   return selected.length
     ? 'Your teammate’s sealed list already has your team’s Warlord: remove this list’s Warlord'

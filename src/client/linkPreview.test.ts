@@ -5,7 +5,6 @@ import { battleView } from '../core/battleView'
 import type { ServiceRecord } from '../core/serviceRecord'
 import {
   battlePreview,
-  breadcrumbMeta,
   datasheetPreview,
   pageHead,
   pageMeta,
@@ -190,10 +189,14 @@ describe('search engine metadata', () => {
   it('numbers breadcrumbs from the top of the trail', () => {
     expect(
       structured(
-        breadcrumbMeta(ORIGIN, [
-          { name: 'Factions', path: '/factions' },
-          { name: 'Orks', path: '/factions/orks' },
-        ]),
+        pageMeta(ORIGIN, {
+          title: 'Orks',
+          description: 'Orks.',
+          breadcrumbs: [
+            { name: 'Factions', path: '/factions' },
+            { name: 'Orks', path: '/factions/orks' },
+          ],
+        }).at(-1)!,
       ).itemListElement,
     ).toEqual([
       { '@type': 'ListItem', position: 1, name: 'Factions', item: 'https://praetorium.example/factions' },

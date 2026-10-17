@@ -264,7 +264,7 @@ function spreadRepeatedGroup(
   // Arming a model this squad did not have yet puts a body in it, and the squad is
   // already as big as it is allowed to be. The body comes from one of its own — a
   // veteran puts down his bolt rifle to carry the heavy bolter — and never from a
-  // model the data insists on, which is how the sergeant used to be squeezed out.
+  // model the data insists on, such as the sergeant.
   const before = models.reduce((total, model) => total + (model.count ?? 1), 0)
   const after = variants.reduce((total, variant) => total + (variant.count ?? 1), 0)
   // The squadmate may stand a group further out than the carrier does, where the

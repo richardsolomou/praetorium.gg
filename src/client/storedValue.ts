@@ -28,7 +28,8 @@ export function writeStoredValue(key: string, value: string | null) {
   return kept
 }
 
-function subscribe(changed: () => void) {
+/** For `useSyncExternalStore` snapshots that combine a stored value with other browser state. */
+export function subscribeStoredValues(changed: () => void) {
   const fromOtherTab = (event: StorageEvent) => {
     if (event.key !== null) written.delete(event.key)
     changed()
@@ -44,8 +45,16 @@ function subscribe(changed: () => void) {
 /** A browser storage entry as rendering state: null on the server and while hydrating, then current in every tab. */
 export function useStoredValue(key: string) {
   return useSyncExternalStore(
-    subscribe,
+    subscribeStoredValues,
     () => readStoredValue(key),
     () => null,
   )
+}
+
+/** Stores a value for this tab, or removes it for null; a refused write only costs the tab that memory. */
+export function writeSessionValue(key: string, value: string | null) {
+  try {
+    if (value === null) sessionStorage.removeItem(key)
+    else sessionStorage.setItem(key, value)
+  } catch {}
 }

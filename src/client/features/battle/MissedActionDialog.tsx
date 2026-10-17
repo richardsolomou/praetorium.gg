@@ -17,6 +17,7 @@ import { Stepper } from '../../components/Stepper'
 import { type BattleMoment, type Command, isNewOrders } from '../../../core/battle'
 import { type Side, sideName } from '../../sides'
 import type { SendCommand } from './useCommand'
+import { Problem } from '../../components/Problem'
 
 type Action = 'stratagem' | 'score' | 'cp'
 
@@ -188,11 +189,7 @@ export function MissedActionDialog({
             </div>
           ) : null}
           {action === 'cp' ? <p className="text-sm text-dim">Records the side’s 1 additional CP for that battle round.</p> : null}
-          {refused && problem ? (
-            <p role="alert" className="text-sm text-destructive">
-              {problem}
-            </p>
-          ) : null}
+          {refused && problem ? <Problem>{problem}</Problem> : null}
         </DialogBody>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>

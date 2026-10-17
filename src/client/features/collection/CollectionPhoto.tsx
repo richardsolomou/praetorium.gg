@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { cn } from '@/lib/utils'
 import { Camera } from 'lucide-react'
 import { useState } from 'react'
 import { collectionPhotoPath } from '../../../contracts/collection'
@@ -52,7 +53,7 @@ export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryI
   if (!me) return null
   const own = photos?.[entryId] ?? []
   return (
-    <div className={`grid gap-2 ${className}`} data-own-photos>
+    <div className={cn('grid gap-2', className)} data-own-photos>
       {own.map((photoId, index) => (
         <button
           key={photoId}

@@ -1,5 +1,6 @@
 import { type ReactNode, useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import { RuleText } from './RuleText'
 
 export function HoverTooltip({
@@ -47,7 +48,7 @@ export function HoverTooltip({
               openedByPress.current = event.detail > 0
               setOpen(true)
             }}
-            className={`${className} inline-flex items-center justify-center cursor-help underline decoration-dotted underline-offset-2`}
+            className={cn('inline-flex items-center justify-center cursor-help underline decoration-dotted underline-offset-2', className)}
           />
         }
       >

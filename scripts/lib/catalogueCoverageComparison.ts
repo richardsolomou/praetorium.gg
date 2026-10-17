@@ -46,7 +46,8 @@ type FactionCoverage = {
   detachments: DetachmentCoverage[]
   datasheets: DatasheetCoverage[]
 }
-type AcceptedLoss = { reason: string; entries: string[] }
+export type AcceptedLoss = { reason: string; entries: string[] }
+export const readAcceptedLosses = (file: string | undefined): AcceptedLoss[] => (file ? JSON.parse(fs.readFileSync(file, 'utf8')) : [])
 type RawConstruction = { name: string; enhancements: Set<string> }
 
 const localizedName = (value: unknown) => {

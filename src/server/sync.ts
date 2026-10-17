@@ -176,12 +176,8 @@ function battlemasterDetailMatches(entry: BattlemasterCatalog['layouts'][number]
   ) {
     return false
   }
-  try {
-    const page = new URL(detail.layout.links.page)
-    return page.origin === new URL(baseUrl).origin && page.pathname === `/community/layout/${entry.owner}/${entry.id}`
-  } catch {
-    return false
-  }
+  const page = URL.parse(detail.layout.links.page)
+  return page?.origin === URL.parse(baseUrl)?.origin && page?.pathname === `/community/layout/${entry.owner}/${entry.id}`
 }
 
 const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024

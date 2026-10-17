@@ -25,6 +25,7 @@ import { forgetThisDevice } from '../../pushNotifications'
 import { meQuery, onboardingQuery } from '../../queries'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { openFeedback } from '../feedback/FeedbackDialog'
+import { errorMessage } from '../../queryClient'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
@@ -47,13 +48,13 @@ function useAccountControls() {
       if (owner)
         await clearLocalState(owner, true).catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_local_work' }))
       reconcileAppAccount(queryClient, null)
-      queryClient.setQueryData(['me'], null)
+      queryClient.setQueryData(meQuery().queryKey, null)
       await clearSavedApp().catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_saved_data' }))
       await queryClient.invalidateQueries()
       await navigate({ to: '/' })
     })().catch((error: unknown) => {
       posthog.captureException(error, { operation: 'sign_out' })
-      window.alert(error instanceof Error ? error.message : 'Sign-out failed. Try again.')
+      window.alert(errorMessage(error, 'Sign-out failed. Try again.'))
     })
   }
 

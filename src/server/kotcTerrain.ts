@@ -257,16 +257,11 @@ const clamp = (value: number) => Math.min(BOARD_IN, Math.max(0, value))
 const round = (value: number) => Math.round(value * 1000) / 1000
 
 function publisherImage(value: unknown): value is string {
-  if (typeof value !== 'string') return false
-  try {
-    const url = new URL(value)
-    return (
-      url.protocol === 'https:' &&
-      url.hostname === 'playontabletop.com' &&
-      url.pathname.startsWith('/wp-content/uploads/') &&
-      url.pathname.endsWith('.png')
-    )
-  } catch {
-    return false
-  }
+  const url = typeof value === 'string' ? URL.parse(value) : null
+  return (
+    url?.protocol === 'https:' &&
+    url.hostname === 'playontabletop.com' &&
+    url.pathname.startsWith('/wp-content/uploads/') &&
+    url.pathname.endsWith('.png')
+  )
 }

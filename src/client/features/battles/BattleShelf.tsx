@@ -4,6 +4,8 @@ import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
+import { pointsLabel } from '../../../core/battle'
 import { battleOutcome } from '../../../core/standings'
 import { battleStage } from '../../battleStage'
 import { deploymentName, summarySides, type SummarySide } from '../../battleSummary'
@@ -71,7 +73,7 @@ export function BattleShelf({
             seat !== -1 && battle.status === 'finished' ? OUTCOME[battleOutcome(battle, battle.sides[seat]!)] : battleStage(battle.status)
           const battlefield = deploymentName(battle.deploymentId, deployments)
           const setting = [
-            battle.settings.limit ? `${battle.settings.limit.toLocaleString('en')} points` : 'Legacy format',
+            battle.settings.limit ? pointsLabel(battle.settings.limit) : 'Legacy format',
             ...(battle.settings.manual ? ['Manual tracking'] : battle.mission ? [battle.mission.name] : []),
             ...(battlefield ? [battlefield] : []),
             ...(battle.result?.reason && battle.result.reason !== 'completed' ? [ENDING[battle.result.reason]] : []),
@@ -193,7 +195,7 @@ function Side({
 }) {
   const seats = side?.seats ?? []
   return (
-    <span className={`min-w-0 space-y-2 ${className}`}>
+    <span className={cn('min-w-0 space-y-2', className)}>
       {seats.length ? (
         seats.map(({ player, army, faction, detachments }) => (
           <span

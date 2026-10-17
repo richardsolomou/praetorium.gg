@@ -3313,8 +3313,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       submittedAt: BigInt(input.now),
     })
     touchLeague(tx, league.id, event.id)
-    // The web build before this module requires `revealedIds` while its replicas roll.
-    return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit, revealedIds: null })
+    return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
   }
   if (operation === 'set-team-disposition') {
     const input = leagueCommandInput(
@@ -3329,8 +3328,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (!team?.choices.includes(input.disposition)) return productJson({ outcome: 'not-offered' })
     setTeamPick(tx, event.id, team.id, input.disposition)
     touchLeague(tx, league.id, event.id)
-    // The web build before this module requires `revealedIds` while its replicas roll.
-    return productJson({ outcome: 'chosen', revealedIds: null })
+    return productJson({ outcome: 'chosen' })
   }
   if (operation === 'reveal') {
     const input = leagueCommandInput(z.object({ op: z.literal('reveal'), now: leagueTimeInput }), value)

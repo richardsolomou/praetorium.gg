@@ -2,6 +2,7 @@ import { Info } from 'lucide-react'
 import { loadedWords, useSourceTexts } from '../../sourceText'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { CARD_NAME } from './battleTints'
@@ -40,11 +41,11 @@ function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: Reac
 
 /** The twist's name, which opens it. For the places that only report what is in play. */
 export function TwistName({ twist, className = '' }: { twist: Twist; className?: string }) {
-  if (!twist.rules) return <span className={`${CARD_NAME} ${className}`}>{twist.name}</span>
+  if (!twist.rules) return <span className={cn(CARD_NAME, className)}>{twist.name}</span>
   return (
     <TwistDialog
       twist={twist}
-      trigger={<button type="button" aria-label={`Read ${twist.name}`} className={`${CARD_NAME} text-left hover:underline ${className}`} />}
+      trigger={<button type="button" aria-label={`Read ${twist.name}`} className={cn(CARD_NAME, 'text-left hover:underline', className)} />}
     >
       {twist.name}
     </TwistDialog>

@@ -1,7 +1,7 @@
 import { createFileRoute, notFound, Outlet, useRouterState } from '@tanstack/react-router'
 import { RuleContents } from '../client/features/reference/rules/RuleContents'
 import { ruleIndexQuery } from '../client/queries'
-import { breadcrumbMeta, pageHead } from '../client/linkPreview'
+import { pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/rules/$documentId')({
   loader: async ({ context, location, params }) => {
@@ -15,26 +15,18 @@ export const Route = createFileRoute('/rules/$documentId')({
     const { document } = loaderData
     const path = `/rules/${document.slug}`
     const leaf = matches.at(-1)?.routeId === match.routeId
-    const head = pageHead(match.context.origin, {
+    return pageHead(match.context.origin, {
       title: document.title,
       description: `Contents and numbered rules from ${document.title}.`,
       path: leaf ? path : undefined,
       article: true,
+      breadcrumbs: leaf
+        ? [
+            { name: 'Rules', path: '/rules' },
+            { name: document.title, path },
+          ]
+        : undefined,
     })
-    return {
-      meta: [
-        ...head.meta,
-        ...(leaf
-          ? [
-              breadcrumbMeta(match.context.origin, [
-                { name: 'Rules', path: '/rules' },
-                { name: document.title, path },
-              ]),
-            ]
-          : []),
-      ],
-      links: head.links,
-    }
   },
   component: RuleDocumentPage,
 })

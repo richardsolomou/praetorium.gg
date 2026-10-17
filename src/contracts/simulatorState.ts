@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { fromBase64Url, toBase64Url } from '../core/base64'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
 import { rosterPickSchema } from '../core/commands'
 
@@ -39,21 +40,14 @@ export type SimulatorState = z.infer<typeof simulatorStateSchema>
 const MAX_LENGTH = 8_000
 
 export function encodeSimulatorState(state: SimulatorState) {
-  const bytes = new TextEncoder().encode(JSON.stringify(state))
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/=+$/, '')
+  return toBase64Url(new TextEncoder().encode(JSON.stringify(state)))
 }
 
 /** A link that does not decode to a valid matchup opens an empty simulator rather than a broken one. */
 export function decodeSimulatorState(value: string | undefined): SimulatorState | null {
   if (!value || value.length > MAX_LENGTH) return null
   try {
-    const text = atob(value.replaceAll('-', '+').replaceAll('_', '/'))
-    const parsed = simulatorStateSchema.safeParse(
-      JSON.parse(new TextDecoder().decode(Uint8Array.from(text, (character) => character.charCodeAt(0)))),
-    )
+    const parsed = simulatorStateSchema.safeParse(JSON.parse(new TextDecoder().decode(fromBase64Url(value))))
     return parsed.success ? parsed.data : null
   } catch {
     return null

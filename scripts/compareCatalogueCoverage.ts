@@ -1,10 +1,10 @@
-import fs from 'node:fs'
-import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
+import { parseArgs } from 'node:util'
+import { compareCatalogueCoverage, readAcceptedLosses } from './lib/catalogueCoverageComparison'
 
-const [before, after] = process.argv.slice(2)
+const {
+  positionals: [before, after],
+  values,
+} = parseArgs({ allowPositionals: true, options: { accept: { type: 'string' } } })
 if (!before || !after) throw new Error('usage: compareCatalogueCoverage.ts <before.json> <after.json> [--accept <withdrawn.json>]')
-const acceptAt = process.argv[process.argv.indexOf('--accept') + 1]
-const accepted: { reason: string; entries: string[] }[] =
-  process.argv.includes('--accept') && acceptAt ? JSON.parse(fs.readFileSync(acceptAt, 'utf8')) : []
 
-compareCatalogueCoverage(before, after, accepted)
+compareCatalogueCoverage(before, after, readAcceptedLosses(values.accept))

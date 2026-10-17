@@ -3,8 +3,8 @@ import { createHash } from 'node:crypto'
 import { appendFileSync } from 'node:fs'
 import { createRequire, isBuiltin } from 'node:module'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 // The shell pins TypeScript 6; the web compiler no longer exposes this parser API.
 const typescript = createRequire(new URL('../mobile/package.json', import.meta.url))(
@@ -127,7 +127,7 @@ export function iosDeliveryChanged(root: string, base: string, revision: string,
   })
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   const [base, revision = 'HEAD'] = process.argv.slice(2)
   if (!base) throw new Error('Usage: iosDelivery.ts <base-revision> [revision]')
   const pending = JSON.parse(process.env.PENDING_IOS_REVISIONS ?? '[]') as string[]

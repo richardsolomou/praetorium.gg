@@ -3,11 +3,16 @@ import type { LoadedCatalogue } from './catalogueIndex'
 
 const editionlessCatalogueName = (name: string) => name.replace(/ \(11e\)$/, '')
 
-/** The same rules-backed player-facing name used by the faction reference pages. */
-export function factionDisplayName(catalogueName: string, names?: ReadonlyMap<string, string>) {
+/** The last segment of a catalogue's lineage, passing over a trailing "Library". */
+export function catalogueLeafName(catalogueName: string) {
   const parts = catalogueName.split(' - ')
   const last = parts.at(-1)
-  const leaf = last?.toLowerCase() === 'library' ? parts.at(-2) : last
+  return last?.toLowerCase() === 'library' ? parts.at(-2) : last
+}
+
+/** The same rules-backed player-facing name used by the faction reference pages. */
+export function factionDisplayName(catalogueName: string, names?: ReadonlyMap<string, string>) {
+  const leaf = catalogueLeafName(catalogueName)
   if (!leaf) return catalogueName
   const name = editionlessCatalogueName(leaf)
   return names?.get(routeSlug(name)) ?? name

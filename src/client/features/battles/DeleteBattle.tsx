@@ -1,16 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { battlesQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { deleteBattle } from '../../functions'
 import type { Battle } from './battle'
 
@@ -30,31 +20,21 @@ export function DeleteBattleDialog({ battle, onClose }: { battle: Battle | null;
     },
   })
   return (
-    <AlertDialog
+    <ConfirmDialog
       open={Boolean(battle)}
-      onOpenChange={(open) => {
-        if (remove.isPending || open) return
+      title="Delete battle?"
+      description="The score and everything that happened in it go too, for good."
+      cancel="Keep battle"
+      confirm="Delete battle"
+      pendingLabel="Deleting…"
+      destructive
+      pending={remove.isPending}
+      error={remove.error}
+      onClose={() => {
         remove.reset()
         onClose()
       }}
-    >
-      <AlertDialogContent aria-busy={remove.isPending}>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete battle?</AlertDialogTitle>
-          <AlertDialogDescription>The score and everything that happened in it go too, for good.</AlertDialogDescription>
-        </AlertDialogHeader>
-        {remove.error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(remove.error)}
-          </p>
-        ) : null}
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={remove.isPending}>Keep battle</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" disabled={remove.isPending} onClick={() => battle && remove.mutate(battle.token)}>
-            {remove.isPending ? 'Deleting…' : 'Delete battle'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      onConfirm={() => battle && remove.mutate(battle.token)}
+    />
   )
 }

@@ -53,7 +53,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - run: pnpm test:integration
-      - run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
+      - run: pnpm test:python
 
   spacetime-bindings:
     name: SpacetimeDB bindings
@@ -61,10 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
-        with:
-          version: '2.12.0'
-          sha256: 154853dd882abe1e6f8b96e169f9ca43a075df006dd33116b85d03c59a912f89
+      - uses: ./.github/actions/setup-spacetime
       - uses: richardsolomou/ras-stack/actions/check-spacetime-bindings@v1
         with:
           out-dir: src/spacetime/generated
@@ -144,12 +141,7 @@ jobs:
           key: catalogue-runtime-${{ steps.runtime.outputs.key }}
       - name: Build or restore the browser-test build
         run: pnpm exec tsx scripts/browserTestBuild.ts
-      - name: Verify the shared browser-test build
-        run: |
-          set -euo pipefail
-          expected="$(pnpm exec tsx scripts/browserTestBuildKey.ts)"
-          stored="$(cat data-dev/e2e-build/fingerprint)"
-          test "$expected" = "$stored"
+      - uses: ./.github/actions/verify-browser-build
       - uses: actions/upload-artifact@v7
         with:
           name: browser-test-build
@@ -163,36 +155,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: ./.github/actions/browser-test-stack
+        id: stack
+        # Catalogue snapshots are private, read only by the catalogue sync inside this action.
         with:
-          install: 'false'
-      - uses: ./.github/actions/e2e-dependencies
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Require the terrain geometry
-        run: pnpm catalogue:terrain
-      - uses: actions/download-artifact@v8
-        with:
-          name: browser-test-build
-          path: data-dev/e2e-build
-      - name: Verify the shared browser-test build
-        run: |
-          set -euo pipefail
-          expected="$(pnpm exec tsx scripts/browserTestBuildKey.ts)"
-          stored="$(cat data-dev/e2e-build/fingerprint)"
-          test "$expected" = "$stored"
-      - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
-        id: spacetime
-        with:
-          version: '2.12.0'
-          sha256: 154853dd882abe1e6f8b96e169f9ca43a075df006dd33116b85d03c59a912f89
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - name: Run catalogue smoke tests
         env:
-          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
+          SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
           PLAYWRIGHT_OUTPUT_DIR: test-results-catalogue
           PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-report-catalogue.json
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-catalogue.json
@@ -228,37 +200,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: ./.github/actions/browser-test-stack
+        id: stack
+        # Catalogue snapshots are private, read only by the catalogue sync inside this action.
         with:
-          install: 'false'
-      - uses: ./.github/actions/e2e-dependencies
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Require the terrain geometry
-        run: pnpm catalogue:terrain
-      - uses: actions/download-artifact@v8
-        with:
-          name: browser-test-build
-          path: data-dev/e2e-build
-      - name: Verify the shared browser-test build
-        run: |
-          set -euo pipefail
-          expected="$(pnpm exec tsx scripts/browserTestBuildKey.ts)"
-          stored="$(cat data-dev/e2e-build/fingerprint)"
-          test "$expected" = "$stored"
-      - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
-        id: spacetime
-        with:
-          version: '2.12.0'
-          sha256: 154853dd882abe1e6f8b96e169f9ca43a075df006dd33116b85d03c59a912f89
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - name: Run the E2E shard
         env:
           E2E_SHARD: ${{ matrix.runner }}
-          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
+          SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
           set -euo pipefail
@@ -342,7 +294,6 @@ jobs:
           set -euo pipefail
           git checkout --quiet --force '${{ steps.comparison.outputs.sha }}'
           pnpm install --frozen-lockfile
-          if jq -e '.scripts["catalogue:authoring"]' package.json > /dev/null; then pnpm catalogue:authoring; fi
           rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
           pnpm catalogue:descriptions
           pnpm catalogue:points | tee base-points.txt
@@ -450,8 +401,6 @@ jobs:
         with:
           ref: ${{ matrix.sha }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      # Revisions from before catalogue/ moved into this repository install it from the archived catalogue repository.
-      - run: if jq -e '.scripts["catalogue:authoring"]' package.json > /dev/null; then pnpm catalogue:authoring; fi
       - uses: actions/download-artifact@v8
         with:
           name: coverage-catalogue

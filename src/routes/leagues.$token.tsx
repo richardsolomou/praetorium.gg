@@ -1,12 +1,13 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { LeaguePage } from '../client/features/leagues/LeaguePage'
 import { deploymentsQuery, leagueQuery } from '../client/queries'
+import { searchFlag } from '../client/searchParams'
 
 export const Route = createFileRoute('/leagues/$token')({
   validateSearch: (search: Record<string, unknown>): { event?: string; start?: boolean; choose?: boolean } => ({
     ...(typeof search.event === 'string' ? { event: search.event } : {}),
-    ...(search.start === true || search.start === 'true' ? { start: true } : {}),
-    ...(search.choose === true || search.choose === 'true' ? { choose: true } : {}),
+    ...(searchFlag(search.start) ? { start: true } : {}),
+    ...(searchFlag(search.choose) ? { choose: true } : {}),
   }),
   loaderDeps: ({ search }) => ({ event: search.event }),
   loader: async ({ context, params, deps }) => {

@@ -54,3 +54,10 @@ export function localObjectStore(root: string) {
     },
   }
 }
+
+/** The on-disk store a local development stack uses in place of R2, or null outside one. */
+export function localDevelopmentObjectStore(environment: NodeJS.ProcessEnv = process.env) {
+  if (environment.PRAETORIUM_LOCAL_DEV !== 'true') return null
+  if (!environment.LOCAL_OBJECT_DIR) throw new Error('LOCAL_OBJECT_DIR is required for local development')
+  return localObjectStore(environment.LOCAL_OBJECT_DIR)
+}

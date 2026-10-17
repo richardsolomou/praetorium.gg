@@ -64,6 +64,7 @@ typecheck:
 
 test *args:
     pnpm exec vitest run {{ args }}
+    pnpm test:python
 
 # Fast tests without databases or subprocess-backed snapshot verification
 test-unit *args:
@@ -148,9 +149,6 @@ e2e-install:
 
 # Browsers against isolated local SQLite, object storage, and SpacetimeDB
 e2e *args:
-    pnpm exec playwright test {{ args }}
-
-e2e-run *args:
     pnpm exec playwright test {{ args }}
 
 # Rerun test edits against one isolated production stack; restart after application edits

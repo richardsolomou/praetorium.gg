@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { catalogueSourcesSchema, SNAPSHOT_SOURCE_NAMES, type CatalogueSourceConfig } from '../src/server/catalogueSources'
+import pRetry from 'p-retry'
+import { catalogueSources, SNAPSHOT_SOURCE_NAMES, type CatalogueSourceConfig } from '../src/server/catalogueSources'
 import {
   activateCachedSnapshot,
   catalogueBaseUrl,
@@ -17,29 +18,23 @@ import {
 import { syncFactionIcons } from '../src/server/sync'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueCacheRoot } from './lib/catalogueCache'
-import { materializeCatalogue } from './lib/catalogueMaterialize'
 
 const root = path.join(import.meta.dirname, '..')
-const sourcesFile = path.join(root, 'catalogue', 'sources.json')
 const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
-const readSources = () => catalogueSourcesSchema.parse(JSON.parse(fs.readFileSync(sourcesFile, 'utf8')))
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 
 const head = (repository: string, branch: string) =>
   execFileSync('gh', ['api', `repos/${repository}/commits/${branch}`, '--jq', '.sha'], { encoding: 'utf8' }).trim()
 
 /** A dropped connection fails CI otherwise; downloads are verified by hash, so another attempt is safe. */
-async function withRetries<T>(download: () => Promise<T>) {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await download()
-    } catch (error) {
-      if (attempt === 3) throw error
-      console.log(`Catalogue download failed (${error instanceof Error ? error.message : String(error)}); retrying`)
-      await new Promise((done) => setTimeout(done, attempt * 2_000))
-    }
-  }
-}
+const withRetries = <T>(download: () => Promise<T>) =>
+  pRetry(download, {
+    retries: 2,
+    minTimeout: 2_000,
+    onFailedAttempt: ({ error, retriesLeft }) => {
+      if (retriesLeft > 0) console.log(`Catalogue download failed (${error.message}); retrying`)
+    },
+  })
 
 async function responseBytes(url: string) {
   const response = await fetch(url)
@@ -70,7 +65,6 @@ async function resolve(config: CatalogueSourceConfig): Promise<CatalogueSourceCo
 
 const argument = process.argv[2]
 if (argument === '--check') {
-  readSources()
   readCatalogueComposition(path.join(root, 'catalogue'))
   console.log('catalogue source definitions are well formed')
 } else if (argument === '--supplemental') {
@@ -89,8 +83,7 @@ if (argument === '--check') {
   } finally {
     fs.rmSync(work, { recursive: true, force: true })
   }
-  const config = readSources()
-  const current = await resolve(config)
+  const current = await resolve(catalogueSources)
   if (publishedComposition?.baseSources)
     previous = Object.fromEntries(SNAPSHOT_SOURCE_NAMES.map((name) => [name, publishedComposition.baseSources![name].revision]))
   const changed = SNAPSHOT_SOURCE_NAMES.filter((name) => previous[name] !== current[name].revision)
@@ -120,13 +113,6 @@ if (argument === '--check') {
         `${name}: configured ${source.revision} -> ${latest} https://github.com/${source.repository}/compare/${source.revision}...${latest}`,
       )
   }
-} else if (argument === '--refresh' || argument === '--update') {
-  const output = process.env.CATALOGUE_DIR ?? path.join(root, '.output', 'catalogue-data')
-  await materializeCatalogue(output, readSources(), {
-    report: console.log,
-    composition: readCatalogueComposition(path.join(root, 'catalogue')),
-  })
-  console.log(output)
 } else if (argument === undefined || argument === '--latest') {
   const base = catalogueBaseUrl()
   const cacheRoot = catalogueCacheRoot('catalogues')
@@ -142,5 +128,5 @@ if (argument === '--check') {
     console.log(`catalogue-data -> ${cached}`)
   }
 } else {
-  throw new Error('expected --check, --supplemental, --upstream, --update, --latest, or no argument')
+  throw new Error('expected --check, --supplemental, --upstream, --latest, or no argument')
 }

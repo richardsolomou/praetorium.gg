@@ -19,6 +19,7 @@ import {
   trustedOrigins,
 } from 'ras-stack/auth'
 import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
+import { errorHasCode } from 'ras-stack/server'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { account, schema, session as sessionTable, user } from '../db/authSchema'
 import { oauthSchema } from '../db/oauthSchema'
@@ -30,13 +31,6 @@ import { nativeAuthToken } from './nativeAuthToken'
 import { isNativeOAuthState } from './nativeOAuthState'
 
 type Environment = NodeJS.ProcessEnv
-
-function isSqliteBusy(error: unknown) {
-  for (let current = error, depth = 0; current instanceof Error && depth < 4; current = current.cause, depth++) {
-    if (current.message.includes('SQLITE_BUSY')) return true
-  }
-  return false
-}
 
 type AuthOptions = {
   environment: Environment
@@ -58,6 +52,7 @@ type AuthOptions = {
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
   const environment = options.environment
   const authUrl = new URL('/api/auth', environment.APP_URL)
+  const mcpResource = new URL('/mcp', environment.APP_URL).toString()
   const alternateLoopbackOrigin =
     authUrl.hostname === '127.0.0.1' || authUrl.hostname === 'localhost'
       ? `${authUrl.protocol}//${authUrl.hostname === 'localhost' ? '127.0.0.1' : 'localhost'}${authUrl.port ? `:${authUrl.port}` : ''}`
@@ -126,7 +121,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         maxTimeout: 250,
         maxRetryTime: 1_500,
         randomize: true,
-        shouldRetry: ({ error }) => isSqliteBusy(error),
+        shouldRetry: ({ error }) => errorHasCode(error, 'SQLITE_BUSY'),
       },
     )
     if (promoted) await (await auth.$context).internalAdapter.refreshUserSessions(promoted)
@@ -322,7 +317,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         },
       }),
       mcp({
-        resource: new URL('/mcp', environment.APP_URL).toString(),
+        resource: mcpResource,
         loginPage: '/sign-in',
         consentPage: '/mcp-consent',
         scopes: ['openid', 'profile', 'offline_access', 'mcp:read', 'mcp:write'],
@@ -448,7 +443,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     return true
   }
 
-  const mcpResource = new URL('/mcp', environment.APP_URL).toString()
   const grantedMcpResource = (resources: string | null) => {
     if (!resources) return false
     const parsed: unknown = JSON.parse(resources)
@@ -500,16 +494,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       .select({ resources: oauthConsent.resources, scopes: oauthConsent.scopes })
       .from(oauthConsent)
       .where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, clientId)))
-    const resource = new URL('/mcp', environment.APP_URL).toString()
     return rows.some(({ resources, scopes }) => {
-      if (!resources) return false
-      const grantedResources: unknown = JSON.parse(resources)
+      if (!grantedMcpResource(resources)) return false
       const grantedScopes: unknown = JSON.parse(scopes)
-      return (
-        Array.isArray(grantedResources) &&
-        grantedResources.includes(resource) &&
-        (!scope || (Array.isArray(grantedScopes) && grantedScopes.includes(scope)))
-      )
+      return !scope || (Array.isArray(grantedScopes) && grantedScopes.includes(scope))
     })
   }
 
@@ -533,6 +521,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   }
 
   return Object.assign(auth, {
+    mcpResource,
+    issuer,
     changeUserRole,
     deleteUserAsAdmin,
     userSessions,

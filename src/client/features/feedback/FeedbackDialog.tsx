@@ -15,6 +15,8 @@ import { FEEDBACK_KINDS, type FeedbackKind } from '../../../contracts/feedback'
 import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackSurveyEvent } from './feedback'
 import { prepareFeedbackScreenshot } from './screenshot'
 import { sendFeedback } from './sendFeedback'
+import { Problem } from '../../components/Problem'
+import { errorMessage } from '../../queryClient'
 
 const OPEN_FEEDBACK = 'praetorium-open-feedback'
 
@@ -47,7 +49,7 @@ export function FeedbackDialog() {
     if (!file) return
     setScreenshotError(undefined)
     prepareFeedbackScreenshot(file).then(setScreenshot, (error: unknown) =>
-      setScreenshotError(error instanceof Error ? error.message : 'That screenshot could not be attached.'),
+      setScreenshotError(errorMessage(error, 'That screenshot could not be attached.')),
     )
   }, [])
   useEffect(() => {
@@ -206,11 +208,7 @@ export function FeedbackDialog() {
                     <p className="text-xs text-dim">Or paste or drop an image here.</p>
                   </>
                 )}
-                {screenshotError ? (
-                  <p role="alert" className="text-sm text-destructive">
-                    {screenshotError}
-                  </p>
-                ) : null}
+                {screenshotError ? <Problem>{screenshotError}</Problem> : null}
               </div>
               {result === 'unavailable' ? (
                 <p role="alert" className="text-sm text-destructive">

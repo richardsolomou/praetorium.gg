@@ -1,3 +1,4 @@
+import { escapeRegExp } from './text'
 import { diceExpression, type DiceExpression } from './combat'
 
 export const normalizeCombatKeyword = (text: string) =>
@@ -74,6 +75,6 @@ export function combatKeywordApplies(keyword: CombatKeyword, targetKeywords: rea
 export function combatKeywordPhraseMatches(phrase: string, keywords: readonly string[]) {
   let remaining = phrase
   for (const keyword of keywords.toSorted((a, b) => b.length - a.length))
-    remaining = remaining.replaceAll(new RegExp(`\\b${keyword.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}s?\\b`, 'g'), '').trim()
+    remaining = remaining.replaceAll(new RegExp(`\\b${escapeRegExp(keyword)}s?\\b`, 'g'), '').trim()
   return !remaining
 }

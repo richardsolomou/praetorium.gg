@@ -27,6 +27,7 @@ import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { PageContent, PageHeader } from '../../../components/Page'
 import type { OnboardingTarget } from '../../onboarding/onboarding'
+import { groupBy } from '../../../../core/collections'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
@@ -369,14 +370,13 @@ function UnitCharacteristics({
 }
 
 function characteristicProfileGroups(profiles: DisplayProfile[]) {
-  const groups = new Map<string, DisplayProfile[]>()
-  for (const profile of profiles) {
-    const signature = JSON.stringify(
-      profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'base-size').map(({ name, value }) => ({ name, value })),
-    )
-    groups.set(signature, [...(groups.get(signature) ?? []), profile])
-  }
-  return [...groups.values()]
+  return [
+    ...groupBy(profiles, (profile) =>
+      JSON.stringify(
+        profile.values.filter((value) => datasheetCharacteristicKindOf(value) !== 'base-size').map(({ name, value }) => ({ name, value })),
+      ),
+    ).values(),
+  ]
 }
 
 const noColumns: DatasheetCharacteristicKind[] = []

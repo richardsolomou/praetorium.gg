@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { MissionMatchupPage } from '../client/features/reference/missions/MissionMatchupPage'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
-import { breadcrumbMeta, pageHead } from '../client/linkPreview'
+import { pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/missions/$packId_/matchups/$you/$opponent')({
   loader: async ({ context, params }) => {
@@ -25,22 +25,16 @@ export const Route = createFileRoute('/missions/$packId_/matchups/$you/$opponent
   head: ({ loaderData, match, params }) => {
     if (!loaderData) return {}
     const path = `/missions/${params.packId}/matchups/${params.you}/${params.opponent}`
-    const head = pageHead(match.context.origin, {
+    return pageHead(match.context.origin, {
       title: `${loaderData.you} vs ${loaderData.opponent} — ${loaderData.pack}`,
       description: `${loaderData.you} plays ${loaderData.yours}; ${loaderData.opponent} plays ${loaderData.theirs}, with source scoring and actions.`,
       path,
       article: true,
-    })
-    return {
-      meta: [
-        ...head.meta,
-        breadcrumbMeta(match.context.origin, [
-          { name: loaderData.pack, path: `/missions/${params.packId}` },
-          { name: `${loaderData.you} vs ${loaderData.opponent}`, path },
-        ]),
+      breadcrumbs: [
+        { name: loaderData.pack, path: `/missions/${params.packId}` },
+        { name: `${loaderData.you} vs ${loaderData.opponent}`, path },
       ],
-      links: head.links,
-    }
+    })
   },
   component: () => <MissionMatchupPage {...Route.useParams()} />,
 })

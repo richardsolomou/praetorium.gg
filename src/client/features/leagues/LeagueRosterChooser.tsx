@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { errorMessage } from '../../queryClient'
 import { savedRosterSummariesQuery } from '../../queries'
 import { RosterChoices } from '../rosters/RosterChoices'
 import type { SavedRoster } from '../rosters/rosterLibrary'
+import { Problem } from '../../components/Problem'
 
 export function RosterChooser({
   open,
@@ -50,11 +50,7 @@ export function RosterChooser({
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          {error || rosterQuery.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(error ?? rosterQuery.error)}
-            </p>
-          ) : null}
+          {error || rosterQuery.error ? <Problem error={error ?? rosterQuery.error} /> : null}
           {failed ? (
             <Link
               to="/rosters/$id"

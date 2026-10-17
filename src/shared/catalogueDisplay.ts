@@ -1,3 +1,4 @@
+import { uniqueBy } from '../core/collections'
 import { escapeRegExp } from '../core/text'
 import type { Definition, InfoLink } from '../core/catalogue'
 import type { ProfileModifier } from '../core/evaluate'
@@ -148,17 +149,10 @@ function applyDisplayModifier(current: string, modifier: DisplayModifier, defaul
 
 function joinedDisplayText(value: string, defaultJoin: string) {
   if (defaultJoin !== ', ') return value
-  const seen = new Set<string>()
-  return value
-    .split(',')
-    .map((part) => part.trim())
-    .filter((part) => {
-      const key = part.toLowerCase()
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-    .join(defaultJoin)
+  return uniqueBy(
+    value.split(',').map((part) => part.trim()),
+    (part) => part.toLowerCase(),
+  ).join(defaultJoin)
 }
 
 const modifierText = (value: unknown) =>

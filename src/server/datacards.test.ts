@@ -14,14 +14,14 @@ import {
   prose,
   restrictedBy,
   type SectionProse,
-  sourceWords,
+  transformed,
 } from './datacards'
 import { joinKey } from '../shared/rulesSource'
 import { weaponGrantsIn } from '../shared/textFacts'
 import { wordsFrom } from './sourceTexts.fixtures'
 
 /** The files read in the source's own words: these tests are about what the parser reads, not what it publishes. */
-const loadWords = (directory: string, sections?: SectionProse) => loadDatacards(directory, sections, undefined, () => sourceWords)
+const loadWords = (directory: string, sections?: SectionProse) => loadDatacards(directory, sections, undefined, () => transformed)
 
 it('requires the printed enhancement keywords on a datasheet', () => {
   const eligibility = (description: string, keywords: string[]) => enhancementEligibility({ description: { en: description }, keywords })

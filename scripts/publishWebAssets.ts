@@ -1,9 +1,9 @@
 import { readdir, readFile, lstat } from 'node:fs/promises'
 import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import pRetry from 'p-retry'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 const CACHE = 'public, max-age=31536000, immutable'
 const TYPES: Record<string, string> = {
@@ -225,7 +225,7 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
   if (missing.status !== 404 || missing.headers.get('cache-control') !== 'no-store') throw new Error('Asset misses must remain uncached')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   const storage = publicAssetsR2Client()
   if (!storage) throw new Error('Public asset storage is required')
   const directories = process.argv.slice(2)

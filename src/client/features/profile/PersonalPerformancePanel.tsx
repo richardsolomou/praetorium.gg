@@ -1,4 +1,5 @@
 import type { PerformanceRow, PersonalPerformance } from '../../../core/serviceRecord'
+import { percentLabel } from '../../text'
 
 export function PersonalPerformancePanel({ performance }: { performance: PersonalPerformance }) {
   const groups: { label: string; rows: PerformanceRow[] }[] = [
@@ -23,7 +24,7 @@ export function PersonalPerformancePanel({ performance }: { performance: Persona
                     <summary className="flex cursor-pointer items-center justify-between gap-2 text-bone">
                       <span className="min-w-0 break-words font-semibold">{row.label}</span>
                       <span className="readout shrink-0">
-                        {Math.round(row.total.rate * 100)}% · {row.total.battles} played
+                        {percentLabel(row.total.rate)} · {row.total.battles} played
                       </span>
                     </summary>
                     <ul className="mt-2 space-y-1 border-t border-edge pt-2 text-xs text-dim">
@@ -31,7 +32,7 @@ export function PersonalPerformancePanel({ performance }: { performance: Persona
                         <li key={month} className="flex justify-between gap-2">
                           <span>{month}</span>
                           <span className="readout">
-                            {Math.round(split.rate * 100)}% · {split.won}W {split.drawn}D {split.lost}L
+                            {percentLabel(split.rate)} · {split.won}W {split.drawn}D {split.lost}L
                           </span>
                         </li>
                       ))}

@@ -1,3 +1,4 @@
+import { groupBy, uniqueBy } from '../core/collections'
 import { attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
@@ -205,16 +206,6 @@ function legalReplacementPairs(
 }
 
 /**
- * What a list costs, and nothing else.
- *
- * The library shows one number per row and used to get it by pricing the whole
- * list — every datasheet resolved, every relic described, every keyword rule
- * gathered — then sending fifty kilobytes back so a row could print an integer.
- * The number comes from the same `evaluateForces` the full price uses, so this is
- * that price with the display work left off rather than a second opinion about
- * what a list costs.
- */
-/**
  * What each pick is called, what it cost, and whether it is the Warlord.
  *
  * The three facts `rosterLabel` folds a name out of. Gathered here because the
@@ -336,25 +327,6 @@ export function unavailablePriceSelections(data: PriceInput, loaded: LoadedCatal
 
 const factionNameOf = (loaded: LoadedCatalogue, catalogueId: string, rules: Pick<LoadedRules, 'factionNames'> | null | undefined) =>
   factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? '', rules?.factionNames)
-
-/**
- * The label a list falls back on, from its setup alone.
- *
- * No units, so no pricing: enough for a search result or a library row that has not
- * had its totals answered yet, and the same fold either way.
- */
-export function rosterSetupLabel(
-  loaded: LoadedCatalogue,
-  rules: Pick<LoadedRules, 'factionNames'> | null | undefined,
-  roster: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
-) {
-  const { chosen } = rosterDetachments(loaded, roster.catalogueId, roster.detachmentIds)
-  return rosterLabel({
-    factionName: factionNameOf(loaded, roster.catalogueId, rules),
-    detachmentNames: chosen.map((option) => option.name),
-    limit: roster.limit,
-  })
-}
 
 /**
  * A list's total and display name. Saved names need no new label; legacy unnamed
@@ -639,11 +611,7 @@ function calculateRoster(
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
   const pickedIndexByKey = new Map(picked.map((unit, at) => [unit.key, at]))
-  const attachedByHost = new Map<number, number[]>()
-  data.units.forEach((unit, key) => {
-    const host = unit.attachedTo ?? key
-    attachedByHost.set(host, [...(attachedByHost.get(host) ?? []), key])
-  })
+  const attachedByHost = groupBy(data.units.keys(), (key) => data.units[key]!.attachedTo ?? key)
 
   /*
    * The enhancements an army may hold, which its battle size sets for the whole army
@@ -857,15 +825,7 @@ export function calculateRosterAssessment(
   return assessment
 }
 
-export function uniqueNames(names: readonly string[]): string[] {
-  const seen = new Set<string>()
-  return names.filter((name) => {
-    const key = routeSlug(name)
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
+export const uniqueNames = (names: readonly string[]): string[] => uniqueBy(names, routeSlug)
 
 export const findEnhancementDescription = (
   descriptions: ReadonlyMap<string, string>,

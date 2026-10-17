@@ -11,6 +11,7 @@ import {
   adminUsers,
   friendInvite,
   githubSponsorship,
+  mcpConnections,
   heldCollectionPhotos,
   recentCollectionPhotos,
   me,
@@ -23,10 +24,11 @@ import {
 } from '../functions'
 import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
+import { meKey, onboardingKey } from './queryKeys'
 
 export const meQuery = () =>
   queryOptions({
-    queryKey: ['me'],
+    queryKey: meKey(),
     queryFn: async ({ client, signal }) => {
       const user = await me({
         signal: anySignal([signal, AbortSignal.timeout(15_000)]),
@@ -34,7 +36,7 @@ export const meQuery = () =>
       })
       signal.throwIfAborted()
       if (typeof window !== 'undefined' && reconcileAppAccount(client, user)) {
-        client.setQueryData(['me'], user)
+        client.setQueryData(meKey(), user)
         await clearSavedApp().catch(() => {})
         await writeAppSnapshot(captureAppSnapshot(client)).catch(() => {})
       }
@@ -46,8 +48,9 @@ export const notificationSettingsQuery = () =>
   queryOptions({ queryKey: ['notification-settings'], queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
 export const playerDefaultsQuery = () =>
   queryOptions({ queryKey: ['player-defaults'], queryFn: () => playerDefaults(), staleTime: SSR_STALE_TIME })
+export const mcpConnectionsQuery = () => queryOptions({ queryKey: ['mcp-connections'], queryFn: () => mcpConnections() })
 export const onboardingQuery = () =>
-  queryOptions({ queryKey: ['onboarding'], queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: onboardingKey(), queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })
 export const activeFriendInviteQuery = () =>
   queryOptions({ queryKey: ['friend-invite', 'active'], queryFn: () => activeFriendInvite(), staleTime: SSR_STALE_TIME })
 export const friendInviteQuery = (token: string) =>

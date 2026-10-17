@@ -1,17 +1,8 @@
 import { expect, test, type Page } from './test'
-import { createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { addUnit, createRoster, retryUntilVisible, signUp } from './account'
 import { holdCombatCalculations } from './combat'
-import { productOperator, withAuthSql } from './storage'
+import { productOperator, userIdFor } from './storage'
 
-async function add(page: Page, name: string) {
-  await page.getByLabel('Add a unit').fill(name)
-  await waitForRosterSave(page, () =>
-    page
-      .getByRole('button', { name: `Add ${name}`, exact: true })
-      .first()
-      .click(),
-  )
-}
 async function choose(page: Page, label: string, value: string) {
   await page.getByRole('combobox', { name: label, exact: true }).click()
   await page.getByRole('option', { name: value, exact: true }).click()
@@ -20,8 +11,8 @@ async function choose(page: Page, label: string, value: string) {
 test('new rosters compare customizable mixed-faction benchmarks and retain the target set', async ({ page }) => {
   await signUp(page, 'Benchmark builder')
   await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Benchmark Marines' })
-  await add(page, 'Intercessor Squad')
-  await add(page, 'Terminator Squad')
+  await addUnit(page, 'Intercessor Squad')
+  await addUnit(page, 'Terminator Squad')
   let projections = 0
   page.on('request', (request) => {
     if (request.url().includes('/_serverFn/') && request.postData()?.includes('pickIndices')) projections++
@@ -180,11 +171,9 @@ test('long matchup tables keep target headings and attacker names visible while 
   const account = await signUp(page, 'Pinned matchup headings')
   const operator = await productOperator()
   const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
-    id: string
-  }
+  const userId = await userIdFor(account.email)
   const id = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id, userId: user.id, name: 'Long comparison', automaticName: false, now: Date.now() })
+  await operator.saveRoster({ ...source, id, userId, name: 'Long comparison', automaticName: false, now: Date.now() })
   await page.goto(`/rosters/${id}`)
   await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
     page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
@@ -221,12 +210,12 @@ test('long matchup tables keep target headings and attacker names visible while 
 test('saved rosters compare every pairing, reverse direction, and open isolated adjustments', async ({ page }) => {
   await signUp(page, 'Roster comparison')
   await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Attacking Necrons' })
-  await add(page, 'Immortals')
-  await add(page, 'Skorpekh Destroyers')
+  await addUnit(page, 'Immortals')
+  await addUnit(page, 'Skorpekh Destroyers')
   const attackerUrl = page.url()
   await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Defending Marines' })
-  await add(page, 'Intercessor Squad')
-  await add(page, 'Terminator Squad')
+  await addUnit(page, 'Intercessor Squad')
+  await addUnit(page, 'Terminator Squad')
   const defenderUrl = page.url()
   await page.goto('/simulator')
   await page.getByRole('tab', { name: 'Rosters', exact: true }).click()

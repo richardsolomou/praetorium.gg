@@ -7,6 +7,35 @@ import { detachmentIds } from '../core/savedRoster'
 
 export { detachmentIds }
 
+type RosterColumns = {
+  detachmentIds: readonly string[]
+  picks: readonly unknown[]
+  prep: { reminders?: readonly unknown[]; remindersEnabled?: boolean } | null
+  waivedRules?: readonly string[]
+  optionalRules?: readonly string[]
+  borrowedDetachmentId?: string | null
+  baseRosterId?: string | null
+  copiedFromRosterId?: string | null
+}
+
+/** Encodes a roster's columns for storage; `rosterFromRow` reads them back. */
+export function rosterRow<R extends RosterColumns>(roster: R) {
+  return {
+    ...roster,
+    detachmentId: JSON.stringify(roster.detachmentIds),
+    picks: JSON.stringify(roster.picks),
+    prep: roster.prep
+      ? JSON.stringify({ ...roster.prep, reminders: roster.prep.reminders ?? [], remindersEnabled: roster.prep.remindersEnabled ?? true })
+      : null,
+    tags: '[]',
+    waivedRules: JSON.stringify(roster.waivedRules ?? []),
+    optionalRules: JSON.stringify(roster.optionalRules ?? []),
+    borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
+    baseRosterId: roster.baseRosterId ?? null,
+    copiedFromRosterId: roster.copiedFromRosterId ?? null,
+  }
+}
+
 export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOperator['roster']>>>, includePrep = false) {
   const prep = includePrep && row.prep ? savedPrepSchema.parse(JSON.parse(row.prep)) : null
   return currentRosterIds({

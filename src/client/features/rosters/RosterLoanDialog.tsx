@@ -8,6 +8,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { endRosterLoan, lendRoster } from '../../functions'
 import { friendshipsQuery, rosterLoansQuery, rostersLentToMeQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
+import { Problem } from '../../components/Problem'
 
 /** The owner chooses which friends may view a roster and field it in their own battles. */
 export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string; open: boolean; onClose: () => void }) {
@@ -73,11 +74,7 @@ export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string
               ))}
             </ul>
           )}
-          {problem ? (
-            <p role="alert" className="text-sm text-destructive">
-              {problem}
-            </p>
-          ) : null}
+          {problem ? <Problem>{problem}</Problem> : null}
         </DialogBody>
       </DialogContent>
     </Dialog>

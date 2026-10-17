@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { cn } from '@/lib/utils'
 import { ImagePlus } from 'lucide-react'
 import { useState, type DragEvent } from 'react'
 import { MAX_DATASHEET_PHOTOS } from '../../../core/collectionPhotos'
@@ -47,7 +48,7 @@ export function PhotoDropZone({ entryId, name, className = '' }: { entryId: stri
 
   return (
     <div
-      className={`flex flex-col gap-1 ${className}`}
+      className={cn('flex flex-col gap-1', className)}
       onDragOver={(event) => {
         event.preventDefault()
         setDragging(true)

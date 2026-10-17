@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { zipSync, gzipSync, type Zippable } from 'fflate'
 import rawLock from '../../catalogue.json' with { type: 'json' }
 import rawRevocations from '../../catalogue/revocations.json' with { type: 'json' }
@@ -17,6 +19,8 @@ import pRetry from 'p-retry'
 import { readCatalogueComposition } from './catalogueComposition'
 import { extractCatalogueArchive, hashCatalogueFile, downloadCatalogueObject } from './catalogueArchive'
 import { PRIVATE_CATALOGUE_BASE, fetchCatalogueObject } from './catalogueStore'
+import { byteLimit } from './boundedBody'
+import { replaceFile, replaceFileSync } from './replaceFile'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
@@ -386,13 +390,7 @@ function installManifestFiles(
           } catch (error) {
             const code = (error as NodeJS.ErrnoException).code
             if (code === 'EXDEV') {
-              const temporary = `${cached}.${randomUUID()}`
-              try {
-                fs.copyFileSync(entry.file, temporary)
-                fs.renameSync(temporary, cached)
-              } finally {
-                fs.rmSync(temporary, { force: true })
-              }
+              replaceFileSync(cached, (temporary) => fs.copyFileSync(entry.file, temporary))
             } else if (code !== 'EEXIST') throw error
           }
         }
@@ -455,13 +453,11 @@ async function fetchSnapshotObjects(
 ) {
   const base = baseUrl.replace(/\/$/, '')
   const request = async (url: string) => {
-    try {
-      const response = await fetchCatalogueObject(url)
-      if (!response.ok) throw new CatalogueObjectTransportError(`catalogue object answered ${response.status}`)
-      return response
-    } catch (error) {
+    const response = await fetchCatalogueObject(url).catch((error: unknown) => {
       throw new CatalogueObjectTransportError('catalogue object transport failed', { cause: error })
-    }
+    })
+    if (!response.ok) throw new CatalogueObjectTransportError(`catalogue object answered ${response.status}`)
+    return response
   }
   const response = await request(`${base}/manifests/${pointer.id}.json`)
   const manifestFile = path.join(objectCache(directory), `manifest-${pointer.id}-${randomUUID()}`)
@@ -486,13 +482,9 @@ async function fetchSnapshotObjects(
         const hash = hashes[cursor++]!
         const file = path.join(objectCache(directory), hash)
         if (!fs.existsSync(file) || fs.statSync(file).size > 64 * 1024 * 1024 || hashCatalogueFile(file) !== hash) {
-          const temporary = `${file}.${randomUUID()}`
-          try {
-            await downloadCatalogueObject(await request(`${base}/objects/${hash}.gz`), temporary, hash)
-            fs.renameSync(temporary, file)
-          } finally {
-            fs.rmSync(temporary, { force: true })
-          }
+          await replaceFile(file, async (temporary) =>
+            downloadCatalogueObject(await request(`${base}/objects/${hash}.gz`), temporary, hash),
+          )
         }
         const bytes = fs.statSync(file).size
         total += bytes
@@ -621,6 +613,7 @@ export async function fetchSnapshot(
       return true
     } catch (error) {
       if (!(error instanceof CatalogueObjectTransportError)) throw error
+      console.warn({ event: 'catalogue_objects_unavailable', error })
     }
   }
   report(`fetching catalogue snapshot ${pointer.id.slice(0, 10)}`)
@@ -664,14 +657,10 @@ export async function downloadSnapshotArchive(
   pointer = catalogueLock.pointer,
   revisions: Record<string, string> | undefined = catalogueLock.revisions,
 ) {
-  const temporary = `${archiveFile}.${randomUUID()}`
-  try {
+  await replaceFile(archiveFile, async (temporary) => {
     await saveSnapshotArchive(baseUrl, pointer, temporary)
     verifyArchiveFile(temporary, pointer, revisions)
-    fs.renameSync(temporary, archiveFile)
-  } finally {
-    fs.rmSync(temporary, { force: true })
-  }
+  })
 }
 
 export function verifySnapshotArchive(archiveFile: string, pointerFile: string) {
@@ -718,24 +707,12 @@ async function saveSnapshotArchive(baseUrl: string, pointer: SnapshotPointer, fi
 async function saveResponse(response: Response, file: string, limit = MAX_ARCHIVE_BYTES) {
   if (!response.body) throw new Error('catalogue snapshot response has no body')
   fs.mkdirSync(path.dirname(file), { recursive: true })
-  const fd = fs.openSync(file, 'wx')
-  const reader = response.body.getReader()
-  let bytes = 0
+  const handle = await fs.promises.open(file, 'wx')
   try {
-    while (true) {
-      const chunk = await reader.read()
-      if (chunk.done) break
-      bytes += chunk.value.length
-      if (bytes > limit) throw new Error('catalogue snapshot archive is too large')
-      fs.writeFileSync(fd, chunk.value)
-    }
+    await pipeline(Readable.from(response.body), byteLimit(limit, 'catalogue snapshot archive is too large'), handle.createWriteStream())
   } catch (error) {
-    await reader.cancel().catch(() => {})
     fs.rmSync(file, { force: true })
     throw error
-  } finally {
-    fs.closeSync(fd)
-    reader.releaseLock()
   }
 }
 

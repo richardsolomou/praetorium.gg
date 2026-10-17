@@ -1,10 +1,11 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { unzipSync, zipSync } from 'fflate'
 import { readCatalogueRuntime, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
 import { fetchWithRetry } from '../../src/server/fetch'
 import { DEFAULT_PUBLIC_ASSETS_BASE_URL } from '../../src/server/objectStorage'
+import { replaceDirectory } from './replaceDirectory'
 import { publicAssetsR2Client } from '../../src/server/r2Client'
 
 const MAX_BYTES = 128 * 1024 * 1024
@@ -54,15 +55,7 @@ export function installRuntimeArchive(directory: string, output: string, bytes: 
     for (const [name, value] of Object.entries(entries)) fs.writeFileSync(path.join(staging, name), value)
     const runtime = readCatalogueRuntime(directory, staging)
     for (const key of Object.keys(manifest.files)) runtime.read(key as 'startup')
-    const previous = `${output}.previous-${randomUUID()}`
-    if (fs.existsSync(output)) fs.renameSync(output, previous)
-    try {
-      fs.renameSync(staging, output)
-    } catch (error) {
-      if (fs.existsSync(previous)) fs.renameSync(previous, output)
-      throw error
-    }
-    fs.rmSync(previous, { recursive: true, force: true })
+    replaceDirectory(staging, output)
   } finally {
     fs.rmSync(staging, { recursive: true, force: true })
   }

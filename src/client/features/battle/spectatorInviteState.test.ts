@@ -49,7 +49,7 @@ describe('spectator invite suppression', () => {
   })
 
   function stubStorage(stored: Record<string, string> = {}) {
-    vi.stubGlobal('window', {})
+    vi.stubGlobal('window', new EventTarget())
     vi.stubGlobal('localStorage', {
       getItem: (key: string) => stored[key] ?? null,
       setItem: (key: string, value: string) => {
@@ -77,12 +77,12 @@ describe('spectator invite suppression', () => {
 
   it('hides the invite inside the native application', async () => {
     stubStorage()
-    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3 } })
+    vi.stubGlobal('window', Object.assign(new EventTarget(), { PraetoriumNative: { bridgeVersion: 3 } }))
     expect((await load()).spectatorInviteSuppressed()).toBe(true)
   })
 
   it('keeps the invite shown when browser storage cannot be read', async () => {
-    vi.stubGlobal('window', {})
+    vi.stubGlobal('window', new EventTarget())
     vi.stubGlobal('localStorage', {
       getItem: () => {
         throw new Error('blocked')
@@ -92,7 +92,7 @@ describe('spectator invite suppression', () => {
   })
 
   it('keeps a dismissal for the open page when browser storage refuses it', async () => {
-    vi.stubGlobal('window', {})
+    vi.stubGlobal('window', new EventTarget())
     vi.stubGlobal('localStorage', {
       getItem: () => null,
       setItem: () => {

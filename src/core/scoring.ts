@@ -1,21 +1,9 @@
-export type MissionAward = {
-  vp: number
-  per: string | null
-  mode: string | null
-  max: number | null
-  group: string | null
-  cumulative: boolean
-  criteria: string | null
-  trigger: AwardTrigger
-}
+import type { z } from 'zod'
+import type { missionAwardSchema } from './commands'
 
-export type AwardTrigger = {
-  timing: string | null
-  phase: string | null
-  playerTurn: string | null
-  roundMin: number | null
-  roundMax: number | null
-}
+export type MissionAward = z.infer<typeof missionAwardSchema>
+
+export type AwardTrigger = MissionAward['trigger']
 
 export type DueCard = {
   key: string

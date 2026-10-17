@@ -16,6 +16,7 @@ import { mutationRpc, rpc } from '../rpc'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { calculateRosterTotals } from '../../shared/pricing'
 import { captureRosterCreated } from '../rosterTelemetry'
+import { rosterRow } from '../rosterPersistence'
 
 async function syncRefusal(error: unknown) {
   if (error instanceof Response && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 429)
@@ -57,18 +58,10 @@ export const syncRoster = createServerFn({ method: 'POST' })
             )
           : null
       const row = {
-        ...data.roster,
+        ...rosterRow(data.roster),
         userId: player.id,
         automaticName,
         name: data.roster.name || totals?.label || '',
-        detachmentId: JSON.stringify(data.roster.detachmentIds),
-        picks: JSON.stringify(data.roster.picks),
-        prep: data.roster.prep ? JSON.stringify(data.roster.prep) : null,
-        tags: '[]',
-        waivedRules: JSON.stringify(data.roster.waivedRules),
-        optionalRules: JSON.stringify(data.roster.optionalRules),
-        baseRosterId: data.roster.baseRosterId ?? null,
-        copiedFromRosterId: data.roster.copiedFromRosterId ?? null,
         now: Date.now(),
       }
       const result = await instance.service.syncRoster({

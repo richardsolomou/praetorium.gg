@@ -15,6 +15,7 @@ import { primaryUnitProfile } from '../../datasheet'
 import { Loadout } from './builder/Loadout'
 import { ProfileRules } from './ProfileRules'
 import { normalisePicks } from './rosterPicks'
+import { countLabel } from '../../text'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -164,8 +165,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           <p>Battle reference pack</p>
           <h1>{input.name || 'Roster'}</h1>
           <p>
-            {data.faction.displayName} · {input.price.points}/{pointsBudgetOf(input)} points · {data.groups.length}{' '}
-            {data.groups.length === 1 ? 'unit' : 'units'} · {models(input.price.units.reduce((count, unit) => count + unit.size.models, 0))}
+            {data.faction.displayName} · {input.price.points}/{pointsBudgetOf(input)} points · {countLabel(data.groups.length, 'unit')} ·{' '}
+            {countLabel(
+              input.price.units.reduce((count, unit) => count + unit.size.models, 0),
+              'model',
+            )}
           </p>
           <p>Rules version: {rulesVersionLabel({ ...data.faction, edition: input.price.edition ?? data.faction.edition })}</p>
           <p>
@@ -221,7 +225,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   {[host, ...joined]
                     .map(
                       (unit) =>
-                        `${unit.name} (${models(unit.size.models)}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
+                        `${unit.name} (${countLabel(unit.size.models, 'model')}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
                     )
                     .join(' + ')}
                 </a>
@@ -238,7 +242,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             {[host, ...joined].map((unit) => (
               <div key={unit.key} data-print-datasheet={unit.name}>
                 <h3>
-                  {unit.name} · {models(unit.size.models)} · {unit.points} pts
+                  {unit.name} · {countLabel(unit.size.models, 'model')} · {unit.points} pts
                   {unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ' · Warlord' : ''}
                 </h3>
                 {input.picks[unit.key]?.note ? (
@@ -376,4 +380,3 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
 }
 
 const noop = () => {}
-const models = (count: number) => `${count} ${count === 1 ? 'model' : 'models'}`

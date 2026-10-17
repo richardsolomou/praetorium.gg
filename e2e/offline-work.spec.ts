@@ -13,7 +13,7 @@ import {
   startBattle,
   advance,
 } from './account'
-import { battleLog, productOperator, savedWork, withAuthSql } from './storage'
+import { battleLog, productOperator, savedWork, userIdFor } from './storage'
 import { chooseCombatUnit } from './combat'
 
 test.use({ actionTimeout: 15_000 })
@@ -186,11 +186,9 @@ test('an offline practice battle and its commands survive reopening and sync tog
   const account = await signUp(page, uniqueName('Offline battle'))
   const operator = await productOperator()
   const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
-    id: string
-  }
+  const userId = await userIdFor(account.email)
   const rosterId = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id: rosterId, userId: user.id, name: 'Flight army', automaticName: false, now: Date.now() })
+  await operator.saveRoster({ ...source, id: rosterId, userId, name: 'Flight army', automaticName: false, now: Date.now() })
   await page.goto('/rosters')
   await page.reload()
   await expect(page.locator('[data-roster="Flight army"]')).toBeVisible()
@@ -278,13 +276,11 @@ test('a battle conflict awaiting review does not stop connected play', async ({ 
   const account = await signUp(page, uniqueName('Battle conflict'))
   const operator = await productOperator()
   const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
-    id: string
-  }
+  const userId = await userIdFor(account.email)
   await operator.saveRoster({
     ...source,
     id: crypto.randomUUID(),
-    userId: user.id,
+    userId,
     name: 'Flight army',
     automaticName: false,
     now: Date.now(),

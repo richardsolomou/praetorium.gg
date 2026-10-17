@@ -113,10 +113,6 @@ export function mfmPrice(unit: MfmUnit, models: number, copy: number): number | 
   if (prices.length) return prices.length === 1 ? prices[0]!.points : null
   return costs.length === 2 && models > costs[0]!.models && models < costs[1]!.models ? costs[1]!.points : null
 }
-export function mfmFirstCopyRows(unit: MfmUnit) {
-  const tier = unit.pricing.find((candidate) => copyRange(candidate.range, 1))
-  return tier?.costs.filter((cost) => !cost.addon) ?? []
-}
 export function mfmCostRows(unit: MfmUnit) {
   return unit.pricing.flatMap((tier) =>
     tier.costs

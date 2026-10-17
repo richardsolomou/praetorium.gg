@@ -47,7 +47,11 @@ vi.mock('./app', () => ({
   app: () => ({
     catalogueFor: async () => null,
     rulesFor: async () => null,
-    auth: { $context: Promise.resolve({ baseURL: 'https://praetorium.gg/api/auth', internalAdapter: {} }) },
+    auth: {
+      $context: Promise.resolve({ baseURL: 'https://praetorium.gg/api/auth', internalAdapter: {} }),
+      mcpResource: 'https://praetorium.gg/mcp',
+      issuer: 'https://praetorium.gg/api/auth',
+    },
   }),
 }))
 

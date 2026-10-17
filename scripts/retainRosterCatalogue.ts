@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import recipe from '../catalogue/retained-profile-build.json' with { type: 'json' }
 import { packCatalogueSnapshot, verifyInstalledSnapshot } from '../src/server/catalogueSnapshot'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 export function retainRosterCatalogue(source: string, icons: string, output: string) {
   const sourcePointer = verifyInstalledSnapshot(source)
@@ -79,7 +79,7 @@ fs.writeFileSync(path.join(output, '..', 'reference-policy.json'), JSON.stringif
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+if (isEntryPoint(import.meta.url)) {
   const [source, icons, output] = process.argv.slice(2)
   if (!source || !icons || !output || process.argv.length !== 5)
     throw new Error('Usage: retainRosterCatalogue.ts <verified-historical-directory> <verified-icons-directory> <new-output-directory>')

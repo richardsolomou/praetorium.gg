@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -6,30 +5,21 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { useQrCode } from '../../components/useQrCode'
 import { useOrigin } from '../../useOrigin'
 import { ROSTER_EXCHANGE_QR_MAX_LENGTH, rosterExchangeLink } from '../../../core/rosterExchange'
+import { Problem } from '../../components/Problem'
+import { useCopyText } from '../../useCopyText'
 
 export type RosterExchangeCode = { name: string; code: string }
 
 export function RosterExchangeDialog({ exchange, onClose }: { exchange: RosterExchangeCode | null; onClose: () => void }) {
   const origin = useOrigin()
-  const [copied, setCopied] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
-  const copyAttempt = useRef(0)
+  const { copy: copyText, copied, problem, reset } = useCopyText()
   const link = exchange && origin ? rosterExchangeLink(origin, exchange.code) : null
   const fits = link !== null && link.length <= ROSTER_EXCHANGE_QR_MAX_LENGTH
   const { image, failed } = useQrCode(fits ? link : null, 640, 'L')
   const copy = async () => {
     if (!exchange) return
-    const attempt = ++copyAttempt.current
-    setCopied(false)
-    setProblem(null)
-    try {
-      await navigator.clipboard.writeText(exchange.code)
+    if (await copyText(exchange.code, { failure: 'Copy failed. Select the code to copy it.', operation: 'roster_exchange_code_copy' }))
       posthog.capture('roster_exchange_code_copied', { code_length: exchange.code.length })
-      if (attempt === copyAttempt.current) setCopied(true)
-    } catch (error) {
-      posthog.captureException(error, { operation: 'roster_exchange_code_copy' })
-      if (attempt === copyAttempt.current) setProblem('Copy failed. Select the code to copy it.')
-    }
   }
 
   return (
@@ -37,9 +27,7 @@ export function RosterExchangeDialog({ exchange, onClose }: { exchange: RosterEx
       open={exchange !== null}
       onOpenChange={(open) => {
         if (open) return
-        copyAttempt.current++
-        setCopied(false)
-        setProblem(null)
+        reset()
         onClose()
       }}
     >
@@ -75,11 +63,7 @@ export function RosterExchangeDialog({ exchange, onClose }: { exchange: RosterEx
           >
             {exchange?.code}
           </pre>
-          {problem ? (
-            <p role="alert" className="text-sm text-destructive">
-              {problem}
-            </p>
-          ) : null}
+          {problem ? <Problem>{problem}</Problem> : null}
         </DialogBody>
         <DialogFooter>
           <Button onClick={() => void copy()}>

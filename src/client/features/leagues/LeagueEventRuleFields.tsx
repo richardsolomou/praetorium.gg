@@ -1,6 +1,6 @@
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { GAME_SIZES } from '../../../core/battle'
+import { battleSizeOptionLabel, GAME_SIZES, pointsLabel } from '../../../core/battle'
 import { leagueRosterSplit, LEAGUE_DEFAULT_ROSTER_LIMIT, LEAGUE_TEAM_ROSTER_LIMITS } from '../../../core/league'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
@@ -27,7 +27,7 @@ export function LeagueEventRuleFields({
     const split = leagueRosterSplit(value.format, limit)
     if (split) return split
     const size = GAME_SIZES.find((candidate) => candidate.limit === limit)
-    return size ? `${size.name} · ${limit.toLocaleString('en')} points` : `${limit.toLocaleString('en')} points per player`
+    return size ? battleSizeOptionLabel(size) : `${pointsLabel(limit)} per player`
   }
 
   return (

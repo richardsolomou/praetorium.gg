@@ -3,7 +3,7 @@ import { createRouter, type ErrorComponentProps, useRouter } from '@tanstack/rea
 import { useEffect, useState } from 'react'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { Button } from '@/components/ui/button'
-import { PageState } from './client/components/PageState'
+import { FullPageState } from './client/components/PageState'
 import { createQueryClient } from './client/queryClient'
 import { isModuleLoadFailure } from './client/networkErrors'
 import { mayReloadCancelledLoad, reportRouteError, routeErrorExplanation } from './client/routeErrors'
@@ -22,20 +22,17 @@ function RouteError({ error }: ErrorComponentProps) {
   }, [reload, router])
   if (reload) return null
   return (
-    <main className="flex w-full">
-      <PageState
-        className="flex-1 border-x-0 border-t-0"
-        title="Something went wrong"
-        explanation={routeErrorExplanation(error)}
-        action={
-          isModuleLoadFailure(error) ? (
-            <Button onClick={() => window.location.reload()}>Reload</Button>
-          ) : (
-            <Button onClick={() => void router.invalidate()}>Try again</Button>
-          )
-        }
-      />
-    </main>
+    <FullPageState
+      title="Something went wrong"
+      explanation={routeErrorExplanation(error)}
+      action={
+        isModuleLoadFailure(error) ? (
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+        ) : (
+          <Button onClick={() => void router.invalidate()}>Try again</Button>
+        )
+      }
+    />
   )
 }
 

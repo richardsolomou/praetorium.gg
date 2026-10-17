@@ -8,7 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { createBattle, leagueBattleOptions } from '../../functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { useNativeShare } from '../../nativeBridge'
@@ -28,6 +27,7 @@ import {
 import { MANUAL_TRACKING_LIMITS } from '../battle/manualTracking'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
 import type { SearchableGroup } from '../../components/SearchableSelect'
+import { Problem } from '../../components/Problem'
 
 /** A seat this player may fill: a friend, or one of the instance's practice opponents. */
 type Opponent = { id: string; name: string; image: string | null; automated: boolean }
@@ -167,7 +167,7 @@ export function CreateBattle() {
                   </button>
                 ))}
               </div>
-              {create.error ? <p className="text-sm text-destructive">{errorMessage(create.error)}</p> : null}
+              {create.error ? <Problem error={create.error} /> : null}
             </DialogBody>
             <DialogFooter>
               <Button variant="outline" disabled={create.isPending} onClick={() => setLeagueMatches([])}>
@@ -254,9 +254,7 @@ export function CreateBattle() {
                 />
                 {tracking === 'manual' ? <p className="mt-1.5 text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
               </div>
-              {create.error || opponentQuery.error ? (
-                <p className="text-sm text-destructive">{errorMessage(create.error ?? opponentQuery.error)}</p>
-              ) : null}
+              {create.error || opponentQuery.error ? <Problem error={create.error ?? opponentQuery.error} /> : null}
             </DialogBody>
             <DialogFooter>
               <Button variant="outline" disabled={create.isPending} onClick={() => changeOpen(false)}>

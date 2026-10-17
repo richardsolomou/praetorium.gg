@@ -1,7 +1,7 @@
 import { expect, type Page, test } from './test'
 import { befriend, chooseRosterAction, confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator, withAuthSql } from './storage'
+import { productOperator, userIdFor } from './storage'
 
 const UNIT = 'Immortals'
 const NOTE = 'Discovery note stays with the owner'
@@ -183,9 +183,7 @@ for (const [width, label] of [
     const viewport = { width, height: width === 390 ? 844 : 900 }
     const publisher = await (await browser.newContext({ viewport })).newPage()
     const account = await signUp(publisher, uniqueName('Prolific publisher'))
-    const { id: userId } = (await withAuthSql((database) =>
-      database.prepare('SELECT id FROM user WHERE email = ?').get(account.email),
-    )) as { id: string }
+    const userId = await userIdFor(account.email)
     const product = await productOperator()
     const source = (await product.roster('preview-necrons-cursed-skyshroud'))!
     const prefix = uniqueName('Scrolled army')

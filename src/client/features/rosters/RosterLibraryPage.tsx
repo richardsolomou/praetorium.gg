@@ -49,6 +49,7 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
 import { useRosterPages } from './rosterPages'
 import { errorMessage } from '../../queryClient'
+import { Problem } from '../../components/Problem'
 
 export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility; updates?: RosterUpdateFilter }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
@@ -243,11 +244,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           }}
         />
         {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
-        {actions.lock.isError ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(actions.lock.error)}
-          </p>
-        ) : null}
+        {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
         {actions.exchange.isError ? (
           <p role="alert" className="text-sm text-destructive">
             Could not make an exchange code: {errorMessage(actions.exchange.error)}

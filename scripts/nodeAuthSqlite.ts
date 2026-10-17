@@ -2,7 +2,7 @@ import { chmod, readFile, rename, rm, stat } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { DatabaseSync, backup } from 'node:sqlite'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 const requiredTables = ['user', 'session', 'account', 'verification', 'twoFactor', 'rateLimit', 'jwks']
 const hasTable = (database: DatabaseSync, table: string) =>
@@ -128,7 +128,7 @@ export async function backupAuthSqlite(source: string, target: string) {
 }
 
 const [, , command, first, second] = process.argv
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   if (!first || (command !== 'verify' && !second)) throw new Error('Usage: nodeAuthSqlite.ts import|backup|verify SOURCE [TARGET]')
   const result =
     command === 'import'

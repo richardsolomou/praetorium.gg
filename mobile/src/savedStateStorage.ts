@@ -28,7 +28,13 @@ export function readSavedState<T>(name: string, limit: number, parse: (value: un
   return null
 }
 
-export function writeSavedState(name: string, value: unknown, id: string, limit: number, retainPrevious = true) {
+export function writeSavedState(
+  name: string,
+  value: unknown,
+  id: string,
+  limit: number,
+  { retainPrevious = true, readBack = true }: { retainPrevious?: boolean; readBack?: boolean } = {},
+) {
   const serialized = JSON.stringify(value)
   const size = new TextEncoder().encode(serialized).byteLength
   if (size > limit) throw new Error('Saved changes exceed the storage limit')
@@ -39,7 +45,7 @@ export function writeSavedState(name: string, value: unknown, id: string, limit:
   const file = new File(root, `${id}.tmp`)
   try {
     file.writeSync(serialized)
-    if (file.size !== size || file.textSync() !== serialized) throw new Error('Incomplete saved-data write')
+    if (file.size !== size || (readBack && file.textSync() !== serialized)) throw new Error('Incomplete saved-data write')
     file.moveSync(new File(root, `${generation}-${id}.json`))
   } finally {
     if (file.exists && file.name.endsWith('.tmp')) file.delete()

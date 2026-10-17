@@ -4,6 +4,8 @@ const MEMO_LIMIT = 300
 const memo = new Map<string, Promise<unknown>>()
 let memoRevision: string | undefined
 
+export const snapshotRevision = () => process.env.CATALOGUE_SNAPSHOT_ID ?? app().catalogue()?.index.revision
+
 /**
  * One computed answer per input for every reader until the catalogue snapshot changes.
  *
@@ -12,7 +14,7 @@ let memoRevision: string | undefined
  * Answers are shared between callers and must not be mutated.
  */
 export function memoUntilSnapshotChanges<T>(scope: string, input: unknown, compute: () => Promise<T>): Promise<T> {
-  const revision = process.env.CATALOGUE_SNAPSHOT_ID ?? app().catalogue()?.index.revision
+  const revision = snapshotRevision()
   if (!revision) return compute()
   if (revision !== memoRevision) {
     memo.clear()

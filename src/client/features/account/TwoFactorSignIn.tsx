@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authClient, authRedirectUrl } from '../../authClient'
+import { Problem } from '../../components/Problem'
 
 export function TwoFactorSignIn({
   onBack,
@@ -63,7 +64,7 @@ export function TwoFactorSignIn({
         />
         Trust this device for 30 days
       </label>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Problem>{error}</Problem> : null}
       <Button type="submit" className="h-11 w-full text-base" disabled={busy || !code.trim()}>
         {busy ? 'Verifying…' : 'Verify and sign in'}
       </Button>

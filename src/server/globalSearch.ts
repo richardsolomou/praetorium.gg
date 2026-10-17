@@ -35,10 +35,6 @@ type Sources = {
 
 const globalSearchIndexes = new WeakMap<LoadedCatalogue, { rules: LoadedRules | null; index: GlobalSearchIndex }>()
 
-export function prepareGlobalSearch(catalogue: LoadedCatalogue | null, rules: LoadedRules | null) {
-  if (catalogue) globalSearchIndexFor(catalogue, rules)
-}
-
 function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueIds?: ReadonlySet<string>): GlobalSearchIndex {
   const cached = globalSearchIndexes.get(loaded)
   if (!catalogueIds && cached?.rules === rules) return cached.index

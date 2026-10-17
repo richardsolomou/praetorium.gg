@@ -2,6 +2,7 @@ import path from 'node:path'
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
 import os from 'node:os'
+import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { deploymentHost, serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRulesSteps } from './rules'
@@ -145,9 +146,10 @@ const sync = {
         onReady()
       })
       .catch((error: unknown) => {
-        this.state = installedSnapshot(directory)
-          ? { status: 'ready', detail: null }
-          : { status: 'failed', detail: error instanceof Error ? error.message : 'the fetch failed' }
+        if (installedSnapshot(directory)) {
+          console.error({ event: 'catalogue_refresh_failed', error })
+          this.state = { status: 'ready', detail: null }
+        } else this.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the fetch failed' }
       })
       .finally(() => {
         this.running = false
@@ -156,7 +158,7 @@ const sync = {
 }
 
 const SLICE_MS = 20
-const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve).unref())
+const nextTurn = () => yieldToEventLoop(undefined, { ref: false })
 
 /**
  * Loads the projections every page needs, then resolves and builds each faction's construction
@@ -179,7 +181,7 @@ export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCata
   if (process.env.LOCAL_TEST_MODE === 'true') return
   const { construction } = instance
   void inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
-    console.error('Catalogue construction failed:', error instanceof Error ? error.message : String(error))
+    console.error({ event: 'catalogue_construction_failed', error })
   })
 }
 
@@ -342,9 +344,7 @@ export function app(): App {
           if (sync.state.status !== 'ready') throw new Error(`Catalogue ${sync.state.status}`)
           await Promise.all([localAuth.client.execute('select 1'), operator.health()])
         } catch (error) {
-          console.error('Hosted health check failed:', error instanceof Error ? error.message : String(error), {
-            accessConfigured: Boolean(spacetimeAccess),
-          })
+          console.error({ event: 'health_check_failed', accessConfigured: Boolean(spacetimeAccess), error })
           throw error
         }
       },
@@ -380,7 +380,7 @@ export function app(): App {
     // Hourly, because a one-time sponsorship ends without GitHub announcing it.
     const refreshSponsors = () =>
       void githubSponsors.refresh().catch((error: unknown) => {
-        console.error('GitHub sponsor refresh failed:', error instanceof Error ? error.message : String(error))
+        console.error({ event: 'github_sponsor_refresh_failed', error })
       })
     if (githubSponsors.configured) {
       refreshSponsors()
@@ -388,7 +388,7 @@ export function app(): App {
     }
     const drainPhotoDeletions = () =>
       void collectionPhotos.drainDeletions().catch((error: unknown) => {
-        console.error('Collection photo deletion failed:', error instanceof Error ? error.message : String(error))
+        console.error({ event: 'collection_photo_deletion_failed', error })
       })
     setInterval(drainPhotoDeletions, 10 * 60 * 1000).unref()
     if (process.env.NODE_ENV === 'production')

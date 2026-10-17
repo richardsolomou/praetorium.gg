@@ -9,11 +9,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../../authConfig'
-import { setOwnPassword, unlinkOwnAccount } from '../../functions'
-import { mcpConnections, revokeMcpConnection } from '../../../server/functions/mcpConnections'
+import { revokeMcpConnection, setOwnPassword, unlinkOwnAccount } from '../../functions'
 import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
-import { accountMethodsQuery, meQuery } from '../../queries'
+import { accountMethodsQuery, mcpConnectionsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
 import { GithubSupporter } from './GithubSupporter'
 import {
@@ -28,6 +27,8 @@ import {
 } from '../../components/Dialog'
 import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
+import { Problem } from '../../components/Problem'
+import { useCopyText } from '../../useCopyText'
 
 type AccountIdentity = {
   email: string
@@ -38,7 +39,7 @@ type DialogKind = 'create-password' | 'change-password' | 'delete-account' | 'tw
 
 export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy: ReactNode }) {
   const methodsResult = useQuery(accountMethodsQuery())
-  const connectionsResult = useQuery({ queryKey: ['mcp-connections'], queryFn: () => mcpConnections() })
+  const connectionsResult = useQuery(mcpConnectionsQuery())
   const { data: methods, isPending: methodsPending } = methodsResult
   const queryClient = useQueryClient()
   const [dialog, setDialog] = useState<DialogKind>()
@@ -116,11 +117,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                 >
                   {verificationSent ? 'Verification email sent' : 'Send verification email'}
                 </Button>
-                {verifyEmail.error ? (
-                  <p role="alert" className="mt-2 text-sm text-destructive">
-                    {verifyEmail.error}
-                  </p>
-                ) : null}
+                {verifyEmail.error ? <Problem className="mt-2">{verifyEmail.error}</Problem> : null}
               </div>
             ) : null}
             <MethodRow
@@ -291,7 +288,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                 setConnectionError(false)
                 try {
                   await revokeMcpConnection({ data: { id: connection.id } })
-                  await queryClient.invalidateQueries({ queryKey: ['mcp-connections'] })
+                  await queryClient.invalidateQueries({ queryKey: mcpConnectionsQuery().queryKey })
                 } catch {
                   setConnectionError(true)
                 } finally {
@@ -453,7 +450,7 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
           />
           <span>I understand that my account and its battles cannot be recovered.</span>
         </label>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Keep account</DialogClose>
@@ -549,7 +546,7 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
             required
           />
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
@@ -608,7 +605,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
             required
           />
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
@@ -636,7 +633,7 @@ function RemoveMethodDialog({
     <AccountDialog title={method === 'credential' ? 'Remove password sign-in' : `Unlink ${label}`} onClose={onClose}>
       <DialogBody>
         <p className="text-sm text-dim">You will no longer be able to sign in with {label}. Your other linked method will keep working.</p>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>
@@ -673,7 +670,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
   const [qrCode, setQrCode] = useState('')
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [verified, setVerified] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const { copy, copied, problem: copyProblem } = useCopyText()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -691,6 +688,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
               <span key={backupCode}>{backupCode}</span>
             ))}
           </div>
+          {copyProblem ? <Problem>{copyProblem}</Problem> : null}
         </DialogBody>
         {/* Reading order on a phone: copying comes before the button that puts the codes away for good. */}
         <DialogFooter className="flex-col">
@@ -698,9 +696,13 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
             type="button"
             variant="outline"
             onClick={async () => {
-              await navigator.clipboard.writeText(backupCodes.join('\n'))
-              posthog.capture('two_factor_recovery_codes_copied')
-              setCopied(true)
+              if (
+                await copy(backupCodes.join('\n'), {
+                  failure: 'Copy failed. Select the codes to copy them.',
+                  operation: 'two_factor_recovery_codes_copy',
+                })
+              )
+                posthog.capture('two_factor_recovery_codes_copied')
             }}
           >
             {copied ? (
@@ -750,7 +752,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
               required
             />
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <Problem>{error}</Problem> : null}
         </DialogBody>
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
@@ -796,7 +798,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
             required
           />
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
@@ -841,7 +843,7 @@ function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }
             required
           />
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Keep two-factor</DialogClose>

@@ -8,6 +8,7 @@ import type { BattleView } from '../../../../core/battleView'
 import {
   battlePointsBudget,
   battleSizeLabel,
+  battleSizeOptionLabel,
   GAME_SIZES,
   isKotcLimit,
   pointsBudgetsAgree,
@@ -34,6 +35,7 @@ import { tint } from '../battleTints'
 import { TableStrip } from './TableStrip'
 import { Choice } from '../../../components/Choice'
 import { MANUAL_TRACKING_LIMITS } from '../manualTracking'
+import { formatList } from '../../../text'
 
 type Props = {
   view: BattleView
@@ -61,7 +63,7 @@ function matchupName(table: Side[], nameDisposition: (id: string | null | undefi
 const SIZE_OPTIONS: SearchableGroup[] = [
   {
     label: '',
-    items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit.toLocaleString('en')} points`, value: String(size.limit) })),
+    items: GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })),
   },
 ]
 
@@ -228,7 +230,10 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
     view.settings.limit === null
       ? 'Determined by your rosters'
       : pointsBudget === null
-        ? `${GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle'} · ${view.settings.limit.toLocaleString('en')} points`
+        ? battleSizeOptionLabel({
+            name: GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle',
+            limit: view.settings.limit,
+          })
         : battleSizeLabel(view.settings.limit, pointsBudget)
   // The size and pack fold away once there is nothing to settle in them.
   const formatOpen = isOpen('armies') || !sizeFixed || (!manual && (!chosenPack || (references?.packs.length ?? 0) > 1))
@@ -252,9 +257,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           complete={complete.armies}
           hint={
             owed.length
-              ? `Choose an army for ${owed.map((army) => army.playerName).join(' and ')}.`
+              ? `Choose an army for ${formatList(owed.map((army) => army.playerName))}.`
               : awaited.length
-                ? `Waiting for ${awaited.map((army) => army.playerName).join(' and ')} to choose an army.`
+                ? `Waiting for ${formatList(awaited.map((army) => army.playerName))} to choose an army.`
                 : (sizeProblem ??
                   (table.some((side) => side.armies.length > 1)
                     ? 'Battle size follows your rosters. Each side brings the same points; allies split them evenly.'

@@ -1,4 +1,5 @@
 import { combatCarriers } from '../core/combatLoadout'
+import { toBase64 } from '../core/base64'
 import { isWeaponProfile, type LoadoutBatch, type LoadoutCandidate, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
 import { evaluate, type ModifierCache } from '../core/evaluate'
 import type { BuiltUnit, RosterPick } from '../core/roster'
@@ -339,10 +340,7 @@ export function loadoutStates(choices: UnitChoice[]) {
  * state, so the digest is SHA-256, whose collisions are not a practical concern.
  */
 async function digest(value: string) {
-  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))
-  let text = ''
-  for (const byte of bytes) text += String.fromCharCode(byte)
-  return btoa(text)
+  return toBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))))
 }
 
 function loadoutRequestKey(pick: RosterPick): string {

@@ -4,7 +4,8 @@ import { Switch } from '@/components/ui/switch'
 import { DEFAULT_COLLECTION_PUBLISHED } from '../../../core/collection'
 import { setCollectionPublished } from '../../functions'
 import { collectionProfileQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
+import { Problem } from '../../components/Problem'
+import { SettingsSection } from './SettingsSection'
 
 export function CollectionSharing({ userId }: { userId: string }) {
   const switchId = useId()
@@ -17,13 +18,11 @@ export function CollectionSharing({ userId }: { userId: string }) {
     onSettled: () => client.invalidateQueries({ queryKey: query.queryKey }),
   })
   return (
-    <section id="collection-sharing" className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
-      <div>
-        <h2 className="rubric border-b border-edge pb-2">Collection</h2>
-        <p className="mt-2 text-sm text-dim">
-          Your profile’s Collection tab lists your datasheets with their owned, built and painted counts, your photos and your wishlist.
-        </p>
-      </div>
+    <SettingsSection
+      id="collection-sharing"
+      title="Collection"
+      description="Your profile’s Collection tab lists your datasheets with their owned, built and painted counts, your photos and your wishlist."
+    >
       <label htmlFor={switchId} className="flex items-center justify-between gap-4 border border-edge bg-sunken p-3">
         <span>
           <span className="block text-sm font-semibold text-bone">Show collection on profile</span>
@@ -36,7 +35,7 @@ export function CollectionSharing({ userId }: { userId: string }) {
           onCheckedChange={(next) => save.mutate(next)}
         />
       </label>
-      {error || save.error ? <p className="text-sm text-destructive">{errorMessage(error ?? save.error)}</p> : null}
-    </section>
+      {error || save.error ? <Problem error={error ?? save.error} /> : null}
+    </SettingsSection>
   )
 }

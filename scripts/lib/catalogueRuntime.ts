@@ -1,18 +1,16 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { createHash, randomUUID } from 'node:crypto'
-import { loadCatalogue } from '../../src/server/catalogueIndex'
-import { loadRules } from '../../src/server/rules'
+import { createHash } from 'node:crypto'
 import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { editionCatalogueId } from '../../src/core/catalogueEdition'
 import { catalogueRuntimeFingerprint, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
+import { loadSnapshot } from './catalogueSnapshotLoad'
+import { replaceDirectory } from './replaceDirectory'
 
 export function writeCatalogueRuntime(directory: string, output: string) {
-  const catalogue = loadCatalogue(directory)
-  if (!catalogue) throw new Error('Runtime catalogue is unavailable')
-  const rules = loadRules(directory, undefined, undefined, undefined, catalogue.datacards)
+  const { catalogue, rules } = loadSnapshot(directory)
   const versions = catalogueEditionLoaders(
     directory,
     () => catalogue,
@@ -74,15 +72,7 @@ export function writeCatalogueRuntime(directory: string, output: string) {
         }),
       ),
     )
-    const previous = `${output}.previous-${randomUUID()}`
-    if (fs.existsSync(output)) fs.renameSync(output, previous)
-    try {
-      fs.renameSync(staging, output)
-    } catch (error) {
-      if (fs.existsSync(previous)) fs.renameSync(previous, output)
-      throw error
-    }
-    fs.rmSync(previous, { recursive: true, force: true })
+    replaceDirectory(staging, output)
   } finally {
     fs.rmSync(staging, { recursive: true, force: true })
   }

@@ -24,6 +24,7 @@ import {
   terrainReferences,
 } from '../functions'
 import { referenceQuery, referenceStaleTime, SSR_STALE_TIME } from './shared'
+import { favouriteDatasheetsKey, favouriteDetachmentsKey, favouriteFactionsKey } from './queryKeys'
 
 export const factionQuery = (catalogueId: string) => referenceQuery(['faction', catalogueId], () => faction({ data: { catalogueId } }))
 export const factionIndexQuery = () => referenceQuery(['faction-index'], () => factionIndex())
@@ -37,19 +38,19 @@ export async function loadReferenceFaction(client: QueryClient, catalogueId: str
 }
 export const favouriteFactionsQuery = () =>
   queryOptions({
-    queryKey: ['favourite-factions'],
+    queryKey: favouriteFactionsKey(),
     queryFn: () => favouriteFactions(),
     staleTime: SSR_STALE_TIME,
   })
 export const favouriteDatasheetsQuery = () =>
   queryOptions({
-    queryKey: ['favourite-datasheets'],
+    queryKey: favouriteDatasheetsKey(),
     queryFn: () => favouriteDatasheets(),
     staleTime: SSR_STALE_TIME,
   })
 export const favouriteDetachmentsQuery = () =>
   queryOptions({
-    queryKey: ['favourite-detachments'],
+    queryKey: favouriteDetachmentsKey(),
     queryFn: () => favouriteDetachments(),
     staleTime: SSR_STALE_TIME,
   })

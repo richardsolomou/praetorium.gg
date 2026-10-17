@@ -115,4 +115,15 @@ describe('native tab memory', () => {
     forgetTab('/rosters/deleted-army')
     expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id' })
   })
+
+  it('keeps navigating when the browser refuses tab memory', () => {
+    vi.stubGlobal('window', {})
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('full')
+      },
+    })
+    expect(() => rememberTab('/rosters/army-id')).not.toThrow()
+  })
 })

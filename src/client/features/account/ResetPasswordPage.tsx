@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH } from '../../../authConfig'
 import { authClient } from '../../authClient'
 import { finishPasswordRecovery } from './passwordRecovery'
+import { Problem } from '../../components/Problem'
 
 export function ResetPasswordPage({ token, tokenError, next }: { token?: string; tokenError?: string; next?: string }) {
   const [password, setPassword] = useState('')
@@ -73,11 +74,7 @@ export function ResetPasswordPage({ token, tokenError, next }: { token?: string;
               <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
                 {submit.busy ? 'Resetting…' : 'Reset password'}
               </Button>
-              {submit.error ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {submit.error}
-                </p>
-              ) : null}
+              {submit.error ? <Problem>{submit.error}</Problem> : null}
             </form>
           )}
         </div>

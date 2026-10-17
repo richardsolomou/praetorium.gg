@@ -1,3 +1,4 @@
+import { groupBy } from '../core/collections'
 import { enforces, formatDatasheetLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import { type FactionRestrictions, restrictedBy } from './datacards'
 
@@ -63,9 +64,7 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
   }
   const toughnessNine = units.filter((unit) => unit.toughness === 9)
   if (enforces(waived, 'kotc-toughness') && toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
-  const byDatasheet = new Map<string, KotcUnit[]>()
-  for (const unit of units) byDatasheet.set(unit.entryId, [...(byDatasheet.get(unit.entryId) ?? []), unit])
-  for (const copies of byDatasheet.values()) {
+  for (const copies of groupBy(units, (unit) => unit.entryId).values()) {
     const allowance = formatDatasheetLimit(
       limit,
       copies.some((unit) => kotcDatasheetRepeatable(unit.keywords)),

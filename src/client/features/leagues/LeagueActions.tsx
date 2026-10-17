@@ -3,24 +3,14 @@ import { Link } from '@tanstack/react-router'
 import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { posthog } from 'posthog-js'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { deleteLeague } from '../../functions'
 import { leaguesQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 export type ManageableLeague = { token: string; name: string }
 
@@ -144,28 +134,21 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
   return (
     <>
       <LeagueSettingsDialog mode={{ kind: 'edit', token: actions.league.token }} open={actions.editing} onOpenChange={actions.setEditing} />
-      <AlertDialog open={actions.deleting} onOpenChange={(open) => !actions.remove.isPending && actions.setDeleting(open)}>
-        <AlertDialogContent aria-busy={actions.remove.isPending}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {actions.league.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Every event, entrant, and sealed roster goes with it, for good. Battles already started from it stay where they are.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {actions.remove.isPending ? <output className="sr-only">Deleting the league…</output> : null}
-          {actions.remove.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(actions.remove.error)}
-            </p>
-          ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actions.remove.isPending}>Keep league</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={actions.remove.isPending} onClick={() => actions.remove.mutate()}>
-              {actions.remove.isPending ? 'Deleting…' : 'Delete league'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={actions.deleting}
+        title={`Delete ${actions.league.name}?`}
+        description="Every event, entrant, and sealed roster goes with it, for good. Battles already started from it stay where they are."
+        cancel="Keep league"
+        confirm="Delete league"
+        pendingLabel="Deleting…"
+        destructive
+        pending={actions.remove.isPending}
+        error={actions.remove.error}
+        onClose={() => actions.setDeleting(false)}
+        onConfirm={() => actions.remove.mutate()}
+      >
+        {actions.remove.isPending ? <output className="sr-only">Deleting the league…</output> : null}
+      </ConfirmDialog>
     </>
   )
 }

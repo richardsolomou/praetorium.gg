@@ -6,7 +6,7 @@ import { rm } from 'node:fs/promises'
 import { isIP, type Socket } from 'node:net'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import httpProxy from 'http-proxy'
 import { backupAuthSqlite, importAuthSqlite, migrateAuthSqlite } from './nodeAuthSqlite.ts'
@@ -14,6 +14,7 @@ import { localPublicObject } from '../src/server/localPublicObject.ts'
 import { localObjectStore } from '../src/server/localObjectStore.ts'
 import { nodeLifecycle } from './lib/nodeLifecycle.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 const execFile = promisify(execFileCallback)
 
@@ -258,7 +259,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   console.log(`Node server ready on port ${publicPort}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   const lifecycle = nodeLifecycle()
   const shutdown = () => {
     void lifecycle.stop()

@@ -9,6 +9,7 @@
  */
 
 import type { CatalogueIndex, Definition } from './catalogue'
+import { groupBy } from './collections'
 import { childrenOf, MAX_DEPTH, modelProfileOf, resolve } from './definitions'
 import { hiddenByRules, type Selection } from './evaluate'
 import { defaultSelection } from './expand'
@@ -318,23 +319,6 @@ function standingModels(
   }
   walk(entry, [], options.depth ?? MAX_DEPTH, new Set())
   return found
-}
-
-/**
- * What each key gathers, in the order the keys first appear.
- *
- * `Map.groupBy` says the same thing, but it is ES2024 and this project pins its
- * library floor at ES2023. Replace this when that floor moves.
- */
-function groupBy<T>(entries: readonly T[], keyOf: (entry: T) => string): Map<string, T[]> {
-  const groups = new Map<string, T[]>()
-  for (const entry of entries) {
-    const key = keyOf(entry)
-    const group = groups.get(key)
-    if (group) group.push(entry)
-    else groups.set(key, [entry])
-  }
-  return groups
 }
 
 /**

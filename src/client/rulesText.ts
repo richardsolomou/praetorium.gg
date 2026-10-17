@@ -3,6 +3,7 @@ import type { RuleDocument, RuleTextSource } from '../contracts/rules'
 import { ruleDocumentFrom } from '../shared/ruleDocuments'
 import { TEXT_SOURCES, type TextSource } from '../shared/sourceText'
 import { readStoredValue, useStoredValue, writeStoredValue } from './storedValue'
+import { rulesTextKey } from './queries/queryKeys'
 
 /**
  * The sources this device loads rules text from, kept as their names in order. An empty
@@ -60,7 +61,7 @@ export function chooseTextSource(source: TextSource, load: boolean) {
   chooseTextSources(chosen)
 }
 
-const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+export const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 
 async function verified(response: Response, text: RuleTextSource) {
   const bytes = await response.arrayBuffer()
@@ -98,7 +99,7 @@ export function useRuleText(text: RuleTextSource | null) {
   // Rules documents are Game Datacards files.
   const chosen = useTextSourceChoice().sources.has('game-datacards')
   const query = useQuery({
-    queryKey: ['rules-text', text?.sha256],
+    queryKey: rulesTextKey(text?.sha256),
     queryFn: () => (text ? loadRuleText(text) : Promise.reject(new Error('This document has no rules text'))),
     enabled: chosen && Boolean(text),
     staleTime: Number.POSITIVE_INFINITY,

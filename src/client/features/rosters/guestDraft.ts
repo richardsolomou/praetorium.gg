@@ -55,22 +55,17 @@ export const EMPTY_SETUP: RosterSetup = {
 }
 
 /**
- * An id made in the browser, so the list can be saved under it once and only once.
+ * A new list from a visitor's setup. It stays private in this browser; claiming it applies the player's default visibility.
  *
- * Saving a list by an id its owner already holds updates that row, so a claim that is
+ * Its id is made here because saving a list by an id its owner already holds updates that row, so a claim that is
  * sent again after a reload lands on the list it already made rather than a second one.
  */
-function draftId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16))
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/=+$/, '')
-}
-
-/** A new list from a visitor's setup. It stays private in this browser; claiming it applies the player's default visibility. */
 export function newGuestDraft(setup: RosterSetup): GuestDraft {
-  return { version: VERSION, id: draftId(), draft: { ...setup, visibility: 'private', picks: [], prep: null, source: 'editable' } }
+  return {
+    version: VERSION,
+    id: crypto.randomUUID(),
+    draft: { ...setup, visibility: 'private', picks: [], prep: null, source: 'editable' },
+  }
 }
 
 function validDraft(stored: GuestDraft | null): GuestDraft | null {

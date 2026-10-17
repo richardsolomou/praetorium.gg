@@ -1,10 +1,7 @@
 import { mkdir, open, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
-import { loadCatalogue } from '../src/server/catalogueIndex'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
-import { loadRules } from '../src/server/rules'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, previewAccountId } from './seedPreview'
 import { inspectLocalDevPreview, localControlPort, readLocalDevPreview } from './localDevPreview'
@@ -19,6 +16,8 @@ import {
   productionRosterSnapshotSchema,
   rosterAuditBaselineSchema,
 } from './lib/productionRosters'
+import { isEntryPoint } from './lib/entryPoint.ts'
+import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
 const defaultSnapshot = 'data-dev/production-rosters.json'
 
@@ -50,9 +49,7 @@ const required = (name: string) => {
 }
 
 function loadEditions(directory: string) {
-  const base = loadCatalogue(directory)
-  if (!base) throw new Error(`Catalogue unavailable: ${directory}`)
-  const rules = loadRules(directory, undefined, undefined, undefined, base.datacards)
+  const { catalogue: base, rules } = loadSnapshot(directory)
   return catalogueEditionLoaders(
     directory,
     () => base,
@@ -178,5 +175,4 @@ async function normalise(
   console.log(`${written} of ${writes.length} rosters written. Report: ${file}`)
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === (await realpath(process.argv[1])))
-  await productionRostersMain(process.argv.slice(2))
+if (isEntryPoint(import.meta.url)) await productionRostersMain(process.argv.slice(2))

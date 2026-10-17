@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { Unzip, UnzipInflate } from 'fflate'
-import { Readable, Transform } from 'node:stream'
+import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createGunzip } from 'node:zlib'
+import { byteLimit } from './boundedBody'
 
 export function hashCatalogueFile(file: string) {
   const hash = createHash('sha256')
@@ -22,18 +23,15 @@ export function hashCatalogueFile(file: string) {
 export async function downloadCatalogueObject(response: Response, file: string, expected: string) {
   if (!response.body) throw new Error('catalogue object has no body')
   const hash = createHash('sha256')
-  const bound = (hashContent: boolean) => {
-    let bytes = 0
-    return new Transform({
-      transform(chunk: Buffer, _encoding, done) {
-        bytes += chunk.length
-        if (bytes > 64 * 1024 * 1024) return done(new Error('catalogue object is too large'))
-        if (hashContent) hash.update(chunk)
-        done(null, chunk)
-      },
-    })
-  }
-  await pipeline(Readable.from(response.body), bound(false), createGunzip(), bound(true), fs.createWriteStream(file, { flags: 'wx' }))
+  const limit = 64 * 1024 * 1024
+  const message = 'catalogue object is too large'
+  await pipeline(
+    Readable.from(response.body),
+    byteLimit(limit, message),
+    createGunzip(),
+    byteLimit(limit, message, (chunk) => hash.update(chunk)),
+    fs.createWriteStream(file, { flags: 'wx' }),
+  )
   if (hash.digest('hex') !== expected) throw new Error('catalogue object checksum does not match')
 }
 

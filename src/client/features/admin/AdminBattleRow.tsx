@@ -9,7 +9,7 @@ import { battleStage } from '../../battleStage'
 import { useDateFormatting } from '../../dates'
 import { refreshAdminQueries } from '../../queries'
 import { SettingRow } from '../../components/SettingRow'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 /** One battle as administration sees it: who sat where and how far it got, with a way to delete it. */
 export function AdminBattleRow({ battle }: { battle: AdminBattle }) {

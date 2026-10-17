@@ -7,6 +7,7 @@ import {
   PUBLIC_REFERENCE_QUERIES,
   type AppSnapshot,
 } from '../../contracts/appSnapshot'
+import { meKey } from '../queries/queryKeys'
 
 declare global {
   interface Window {
@@ -15,7 +16,7 @@ declare global {
 }
 
 export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
-  const me = client.getQueryData(['me']) as { id: string; impersonatedBy?: string | null } | null | undefined
+  const me = client.getQueryData(meKey()) as { id: string; impersonatedBy?: string | null } | null | undefined
   if (me === undefined || me?.impersonatedBy) return null
   const owner = me?.id ?? null
   const queries: AppSnapshot['queries'] = []
@@ -42,7 +43,7 @@ export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
 }
 
 export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot) {
-  const current = client.getQueryData(['me']) as { id?: string; impersonatedBy?: string | null } | null | undefined
+  const current = client.getQueryData(meKey()) as { id?: string; impersonatedBy?: string | null } | null | undefined
   if (current !== undefined && (current?.id !== (snapshot.owner ?? undefined) || current?.impersonatedBy)) return
   for (const query of snapshot.queries) {
     if ((client.getQueryState(query.key)?.dataUpdatedAt ?? 0) < query.updatedAt)
@@ -51,7 +52,7 @@ export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot) {
 }
 
 export function reconcileAppAccount(client: QueryClient, me: { id: string; impersonatedBy?: string | null } | null) {
-  const previous = client.getQueryData(['me']) as { id?: string; impersonatedBy?: string | null } | null | undefined
+  const previous = client.getQueryData(meKey()) as { id?: string; impersonatedBy?: string | null } | null | undefined
   if (previous === undefined || (previous?.id === me?.id && previous?.impersonatedBy === me?.impersonatedBy)) return false
   const privateQuery = (query: { queryKey: readonly unknown[] }) =>
     query.queryKey[0] !== 'me' &&

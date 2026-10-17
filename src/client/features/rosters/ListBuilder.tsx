@@ -69,6 +69,7 @@ import type { RosterSetupReview } from './rosterSetupReview'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { localEngine } from '../../offline/localRuntime'
 import { useSettled } from '../../useSettled'
+import { readStoredValue, writeStoredValue } from '../../storedValue'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { GROUPS } from '../../unitGroups'
 import { Loadout } from './builder/Loadout'
@@ -113,6 +114,7 @@ import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
 import type { CombatRoster } from '../simulator/useCombatant'
+import { countLabel } from '../../text'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -189,7 +191,6 @@ const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
 const NO_VARIANTS: readonly RosterVariant[] = []
 const NO_JOINED: { label: string; name: string }[] = []
-const modelCount = (models: number) => `${models} ${models === 1 ? 'model' : 'models'}`
 
 /**
  * Building a list from the catalogue rather than pasting one.
@@ -300,12 +301,12 @@ export function ListBuilder({
   useEffect(() => setDismissedWaivers(readWorkspaceState<string>(workspacePath, WAIVERS_DISMISSED)), [workspacePath])
   useEffect(() => {
     if (!editable) return
-    setReadOnly(localStorage.getItem(READ_ONLY_PREFERENCE) === 'true')
+    setReadOnly(readStoredValue(READ_ONLY_PREFERENCE) === 'true')
   }, [editable])
 
   const setReadOnlyMode = (next: boolean) => {
     setReadOnly(next)
-    localStorage.setItem(READ_ONLY_PREFERENCE, String(next))
+    writeStoredValue(READ_ONLY_PREFERENCE, String(next))
     // Viewing is reading the list as anybody else would, and the picker is not part of that.
     if (next && showing === 'picker') closePane()
   }
@@ -1647,14 +1648,14 @@ export function ListBuilder({
                         onChoose={(models) => selected !== null && edit.resize(selected, () => models)}
                       />
                     ) : (
-                      <span className="chip normal-case">{modelCount(optimisticUnit.size.models)}</span>
+                      <span className="chip normal-case">{countLabel(optimisticUnit.size.models, 'model')}</span>
                     )}
                   </span>
                 ) : frozenSelected ? (
                   // The list as fought, before the price behind it has said anything.
                   <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
                     <span className="chip w-[4.5rem] justify-center text-info">{frozenSelected.points} pts</span>
-                    <span className="chip normal-case">{modelCount(frozenSelected.models)}</span>
+                    <span className="chip normal-case">{countLabel(frozenSelected.models, 'model')}</span>
                   </span>
                 ) : null}
                 {!frozen && !preview && selected !== null ? (

@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from './test'
 import {
   advance,
   advanceButton,
+  addUnit,
   attachRoster,
   befriend,
   chooseBattlefield,
@@ -13,19 +14,8 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
-  waitForRosterSave,
 } from './account'
 import { savedWork } from './storage'
-
-async function addUnit(page: Page, name: string) {
-  await page.getByLabel('Add a unit').fill(name)
-  await waitForRosterSave(page, () =>
-    page
-      .getByRole('button', { name: `Add ${name}`, exact: true })
-      .first()
-      .click(),
-  )
-}
 
 async function draw(page: Page, cards: string[]) {
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })

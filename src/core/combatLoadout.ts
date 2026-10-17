@@ -1,3 +1,4 @@
+import { groupBy } from './collections'
 import type { CatalogueIndex, Definition, Profile } from './catalogue'
 import type { StructuredDatasheetProfile } from './datasheet'
 import { isCollectiveGroup, storesUnitTotal } from './collective'
@@ -37,11 +38,7 @@ function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[
 }
 
 function profileEquipment(profiles: readonly Profile[], count: number, name?: string): CombatEquipment[] {
-  const groups = new Map<string, Profile[]>()
-  for (const profile of profiles) {
-    const key = wargearKey(profile.name ?? profile.id, true)
-    groups.set(key, [...(groups.get(key) ?? []), profile])
-  }
+  const groups = groupBy(profiles, (profile) => wargearKey(profile.name ?? profile.id, true))
   return [...groups.values()].map((group) => ({
     name: groups.size === 1 && name ? name : (group[0]!.name ?? group[0]!.id),
     count,

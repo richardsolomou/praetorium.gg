@@ -1,6 +1,7 @@
-import { holdCombatCalculations, openCombatBreakdown, openCombatControls } from './combat'
-import { expect, test, type Locator } from './test'
+import { combatEstimate, holdCombatCalculations, openCombatControls } from './combat'
+import { expect, test } from './test'
 import {
+  addUnit,
   attachRoster,
   befriend,
   createBattle,
@@ -12,26 +13,12 @@ import {
   waitForRosterSave,
 } from './account'
 
-async function estimate(simulator: Locator, phase: 'Shooting' | 'Melee') {
-  await openCombatControls(simulator)
-  await openCombatBreakdown(simulator)
-  return simulator.getByRole('region', { name: `${phase} estimate`, includeHidden: true })
-}
-
 test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
   page,
 }) => {
   await signUp(page, 'Live planner')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Planner Marines' })
-  for (const name of ['Intercessor Squad', 'Terminator Squad', 'Rhino']) {
-    await page.getByLabel('Add a unit').fill(name)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${name}`, exact: true })
-        .first()
-        .click(),
-    )
-  }
+  for (const name of ['Intercessor Squad', 'Terminator Squad', 'Rhino']) await addUnit(page, name)
   await createBattle(page, { practice: true })
   await attachRoster(page, roster)
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
@@ -66,7 +53,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await expect(detail.getByLabel('Attacker models', { exact: true })).toHaveText('4')
   await expect(detail.getByLabel('Defender models', { exact: true })).toHaveText('3')
   await expect(detail.getByLabel('Defender remaining wounds', { exact: true })).toHaveText('1')
-  await expect((await estimate(detail, 'Shooting')).locator('.readout').first()).toHaveText(baseline!)
+  await expect((await combatEstimate(detail, 'Shooting')).locator('.readout').first()).toHaveText(baseline!)
   await expect(detail.getByRole('button', { name: /^Optimize/ })).toHaveCount(0)
   await detail.getByRole('button', { name: 'More defender remaining wounds', exact: true }).click()
   await detail.getByRole('button', { name: 'Close', exact: true }).click()
@@ -77,7 +64,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await page.setViewportSize({ width: 1440, height: 900 })
   await planner.getByRole('button', { name: 'Close', exact: true }).click()
   await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
-  await expect((await estimate(planner, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect((await combatEstimate(planner, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
   const cachedGate = await holdCombatCalculations(page)
   await planner.getByRole('tab', { name: 'Rosters', exact: true }).click()
   await expect(planner).toContainText('4 / 4 matchups · Complete')
@@ -153,14 +140,14 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   }
   await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  await expect((await estimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect((await combatEstimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
   await expect(shooting).toContainText('Demolition charge')
   await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Survivors', exact: true }).click()
   await equipment.getByRole('button', { name: 'Fewer Imperial Navy Breachers equipment surviving Demolition charge', exact: true }).click()
   await expect(count).toHaveText('0')
   await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
   await expect(shooting).not.toContainText('Demolition charge')
-  await expect((await estimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect((await combatEstimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await panel.getByRole('button', { name: `Open ${roster}`, exact: true }).click()
   await expect(page.locator('[data-army-roster] [data-unit="Imperial Navy Breachers"] [data-count="models"]')).toHaveText('10/10')
@@ -206,7 +193,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     await expect(simulator.getByLabel('Attacker models', { exact: true })).toHaveText('4')
     await expect(simulator.getByLabel('Attacker remaining wounds', { exact: true })).toHaveText('1')
     await expect(simulator.getByLabel('Defender models', { exact: true })).toHaveText('5')
-    await estimate(simulator, 'Shooting')
+    await combatEstimate(simulator, 'Shooting')
     await expect(damage).toHaveText(/^\d+\.\d+$/)
     await expect(shooting).toContainText('4× ➤ Bolt Rifle - Focused Fire')
     await expect(simulator.getByRole('region', { name: 'Melee results' })).toContainText('4× Knives and Fists')
@@ -225,10 +212,10 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
       await expect(simulator.getByLabel('Defender remaining wounds', { exact: true })).toHaveText('1')
       await expect(damage).toHaveText(/^\d+\.\d+$/)
       await expect(shooting).toHaveAttribute('aria-busy', 'false')
-      const woundedKills = Number(await (await estimate(simulator, 'Melee')).locator('.readout').nth(1).textContent())
+      const woundedKills = Number(await (await combatEstimate(simulator, 'Melee')).locator('.readout').nth(1).textContent())
       await simulator.getByRole('button', { name: 'More defender remaining wounds', exact: true }).click()
       await expect
-        .poll(async () => Number(await (await estimate(simulator, 'Melee')).locator('.readout').nth(1).textContent()))
+        .poll(async () => Number(await (await combatEstimate(simulator, 'Melee')).locator('.readout').nth(1).textContent()))
         .toBeLessThan(woundedKills)
     }
     expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
@@ -315,7 +302,7 @@ test('a team matchup switches allied armies and carries both sides through a swa
     'Canoptek Reanimator',
   )
   await expect(simulator.getByLabel('Defender faction', { exact: true })).toContainText('Space Marines')
-  await expect((await estimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect((await combatEstimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(simulator)
   await expect(simulator.getByRole('region', { name: 'Defender', exact: true }).locator('[data-combat-member]').first()).toContainText(
@@ -346,7 +333,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   const openedAt = Date.now()
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  const damage = (await estimate(simulator, 'Shooting')).locator('.readout').first()
+  const damage = (await combatEstimate(simulator, 'Shooting')).locator('.readout').first()
   await expect(damage).toHaveText(/^\d+\.\d+$/)
   console.log(`Battle simulator first result: ${Date.now() - openedAt} ms`)
   const baseline = Number(await damage.textContent())
@@ -392,10 +379,10 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await expect(attacker.getByRole('switch', { name: /Cold Fervour/ })).toBeChecked()
   const melee = simulator.getByRole('region', { name: 'Melee results' })
   await expect(melee).toHaveAttribute('aria-busy', 'false')
-  const beforePlasmacyte = Number(await (await estimate(simulator, 'Melee')).locator('.readout').first().textContent())
+  const beforePlasmacyte = Number(await (await combatEstimate(simulator, 'Melee')).locator('.readout').first().textContent())
   await attacker.getByRole('switch', { name: /Plasmacyte/ }).click()
   await expect
-    .poll(async () => Number(await (await estimate(simulator, 'Melee')).locator('.readout').first().textContent()))
+    .poll(async () => Number(await (await combatEstimate(simulator, 'Melee')).locator('.readout').first().textContent()))
     .toBeGreaterThan(beforePlasmacyte)
   await expect(attacker).not.toContainText('Not calculated')
   await simulator.getByRole('combobox', { name: 'Attacker unit', exact: true }).click()

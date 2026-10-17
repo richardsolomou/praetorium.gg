@@ -14,14 +14,8 @@ type Player = {
 }
 
 /**
- * Who is asking, resolved once per request.
- *
- * A page is a handful of server functions, and rendering one asks this question
- * from every read that has an owner — the battle, the lists, the collection. Each
- * asked better-auth again, which is a signature check at best and a session read
- * at worst, repeated for an answer that cannot change inside one request. The
- * request object is the key and holds it weakly, so nothing outlives the request
- * it belongs to and a second request is never told about the first.
+ * Who is asking, resolved once per request: every owned read on a page asks, and the answer cannot
+ * change inside one request. Keyed weakly by the request, so no answer outlives or leaks across requests.
  */
 const resolved = new WeakMap<Request, Promise<Player | null>>()
 

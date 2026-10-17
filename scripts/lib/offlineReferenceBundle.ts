@@ -8,8 +8,7 @@ import type { CatalogueFile } from '../../src/core/catalogue'
 import { packRuntimeData, type RuntimeData } from '../../src/contracts/runtimeData'
 import { shareRuntimeData } from '../../src/contracts/sharedRuntimeData'
 import { shareReferenceText } from '../../src/contracts/sharedReferenceText'
-import { loadCatalogue, isReferenceDatasheet } from '../../src/server/catalogueIndex'
-import { loadRules } from '../../src/server/rules'
+import { isReferenceDatasheet } from '../../src/server/catalogueIndex'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { detachmentsOffering } from '../../src/shared/factionReferences'
 import { unitsIn } from '../../src/shared/cataloguePicker'
@@ -28,6 +27,7 @@ import { routeSlug } from '../../src/core/slug'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
 import { loadCatalogueHistory } from '../../src/server/catalogueHistory'
 import { recentReferenceChanges } from '../../src/server/catalogueChangeLog'
+import { loadSnapshotWithRules } from './catalogueSnapshotLoad'
 import {
   decodeReferenceBundle,
   isReferenceBundle,
@@ -92,10 +92,7 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
 }
 
 export async function writeReferenceBundle(outDir: string, directory = process.env.CATALOGUE_DIR ?? path.resolve('catalogue-data')) {
-  const catalogue = loadCatalogue(directory)
-  if (!catalogue) throw new Error('Offline reference catalogue is unavailable')
-  const rules = loadRules(directory, undefined, undefined, undefined, catalogue.datacards)
-  if (!rules) throw new Error('Offline reference rules are unavailable')
+  const { catalogue, rules } = loadSnapshotWithRules(directory)
   const versions = catalogueEditionLoaders(
     directory,
     () => catalogue,

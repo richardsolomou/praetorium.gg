@@ -7,6 +7,7 @@ import {
   DETACHMENTS_MAX,
   FORMAT_RULE_IDS,
   NOTE_MAX_LENGTH,
+  PHASES,
   POINTS_BUDGET_MAX,
   POINTS_BUDGET_MIN,
   ROSTER_MAX_LENGTH,
@@ -19,6 +20,7 @@ import {
   STRATAGEM_LIMITS,
   STRATAGEM_SOURCE_MAX_LENGTH,
   STRATAGEMS_MAX,
+  TURN_SCOPES,
   UNIT_FORMATIONS,
   type Roster,
 } from './battle'
@@ -40,9 +42,9 @@ export const rosterPickSchema = z.object({
   attachedTo: z.number().int().min(0).max(99).optional(),
   note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
 })
-const phase = z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end'])
+const phase = z.enum(PHASES)
 const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()
-const award = z.object({
+export const missionAwardSchema = z.object({
   vp: z.number().int().min(0).max(100),
   per: z.string().max(200).nullable(),
   mode: z.string().max(40).nullable(),
@@ -61,7 +63,7 @@ const award = z.object({
 const secondary = z.object({
   key: id,
   name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
-  awards: z.array(award).max(20).optional(),
+  awards: z.array(missionAwardSchema).max(20).optional(),
   selection: z.enum(MISSION_SELECTION_KINDS).optional(),
 })
 const missionUnit = z.object({ playerId: id, unitKey: id, rosterSeq: z.number().int().positive() })
@@ -91,15 +93,16 @@ const missionSelection = z.discriminatedUnion('kind', [
     notHome: z.boolean(),
   }),
 ])
-const stratagem = z.object({
+/** A stratagem as a roster's battle preparation saves it. */
+export const stratagemSchema = z.object({
   key: id,
   name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
   cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
   limit: z.enum(STRATAGEM_LIMITS),
-  phases: z.array(phase).max(6).optional(),
-  turn: z.enum(['your-turn', 'opponent-turn', 'either']).optional(),
-  detachment: z.string().min(1).max(STRATAGEM_SOURCE_MAX_LENGTH).optional(),
+  phases: z.array(phase).max(PHASES.length).optional(),
+  turn: z.enum(TURN_SCOPES).optional(),
 })
+const stratagem = stratagemSchema.extend({ detachment: z.string().min(1).max(STRATAGEM_SOURCE_MAX_LENGTH).optional() })
 const battlePrep = z.object({
   stratagems: z.array(stratagem).max(STRATAGEMS_MAX),
   secondaries: z.array(secondary).max(SECONDARIES_MAX),
@@ -175,7 +178,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           detachmentPointBudget: z.number().int().min(0).max(3).nullable().optional(),
           disposition: z.string().max(64).nullable(),
           dispositions: z.array(z.string().max(64)).max(16).optional(),
-          detachmentIds: z.array(detachmentIdSchema).max(3).optional(),
+          detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).optional(),
           waivedRules: z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional(),
           picks: z.array(rosterPickSchema).max(100).optional(),
           units: z

@@ -1,19 +1,16 @@
 import { expect, test } from './test'
 import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave } from './account'
-import { productOperator, withAuthSql } from './storage'
+import { productOperator, userIdFor } from './storage'
 
 test('preserved rules remain explicit and conversion is optional', { tag: '@catalogue' }, async ({ page }) => {
   const { email } = await signUp(page, 'Retained')
-  const user = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string } | undefined,
-  )
-  if (!user) throw new Error('The signed-up player is missing.')
+  const userId = await userIdFor(email)
   const id = crypto.randomUUID()
   const picks = [{ entryId: '3c0a-10a9-8f84-26a3', models: 5, spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }]
   const operator = await productOperator()
   await operator.saveRoster({
     id,
-    userId: user.id,
+    userId,
     name: 'Preserved Scouts',
     catalogueId: '470a-6daa-9014-12df',
     detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
@@ -76,12 +73,12 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
 
 test('converts a retired Marine faction identity without discarding its generated units', async ({ page }) => {
   const { email } = await signUp(page, 'Original Marines')
-  const user = await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string })
+  const userId = await userIdFor(email)
   const id = crypto.randomUUID()
   const operator = await productOperator()
   await operator.saveRoster({
     id,
-    userId: user.id,
+    userId,
     name: 'Original Ultramarines',
     catalogueId: 'a603-5039-f08d-e841',
     detachmentId: JSON.stringify(['profile-detachment-option-a603-5039-f08d-e841-f367-3240-47c1-7e1a']),
@@ -114,7 +111,7 @@ test('converts a retired Marine faction identity without discarding its generate
 
 test('library and builder point a roster on earlier released rules at the current version', { tag: '@catalogue' }, async ({ page }) => {
   const { email } = await signUp(page, 'Earlier Rules')
-  const user = await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string })
+  const userId = await userIdFor(email)
   const operator = await productOperator()
   const picks = JSON.stringify([{ entryId: '3c0a-10a9-8f84-26a3', models: 5 }])
   const save = (name: string, catalogueId: string) => {
@@ -122,7 +119,7 @@ test('library and builder point a roster on earlier released rules at the curren
     return operator
       .saveRoster({
         id,
-        userId: user.id,
+        userId,
         name,
         catalogueId,
         detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
@@ -179,12 +176,12 @@ test('library and builder point a roster on earlier released rules at the curren
 
 test('resets a saved choice the current rules no longer offer', async ({ page }) => {
   const { email } = await signUp(page, 'Stale choice')
-  const user = await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string })
+  const userId = await userIdFor(email)
   const id = crypto.randomUUID()
   const operator = await productOperator()
   await operator.saveRoster({
     id,
-    userId: user.id,
+    userId,
     name: 'Stale Scouts',
     catalogueId: 'mfm-1-6~470a-6daa-9014-12df',
     detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),

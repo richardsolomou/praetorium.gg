@@ -1,26 +1,10 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from './test'
-import { chooseRosterAction, confirmRosterSetup, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
-import { productOperator, withAuthSql } from './storage'
+import { chooseRosterAction, confirmRosterSetup, retryUntilVisible, savedArmy, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
-async function savedArmy(page: Page) {
-  const account = await signUp(page, uniqueName('Setup review'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
-    id: string
-  }
-  const id = crypto.randomUUID()
-  await operator.saveRoster({
-    ...source,
-    id,
-    userId: user.id,
-    name: 'Reviewed army',
-    automaticName: false,
-    visibility: 'private',
-    now: Date.now(),
-  })
+async function reviewedArmy(page: Page) {
+  const { id, operator } = await savedArmy(page, 'Setup review', { name: 'Reviewed army' })
   await page.goto(`/rosters/${id}`)
   await expect(page.getByLabel('List name')).toHaveValue('Reviewed army')
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -53,7 +37,7 @@ const phone = { width: 390, height: 900 }
 
 test('setup preview cancellation and exact saved result', async ({ page }) => {
   await page.setViewportSize(desktop)
-  const { id, operator } = await savedArmy(page)
+  const { id, operator } = await reviewedArmy(page)
   await page.setViewportSize(phone)
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
   await page.getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
@@ -128,7 +112,7 @@ test('setup preview cancellation and exact saved result', async ({ page }) => {
 })
 
 test('library setup uses the same reviewed enhancement removal and refuses a changed baseline', async ({ page, context }) => {
-  const { id, operator } = await savedArmy(page)
+  const { id, operator } = await reviewedArmy(page)
   await page.goto('/rosters')
   const row = page.locator('[data-roster="Reviewed army"]')
   const editSetup = page.getByRole('menuitem', { name: 'Edit roster setup' })
@@ -167,7 +151,7 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
 
 test('reviewed setup survives an offline reload and reconnects with the same selected units', async ({ page, context }) => {
   test.setTimeout(240_000)
-  const { id, operator, source } = await savedArmy(page)
+  const { id, operator, source } = await reviewedArmy(page)
   await waitForOfflineApp(page)
   await context.setOffline(true)
   const review = await shrink(page)
@@ -190,7 +174,7 @@ test('native-v3 concurrent setup confirmations save only one exact variant candi
   await context.addInitScript(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
   })
-  const { id, operator } = await savedArmy(page)
+  const { id, operator } = await reviewedArmy(page)
   const base = (await operator.roster(id))!
   const variantId = crypto.randomUUID()
   await operator.saveRoster({ ...base, id: variantId, baseRosterId: id, now: Date.now() })
@@ -252,7 +236,7 @@ test('native-v3 lost save acknowledgement cannot overwrite a later source edit o
   await context.addInitScript(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
   })
-  const { id, operator } = await savedArmy(page)
+  const { id, operator } = await reviewedArmy(page)
   const second = await context.newPage()
   await second.goto(`/rosters/${id}`)
   let loseAcknowledgement = true

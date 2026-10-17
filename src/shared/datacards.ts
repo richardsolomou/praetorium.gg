@@ -1,4 +1,4 @@
-import type { Stratagem } from '../core/battle'
+import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
 import { joinKey } from './rulesSource'
@@ -172,7 +172,7 @@ export function constructionDetachment(
 }
 function cardPhases(value: unknown): NonNullable<Stratagem['phases']> | null {
   if (!Array.isArray(value) || !value.length) return null
-  const allowed = new Set(['command', 'movement', 'shooting', 'charge', 'fight', 'end', 'any'])
+  const allowed = new Set<string>([...PHASES, 'any'])
   if (!value.every((phase) => typeof phase === 'string' && allowed.has(phase))) return null
   if (value.includes('any')) return value.length === 1 ? [] : null
   return [...new Set(value)] as NonNullable<Stratagem['phases']>
@@ -191,8 +191,6 @@ function cardTurn(value: unknown): NonNullable<Stratagem['turn']> | null {
 }
 export const enhancementPoints = (datacards: LoadedDatacards, detachment: string, enhancement: string) =>
   datacards.enhancementPoints.get(descriptionKey(detachment, enhancement)) ?? null
-export const unique = (candidates: ReadonlyMap<string, Set<string>>) =>
-  new Map([...candidates].flatMap(([key, texts]) => (texts.size === 1 ? [[key, texts.values().next().value!] as const] : [])))
 export function factionContent(
   name: string,
   parsed: DatacardsFaction,
@@ -331,7 +329,7 @@ export function factionContent(
   }
   // Read from the words themselves: the published army rules carry tokens, and a refusal must not depend on them.
   const worded = records(parsed.rules, 'army').flatMap((card) => {
-    const description = ruleText(card, name, sectionsOnce, sourceWords)
+    const description = ruleText(card, name, sectionsOnce, transformed)
     return description ? [description] : []
   })
   const sentences = restrictionSentences(name, worded)
@@ -484,8 +482,6 @@ export function whenDrawnCondition(text: string) {
   const replacement = /^WHEN DRAWN: If (.+?), you can discard this card and draw one new Secondary Mission card\.?$/i.exec(plain)
   return replacement ? replacement[1]!.replace(/^there /i, 'there ') : null
 }
-/** The source's own words, for reading facts from them and for checks that read the files directly; never published. */
-export const sourceWords: SourceTexts = transformed
 export function enhancementEligibility(
   card: Record<string, unknown>,
   datasheetNames: readonly string[] = [],
@@ -859,7 +855,7 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
     return instruction && options.length ? [{ instruction, options }] : []
   })
   const { lines, loadout } = composition(value, texts)
-  const counted = composition(value, sourceWords).lines
+  const counted = composition(value, transformed).lines
   const transport = localizedField(value, 'transport') ?? specialTransport(value)
   const printedLoadout = localizedField(value, 'loadout')
   const capacity = transport ? printedTransport(prose(transport)) : null

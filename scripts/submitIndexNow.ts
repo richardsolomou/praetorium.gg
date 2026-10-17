@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { INDEXNOW_BATCH, INDEXNOW_KEY_PATH, indexNowKey, sitemapChanges } from '../src/server/indexNow.ts'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 const ENDPOINT = 'https://api.indexnow.org/indexnow'
 
@@ -67,7 +66,7 @@ export async function submitIndexNow({ key: configured, revision, origin, before
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (isEntryPoint(import.meta.url)) {
   const [beforeFile, origin] = process.argv.slice(2)
   if (!beforeFile || !origin) throw new Error('Usage: submitIndexNow.ts <sitemap-before.xml> <origin>')
   const revision = process.env.DEPLOY_SHA

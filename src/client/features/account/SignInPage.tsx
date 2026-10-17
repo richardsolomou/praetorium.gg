@@ -15,6 +15,7 @@ import { TwoFactorSignIn } from './TwoFactorSignIn'
 import { requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { signInOptionsQuery } from '../../queries'
 import { useClientValue } from '../../useClientValue'
+import { Problem } from '../../components/Problem'
 
 const socialAuthErrorMessage = (error?: string) => {
   if (!error) return undefined
@@ -193,11 +194,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                       ? 'Create account'
                       : 'Sign in'}
                 </Button>
-                {submit.error ? (
-                  <p role="alert" className="text-sm text-destructive">
-                    {submit.error}
-                  </p>
-                ) : null}
+                {submit.error ? <Problem>{submit.error}</Problem> : null}
                 {!joining && options?.passwordReset ? (
                   <Button
                     type="button"

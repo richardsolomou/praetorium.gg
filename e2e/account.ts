@@ -1,6 +1,7 @@
 import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
-import { savedWork } from './storage'
+import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
+import { productOperator, savedWork, userIdFor } from './storage'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
@@ -26,6 +27,21 @@ export async function signUp(page: Page, name: string) {
     .first()
     .waitFor({ state: 'attached' })
   return { email, password }
+}
+
+/** Signs up and saves a private copy of the preview Necrons list under a new name. */
+export async function savedArmy(
+  page: Page,
+  label: string,
+  roster: { name: string } & Partial<Parameters<SpacetimeOperator['saveRoster']>[0]>,
+) {
+  const account = await signUp(page, uniqueName(label))
+  const operator = await productOperator()
+  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
+  const userId = await userIdFor(account.email)
+  const id = crypto.randomUUID()
+  await operator.saveRoster({ ...source, id, userId, automaticName: false, visibility: 'private', now: Date.now(), ...roster })
+  return { id, userId, operator }
 }
 
 /** Chooses the visibility new rosters, copies and imports start with, and waits until it leaves the device. */
@@ -127,6 +143,17 @@ export async function waitForRosterSave(page: Page, action: () => Promise<unknow
   await action()
   await saved
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+}
+
+/** Adds a unit by name from the roster's search and waits for the save to leave the device. */
+export async function addUnit(page: Page, name: string) {
+  await page.getByLabel('Add a unit').fill(name)
+  await waitForRosterSave(page, () =>
+    page
+      .getByRole('button', { name: `Add ${name}`, exact: true })
+      .first()
+      .click(),
+  )
 }
 
 export async function createRoster(

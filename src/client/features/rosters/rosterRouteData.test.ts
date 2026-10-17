@@ -1,10 +1,9 @@
 import { QueryClient, onlineManager } from '@tanstack/react-query'
 import { afterEach, expect, it, vi } from 'vitest'
-import * as functions from '../server/functions'
-import { priceQuery, rosterAccessQuery, rosterBootstrapQuery } from '../client/queries'
-import { Route } from './rosters.$id.index'
+import * as functions from '../../../server/functions'
+import { priceQuery, rosterAccessQuery, rosterBootstrapQuery } from '../../queries'
+import { loadRoster } from './rosterRouteData'
 
-vi.mock('../client/features/rosters/RosterPage', () => ({ RosterPage: () => null }))
 const bootstrap = (name: string, updatedAt = 0, editable = false) =>
   ({
     roster: {
@@ -25,11 +24,7 @@ const bootstrap = (name: string, updatedAt = 0, editable = false) =>
     price: null,
     changes: [],
   }) as unknown as NonNullable<Awaited<ReturnType<typeof functions.rosterBootstrap>>>
-const load = (queryClient: QueryClient) => {
-  const loader = Route.options.loader
-  if (typeof loader !== 'function') throw new Error('Missing roster loader')
-  return loader({ context: { queryClient }, params: { id: 'army' }, deps: {} } as never)
-}
+const load = (queryClient: QueryClient) => loadRoster(queryClient, 'army', {})
 afterEach(() => {
   vi.restoreAllMocks()
   onlineManager.setOnline(true)

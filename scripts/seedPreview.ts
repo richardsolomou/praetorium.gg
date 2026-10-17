@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto'
-import { realpathSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { eq } from 'drizzle-orm'
 import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
@@ -17,6 +15,7 @@ import { catalogueBaseUrl, fetchCurrentSnapshot, installedSnapshot } from '../sr
 import { catalogueDirectory, loadCatalogue } from '../src/server/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { loadRules } from '../src/server/rules'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 export const PREVIEW_EMAIL = 'preview@praetorium.gg'
 const PREVIEW_PASSWORD = 'preview-preview-preview'
@@ -969,4 +968,4 @@ async function seedInto(
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) await seedPreview()
+if (isEntryPoint(import.meta.url)) await seedPreview()

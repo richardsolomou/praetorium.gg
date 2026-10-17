@@ -1,16 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Check, Link2, Share2, UserMinus, UserPlus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
@@ -31,7 +21,10 @@ import { useNativeShare } from '../../nativeBridge'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
-import { entrantGroups, formatNames, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
+import { entrantGroups, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
+import { Problem } from '../../components/Problem'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { formatList } from '../../text'
 
 /** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`, and `last` closes the row. */
 export type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
@@ -86,7 +79,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
   const pairPool = (group: { key: string }) => group.key === 'unpaired' || (league.format === '2v1' && group.key === 'allied')
   // Whoever still needs the organizer leads: players without a size, then players without a partner.
   const rank = (group: { key: string }) => (group.key === 'unsized' ? 0 : pairPool(group) ? 1 : 2)
-  const groups = entrantGroups(league, accepted, (members) => formatNames(members.map(label))).sort((one, other) => rank(one) - rank(other))
+  const groups = entrantGroups(league, accepted, (members) => formatList(members.map(label))).sort((one, other) => rank(one) - rank(other))
   // A picked player who was paired or removed since is dropped, so the picker never holds a place for a row it no longer shows.
   const unpairedIds = new Set(groups.filter(pairPool).flatMap((group) => group.entries.map((entry) => entry.userId)))
   const pickedLive = picked ? picked.filter((id) => unpairedIds.has(id)) : unpairedIds.size === 2 ? [...unpairedIds] : []
@@ -191,7 +184,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
                   onClick={() => requestTeam(pickedLive)}
                 >
                   <span className="truncate">
-                    {pickedLive.length === 2 ? `Pair ${formatNames(pickedLive.map(nameOf))}` : 'Pick two to pair'}
+                    {pickedLive.length === 2 ? `Pair ${formatList(pickedLive.map(nameOf))}` : 'Pick two to pair'}
                   </span>
                 </Button>
               ) : group.teamId ? (
@@ -200,7 +193,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
                   variant="ghost"
                   className="pointer-coarse:h-11"
                   disabled={assignTeam.isPending}
-                  aria-label={`Unpair ${formatNames(group.entries.map(label))}`}
+                  aria-label={`Unpair ${formatList(group.entries.map(label))}`}
                   onClick={() => requestTeam([group.entries[0]!.userId])}
                 >
                   <X /> Unpair
@@ -211,11 +204,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
             <EntrantList>
               {group.entries.map((entry) => row(entry, sealStatus(entry, false), pairing ? pickBox(entry) : undefined, last(entry)))}
             </EntrantList>
-            {pairing && assignTeam.error && clearing === null ? (
-              <p role="alert" className="mt-2 text-sm text-destructive">
-                {errorMessage(assignTeam.error)}
-              </p>
-            ) : null}
+            {pairing && assignTeam.error && clearing === null ? <Problem error={assignTeam.error} className="mt-2" /> : null}
           </EntrantGroup>
         )
       })}
@@ -275,11 +264,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
               ),
             )}
           </EntrantList>
-          {acceptAll.error ? (
-            <p role="alert" className="mt-2 text-sm text-destructive">
-              {errorMessage(acceptAll.error)}
-            </p>
-          ) : null}
+          {acceptAll.error ? <Problem error={acceptAll.error} className="mt-2" /> : null}
         </section>
       ) : null}
 
@@ -321,103 +306,66 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
         </details>
       ) : null}
 
-      <AlertDialog
+      <ConfirmDialog
         open={removing !== null}
-        onOpenChange={(open) => {
-          if (moderate.isPending) return
-          if (!open) {
-            moderate.reset()
-            setRemoving(null)
-          }
+        title={`Remove ${removing ? label(removing) : ''}?`}
+        description={(() => {
+          const teammate = removing?.teamId
+            ? accepted.find((entry) => entry.teamId === removing.teamId && entry.userId !== removing.userId)
+            : undefined
+          return teammate && removing
+            ? `This also unpairs ${label(teammate)} and clears both their sealed rosters. ${label(removing)} has to join again and seal another roster to come back.`
+            : 'Their sealed roster goes with them. They have to join again and seal another to come back.'
+        })()}
+        cancel="Keep entrant"
+        confirm="Remove entrant"
+        pendingLabel="Removing…"
+        pending={moderate.isPending}
+        error={moderate.error}
+        onClose={() => {
+          moderate.reset()
+          setRemoving(null)
         }}
+        onConfirm={() => removing && moderate.mutate({ userId: removing.userId, status: 'rejected' })}
       >
-        <AlertDialogContent aria-busy={moderate.isPending}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removing ? label(removing) : ''}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {(() => {
-                const teammate = removing?.teamId
-                  ? accepted.find((entry) => entry.teamId === removing.teamId && entry.userId !== removing.userId)
-                  : undefined
-                return teammate && removing
-                  ? `This also unpairs ${label(teammate)} and clears both their sealed rosters. ${label(removing)} has to join again and seal another roster to come back.`
-                  : 'Their sealed roster goes with them. They have to join again and seal another to come back.'
-              })()}
-            </AlertDialogDescription>
-            {moderate.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {errorMessage(moderate.error)}
-              </p>
-            ) : null}
-            {moderate.isPending ? <output className="sr-only">Removing entrant…</output> : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={moderate.isPending}>Keep entrant</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={moderate.isPending}
-              onClick={() => removing && moderate.mutate({ userId: removing.userId, status: 'rejected' })}
-            >
-              {moderate.isPending ? 'Removing…' : 'Remove entrant'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={reassigning !== null} onOpenChange={(open) => !assign.isPending && !open && setReassigning(null)}>
-        <AlertDialogContent aria-busy={assign.isPending}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Change {reassigning ? label(reassigning.entry) : ''}’s roster size?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Their sealed roster is cleared. They have to seal one at the new size before you can reveal.
-            </AlertDialogDescription>
-            {assign.isPending ? <output className="sr-only">Changing roster size…</output> : null}
-            {assign.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {errorMessage(assign.error)}
-              </p>
-            ) : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={assign.isPending}>Keep current size</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={assign.isPending}
-              onClick={() => reassigning && assign.mutate({ userId: reassigning.entry.userId, requiredLimit: reassigning.requiredLimit })}
-            >
-              {assign.isPending ? 'Changing…' : 'Change size'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog
+        {moderate.isPending ? <output className="sr-only">Removing entrant…</output> : null}
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={reassigning !== null}
+        title={`Change ${reassigning ? label(reassigning.entry) : ''}’s roster size?`}
+        description="Their sealed roster is cleared. They have to seal one at the new size before you can reveal."
+        cancel="Keep current size"
+        confirm="Change size"
+        pendingLabel="Changing…"
+        pending={assign.isPending}
+        error={assign.error}
+        onClose={() => setReassigning(null)}
+        onConfirm={() => reassigning && assign.mutate({ userId: reassigning.entry.userId, requiredLimit: reassigning.requiredLimit })}
+      >
+        {assign.isPending ? <output className="sr-only">Changing roster size…</output> : null}
+      </ConfirmDialog>
+      <ConfirmDialog
         open={clearing !== null}
-        onOpenChange={(open) => {
-          if (!assignTeam.isPending && !open) {
-            assignTeam.reset()
-            setClearing(null)
-          }
+        title="Clear sealed doubles rosters?"
+        description={
+          <>
+            This clears the sealed {clearing?.sealed.length === 1 ? 'list' : 'lists'} for{' '}
+            {clearing ? formatList(clearing.sealed.map(label)) : ''}. They have to seal another before you can reveal.
+          </>
+        }
+        cancel="Keep current teams"
+        confirm="Change team and clear rosters"
+        pendingLabel="Clearing…"
+        pending={assignTeam.isPending}
+        error={assignTeam.error}
+        onClose={() => {
+          assignTeam.reset()
+          setClearing(null)
         }}
+        onConfirm={() => clearing && assignTeam.mutate(clearing.userIds)}
       >
-        <AlertDialogContent aria-busy={assignTeam.isPending}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear sealed doubles rosters?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This clears the sealed {clearing?.sealed.length === 1 ? 'list' : 'lists'} for{' '}
-              {clearing ? formatNames(clearing.sealed.map(label)) : ''}. They have to seal another before you can reveal.
-            </AlertDialogDescription>
-            {assignTeam.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {errorMessage(assignTeam.error)}
-              </p>
-            ) : null}
-            {assignTeam.isPending ? <output className="sr-only">Changing doubles team…</output> : null}
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={assignTeam.isPending}>Keep current teams</AlertDialogCancel>
-            <AlertDialogAction disabled={assignTeam.isPending} onClick={() => clearing && assignTeam.mutate(clearing.userIds)}>
-              {assignTeam.isPending ? 'Clearing…' : 'Change team and clear rosters'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {assignTeam.isPending ? <output className="sr-only">Changing doubles team…</output> : null}
+      </ConfirmDialog>
     </>
   )
 }
@@ -585,11 +533,7 @@ function AddFriends({ league, token }: { league: League; token: string }) {
                 })}
               </ul>
             )}
-            {add.error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {errorMessage(add.error)}
-              </p>
-            ) : null}
+            {add.error ? <Problem error={add.error} /> : null}
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={add.isPending} onClick={() => setOpen(false)}>

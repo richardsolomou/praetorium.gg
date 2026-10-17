@@ -7,9 +7,9 @@ import { leagueMinimumPlaces, leaguePlacesSeat, leagueTableShape, LEAGUE_DEFAULT
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { createLeague, createLeagueEvent, setLeagueAdmins, updateLeague } from '../../functions'
 import { leagueQuery, leaguesQuery, meQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { leagueFormValid, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 import type { League } from './leagueEvent'
+import { Problem } from '../../components/Problem'
 
 /**
  * `create` opens a league with its first event, `edit` changes the league and its current event, and
@@ -182,11 +182,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
             <p className="text-xs text-parchment">Changing the format clears every size and team you’ve handed out.</p>
           ) : null}
           {save.isPending ? <output className="sr-only">{submit}</output> : null}
-          {save.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(save.error)}
-            </p>
-          ) : null}
+          {save.error ? <Problem error={save.error} /> : null}
         </DialogBody>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
