@@ -1,13 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { version } from '../../../../package.json'
 import { Button } from '@/components/ui/button'
 import { releaseQuery } from '../../queries'
 import { newerRelease } from './releaseUpdate'
+import { retireDeviceConstruction } from '../../functions'
 
 export function ReleaseUpdateNotice() {
   const { data, isError } = useQuery(releaseQuery())
-  if (isError || !data || !newerRelease(version, data.version)) return null
+  const outdated = !isError && Boolean(data && newerRelease(version, data.version))
+  useEffect(() => {
+    if (outdated) retireDeviceConstruction()
+  }, [outdated])
+  if (!outdated) return null
   return (
     <aside
       aria-label="Release update"

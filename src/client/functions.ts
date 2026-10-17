@@ -5,10 +5,12 @@ import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRunti
 import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { convertedSetup } from '../core/rosterSetup'
-import { priceSchema, datasheetSchema, combatLoadoutSchema, saveRosterSchema } from '../contracts/schemas'
+import { datasheetSchema, saveRosterSchema } from '../contracts/schemas'
 import * as server from '../server/functions'
 import { syncRoster } from '../server/functions/offline'
 import { constructionRead, constructionData, localConstruction } from './offline/construction'
+import { prepareDeviceConstruction } from './offline/constructionWorker'
+import type { ConstructionReadData, ConstructionReadName } from './offline/constructionReads'
 import {
   localClient,
   localDocument,
@@ -20,22 +22,9 @@ import {
   type RosterInput,
 } from './offline/localRuntime'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
-import { pickerUnitsFor, booksOffering } from '../shared/pickerUnits'
-import { rosterDatasheetContext } from '../shared/rosterDatasheetContext'
-import { rosterDatasheet, rosterLoadoutDatasheets } from '../shared/rosterReads'
-import { rosterCombatant } from '../shared/rosterCombatRules'
-import { combatLoadoutSpace } from '../shared/combatLoadouts'
-import {
-  exportRosterFile,
-  importRosterFile,
-  matchesImportFaction,
-  importRosterFaction,
-  importRosterCatalogueId,
-  importRosterExchange,
-} from '../shared/rosterFiles'
-import { decodeRosterExchange, isRosterExchangeCode, ROSTER_EXCHANGE_RULES_UNAVAILABLE } from '../core/rosterExchange'
-import { battleDetachmentData, selectedBattleDetachmentData } from '../shared/battleDetachmentData'
-import { unitWoundsIn } from '../shared/catalogue'
+import { rosterLoadoutDatasheets } from '../shared/rosterReads'
+import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } from '../shared/rosterFiles'
+import { decodeRosterExchange, isRosterExchangeCode } from '../core/rosterExchange'
 import { attachedUnitCount } from '../core/attachedUnits'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { referenceData } from './offline/runtime'
@@ -44,127 +33,45 @@ import type { LocalState } from '../contracts/localState'
 import { playerDefaults } from './offline/actionFunctions'
 import { localRosterAssessment } from './offline/rosterAssessment'
 import { calculationRead } from './offline/calculationRead'
-import { rosterCombatantsSchema } from '../contracts/combatCalculation'
-import { rosterCombatants } from '../shared/rosterCombatants'
 import { anySignal } from './abortSignals'
 import { rosterPriceKey } from './queries/rosterPriceKey'
 
 export * from '../server/functions'
 
-export const priceRoster = (args: Parameters<typeof server.priceRoster>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) => calculateRosterPrice(priceSchema.parse(args.data), catalogue, rules),
-    (signal) => server.priceRoster({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
-export const units = (args: Parameters<typeof server.units>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) =>
-      pickerUnitsFor(
-        catalogue,
-        rules,
-        args.data.catalogueId,
-        args.data.query ?? '',
-        args.data.battleSize,
-        args.data.waivedRules,
-        args.data.detachmentIds,
-      ),
-    (signal) => server.units({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
+const read =
+  <K extends ConstructionReadName, T>(name: K, online: (args: { data: ConstructionReadData<K>; signal?: AbortSignal }) => Promise<T>) =>
+  (args: { data: ConstructionReadData<K> & { catalogueId?: string }; signal?: AbortSignal }) =>
+    constructionRead(name, args.data, (signal) => online({ ...args, signal }), args.data.catalogueId, args.signal)
+
+export { retireDeviceConstruction } from './offline/constructionWorker'
+/** Prepares a faction's units on the device ahead of the roster that will list them. */
+export const prepareFactionUnits = (catalogueId: string) => prepareDeviceConstruction(catalogueId, true)
+
+export const priceRoster = read('priceRoster', (args) => server.priceRoster(args))
+export const units = read('units', (args) => server.units(args))
 export const datasheetOfferedBy = async (args: Parameters<typeof server.datasheetOfferedBy>[0]) =>
   (
     await Promise.all(
-      args.data.catalogueIds.map((id) =>
+      args.data.catalogueIds.map((catalogueId) =>
         constructionRead(
-          ({ catalogue, rules }) => booksOffering(catalogue, rules, args.data.entryId, [id]),
-          (signal) => server.datasheetOfferedBy({ data: { ...args.data, catalogueIds: [id] }, signal }),
-          id,
+          'booksOffering',
+          { entryId: args.data.entryId, catalogueId },
+          (signal) => server.datasheetOfferedBy({ data: { ...args.data, catalogueIds: [catalogueId] }, signal }),
+          catalogueId,
           args.signal,
         ),
       ),
     )
   ).flat()
-export const datasheet = (args: Parameters<typeof server.datasheet>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) =>
-      rosterDatasheet(
-        catalogue,
-        args.data,
-        rosterDatasheetContext(catalogue, datasheetSchema.parse(args.data)),
-        args.data.everyWeapon ?? false,
-        rules,
-      ),
-    (signal) => server.datasheet({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
-export const loadoutDatasheets = (args: Parameters<typeof server.loadoutDatasheets>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) => rosterLoadoutDatasheets(catalogue, datasheetSchema.parse(args.data), rules),
-    (signal) => server.loadoutDatasheets({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
-export const combatantDatasheet = (args: Parameters<typeof server.combatantDatasheet>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) =>
-      rosterCombatant(catalogue, rules, { ...datasheetSchema.parse(args.data), inactivePicks: args.data.inactivePicks }),
-    (signal) => server.combatantDatasheet({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
-export const combatantDatasheets = (args: Parameters<typeof server.combatantDatasheets>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) => rosterCombatants(catalogue, rules, rosterCombatantsSchema.parse(args.data)),
-    (signal) => server.combatantDatasheets({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
+export const datasheet = read('datasheet', (args) => server.datasheet(args))
+export const loadoutDatasheets = read('loadoutDatasheets', (args) => server.loadoutDatasheets(args))
+export const combatantDatasheet = read('combatantDatasheet', (args) => server.combatantDatasheet(args))
+export const combatantDatasheets = read('combatantDatasheets', (args) => server.combatantDatasheets(args))
 export const calculateCombatBatch = (args: Parameters<typeof server.calculateCombatBatch>[0]) => server.calculateCombatBatch(args)
-export const combatLoadouts = (args: Parameters<typeof server.combatLoadouts>[0]) =>
-  constructionRead(
-    ({ catalogue }) => combatLoadoutSpace(catalogue, combatLoadoutSchema.parse(args.data)),
-    (signal) => server.combatLoadouts({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
-export const unitWounds = (args: Parameters<typeof server.unitWounds>[0]) =>
-  constructionRead(
-    ({ catalogue }) => unitWoundsIn(catalogue, args.data.catalogueId, args.data.entryIds),
-    (signal) => server.unitWounds({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
-export const detachmentRules = (args: Parameters<typeof server.detachmentRules>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) => {
-      const selected = battleDetachmentData(catalogue, rules, args.data.catalogueId)
-      return selected ? selectedBattleDetachmentData(selected, args.data.detachmentNames) : null
-    },
-    (signal) => server.detachmentRules({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
-export const exportRoster = (args: Parameters<typeof server.exportRoster>[0]) =>
-  constructionRead(
-    ({ catalogue, rules }) =>
-      (() => {
-        const priced = calculateRosterPrice(priceSchema.parse(args.data), catalogue, rules)
-        if (!priced) throw new Error('Army data is unavailable.')
-        return exportRosterFile(
-          args.data,
-          catalogue,
-          { ...priced, disposition: priced.disposition ?? null },
-          (priced.disposition ? [priced.disposition] : priced.dispositions).map((id) => rules.dispositions.get(id) ?? id),
-        )
-      })(),
-    (signal) => server.exportRoster({ ...args, signal }),
-    args.data.catalogueId,
-    args.signal,
-  )
+export const combatLoadouts = read('combatLoadouts', (args) => server.combatLoadouts(args))
+export const unitWounds = read('unitWounds', (args) => server.unitWounds(args))
+export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
+export const exportRoster = read('exportRoster', (args) => server.exportRoster(args))
 export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
   const factions = (
     referenceData()?.queries.find((entry) => entry.key[0] === 'faction-index')?.data as
@@ -176,10 +83,8 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
     if (!factions) return server.importRoster(args)
     const faction = savedFaction(exchange.catalogueId, factions)
     return constructionRead(
-      ({ catalogue, rules }) => {
-        if (!faction) throw new Error(ROSTER_EXCHANGE_RULES_UNAVAILABLE)
-        return importRosterExchange(exchange, catalogue, rules, faction.name)
-      },
+      'importExchange',
+      { exchange, factionName: faction?.name ?? null },
       (signal) => server.importRoster({ ...args, signal }),
       faction?.id,
       args.signal,
@@ -193,14 +98,12 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
     : factions.filter((found) => found.isDefault)
   const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate.name)) : null
   return constructionRead(
-    ({ catalogue, rules }) => {
-      if (statedId && !faction) throw new Error('The exported codex version is not available.')
-      return importRosterFile(
-        args.data,
-        faction ? catalogue : null,
-        factions.map((candidate) => candidate.name),
-        rules,
-      )
+    'importFile',
+    {
+      file: args.data,
+      matched: Boolean(faction),
+      statedMissing: Boolean(statedId && !faction),
+      factionNames: factions.map((candidate) => candidate.name),
     },
     (signal) => server.importRoster({ ...args, signal }),
     faction?.id,

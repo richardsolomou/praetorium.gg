@@ -104,6 +104,8 @@ export function OfflineReference() {
           await (
             await caches.open(REFERENCE_CACHE)
           ).put(SAVED_APPLICATION, new Response(pack.html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))
+          // Browsers may evict an unvisited site's storage; an installed app asks to keep it. Only installed, because Firefox prompts.
+          if (matchMedia('(display-mode: standalone)').matches) void navigator.storage?.persist?.().catch(() => false)
         }
         abort.signal.throwIfAborted()
         applyReferenceData(client, pack.data)

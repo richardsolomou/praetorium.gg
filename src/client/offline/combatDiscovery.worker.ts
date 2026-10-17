@@ -1,6 +1,6 @@
 import { combatLoadoutCandidates } from '../../shared/combatLoadouts'
 import { combatLoadoutSchema } from '../../contracts/schemas'
-import { buildConstruction } from './construction'
+import { buildConstruction } from './constructionSource'
 import type { CombatDiscoveryRequest, CombatDiscoveryAnswer } from './combatDiscovery'
 
 let batches: ReturnType<typeof combatLoadoutCandidates> | undefined

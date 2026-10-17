@@ -13,7 +13,8 @@ vi.mock('./runtime', () => ({
 }))
 vi.mock('./construction', async (actual) => ({
   ...(await actual<typeof import('./construction')>()),
-  constructionRead: (local: (data: unknown) => unknown) => Promise.resolve(local({ catalogue: {}, rules: null })),
+  constructionRead: async (name: 'importExchange', data: never) =>
+    (await import('./constructionReads')).constructionReads[name]({ catalogue: {}, rules: null } as never, data),
 }))
 vi.mock('../../core/rosterExchange', async (actual) => ({
   ...(await actual<typeof import('../../core/rosterExchange')>()),

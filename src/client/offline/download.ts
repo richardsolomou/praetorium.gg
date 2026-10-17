@@ -56,7 +56,7 @@ export async function offlineReferenceVersion(signal: AbortSignal): Promise<Offl
 export const constructionBundleFor = (manifest: OfflineReferenceVersion, otherVersions: boolean) =>
   otherVersions ? manifest.construction.complete : manifest.construction.current
 
-async function bundleAt(url: string, signal: AbortSignal): Promise<OfflineReferenceBundle> {
+export async function bundleAt(url: string, signal: AbortSignal): Promise<OfflineReferenceBundle> {
   const downloadSignal = anySignal([signal, AbortSignal.timeout(60_000)])
   const response = await fetch(url, { credentials: 'omit', signal: downloadSignal })
   if (!response.ok || !response.body) throw new Error('The reference bundle is unavailable')

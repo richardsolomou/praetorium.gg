@@ -1,6 +1,7 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
-import { scrollSearchResultIntoView, signUp, uniqueName } from './account'
+import { createRoster, scrollSearchResultIntoView, signUp, uniqueName } from './account'
+import { add } from './builder.harness'
 
 // The offline downloads mount once in the app shell, so the home page stands for every route.
 test('the home page paints before downloading the offline application and keeps its reference across an update', async ({
@@ -211,4 +212,33 @@ test('a returning visit searches and opens datasheets from its download without 
   await page.getByPlaceholder('Search everything…').fill('Immortals')
   await page.getByRole('option').filter({ hasText: 'Immortals' }).first().click({ timeout: 4_000 })
   await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible({ timeout: 4_000 })
+})
+
+test('the roster builder prices units and opens datasheets on the device once it has prepared them', async ({ page }) => {
+  test.setTimeout(240_000)
+  await signUp(page, 'Richard')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await waitForOfflineApp(page)
+  await page.reload()
+  // Server function ids hash their file and export: `datasheet` in references.ts and `priceRoster` in rosters.ts.
+  const DATASHEET = '50de9b8fbcf16262f1323f158c2bd2a5e6d32b2eb6e5a6ebd58064efaadf69b8'
+  const PRICE = '2305a40a0317ee9af2a331b9753b8bc50d8b6fea03575e255596193749f7ac88'
+  const asked: string[] = []
+  page.on('request', (request) => asked.push(request.url().split('/_serverFn/')[1]?.slice(0, 64) ?? ''))
+  const picker = page.getByLabel('Add a unit')
+  if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  // The server answers until the device has prepared, so each attempt opens a datasheet not yet read.
+  const units = ['Lychguard', 'Deathmarks', 'Triarch Praetorians', 'Canoptek Wraiths', 'Flayed Ones', 'Tomb Blades', 'Ophydian Destroyers']
+  await expect(async () => {
+    const unit = units.shift()!
+    asked.length = 0
+    await picker.fill(unit)
+    await page.getByRole('button', { name: `View ${unit} datasheet` }).click()
+    await expect(page.locator('aside[aria-label="Datasheet"]')).toContainText(unit)
+    expect(asked).not.toContain(DATASHEET)
+  }).toPass({ timeout: 60_000 })
+  asked.length = 0
+  await add(page, 'Immortals')
+  await expect(page.locator('[data-unit="Immortals"]').first()).toContainText(/\d+ pts/)
+  expect(asked).not.toContain(PRICE)
 })
