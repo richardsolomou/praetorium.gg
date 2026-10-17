@@ -35,6 +35,7 @@ import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from './combatUnits'
+import { publishedFaction } from './referenceCatalogue'
 import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
@@ -262,7 +263,10 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
     factionsFor: async () => {
       return versions().factions()
     },
-    factionFor: async (catalogueId: string) => versions().factionFor(catalogueId),
+    factionFor: async (catalogueId: string) => {
+      const faction = versions().factionFor(catalogueId)
+      return faction ? publishedFaction(faction, versions().catalogueFor(faction.id)) : null
+    },
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
     searchIndexFor: async () => {
       return loaded.searchIndex()

@@ -6,7 +6,6 @@ import { app } from '../app'
 import { unitWoundsIn } from '../../shared/catalogue'
 import { isReferenceDatasheet } from '../catalogueIndex'
 import { publishedTextFiles } from '../publishedTextFiles'
-import { detachmentReference } from '../../shared/detachmentReference'
 import { unitsIn } from '../../shared/cataloguePicker'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
@@ -22,7 +21,7 @@ import { currentUserId } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
-import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
+import { publishedDetachmentReference, referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
   datasheetOfferedBySchema,
@@ -293,7 +292,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
       cacheUntilSnapshotChanges()
       const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
-      return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
+      return rules && catalogue ? publishedDetachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
     }),
   )
 

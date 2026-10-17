@@ -7,7 +7,8 @@ import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadRules } from '../src/server/rules'
 import { recordIdsIn, textSourceFiles, textSourcePaths } from '../src/server/sourceTexts'
 import { combatUnitsFor } from '../src/shared/combatUnits'
-import { hasTextTokens, sourceStrings, type TextPointer } from '../src/shared/sourceText'
+import { hasTextTokens, type TextPointer } from '../src/shared/sourceText'
+import { namesIn, normal, sourceProse, stringsIn } from './lib/sourceProse.fixtures'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 const exists = fs.existsSync(source)
@@ -21,71 +22,6 @@ vi.stubEnv('CATALOGUE_DIR', root)
 const { createAgentTools } = await import('../src/server/createAgentTools')
 const { referenceRecordResponse, referenceSearchResponse } = await import('../src/server/referenceApi')
 const { TEXT_NOT_PUBLISHED } = await import('../src/server/referenceCorpus')
-
-/** Words as compared: markup and spacing never hide a sentence that came from a source file. */
-const normal = (text: string) =>
-  text
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/[*_`#>]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-/** Rules text reads as sentences, where keyword lists, base sizes, and characteristics do not. */
-const sentence = (words: string) =>
-  words.length >= 60 && /[.!?]/.test(words) && words.split(' ').filter((word) => /^[a-z]/.test(word)).length >= 6
-
-/** Every sentence the snapshot's rules text files hold, the words no answer may carry. */
-function sourceProse() {
-  const prose = new Set<string>()
-  const visit = (directory: string) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const file = path.join(directory, entry.name)
-      if (entry.isDirectory()) visit(file)
-      else if (entry.name.endsWith('.json'))
-        for (const value of sourceStrings(JSON.parse(fs.readFileSync(file, 'utf8')))) {
-          const words = normal(value)
-          if (sentence(words)) prose.add(words)
-        }
-    }
-  }
-  for (const directory of ['definitions', 'datacards']) visit(path.join(root, directory))
-  return prose
-}
-
-/**
- * Each string in a value, and each line of it, as an answer could leak a source sentence
- * through either. Attribution credits a source rather than quoting it, so it is not read.
- */
-function stringsIn(value: unknown, found: string[] = []): string[] {
-  if (typeof value === 'string') {
-    found.push(value, ...value.split('\n'))
-    try {
-      if (value.startsWith('{') || value.startsWith('[')) stringsIn(JSON.parse(value), found)
-    } catch {
-      // Not JSON, so the string and its lines are all it holds.
-    }
-  } else if (Array.isArray(value)) for (const entry of value) stringsIn(entry, found)
-  else if (value && typeof value === 'object')
-    for (const [key, entry] of Object.entries(value)) if (key !== 'attribution') stringsIn(entry, found)
-  return found
-}
-
-/** The names and titles an answer gives, which Praetorium publishes even where one reads like a sentence. */
-function namesIn(value: unknown, found = new Set<string>()): Set<string> {
-  if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('[')))
-    try {
-      namesIn(JSON.parse(value), found)
-    } catch {
-      // Not JSON, so it names nothing.
-    }
-  else if (Array.isArray(value)) for (const entry of value) namesIn(entry, found)
-  else if (value && typeof value === 'object')
-    for (const [key, entry] of Object.entries(value)) {
-      if ((key === 'name' || key === 'title') && typeof entry === 'string') found.add(normal(entry))
-      else namesIn(entry, found)
-    }
-  return found
-}
 
 function pointersIn(value: unknown, found: TextPointer[] = []): TextPointer[] {
   if (Array.isArray(value)) for (const entry of value) pointersIn(entry, found)
@@ -122,7 +58,7 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
       canonicalCatalogueFor: async () => canonical,
       combatUnitsFor: async () => combatUnitsFor(catalogue, rules),
     }
-    prose = sourceProse()
+    prose = sourceProse(root, ['definitions', 'datacards'])
     localFile = new Map(textSourcePaths(root, readCatalogueComposition(root)).map((file) => [file.url, file.path]))
 
     const tools = createAgentTools(null)

@@ -13,8 +13,13 @@ import { loadRules } from '../../src/server/rules'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { detachmentsOffering } from '../../src/shared/factionReferences'
 import { unitsIn } from '../../src/shared/cataloguePicker'
-import { detachmentReference } from '../../src/shared/detachmentReference'
-import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../../src/server/referenceCatalogue'
+import {
+  publishedDetachmentReference,
+  publishedFaction,
+  referenceDatasheetBySlug,
+  referenceRuleIndex,
+  referenceRuleSection,
+} from '../../src/server/referenceCatalogue'
 import { gameReferencesFor } from '../../src/shared/gameReferences'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { editionCatalogueId, type CatalogueEdition } from '../../src/core/catalogueEdition'
@@ -114,7 +119,7 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
   }
   const versioned = versions.factions()!
   const factions = versioned.factions.map((faction) => ({
-    ...faction,
+    ...publishedFaction(faction, versions.catalogueFor(faction.id)),
     icon: rules.factionIcons.get(routeSlug(faction.displayName)) ?? null,
   }))
   put(['faction-index'], {
@@ -128,7 +133,10 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     const faction = versions.factionFor(catalogueId)
     if (!faction || queued.has(faction.id)) return
     queued.add(faction.id)
-    referenceFactions.push({ ...faction, icon: rules.factionIcons.get(routeSlug(faction.displayName)) ?? null })
+    referenceFactions.push({
+      ...publishedFaction(faction, versions.catalogueFor(faction.id)),
+      icon: rules.factionIcons.get(routeSlug(faction.displayName)) ?? null,
+    })
   }
   for (const faction of referenceFactions) {
     const selectedCatalogue = versions.catalogueFor(faction.id)!
@@ -159,7 +167,7 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
       if (detachment.referenceRoute?.catalogueId === faction.slug)
         put(
           ['detachment-detail', faction.id, detachment.slug],
-          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
+          publishedDetachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
         )
     }
   }
