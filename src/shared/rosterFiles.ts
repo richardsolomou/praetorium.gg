@@ -388,7 +388,10 @@ function textRosterPick(
   const warlord = unit.warlord || [...warlordNames].some((name) => stated.has(name))
   const toggles = Object.fromEntries(unitToggles(entryId, selection, loaded.index, context).map((toggle) => [toggle.key, warlord ? 1 : 0]))
   const aliases = choices.map((choice) => optionAliases(choice.options, loaded, context))
-  const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated)]))
+  const held = new Map<string, number>()
+  for (const piece of wargearOf(selection, loaded.index))
+    held.set(normalized(piece.name), (held.get(normalized(piece.name)) ?? 0) + piece.count)
+  const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated, held)]))
   const offeredBy = new Map<string, number>()
   for (const choice of aliases) {
     for (const name of new Set([...choice.values()].flatMap((names) => [...names.keys()]))) {
@@ -403,7 +406,9 @@ function textRosterPick(
     choices: Object.fromEntries(
       choices.flatMap((choice, at) => {
         if (choice.room !== 1) return []
-        const chosen = singleChoice(choice.options, aliases[at]!, statedChoiceCounts.get(choice.key), stated, offeredBy) ?? choice.chosen
+        // An optional choice takes nothing the list gives it no count for.
+        const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(([, count]) => !choice.optional || count > 0)
+        const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), stated, offeredBy) ?? choice.chosen
         return chosen ? [[choice.key, chosen]] : []
       }),
     ),
@@ -415,7 +420,9 @@ function textRosterPick(
           const explicit = counts.size > 0
           return [
             choice.key,
-            Object.fromEntries(choice.options.map((option) => [option.id, counts.get(option.id) ?? (explicit ? 0 : option.count)])),
+            Object.fromEntries(
+              choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
+            ),
           ]
         }),
     ),
@@ -498,7 +505,8 @@ function optionAliases(
   return new Map(
     options.map((option) => {
       const selection = defaultSelection(option.id, loaded.index, context)
-      const names = new Map([[normalized(option.name), 1]])
+      // Some catalogues name an enhancement with the "(Upgrade)" New Recruit adds to others.
+      const names = new Map([option.name, option.name.replace(/\s+\(Upgrade\)$/i, '')].map((name) => [normalized(name), 1]))
       for (const piece of selection ? wargearOf(selection, loaded.index) : []) names.set(normalized(piece.name), piece.count)
       return [option.id, names]
     }),
@@ -550,20 +558,28 @@ function singleChoice(
 }
 
 function countsForChoice(
-  options: readonly { id: string; name: string }[],
+  options: readonly { id: string; name: string; count: number }[],
   aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
   stated: ReadonlyMap<string, number>,
+  held: ReadonlyMap<string, number>,
 ) {
   const owners = new Map<string, number>()
   for (const names of aliases.values()) for (const name of names.keys()) owners.set(name, (owners.get(name) ?? 0) + 1)
 
   // The fewest any distinctive name allows: a lasgun the sergeant also carries is
-  // stated for more models than took the option that brings one.
+  // stated for more models than took the option that brings one. What the rest of the
+  // unit already carries is not this choice's to claim, so troopers' lasguns are not
+  // vox-casters; a name nobody else carries says it best.
+  const inChoice = (name: string) => options.reduce((total, option) => total + option.count * (aliases.get(option.id)?.get(name) ?? 0), 0)
   const distinctiveCounts = new Map<string, number>()
   for (const option of options) {
-    const distinctive = [...(aliases.get(option.id) ?? [])]
+    const owned = [...(aliases.get(option.id) ?? [])]
       .filter(([name]) => owners.get(name) === 1 && stated.has(name))
-      .map(([name, each]) => Math.ceil(stated.get(name)! / Math.max(1, each)))
+      .map(([name, each]) => ({ elsewhere: Math.max(0, (held.get(name) ?? 0) - inChoice(name)), stated: stated.get(name)!, each }))
+    const alone = owned.filter((name) => name.elsewhere === 0)
+    const distinctive = (alone.length ? alone : owned).map(({ elsewhere, stated: count, each }) =>
+      Math.ceil(Math.max(0, count - elsewhere) / Math.max(1, each)),
+    )
     if (distinctive.length) distinctiveCounts.set(option.id, Math.min(...distinctive))
   }
   if (distinctiveCounts.size) return distinctiveCounts
