@@ -55,7 +55,6 @@ export function RulesIndex() {
         ) : (
           data.documents.map((document) => <DocumentShelf key={document.id} document={document} />)
         )}
-        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

@@ -158,7 +158,6 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
             />
           )}
         </section>
-        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

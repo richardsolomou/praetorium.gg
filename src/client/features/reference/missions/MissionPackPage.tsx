@@ -136,8 +136,6 @@ export function MissionPackPage({ packId }: { packId: string }) {
             </div>
           </section>
         ) : null}
-
-        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

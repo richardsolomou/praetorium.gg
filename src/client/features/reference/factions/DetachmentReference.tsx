@@ -165,8 +165,6 @@ export function DetachmentReference({
               ))}
             </div>
           </section>
-
-          <p className="border-t border-edge pt-3 text-xs text-dim">{detachment.attribution}</p>
         </PageContent>
       </div>
     </div>

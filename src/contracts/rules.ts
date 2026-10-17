@@ -31,4 +31,4 @@ export type RuleEntrySummary = { anchor: string; code: string | null; title: str
 export type RuleSectionSummary = { id: string; slug: string; title: string; entries: RuleEntrySummary[] }
 export type RuleDocumentSummary = { id: string; slug: string; title: string; updated: string | null; sections: RuleSectionSummary[] }
 export type RuleReference = { code: string; document: string; section: string; anchor: string; title: string }
-export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleReference[]; attribution: string }
+export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleReference[] }

@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { RuleDocument, RuleEntry, RuleIndex, RuleReference } from '../contracts/rules'
-import { DATACARDS_ATTRIBUTION } from './datacards'
 import { catalogueSources } from './catalogueSources'
 import { coreRulesFirst, ruleDocumentFrom, ruleOutline } from '../shared/ruleDocuments'
 import { readSharedJson } from './sharedJson'
@@ -92,7 +91,7 @@ function buildRuleIndex(documents: readonly RuleDocument[]): RuleIndex {
       })),
     }
   })
-  return { documents: summaries, references, attribution: DATACARDS_ATTRIBUTION }
+  return { documents: summaries, references }
 }
 
 /** The entry's own number, then each clarification numbered beneath it. */

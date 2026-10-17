@@ -45,7 +45,6 @@ function buildGameReferences(rules: BattleReadRules) {
     packs,
     secondaries: rules.secondaries,
     deployments: rules.deployments,
-    attribution: rules.attribution,
   }
 }
 

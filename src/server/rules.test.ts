@@ -162,7 +162,6 @@ it('loads the publisher-backed Colosseum battlefield when its source is present'
   })
   expect(layout?.geometry?.areas.filter((area) => area.objective)).toHaveLength(5)
   expect(loaded.deployments.find((entry) => entry.id === layout?.deploymentId)?.zones).toHaveLength(2)
-  expect(loaded.attribution).toContain('Play On Tabletop')
 })
 
 it('uses the current detachment points and stratagem card', () => {

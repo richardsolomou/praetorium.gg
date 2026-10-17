@@ -58,7 +58,6 @@ export function RuleContents({ documentId }: { documentId: string }) {
             </div>
           </section>
         ))}
-        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

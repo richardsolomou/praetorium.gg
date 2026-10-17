@@ -29,7 +29,6 @@ export function SecondaryMissionPage({ packId, cardId }: { packId: string; cardI
           <MissionCardReference card={card} />
           <MissionActions actions={card.actions} className="mt-4" />
         </section>
-        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )
