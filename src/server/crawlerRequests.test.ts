@@ -29,7 +29,7 @@ it.each(['/battles/secret-token', '/rosters/abc123', '/users/someone', '/leagues
 )
 
 it('records a read of the public army listing, whose address names nobody', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/rosters/discover?faction=necrons'), 200, DAY)).not.toBeNull()
+  expect(crawlerRequestEvent(read('https://praetorium.gg/rosters?view=public&faction=necrons'), 200, DAY)).not.toBeNull()
 })
 
 it('records the files crawlers read', () => {

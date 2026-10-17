@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.155.0
+
+### Minor Changes
+
+- e73c5f8: The Friends tab on Rosters lists your friends' public rosters, ready to open or duplicate.
+- e73c5f8: Rosters has Mine, Friends and Public tabs like Battles, replacing the separate Discover armies page. Old Discover armies links open the Public tab with their filters.
+- cf1dc1e: Friends' and public rosters can be sorted by update, creation, name or battle size, like your own.
+
+### Patch Changes
+
+- cf1dc1e: The Battles tabs read Mine, Friends and Public, matching Rosters.
+- 83a9371: Rosters lent to you show the same card as your own, with detachment, points, legality and last update, in your rosters and when choosing an army for a battle.
+- e73c5f8: Public rosters no longer list your own rosters; they stay under Mine.
+
 ## 0.154.0
 
 ### Minor Changes

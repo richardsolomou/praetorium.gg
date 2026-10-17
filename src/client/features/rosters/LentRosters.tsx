@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { rostersLentToMe } from '../../functions'
 import { factionIndexQuery } from '../../queries'
 import type { SavedRoster } from './rosterLibrary'
+import { RosterSummary } from './RosterSummary'
 
 export type LentRoster = Awaited<ReturnType<typeof rostersLentToMe>>[number]
 
@@ -20,27 +21,28 @@ export function LentRosterList({
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
   return (
-    <ul className="space-y-2" data-lent-rosters>
-      {rosters.map(({ summary, owner }) => {
-        const faction = factions?.factions.find((entry) => entry.id === summary.catalogueId)
+    <ul className="space-y-3" data-lent-rosters>
+      {rosters.map(({ summary, owner, points, problem }) => {
         const content = (
-          <>
-            <span className="block truncate font-bold uppercase">{summary.name || faction?.displayName || 'Unnamed roster'}</span>
-            <span className="block text-xs text-dim">
-              {faction && summary.name ? `${faction.displayName} · ` : ''}
-              {summary.limit} points · Lent by {owner.name}
-            </span>
-          </>
+          <RosterSummary
+            roster={summary}
+            faction={factions?.factions.find((entry) => entry.id === summary.catalogueId)}
+            points={points}
+            problem={problem}
+            showLock={false}
+            showLegality
+          />
         )
-        const className = 'block w-full border border-edge bg-sunken p-3 text-left hover:border-info'
+        const className = 'flex w-full min-w-0 p-3 text-left'
+        const selected = summary.id === selectedId
         return (
-          <li key={summary.id}>
+          <li key={summary.id} className={`border bg-panel hover:border-info hover:bg-raised ${selected ? 'border-info' : 'border-edge'}`}>
             {onChoose ? (
               <button
                 type="button"
-                aria-pressed={summary.id === selectedId}
+                aria-pressed={selected}
                 disabled={disabled}
-                className={`${className} disabled:opacity-60 aria-pressed:border-info`}
+                className={`${className} disabled:opacity-60`}
                 onClick={() => onChoose(summary)}
               >
                 {content}
@@ -50,6 +52,12 @@ export function LentRosterList({
                 {content}
               </Link>
             )}
+            <p className="truncate border-t border-edge px-3 py-2 text-xs text-dim">
+              Lent by{' '}
+              <Link to="/users/$userId" params={{ userId: owner.id }} className="font-semibold text-info hover:text-bone">
+                {owner.name}
+              </Link>
+            </p>
           </li>
         )
       })}

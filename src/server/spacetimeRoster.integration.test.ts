@@ -56,7 +56,17 @@ it.skipIf(!url || !database || !token)('lists a roster for discovery only while 
   const catalogueId = `catalogue-${randomUUID()}`
   const now = Date.now()
   const discovered = async () =>
-    (await store.discoverRosters({ catalogueIds: [catalogueId], detachmentIds: null, before: null, limit: 10 })).rows.map((row) => row.id)
+    (
+      await store.discoverRosters({
+        audience: 'public',
+        viewerId: null,
+        sort: 'updated-desc',
+        catalogueIds: [catalogueId],
+        detachmentIds: null,
+        before: null,
+        limit: 10,
+      })
+    ).rows.map((row) => row.id)
   const input = {
     id,
     userId,

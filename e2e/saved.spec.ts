@@ -48,7 +48,7 @@ test('the roster library reserves its rows while the first page loads', async ({
     })
 
     await page.getByRole('link', { name: 'Rosters', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'My rosters' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
     const libraryRubric = page.locator('main section').last().locator('.rubric')
     await expect(libraryRubric.getByText('Rosters', { exact: true })).toBeVisible()
     await expect(libraryRubric.getByLabel('Loading roster count')).toBeVisible()

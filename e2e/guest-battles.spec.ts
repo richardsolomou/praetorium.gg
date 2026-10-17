@@ -91,12 +91,12 @@ test("a signed-in player's battles page lists their own, their friends' or every
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
-  await views.getByRole('link', { name: 'Public games' }).click()
+  await views.getByRole('link', { name: 'Public', exact: true }).click()
   await expect(page).toHaveURL(/\/battles\?view=public$/)
   await expect(page.locator(`[data-battle-shelf="Public games"] a${watched}`)).toBeVisible()
   await expect(page.locator(`[data-battle-shelf="Public games"] a${own}`)).toHaveCount(0)
 
-  await views.getByRole('link', { name: "Friends' games" }).click()
+  await views.getByRole('link', { name: 'Friends', exact: true }).click()
   await expect(page.locator('[data-friends-empty]')).toBeVisible()
 
   await befriend(page, host)

@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
-import { ChevronDown, Compass, ScrollText } from 'lucide-react'
+import { ChevronDown, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { buttonClass } from '../../components/buttonClass'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { currentRulesFor } from '../../../core/currentRules'
@@ -29,7 +28,8 @@ import { factionSelectGroups } from './builder/factions'
 import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
-import { keepRosterSort, type RosterSort, sortRosters } from './rosterSort'
+import { keepRosterSort } from './rosterSort'
+import { type RosterSort, sortRosters } from '../../../core/rosterSort'
 import { parseWorkspaceState, readStoredWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
@@ -41,6 +41,7 @@ import {
   savedRosterSummariesQuery,
 } from '../../queries'
 import { LentRosterList } from './LentRosters'
+import { RosterViews } from './RosterViews'
 import { useOrigin } from '../../useOrigin'
 import { useClientValue } from '../../useClientValue'
 import type { RosterVisibility } from '../../../core/savedRoster'
@@ -210,18 +211,17 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     <main className="w-full">
       <PageHeader
         eyebrow="Your rosters"
-        title="My rosters"
-        description="Build, import, organize, and share the armies you bring to battle."
+        title="Rosters"
+        description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
-            <Link to="/rosters/discover" className={buttonClass({ variant: 'outline' })}>
-              <Compass /> Discover armies
-            </Link>
             <RosterImport />
             <CreateRoster factionOptions={available?.factions ?? []} limit={search.limit} />
           </>
         }
-      />
+      >
+        <RosterViews view="mine" />
+      </PageHeader>
 
       <PageContent className="space-y-6">
         <RosterFilters
@@ -346,6 +346,16 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             )}
           </div>
         </section>
+        {lent.length ? (
+          <section>
+            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+              Lent to you <span className="readout">{lent.length}</span>
+            </h2>
+            <div className="mt-2">
+              <LentRosterList rosters={lent} />
+            </div>
+          </section>
+        ) : null}
         {!libraryPending && !libraryError && archived.length ? (
           <Collapsible render={<section />} open={archivedOpen} onOpenChange={setArchivedOpen}>
             <CollapsibleTrigger className="group rubric flex w-full items-baseline gap-3 border-b border-edge pb-2 text-left hover:text-bone">
@@ -357,16 +367,6 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
               <div className="mt-2 space-y-3">{archivedGroups.map(renderCard)}</div>
             </CollapsibleContent>
           </Collapsible>
-        ) : null}
-        {lent.length ? (
-          <section>
-            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-              Lent to you <span className="readout">{lent.length}</span>
-            </h2>
-            <div className="mt-2">
-              <LentRosterList rosters={lent} />
-            </div>
-          </section>
         ) : null}
       </PageContent>
 

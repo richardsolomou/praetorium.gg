@@ -57,10 +57,6 @@ describe('onboarding page', () => {
   it.each(PAGE_ADDRESSES)('maps %s to %s', (path, page) => {
     expect(onboardingPage(path)).toBe(page)
   })
-
-  it('does not treat army discovery as a roster', () => {
-    expect(onboardingPage('/rosters/discover')).toBeUndefined()
-  })
 })
 
 describe('onboarding tasks', () => {

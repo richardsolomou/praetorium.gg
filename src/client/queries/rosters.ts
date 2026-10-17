@@ -3,7 +3,8 @@ import { infiniteQueryOptions, type QueryClient, queryOptions } from '@tanstack/
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { UnitSummary } from '../../contracts/catalogue'
-import type { RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
+import type { RosterAudience, RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
+import type { RosterSort } from '../../core/rosterSort'
 import {
   collection,
   collectionCounts,
@@ -34,10 +35,10 @@ import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { rosterPriceKey } from './rosterPriceKey'
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
-export const discoveredRostersQuery = (filter: RosterDiscoveryFilter) =>
+export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: RosterAudience, sort: RosterSort) =>
   infiniteQueryOptions({
-    queryKey: ['discovered-rosters', filter],
-    queryFn: ({ pageParam }) => discoverRosters({ data: { ...filter, before: pageParam } }),
+    queryKey: ['discovered-rosters', audience, sort, filter],
+    queryFn: ({ pageParam }) => discoverRosters({ data: { ...filter, audience, sort, before: pageParam } }),
     initialPageParam: null as RosterDiscoveryCursor | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
