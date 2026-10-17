@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.157.0
+
+### Minor Changes
+
+- 8fc51b8: Datasheet abilities, enhancements and other rules text show once you turn BSData on, with one prompt per page naming the source until you do.
+- 073f2e4: Choose which community sources load rules text on your device in one dialog, opened from any page that is missing text, and change it later on the Data sources page.
+- a851682: Stratagems, detachment and army rules, and datasheet wording from Game Datacards load in your browser once you turn Game Datacards on, wherever they appear.
+- 9a7faaf: Core rules pages show rule numbers and titles, and load the rules text from Game Datacards in your browser once you turn Game Datacards on.
+
 ## 0.156.1
 
 ### Patch Changes
