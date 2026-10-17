@@ -1,6 +1,7 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import {
+  befriend,
   createBattle,
   createRoster,
   confirmRosterSetup,
@@ -241,6 +242,35 @@ test('an offline practice battle and its commands survive reopening and sync tog
     kind: 'attach-roster',
     roster: { id: rosterId, name: 'Flight army' },
   })
+})
+
+test('a battle link opened before its offline creation syncs opens once the battle arrives', async ({ page, context, browser }) => {
+  test.setTimeout(240_000)
+  const opponentName = uniqueName('Early opponent')
+  const opponent = await (await browser.newContext()).newPage()
+  await signUp(opponent, opponentName)
+  await signUp(page, uniqueName('Offline host'))
+  await befriend(page, opponent)
+  await page.goto('/battles')
+  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
+    page.getByRole('button', { name: 'New battle' }).click(),
+  )
+  await page.keyboard.press('Escape')
+  await waitForOfflineApp(page)
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await context.setOffline(true)
+  const url = await createBattle(page, { opponent: opponentName })
+  const token = new URL(url).pathname.split('/').at(-1)!
+  expect(await (await productOperator()).battleByToken(token)).toBeUndefined()
+
+  await opponent.goto(url)
+  await expect(opponent.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await context.setOffline(false)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect.poll(async () => (await savedWork(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  // The link the opponent already opened finds the battle without a reload.
+  await expect(opponent.getByRole('heading', { name: 'Set up the battle' })).toBeVisible({ timeout: 30_000 })
+  await setupStep(opponent, 'Armies')
 })
 
 test('a battle conflict awaiting review does not stop connected play', async ({ page, context }) => {
