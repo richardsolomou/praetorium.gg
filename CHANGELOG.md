@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.154.0
+
+### Minor Changes
+
+- 655b1bb: Count how many of each datasheet's models are built and painted on the Collection page.
+- 655b1bb: Export your collection as CSV and import one after reviewing which rows match, differ or are skipped.
+- 655b1bb: Keep a wishlist of models to buy on the Collection page; it shows on your profile with your collection.
+- 655b1bb: Saved rosters have a Your collection section showing which models you are short of, or still need to build or paint.
+
 ## 0.153.0
 
 ### Minor Changes
