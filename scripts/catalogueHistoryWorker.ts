@@ -13,7 +13,7 @@ import path from 'node:path'
 import type { ChangeSource } from '../src/core/catalogueChanges'
 import { historicalSnapshotSources, installSnapshotArchive, type SnapshotPointer } from '../src/server/catalogueSnapshot'
 import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
-import { fetchWithRetry } from '../src/server/fetch'
+import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { extractSourceArchive } from '../src/server/sync'
 import { compiledChangeSource } from './lib/catalogueHistoryCompile'
 
@@ -42,7 +42,7 @@ const knownRevisions = (directory: string): Record<string, string> =>
 async function published(task: Extract<WorkerTask, { kind: 'published' }>, work: string): Promise<WorkerResult> {
   const archive = path.join(work, 'snapshot.zip')
   const directory = path.join(work, 'catalogue')
-  const response = await fetchWithRetry(`${task.base}/snapshots/${task.id}.zip`)
+  const response = await fetchCatalogueObject(`${task.base}/snapshots/${task.id}.zip`)
   if (!response.ok) return { ok: false, reason: `snapshot answered ${response.status}` }
   const bytes = new Uint8Array(await response.arrayBuffer())
   fs.writeFileSync(archive, bytes)

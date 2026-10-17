@@ -78,7 +78,7 @@ Signed-in tokens are deployment-bound; guests get restricted identities and no p
 
 Downloaded workspaces filter private mission identities and decks. A queued command keeps its operation ID, expected sequence, validation-data revision, recorded time, and resolved random draw through retries. Reconnect accepts each once or keeps a conflict when another device advanced the history or the rules changed. Never rebase a played command, revalidate it under another rules revision, or redraw its cards. Missing authoritative data leaves commands pending. Export the saved history before discarding a conflict, and while connected show the authoritative history rather than freezing on the saved copy.
 
-Failed connected reads may fall back to the durable workspace, but cancelled requests and changed accounts must not. A deleted or inaccessible battle becomes a retained refusal so other work can sync; auth failures, rate limits, and outages stay retryable. A missing workspace must not leave an accepted creation blocking the queue.
+Failed connected reads may fall back to the durable workspace, but cancelled requests and changed accounts must not. A deleted or inaccessible battle becomes a retained refusal so other work can sync; auth failures, rate limits, and outages stay retryable. A missing workspace must not leave an accepted creation blocking the queue. A battle created on a device has a link before the service holds it, so a player can open that link first; the route's not-found view (`BattleNotFound`) asks again for a minute and opens the battle once it arrives.
 
 ## Verification
 

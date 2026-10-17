@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { BattleNotFound } from '../client/features/battle/BattleNotFound'
 import { BattlePage } from '../client/features/battle/BattlePage'
 import {
   battleQuery,
@@ -65,6 +66,7 @@ export const Route = createFileRoute('/battles/$token')({
     }
   },
   component: BattleRoute,
+  notFoundComponent: () => <BattleNotFound token={Route.useParams().token} />,
 })
 
 function BattleRoute() {

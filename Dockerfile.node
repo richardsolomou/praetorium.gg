@@ -13,7 +13,15 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --filte
 COPY . .
 ARG VITE_POSTHOG_HOST
 ARG VITE_POSTHOG_PROJECT_TOKEN
-RUN --mount=type=cache,target=/app/.catalogue-objects CATALOGUE_CACHE_DIR=off pnpm catalogue:sync
+# Snapshots are private: the build reads one with the account ID and key pair this secret holds, on this step alone.
+RUN --mount=type=cache,target=/app/.catalogue-objects \
+    --mount=type=secret,id=catalogue_store \
+    set -eu; \
+    if [ -s /run/secrets/catalogue_store ]; then \
+      read -r R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY < /run/secrets/catalogue_store || [ -n "${R2_SECRET_ACCESS_KEY:-}" ]; \
+      export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; \
+    fi; \
+    CATALOGUE_CACHE_DIR=off pnpm catalogue:sync
 ARG GITHUB_SHA
 ARG POSTHOG_UPLOAD_SOURCEMAPS=false
 ARG POSTHOG_CLI_HOST

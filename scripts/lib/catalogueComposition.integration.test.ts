@@ -82,6 +82,10 @@ const composition = () =>
 
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-composition-'))
+  // Retained editions come from the private store, which signs every request before the stubbed fetch sees it.
+  vi.stubEnv('R2_ACCOUNT_ID', 'a'.repeat(32))
+  vi.stubEnv('R2_ACCESS_KEY_ID', 'key')
+  vi.stubEnv('R2_SECRET_ACCESS_KEY', 'secret')
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string | URL) => {
@@ -103,6 +107,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   fs.rmSync(root, { recursive: true, force: true })
 })
 
