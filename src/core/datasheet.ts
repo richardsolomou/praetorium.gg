@@ -1,3 +1,4 @@
+import type { PrintedTransport } from './transport'
 export type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
 
 export type DatasheetRelationship = {
@@ -29,6 +30,10 @@ export type Datasheet = {
   wargearGroups?: { instruction: string; options: string[] }[]
   baseSize: string | null
   transport: string | null
+  /** How many models `composition` prints, for pages that cannot read its lines. */
+  modelCount?: string
+  /** What `transport` states, for rules that cannot read its text. */
+  transportCapacity?: PrintedTransport
   costs: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null; copies?: string }[]
   attachments: DatasheetRelationship[]
   leaders: DatasheetRelationship[]

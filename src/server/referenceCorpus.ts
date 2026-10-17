@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { hasTextTokens } from '../shared/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import type { ReferenceDocument, ReferenceSection } from '../contracts/reference'
 import type { RuleDocument, RuleEntry } from '../contracts/rules'
@@ -308,12 +309,17 @@ function missionTiming(trigger: NonNullable<GameReferencePack['missions'][number
   return fields.length ? `Timing: ${fields.join('; ')}` : null
 }
 
+/** Said where a section's only words are rules text, which Praetorium publishes as names and numbers alone. */
+export const TEXT_NOT_PUBLISHED = 'Rules text not published here; it loads from its source in a reader’s browser.'
+
 const section = (baseUrl: string, id: string, title: string, lines: (string | null | undefined)[]): ReferenceSection | null => {
   const text = lines
     .map((line) => (line ? referenceText(line) : ''))
     .filter(Boolean)
     .join('\n')
-  return text ? { id, title, text, url: `${baseUrl}#${id}` } : null
+  // A rule whose words are withheld is still a rule an agent can find by name and be told why it says nothing.
+  const withheld = !text && lines.some((line) => line && hasTextTokens(line))
+  return text || withheld ? { id, title, text: text || TEXT_NOT_PUBLISHED, url: `${baseUrl}#${id}` } : null
 }
 
 const present = (sections: (ReferenceSection | null)[]) => sections.filter((entry): entry is ReferenceSection => Boolean(entry))

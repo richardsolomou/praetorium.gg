@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { wordsFrom } from '../src/server/sourceTexts.fixtures'
 import fs from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -90,13 +91,13 @@ describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
   )
 
   it('includes Anathema Psykana in the army rules', () => {
-    expect(
-      digest(
-        [...loaded.factionContents.values()]
-          .find((content) => content.name === 'Adeptus Custodes')!
-          .armyRules.find((rule) => rule.name === 'Anathema Psykana')?.description,
-      ),
-    ).toBe(anathemaPsykana)
+    // Army rules are published as tokens; a reader's browser reads them back from the same files.
+    const published = [...loaded.factionContents.values()]
+      .find((content) => content.name === 'Adeptus Custodes')!
+      .armyRules.find((rule) => rule.name === 'Anathema Psykana')?.description
+    expect(digest(published && wordsFrom(path.join(source, 'datacards', '11th', 'gdc', 'adeptuscustodes.json'))(published))).toBe(
+      anathemaPsykana,
+    )
   })
 
   it.each(attachments)('offers exactly the accepted $kind targets for $name', ({ name, kind, targets }) => {

@@ -114,6 +114,22 @@ describe('loadout instructions', () => {
     ).toEqual(['One Trooper can take one of these weapons.'])
   })
 
+  it('reads which model a published instruction names from its loaded words', () => {
+    expect(
+      loadoutInstructions(
+        { name: 'Plasma gun' },
+        trooper,
+        [trooper, leader],
+        [
+          { instruction: '⟦a1⟧', options: ['Plasma gun'] },
+          { instruction: '⟦b2⟧', options: ['Plasma gun', 'Meltagun'] },
+        ],
+        (instruction) =>
+          instruction === '⟦a1⟧' ? 'The Leader can replace their rifle with a plasma gun.' : 'One Trooper can take one of these weapons.',
+      ),
+    ).toEqual(['⟦b2⟧'])
+  })
+
   it('matches a wargear ability with a source suffix without inventing a rule for a default weapon', () => {
     expect(
       loadoutInstructions(

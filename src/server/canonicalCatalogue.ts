@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { withDefinitionTokens } from './sourceTexts'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
@@ -30,7 +31,7 @@ import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 10 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 11 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -102,6 +103,7 @@ const canonicalDatasheetSchema = z.object({
     }),
   ),
   composition: z.array(z.string()),
+  modelCount: z.string().optional(),
   loadout: z.string().nullable(),
   wargearOptions: z.array(z.string()),
   wargearGroups: z.array(z.object({ instruction: z.string(), options: z.array(z.string()) })).optional(),
@@ -197,7 +199,7 @@ const ruleBlockSchema = z.discriminatedUnion('kind', [
     code: z.string().nullable(),
     anchor: z.string().nullable(),
     title: z.string(),
-    markup: z.string(),
+    markup: z.string().nullable(),
   }),
 ])
 
@@ -206,6 +208,7 @@ const ruleDocumentSchema = z.object({
   slug: z.string(),
   title: z.string(),
   updated: z.string().nullable(),
+  text: z.object({ url: z.url(), sha256: z.string().regex(/^[0-9a-f]{64}$/) }).nullable(),
   sections: z.array(
     z.object({
       id: z.string(),
@@ -486,14 +489,18 @@ export function* canonicalCatalogueSteps(
     leaders: keepCanonicalRoutes(sheet.leaders),
     supporters: keepCanonicalRoutes(sheet.supporters),
   }))
+  // The canonical catalogue is what pages, the API, agents, and search publish: rules text goes out as tokens.
   return canonicalCatalogueSchema.parse({
     format: CANONICAL_CATALOGUE_FORMAT,
     compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
     revisions: Object.fromEntries(Object.entries(revisions).toSorted(([left], [right]) => compareText(left, right))),
-    datasheets: routedDatasheets.toSorted(
-      (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
+    datasheets: withDefinitionTokens(
+      routedDatasheets.toSorted(
+        (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
+      ),
+      loaded.definitionTexts,
     ),
-    detachments: compileCanonicalDetachments(loaded, revisions, rules),
+    detachments: withDefinitionTokens(compileCanonicalDetachments(loaded, revisions, rules), loaded.definitionTexts),
     ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.datacards ?? 'unknown'),
     issues: issues.toSorted(
       (left, right) =>

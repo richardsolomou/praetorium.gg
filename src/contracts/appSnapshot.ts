@@ -18,6 +18,7 @@ export const PUBLIC_REFERENCE_QUERIES = new Set([
   'deployments',
   'rule-index',
   'rule-section',
+  'text-sources',
   'catalogue-status',
 ])
 export const APP_SNAPSHOT_QUERIES = new Set([

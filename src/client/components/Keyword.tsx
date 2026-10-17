@@ -1,4 +1,5 @@
 import { ruleReferenceMatches } from '../../core/ruleReference'
+import { RuleText } from './RuleText'
 import { splitKeywords } from '../datasheet'
 import { HoverTooltip } from './HoverTooltip'
 
@@ -30,7 +31,7 @@ export function Keyword({
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-azure'} hover:text-bone`}
       title={rule?.name ?? name}
-      body={rule?.description}
+      body={rule?.description ? <RuleText text={rule.description} className="mt-0 text-xs" /> : undefined}
       note={note}
     >
       {name}

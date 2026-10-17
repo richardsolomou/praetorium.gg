@@ -8,7 +8,6 @@ import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile
 import {
   abilitySections,
   attachmentGroups,
-  compositionCount,
   profileTableColumns,
   profileTableValue,
   referenceAbilities,
@@ -62,9 +61,9 @@ export function FactionDatasheet() {
           </div>
         }
       >
-        {sheet.composition.length || sheet.points !== null ? (
+        {sheet.modelCount || sheet.points !== null ? (
           <div className="flex flex-wrap gap-1">
-            {sheet.composition.length ? <span className="chip">{compositionCount(sheet.composition)}</span> : null}
+            {sheet.modelCount ? <span className="chip">{sheet.modelCount}</span> : null}
             {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
           </div>
         ) : null}
@@ -136,7 +135,6 @@ export function FactionDatasheet() {
         <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
         <DatasheetPhotos entryId={sheet.id} name={sheet.name} />
-        {sheet.attribution ? <p className="border-t border-edge pt-4 text-xs text-dim">{sheet.attribution}.</p> : null}
       </PageContent>
     </main>
   )

@@ -2,13 +2,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
 import { correctStratagemTiming } from '../core/stratagemCorrections'
-import { localizedField, stratagemLimit, stratagemText } from './datacards'
+import { localizedField, stratagemLimit, stratagemText, type TextsFor } from './datacards'
+import { publishedTexts } from './sourceTexts'
 import { type LoadedCards } from '../shared/rulesCards'
 export * from '../shared/rulesCards'
-export function coreFromDatacards(directory: string): Pick<LoadedCards, 'core' | 'coreDetails'> {
+export function coreFromDatacards(directory: string, textsFor: TextsFor = publishedTexts): Pick<LoadedCards, 'core' | 'coreDetails'> {
   const file = path.join(directory, 'core.json')
   if (!fs.existsSync(file)) return { core: [], coreDetails: [] }
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as { stratagems?: Record<string, unknown>[] }
+  const texts = textsFor(file)
   const core: Stratagem[] = []
   const coreDetails: LoadedCards['coreDetails'] = []
   for (const card of parsed.stratagems ?? []) {
@@ -32,7 +34,7 @@ export function coreFromDatacards(directory: string): Pick<LoadedCards, 'core' |
         ...(turn ? { turn } : {}),
       }),
     )
-    const description = stratagemText(card)
+    const description = stratagemText(card, texts)
     if (description) coreDetails.push({ id: card.id, type: typeof card.type === 'string' ? card.type : null, description })
   }
   return { core, coreDetails }

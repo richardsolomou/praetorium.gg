@@ -1,4 +1,5 @@
 import type { Attachment } from './attach'
+import type { PrintedTransport } from './transport'
 import { attachmentRows } from './attachmentRows'
 import { customPointsBudget, type FormatRuleId, pointsBudgetOf, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
@@ -55,7 +56,13 @@ type PricedRoster = {
 export function rosterSnapshot(
   saved: SavedRoster,
   priced: PricedRoster,
-  details: readonly { entryId: string; wounds?: number; transportRule?: string; keywords?: readonly string[] }[],
+  details: readonly {
+    entryId: string
+    wounds?: number
+    transportRule?: string
+    transportCapacity?: PrintedTransport
+    keywords?: readonly string[]
+  }[],
 ): Roster {
   const keyedPicks = saved.picks.map((pick, key) => ({ ...pick, key }))
   // Both spaces of the same army: what each pick was priced into, and what the
@@ -130,6 +137,7 @@ export function rosterSnapshot(
           models: unit.size.models,
           ...(detail?.wounds ? { wounds: detail.wounds } : {}),
           ...(detail?.transportRule ? { transportRule: detail.transportRule } : {}),
+          ...(detail?.transportCapacity ? { transportCapacity: detail.transportCapacity } : {}),
           ...(detail?.keywords ? { keywords: [...detail.keywords] } : {}),
           group: unit.group,
           warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),

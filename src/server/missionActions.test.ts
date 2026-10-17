@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadMissionActions } from './missionActions'
+import { type MissionAction, loadMissionActions } from './missionActions'
+import { wordsFrom } from './sourceTexts.fixtures'
 
 const action = (name: string, fields: Record<string, unknown> = {}) => ({
   name: { en: name },
@@ -23,13 +24,23 @@ beforeEach(() => {
 
 afterEach(() => fs.rmSync(directory, { recursive: true, force: true }))
 
+/** Actions as a reader's browser shows them once it has loaded the pack. */
+const wordsOf = (actions: MissionAction[] | undefined) => {
+  const words = wordsFrom(directory)
+  return actions?.map((entry) =>
+    Object.fromEntries(
+      Object.entries(entry).map(([key, value]) => [key, typeof value === 'string' && key !== 'name' ? words(value) : value]),
+    ),
+  )
+}
+
 const writePack = (fileName: string, pack: unknown) =>
   fs.writeFileSync(path.join(directory, 'missions', fileName), JSON.stringify(pack), 'utf8')
 
 describe('reading the action a mission card names', () => {
   it('reads it out of the pack the card is printed in', () => {
     writePack('pack.json', { primaryMissions: [{ name: { en: 'Secure Asset' }, actions: [action('SECURE ASSET')] }] })
-    expect(loadMissionActions(directory).get('secure asset')).toEqual([
+    expect(wordsOf(loadMissionActions(directory).get('secure asset'))).toEqual([
       {
         name: 'SECURE ASSET',
         starts: 'Your Shooting phase.',
@@ -45,7 +56,7 @@ describe('reading the action a mission card names', () => {
   it('keeps a restriction the pack states', () => {
     const restrictionText = { en: 'A unit cannot start this action alone.' }
     writePack('pack.json', { primaryMissions: [{ name: { en: 'Extract Relic' }, actions: [action('SENSOR SWEEP', { restrictionText })] }] })
-    expect(loadMissionActions(directory).get('extract relic')?.[0]?.restriction).toBe('A unit cannot start this action alone.')
+    expect(wordsOf(loadMissionActions(directory).get('extract relic'))?.[0]?.restriction).toBe('A unit cannot start this action alone.')
   })
 
   it('reads primaries and secondaries alike', () => {

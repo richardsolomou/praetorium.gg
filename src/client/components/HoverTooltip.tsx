@@ -62,7 +62,7 @@ export function HoverTooltip({
         <strong className="block border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-label text-bone uppercase">{title}</strong>
         {body ? (
           <div className="max-h-56 overflow-y-auto px-2.5 py-1.5 font-rules text-xs text-dim">
-            {typeof body === 'string' ? <RuleText text={body} className="mt-0 text-xs" /> : body}
+            {typeof body === 'string' ? <RuleText text={body} className="mt-0 text-xs" authored /> : body}
           </div>
         ) : null}
         {note ? <span className="eyebrow block border-t border-edge px-2.5 py-1 text-faint">{note}</span> : null}

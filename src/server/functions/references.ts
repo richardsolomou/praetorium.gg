@@ -4,7 +4,9 @@ import { rosterDatasheetLoadedProperties } from '../../shared/rosterTelemetry'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { unitWoundsIn } from '../../shared/catalogue'
-import { isReferenceDatasheet } from '../catalogueIndex'
+import { catalogueDirectory, isReferenceDatasheet } from '../catalogueIndex'
+import { readCatalogueComposition } from '../catalogueComposition'
+import { textSourceFiles } from '../sourceTexts'
 import { detachmentReference } from '../../shared/detachmentReference'
 import { unitsIn } from '../../shared/cataloguePicker'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
@@ -321,6 +323,17 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
     const rules = await app().battleReadRulesFor()
     if (!rules) return null
     return gameReferencesFor(rules)
+  }),
+)
+
+/** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
+export const textSources = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    cacheUntilSnapshotChanges()
+    return memoUntilSnapshotChanges('text-sources', null, async () => {
+      const directory = catalogueDirectory()
+      return textSourceFiles(directory, readCatalogueComposition(directory))
+    })
   }),
 )
 

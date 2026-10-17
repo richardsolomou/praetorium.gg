@@ -377,7 +377,7 @@ function AwardRow({
       ) : null}
       <span className="min-w-0 flex-1 text-sm">
         {/* The pack's own sentence, so the keywords it marks up read as keywords here too. */}
-        <RuleText text={label} className="mt-0 space-y-1 text-sm text-bone" />
+        <RuleText text={label} authored={conditionLabel(award) === null} className="mt-0 space-y-1 text-sm text-bone" />
         {award.trigger.timing === 'end-of-battle' ? <span className="mt-0.5 block text-3xs text-faint">End of battle</span> : null}
         {counted(award) ? (
           <span className="mt-0.5 block text-3xs text-faint">

@@ -25,6 +25,16 @@ Never commit fetched upstream files, copied rules prose, generated catalogues, o
 
 Verify Battlemaster layout identity, slot, deployment, instance order, position and rotation before joining objective codes. New lite files require a new pinned snapshot; older snapshots keep deployment-objective fallback.
 
+### Published rules text
+
+Praetorium serves no Game Datacards rules text: not in pages, server reads, the API, MCP, search, the compiled runtime, or the offline download. Its parsers read each string through a `SourceTexts` function (`src/shared/sourceText.ts`); in production it is `publishedTexts` (`src/server/sourceTexts.ts`), which publishes a token naming the snapshot file, the display transform, and the SHA-256 of the exact source string. `textSources` lists each file's pinned upstream URL, derived from the snapshot's `composition.json`; a reader who opts in on a device loads those files from GitHub and `src/client/sourceText.ts` swaps each token for the string whose hash matches, so a wrong or altered file cannot answer. A string Praetorium corrected is not upstream and stays unavailable, as does a retained edition copied whole from an older snapshot. `RuleText` and `RuleMarkup` resolve tokens; anything else that shows or reads rules text must resolve it through `loadedText` or `loadedWords`, never display a token or a cut-off one.
+
+Rules must not read a published text, on the server or a device, because neither holds its words. Read facts from the raw entry during the parse: enhancement eligibility, stratagem timing and limits, army-rule restrictions (`restrictionsIn`), and transport capacity (`printedTransport`) do. Facts read from texts other rules consult later — detachment weapon grants, strategic reserve exemptions, and referenced rule names — are recorded per token as it is made (`textFactsOf`) and travel in `LoadedDatacards.textFacts`; add a new one there and read it through `src/shared/textFacts.ts`. Compare texts with `comparableText`, since one card copied into two files publishes two tokens. Use `sourceWords` only for tests and local checks that read the source directly.
+
+BSData text stays in the data rules compute from, on the server and in the offline download, because Leader attachments, ability grants, and combat rules read it. What Praetorium publishes from the canonical catalogue — reference pages, the API, agent tools, search, and the corpus — carries BSData descriptions as tokens too (`withDefinitionTokens`, from `LoadedCatalogue.definitionTexts`). In the browser, `RuleText` and `RuleMarkup` show any rules text only once the reader has chosen to load it; pass `authored` for words the app writes itself.
+
+A device chooses each text source on its own: BSData for files under a snapshot's `definitions/` and Game Datacards for `datacards/`, by place in the snapshot rather than by repository, so a fork or correction overlay counts as the source it replaces. `textSources` returns each file's source with its URL, and `loadedText` in `src/client/sourceText.ts` is the one place that decides whether a token's source is chosen; untokenized catalogue words count as BSData and rules documents as Game Datacards. The choice lives in this device's storage (`src/client/rulesText.ts`), so it behaves the same signed in or out and Praetorium keeps no record of it. Until a device decides, `TextSourcesNotice` asks above every page; `/sources` turns each source on or off and credits every source, so pages carry no attribution lines of their own.
+
 ### Compiled runtime
 
 Builds install runtime JSON from the local cache, the shared store on the catalogue mirror, or a compile from the snapshot. The key (`scripts/catalogueRuntimeKey.ts`) hashes the compiler sources, so bump the runtime format version only when the manifest or file layout changes. Only builds with `ASSETS_R2_*` write access upload, once per key. Reads verify fingerprints and file hashes, treat unverifiable objects as misses, and fail closed on mismatched manifests. Compiler fixes reach reference pages on deployment without editing the immutable snapshot.
@@ -118,13 +128,13 @@ Startup compiles canonical records only for each edition's advertised factions; 
 
 `src/server/canonicalCatalogue.ts` compiles reference records with field provenance and `issues`; contextual rosters still use the evaluator. `src/core/datasheetStructure.ts` owns semantic profile kinds, keeping upstream display labels out of UI control flow.
 
-| Field                                                               | Policy                                                                                           |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Executable choices, constraints, contextual modifiers               | BSData evaluation                                                                                |
-| Printed composition, loadout, base, mission/rules prose             | Game Datacards, with supported source-backed fallbacks                                           |
-| Reference and evaluated unit points, DP, enhancement/upgrade prices | Pinned MFM when an unambiguous row joins; supported card/evaluator fallback                      |
-| Wargear prices                                                      | MFM only for matching executable options or source-backed pieces; remaining costs stay evaluated |
-| Terrain geometry                                                    | Pinned Battlemaster detail and lite objectives; source-pinned label corrections                  |
+| Field                                                               | Policy                                                                                               |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Executable choices, constraints, contextual modifiers               | BSData evaluation                                                                                    |
+| Printed composition, loadout, base, mission/rules prose             | Game Datacards, published as [tokens](#published-rules-text), with supported source-backed fallbacks |
+| Reference and evaluated unit points, DP, enhancement/upgrade prices | Pinned MFM when an unambiguous row joins; supported card/evaluator fallback                          |
+| Wargear prices                                                      | MFM only for matching executable options or source-backed pieces; remaining costs stay evaluated     |
+| Terrain geometry                                                    | Pinned Battlemaster detail and lite objectives; source-pinned label corrections                      |
 
 No source is globally authoritative. Joins must be unambiguous and preserve selected equipment and context. For a two-row MFM starting-strength table, intermediate counts pay the upper row per the [Starting Strength guidance](https://mfm.warhammer-community.com/en); per-model tables match exactly and refuse counts outside printed limits. Conflicts, missing joins and fallbacks stay visible; unknown semantic mappings need a reviewed mapping and test.
 

@@ -327,6 +327,8 @@ describe('global datasheet search', () => {
       detachmentRules: new Map(),
       armyRules: [],
       factionAbilityNames: new Set(),
+      restrictions: [],
+      restrictionLists: [],
     })
     rules.detachmentDetails.set('deathwatch', new Map())
     rules.detachmentDetails.get('deathwatch')!.set('black-spear-task-force', {
@@ -409,6 +411,7 @@ describe('global rules search', () => {
       slug: 'core-rules',
       title: 'Core Rules',
       updated: null,
+      text: null,
       sections: [
         {
           id: 'section-moving',

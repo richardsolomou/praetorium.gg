@@ -10,7 +10,6 @@ import type { Deployment, TerrainLayout, TerrainTemplate } from '../contracts/te
 export const RULES_DATA_ATTRIBUTION = DATACARDS_ATTRIBUTION
 export type { Mission } from './rulesCards'
 export type LoadedRules = {
-  attribution: string
   abilityDescriptions: ReadonlyMap<string, string>
   /** Army-construction restrictions keyed by the player-facing faction slug. */
   factionRestrictions: ReadonlyMap<string, FactionRestrictions>
@@ -53,15 +52,7 @@ export type LoadedRules = {
 export type BattleMissionRules = Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>
 export type BattleReadRules = Pick<
   LoadedRules,
-  | 'missions'
-  | 'fixedSecondaryCaps'
-  | 'primaries'
-  | 'secondaries'
-  | 'missionTwists'
-  | 'dispositions'
-  | 'dispositionDetails'
-  | 'deployments'
-  | 'attribution'
+  'missions' | 'fixedSecondaryCaps' | 'primaries' | 'secondaries' | 'missionTwists' | 'dispositions' | 'dispositionDetails' | 'deployments'
 >
 export type TerrainReadRules = Pick<LoadedRules, 'terrainLayouts' | 'terrainTemplates'>
 /**

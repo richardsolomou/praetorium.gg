@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { printedTransportSchema } from './transport'
 import { catalogueEditionSummarySchema } from './catalogueEdition'
 import {
   BATTLE_ROUNDS,
@@ -214,6 +215,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 strategicReserveExempt: z.boolean().optional(),
                 transport: z.boolean().optional(),
                 transportRule: z.string().max(4_000).optional(),
+                transportCapacity: printedTransportSchema.optional(),
                 keywords: z.array(z.string().max(100)).max(60).optional(),
               }),
             )

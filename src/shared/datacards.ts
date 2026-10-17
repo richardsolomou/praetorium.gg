@@ -2,6 +2,9 @@ import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
 import { joinKey } from './rulesSource'
+import type { SourceTexts, TextTransform } from './sourceText'
+import type { TextFactsByKey } from './textFacts'
+import { type PrintedTransport, printedTransport } from '../core/transport'
 /**
  * What Game Datacards says: the shape of each datasheet, and every piece of rules
  * prose the app shows — army rules, detachment rules, enhancements and stratagems.
@@ -20,6 +23,10 @@ export type DatasheetDetails = {
   wargearGroups?: { instruction: string; options: string[] }[]
   baseSize: string | null
   transport: string | null
+  /** How many models the composition prints, read before its lines are published only as tokens. */
+  modelCount?: string
+  /** What the transport text states, read before the text is published only as a token. */
+  transportCapacity?: PrintedTransport
   points: { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }[]
   attachesTo: { kind: 'leader' | 'support'; name: string }[]
   leaders: string[]
@@ -82,6 +89,15 @@ export type FactionContent = {
   armyRules: RuleCard[]
   /** The army rules its datasheets print by name, whether or not the file carries the card. */
   factionAbilityNames: Set<string>
+  /** Units and keywords the army rules refuse, read from their words before those are published only as tokens. */
+  restrictions: readonly FactionRestriction[]
+  /** Every unit an army rule lists as refused, so a list the restrictions did not read is reported. */
+  restrictionLists: readonly { faction: string; names: readonly string[] }[]
+}
+export type FactionRestriction = {
+  owner: string
+  excludedNames: readonly (readonly [string, string | null])[]
+  excludedKeywords: readonly string[]
 }
 export type LoadedDatacards = {
   keywordRules?: readonly RuleCard[]
@@ -100,6 +116,8 @@ export type LoadedDatacards = {
   constructionDetachments: ReadonlyMap<string, readonly ConstructionDetachment[]>
   /** By `descriptionKey`, where every matching card agrees on the points. */
   enhancementPoints: ReadonlyMap<string, number>
+  /** What the roster rules read from each published text, by `textKey`. */
+  textFacts?: TextFactsByKey
 }
 export type FactionRestrictions = {
   /** Lowercased datasheet names, each with the lowercased keyword that exempts a unit from it, if any. */
@@ -180,10 +198,19 @@ export function factionContent(
   parsed: DatacardsFaction,
   sections: SectionProse,
   datasheetNames: readonly string[],
+  texts: SourceTexts,
 ): FactionContent {
+  // Army rules are read twice, as words and as tokens, and the catalogue is asked once for each section.
+  const asked = new Map<string, ReadonlyMap<string, string>>()
+  const sectionsOnce: SectionProse = (section) => {
+    const key = JSON.stringify(section)
+    const found = asked.get(key) ?? sections(section)
+    asked.set(key, found)
+    return found
+  }
   const datasheets = records(parsed, 'datasheets').flatMap((entry) => {
     const datasheetName = localizedField(entry, 'name')
-    return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry) }] : []
+    return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry, texts) }] : []
   })
   const datasheetDetailsByName = new Map(datasheets.map(({ name: datasheetName, details }) => [datasheetName, details]))
   const datasheetIdCandidates = new Map<string, Map<string, DatasheetDetails>>()
@@ -215,7 +242,7 @@ export function factionContent(
         name: enhancement,
         detachment,
         points: integerField(entry, 'cost'),
-        description: localizedField(entry, 'description') ? prose(localizedField(entry, 'description')!) : null,
+        description: localizedField(entry, 'description') ? texts(localizedField(entry, 'description')!, 'prose') : null,
         eligibility: enhancementEligibility(entry, datasheetNames),
       },
     ])
@@ -255,7 +282,7 @@ export function factionContent(
     const id = stringField(entry, 'id')
     const stratagemName = localizedField(entry, 'name')
     const cp = integerField(entry, 'cost')
-    const description = stratagemText(entry)
+    const description = stratagemText(entry, texts)
     const phases =
       cardPhases(entry.phase) ??
       (Array.isArray(entry.phase) && entry.phase.length === 0 ? phaseFromWhen(localizedField(entry, 'when')) : null)
@@ -296,12 +323,18 @@ export function factionContent(
     cards.set(nameKey, previous === undefined ? card : previous && JSON.stringify(previous) === JSON.stringify(card) ? card : null)
   }
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
-  for (const entry of detachmentRuleCards(parsed.rules, name, sections)) {
+  for (const entry of detachmentRuleCards(parsed.rules, name, sections, texts)) {
     const key = joinKey(entry.detachment)
     const cards = detachmentRules.get(key) ?? new Map<string, Set<string>>()
     for (const rule of entry.rules) cards.set(rule.name, new Set([...(cards.get(rule.name) ?? []), rule.description]))
     detachmentRules.set(key, cards)
   }
+  // Read from the words themselves: the published army rules carry tokens, and a refusal must not depend on them.
+  const worded = records(parsed.rules, 'army').flatMap((card) => {
+    const description = ruleText(card, name, sectionsOnce, sourceWords)
+    return description ? [description] : []
+  })
+  const sentences = restrictionSentences(name, worded)
   return {
     name,
     ...(typeof parsed.attribution === 'string' && parsed.attribution.trim()
@@ -346,9 +379,11 @@ export function factionContent(
     ),
     armyRules: records(parsed.rules, 'army').flatMap((card) => {
       const title = localizedField(card, 'name')
-      const description = ruleText(card, name, sections)
+      const description = ruleText(card, name, sectionsOnce, texts)
       return title && description ? [{ name: title, description }] : []
     }),
+    restrictions: restrictionsIn(sentences),
+    restrictionLists: restrictionListsIn(sentences),
   }
 }
 /**
@@ -361,7 +396,7 @@ export function factionContent(
  * it for the card and the section together, `Battle Focus - Agile Manoeuvres`. A title
  * under no heading is named and left at that.
  */
-function ruleText(card: Record<string, unknown>, faction: string, sections: SectionProse) {
+function ruleText(card: Record<string, unknown>, faction: string, sections: SectionProse, texts: SourceTexts) {
   const name = localizedField(card, 'name')
   const blocks = records(card, 'rules').toSorted((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0))
   const titles = new Map<string, string[]>()
@@ -385,17 +420,22 @@ function ruleText(card: Record<string, unknown>, faction: string, sections: Sect
         const description = described.get(title)
         return [`### ${title}`, ...(description ? [prose(description)] : [])]
       }
-      return rule.type === 'header' || title ? [`### ${title ?? text}`, ...(title ? [prose(text)] : [])] : [prose(text)]
+      return rule.type === 'header' || title ? [`### ${title ?? text}`, ...(title ? [texts(text, 'prose')] : [])] : [texts(text, 'prose')]
     })
     .join('\n\n')
 }
-export function detachmentRuleCards(rules: unknown, faction: string, sections: SectionProse): { detachment: string; rules: RuleCard[] }[] {
+export function detachmentRuleCards(
+  rules: unknown,
+  faction: string,
+  sections: SectionProse,
+  texts: SourceTexts,
+): { detachment: string; rules: RuleCard[] }[] {
   return records(rules, 'detachment').flatMap((entry) => {
     const detachment = stringField(entry, 'detachment')
     if (!detachment) return []
     const cards = records(entry, 'rules').flatMap((card) => {
       const name = localizedField(card, 'name')
-      const description = ruleText(card, faction, sections)
+      const description = ruleText(card, faction, sections, texts)
       return name && description ? [{ name, description }] : []
     })
     return cards.length ? [{ detachment, rules: cards }] : []
@@ -428,6 +468,24 @@ export function prose(text: string) {
   }
   return tight.trim().replaceAll(/\uE000(\d+)\uE000/g, (_, at: string) => tables[Number(at)] ?? '')
 }
+/** How a source string reads once loaded; the server reads the source through this and so does a reader's browser. */
+export function transformed(raw: string, transform: TextTransform) {
+  if (transform === 'prose') return prose(raw)
+  if (transform === 'trim') return raw.trim()
+  if (transform === 'rest') return prose(raw.replaceAll(LIST_ITEM, '').replaceAll(/<\/?ul>/g, ''))
+  if (transform.startsWith('item')) return prose([...raw.matchAll(LIST_ITEM)][Number(transform.slice(4))]?.[1] ?? '')
+  if (transform === 'condition') return whenDrawnCondition(raw) ?? ''
+  return raw
+}
+
+/** What a secondary card's when-drawn rule says must hold for it to be discarded and replaced, as the card prints it. */
+export function whenDrawnCondition(text: string) {
+  const plain = text.trim().replaceAll('**', '').replaceAll('‑', '-').replaceAll(/\s+/g, ' ')
+  const replacement = /^WHEN DRAWN: If (.+?), you can discard this card and draw one new Secondary Mission card\.?$/i.exec(plain)
+  return replacement ? replacement[1]!.replace(/^there /i, 'there ') : null
+}
+/** The source's own words, for reading facts from them and for checks that read the files directly; never published. */
+export const sourceWords: SourceTexts = transformed
 export function enhancementEligibility(
   card: Record<string, unknown>,
   datasheetNames: readonly string[] = [],
@@ -536,10 +594,10 @@ export function enhancementEligibility(
   }
 }
 /** A stratagem's card, section by section, in the order the card prints them. */
-export function stratagemText(card: Record<string, unknown>) {
+export function stratagemText(card: Record<string, unknown>, texts: SourceTexts) {
   const section = (label: string, field: string) => {
     const text = localizedField(card, field)
-    return text ? `**${label}:** ${prose(text)}` : null
+    return text ? `**${label}:** ${texts(text, 'prose')}` : null
   }
   const sections = [
     section('When', 'when'),
@@ -563,16 +621,18 @@ export function stratagemLimit(restrictions: string | null): Stratagem['limit'] 
         ? 'turn'
         : 'phase'
 }
+type RestrictionSentence = { faction: string; sentence: string }
+
 /** Parse only supported faction bans and keyword exemptions; `factionRestrictionCoverageIssues` reports unmatched source wording rather than silently allowing it. */
-export function factionRestrictions(datacards: Pick<LoadedDatacards, 'factions'>) {
-  const restrictions = new Map<string, { excludedNames: Map<string, string | null>; excludedKeywords: Set<string> }>()
-  const forFaction = (faction: string) => {
-    const key = routeSlug(faction)
-    const found = restrictions.get(key) ?? { excludedNames: new Map<string, string | null>(), excludedKeywords: new Set<string>() }
+function restrictionsIn(sentences: readonly RestrictionSentence[]): FactionRestriction[] {
+  const restrictions = new Map<string, { owner: string; excludedNames: Map<string, string | null>; excludedKeywords: Set<string> }>()
+  const forFaction = (owner: string) => {
+    const key = routeSlug(owner)
+    const found = restrictions.get(key) ?? { owner, excludedNames: new Map<string, string | null>(), excludedKeywords: new Set<string>() }
     restrictions.set(key, found)
     return found
   }
-  for (const { faction, sentence } of restrictionSentences(datacards)) {
+  for (const { faction, sentence } of sentences) {
     const conditional = sentence.match(/^If your army includes one or more ([A-Z][A-Z ]+?) units, it cannot include/)
     const owner = conditional?.[1] ?? faction
     for (const match of sentence.matchAll(/cannot include (?:any of )?the following [^:]*?(?:units|models|datasheets)([^:]*):\s*(.*)$/g)) {
@@ -587,6 +647,35 @@ export function factionRestrictions(datacards: Pick<LoadedDatacards, 'factions'>
       (/^Your army cannot include any ADEPTUS ASTARTES PSYKER models/i.test(sentence) && routeSlug(faction) === 'black-templars')
     ) {
       forFaction('Black Templars').excludedKeywords.add('psyker')
+    }
+  }
+  return [...restrictions.values()].map(({ owner, excludedNames, excludedKeywords }) => ({
+    owner,
+    excludedNames: [...excludedNames],
+    excludedKeywords: [...excludedKeywords],
+  }))
+}
+
+/** Every named exclusion list the sentences state, whether or not `restrictionsIn` typed it. */
+function restrictionListsIn(sentences: readonly RestrictionSentence[]) {
+  return sentences.flatMap(({ faction, sentence }) =>
+    [...sentence.matchAll(/cannot include[^.]*?following [^:]*?(?:units|models|datasheets)[^:]*:\s*(.*)$/g)].map((match) => ({
+      faction,
+      names: listedNames(match[1]),
+    })),
+  )
+}
+
+/** The bans and exemptions every faction's army rules state, merged across the files that state them. */
+export function factionRestrictions(datacards: Pick<LoadedDatacards, 'factions'>) {
+  const restrictions = new Map<string, { excludedNames: Map<string, string | null>; excludedKeywords: Set<string> }>()
+  for (const content of new Set(datacards.factions.values())) {
+    for (const restriction of content.restrictions) {
+      const key = routeSlug(restriction.owner)
+      const found = restrictions.get(key) ?? { excludedNames: new Map<string, string | null>(), excludedKeywords: new Set<string>() }
+      restrictions.set(key, found)
+      for (const [name, exemption] of restriction.excludedNames) found.excludedNames.set(name, exemption)
+      for (const keyword of restriction.excludedKeywords) found.excludedKeywords.add(keyword)
     }
   }
   return restrictions as ReadonlyMap<string, FactionRestrictions>
@@ -610,49 +699,44 @@ export function factionRestrictionCoverageIssues(datacards: Pick<LoadedDatacards
   const parsed = factionRestrictions(datacards)
   const captured = new Set([...parsed.values()].flatMap((rule) => [...rule.excludedNames.keys()]))
   const issues: string[] = []
-  for (const { faction, sentence } of restrictionSentences(datacards)) {
-    for (const match of sentence.matchAll(/cannot include[^.]*?following [^:]*?(?:units|models|datasheets)[^:]*:\s*(.*)$/g)) {
-      const missing = listedNames(match[1]).filter((name) => !captured.has(name))
+  for (const content of new Set(datacards.factions.values())) {
+    for (const { faction, names } of content.restrictionLists) {
+      const missing = names.filter((name) => !captured.has(name))
       if (missing.length) issues.push(`${faction}: ${missing.join(', ')}`)
     }
   }
   return issues
 }
 /**
- * Each sentence of every army rule, with the faction it speaks for: the file's own,
+ * Each sentence of one file's army rules, with the faction it speaks for: the file's own,
  * or the sub-heading it sits under — the Space Marines rule states the Deathwatch's
  * exclusions beneath a **DEATHWATCH** heading.
  */
-function restrictionSentences(datacards: Pick<LoadedDatacards, 'factions'>) {
-  const found: { faction: string; sentence: string }[] = []
-  const seen = new Set<FactionContent>()
-  for (const content of datacards.factions.values()) {
-    if (seen.has(content)) continue
-    seen.add(content)
-    for (const rule of content.armyRules) {
-      let faction = content.name
-      let list: { faction: string; sentence: string } | null = null
-      for (const line of rule.description.split('\n')) {
-        const bullet = /^\s*-\s+/.test(line)
-        const plain = line
-          .replaceAll('**', '')
-          .replace(/^[■□\s-]+/, '')
-          .trim()
-        if (!plain) continue
-        if (bullet && list) {
-          list.sentence += `; ${plain.replace(/\s+(?:units|models|datasheets)\.?$/i, '').replace(/\.$/, '')}`
-          continue
-        }
-        list = null
-        if (/^[A-Z][A-Z' ]+$/.test(plain)) {
-          faction = plain
-          continue
-        }
-        for (const sentence of plain.split(/(?<=\.)\s+/)) {
-          const entry = { faction, sentence: sentence.trim() }
-          found.push(entry)
-          if (/cannot include[^.]*?following [^:]*:\s*$/.test(entry.sentence)) list = entry
-        }
+function restrictionSentences(fileFaction: string, descriptions: readonly string[]) {
+  const found: RestrictionSentence[] = []
+  for (const description of descriptions) {
+    let faction = fileFaction
+    let list: RestrictionSentence | null = null
+    for (const line of description.split('\n')) {
+      const bullet = /^\s*-\s+/.test(line)
+      const plain = line
+        .replaceAll('**', '')
+        .replace(/^[■□\s-]+/, '')
+        .trim()
+      if (!plain) continue
+      if (bullet && list) {
+        list.sentence += `; ${plain.replace(/\s+(?:units|models|datasheets)\.?$/i, '').replace(/\.$/, '')}`
+        continue
+      }
+      list = null
+      if (/^[A-Z][A-Z' ]+$/.test(plain)) {
+        faction = plain
+        continue
+      }
+      for (const sentence of plain.split(/(?<=\.)\s+/)) {
+        const entry = { faction, sentence: sentence.trim() }
+        found.push(entry)
+        if (/cannot include[^.]*?following [^:]*:\s*$/.test(entry.sentence)) list = entry
       }
     }
   }
@@ -670,12 +754,23 @@ const listedNames = (names: string | undefined) =>
         .toLowerCase(),
     )
     .filter(Boolean)
+/**
+ * The source names everything in eight languages. This product is in one, and a value
+ * that is only a string is taken as it is rather than skipped.
+ */
+export function english(value: unknown): string | null {
+  if (typeof value === 'string') return value.trim() || null
+  if (!value || typeof value !== 'object') return null
+  const translated = (value as Record<string, unknown>).en
+  return typeof translated === 'string' ? translated.trim() || null : null
+}
+
 export function localizedField(value: unknown, field: string): string | null {
   if (!value || typeof value !== 'object') return null
   const localized: unknown = (value as Record<string, unknown>)[field]
   if (!localized || typeof localized !== 'object') return null
-  const english: unknown = (localized as Record<string, unknown>).en
-  return typeof english === 'string' ? english : null
+  const translated: unknown = (localized as Record<string, unknown>).en
+  return typeof translated === 'string' ? translated : null
 }
 function localizedList(value: unknown, field: string): string[] {
   if (!value || typeof value !== 'object') return []
@@ -683,8 +778,8 @@ function localizedList(value: unknown, field: string): string[] {
   if (!Array.isArray(localized)) return []
   return localized.flatMap((entry: unknown) => {
     if (!entry || typeof entry !== 'object') return []
-    const english: unknown = (entry as Record<string, unknown>).en
-    return typeof english === 'string' ? [english] : []
+    const translated: unknown = (entry as Record<string, unknown>).en
+    return typeof translated === 'string' ? [translated] : []
   })
 }
 const LIST_ITEM = /<li>([^]*?)<\/li>/g
@@ -697,43 +792,86 @@ const LIST_ITEM = /<li>([^]*?)<\/li>/g
  * from the sentence beside them would count weapons as models — and what follows
  * them is the loadout the entry did not fill in.
  */
-function composition(value: unknown): { lines: string[]; loadout: string | null } {
+function composition(value: unknown, texts: SourceTexts): { lines: string[]; loadout: string | null } {
   const lines: string[] = []
   const loose: string[] = []
   for (const entry of localizedList(value, 'composition')) {
     if (!entry.includes('<li>')) {
-      lines.push(entry)
+      if (entry) lines.push(texts(entry, 'plain'))
       continue
     }
-    for (const item of entry.matchAll(LIST_ITEM)) lines.push(prose(item[1]!))
-    loose.push(prose(entry.replaceAll(LIST_ITEM, '').replaceAll(/<\/?ul>/g, '')))
+    const items = [...entry.matchAll(LIST_ITEM)].length
+    for (let at = 0; at < items; at += 1) if (transformed(entry, `item${at}`)) lines.push(texts(entry, `item${at}`))
+    if (transformed(entry, 'rest')) loose.push(texts(entry, 'rest'))
   }
-  return { lines: lines.filter(Boolean), loadout: loose.filter(Boolean).join('\n\n') || null }
+  return { lines, loadout: loose.join('\n\n') || null }
 }
+/** How many models a composition prints, read from its words: a range across its lines and alternatives. */
+export function compositionCount(lines: readonly string[]) {
+  const alternatives: { minimum: number; maximum: number }[][] = [[]]
+  for (const line of lines) {
+    if (line.trim().toLocaleLowerCase() === 'or') {
+      alternatives.push([])
+      continue
+    }
+    // Any dash the source writes, non-breaking hyphens included, joins one range.
+    for (const count of line.matchAll(/(\d+)(?:\s*\p{Pd}\s*(\d+))?/gu)) {
+      alternatives.at(-1)?.push({ minimum: Number(count[1]), maximum: Number(count[2] ?? count[1]) })
+    }
+  }
+  const totals = alternatives.flatMap((groups) =>
+    groups.length
+      ? [
+          {
+            minimum: groups.reduce((total, group) => total + group.minimum, 0),
+            maximum: groups.reduce((total, group) => total + group.maximum, 0),
+          },
+        ]
+      : [],
+  )
+  if (!totals.length) return `${lines.length} ${lines.length === 1 ? 'model' : 'models'}`
+
+  const minimum = Math.min(...totals.map((total) => total.minimum))
+  const maximum = Math.max(...totals.map((total) => total.maximum))
+  const count = minimum === maximum ? String(minimum) : `${minimum}–${maximum}`
+  return `${count} ${maximum === 1 ? 'model' : 'models'}`
+}
+
 /** Codex-shaped entries print the transport rule as a special ability rather than in its own field. */
 function specialTransport(value: unknown): string | null {
   const abilities: unknown = value && typeof value === 'object' ? (value as Record<string, unknown>).abilities : null
   const transport = records(abilities, 'special').find((ability) => localizedField(ability, 'name')?.toUpperCase() === 'TRANSPORT')
   return localizedField(transport, 'description')
 }
-function datasheetDetails(value: unknown): DatasheetDetails {
+/** The heading the source gives a datasheet's starting wargear: a label the builder reads, not rules text. */
+export const DEFAULT_WARGEAR = 'Default Wargear'
+/** Labels the source prints where it has no rules text to give, which pages read as labels. */
+const LABELS = new Set([DEFAULT_WARGEAR, 'None'])
+const labelOr = (texts: SourceTexts) => (raw: string) => (LABELS.has(raw.trim()) ? raw : texts(raw, 'plain'))
+function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails {
   const wargearGroups = records(value, 'wargearOptions').flatMap((group) => {
-    const instruction = localizedField(group, 'instruction')
+    const printed = localizedField(group, 'instruction')
+    const instruction = printed ? labelOr(texts)(printed) : printed
     const options = records(group, 'options').flatMap((option) => {
       const name = localizedField(option, 'name')
       return name ? [name] : []
     })
     return instruction && options.length ? [{ instruction, options }] : []
   })
-  const { lines, loadout } = composition(value)
+  const { lines, loadout } = composition(value, texts)
+  const counted = composition(value, sourceWords).lines
   const transport = localizedField(value, 'transport') ?? specialTransport(value)
+  const printedLoadout = localizedField(value, 'loadout')
+  const capacity = transport ? printedTransport(prose(transport)) : null
   return {
     composition: lines,
-    loadout: localizedField(value, 'loadout') || loadout,
-    wargear: localizedList(value, 'wargear'),
+    ...(counted.length ? { modelCount: compositionCount(counted) } : {}),
+    loadout: printedLoadout ? texts(printedLoadout, 'plain') : loadout,
+    wargear: localizedList(value, 'wargear').map(labelOr(texts)),
     ...(wargearGroups.length ? { wargearGroups } : {}),
     baseSize: displayBaseSize(localizedField(value, 'baseSize')),
-    transport: transport ? prose(transport) : null,
+    transport: transport ? texts(transport, 'prose') : null,
+    ...(capacity ? { transportCapacity: capacity } : {}),
     points: records(value, 'points').flatMap((point) => {
       const models = stringField(point, 'models')
       const cost = stringField(point, 'cost')

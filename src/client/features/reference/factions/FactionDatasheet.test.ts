@@ -1,7 +1,12 @@
-import { createElement } from 'react'
+import { type PropsWithChildren, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Abilities, ProfileTable, Relationships, TransportReference } from './FactionDatasheet'
+
+// A prompt for rules text not loaded links to the data sources page.
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children }: PropsWithChildren) => createElement('a', null, children),
+}))
 
 describe('faction datasheet profile table', () => {
   it('renders different source labels for one semantic characteristic in the same column', () => {

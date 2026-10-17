@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { withoutTexts } from '../shared/sourceText'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
 import type { AgentToolDescriptor } from '../contracts/agentTools'
@@ -44,10 +45,11 @@ export class AgentTools {
       },
       registerMcp: (server) =>
         server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(name, { ...config, inputSchema: schema }, async (input) =>
-          execute(await schema.parseAsync(input)),
+          withoutTexts(await execute(await schema.parseAsync(input))),
         ),
       parse,
-      execute: async (input) => execute(await parse(input)),
+      // Agents get facts: rules text is published only as tokens a reader's browser loads.
+      execute: async (input) => withoutTexts(await execute(await parse(input))),
     })
   }
 

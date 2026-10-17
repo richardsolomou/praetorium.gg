@@ -4,7 +4,7 @@ Browser pages, HTTP, MCP, sitemap, and Markdown responses read one verified cano
 
 ## Reference corpus
 
-Preserve canonical URLs, source revisions, attribution, unavailable fields, and source prose; keep geometry in structured records, not excerpts. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
+Preserve canonical URLs, source revisions, attribution, unavailable fields, and source prose; keep geometry in structured records, not excerpts. Game Datacards rules text never reaches the corpus, the API, or agent tools: core rules documents carry only their outline, and `referenceText`, `referenceResponse`, and `AgentTools` remove [tokens](catalogue-data.md#published-rules-text) from everything else. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
 
 ## HTTP API
 

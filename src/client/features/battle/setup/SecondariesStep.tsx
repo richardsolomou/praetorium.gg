@@ -17,7 +17,7 @@ type Props = { view: BattleView; sides: Side[]; send: SendCommand; pending: bool
  * player can referee the choices for both sides from one device.
  */
 export function SecondariesStep({ view, sides, send, pending }: Props) {
-  // The attribution is the instance's rather than any one army's, so it is said once under both sides.
+  // The dataslate is the instance's rather than any one army's, so it is said once under both sides.
   const requests = sides.flatMap((side) => side.armies.map((army) => armyRulesRequest(army.roster)))
   const rules = useQueries({ queries: requests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)) })
     .map((result) => result.data)
@@ -44,12 +44,7 @@ export function SecondariesStep({ view, sides, send, pending }: Props) {
           )
         })}
       </div>
-      {rules ? (
-        <p className="text-2xs text-dim">
-          {rules.attribution}
-          {rules.dataslate ? ` · ${rules.dataslate.replaceAll('-', ' ')}` : ''}
-        </p>
-      ) : null}
+      {rules?.dataslate ? <p className="text-2xs text-dim">{rules.dataslate.replaceAll('-', ' ')}</p> : null}
     </div>
   )
 }

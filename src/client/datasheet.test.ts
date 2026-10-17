@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { compositionCount } from '../shared/datacards'
 import {
   addedKeywords,
   attachmentGroups,
-  compositionCount,
   datasheetPoints,
   unitCostsSummary,
   datasheetDescription,

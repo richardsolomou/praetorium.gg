@@ -97,36 +97,6 @@ export function ruleProfileSections(profiles: readonly Profile[]) {
   return [...sections].map(([title, sectionProfiles]) => ({ title, profiles: sectionProfiles }))
 }
 
-export function compositionCount(composition: readonly string[]) {
-  const alternatives: { minimum: number; maximum: number }[][] = [[]]
-  for (const line of composition) {
-    if (line.trim().toLocaleLowerCase() === 'or') {
-      alternatives.push([])
-      continue
-    }
-    // Any dash the source writes, non-breaking hyphens included, joins one range.
-    for (const count of line.matchAll(/(\d+)(?:\s*\p{Pd}\s*(\d+))?/gu)) {
-      alternatives.at(-1)?.push({ minimum: Number(count[1]), maximum: Number(count[2] ?? count[1]) })
-    }
-  }
-  const totals = alternatives.flatMap((groups) =>
-    groups.length
-      ? [
-          {
-            minimum: groups.reduce((total, group) => total + group.minimum, 0),
-            maximum: groups.reduce((total, group) => total + group.maximum, 0),
-          },
-        ]
-      : [],
-  )
-  if (!totals.length) return `${composition.length} ${composition.length === 1 ? 'model' : 'models'}`
-
-  const minimum = Math.min(...totals.map((total) => total.minimum))
-  const maximum = Math.max(...totals.map((total) => total.maximum))
-  const count = minimum === maximum ? String(minimum) : `${minimum}–${maximum}`
-  return `${count} ${maximum === 1 ? 'model' : 'models'}`
-}
-
 /**
  * The keywords something in the list put on a weapon: the ones the printed profile
  * does not have.

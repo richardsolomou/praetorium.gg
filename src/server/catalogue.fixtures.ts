@@ -175,5 +175,7 @@ export const withCards = (name: string, cards: readonly string[] | ReadonlyMap<s
     detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],
+    restrictions: [],
+    restrictionLists: [],
   }
 }

@@ -16,6 +16,20 @@ export type CombatRule = {
   appliedDefences?: DatasheetCharacteristicKind[]
   models?: number
   keywords?: readonly string[]
+  /** What a rule published as a token is judged against once a device loads its words. */
+  judge?: CombatRuleJudge
+}
+/** A rule's place in a roster that its words decide whether and how it applies within. */
+export type CombatRuleJudge = {
+  /** The unit's own datasheet ability, another unit's ability, or a stratagem or detachment rule. */
+  origin: 'own' | 'support' | 'listed'
+  /** Whether this unit is led by an attached unit, or, for another unit's ability, whether that unit is attached. */
+  attached?: boolean
+  keywords: readonly string[]
+  /** The keywords of the unit and the units attached to it, which a stratagem's target names. */
+  unitKeywords: readonly string[]
+  /** The keywords of each unit in the roster that could be a stratagem's source. */
+  supportKeywords: readonly (readonly string[])[]
 }
 export type CombatRuleEffect = {
   role: 'attacker' | 'defender'
@@ -248,6 +262,30 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
   const attacker = (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) || (attacking && !enemyWeapons)
   const defender = enemyWeapons || (defending && !offensiveTarget)
   return [...(attacker ? ['attacker' as const] : []), ...(defender ? ['defender' as const] : [])]
+}
+
+/** A rule as it applies to a unit, judged from its words in its place in the roster, or null when it takes no part. */
+export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): CombatRule | null {
+  const { description } = rule
+  let scope = rule.scope
+  if (judge.origin === 'own') {
+    if (/select (?:one|a) other friendly/i.test(description)) return null
+    scope = judge.attached && /^While this model is leading a unit,/i.test(description) ? 'attached' : 'unit'
+  } else if (judge.origin === 'support') {
+    const linked =
+      judge.attached && /leading a unit|this model[’']s unit|bearer[’']s unit|(?:a model|models) in (?:this|that) unit/i.test(description)
+    if (linked) scope = 'attached'
+    else if (combatRuleRecipient(description)) scope = 'nearby'
+    else return null
+  }
+  const judged: CombatRule = { ...rule, scope, keywords: judge.keywords }
+  const recipient = scope === 'stratagem' ? combatRuleRecipient(description) : undefined
+  const eligible =
+    combatRuleEligible(description, scope === 'stratagem' ? judge.unitKeywords : judge.keywords) ||
+    (recipient !== undefined &&
+      combatRuleEligible(description, judge.keywords, recipient) &&
+      judge.supportKeywords.some((keywords) => combatRuleEligible(description, keywords)))
+  return combatRuleIsRelevant(judged) && eligible ? judged : null
 }
 
 export function combatRuleIsRelevant(rule: CombatRule) {

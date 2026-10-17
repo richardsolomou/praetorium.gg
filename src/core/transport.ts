@@ -1,5 +1,6 @@
 import type { Refusal } from './battle'
 import { refuse } from './battlePrimitives'
+import { z } from 'zod'
 import { matchesKeywordSelector } from './keywords'
 
 /** One allowance a transport prints: how many models it holds, of which keywords, and up to what Wounds. */
@@ -51,11 +52,49 @@ const UNCHECKABLE = /\b(?:models?|with|that|characteristic)\b/i
 const list = (printed: string) => printed.replaceAll('/', ', ')
 
 /**
- * Reads a printed transport rule, or null when any sentence of it says something these
- * checks cannot hold it to, such as a capacity in units or a space that does not say
- * which allowance it fills. A rule the checks only partly understand is not enforced partly.
+ * A printed transport rule read sentence by sentence, before any wargear is chosen: the
+ * facts a datasheet's text states, kept so the rule can be judged without the text.
+ *
+ * Null when any sentence says something these checks cannot hold it to, such as a
+ * capacity in units or a space that does not say which allowance it fills. A rule the
+ * checks only partly understand is not enforced partly.
  */
-export function transportRule(printed: string | undefined, wargear?: readonly { name: string; count: number }[]): TransportRule | null {
+export type PrintedTransport = {
+  main: Pool
+  instead: Pool | null
+  conditions: (Pool & { wargear: string })[]
+  pools: Pool[]
+  alternatives: string[]
+  excluded: TransportRule['excluded']
+  space: TransportRule['space']
+}
+
+const printedText = z.string().max(200)
+const poolSchema = z.object({
+  capacity: z.number().int().positive().max(1_000),
+  carries: printedText,
+  maxWounds: z.number().int().positive().max(1_000).optional(),
+})
+/** What a battle log may carry of a transport rule, bounded like any other command input. */
+export const printedTransportSchema = z.object({
+  main: poolSchema,
+  instead: poolSchema.nullable(),
+  conditions: z.array(poolSchema.extend({ wargear: printedText })).max(20),
+  pools: z.array(poolSchema).max(20),
+  alternatives: z.array(printedText).max(20),
+  excluded: z.array(z.object({ keywords: printedText, except: printedText.optional() })).max(20),
+  space: z
+    .array(
+      z.object({
+        keywords: printedText.optional(),
+        moreWoundsThan: z.number().int().nonnegative().max(1_000).optional(),
+        size: z.number().int().positive().max(1_000),
+      }),
+    )
+    .max(20),
+}) satisfies z.ZodType<PrintedTransport>
+
+export function printedTransport(printed: string | undefined): PrintedTransport | null {
   if (!printed) return null
   let main: Pool | null = null
   let instead: Pool | null = null
@@ -101,7 +140,21 @@ export function transportRule(printed: string | undefined, wargear?: readonly { 
       return null
     }
   }
-  if (!main || (conditions.length && !wargear)) return null
+  return main ? { main, instead, conditions, pools, alternatives, excluded, space } : null
+}
+
+/**
+ * A transport rule as the checks enforce it for the wargear a model carries, read from
+ * the printed text or from what that text was already read into.
+ */
+export function transportRule(
+  printed: string | PrintedTransport | undefined,
+  wargear?: readonly { name: string; count: number }[],
+): TransportRule | null {
+  const read = typeof printed === 'object' ? printed : printedTransport(printed)
+  if (!read) return null
+  const { main, instead, conditions, pools, alternatives, excluded, space } = read
+  if (conditions.length && !wargear) return null
   const selected = conditions.filter((condition) =>
     wargear?.some((piece) => piece.count > 0 && piece.name.toLowerCase() === condition.wargear.replaceAll('*', '').toLowerCase().trim()),
   )

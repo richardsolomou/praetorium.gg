@@ -1,3 +1,5 @@
+import { withoutText } from '../shared/sourceText'
+
 const TAGS = /<\/?(?:b|i|u|k|ul|li|table|tbody|tr|td|th|appref)>/g
 
 const clean = (markup: string) =>
@@ -13,7 +15,7 @@ const clean = (markup: string) =>
 
 /** The known source markup as searchable text, without treating arbitrary angle-bracketed words as HTML. */
 export function referenceText(markup: string): string {
-  return clean(markup)
+  return clean(withoutText(markup))
     .replaceAll(/<li>/g, '\n- ')
     .replaceAll(/<\/li>/g, '')
     .replaceAll(/<\/?(?:tr)>/g, '\n')
@@ -27,7 +29,7 @@ export function referenceText(markup: string): string {
 }
 
 export function referenceMarkdown(markup: string): string {
-  return clean(markup)
+  return clean(withoutText(markup))
     .replaceAll('<b>', '**')
     .replaceAll('</b>', '**')
     .replaceAll('<i>', '*')

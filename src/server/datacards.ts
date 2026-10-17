@@ -13,42 +13,76 @@ import {
   type DatacardsFaction,
   descriptionKey,
   datacardsFactionKeys,
-  unique,
   factionContent,
   detachmentRuleCards,
-  prose,
   stratagemText,
   localizedField,
   records,
   stringField,
   integerField,
+  transformed,
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
+import { type SourceTexts, comparableText, textKey, textTokensIn } from '../shared/sourceText'
+import { type TextFacts, textFactsOf } from '../shared/textFacts'
+import { publishedTexts } from './sourceTexts'
 export * from '../shared/datacards'
 const NO_SECTIONS: SectionProse = () => new Map()
-export function loadDatacards(directory: string, sections: SectionProse = NO_SECTIONS, strings?: Map<string, string>): LoadedDatacards {
-  return completeSteps(loadDatacardsSteps(directory, sections, strings))
+
+/** How each file's strings are published: tokens, except for checks that read the source's words directly. */
+export type TextsFor = (file: string) => SourceTexts
+
+export function loadDatacards(
+  directory: string,
+  sections: SectionProse = NO_SECTIONS,
+  strings?: Map<string, string>,
+  textsFor: TextsFor = publishedTexts,
+): LoadedDatacards {
+  return completeSteps(loadDatacardsSteps(directory, sections, strings, textsFor))
+}
+
+/**
+ * Tokens that record, as each is made, what the roster rules read from its words, so
+ * those facts outlive the words.
+ */
+function recording(texts: SourceTexts, facts: Map<string, TextFacts>): SourceTexts {
+  return (raw, transform) => {
+    const published = texts(raw, transform)
+    for (const token of textTokensIn(published)) {
+      const key = textKey(token)
+      if (facts.has(key)) continue
+      const found = textFactsOf(transformed(raw, transform))
+      if (found) facts.set(key, found)
+    }
+    return published
+  }
 }
 
 export function* loadDatacardsSteps(
   directory: string,
   sections: SectionProse = NO_SECTIONS,
   strings?: Map<string, string>,
+  textsFor: TextsFor = publishedTexts,
 ): Steps<LoadedDatacards> {
+  const textFacts = new Map<string, TextFacts>()
+  const textsOf = (file: string) => recording(textsFor(file), textFacts)
   const factions = new Map<string, FactionContent>()
-  const detachmentRules = new Map<string, Map<string, Set<string>>>()
-  const enhancements = new Map<string, Set<string>>()
-  const stratagems = new Map<string, Set<string>>()
+  const detachmentRules = new Map<string, Map<string, Map<string, string>>>()
+  const enhancements = new Map<string, Map<string, string>>()
+  const stratagems = new Map<string, Map<string, string>>()
   const stratagemNames = new Map<string, string>()
   const stratagemIds = new Map<string, Map<string, RuleCard>>()
-  const armyRules = new Map<string, Set<string>>()
+  const armyRules = new Map<string, Map<string, string>>()
   const constructionDetachments = new Map<string, ConstructionDetachment[]>()
   const enhancementPointCandidates = new Map<string, Set<number | null>>()
-  const remember = (into: Map<string, Set<string>>, key: string, text: string) => {
-    const found = into.get(key) ?? new Set<string>()
-    found.add(text)
+  // Texts are compared by what they say: one card copied into two files publishes two tokens for one text.
+  const remember = (into: Map<string, Map<string, string>>, key: string, text: string) => {
+    const found = into.get(key) ?? new Map<string, string>()
+    if (!found.has(comparableText(text))) found.set(comparableText(text), text)
     into.set(key, found)
   }
+  const agreed = (candidates: ReadonlyMap<string, ReadonlyMap<string, string>>) =>
+    new Map([...candidates].flatMap(([key, texts]) => (texts.size === 1 ? [[key, texts.values().next().value!] as const] : [])))
   if (!fs.existsSync(directory))
     return {
       factions,
@@ -59,20 +93,28 @@ export function* loadDatacardsSteps(
       armyRules: new Map(),
       constructionDetachments: new Map(),
       enhancementPoints: new Map(),
+      textFacts,
     }
-  const files: (DatacardsFaction & { name: string })[] = []
+  const files: (DatacardsFaction & { name: string; texts: SourceTexts })[] = []
   for (const fileName of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
-    const parsed = readSharedJson(path.join(directory, fileName), strings) as DatacardsFaction
+    const file = path.join(directory, fileName)
+    const parsed = readSharedJson(file, strings) as DatacardsFaction
     if (typeof parsed.name === 'string' && Array.isArray(parsed.datasheets) && Array.isArray(parsed.detachments))
-      files.push(parsed as DatacardsFaction & { name: string })
+      files.push({ ...(parsed as DatacardsFaction & { name: string }), texts: textsOf(file) })
     yield
+  }
+  // Core stratagems are read by `coreFromDatacards`, which publishes the same tokens; their facts belong with these.
+  const core = path.join(directory, 'core.json')
+  if (fs.existsSync(core)) {
+    const parsed = readSharedJson(core, strings) as { stratagems?: unknown }
+    for (const card of records(parsed, 'stratagems')) stratagemText(card, textsOf(core))
   }
   const datasheetNames = [
     ...new Set(files.flatMap((parsed) => records(parsed, 'datasheets').flatMap((entry) => localizedField(entry, 'name') ?? []))),
   ]
   for (const parsed of files) {
     yield
-    const content = factionContent(parsed.name, parsed, sections, datasheetNames)
+    const content = factionContent(parsed.name, parsed, sections, datasheetNames, parsed.texts)
     for (const key of datacardsFactionKeys(parsed.name)) factions.set(key, content)
     for (const rule of content.armyRules) remember(armyRules, routeSlug(rule.name), rule.description)
     for (const detachment of records(parsed, 'detachments')) {
@@ -124,20 +166,16 @@ export function* loadDatacardsSteps(
       ])
     }
 
-    for (const entry of detachmentRuleCards(parsed.rules, parsed.name, sections)) {
-      const rules = detachmentRules.get(routeSlug(entry.detachment)) ?? new Map<string, Set<string>>()
-      for (const rule of entry.rules) {
-        const texts = rules.get(rule.name) ?? new Set<string>()
-        texts.add(rule.description)
-        rules.set(rule.name, texts)
-      }
+    for (const entry of detachmentRuleCards(parsed.rules, parsed.name, sections, parsed.texts)) {
+      const rules = detachmentRules.get(routeSlug(entry.detachment)) ?? new Map<string, Map<string, string>>()
+      for (const rule of entry.rules) remember(rules, rule.name, rule.description)
       detachmentRules.set(routeSlug(entry.detachment), rules)
     }
     for (const enhancement of records(parsed, 'enhancements')) {
       const name = localizedField(enhancement, 'name')
       const detachment = stringField(enhancement, 'detachment')
       const description = localizedField(enhancement, 'description')
-      if (name && detachment && description) remember(enhancements, descriptionKey(detachment, name), prose(description))
+      if (name && detachment && description) remember(enhancements, descriptionKey(detachment, name), parsed.texts(description, 'prose'))
       if (name && detachment) {
         const key = descriptionKey(detachment, name)
         const candidates = enhancementPointCandidates.get(key) ?? new Set<number | null>()
@@ -148,7 +186,7 @@ export function* loadDatacardsSteps(
     for (const stratagem of records(parsed, 'stratagems')) {
       const name = localizedField(stratagem, 'name')
       const detachment = stringField(stratagem, 'detachment')
-      const description = stratagemText(stratagem)
+      const description = stratagemText(stratagem, parsed.texts)
       if (name && detachment && description) {
         const card = { name: name === name.toLowerCase() ? titleCase(name) : name, description }
         remember(stratagems, descriptionKey(detachment, name), description)
@@ -157,7 +195,7 @@ export function* loadDatacardsSteps(
         const id = stringField(stratagem, 'id')
         if (id) {
           const candidates = stratagemIds.get(id) ?? new Map<string, RuleCard>()
-          candidates.set(JSON.stringify(card), card)
+          candidates.set(JSON.stringify({ ...card, description: comparableText(card.description) }), card)
           stratagemIds.set(id, candidates)
         }
       }
@@ -165,19 +203,19 @@ export function* loadDatacardsSteps(
   }
   return {
     factions,
-    keywordRules: keywordDescriptions(directory, ['weapons', 'abilities'], ['exact', 'parameterized']),
+    keywordRules: keywordDescriptions(directory, ['weapons', 'abilities'], ['exact', 'parameterized'], textsOf),
     detachmentRules: new Map(
       [...detachmentRules].map(([detachment, rules]) => [
         detachment,
-        [...rules].flatMap(([name, texts]) => (texts.size === 1 ? [{ name, description: texts.values().next().value! }] : [])),
+        [...agreed(rules)].map(([name, description]) => ({ name, description })),
       ]),
     ),
-    enhancements: unique(enhancements),
-    stratagems: new Map([...unique(stratagems)].map(([key, description]) => [key, { name: stratagemNames.get(key)!, description }])),
+    enhancements: agreed(enhancements),
+    stratagems: new Map([...agreed(stratagems)].map(([key, description]) => [key, { name: stratagemNames.get(key)!, description }])),
     stratagemsById: new Map(
       [...stratagemIds].flatMap(([id, candidates]) => (candidates.size === 1 ? [[id, candidates.values().next().value!] as const] : [])),
     ),
-    armyRules: unique(armyRules),
+    armyRules: agreed(armyRules),
     constructionDetachments,
     enhancementPoints: new Map(
       [...enhancementPointCandidates].flatMap(([key, candidates]) => {
@@ -185,15 +223,24 @@ export function* loadDatacardsSteps(
         return points === null ? [] : [[key, points] as const]
       }),
     ),
+    textFacts,
   }
 }
-export function keywordAbilityDescriptions(directory: string) {
-  return new Map(keywordDescriptions(directory, ['abilities'], ['exact']).map(({ name, description }) => [joinKey(name), description]))
+export function keywordAbilityDescriptions(directory: string, textsFor: TextsFor = publishedTexts) {
+  return new Map(
+    keywordDescriptions(directory, ['abilities'], ['exact'], textsFor).map(({ name, description }) => [joinKey(name), description]),
+  )
 }
-function keywordDescriptions(directory: string, appliesTo: readonly string[], matchTypes: readonly string[]): RuleCard[] {
+function keywordDescriptions(
+  directory: string,
+  appliesTo: readonly string[],
+  matchTypes: readonly string[],
+  textsFor: TextsFor,
+): RuleCard[] {
   const file = path.join(directory, 'keywords.json')
   if (!fs.existsSync(file)) return []
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as { keywords?: unknown }
+  const published = textsFor(file)
   const candidates = new Map<string, { name: string; texts: Set<string> }>()
   for (const entry of records({ keywords: parsed.keywords }, 'keywords')) {
     if (
@@ -207,7 +254,7 @@ function keywordDescriptions(directory: string, appliesTo: readonly string[], ma
     if (!name || !description) continue
     const key = normalizeRuleReference(name)
     const candidate = candidates.get(key) ?? { name, texts: new Set<string>() }
-    candidate.texts.add(prose(description))
+    candidate.texts.add(published(description, 'prose'))
     candidates.set(key, candidate)
   }
   return [...candidates.values()].flatMap(({ name, texts }) =>

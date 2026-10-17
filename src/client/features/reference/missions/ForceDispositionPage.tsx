@@ -102,8 +102,6 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
             <p className="py-2 text-sm text-dim">No detachment in the current data offers {disposition.name}.</p>
           )}
         </section>
-
-        <p className="border-t border-edge pt-3 text-xs text-dim">{data.attribution}</p>
       </PageContent>
     </main>
   )

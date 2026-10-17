@@ -13,7 +13,15 @@ import {
   loadDatacards,
   prose,
   restrictedBy,
+  type SectionProse,
+  sourceWords,
 } from './datacards'
+import { joinKey } from '../shared/rulesSource'
+import { weaponGrantsIn } from '../shared/textFacts'
+import { wordsFrom } from './sourceTexts.fixtures'
+
+/** The files read in the source's own words: these tests are about what the parser reads, not what it publishes. */
+const loadWords = (directory: string, sections?: SectionProse) => loadDatacards(directory, sections, undefined, () => sourceWords)
 
 it('requires the printed enhancement keywords on a datasheet', () => {
   const eligibility = (description: string, keywords: string[]) => enhancementEligibility({ description: { en: description }, keywords })
@@ -166,7 +174,7 @@ it('loads authored faction attribution with its reference content', () => {
     JSON.stringify({ name: 'Test', attribution: 'Community codex preview', datasheets: [], detachments: [] }),
   )
 
-  expect(loadDatacards(directory).factions.get('test')?.attribution).toBe('Community codex preview')
+  expect(loadWords(directory).factions.get('test')?.attribution).toBe('Community codex preview')
 })
 
 it('loads named and parameterized weapon and core keyword definitions', () => {
@@ -187,7 +195,7 @@ it('loads named and parameterized weapon and core keyword definitions', () => {
       ],
     }),
   )
-  expect(loadDatacards(directory).keywordRules).toEqual([
+  expect(loadWords(directory).keywordRules).toEqual([
     { name: 'Linked Fire', description: '**Link** attacks.' },
     { name: 'Melta', description: 'Add damage.' },
     { name: 'Stealth', description: 'Gain cover.' },
@@ -216,7 +224,7 @@ it('reads source instructions with their equipment names and skips incomplete gr
     }),
   )
 
-  expect(loadDatacards(directory).factions.get('test')?.datasheetDetails.get('Troopers')?.wargearGroups).toEqual([
+  expect(loadWords(directory).factions.get('test')?.datasheetDetails.get('Troopers')?.wargearGroups).toEqual([
     { instruction: 'One trooper can replace their rifle.', options: ['Cannon'] },
   ])
 })
@@ -243,7 +251,7 @@ it('reads a composition written as the source\u2019s own list, keeping the equip
     }),
   )
 
-  const details = loadDatacards(directory).factions.get('orks')?.datasheetDetails.get('Beast Snagga Boyz')
+  const details = loadWords(directory).factions.get('orks')?.datasheetDetails.get('Beast Snagga Boyz')
   expect(details?.composition).toEqual(['1-2 Nob models', '9\u201118 Beast Snagga Boy models'])
   expect(details?.loadout).toBe('Every Nob is equipped with: 1 Power Snappa.')
 })
@@ -265,6 +273,7 @@ it('indexes the faction-owned datasheets and detachments', () => {
           id: 'asmodai',
           name: { en: 'Asmodai' },
           composition: [{ en: '**1 Asmodai**' }],
+          modelCount: '1 model',
           loadout: { en: '**This model is equipped with:** Crozius arcanum.' },
           wargear: [{ en: 'This model cannot replace its wargear.' }],
           baseSize: { en: '50mm' },
@@ -278,7 +287,7 @@ it('indexes the faction-owned datasheets and detachments', () => {
     }),
   )
 
-  expect(loadDatacards(directory).factions.get('dark-angels')).toEqual({
+  expect(loadWords(directory).factions.get('dark-angels')).toEqual({
     name: 'Dark Angels',
     detachmentFactions: new Map(),
     datasheets: new Set(['Asmodai', 'Azrael']),
@@ -287,10 +296,20 @@ it('indexes the faction-owned datasheets and detachments', () => {
         'Asmodai',
         {
           composition: ['**1 Asmodai**'],
+          modelCount: '1 model',
           loadout: '**This model is equipped with:** Crozius arcanum.',
           wargear: ['This model cannot replace its wargear.'],
           baseSize: '50mm',
           transport: 'This model has a transport capacity of 6 **INFANTRY** models.',
+          transportCapacity: {
+            main: { capacity: 6, carries: 'INFANTRY' },
+            instead: null,
+            conditions: [],
+            pools: [],
+            alternatives: [],
+            excluded: [],
+            space: [],
+          },
           points: [{ models: '1', cost: '70', keyword: null, faction: null, detachment: null }],
           attachesTo: [{ kind: 'leader', name: 'Azrael' }],
           leaders: [],
@@ -317,10 +336,20 @@ it('indexes the faction-owned datasheets and detachments', () => {
         'asmodai',
         {
           composition: ['**1 Asmodai**'],
+          modelCount: '1 model',
           loadout: '**This model is equipped with:** Crozius arcanum.',
           wargear: ['This model cannot replace its wargear.'],
           baseSize: '50mm',
           transport: 'This model has a transport capacity of 6 **INFANTRY** models.',
+          transportCapacity: {
+            main: { capacity: 6, carries: 'INFANTRY' },
+            instead: null,
+            conditions: [],
+            pools: [],
+            alternatives: [],
+            excluded: [],
+            space: [],
+          },
           points: [{ models: '1', cost: '70', keyword: null, faction: null, detachment: null }],
           attachesTo: [{ kind: 'leader', name: 'Azrael' }],
           leaders: [],
@@ -349,6 +378,8 @@ it('indexes the faction-owned datasheets and detachments', () => {
     detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],
+    restrictions: [],
+    restrictionLists: [],
   })
 })
 
@@ -375,7 +406,7 @@ it('reads every structured army rule', () => {
     }),
   )
 
-  expect(loadDatacards(directory).factions.get('adeptus-custodes')?.armyRules).toEqual([
+  expect(loadWords(directory).factions.get('adeptus-custodes')?.armyRules).toEqual([
     { name: 'Martial Ka’tah', description: 'Select a stance.\n\n### Rendax Stance\n\nWeapons gain **[LETHAL HITS]**.' },
   ])
 })
@@ -409,7 +440,7 @@ it('names a section the card leaves empty, and takes its words from the catalogu
     asked.push(`${faction} / ${entry}`)
     return new Map(titles.flatMap((title) => (title === 'Fade Back' ? [] : [[title, 'Add 2" to Move.']])))
   }
-  const loaded = loadDatacards(directory, sections)
+  const loaded = loadWords(directory, sections)
 
   // The card and the heading its empty titles sit under name the entry to ask for.
   expect(asked).toEqual(['Aeldari / Battle Focus - Agile Manoeuvres'])
@@ -501,7 +532,7 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     )
   }
 
-  const datacards = loadDatacards(directory)
+  const datacards = loadWords(directory)
   expect({
     base: constructionDetachment(datacards, 'Adeptus Astartes', 'Stormlance Task Force'),
     validOverride: constructionDetachment(datacards, 'White Scars', 'Stormlance Task Force', 'adeptus-astartes'),
@@ -582,7 +613,7 @@ it('reads both dispositions offered by a three-point detachment and rejects malf
     }),
   )
 
-  const data = loadDatacards(directory)
+  const data = loadWords(directory)
   const construction = (name: string) => constructionDetachment(data, 'Necrons', name)
   expect({
     offered: construction('Awakened Dynasty'),
@@ -639,7 +670,7 @@ it('reads faction stratagem cards while leaving unsupported timing unavailable',
     }),
   )
 
-  expect(loadDatacards(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([
+  expect(loadWords(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([
     {
       id: 'hit-em-harder',
       name: 'Hit ’Em Harder',
@@ -671,7 +702,7 @@ it('reads faction stratagem cards while leaving unsupported timing unavailable',
       description: '**When:** Start of your Movement phase.\n\n**Effect:** Advance.',
     },
   ])
-  expect(loadDatacards(directory).factions.get('orks')?.stratagemIssues).toEqual(['War Horde | Unknown Phase: incomplete card'])
+  expect(loadWords(directory).factions.get('orks')?.stratagemIssues).toEqual(['War Horde | Unknown Phase: incomplete card'])
 })
 
 it('leaves conflicting stratagem ids unavailable', () => {
@@ -694,7 +725,7 @@ it('leaves conflicting stratagem ids unavailable', () => {
     }),
   )
 
-  expect(loadDatacards(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([])
+  expect(loadWords(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([])
 })
 
 it('adds dimensions to named flying bases', () => {
@@ -712,7 +743,7 @@ it('adds dimensions to named flying bases', () => {
     }),
   )
 
-  const details = loadDatacards(directory).factions.get('aeldari')?.datasheetDetails
+  const details = loadWords(directory).factions.get('aeldari')?.datasheetDetails
   expect([details?.get('Falcon')?.baseSize, details?.get('Farseer Skyrunner')?.baseSize, details?.get('Crimson Hunter')?.baseSize]).toEqual(
     ['Large Flying Base (Ø60mm)', 'Small Flying Base (Ø32mm)', 'Aircraft Flying Base (120 × 92 mm oval)'],
   )
@@ -741,7 +772,7 @@ it('reads a transport rule printed as a special ability', () => {
     }),
   )
 
-  expect(loadDatacards(directory).factions.get('test')?.datasheetDetails.get('Impulsor')?.transport).toBe(
+  expect(loadWords(directory).factions.get('test')?.datasheetDetails.get('Impulsor')?.transport).toBe(
     'This model has a **transport capacity** of 7 **Adeptus Astartes Infantry** models.',
   )
 })
@@ -762,7 +793,7 @@ it('reads transport rule markup as the markdown the app renders', () => {
     }),
   )
 
-  expect(loadDatacards(directory).factions.get('test')?.datasheetDetails.get('Corvus Blackstar')?.transport).toBe(
+  expect(loadWords(directory).factions.get('test')?.datasheetDetails.get('Corvus Blackstar')?.transport).toBe(
     'This model has a **transport capacity** of 12 **Deathwatch Infantry** models.',
   )
 })
@@ -810,7 +841,7 @@ it('answers for a faction under the name the catalogues give it', () => {
       ],
     }),
   )
-  const datacards = loadDatacards(directory)
+  const datacards = loadWords(directory)
   expect({
     aliased: datacards.factions.get('space-marines') === datacards.factions.get('adeptus-astartes'),
     armyRule: datacards.armyRules.get('oath-of-moment'),
@@ -849,7 +880,7 @@ it('resolves a named enhancement target in another faction file', () => {
     JSON.stringify({ name: 'Adeptus Astartes', datasheets: [{ name: { en: 'Judiciar' } }], detachments: [] }),
   )
 
-  const enhancements = loadDatacards(directory).factions.get('black-templars')?.enhancements
+  const enhancements = loadWords(directory).factions.get('black-templars')?.enhancements
   expect([...enhancements!.values()][0]?.[0]?.eligibility).toEqual({ anyOf: [['Chaplain'], ['Judiciar']], excluded: [] })
 })
 
@@ -869,7 +900,7 @@ it('leaves a card the files describe two ways blank', () => {
       }),
     )
   }
-  expect(loadDatacards(directory).enhancements.has(descriptionKey('Shared Detachment', 'Shared Relic'))).toBe(false)
+  expect(loadWords(directory).enhancements.has(descriptionKey('Shared Detachment', 'Shared Relic'))).toBe(false)
 })
 
 describe('army-construction restrictions', () => {
@@ -882,7 +913,7 @@ describe('army-construction restrictions', () => {
         JSON.stringify({ name, datasheets: [], detachments: [], rules: { army: [armyRule(text)] } }),
       )
     }
-    return loadDatacards(directory)
+    return loadWords(directory)
   }
 
   it('reads an exclusion list with a named faction and separate bullet lines', () => {
@@ -973,4 +1004,97 @@ it('hands a card\u2019s table on as the source wrote it', () => {
   expect(prose('Roll one D6:\r<table>\r<tr><td>1‑2</td>\r<td>+1<b> A</b></td></tr></table>\rThen <b>fight</b>.')).toBe(
     'Roll one D6:\n<table>\r<tr><td>1‑2</td>\r<td>+1<b> A</b></td></tr></table>\nThen **fight**.',
   )
+})
+
+describe('what a faction file publishes', () => {
+  const faction = (name: string, armyRule: string, stratagemEffect: string) => ({
+    name,
+    datasheets: [
+      {
+        name: { en: 'Battlewagon' },
+        transport: { en: 'This model has a transport capacity of 22 **ORKS INFANTRY** models.' },
+        composition: [{ en: '1 Battlewagon' }],
+      },
+    ],
+    detachments: [{ name: { en: 'War Horde' } }],
+    rules: {
+      army: [{ name: { en: 'Waaagh!' }, rules: [{ type: 'text', text: { en: armyRule } }] }],
+      detachment: [
+        {
+          detachment: 'War Horde',
+          rules: [
+            {
+              name: { en: 'Get Stuck In' },
+              rules: [
+                {
+                  type: 'text',
+                  text: { en: 'Melee weapons equipped by **ORKS** models from your army have the [SUSTAINED HITS 1] ability.' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    stratagems: [
+      {
+        id: 'hit-em-harder',
+        name: { en: 'Hit ’Em Harder' },
+        detachment: 'War Horde',
+        cost: 1,
+        phase: ['fight'],
+        turn: 'your',
+        effect: { en: stratagemEffect },
+      },
+    ],
+  })
+  const published = () => {
+    directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+    fs.writeFileSync(
+      path.join(directory, 'orks.json'),
+      JSON.stringify(faction('Orks', 'Your army cannot include any of the following units: Gretchin.', 'Your attacks have Lethal Hits.')),
+    )
+    return loadDatacards(directory)
+  }
+  const stratagem = () => published().factions.get('orks')?.stratagems.get(joinKey('War Horde'))?.[0]
+
+  it('publishes a stratagem without its words', () => {
+    expect(stratagem()?.description).not.toContain('Lethal Hits')
+  })
+
+  it('publishes a stratagem a reader can load the words of', () => {
+    const description = stratagem()!.description
+    expect(wordsFrom(directory!)(description)).toBe('**Effect:** Your attacks have Lethal Hits.')
+  })
+
+  it('keeps the facts a stratagem states', () => {
+    expect(stratagem()).toMatchObject({ cp: 1, phases: ['fight'], turn: 'your-turn' })
+  })
+
+  it('records the weapon abilities a detachment rule grants, for rules that cannot read the rule', () => {
+    const loaded = published()
+    const rule = loaded.detachmentRules.get('war-horde')?.[0]
+    expect(weaponGrantsIn(rule!.description, loaded.textFacts).map((grant) => grant.keyword)).toEqual(['Sustained Hits 1'])
+  })
+
+  it('reads the units an army rule refuses from words it does not publish', () => {
+    expect(restrictedBy(factionRestrictions(published()).get('orks')!, 'Gretchin', [])).toEqual({ keyword: null })
+  })
+
+  it('reads a transport capacity from words it does not publish', () => {
+    expect(published().factions.get('orks')?.datasheetDetails.get('Battlewagon')?.transportCapacity?.main).toEqual({
+      capacity: 22,
+      carries: 'ORKS INFANTRY',
+    })
+  })
+
+  it('treats a card two files print alike as one card', () => {
+    directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+    for (const name of ['Orks', 'Freebooterz'])
+      fs.writeFileSync(
+        path.join(directory, `${name}.json`),
+        JSON.stringify(faction(name, 'No exclusions.', 'Your attacks have Lethal Hits.')),
+      )
+    expect(loadDatacards(directory).stratagemsById.has('hit-em-harder')).toBe(true)
+  })
 })
