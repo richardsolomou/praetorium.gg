@@ -78,11 +78,15 @@ async function productModule(image: string) {
   const work = await mkdtemp(path.join(os.tmpdir(), 'praetorium-preview-module-'))
   let container: string | undefined
   try {
-    const login = execFile('docker', ['login', 'ghcr.io', '--username', required('PREVIEW_REGISTRY_USERNAME'), '--password-stdin'], {
-      timeout: 30_000,
-    })
-    login.child.stdin?.end(required('PREVIEW_REGISTRY_PASSWORD'))
-    await login
+    // Absent until the deploying workflow passes them; a public package still pulls without them.
+    const password = process.env.PREVIEW_REGISTRY_PASSWORD?.trim()
+    if (password) {
+      const login = execFile('docker', ['login', 'ghcr.io', '--username', required('PREVIEW_REGISTRY_USERNAME'), '--password-stdin'], {
+        timeout: 30_000,
+      })
+      login.child.stdin?.end(password)
+      await login
+    }
     await execFile('docker', ['buildx', 'imagetools', 'inspect', '--raw', image], { maxBuffer: 4_000_000, timeout: 60_000 })
     await execFile('docker', ['pull', image], { maxBuffer: 4_000_000, timeout: 300_000 })
     container = (await execFile('docker', ['create', image], { timeout: 30_000 })).stdout.trim()
