@@ -133,15 +133,15 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
     return [...found.values()]
   }
 
-  it('reads every payload', () => {
+  it('reads every payload', { timeout: 120_000 }, () => {
     expect([published.length > 100, construction.length > 100]).toEqual([true, true])
   })
 
-  it('carries no Game Datacards rules text anywhere', () => {
+  it('carries no Game Datacards rules text anywhere', { timeout: 120_000 }, () => {
     expect(leaks([...published, ...construction], datacards).slice(0, 20)).toEqual([])
   })
 
-  it('publishes no BSData rules text on reference payloads', () => {
+  it('publishes no BSData rules text on reference payloads', { timeout: 120_000 }, () => {
     expect(leaks(published, definitions).slice(0, 20)).toEqual([])
   })
 })

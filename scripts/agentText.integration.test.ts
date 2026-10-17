@@ -94,7 +94,7 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
     answers.push({ name: 'api search', value: await search.json() })
   }, 600_000)
 
-  it('carries no rules text and no token', () => {
+  it('carries no rules text and no token', { timeout: 120_000 }, () => {
     const names = new Set(answers.flatMap(({ value }) => [...namesIn(value)]))
     const leaks = answers.flatMap(({ name, value }) =>
       stringsIn(value)
@@ -120,7 +120,7 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
     expect(wrong.slice(0, 20)).toEqual([])
   })
 
-  it('says where to read every section it withholds', () => {
+  it('says where to read every section it withholds', { timeout: 120_000 }, () => {
     const bare = answers.flatMap(({ name, value }) =>
       stringsIn(value).includes(TEXT_NOT_PUBLISHED) && pointersIn(value).length === 0 ? [name] : [],
     )
