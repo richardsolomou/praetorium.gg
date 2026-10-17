@@ -707,9 +707,16 @@ export class SpacetimeOperator {
 
   async heldCollectionPhotos(limit: number) {
     return z
-      .array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int() }))
+      .array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int(), shown: z.boolean() }))
       .max(100)
       .parse(await this.read('held_collection_photos', [limit]))
+  }
+
+  async recentCollectionPhotos(limit: number) {
+    return z
+      .array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int() }))
+      .max(100)
+      .parse(await this.read('recent_collection_photos', [limit]))
   }
 
   async collectionPhotoDeletions(limit: number) {

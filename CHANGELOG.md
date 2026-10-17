@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.153.0
+
+### Minor Changes
+
+- 4065746: The administration Photos tab lists the newest uploads below reported photos, so administrators can remove one nobody has reported.
+
+### Patch Changes
+
+- 4065746: Removing a photo from the administration Photos tab asks for confirmation first.
+- 4065746: The administration Players tab keeps its tab, search, role filter, sort order and page in the address, so a bookmark or reload returns to the same view.
+- 4065746: Reporting a photo an administrator already kept now sends it back for review while it stays shown, instead of being silently ignored.
+- 1d11aa9: The player photo viewer keeps its photo, like and actions on one screen on phones, and datasheet galleries show larger photos.
+
 ## 0.152.1
 
 ### Patch Changes

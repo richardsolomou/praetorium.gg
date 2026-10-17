@@ -1,9 +1,12 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { AdminUsers, readAdminSearch } from '../client/features/admin/AdminUsers'
+import { AdminUsers } from '../client/features/admin/AdminUsers'
+import { readAdminSearch } from '../client/features/admin/adminSearch'
 import { meQuery } from '../client/queries'
 
 export const Route = createFileRoute('/admin')({
   validateSearch: readAdminSearch,
+  // The table writes its search and order to the address as they change; only arriving needs the administrator check.
+  shouldReload: ({ cause }) => cause !== 'stay',
   loader: async ({ context }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 0 })
     if (me?.role !== 'admin' || me.impersonatedBy) throw redirect({ to: '/' })
@@ -18,8 +21,9 @@ function Admin() {
   return (
     <AdminUsers
       currentUserId={me.id}
-      tab={Route.useSearch().tab ?? 'players'}
-      onTab={(tab) => void navigate({ search: { tab: tab === 'players' ? undefined : tab } })}
+      search={Route.useSearch()}
+      onTab={(tab) => void navigate({ search: (current) => ({ ...current, tab }) })}
+      onSearch={(change) => void navigate({ search: (current) => ({ ...current, ...change }), replace: true, resetScroll: false })}
     />
   )
 }

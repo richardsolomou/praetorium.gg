@@ -22,6 +22,9 @@ import { errorMessage } from '../../queryClient'
 import { useCollectionPhotoRemoval } from '../../useCollection'
 import { PhotoLike } from './PhotoLike'
 
+/** Below a tall photo on a phone, focus is what brings the report field into view; stable, so a re-render never pulls focus back. */
+const focusOnMount = (field: HTMLElement | null) => field?.focus()
+
 export type SharedPhoto = { photoId: string; owner: { id: string; name: string } }
 
 /** A player's photo at full size, which its owner and administrators can remove and other signed-in players can report. */
@@ -84,20 +87,27 @@ export function PhotoViewer({
             ) : null}
           </DialogDescription>
         </DialogHeader>
-        <DialogBody>
+        <DialogBody className="content-center bg-sunken">
           {photo ? (
             <img
               src={collectionPhotoPath(photo.photoId)}
               alt={`${name} from ${photo.owner.name}’s collection`}
-              className="max-h-[65dvh] w-full border border-edge bg-sunken object-contain"
+              className="mx-auto max-h-[calc(100dvh-13rem)] max-w-full object-contain"
             />
           ) : null}
           {reporting && !report.isSuccess ? (
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <label htmlFor="photo-report" className="text-sm font-semibold">
                 What is wrong with this photo?
               </label>
-              <Textarea id="photo-report" value={reason} maxLength={500} rows={2} onChange={(event) => setReason(event.target.value)} />
+              <Textarea
+                id="photo-report"
+                ref={focusOnMount}
+                value={reason}
+                maxLength={500}
+                rows={2}
+                onChange={(event) => setReason(event.target.value)}
+              />
             </div>
           ) : null}
           {report.isSuccess ? <output className="text-sm text-achieved">Thanks. An administrator will review it.</output> : null}
@@ -108,31 +118,38 @@ export function PhotoViewer({
           ) : null}
         </DialogBody>
         {photo ? (
-          <DialogFooter>
+          <DialogFooter className="flex-row items-center">
             <span className="mr-auto">
               <PhotoLike entryId={entryId} photoId={photo.photoId} name={name} />
             </span>
-            {own || me?.role === 'admin' ? (
-              <Button
-                variant="ghost"
-                className="text-dim hover:text-destructive"
-                disabled={remove.isPending}
-                onClick={() => setConfirming(true)}
-              >
-                <Trash2 /> Remove photo
-              </Button>
-            ) : null}
-            {reportable && !report.isSuccess ? (
-              reporting ? (
+            {reporting && !report.isSuccess ? (
+              <>
+                <Button variant="ghost" className="text-dim" onClick={() => setReporting(false)}>
+                  Cancel
+                </Button>
                 <Button variant="outline" disabled={report.isPending} onClick={() => report.mutate(photo.photoId)}>
                   <Flag /> {report.isPending ? 'Sending…' : 'Send report'}
                 </Button>
-              ) : (
-                <Button variant="ghost" className="text-dim" onClick={() => setReporting(true)}>
-                  <Flag /> Report
-                </Button>
-              )
-            ) : null}
+              </>
+            ) : (
+              <>
+                {reportable && !report.isSuccess ? (
+                  <Button variant="ghost" className="text-dim" onClick={() => setReporting(true)}>
+                    <Flag /> Report
+                  </Button>
+                ) : null}
+                {own || me?.role === 'admin' ? (
+                  <Button
+                    variant="ghost"
+                    className="text-dim hover:text-destructive"
+                    disabled={remove.isPending}
+                    onClick={() => setConfirming(true)}
+                  >
+                    <Trash2 /> Remove photo
+                  </Button>
+                ) : null}
+              </>
+            )}
           </DialogFooter>
         ) : null}
       </DialogContent>
