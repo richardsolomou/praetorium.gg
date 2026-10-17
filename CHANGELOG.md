@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.156.1
+
+### Patch Changes
+
+- 9e02e74: A battle link opened right after it's shared now opens the battle once it's ready, instead of staying on "Nothing here".
+
 ## 0.156.0
 
 ### Minor Changes
