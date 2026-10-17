@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.155.2
+
+### Patch Changes
+
+- b846272: Importing a squad that lists no specialist no longer gives it vox-casters or other specialists it did not take.
+- b846272: Importing an enhancement whose own name ends in "(Upgrade)", such as Furious Assault, places it again.
+
 ## 0.155.1
 
 ### Patch Changes
