@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.155.1
+
+### Patch Changes
+
+- 479ba00: Pasted New Recruit lists keep their attached units, joined to their bodyguards, instead of dropping them.
+- 479ba00: Imported squads keep the specialists and weapons the list names, such as a vox-caster, a weapons team or a hull lascannon beside sponson heavy bolters.
+- 479ba00: Pasted New Recruit lists read their force disposition, enhancements marked as upgrades, renamed Warlord entries and models named without their loadout.
+- 479ba00: Enhancements limited to one model in a unit, such as Bombast-class Vox-array on a Tempestor Prime, are offered to that unit.
+- 479ba00: Squads such as Cadian Shock Troops, Heavy Intercessors and Outriders can take the specialist model their datasheet offers, which takes the place of a default trooper.
+
 ## 0.155.0
 
 ### Minor Changes
