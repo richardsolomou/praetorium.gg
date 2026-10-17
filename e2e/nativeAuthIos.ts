@@ -6,7 +6,7 @@ import { createServer as createHttpsServer, request as httpsRequest, type Server
 import path from 'node:path'
 import { localControlPort } from '../scripts/localDevPreview'
 import { localTestEnvironment, reserveLocalPort } from '../scripts/lib/localStack'
-import { withAuthSql } from './storage'
+import { userIdFor, withAuthSql } from './storage'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { parseAppSnapshot } from '../src/contracts/appSnapshot'
 import { parseSavedReference } from '../mobile/src/offlineReference'
@@ -246,12 +246,7 @@ async function createFixture() {
   fixtureCookie = (response.headers['set-cookie'] ?? []).map((cookie) => cookie.split(';', 1)[0]).join('; ')
   if (!fixtureCookie) throw new Error('Fixture account creation did not return a session cookie.')
 
-  const player = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(fixtureEmail) as { id: string } | undefined,
-    dataDirectory,
-  )
-  if (!player) throw new Error('The native authentication fixture account is missing.')
-  fixtureUserId = player.id
+  fixtureUserId = await userIdFor(fixtureEmail, dataDirectory)
   await withAuthSql(
     (database) =>
       database
@@ -261,7 +256,7 @@ async function createFixture() {
           createHash('sha256').update(fixtureEmail).digest('hex'),
           'https://accounts.google.com',
           'google',
-          player.id,
+          fixtureUserId,
           Date.now(),
           Date.now(),
         ),

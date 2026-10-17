@@ -44,6 +44,7 @@ import {
 import { constructionData, localConstruction } from './construction'
 import { cachedRead, cachedPage } from './reads'
 import { isFetchNetworkFailure } from '../networkErrors'
+import { meKey } from '../queries/queryKeys'
 
 export function workspaceScreen(
   workspace: BattleWorkspace,
@@ -324,7 +325,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
     throw new Error('Choose saved friends or practice opponents for this battle.')
   const identifiers = { battleId: crypto.randomUUID(), battleToken: crypto.randomUUID() }
   const now = Date.now()
-  const me = localClient()!.getQueryData<{ id: string; name: string; image?: string | null }>(['me'])!
+  const me = localClient()!.getQueryData<{ id: string; name: string; image?: string | null }>(meKey())!
   const players = [
     { ...me, side: 0, automated: false },
     ...invited.map((id) => ({ ...opponents.find((player) => player.id === id)!, side: allyIds.includes(id) ? 0 : 1 })),

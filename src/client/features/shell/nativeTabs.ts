@@ -1,3 +1,4 @@
+import { writeSessionValue } from '../../storedValue'
 import { nativeNavigation, type NativeSection } from './nativeNavigation'
 
 const TAB_PREFIX = 'praetorium.native-tab:'
@@ -59,14 +60,14 @@ export function rememberTab(href: string, options: { scrollY?: number; regions?:
     regions: options.regions ?? (sameLocation ? previous.regions : {}),
     ...(state ? { state } : {}),
   }
-  sessionStorage.setItem(`${TAB_PREFIX}${location.section}`, JSON.stringify(memory))
+  writeSessionValue(`${TAB_PREFIX}${location.section}`, JSON.stringify(memory))
 }
 
 /** Drops a tab's memory of a location that no longer exists, so the tab reopens at its section root. */
 export function forgetTab(href: string) {
   const location = tabLocation(href)
   if (!location || typeof window === 'undefined') return
-  if (stored(location.section)?.href === location.href) sessionStorage.removeItem(`${TAB_PREFIX}${location.section}`)
+  if (stored(location.section)?.href === location.href) writeSessionValue(`${TAB_PREFIX}${location.section}`, null)
 }
 
 export function recallTab(section: NativeSection) {

@@ -10,12 +10,7 @@ export const silentNotifier: Notifier = { notify: () => {} }
 
 type PushRepository = Pick<SpacetimeRepository, 'pushTargets' | 'namesByIds' | 'leagueNames'>
 
-export function pushNotifier(
-  repository: PushRepository,
-  sender: PushSender,
-  log = (error: unknown) => console.warn('push notice failed', { error }),
-  waitUntil?: (promise: Promise<unknown>) => void,
-) {
+export function pushNotifier(repository: PushRepository, sender: PushSender): Notifier {
   async function deliver(notices: readonly Notice[]) {
     const addressed = notices.map((notice) => ({ notice, recipients: noticeRecipients(notice) })).filter((one) => one.recipients.length)
     const targets = await repository.pushTargets(addressed.flatMap((one) => one.recipients))
@@ -37,10 +32,8 @@ export function pushNotifier(
   }
 
   return {
-    deliver,
-    notify(notices: readonly Notice[]) {
-      const pending = deliver(notices).catch(log)
-      waitUntil?.(pending)
+    notify(notices) {
+      void deliver(notices).catch((error: unknown) => console.warn('push notice failed', { error }))
     },
   }
 }

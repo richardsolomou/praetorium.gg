@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react'
 import { Fragment } from 'react'
 import type { DatasheetSearchReason } from '../../contracts/catalogue'
+import { escapeRegExp } from '../../core/text'
 
 type Props = {
   query: string
@@ -50,5 +51,3 @@ function HighlightedValue({ query, value }: { query: string; value: string }) {
     ),
   )
 }
-
-const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')

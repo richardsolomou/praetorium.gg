@@ -1,0 +1,14 @@
+name: Set up SpacetimeDB
+description: Install the pinned SpacetimeDB CLI.
+outputs:
+  cli-path:
+    description: Path to the installed CLI.
+    value: ${{ steps.spacetime.outputs.cli-path }}
+runs:
+  using: composite
+  steps:
+    - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
+      id: spacetime
+      with:
+        version: '2.12.0'
+        sha256: 154853dd882abe1e6f8b96e169f9ca43a075df006dd33116b85d03c59a912f89

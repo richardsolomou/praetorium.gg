@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { PageState } from '../../../components/PageState'
+import { FullPageState, PageState } from '../../../components/PageState'
 import { dispositionAccent } from '../../../components/rosterSetup'
 import { gameReferencesQuery } from '../../../queries'
 
@@ -10,15 +10,12 @@ export function ForceDispositionIndexPage() {
   const { data } = useQuery(gameReferencesQuery())
   if (!data)
     return (
-      <main className="flex w-full">
-        <PageState
-          className="flex-1 border-x-0 border-t-0"
-          loading
-          eyebrow="Force dispositions"
-          title="Loading force dispositions"
-          explanation="Force dispositions will be available shortly."
-        />
-      </main>
+      <FullPageState
+        loading
+        eyebrow="Force dispositions"
+        title="Loading force dispositions"
+        explanation="Force dispositions will be available shortly."
+      />
     )
 
   return (

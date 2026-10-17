@@ -13,7 +13,11 @@ export function useFavouriteFactions(enabled = true) {
       favourite ? [...new Set([...previous, catalogueId])] : previous.filter((id) => id !== catalogueId),
   )
   const favourites = new Set(data)
-  return { favourites, toggleFavourite: (catalogueId: string) => mutation.mutate({ catalogueId, favourite: !favourites.has(catalogueId) }) }
+  return {
+    favourites,
+    toggleFavourite: (catalogueId: string) => mutation.mutate({ catalogueId, favourite: !favourites.has(catalogueId) }),
+    pending: mutation,
+  }
 }
 
 export const favouritesFirst = <T extends { id: string }>(entries: readonly T[], favourites: ReadonlySet<string>) =>

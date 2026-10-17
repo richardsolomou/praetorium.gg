@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
 import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave, makeWarlord } from './account'
-import { productOperator, productSql, withAuthSql } from './storage'
+import { productOperator, productSql, userIdFor, withAuthSql } from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
 
@@ -648,15 +648,13 @@ for (const { rules, status } of [
     const { email } = await signUp(page, ownerName)
     const rosterName = `${status} league roster`
     if (status === 'archived') {
-      const user = await withAuthSql(
-        (database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string },
-      )
+      const userId = await userIdFor(email)
       const id = crypto.randomUUID()
       await (
         await productOperator()
       ).saveRoster({
         id,
-        userId: user.id,
+        userId,
         name: rosterName,
         catalogueId: '470a-6daa-9014-12df',
         detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),

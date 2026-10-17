@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { checkGithubSponsorship } from '../../functions'
 import { SPONSOR } from '../../projectLinks'
 import { githubSponsorshipQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
+import { Problem } from '../../components/Problem'
 
 const SPONSORSHIP_TEXT = {
   public: 'Public sponsor. Your profile shows the Supporter badge.',
@@ -63,11 +63,7 @@ export function GithubSupporter() {
           )}
         </p>
       </div>
-      {check.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage(check.error)}
-        </p>
-      ) : null}
+      {check.error ? <Problem error={check.error} /> : null}
     </div>
   )
 }

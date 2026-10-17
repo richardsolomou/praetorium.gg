@@ -3,8 +3,8 @@ import { Check } from 'lucide-react'
 import { dispositionTone } from '../../components/rosterSetup'
 import { setLeagueTeamDisposition } from '../../functions'
 import { gameReferencesQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { useLeagueRefresh } from './leagueEvent'
+import { Problem } from '../../components/Problem'
 
 /**
  * The one Force Disposition a fixed pair plays, chosen before the reveal from every card either sealed roster offers.
@@ -62,11 +62,7 @@ export function TeamDispositionPanel({
           )
         })}
       </fieldset>
-      {choose.error ? (
-        <p role="alert" className="mt-2 text-sm text-destructive">
-          {errorMessage(choose.error)}
-        </p>
-      ) : null}
+      {choose.error ? <Problem error={choose.error} className="mt-2" /> : null}
     </section>
   )
 }

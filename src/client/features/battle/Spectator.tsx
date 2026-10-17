@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { cn } from '@/lib/utils'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -346,7 +347,7 @@ function SpectatorSide({
   }
 
   return (
-    <section className={`min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3 ${colours.edge} ${className}`}>
+    <section className={cn('min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3', colours.edge, className)}>
       <div className="space-y-2">
         {side.armies.map((army) => (
           <div key={army.playerId} className="min-w-0">

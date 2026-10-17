@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { useDateFormatting } from '../../dates'
+import { countLabel } from '../../text'
 
 /** How many armies the panel names, the most recently updated first. */
 const SHOWN = 3
@@ -41,7 +42,7 @@ export function HomeArmyUpdates({ updates }: { updates: readonly ArmyUpdate[] })
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold uppercase">{faction.displayName}</span>
                 <span className="block text-xs text-dim">
-                  {changes} {changes === 1 ? 'change' : 'changes'} · {date(recordedAt)}
+                  {countLabel(changes, 'change')} · {date(recordedAt)}
                 </span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-info" aria-hidden />

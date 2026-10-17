@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { cn } from '@/lib/utils'
 import type { OnboardingTarget } from '../../../onboardingTargets'
 import type { ReactNode } from 'react'
 import { gameReferencesQuery } from '../../../queries'
@@ -28,7 +29,7 @@ export function SetupPanel({
   onboarding?: OnboardingTarget
 }) {
   return (
-    <div data-onboarding={onboarding} className={`rounded-sm border border-edge bg-panel p-4 ${className}`}>
+    <div data-onboarding={onboarding} className={cn('rounded-sm border border-edge bg-panel p-4', className)}>
       {children}
     </div>
   )
@@ -36,7 +37,7 @@ export function SetupPanel({
 
 /** Something the step says in passing: what a rule implies, or who may do this. */
 export function SetupNote({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <p className={`rounded-sm border border-edge bg-sunken px-3 py-2 text-xs text-dim ${className}`}>{children}</p>
+  return <p className={cn('rounded-sm border border-edge bg-sunken px-3 py-2 text-xs text-dim', className)}>{children}</p>
 }
 
 /**
@@ -57,7 +58,7 @@ export function SetupSidePanel({
   className?: string
 }) {
   return (
-    <div className={`min-w-0 space-y-2 border-t-[3px] pt-3 ${tint(side.index).edge} ${className}`}>
+    <div className={cn('min-w-0 space-y-2 border-t-[3px] pt-3', tint(side.index).edge, className)}>
       {named ? <SidePlayers side={side} /> : <h3 className="sr-only">{sideName(side)}</h3>}
       {children}
     </div>
@@ -91,7 +92,7 @@ export function useDispositionNames() {
 /** A disposition in the colour the roster builder gave it, or nothing at all. */
 export function DispositionChip({ disposition, className = '' }: { disposition: { id: string; name: string } | null; className?: string }) {
   if (!disposition) return null
-  return <span className={`chip ${dispositionTone(disposition.id)} ${className}`}>{disposition.name}</span>
+  return <span className={cn('chip', dispositionTone(disposition.id), className)}>{disposition.name}</span>
 }
 
 /**

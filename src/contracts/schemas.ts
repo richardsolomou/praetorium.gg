@@ -12,19 +12,16 @@ import {
   GAME_SIZES,
   isKotcLimit,
   OPTIONAL_RULE_IDS,
-  MAX_DETACHMENTS,
-  PHASES,
+  DETACHMENTS_MAX,
   POINTS_BUDGET_MAX,
   POINTS_BUDGET_MIN,
   pointsBudgetError,
   ROSTER_NAME_MAX_LENGTH,
   SECONDARIES_MAX,
-  STRATAGEM_CP_MAX,
-  STRATAGEM_LIMITS,
   STRATAGEMS_MAX,
 } from '../core/battle'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
-import { commandSchema, detachmentIdSchema, rosterPickSchema } from '../core/commands'
+import { commandSchema, detachmentIdSchema, rosterPickSchema, stratagemSchema } from '../core/commands'
 import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
@@ -268,7 +265,7 @@ export const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RUL
 
 export const unitsSchema = z.object({
   catalogueId,
-  detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS).optional(),
+  detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).optional(),
   query: z.string().max(80).default(''),
   battleSize: z
     .number()
@@ -291,7 +288,7 @@ export const datasheetSchema = z
   .object({
     catalogueId: id,
     entryId: id,
-    detachmentIds: z.array(detachmentIdSchema).max(3).default([]),
+    detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).default([]),
     picks: z.array(rosterPickSchema).max(100).default([]),
     pickIndex: z.number().int().min(0).max(99).nullable().default(null),
     /** Keep weapons the unit is not carrying, so options read as this list would make them. */
@@ -305,7 +302,7 @@ export const datasheetSchema = z
 export const combatLoadoutSchema = z
   .object({
     catalogueId: id,
-    detachmentIds: z.array(detachmentIdSchema).max(3).default([]),
+    detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).default([]),
     picks: z.array(rosterPickSchema).min(1).max(100),
     pickIndex: z.number().int().min(0).max(99),
   })
@@ -319,18 +316,7 @@ export const unitWoundsSchema = z
   .overwrite((data) => ({ ...data, entryIds: data.entryIds.map((entryId) => currentEntryId(entryId, data.catalogueId)) }))
 
 const prepSchema = z.object({
-  stratagems: z
-    .array(
-      z.object({
-        key: id,
-        name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
-        cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
-        limit: z.enum(STRATAGEM_LIMITS),
-        phases: z.array(z.enum(PHASES)).max(PHASES.length).optional(),
-        turn: z.enum(['your-turn', 'opponent-turn', 'either']).optional(),
-      }),
-    )
-    .max(STRATAGEMS_MAX),
+  stratagems: z.array(stratagemSchema).max(STRATAGEMS_MAX),
   secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
   reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).default([]),
   remindersEnabled: z.boolean().default(true),
@@ -342,7 +328,7 @@ export const saveRosterSchema = z
     /** Empty when the player wants a name generated from the saved roster. */
     name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
     catalogueId: id,
-    detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
+    detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX),
     disposition: id.nullable(),
     borrowedDetachmentId: detachmentIdSchema.nullable().default(null),
     limit: rosterLimit,
@@ -363,7 +349,7 @@ export type ImportRosterInput = z.infer<typeof importRosterSchema>
 
 export const detachmentRulesSchema = z.object({
   catalogueId,
-  detachmentNames: z.array(z.string().min(1).max(120)).min(1).max(3),
+  detachmentNames: z.array(z.string().min(1).max(120)).min(1).max(DETACHMENTS_MAX),
 })
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 
@@ -424,7 +410,7 @@ export const priceSchema = z
   .object({
     includeUnitLimits: z.boolean().optional(),
     catalogueId: id,
-    detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
+    detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX),
     disposition: id.nullable(),
     borrowedDetachmentId: detachmentIdSchema.nullable().optional(),
     limit: rosterLimit,

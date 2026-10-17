@@ -20,6 +20,7 @@ import { SignInRequired } from '../../components/SignInRequired'
 import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { prepareProfileImage } from './profileImage'
+import { Problem } from '../../components/Problem'
 
 const accountLinkErrorMessage = (error?: string) => {
   if (!error) return undefined
@@ -101,7 +102,7 @@ function ProfileForm({
       setImage(await prepareProfileImage(file))
     } catch (error) {
       posthog.captureException(error, { operation: 'profile_image_prepare' })
-      setImageError(error instanceof Error ? error.message : 'The profile picture could not be prepared.')
+      setImageError(errorMessage(error, 'The profile picture could not be prepared.'))
     } finally {
       setPreparing(false)
       if (fileInput.current) fileInput.current.value = ''
@@ -170,7 +171,7 @@ function ProfileForm({
               </div>
             </div>
             <p className="mt-3 text-xs text-dim">JPEG, PNG or WebP up to 10 MB. Pictures are cropped to a square.</p>
-            {imageError ? <p className="mt-2 text-sm text-destructive">{imageError}</p> : null}
+            {imageError ? <Problem className="mt-2">{imageError}</Problem> : null}
           </section>
 
           <section className="space-y-4">
@@ -202,7 +203,7 @@ function ProfileForm({
             <Button type="submit" disabled={!changed || !name.trim() || preparing || submit.busy}>
               {submit.busy ? 'Saving…' : 'Save profile'}
             </Button>
-            {submit.error ? <p className="text-sm text-destructive">{submit.error}</p> : null}
+            {submit.error ? <Problem>{submit.error}</Problem> : null}
             {saved ? <output className="text-sm text-achieved">Profile saved.</output> : null}
           </div>
         </form>

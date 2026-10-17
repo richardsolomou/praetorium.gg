@@ -50,3 +50,11 @@ export function useStoredValue(key: string) {
     () => null,
   )
 }
+
+/** Stores a value for this tab, or removes it for null; a refused write only costs the tab that memory. */
+export function writeSessionValue(key: string, value: string | null) {
+  try {
+    if (value === null) sessionStorage.removeItem(key)
+    else sessionStorage.setItem(key, value)
+  } catch {}
+}

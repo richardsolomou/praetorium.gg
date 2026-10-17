@@ -1,8 +1,7 @@
-import { pathToFileURL } from 'node:url'
-import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { verifyWebAssetRoute } from './publishWebAssets.ts'
 import { webAssetRouting } from './lib/webAssetRouting.ts'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 type Application = {
   applicationId: string
@@ -279,4 +278,4 @@ async function run() {
   console.log(`Configured ${target} web environment`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await run()
+if (isEntryPoint(import.meta.url)) await run()

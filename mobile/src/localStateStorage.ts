@@ -24,6 +24,6 @@ export function storeLocalState(owner: string, state: LocalState | null, epoch: 
   const previous = readLocalState(owner)
   if (previous.epoch !== epoch || (previous.state?.revision ?? 0) !== expectedRevision) return { ...previous, saved: false }
   const next = state ? { epoch, state } : { epoch: storageId(), state: null }
-  writeSavedState(storageName(owner), next, id, MAX_LOCAL_STATE_BYTES + 1024, Boolean(state))
+  writeSavedState(storageName(owner), next, id, MAX_LOCAL_STATE_BYTES + 1024, { retainPrevious: Boolean(state) })
   return { ...next, saved: true }
 }

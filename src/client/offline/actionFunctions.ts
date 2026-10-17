@@ -14,6 +14,7 @@ import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalRoster } from './localRuntime'
 import { accountChanged, cachedRead } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
+import { favouriteDatasheetsKey, favouriteDetachmentsKey, favouriteFactionsKey, meKey, onboardingKey } from '../queries/queryKeys'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
 async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
@@ -34,12 +35,12 @@ export const collectionCounts = () => accountRead(['collection-counts'], () => s
 export const collectionProgress = () => accountRead(['collection-progress'], () => server.collectionProgress())
 export const collectionWishes = () => accountRead(['collection-wishes'], () => server.collectionWishes())
 export const fieldedDatasheets = () => cachedRead(['fielded-datasheets'], () => server.fieldedDatasheets())
-export const favouriteFactions = () => accountRead(['favourite-factions'], () => server.favouriteFactions())
-export const favouriteDetachments = () => accountRead(['favourite-detachments'], () => server.favouriteDetachments())
-export const favouriteDatasheets = () => accountRead(['favourite-datasheets'], () => server.favouriteDatasheets())
+export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () => server.favouriteFactions())
+export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(), () => server.favouriteDetachments())
+export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
 export const playerDefaults = () => accountRead(['player-defaults'], () => server.playerDefaults())
 export const battleAudience = () => accountRead(['battle-audience'], () => server.battleAudience())
-export const onboardingProgress = () => accountRead(['onboarding'], () => server.onboardingProgress())
+export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
 export const notificationSettings = () => cachedRead(['notification-settings'], () => server.notificationSettings())
 export const friendships = () => cachedRead(['friendships'], () => server.friendships())
 export const opponents = () => cachedRead(['opponents'], () => server.opponents())
@@ -205,8 +206,8 @@ export async function setFavouriteFaction(
 ): ReturnType<typeof server.setFavouriteFaction> {
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteFaction(args)
-  const favourites = (await localDocument<string[]>(queryResource(['favourite-factions']))) ?? (await favouriteFactions())
-  await defer('setFavouriteFaction', args.data, queryResource(['favourite-factions']), undefined, {}, undefined, (current) => {
+  const favourites = (await localDocument<string[]>(queryResource(favouriteFactionsKey()))) ?? (await favouriteFactions())
+  await defer('setFavouriteFaction', args.data, queryResource(favouriteFactionsKey()), undefined, {}, undefined, (current) => {
     const entries = (current as typeof favourites | undefined) ?? favourites
     return args.data.favourite ? [...new Set([...entries, args.data.catalogueId])] : entries.filter((id) => id !== args.data.catalogueId)
   })
@@ -218,9 +219,9 @@ export async function setFavouriteDetachment(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteDetachment(args)
   const favourites =
-    (await localDocument<{ catalogueId: string; detachmentId: string }[]>(queryResource(['favourite-detachments']))) ??
+    (await localDocument<{ catalogueId: string; detachmentId: string }[]>(queryResource(favouriteDetachmentsKey()))) ??
     (await favouriteDetachments())
-  await defer('setFavouriteDetachment', args.data, queryResource(['favourite-detachments']), undefined, {}, undefined, (current) => {
+  await defer('setFavouriteDetachment', args.data, queryResource(favouriteDetachmentsKey()), undefined, {}, undefined, (current) => {
     const entries = (current as typeof favourites | undefined) ?? favourites
     const other = entries.filter((entry) => entry.catalogueId !== args.data.catalogueId || entry.detachmentId !== args.data.detachmentId)
     return args.data.favourite ? [...other, { catalogueId: args.data.catalogueId, detachmentId: args.data.detachmentId }] : other
@@ -232,8 +233,8 @@ export async function setFavouriteDatasheet(
 ): ReturnType<typeof server.setFavouriteDatasheet> {
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteDatasheet(args)
-  const favourites = (await localDocument<string[]>(queryResource(['favourite-datasheets']))) ?? (await favouriteDatasheets())
-  await defer('setFavouriteDatasheet', args.data, queryResource(['favourite-datasheets']), undefined, {}, undefined, (current) => {
+  const favourites = (await localDocument<string[]>(queryResource(favouriteDatasheetsKey()))) ?? (await favouriteDatasheets())
+  await defer('setFavouriteDatasheet', args.data, queryResource(favouriteDatasheetsKey()), undefined, {}, undefined, (current) => {
     const entries = (current as typeof favourites | undefined) ?? favourites
     return args.data.favourite ? [...new Set([...entries, args.data.entryId])] : entries.filter((id) => id !== args.data.entryId)
   })
@@ -285,7 +286,7 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
     eventId: crypto.randomUUID(),
     eventToken: crypto.randomUUID(),
   }
-  const me = localClient()!.getQueryData<{ id: string; name: string; image: string | null }>(['me'])!
+  const me = localClient()!.getQueryData<{ id: string; name: string; image: string | null }>(meKey())!
   const now = Date.now()
   const draft: NonNullable<Awaited<ReturnType<typeof server.openLeague>>> = {
     ...input,
@@ -565,7 +566,7 @@ export async function updateOnboardingProgress(
           ],
   }
   const next = foldOnboarding(stored, facts)
-  await defer('updateOnboardingProgress', input, queryResource(['onboarding']), next)
+  await defer('updateOnboardingProgress', input, queryResource(onboardingKey()), next)
   return next
 }
 

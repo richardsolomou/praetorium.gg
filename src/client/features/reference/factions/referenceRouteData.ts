@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { notFound, redirect } from '@tanstack/react-router'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
-import { breadcrumbMeta, datasheetPreview, detachmentPreview, pageHead } from '../../../linkPreview'
+import { datasheetPreview, detachmentPreview, pageHead, previewImage } from '../../../linkPreview'
 import {
   datasheetSlugQuery,
   detachmentDetailQuery,
@@ -25,28 +25,21 @@ export async function loadFactionDatasheet(queryClient: QueryClient, catalogueId
 export function factionDatasheetHead(loaderData: Awaited<ReturnType<typeof loadFactionDatasheet>> | undefined, origin: string) {
   if (!loaderData) return {}
   const { faction, sheet } = loaderData
-  const factionPath = factionReferenceHref(faction)
   const path = factionReferenceHref(faction, `/datasheets/${sheet.slug}`)
   const { title, description } = datasheetPreview(sheet, faction.displayName)
-  const head = pageHead(origin, {
+  return pageHead(origin, {
     title,
     description,
     path,
     article: true,
-    image: { path: `/api/previews/datasheets/${faction.slug}/${sheet.slug}`, alt: title },
+    image: previewImage(`/datasheets/${faction.slug}/${sheet.slug}`, title),
     markdown: `/api/reference/v1/datasheets/${faction.id}/${sheet.slug}`,
-  })
-  return {
-    meta: [
-      ...head.meta,
-      breadcrumbMeta(origin, [
-        { name: 'Factions', path: '/factions' },
-        { name: faction.displayName, path: factionPath },
-        { name: sheet.name, path },
-      ]),
+    breadcrumbs: [
+      { name: 'Factions', path: '/factions' },
+      { name: faction.displayName, path: factionReferenceHref(faction) },
+      { name: sheet.name, path },
     ],
-    links: head.links,
-  }
+  })
 }
 
 export async function loadFactionDetachment(queryClient: QueryClient, catalogueId: string, detachmentId: string, rules?: string) {
@@ -76,23 +69,17 @@ export function factionDetachmentHead(
   const { detachment, faction } = loaderData
   const path = factionReferenceHref(faction, `/detachments/${detachmentId}`)
   const { title, description } = detachmentPreview(detachment.name, faction.displayName)
-  const head = pageHead(origin, {
+  return pageHead(origin, {
     title,
     description,
     path,
     article: true,
-    image: { path: `/api/previews/detachments/${faction.slug}/${detachmentId}`, alt: title },
+    image: previewImage(`/detachments/${faction.slug}/${detachmentId}`, title),
     markdown: `/api/reference/v1/detachments/${faction.id}/${detachmentId}`,
-  })
-  return {
-    meta: [
-      ...head.meta,
-      breadcrumbMeta(origin, [
-        { name: 'Factions', path: '/factions' },
-        { name: faction.displayName, path: factionReferenceHref(faction) },
-        { name: detachment.name, path },
-      ]),
+    breadcrumbs: [
+      { name: 'Factions', path: '/factions' },
+      { name: faction.displayName, path: factionReferenceHref(faction) },
+      { name: detachment.name, path },
     ],
-    links: head.links,
-  }
+  })
 }

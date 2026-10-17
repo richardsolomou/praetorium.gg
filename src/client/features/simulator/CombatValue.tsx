@@ -1,4 +1,5 @@
 import type { CombatResult } from '../../../core/combat'
+import { cn } from '@/lib/utils'
 
 export type CombatMetric = 'meanDamage' | 'meanKills' | 'uncappedKills' | 'wipe'
 
@@ -20,7 +21,7 @@ export function CombatValue({
   className?: string
 }) {
   return (
-    <span data-combat-wipe={metric === 'wipe' ? '' : undefined} className={`readout ${className}`}>
+    <span data-combat-wipe={metric === 'wipe' ? '' : undefined} className={cn('readout', className)}>
       {formatCombatValue(result, metric)}
     </span>
   )

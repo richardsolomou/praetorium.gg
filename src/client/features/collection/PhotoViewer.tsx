@@ -2,25 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Flag, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { collectionPhotoPath } from '../../../contracts/collection'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { removeCollectionPhotoAsAdmin, reportCollectionPhoto } from '../../functions'
 import { meQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { useCollectionPhotoRemoval } from '../../useCollection'
 import { PhotoLike } from './PhotoLike'
+import { Problem } from '../../components/Problem'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 /** Below a tall photo on a phone, focus is what brings the report field into view; stable, so a re-render never pulls focus back. */
 const focusOnMount = (field: HTMLElement | null) => field?.focus()
@@ -111,11 +102,7 @@ export function PhotoViewer({
             </div>
           ) : null}
           {report.isSuccess ? <output className="text-sm text-achieved">Thanks. An administrator will review it.</output> : null}
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(error)}
-            </p>
-          ) : null}
+          {error ? <Problem error={error} /> : null}
         </DialogBody>
         {photo ? (
           <DialogFooter className="flex-row items-center">
@@ -153,31 +140,24 @@ export function PhotoViewer({
           </DialogFooter>
         ) : null}
       </DialogContent>
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this photo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {own
-                ? `It will be deleted from your collection, your profile and the ${name} datasheet.`
-                : `It will be deleted from ${photo?.owner.name}’s collection for everyone.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (!photo) return
-                remove.mutate(photo.photoId, { onSuccess: close })
-                setConfirming(false)
-              }}
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirming}
+        title="Remove this photo?"
+        description={
+          own
+            ? `It will be deleted from your collection, your profile and the ${name} datasheet.`
+            : `It will be deleted from ${photo?.owner.name}’s collection for everyone.`
+        }
+        cancel="Keep"
+        confirm="Remove"
+        destructive
+        onClose={() => setConfirming(false)}
+        onConfirm={() => {
+          if (!photo) return
+          remove.mutate(photo.photoId, { onSuccess: close })
+          setConfirming(false)
+        }}
+      />
     </Dialog>
   )
 }

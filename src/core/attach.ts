@@ -1,3 +1,4 @@
+import { uniqueBy } from './collections'
 import {
   type Association,
   type CatalogueIndex,
@@ -101,7 +102,7 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
   if (!associated) return attachment ?? null
   return {
     kind: attachment?.kind ?? associated.kind,
-    targets: uniqueNames([...(attachment?.targets ?? []), ...associated.targets]),
+    targets: uniqueNormalizedNames([...(attachment?.targets ?? []), ...associated.targets]),
     ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
   }
 }
@@ -130,7 +131,7 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
     if (targets.length) found.push({ kind, targets })
   }
   if (!found.length) return null
-  return { kind: found[0]!.kind, targets: uniqueNames(found.flatMap((attachment) => attachment.targets)) }
+  return { kind: found[0]!.kind, targets: uniqueNormalizedNames(found.flatMap((attachment) => attachment.targets)) }
 }
 
 const associationKind = (association: Association): Attachment['kind'] | null => {
@@ -210,7 +211,7 @@ function findAttachment(definition: Definition, index: CatalogueIndex): Attachme
     const afterClaim = text.slice(claim.index + claim[0].length)
     return {
       kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support',
-      targets: uniqueNames(targets),
+      targets: uniqueNormalizedNames(targets),
       ...(REQUIRES_LEADER.test(afterClaim) ? { requiresLeader: true as const } : {}),
     }
   }
@@ -259,20 +260,12 @@ function categoryTargets(name: string, index: CatalogueIndex) {
     )
     if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
   }
-  const targets = uniqueNames(found)
+  const targets = uniqueNormalizedNames(found)
   categoryTargetCache.set(index, targets)
   return targets
 }
 
-function uniqueNames(values: readonly string[]) {
-  const seen = new Set<string>()
-  return values.filter((name) => {
-    const normalized = normalizedName(name)
-    if (seen.has(normalized)) return false
-    seen.add(normalized)
-    return true
-  })
-}
+const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, normalizedName)
 
 /**
  * The other units in the list that are the same unit as this one, by position.

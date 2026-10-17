@@ -4,6 +4,8 @@
  * Nothing here throws into its caller: a notice is a courtesy, and a push
  * service that is slow or down must not fail or delay the write that caused it.
  */
+import pRetry from 'p-retry'
+
 export type PushMessage = { to: string; title: string; body: string; path: string }
 
 export type PushSender = { send: (messages: readonly PushMessage[]) => Promise<void> }
@@ -14,7 +16,6 @@ type PushSenderOptions = {
   /** Called with devices the service says no longer exist, so they stop being sent to. */
   onUnregistered: (tokens: string[]) => Promise<void> | void
   fetch?: typeof fetch
-  sleep?: (milliseconds: number) => Promise<void>
   /** Runs the receipt check later; receipts are ready within minutes and kept for a day. */
   later?: (work: () => void, milliseconds: number) => void
   log?: (message: string, detail: Record<string, unknown>) => void
@@ -31,6 +32,12 @@ const RECEIPT_DELAY_MS = 15 * 60_000
 /** How long an offline device is still worth reaching: a day-old notice has usually been acted on elsewhere. */
 const TTL_SECONDS = 24 * 60 * 60
 
+class RefusedRequest extends Error {
+  constructor(readonly retryable: boolean) {
+    super('push request refused')
+  }
+}
+
 type Outcome = { status?: unknown; id?: unknown; details?: { error?: unknown } }
 
 function errorCode(outcome: Outcome) {
@@ -41,39 +48,43 @@ function errorCode(outcome: Outcome) {
 export function pushSenderFromEnvironment(
   onUnregistered: PushSenderOptions['onUnregistered'],
   environment: NodeJS.ProcessEnv = process.env,
-  checkReceipts = true,
 ): PushSender | null {
   const accessToken = environment.EXPO_PUSH_ACCESS_TOKEN?.trim()
-  return accessToken ? expoPushSender({ accessToken, onUnregistered, checkReceipts }) : null
+  return accessToken ? expoPushSender({ accessToken, onUnregistered }) : null
 }
 
 export function expoPushSender(options: PushSenderOptions): PushSender {
   const request = options.fetch ?? fetch
-  const sleep = options.sleep ?? ((milliseconds) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)))
   const later = options.later ?? ((work, milliseconds) => setTimeout(work, milliseconds).unref())
   const log = options.log ?? ((message, detail) => console.warn(message, detail))
 
   /** The parsed body of a successful response, or null once retrying stops helping. */
   async function post(url: string, body: unknown): Promise<unknown> {
-    for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-      let retryable = true
-      try {
-        const response = await request(url, {
-          method: 'POST',
-          headers: { accept: 'application/json', 'content-type': 'application/json', authorization: `Bearer ${options.accessToken}` },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        })
-        if (response.ok) return await response.json()
-        retryable = response.status === 429 || response.status >= 500
+    return pRetry(
+      async (attempt) => {
+        let response: Response
+        try {
+          response = await request(url, {
+            method: 'POST',
+            headers: { accept: 'application/json', 'content-type': 'application/json', authorization: `Bearer ${options.accessToken}` },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          })
+          if (response.ok) return (await response.json()) as unknown
+        } catch (error) {
+          log('push request failed', { error, attempt })
+          throw error
+        }
         log('push request refused', { status: response.status, attempt })
-      } catch (error) {
-        log('push request failed', { error, attempt })
-      }
-      if (!retryable || attempt === ATTEMPTS) return null
-      await sleep(RETRY_BASE_MS * 2 ** (attempt - 1))
-    }
-    return null
+        throw new RefusedRequest(response.status === 429 || response.status >= 500)
+      },
+      {
+        retries: ATTEMPTS - 1,
+        minTimeout: RETRY_BASE_MS,
+        factor: 2,
+        shouldRetry: ({ error }) => !(error instanceof RefusedRequest) || error.retryable,
+      },
+    ).catch(() => null)
   }
 
   async function forget(tokens: string[]) {

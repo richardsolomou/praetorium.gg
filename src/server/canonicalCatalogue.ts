@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import { withDefinitionTokens } from './sourceTexts'
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
+import { replaceFileSync } from './replaceFile'
 import { z } from 'zod'
 import { completeSteps, type Steps } from '../shared/steps'
 import { profileBaseSize, structureDatasheetProfiles } from '../core/datasheetStructure'
@@ -568,13 +568,7 @@ export function writeCanonicalCatalogue(directory: string, output = canonicalCat
   if (!loaded) throw new Error('catalogue data is unavailable')
   const catalogue = compileCanonicalCatalogueFromSnapshot(loaded, snapshotRules(directory, loaded), directory)
   fs.mkdirSync(path.dirname(output), { recursive: true })
-  const temporary = `${output}.${randomUUID()}`
-  try {
-    fs.writeFileSync(temporary, `${JSON.stringify(catalogue, null, 2)}\n`)
-    fs.renameSync(temporary, output)
-  } finally {
-    fs.rmSync(temporary, { force: true })
-  }
+  replaceFileSync(output, (temporary) => fs.writeFileSync(temporary, `${JSON.stringify(catalogue, null, 2)}\n`))
   return catalogue
 }
 

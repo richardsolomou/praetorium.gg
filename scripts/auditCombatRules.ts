@@ -4,18 +4,14 @@ import { parseArgs } from 'node:util'
 import { compileCombatRule } from '../src/core/combatRuleCompiler'
 import { combatRuleChoices, combatRuleRoles, type CombatRule } from '../src/core/combatRules'
 import { datasheetIn } from '../src/shared/catalogue'
-import { loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
-import { loadRules } from '../src/server/rules'
 import { combatWeaponKeywordInventory, unselectedCombatRules } from './lib/combatRuleInventory'
 import type { InventoryRule } from './lib/combatRuleShortlist'
+import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 const { values } = parseArgs({ options: { json: { type: 'boolean' }, faction: { type: 'string' } } })
 const directory = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
-const loaded = loadCatalogue(directory)
-if (!loaded) throw new Error('Fetch the catalogue snapshot before auditing combat rules.')
-const rules = loadRules(directory, undefined, undefined, undefined, loaded.datacards)
-if (!rules) throw new Error('The snapshot is missing its rules source.')
+const { catalogue: loaded, rules } = loadSnapshotWithRules(directory)
 const entries = new Map<string, InventoryRule>()
 function add(name: string, description: string | null, source: string, scope: CombatRule['scope']) {
   if (!description || (values.faction && !source.toLowerCase().includes(values.faction.toLowerCase()))) return

@@ -4,10 +4,12 @@ import { X } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { buttonClass } from '../../components/buttonClass'
 import type { BattleView } from '../../../core/battleView'
 import { meQuery, onboardingQuery } from '../../queries'
-import { dismissSpectatorInvite, spectatorInviteOffer, spectatorInviteSuppressed, subscribeSpectatorInvite } from './spectatorInviteState'
+import { subscribeStoredValues } from '../../storedValue'
+import { dismissSpectatorInvite, spectatorInviteOffer, spectatorInviteSuppressed } from './spectatorInviteState'
 
 const ACTION = 'max-sm:h-11'
 
@@ -23,7 +25,7 @@ export function SpectatorInvite({ view, className }: { view: BattleView; classNa
   const { data: me } = useQuery(meQuery())
   const { data: progress } = useQuery({ ...onboardingQuery(), enabled: Boolean(me) && !seated })
   const offer = spectatorInviteOffer({ seated, me, progress })
-  const suppressed = useSyncExternalStore(subscribeSpectatorInvite, spectatorInviteSuppressed, () => false)
+  const suppressed = useSyncExternalStore(subscribeStoredValues, spectatorInviteSuppressed, () => false)
   const visible = offer !== null && !suppressed
   const signedIn = Boolean(me)
   const properties = { status: view.status, offer, signed_in: signedIn }
@@ -39,7 +41,7 @@ export function SpectatorInvite({ view, className }: { view: BattleView; classNa
   const follow = (action: 'roster' | 'battle') => () => posthog.capture('spectator_invite_followed', { ...properties, action })
 
   return (
-    <aside data-spectator-invite aria-labelledby="spectator-invite-title" className={`flex items-start gap-3 ${className ?? ''}`}>
+    <aside data-spectator-invite aria-labelledby="spectator-invite-title" className={cn('flex items-start gap-3', className)}>
       <div className="min-w-0 flex-1 space-y-2">
         <div>
           <p id="spectator-invite-title" className="text-sm font-semibold text-bone">

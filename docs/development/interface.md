@@ -27,6 +27,7 @@ Send feedback opens one dialog over the current page. Do not add another entry p
 - Treat generated `src/components/ui` as vendored: style it through `data-slot` selectors and wrappers, never by hand-patching.
 - Style navigation as a button by giving the link `buttonClass` from `src/client/components/buttonClass.ts`. A `Button` that renders a link with `nativeButton={false}` gives it `role="button"`, so assistive technology announces a button.
 - Build dialogs from `src/client/components/Dialog.tsx` with its `sm`, `md`, or `lg` size, not width or height classes. Put everything between header and footer in `DialogBody`, the only region that scrolls, so title, Close, and Minimize stay pinned. Battle prompts are non-modal on phones and lock document scrolling through `src/styles.css`.
+- Ask before a consequential action with `ConfirmDialog`, and announce a failure with `Problem`, both in `src/client/components`.
 - Rule help, tooltips, and charts must work with hover, keyboard focus, and touch. A disabled button shows no tooltip, so state the reason beside it.
 - `src/client/battleStage.ts`, `src/core/tableShape.ts`, `src/client/sides.ts`, and `src/client/seats.ts` own shared labels and grouping; do not derive a second answer in a screen.
 - Use `src/client/useSettled.ts` for settled edits. Keep prior results and final geometry stable while pending; show failures with an actionable retry.

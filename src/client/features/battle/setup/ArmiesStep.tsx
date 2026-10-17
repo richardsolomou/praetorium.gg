@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PAINTED_ARMY_POINTS, pointsBudgetOf, type Command } from '../../../../core/battle'
+import { PAINTED_ARMY_POINTS, pointsBudgetOf, pointsLabel, type Command } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
 import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../../queries'
@@ -27,6 +27,7 @@ import { LentRosterList, type LentRoster } from '../../rosters/LentRosters'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
 import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
 import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
+import { Problem } from '../../../components/Problem'
 
 type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
 type Props = {
@@ -109,7 +110,7 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">
                         {army.roster.built
-                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsBudgetOf(army.roster.built).toLocaleString('en')} points`
+                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(pointsBudgetOf(army.roster.built))}`
                           : 'Imported army'}
                       </span>
                     ) : null}
@@ -341,7 +342,7 @@ function RosterChooser({
             {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
             {requiredLimit === null
               ? 'Your rosters, most recently updated first.'
-              : `Rosters built for ${requiredLimit.toLocaleString('en')} points, most recently updated first.`}
+              : `Rosters built for ${pointsLabel(requiredLimit)}, most recently updated first.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -402,7 +403,7 @@ function RosterChooser({
               <LentRosterList rosters={lent} selectedId={selectedId} disabled={pending} onChoose={onChoose} />
             </>
           ) : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <Problem>{error}</Problem> : null}
         </DialogBody>
       </DialogContent>
     </Dialog>

@@ -1,8 +1,9 @@
 import { z } from 'zod'
+import { fromBase64Url, toBase64Url } from './base64'
 import {
   customPointsBudget,
   FORMAT_RULE_IDS,
-  MAX_DETACHMENTS,
+  DETACHMENTS_MAX,
   OPTIONAL_RULE_IDS,
   POINTS_BUDGET_MAX,
   POINTS_BUDGET_MIN,
@@ -31,7 +32,7 @@ const id = z.string().min(1).max(64)
 const payloadSchema = z.object({
   name: z.string().max(ROSTER_NAME_MAX_LENGTH),
   catalogueId: id,
-  detachmentIds: z.array(detachmentIdSchema).max(MAX_DETACHMENTS),
+  detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX),
   disposition: id.nullable(),
   borrowedDetachmentId: detachmentIdSchema.nullable(),
   limit: z.number().int().min(0).max(10_000),
@@ -169,15 +170,4 @@ async function transform(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStre
     offset += part.byteLength
   }
   return joined
-}
-
-function toBase64Url(bytes: Uint8Array) {
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
-}
-
-function fromBase64Url(text: string) {
-  const binary = atob(text.replaceAll('-', '+').replaceAll('_', '/'))
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0))
 }

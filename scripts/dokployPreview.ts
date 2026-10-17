@@ -3,11 +3,11 @@ import { randomBytes } from 'node:crypto'
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { DokployClient, dokployPreviewFromEnvironment, loadPreviewAppSecrets, pullRequestNumber } from 'ras-stack/preview/dokploy'
 import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
+import { isEntryPoint } from './lib/entryPoint.ts'
 
 const execFile = promisify(execFileCallback)
 const allowedSecrets = [
@@ -166,4 +166,4 @@ async function run() {
   throw new Error('Usage: dokployPreview.ts deploy|delete|prune')
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await run()
+if (isEntryPoint(import.meta.url)) await run()

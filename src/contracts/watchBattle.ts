@@ -1,7 +1,7 @@
 import { z } from 'zod'
+import { PHASES } from '../core/battle'
 
 export const MAX_WATCH_MESSAGE_BYTES = 48_000
-export const WATCH_FRESHNESS_MS = 45_000
 
 const shortText = z.string().max(160)
 export const watchBattleSchema = z.object({
@@ -12,7 +12,7 @@ export const watchBattleSchema = z.object({
   updatedAt: z.number().nonnegative(),
   round: z.number().int().nonnegative(),
   rounds: z.number().int().positive(),
-  phase: z.enum(['command', 'movement', 'shooting', 'charge', 'fight', 'end']),
+  phase: z.enum(PHASES),
   activeSide: z.number().int().nullable(),
   paused: z.boolean(),
   turnElapsedMs: z.number().nonnegative(),

@@ -1,5 +1,5 @@
 import { routeSlug } from '../core/slug'
-import { english, type MissionPack, packText, readMissionPacks } from './missionPacks'
+import { english, type MissionPack, packText } from './missionPacks'
 
 /**
  * The optional twist a pack offers, which changes one rule for the whole battle.
@@ -8,18 +8,12 @@ import { english, type MissionPack, packText, readMissionPacks } from './mission
  * and dispositions and says nothing about twists — so they are read from the pack
  * itself and keyed by the name it shares with the missions in it.
  *
- * Nothing is invented: a pack with no twists offers none, which is what every pack
- * did before this was read at all.
+ * Nothing is invented: a pack with no twists offers none.
  */
 import type { MissionTwist } from '../contracts/missions'
 export type { MissionTwist } from '../contracts/missions'
 
 /** Twists by pack, under the same slug `gameReferences` gives that pack. */
-export function loadMissionTwists(directory: string): Map<string, MissionTwist[]> {
-  return twistsIn(readMissionPacks(directory))
-}
-
-/** The same reading, for a caller that has already parsed the packs. */
 export function twistsIn(packs: readonly MissionPack[]): Map<string, MissionTwist[]> {
   const found = new Map<string, MissionTwist[]>()
   for (const pack of packs) {

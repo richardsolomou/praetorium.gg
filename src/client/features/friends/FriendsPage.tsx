@@ -2,16 +2,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Link } from '@tanstack/react-router'
 import { Check, Link2, RotateCw, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -26,6 +16,8 @@ import { errorMessage } from '../../queryClient'
 import type { OnboardingTarget } from '../onboarding/onboarding'
 import { useNativeShare } from '../../nativeBridge'
 import { InviteQr, SHARED_LABEL, useFriendInvite } from './friendInvite'
+import { Problem } from '../../components/Problem'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 type Person = { id: string; name: string; image?: string | null }
 
@@ -145,28 +137,19 @@ export function FriendsPage() {
           />
         ) : null}
       </PageContent>
-      <AlertDialog open={Boolean(unfriending)} onOpenChange={(open) => !open && setUnfriending(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove {unfriending?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You stop seeing each other's friends-only battles, and rosters you lent each other go back to their owners.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep friend</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (unfriending) remove.mutate(unfriending.id)
-                setUnfriending(null)
-              }}
-            >
-              Remove friend
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={Boolean(unfriending)}
+        title={`Remove ${unfriending?.name}?`}
+        description="You stop seeing each other's friends-only battles, and rosters you lent each other go back to their owners."
+        cancel="Keep friend"
+        confirm="Remove friend"
+        destructive
+        onClose={() => setUnfriending(null)}
+        onConfirm={() => {
+          if (unfriending) remove.mutate(unfriending.id)
+          setUnfriending(null)
+        }}
+      />
     </main>
   )
 }
@@ -202,7 +185,7 @@ function InviteFriend() {
           )}
         </div>
       </div>
-      {invite.problem ? <p className="mt-3 text-sm text-destructive">{invite.problem}</p> : null}
+      {invite.problem ? <Problem className="mt-3">{invite.problem}</Problem> : null}
     </section>
   )
 }

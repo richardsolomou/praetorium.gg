@@ -1,7 +1,5 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
-
-const date = (name: string) => integer(name, { mode: 'timestamp_ms' })
-const flag = (name: string) => integer(name, { mode: 'boolean' })
+import { date, flag } from './columns'
 
 export const user = sqliteTable(
   'user',

@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { cn } from '@/lib/utils'
 import { Pause, Timer } from 'lucide-react'
 import { type BattleClock, latestTurnRound } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
@@ -127,7 +128,7 @@ function SideScore({
   const turnRound = clock && latestTurnRound(clock, side.index)
   const paused = clock?.paused && side.isActive
   return (
-    <div data-side-score={side.index} className={`min-w-0 ${end ? 'order-3' : 'order-1'} ${className}`}>
+    <div data-side-score={side.index} className={cn('min-w-0', end ? 'order-3' : 'order-1', className)}>
       {/* Capped, or the round strip stretches across a wide column and stops reading as five rounds. */}
       <div className={`min-w-0 max-w-64 ${end ? 'ml-auto text-right' : ''}`}>
         {/*

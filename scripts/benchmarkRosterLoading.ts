@@ -3,21 +3,14 @@ import { performance } from 'node:perf_hooks'
 import { attachedUnit } from '../src/core/attach'
 import { buildUnit, type RosterPick } from '../src/core/roster'
 import { abilityNamesIn, datasheetIn, datasheetViewsIn } from '../src/shared/catalogue'
-import { loadCatalogue } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
 import { calculateRosterPrice, rosterDetachments } from '../src/shared/pricing'
 import { deploymentRules } from '../src/shared/pricing'
-import { loadRules } from '../src/server/rules'
+import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
 process.env.CATALOGUE_DIR ??= new URL('../catalogue-data', import.meta.url).pathname
 
-const requireCatalogue = () => {
-  const catalogue = loadCatalogue(process.env.CATALOGUE_DIR)
-  if (!catalogue) throw new Error('catalogue unavailable')
-  return catalogue
-}
-const loaded = requireCatalogue()
-const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards)
+const { catalogue: loaded, rules } = loadSnapshot(process.env.CATALOGUE_DIR)
 const faction = loaded.factions.toSorted(
   (left, right) => (right.references[0]?.datasheets ?? 0) - (left.references[0]?.datasheets ?? 0),
 )[0]!

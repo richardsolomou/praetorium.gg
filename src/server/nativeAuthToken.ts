@@ -1,7 +1,8 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import type { AuthContext } from 'better-auth'
 import { createAuthEndpoint, getAuthoritativeSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
+import { randomToken } from 'ras-stack/auth'
 import { z } from 'zod'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 
@@ -92,8 +93,8 @@ export function nativeAuthToken() {
           if (!accounts.some((account) => account.providerId === context.body.provider)) {
             throw context.error('BAD_REQUEST', { message: 'Provider is not linked' })
           }
-          const id = Buffer.from(randomBytes(24)).toString('base64url')
-          const token = Buffer.from(randomBytes(32)).toString('base64url')
+          const id = randomToken(24)
+          const token = randomToken(32)
           const value: ExchangeRecord = {
             ...context.body,
             sessionToken: authenticated.session.token,

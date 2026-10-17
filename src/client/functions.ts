@@ -35,8 +35,19 @@ import { localRosterAssessment } from './offline/rosterAssessment'
 import { calculationRead } from './offline/calculationRead'
 import { anySignal } from './abortSignals'
 import { rosterPriceKey } from './queries/rosterPriceKey'
+import {
+  homeRostersKey,
+  meKey,
+  rosterAccessKey,
+  rosterBootstrapKey,
+  savedRosterPageKey,
+  savedRosterSummariesKey,
+  sharedRosterKey,
+} from './queries/queryKeys'
 
 export * from '../server/functions'
+export { browserAgentToolCatalog, callBrowserAgentTool, prepareBrowserAgentTool } from '../server/functions/agentTools'
+export { mcpConnections, revokeMcpConnection } from '../server/functions/mcpConnections'
 
 const read =
   <K extends ConstructionReadName, T>(name: K, online: (args: { data: ConstructionReadData<K>; signal?: AbortSignal }) => Promise<T>) =>
@@ -117,7 +128,7 @@ function factionFor(id: string) {
 }
 
 function accessFor(roster: LocalRoster, state?: LocalState) {
-  const cached = localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterAccess>>>(['roster-access', roster.id, null])
+  const cached = localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterAccess>>>(rosterAccessKey(roster.id))
   const members = Object.values(state?.documents ?? {})
     .map((document) => document.data as LocalRoster | null)
     .filter((entry): entry is LocalRoster => Boolean(entry?.catalogueId && entry.picks))
@@ -165,7 +176,7 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource))))
     return local ? accessFor(local, await localEngine()?.storage.read()) : null
   try {
-    const result = await cachedRead(['roster-access', args.data.id, args.data.battle ?? null], () => server.rosterAccess(args))
+    const result = await cachedRead(rosterAccessKey(args.data.id, args.data.battle), () => server.rosterAccess(args))
     if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
       const saved = await rememberDocument(
         resource,
@@ -177,7 +188,7 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
       if (saved && saved.serverVersion !== (result?.roster.updatedAt ?? null)) {
         const current = saved.data as LocalRoster | null
         const retained = current ? accessFor(current, await localEngine()?.storage.read()) : null
-        localClient()?.setQueryData(['roster-access', args.data.id, args.data.battle ?? null], retained)
+        localClient()?.setQueryData(rosterAccessKey(args.data.id, args.data.battle), retained)
         return retained
       }
     }
@@ -202,8 +213,8 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
   const local = !args.data.battle ? await localDocument<LocalRoster | null>(resource) : undefined
   const fromLocal = async (
     current = local,
-    changes = localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterBootstrap>>>(['roster-bootstrap', args.data.id, null])
-      ?.changes ?? [],
+    changes = localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterBootstrap>>>(rosterBootstrapKey(args.data.id))?.changes ??
+      [],
   ) => {
     assertAccount()
     if (!current) return null
@@ -215,7 +226,7 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
   }
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return fromLocal()
   try {
-    const result = await cachedRead(['roster-bootstrap', args.data.id, args.data.battle ?? null], () => server.rosterBootstrap(args))
+    const result = await cachedRead(rosterBootstrapKey(args.data.id, args.data.battle), () => server.rosterBootstrap(args))
     if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
       const current = await localDocument<LocalRoster | null>(resource)
       // Saved without waiting: a save queues behind every other one this device makes, and its own guards keep a newer copy.
@@ -225,7 +236,7 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
       // A copy saved since the request started is newer than an answer that predates it.
       if (current && (result ? current.updatedAt > result.roster.updatedAt : current.updatedAt !== local?.updatedAt)) {
         const retained = await fromLocal(current, result?.changes ?? [])
-        localClient()?.setQueryData(['roster-bootstrap', args.data.id, args.data.battle ?? null], retained)
+        localClient()?.setQueryData(rosterBootstrapKey(args.data.id, args.data.battle), retained)
         return retained
       }
     }
@@ -283,7 +294,7 @@ export async function saveRoster(
   // beats that download still builds on the opened version instead of saving a new roster.
   const opened =
     previous === undefined && args.data.id
-      ? localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterAccess>>>(['roster-access', input.id, null])
+      ? localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterAccess>>>(rosterAccessKey(input.id))
       : undefined
   if (opened?.editable) {
     await rememberDocument(resource, opened.roster, opened.roster.updatedAt, owner, null)
@@ -418,19 +429,19 @@ export function projectLocalState(state: LocalState) {
     if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
     const id = resource.slice(7)
     const roster = document.data as LocalRoster | null
-    const previous = client.getQueryData<Awaited<ReturnType<typeof server.rosterBootstrap>>>(['roster-bootstrap', id, null])
+    const previous = client.getQueryData<Awaited<ReturnType<typeof server.rosterBootstrap>>>(rosterBootstrapKey(id))
     if (roster && previous?.roster.updatedAt === roster.updatedAt) continue
     const access = roster ? accessFor(roster, state) : null
-    client.setQueryData(['roster-access', id, null], access)
-    client.setQueryData(['shared-roster', id, null], roster)
+    client.setQueryData(rosterAccessKey(id), access)
+    client.setQueryData(sharedRosterKey(id), roster)
     client.setQueryData(
-      ['roster-bootstrap', id, null],
+      rosterBootstrapKey(id),
       roster ? { ...previous, ...access, price: pricedRoster(roster), changes: previous?.changes ?? [] } : null,
     )
   }
-  const summaries = client.getQueryData<Awaited<ReturnType<typeof server.savedRosterSummaries>>>(['saved-roster-summaries'])
+  const summaries = client.getQueryData<Awaited<ReturnType<typeof server.savedRosterSummaries>>>(savedRosterSummariesKey())
   if (summaries !== undefined || state.operations.some((operation) => operation.resource.startsWith('roster:')))
-    client.setQueryData(['saved-roster-summaries'], overlaySummaries(summaries ?? [], state))
+    client.setQueryData(savedRosterSummariesKey(), overlaySummaries(summaries ?? [], state))
   projectBattles(state)
 }
 
@@ -521,7 +532,7 @@ export async function savedRosterLoadoutDatasheets(
       async (error) => {
         const roster = !args.data.battle
           ? local
-          : localClient()?.getQueryData<LocalRoster | null>(['shared-roster', args.data.id, args.data.battle])
+          : localClient()?.getQueryData<LocalRoster | null>(sharedRosterKey(args.data.id, args.data.battle))
         const construction = roster && localConstruction(roster.catalogueId)
         if (!roster || !construction) throw error ?? new Error('Army data is unavailable.')
         return rosterLoadoutDatasheets(construction.catalogue, datasheetSchema.parse(inputFor(roster)), construction.rules)
@@ -537,7 +548,7 @@ export async function savedRosterSummaries(args?: { signal?: AbortSignal }): Ret
   const assertAccount = () => {
     if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
   }
-  const summaries = await cachedRead(['saved-roster-summaries'], async () => {
+  const summaries = await cachedRead(savedRosterSummariesKey(), async () => {
     const before = await engine?.storage.read()
     assertAccount()
     const fresh = await server.savedRosterSummaries({
@@ -613,7 +624,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
   assertAccount()
   const state = await engine.storage.read()
   assertAccount()
-  const cached = localClient()?.getQueryData<Awaited<ReturnType<typeof server.savedRosterPage>>>(['saved-roster-page', args.data.ids])
+  const cached = localClient()?.getQueryData<Awaited<ReturnType<typeof server.savedRosterPage>>>(savedRosterPageKey(args.data.ids))
   const rows = new Map((fresh ?? cached)?.map((row) => [row.id, row]))
   await Promise.all(
     args.data.ids.map(async (id) => {
@@ -675,7 +686,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
   const summaries = fresh
     ? await savedRosterSummaries({ signal: args?.signal })
     : overlaySummaries(
-        localClient()?.getQueryData<Awaited<ReturnType<typeof server.savedRosterSummaries>>>(['saved-roster-summaries']) ?? [],
+        localClient()?.getQueryData<Awaited<ReturnType<typeof server.savedRosterSummaries>>>(savedRosterSummariesKey()) ?? [],
         state,
         true,
       )
@@ -696,7 +707,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
       })),
     }
   }
-  const savedHome = localClient()?.getQueryData<Awaited<ReturnType<typeof server.homeRosters>>>(['home-rosters'])
+  const savedHome = localClient()?.getQueryData<Awaited<ReturnType<typeof server.homeRosters>>>(homeRostersKey())
   const rosters = await Promise.all(
     recent.map(async (summary) => {
       const roster = state.documents[`roster:${summary.id}`]?.data as LocalRoster | null | undefined
@@ -778,7 +789,7 @@ export {
   leagueBattleOptions,
 } from './offline/actionFunctions'
 
-export const me = (args?: Parameters<typeof server.me>[0]) => cachedRead(['me'], () => server.me(args))
+export const me = (args?: Parameters<typeof server.me>[0]) => cachedRead(meKey(), () => server.me(args))
 export async function rosterChanges(args: Parameters<typeof server.rosterChanges>[0]): ReturnType<typeof server.rosterChanges> {
   const state = await localEngine()?.storage.read()
   if (

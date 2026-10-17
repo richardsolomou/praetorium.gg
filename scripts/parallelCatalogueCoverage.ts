@@ -2,10 +2,13 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
+import { parseArgs } from 'node:util'
+import { compareCatalogueCoverage, readAcceptedLosses } from './lib/catalogueCoverageComparison'
 
-const arguments_ = process.argv.slice(2)
-const output = arguments_[0]
+const {
+  positionals: [output],
+  values,
+} = parseArgs({ allowPositionals: true, options: { part: { type: 'string' }, compare: { type: 'string' }, accept: { type: 'string' } } })
 if (!output) {
   throw new Error(
     'usage: parallelCatalogueCoverage.ts <out.json> [--part <index>/<count>] [--compare <before.json>] [--accept <withdrawn.json>]',
@@ -13,8 +16,7 @@ if (!output) {
 }
 // A part takes every count-th faction, so machines can split the snapshot between them
 // whatever worker count each one chooses.
-const partAt = arguments_.indexOf('--part')
-const part = partAt < 0 ? ['', '0', '1'] : arguments_[partAt + 1]?.match(/^(\d+)\/(\d+)$/)
+const part = values.part === undefined ? ['', '0', '1'] : values.part.match(/^(\d+)\/(\d+)$/)
 if (!part || Number(part[2]) < 1 || Number(part[1]) >= Number(part[2])) {
   throw new Error('--part must be a zero-based index and count, for example 0/2')
 }
@@ -62,12 +64,7 @@ try {
     .toSorted((left, right) => left.name.localeCompare(right.name))
   fs.writeFileSync(output, JSON.stringify(snapshot, null, 1))
 
-  const compareAt = arguments_.indexOf('--compare')
-  const previous = compareAt < 0 ? undefined : arguments_[compareAt + 1]
-  const acceptAt = arguments_.indexOf('--accept')
-  const acceptFile = acceptAt < 0 ? undefined : arguments_[acceptAt + 1]
-  const accepted: { reason: string; entries: string[] }[] = acceptFile ? JSON.parse(fs.readFileSync(acceptFile, 'utf8')) : []
-  if (previous) compareCatalogueCoverage(previous, output, accepted)
+  if (values.compare) compareCatalogueCoverage(values.compare, output, readAcceptedLosses(values.accept))
 } finally {
   fs.rmSync(temporaryDirectory, { recursive: true, force: true })
 }

@@ -18,7 +18,6 @@ import {
 import { appliesInMode } from '../../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from './automaticAttempts'
 import type { SendCommand } from './useCommand'
-import { errorMessage } from '../../queryClient'
 import {
   parseReminderDismissals,
   pruneReminderDismissals,
@@ -60,6 +59,7 @@ import { Fact } from '../../components/Fact'
 import { BattlefieldFact } from './BattlefieldFact'
 import { BattleNote } from './BattleNote'
 import { MANUAL_TRACKING_LIMITS } from './manualTracking'
+import { Problem } from '../../components/Problem'
 
 type Props = {
   view: BattleView
@@ -720,7 +720,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <Report token={view.token} open players={reportPlayers} />
               </div>
 
-              {problem ? <p className="text-sm text-destructive">{problem}</p> : null}
+              {problem ? <Problem>{problem}</Problem> : null}
               {emptySettlementRetryNeeded ? (
                 <Button
                   variant="outline"
@@ -731,7 +731,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                   Retry finishing the previous turn
                 </Button>
               ) : null}
-              {remove.error ? <p className="text-sm text-destructive">{errorMessage(remove.error)}</p> : null}
+              {remove.error ? <Problem error={remove.error} /> : null}
             </section>
           </div>
         </div>

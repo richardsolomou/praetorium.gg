@@ -2,23 +2,9 @@ import type { Stratagem } from '../core/battle'
 import type { WhenDrawn } from '../contracts/missions'
 import type { MissionSelectionKind } from '../core/missionSelections'
 import type { MissionAction } from '../contracts/missions'
-export type Award = {
-  vp: number
-  per: string | null
-  mode: string | null
-  max: number | null
-  group: string | null
-  cumulative: boolean
-  criteria: string | null
-  trigger: AwardTrigger
-}
-export type AwardTrigger = {
-  timing: string | null
-  phase: string | null
-  playerTurn: string | null
-  roundMin: number | null
-  roundMax: number | null
-}
+import type { MissionAward as Award } from '../core/scoring'
+
+export type { MissionAward as Award, AwardTrigger } from '../core/scoring'
 export type Mission = {
   id: string
   name: string

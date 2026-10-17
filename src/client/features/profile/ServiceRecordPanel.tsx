@@ -21,6 +21,7 @@ import {
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
+import { percentLabel } from '../../text'
 
 /** Which dimension a control narrows, and how the address carries it. */
 type Dimension = { key: keyof PlayerProfileFilter; label: string; facet: keyof RecordFacets }
@@ -239,7 +240,7 @@ function Results({ record }: { record: ServiceRecord }) {
       </div>
       <div className="border-t border-edge p-4 md:border-t-0">
         <p className="eyebrow text-faint">Win rate</p>
-        <p className="figure mt-2 text-4xl leading-none font-bold text-bone">{percent(record.rate)}</p>
+        <p className="figure mt-2 text-4xl leading-none font-bold text-bone">{percentLabel(record.rate)}</p>
         <div className="mt-3 space-y-1.5">
           <TurnSplit label="Going first" split={record.goingFirst} />
           <TurnSplit label="Going second" split={record.goingSecond} />
@@ -265,10 +266,10 @@ function TurnSplit({ label, split }: { label: string; split: Split }) {
         <span>
           {label} <span className="text-faint">({split.battles})</span>
         </span>
-        <span className="readout text-bone">{percent(split.rate)}</span>
+        <span className="readout text-bone">{percentLabel(split.rate)}</span>
       </p>
       <span className="mt-1 block h-1 bg-edge" aria-hidden>
-        <span className="block h-full bg-achieved" style={{ width: percent(split.rate) }} />
+        <span className="block h-full bg-achieved" style={{ width: percentLabel(split.rate) }} />
       </span>
     </div>
   )
@@ -383,7 +384,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
           columns={[
             { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
             ...results,
-            { label: 'Rate', cell: (row) => percent(row.rate) },
+            { label: 'Rate', cell: (row) => percentLabel(row.rate) },
           ]}
         />
       </div>
@@ -482,8 +483,6 @@ function CardHighlight({ label, card }: { label: string; card: CardRecord }) {
     </div>
   )
 }
-
-const percent = (rate: number) => `${Math.round(rate * 100)}%`
 
 /** One decimal, because these are averages and a rounded one hides the difference. */
 const oneDecimal = (value: number) => value.toFixed(1)

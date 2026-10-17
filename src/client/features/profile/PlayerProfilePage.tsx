@@ -6,7 +6,7 @@ import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { BattleShelf } from '../battles/BattleShelf'
 import { PageTabsList } from '../../components/PageTabs'
 import { PageContent, PageHeader } from '../../components/Page'
-import { PageState } from '../../components/PageState'
+import { FullPageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { AdminBadge } from '../../components/AdminBadge'
 import { SupporterBadge } from '../../components/SupporterBadge'
@@ -72,15 +72,12 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   const factions = useQuery({ ...factionIndexQuery(), enabled: Boolean(published?.rosters.length) })
   if (!profile) {
     return (
-      <main className="flex w-full">
-        <PageState
-          className="flex-1 border-x-0 border-t-0"
-          eyebrow="Player profile"
-          title="No such player"
-          explanation="This account does not exist, or it has been deleted."
-          icon={UserX}
-        />
-      </main>
+      <FullPageState
+        eyebrow="Player profile"
+        title="No such player"
+        explanation="This account does not exist, or it has been deleted."
+        icon={UserX}
+      />
     )
   }
 

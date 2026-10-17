@@ -73,6 +73,12 @@ export async function chooseCombatUnit(page: Page, side: string, faction: string
   await openCombatControls(page)
 }
 
+export async function combatEstimate(scope: Page | Locator, phase: 'Shooting' | 'Melee') {
+  await openCombatControls(scope)
+  await openCombatBreakdown(scope)
+  return scope.getByRole('region', { name: `${phase} estimate`, includeHidden: true })
+}
+
 export async function closeCombatBreakdown(scope: Page | Locator) {
   const details = scope.locator('[data-results-summary] details')
   if (await details.evaluate((element) => (element as HTMLDetailsElement).open)) await details.locator('summary').click()

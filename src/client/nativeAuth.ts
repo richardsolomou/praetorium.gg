@@ -1,6 +1,7 @@
 import { useClientValue } from './useClientValue'
 import type { SocialAuthProvider } from '../authConfig'
 import { nativeBridgeVersion } from './nativeBridge'
+import { toBase64Url } from '../core/base64'
 
 export type NativeAuthAction = 'link' | 'sign-in'
 
@@ -29,16 +30,10 @@ export function useGithubAuthAvailability() {
   return useClientValue(canUseGithubAuth, true)
 }
 
-function base64url(bytes: Uint8Array) {
-  let value = ''
-  for (const byte of bytes) value += String.fromCharCode(byte)
-  return btoa(value).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
-}
-
 async function nativeAuthProof() {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
-  const verifier = base64url(bytes)
-  const challenge = base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))
+  const verifier = toBase64Url(bytes)
+  const challenge = toBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))
   return { challenge, verifier }
 }
 

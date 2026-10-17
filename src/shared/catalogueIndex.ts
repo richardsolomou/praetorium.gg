@@ -158,12 +158,6 @@ function referenceFactionsOf(loaded: LoadedCatalogue, categories: readonly (stri
   )
   return candidates
 }
-export function isDatasheetId(index: CatalogueIndex, entryId: string, catalogueId?: string | null) {
-  const offered = catalogueId ? index.datasheets.get(catalogueId) : undefined
-  if (offered) return offered.has(entryId)
-  for (const each of index.datasheets.values()) if (each.has(entryId)) return true
-  return false
-}
 type DatasheetSlugs = { byEntry: Map<string, string>; entryBySlug: Map<string, string> }
 const datasheetSlugCache = new WeakMap<LoadedCatalogue, Map<string, DatasheetSlugs>>()
 /** Slugs for a whole book at once: collision detection is per book, not per entry. */

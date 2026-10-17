@@ -9,9 +9,9 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
-import { errorMessage } from '../../queryClient'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { doublesTeams } from './leagueEvent'
+import { Problem } from '../../components/Problem'
 
 /** One name for the button that starts a shape's battle and the dialog it opens. */
 export function startBattleLabel(format: TableShape) {
@@ -72,11 +72,7 @@ export function OneOnOneBattleChooser({
               searchPlaceholder="Search entrants…"
             />
           </div>
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(error)}
-            </p>
-          ) : null}
+          {error ? <Problem error={error} /> : null}
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={onClose}>
@@ -196,11 +192,7 @@ export function LeagueBattleChooser({
             }}
           />
           <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, candidates)} />
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(error)}
-            </p>
-          ) : null}
+          {error ? <Problem error={error} /> : null}
           {pending ? <output className="sr-only">Starting battle…</output> : null}
         </DialogBody>
         <DialogFooter>
@@ -285,11 +277,7 @@ export function DoublesBattleChooser({
               searchPlaceholder="Search teams or entrants…"
             />
           </div>
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errorMessage(error)}
-            </p>
-          ) : null}
+          {error ? <Problem error={error} /> : null}
           {pending ? <output className="sr-only">Starting doubles battle…</output> : null}
         </DialogBody>
         <DialogFooter>

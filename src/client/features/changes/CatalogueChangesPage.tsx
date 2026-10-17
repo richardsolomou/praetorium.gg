@@ -9,9 +9,10 @@ import { PageState } from '../../components/PageState'
 import { useDateFormatting } from '../../dates'
 import { catalogueChangeLogQuery } from '../../queries'
 import { useOpenHashTarget } from './hashTarget'
-import { changesLabel, UpdateChanges } from './UpdateChanges'
+import { UpdateChanges } from './UpdateChanges'
 import { UpdateFactionLabel } from './UpdateFactionLabel'
 import { UpdatesNavigation } from './UpdatesNavigation'
+import { countLabel } from '../../text'
 
 /**
  * Every army data update, or every one that reached a faction, newest first, a page at a time.
@@ -123,7 +124,7 @@ function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
               <span className="readout mt-0.5 block text-xs font-sans font-normal text-dim">{time(update.recordedAt)}</span>
             </time>
           </h2>
-          <p className="chip border-info/25 bg-info/5 px-2 py-1 text-info">{changesLabel(update.total)}</p>
+          <p className="chip border-info/25 bg-info/5 px-2 py-1 text-info">{countLabel(update.total, 'change')}</p>
         </div>
         {named ? (
           <div className="mt-3 grid gap-x-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -133,7 +134,7 @@ function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
                 <a
                   key={faction.anchor}
                   href={`#${faction.anchor}`}
-                  aria-label={`${faction.faction}, ${changesLabel(faction.count)}`}
+                  aria-label={`${faction.faction}, ${countLabel(faction.count, 'change')}`}
                   className="flex min-w-0 items-start justify-between gap-3 px-3 py-2 hover:bg-raised"
                 >
                   <span

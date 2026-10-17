@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { collectionPhotoPath } from '../../../contracts/collection'
 import { keepCollectionPhotoAsAdmin, removeCollectionPhotoAsAdmin } from '../../functions'
 import { heldCollectionPhotosQuery, recentCollectionPhotosQuery, refreshAdminQueries } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { useDateFormatting } from '../../dates'
-import { ConfirmDialog } from './ConfirmDialog'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Problem } from '../../components/Problem'
 
 type AdminPhoto = { photoId: string; at: number; owner: { id: string; name: string }; shown?: boolean }
 
@@ -52,11 +52,7 @@ export function AdminPhotos() {
         pending={pending}
         onRemove={setRemoving}
       />
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {errorMessage(error)}
-        </p>
-      ) : null}
+      {error ? <Problem error={error} /> : null}
       {removing ? (
         <ConfirmDialog
           title="Remove this photo?"

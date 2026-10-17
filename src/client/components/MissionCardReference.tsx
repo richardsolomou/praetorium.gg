@@ -10,6 +10,7 @@ import {
   title,
 } from '../missionText'
 import { RuleText } from './RuleText'
+import { groupBy } from '../../core/collections'
 
 /**
  * What a card asks for and what it pays, as the pack prints it.
@@ -30,19 +31,10 @@ export function MissionCardReference({
   /** The side's secondary mode, when it is known. Unset shows every way it can pay. */
   mode?: string
 }) {
-  const groups = new Map<string, Award[]>()
-  const shown = card.awards.filter((candidate) => appliesInMode(candidate, mode))
-  for (const award of shown) {
-    const key = [
-      award.mode,
-      award.trigger.timing,
-      award.trigger.phase,
-      award.trigger.playerTurn,
-      award.trigger.roundMin,
-      award.trigger.roundMax,
-    ].join('|')
-    groups.set(key, [...(groups.get(key) ?? []), award])
-  }
+  const groups = groupBy(
+    card.awards.filter((candidate) => appliesInMode(candidate, mode)),
+    groupKey,
+  )
   return (
     <article>
       {type ? <span className="chip">{type}</span> : null}

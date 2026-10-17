@@ -4,7 +4,6 @@ import { GAME_SIZES } from '../core/battle'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
 import { ROSTER_UPDATE_FILTERS, type RosterUpdateFilter } from '../client/features/rosters/RosterFilters'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import { BuilderFrame, ClaimGuestRoster, GuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
 import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
@@ -15,6 +14,7 @@ import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
+import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
 
 const VIEWS = ['friends', 'public'] as const
 type RosterView = (typeof VIEWS)[number]
@@ -46,8 +46,7 @@ export const Route = createFileRoute('/rosters/')({
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
       ...(ROSTER_UPDATE_FILTERS.includes(search.updates as RosterUpdateFilter) ? { updates: search.updates as RosterUpdateFilter } : {}),
-      // A datasheet a reference page asked to add to a visitor's list, dropped once the builder has answered.
-      ...(typeof search.add === 'string' && search.add && search.add.length <= 64 ? { add: search.add } : {}),
+      ...requestedDatasheetSearch(search),
     }
   },
   loaderDeps: ({ search: { view, faction, detachment, rules, sort } }) => ({ view, faction, detachment, rules, sort }),
@@ -96,14 +95,7 @@ export const Route = createFileRoute('/rosters/')({
 function RosterLibraryRoute() {
   const { add, view, detachment, rules, sort: listSort, ...search } = Route.useSearch()
   const { guestDraft: hinted, sort } = Route.useLoaderData()
-  const navigate = Route.useNavigate()
-  const requested = useMemo(
-    () =>
-      add
-        ? { entryId: add, onSettled: () => void navigate({ search: (current) => ({ ...current, add: undefined }), replace: true }) }
-        : undefined,
-    [add, navigate],
-  )
+  const requested = useRequestedDatasheet(add)
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest, revision }, setGuest] = useGuestDraft(hinted)
   if (view)

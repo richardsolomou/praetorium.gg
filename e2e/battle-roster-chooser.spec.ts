@@ -1,29 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createBattle, retryUntilVisible, setupStep, signUp, uniqueName } from './account'
-import { productOperator, withAuthSql } from './storage'
-
-/** Signs up and saves the preview Necrons list under a new name, with the size and budget asked for. */
-async function savedArmy(page: Page, name: string, { limit, pointsBudget }: { limit: number; pointsBudget?: number }) {
-  const account = await signUp(page, uniqueName('Roster chooser'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
-    id: string
-  }
-  const id = crypto.randomUUID()
-  await operator.saveRoster({
-    ...source,
-    id,
-    userId: user.id,
-    name,
-    automaticName: false,
-    visibility: 'private',
-    limit,
-    pointsBudget: pointsBudget ?? null,
-    now: Date.now(),
-  })
-  return { id, userId: user.id, operator }
-}
+import { createBattle, retryUntilVisible, savedArmy, setupStep } from './account'
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
@@ -39,7 +15,7 @@ const openChooser = async (page: Page) => {
 
 test('a roster chooser with no list for the battle size hands over to the battle size control', async ({ page }) => {
   const name = 'Incursion army'
-  const { userId, operator } = await savedArmy(page, name, { limit: 1000 })
+  const { userId, operator } = await savedArmy(page, 'Roster chooser', { name, limit: 1000, pointsBudget: null })
   const token = `chooser-size-${crypto.randomUUID()}`
   await operator.createBattle({
     id: token,
@@ -76,7 +52,7 @@ test('choosing a roster the library reports over its limit names the problem and
   page,
 }) => {
   const name = 'Overspent army'
-  const { id } = await savedArmy(page, name, { limit: 2000, pointsBudget: 500 })
+  const { id } = await savedArmy(page, 'Roster chooser', { name, limit: 2000, pointsBudget: 500 })
   await createBattle(page, { practice: true })
 
   const chooser = await openChooser(page)

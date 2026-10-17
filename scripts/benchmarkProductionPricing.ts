@@ -1,17 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { performance } from 'node:perf_hooks'
-import { loadCatalogue } from '../src/server/catalogueIndex'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
-import { loadRules } from '../src/server/rules'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
 import { productionRosterSnapshotSchema } from './lib/productionRosters'
+import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
 // Prices every roster in a production snapshot the way the roster editor does, then reports timings or writes every result.
 const [snapshotFile = 'data-dev/production-rosters.json', output] = process.argv.slice(2)
 const directory = process.env.CATALOGUE_DIR ?? new URL('../catalogue-data', import.meta.url).pathname
-const base = loadCatalogue(directory)
-if (!base) throw new Error(`Catalogue unavailable: ${directory}`)
-const baseRules = loadRules(directory, undefined, undefined, undefined, base.datacards)
+const { catalogue: base, rules: baseRules } = loadSnapshot(directory)
 const editions = catalogueEditionLoaders(
   directory,
   () => base,

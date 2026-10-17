@@ -4,14 +4,8 @@ import type { SourceTexts, TextTransform } from '../shared/sourceText'
 import { publishedTexts } from './sourceTexts'
 
 /**
- * A mission pack as the datacards source writes one, parsed once.
- *
- * Three separate things are read out of these files — what each payout on a card
- * asks for, the twists a pack offers, and the ceilings it puts on scoring — and each
- * of them used to open and parse every pack for itself. The packs are large enough
- * that reading them three times is a second and a third copy of the same object
- * graph on every boot and every catalogue refresh, so they are read here once and
- * handed to whoever needs them.
+ * A mission pack as the datacards source writes one. Card criteria, twists and scoring ceilings all
+ * read from it; the packs are large, so read them once and share them rather than parsing each per reader.
  */
 export type MissionPack = Record<string, unknown>
 

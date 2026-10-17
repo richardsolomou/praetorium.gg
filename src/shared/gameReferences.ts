@@ -1,3 +1,4 @@
+import { groupBy } from '../core/collections'
 import { routeSlug } from '../core/slug'
 import type { BattleReadRules } from './rules'
 
@@ -20,11 +21,10 @@ function buildGameReferences(rules: BattleReadRules) {
     const missionKey = `${mission.packId ?? 'legacy'}:${mission.id}`
     matchupsByMission.set(missionKey, [...(matchupsByMission.get(missionKey) ?? []), pair])
   }
-  const missionsByPack = new Map<string, typeof missions>()
-  for (const mission of missions) {
-    if (!mission.source) continue
-    missionsByPack.set(mission.source, [...(missionsByPack.get(mission.source) ?? []), mission])
-  }
+  const missionsByPack = groupBy(
+    missions.filter((mission) => mission.source),
+    (mission) => mission.source!,
+  )
   const packs = [...missionsByPack].map(([name, packMissions]) => ({
     id: routeSlug(name),
     name,

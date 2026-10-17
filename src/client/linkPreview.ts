@@ -34,6 +34,8 @@ type Page = {
   markdown?: string
   /** For a page anyone holding the link may read but nobody should find by searching. */
   noindex?: boolean
+  /** A reference page's place under the site, ending with the page itself. */
+  breadcrumbs?: readonly { name: string; path: string }[]
 }
 
 /** Long enough for any real name, short enough that whatever was typed, a preview stays bounded. */
@@ -69,8 +71,12 @@ export function pageMeta(origin: string, page: Page) {
     ...(page.article ? [{ property: 'og:type', content: 'article' }] : []),
     ...(page.image ? imageMeta(origin, page.image) : []),
     ...(page.noindex ? [{ name: 'robots', content: 'noindex' }] : []),
+    ...(page.breadcrumbs ? [breadcrumbMeta(origin, page.breadcrumbs)] : []),
   ]
 }
+
+/** A page's preview image, drawn by the preview route at the same address. */
+export const previewImage = (path: string, alt: string) => ({ path: `/api/previews${path}`, alt })
 
 /** The address search engines should file a page under, absolute because some crawlers resolve nothing else. */
 export const canonicalLink = (origin: string, path: string) => ({ rel: 'canonical', href: `${origin}${path}` })
@@ -87,8 +93,7 @@ export const pageHead = (origin: string, page: Page) => ({
       : [],
 })
 
-/** A reference page's place under the site as schema.org breadcrumbs, ending with the page itself. */
-export const breadcrumbMeta = (origin: string, trail: readonly { name: string; path: string }[]) =>
+const breadcrumbMeta = (origin: string, trail: readonly { name: string; path: string }[]) =>
   structuredData({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',

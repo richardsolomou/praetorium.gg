@@ -8,36 +8,32 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn } from '../src/shared/catalogue'
-import { datasheetsOf, isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
+import { datasheetsOf, isReferenceDatasheet } from '../src/server/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
 import { detachmentReference } from '../src/shared/detachmentReference'
 import { factionsFor } from '../src/shared/factionReferences'
 import { calculateRosterPrice } from '../src/shared/pricing'
-import { loadRules } from '../src/server/rules'
 import { routeSlug } from '../src/core/slug'
-import { compareCatalogueCoverage } from './lib/catalogueCoverageComparison'
+import { compareCatalogueCoverage, readAcceptedLosses } from './lib/catalogueCoverageComparison'
+import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 process.env.CATALOGUE_DIR ??= path.join(import.meta.dirname, '..', 'catalogue-data')
 
-const arguments_ = process.argv.slice(2)
-const output = arguments_[0]
+const {
+  positionals: [output],
+  values,
+} = parseArgs({ allowPositionals: true, options: { compare: { type: 'string' }, accept: { type: 'string' }, shard: { type: 'string' } } })
 if (!output) throw new Error('usage: catalogueCoverage.ts <out.json> [--compare <before.json>] [--accept <withdrawn.json>]')
-const compareAt = arguments_.indexOf('--compare')
-const previous = compareAt < 0 ? undefined : arguments_[compareAt + 1]
-const acceptAt = process.argv[process.argv.indexOf('--accept') + 1]
-const accepted: { reason: string; entries: string[] }[] =
-  process.argv.includes('--accept') && acceptAt ? JSON.parse(fs.readFileSync(acceptAt, 'utf8')) : []
-const shardAt = arguments_.indexOf('--shard')
-const shard = shardAt < 0 ? null : arguments_[shardAt + 1]?.match(/^(\d+)\/(\d+)$/)
-if (shardAt >= 0 && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Number(shard[2]))) {
+const previous = values.compare
+const accepted = readAcceptedLosses(values.accept)
+const shard = values.shard?.match(/^(\d+)\/(\d+)$/)
+if (values.shard !== undefined && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Number(shard[2]))) {
   throw new Error('--shard must be a zero-based index and count, for example 0/3')
 }
 
-const loaded = loadCatalogue(process.env.CATALOGUE_DIR)
-if (!loaded) throw new Error('catalogue unavailable')
-const rules = loadRules(undefined, undefined, undefined, undefined, loaded.datacards)
-if (!rules) throw new Error('rules unavailable')
+const { catalogue: loaded, rules } = loadSnapshotWithRules(process.env.CATALOGUE_DIR)
 
 type Described = { name: string; described: boolean }
 const described = (entries: readonly { name: string; description: string | null }[]): Described[] =>

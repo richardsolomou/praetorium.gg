@@ -1,5 +1,6 @@
 import type { OnboardingProgress } from '../../../core/onboarding'
 import { nativeBridgeVersion } from '../../nativeBridge'
+import { readStoredValue, writeStoredValue } from '../../storedValue'
 
 export type SpectatorInviteOffer = 'roster' | 'battle'
 
@@ -25,32 +26,12 @@ export function spectatorInviteOffer({
 }
 
 const DISMISSED_KEY = 'praetorium-spectator-invite-dismissed'
-const listeners = new Set<() => void>()
-let dismissedHere = false
 
 /** The application's own tabs already lead to rosters and battles, so the shell never shows it. */
 export function spectatorInviteSuppressed() {
-  if (dismissedHere || nativeBridgeVersion() !== undefined) return true
-  try {
-    return localStorage.getItem(DISMISSED_KEY) === 'true'
-  } catch {
-    return false
-  }
+  return nativeBridgeVersion() !== undefined || readStoredValue(DISMISSED_KEY) === 'true'
 }
 
 export function dismissSpectatorInvite() {
-  dismissedHere = true
-  try {
-    localStorage.setItem(DISMISSED_KEY, 'true')
-  } catch {
-    // The page still remembers the dismissal when storage is unavailable.
-  }
-  for (const listener of listeners) listener()
-}
-
-export function subscribeSpectatorInvite(listener: () => void) {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
+  writeStoredValue(DISMISSED_KEY, 'true')
 }

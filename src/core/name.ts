@@ -1,6 +1,5 @@
-import { normalizedText } from './text'
-
-export const normalizedName = normalizedText
+export const normalizedName = (value: string) =>
+  value.normalize('NFC').toLowerCase().replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ').trim()
 
 export function normalizedNameVariants(name: string): string[] {
   const normalized = normalizedName(name)

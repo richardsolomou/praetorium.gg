@@ -9,6 +9,7 @@ import { FactionMark, factionColour, type FactionPresentation } from '../../../c
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
+import { title } from '../../../missionText'
 
 export function DetachmentReference({
   catalogueId,
@@ -183,5 +184,3 @@ function SectionTitle({ title: label, count }: { title: string; count: number })
 function Unavailable() {
   return <p className="mt-2 text-sm text-dim">No description is available.</p>
 }
-
-const title = (value: string) => value.replaceAll('-', ' ').replaceAll(/\b\w/g, (letter) => letter.toLocaleUpperCase())

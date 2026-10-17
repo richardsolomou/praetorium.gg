@@ -1,9 +1,4 @@
-import { TACTICAL_HAND_SIZE } from '../core/battle'
 export { type AwardTrigger, cardsDue, cardsDueFromTheirTurn, type DueCard, dueNow, momentsPassed } from '../core/scoring'
-
-/** The phase the card data names, so a label can say which one is being settled. */
-/** Two tactical cards are drawn every turn, on top of whatever is already held. */
-export { TACTICAL_HAND_SIZE as HAND_SIZE }
 
 /**
  * The next card to ask the deck for, or null when this turn's draw is accounted for.

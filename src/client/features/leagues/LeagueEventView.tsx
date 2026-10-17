@@ -28,7 +28,6 @@ import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functi
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { battlesQuery, gameReferencesQuery, leagueBattlesFrom, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
@@ -37,7 +36,6 @@ import {
   doublesTeams,
   entrantGroups,
   entryProgress,
-  formatNames,
   namesPhrase,
   useLeagueRefresh,
   type EntryStage,
@@ -51,6 +49,8 @@ import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
+import { Problem } from '../../components/Problem'
+import { formatList } from '../../text'
 
 type ClickAction = {
   label: string
@@ -239,7 +239,7 @@ export function LeagueEventView({
     const card = league.entries.find((entry) => entry.userId === members[0]?.userId)?.team?.disposition
     // Waits for the references rather than flashing the card's id.
     const named = card && gameReferences ? (gameReferences.dispositions.find((disposition) => disposition.id === card)?.name ?? card) : null
-    return [formatNames(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
+    return [formatList(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
   }
   const groups = entrantGroups(league, accepted, pairNames)
   // The revealed rosters split by side or pair the way the entrant list does, so a pairing reads the same before and after.
@@ -493,7 +493,7 @@ function entryStatus({
   const steps = (stage: EntryStage) => entryProgress(league, stage)
   const revealed = Boolean(league.revealedAt)
   const hidden = allies.length
-    ? `Only ${allies.length > 2 ? `${allies.length} allies` : formatNames(allies)} can see it before the reveal.`
+    ? `Only ${allies.length > 2 ? `${allies.length} allies` : formatList(allies)} can see it before the reveal.`
     : 'Hidden until the reveal.'
   if (!ownEntry || ownEntry.status !== 'accepted') {
     if (revealed && isOrganizer)
@@ -640,11 +640,7 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
             {status.secondary.icon} {status.secondary.label}
           </Button>
         ) : null}
-        {problem ? (
-          <p role="alert" className="text-sm text-destructive">
-            {errorMessage(problem)}
-          </p>
-        ) : null}
+        {problem ? <Problem error={problem} /> : null}
       </div>
       {status.steps ? <EntryProgress steps={status.steps} /> : null}
     </section>

@@ -7,14 +7,13 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import {
   REMINDER_PHASES,
   REMINDER_TIMINGS_MAX,
-  REMINDER_TURNS,
   reminderTimingLabel,
   type ReminderMoment,
   type ReminderPhase,
   type ReminderTiming,
-  type ReminderTurn,
   type RosterReminder,
 } from '../../../core/reminders'
+import { TURN_SCOPES, type TurnScope } from '../../../core/battle'
 import { RuleText } from '../../components/RuleText'
 
 const MOMENTS: { value: ReminderMoment; label: string }[] = [
@@ -26,7 +25,7 @@ const MOMENTS: { value: ReminderMoment; label: string }[] = [
   { value: 'round-end', label: 'End of round' },
 ]
 
-const TURN_LABELS: Record<ReminderTurn, string> = {
+const TURN_LABELS: Record<TurnScope, string> = {
   'your-turn': 'Your turn',
   'opponent-turn': "Opponent's turn",
   either: 'Either turn',
@@ -38,7 +37,7 @@ type TimingDraft = {
   id: string
   moment: ReminderMoment | null
   phase: ReminderPhase | null
-  turn: ReminderTurn | null
+  turn: TurnScope | null
   firstRoundOnly?: boolean
 }
 
@@ -173,13 +172,13 @@ export function ReminderEditorDialog({
                       <Select
                         disabled={roundTiming}
                         value={timing.turn}
-                        onValueChange={(value: ReminderTurn | null) => updateTiming(index, { turn: value })}
+                        onValueChange={(value: TurnScope | null) => updateTiming(index, { turn: value })}
                       >
                         <SelectTrigger id={`${prefix}-turn`} className="mt-1.5 w-full">
-                          <SelectValue>{(value: unknown) => (value ? TURN_LABELS[value as ReminderTurn] : 'Choose')}</SelectValue>
+                          <SelectValue>{(value: unknown) => (value ? TURN_LABELS[value as TurnScope] : 'Choose')}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {REMINDER_TURNS.map((value) => (
+                          {TURN_SCOPES.map((value) => (
                             <SelectItem key={value} value={value}>
                               {TURN_LABELS[value]}
                             </SelectItem>

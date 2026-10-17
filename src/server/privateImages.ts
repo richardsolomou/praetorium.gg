@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { localObjectStore } from './localObjectStore'
-import { privateR2Client } from './r2Client'
+import { localDevelopmentObjectStore } from './localObjectStore'
+import { privateR2Client, r2Objects } from './r2Client'
 
 const DATA_URL = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/
 const FORMATS = {
@@ -24,9 +24,8 @@ export type PrivateObjects = {
  * Local stacks keep objects on disk, where only allowlisted public keys are served.
  */
 export function privateObjects(environment: NodeJS.ProcessEnv = process.env): PrivateObjects | null {
-  if (environment.PRAETORIUM_LOCAL_DEV === 'true') {
-    if (!environment.LOCAL_OBJECT_DIR) throw new Error('LOCAL_OBJECT_DIR is required for local development')
-    const local = localObjectStore(environment.LOCAL_OBJECT_DIR)
+  const local = localDevelopmentObjectStore(environment)
+  if (local)
     return {
       put: (key, body) => local.put(key, body),
       get: async (key) => {
@@ -35,30 +34,13 @@ export function privateObjects(environment: NodeJS.ProcessEnv = process.env): Pr
       },
       delete: (key) => local.delete(key),
     }
-  }
   const r2 = privateR2Client(environment)
   if (!r2) return null
-  const { client, base } = r2
+  const objects = r2Objects(r2)
   return {
-    async put(key, body, contentType) {
-      const response = await client.fetch(`${base}${key}`, {
-        method: 'PUT',
-        body: new Uint8Array(body),
-        headers: { 'content-type': contentType },
-        signal: AbortSignal.timeout(30_000),
-      })
-      if (!response.ok) throw new Error(`R2 put failed with HTTP ${response.status}`)
-    },
-    async get(key) {
-      const response = await client.fetch(`${base}${key}`, { signal: AbortSignal.timeout(30_000) })
-      if (response.status === 404) return null
-      if (!response.ok) throw new Error(`R2 get failed with HTTP ${response.status}`)
-      return new Uint8Array(await response.arrayBuffer())
-    },
-    async delete(key) {
-      const response = await client.fetch(`${base}${key}`, { method: 'DELETE', signal: AbortSignal.timeout(30_000) })
-      if (!response.ok && response.status !== 404) throw new Error(`R2 delete failed with HTTP ${response.status}`)
-    },
+    put: (key, body, contentType) => objects.put(key, body, { 'content-type': contentType }),
+    get: objects.get,
+    delete: objects.delete,
   }
 }
 

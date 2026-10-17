@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 
 export function PlayerAvatar({ name, image, className = 'size-9' }: { name: string; image?: string | null; className?: string }) {
   // Remembers which picture failed, so a new picture gets its own attempt.
@@ -6,7 +7,10 @@ export function PlayerAvatar({ name, image, className = 'size-9' }: { name: stri
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-edge-strong bg-raised font-bold text-dim uppercase ${className}`}
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-edge-strong bg-raised font-bold text-dim uppercase',
+        className,
+      )}
       aria-hidden
     >
       {image && image !== brokenImage ? (

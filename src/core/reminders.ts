@@ -1,9 +1,8 @@
 import { z } from 'zod'
-import type { Phase } from './battle'
+import { type Phase, TURN_SCOPES, type TurnScope } from './battle'
 import { routeSlug } from './slug'
 
 export const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
-export const REMINDER_TURNS = ['your-turn', 'opponent-turn', 'either'] as const
 export const REMINDER_PHASES = ['command', 'movement', 'shooting', 'charge', 'fight'] as const
 export const ROSTER_REMINDERS_MAX = 100
 export const REMINDER_TIMINGS_MAX = 10
@@ -11,7 +10,6 @@ export const REMINDER_ABILITY_MAX_LENGTH = 80
 export const REMINDER_DESCRIPTION_MAX_LENGTH = 10_000
 
 export type ReminderMoment = (typeof REMINDER_MOMENTS)[number]
-export type ReminderTurn = (typeof REMINDER_TURNS)[number]
 export type ReminderPhase = (typeof REMINDER_PHASES)[number] | 'any'
 
 export const reminderTimingSchema = z
@@ -19,12 +17,12 @@ export const reminderTimingSchema = z
     z.object({
       moment: z.enum([REMINDER_MOMENTS[0], REMINDER_MOMENTS[1]]),
       phase: z.enum([...REMINDER_PHASES, 'any']),
-      turn: z.enum(REMINDER_TURNS),
+      turn: z.enum(TURN_SCOPES),
     }),
     z.object({
       moment: z.enum([REMINDER_MOMENTS[2], REMINDER_MOMENTS[3]]),
       phase: z.null(),
-      turn: z.enum(REMINDER_TURNS),
+      turn: z.enum(TURN_SCOPES),
     }),
     z.object({
       moment: z.enum([REMINDER_MOMENTS[4], REMINDER_MOMENTS[5]]),
@@ -81,7 +79,7 @@ type Candidate = { index: number; timing: ReminderTiming }
 
 const phaseAt = (value: string): ReminderPhase | null => REMINDER_PHASES.find((phase) => phase === value.toLocaleLowerCase()) ?? null
 
-const turnAt = (value: string | undefined): ReminderTurn => {
+const turnAt = (value: string | undefined): TurnScope => {
   const owner = value?.toLocaleLowerCase().replaceAll('’', "'").trim() ?? ''
   if (owner.includes('opponent')) return 'opponent-turn'
   if (owner.startsWith('your')) return 'your-turn'

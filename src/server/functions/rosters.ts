@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
@@ -227,7 +228,7 @@ export const savedRosterChangedIds = createServerFn({ method: 'GET' }).handler((
         const verdicts = await cachedRosterVerdictsFor(uncertain)
         changed.push(...uncertain.filter((roster, at) => rosterStatus(roster, verdicts[at]!, sets).changes > 0).map((roster) => roster.id))
       }
-      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      await yieldToEventLoop()
     }
     return changed
   }),

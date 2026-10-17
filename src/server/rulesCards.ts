@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Stratagem } from '../core/battle'
+import { PHASES, type Phase, type Stratagem } from '../core/battle'
 import { correctStratagemTiming } from '../core/stratagemCorrections'
 import { localizedField, stratagemLimit, stratagemText, type TextsFor } from './datacards'
 import { publishedTexts } from './sourceTexts'
@@ -16,12 +16,7 @@ export function coreFromDatacards(directory: string, textsFor: TextsFor = publis
   for (const card of parsed.stratagems ?? []) {
     const name = localizedField(card, 'name')
     if (typeof card.id !== 'string' || !name || !Number.isInteger(card.cost)) continue
-    const phases = Array.isArray(card.phase)
-      ? card.phase.filter(
-          (phase): phase is NonNullable<Stratagem['phases']>[number] =>
-            typeof phase === 'string' && ['command', 'movement', 'shooting', 'charge', 'fight', 'end'].includes(phase),
-        )
-      : []
+    const phases = Array.isArray(card.phase) ? card.phase.filter((phase): phase is Phase => PHASES.some((known) => known === phase)) : []
     const turn =
       card.turn === 'your' ? 'your-turn' : card.turn === 'opponents' ? 'opponent-turn' : card.turn === 'either' ? 'either' : undefined
     core.push(

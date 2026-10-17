@@ -20,6 +20,7 @@ import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../core/p
 import type { BattlesCursor } from '../../contracts/battles'
 import { SSR_STALE_TIME } from './shared'
 import { liveProductRefresh } from '../liveProductRefresh'
+import { uniqueBy } from '../../core/collections'
 
 export type { BattlesCursor } from '../../contracts/battles'
 
@@ -33,14 +34,9 @@ export const battlesQuery = () =>
   })
 
 export function battlesFrom(data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) {
-  const seen = new Set<string>()
-  return ((data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles']).filter(
-    (battle) => {
-      if (typeof battle.token !== 'string') return true
-      if (seen.has(battle.token)) return false
-      seen.add(battle.token)
-      return true
-    },
+  return uniqueBy(
+    (data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles'],
+    (battle) => (typeof battle.token === 'string' ? battle.token : battle),
   )
 }
 

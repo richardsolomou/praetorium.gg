@@ -10,7 +10,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { productOperator, productSql, withAuthSql } from './storage'
+import { productOperator, productSql, userIdFor } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -85,7 +85,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   await expect(count).toHaveText('1')
   await expect(page.locator('[data-roster]')).toHaveCount(1)
 
-  const userId = await withAuthSql((database) => (database.prepare('SELECT id FROM user WHERE email = ?').get(email) as { id: string }).id)
+  const userId = await userIdFor(email)
   const operator = await productOperator()
   const source = await operator.roster(rosterId)
   if (!source) throw new Error('Saved roster missing')
@@ -692,10 +692,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
 test('a list saved on the retired Marine codex opens on the current Space Marines book', async ({ page }) => {
   const { email } = await signUp(page, 'Provisional')
-  const user = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE email = ? LIMIT 1').get(email) as { id: string } | undefined,
-  )
-  if (!user) throw new Error('The signed-up player is missing.')
+  const userId = await userIdFor(email)
   const id = crypto.randomUUID()
   // The row as the provisional codex saved it: book, detachment, units and Warlord under its ids.
   const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
@@ -703,7 +700,7 @@ test('a list saved on the retired Marine codex opens on the current Space Marine
     await productOperator()
   ).saveRoster({
     id,
-    userId: user.id,
+    userId,
     name: 'Provisional Gladius',
     catalogueId: 'e0af-67df-9d63-8fb8',
     detachmentId: JSON.stringify(['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a']),

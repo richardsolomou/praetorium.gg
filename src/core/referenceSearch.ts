@@ -1,6 +1,7 @@
 import type { DatasheetSearchFields, DatasheetSearchReason } from './datasheetSearch'
 import type { CatalogueEdition } from './catalogueEdition'
 import { rosterLabel } from './rosterLabel'
+import { pointsLabel } from './battle'
 
 export type GlobalSearchResult = {
   id: string
@@ -234,7 +235,7 @@ export function searchOwn(query: string, mine: OwnSearchData | null): GlobalSear
       id: `roster:${roster.id}`,
       group: 'Your rosters',
       label: name,
-      detail: `${roster.limit} points`,
+      detail: pointsLabel(roster.limit),
       href: `/rosters/${roster.id}`,
     })
   }

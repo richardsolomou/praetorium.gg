@@ -12,11 +12,10 @@ import {
   textTokensIn,
   withoutText,
 } from '../shared/sourceText'
-import { textSources } from '../server/functions/references'
+import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
-import { type TextSourceChoice, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
+import { type TextSourceChoice, hex, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
 
-const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 const encoder = new TextEncoder()
 /** Digests run concurrently in batches: one at a time is slow, and every string of a large file at once holds them all in memory. */
 const BATCH = 512

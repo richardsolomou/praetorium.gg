@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { expoPushSender, type PushMessage, pushSenderFromEnvironment } from './push'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 const message = (index: number): PushMessage => ({
   to: `ExponentPushToken[device-${index}]`,
@@ -26,7 +30,6 @@ function sender(respond: (url: string, body: unknown) => Response | Promise<Resp
       requests.push({ url, body, headers: new Headers(init?.headers) })
       return respond(url, body)
     }),
-    sleep: async () => undefined,
     later: (work) => {
       deferred.push(work)
     },
@@ -151,9 +154,12 @@ describe('Expo push sender', () => {
   })
 
   it('retries a server error a bounded number of times', async () => {
+    vi.useFakeTimers()
     const { push, requests } = sender(() => json({ errors: [{ code: 'INTERNAL' }] }, 503))
 
-    await push.send([message(0)])
+    const sending = push.send([message(0)])
+    await vi.runAllTimersAsync()
+    await sending
 
     expect(requests).toHaveLength(3)
   })
@@ -167,11 +173,14 @@ describe('Expo push sender', () => {
   })
 
   it('resolves rather than throwing when every attempt times out', async () => {
+    vi.useFakeTimers()
     const { push } = sender(() => {
       throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
     })
 
-    await expect(push.send([message(0)])).resolves.toBeUndefined()
+    const sending = push.send([message(0)])
+    await vi.runAllTimersAsync()
+    await expect(sending).resolves.toBeUndefined()
   })
 
   it('resolves rather than throwing when forgetting a device fails', async () => {
@@ -179,7 +188,6 @@ describe('Expo push sender', () => {
       accessToken: 'access-token',
       onUnregistered: () => Promise.reject(new Error('database down')),
       fetch: async () => json({ data: [{ status: 'error', details: { error: 'DeviceNotRegistered' } }] }),
-      sleep: async () => undefined,
       later: () => undefined,
       log: () => undefined,
     })

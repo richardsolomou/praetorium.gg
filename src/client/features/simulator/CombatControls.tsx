@@ -4,6 +4,7 @@ import { Switch } from '@/components/ui/switch'
 import { Toggle as ToggleButton } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 const selectClass = 'h-9 w-full min-w-0 border border-edge bg-sunken px-2 text-sm text-bone'
 
@@ -144,7 +145,7 @@ export function SimulationMode({
 }) {
   return (
     <Tabs value={rosters ? 'rosters' : 'units'} onValueChange={(value) => onChange(value === 'rosters')} className="flex-col gap-4">
-      <TabsList aria-label="Simulation mode" className={`h-9 ${className}`}>
+      <TabsList aria-label="Simulation mode" className={cn('h-9', className)}>
         <TabsTrigger value="units">Units</TabsTrigger>
         <TabsTrigger value="rosters">Rosters</TabsTrigger>
       </TabsList>

@@ -1,9 +1,5 @@
 import { criteriaKey } from './missionCriteria'
-import { english, type MissionPack, missionCards, readMissionPacks } from './missionPacks'
-
-export function loadMissionDescriptions(directory: string): Map<string, string> {
-  return descriptionsIn(readMissionPacks(directory))
-}
+import { english, type MissionPack, missionCards } from './missionPacks'
 
 export function descriptionsIn(packs: readonly MissionPack[]): Map<string, string> {
   const found = new Map<string, string>()

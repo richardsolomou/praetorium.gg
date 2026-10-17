@@ -1,7 +1,8 @@
 import { Minus } from 'lucide-react'
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useState, type ComponentProps } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useState, type ComponentProps } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '../../components/Dialog'
+import { useCompactChrome } from '../shell/useCompactChrome'
 
 type Props = ComponentProps<typeof Dialog> & {
   minimizedLabel?: string
@@ -22,7 +23,7 @@ export function BattlePromptDialog({
   resumeLabel = 'Return to prompt',
   ...props
 }: Props) {
-  const [applicationNavigation, setApplicationNavigation] = useState(false)
+  const applicationNavigation = useCompactChrome()
   const [internalOpen, setInternalOpen] = useState(defaultOpen ?? false)
   const [inspecting, setInspecting] = useState(false)
   const [stackIndex, setStackIndex] = useState(0)
@@ -43,14 +44,6 @@ export function BattlePromptDialog({
     },
     [id, register],
   )
-
-  useLayoutEffect(() => {
-    const compact = window.matchMedia('(max-width: 859px)')
-    const sync = () => setApplicationNavigation(compact.matches || document.documentElement.dataset.nativeApp === 'true')
-    sync()
-    compact.addEventListener('change', sync)
-    return () => compact.removeEventListener('change', sync)
-  }, [])
 
   return (
     <div data-battle-prompt data-battle-prompt-inspecting={inspecting || undefined} className="contents">

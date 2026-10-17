@@ -11,6 +11,7 @@ import {
 } from '../../../core/combatLoadouts'
 import { LoadoutOptimizationContext } from './LoadoutOdds'
 import type { Combatant } from './useCombatant'
+import { errorMessage } from '../../queryClient'
 
 export type OptimizeLoadoutRequest = { kind: 'optimize'; space: LoadoutCandidates; scoring: LoadoutScoring }
 export type OptimizeLoadoutAnswer = { optimized: OptimizedLoadout; error?: never } | { error: string; optimized?: never }
@@ -220,7 +221,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       job.cancel()
       setBusy(false)
     } catch (cause) {
-      fail(cause instanceof Error ? cause.message : 'Optimization failed. Try again.')
+      fail(errorMessage(cause, 'Optimization failed. Try again.'))
     }
   }
   return {

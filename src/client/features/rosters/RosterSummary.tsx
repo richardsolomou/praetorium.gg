@@ -2,6 +2,7 @@ import { battleSizeLabel, pointsBudgetOf } from '../../../core/battle'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { useDateFormatting } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
@@ -187,7 +188,7 @@ function RosterStanding({
   const visibility = showVisibility ? roster.visibility : undefined
   return (
     // Wide enough for a warning beside the visibility, so one arriving late moves nothing; a phone's variant row cannot spare it.
-    <span className={`ml-auto shrink-0 text-right ${compact ? 'sm:min-w-28' : 'min-w-28'} ${className}`}>
+    <span className={cn('ml-auto shrink-0 text-right', compact ? 'sm:min-w-28' : 'min-w-28', className)}>
       {pointsLoading ? (
         <Skeleton className={`ml-auto w-20 ${compact ? 'h-4' : 'h-5'}`} />
       ) : (

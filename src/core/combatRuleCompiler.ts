@@ -1,3 +1,4 @@
+import { escapeRegExp } from './text'
 import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
@@ -105,7 +106,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       const range = sections[0],
         afflicted = sections[1]
       if (!range || !afflicted || key(range.name) !== key(status[1]!) || key(afflicted.name) !== key(status[2]!)) return null
-      const rangeName = status[1]!.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const rangeName = escapeRegExp(status[1]!)
       const rangeText = normalize(range.description).replace(
         new RegExp(
           `^(?:1st Battle Round: ${rangeName} = \\d+" 2nd Battle Round: ${rangeName} = \\d+" 3rd Battle Round Onwards: ${rangeName} = \\d+"|${rangeName} changes over the course of the battle:) ?`,

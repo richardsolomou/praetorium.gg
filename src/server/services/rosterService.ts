@@ -7,7 +7,7 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RosterReminder } from '../../core/reminders'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
-import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, waivedRulesFrom } from '../rosterPersistence'
+import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, rosterRow, waivedRulesFrom } from '../rosterPersistence'
 import { detachmentIds } from '../../core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
@@ -97,25 +97,10 @@ export class RosterService {
     const id = roster.id ?? randomId()
     const now = this.clock()
     const saved = await this.repository.saveRoster({
-      ...roster,
+      ...rosterRow(roster),
       automaticName: roster.automaticName ?? false,
-      detachmentId: JSON.stringify(roster.detachmentIds),
       id,
       userId,
-      picks: JSON.stringify(roster.picks),
-      prep: roster.prep
-        ? JSON.stringify({
-            ...roster.prep,
-            reminders: roster.prep.reminders ?? [],
-            remindersEnabled: roster.prep.remindersEnabled ?? true,
-          })
-        : null,
-      tags: '[]',
-      waivedRules: JSON.stringify(roster.waivedRules ?? []),
-      optionalRules: JSON.stringify(roster.optionalRules ?? []),
-      borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
-      baseRosterId: roster.baseRosterId ?? null,
-      copiedFromRosterId: roster.copiedFromRosterId ?? null,
       now,
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })

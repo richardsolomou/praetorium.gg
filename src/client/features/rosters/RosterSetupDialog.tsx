@@ -25,6 +25,7 @@ import {
   detachmentPointBudget,
   enforces,
   type FormatRuleId,
+  battleSizeOptionLabel,
   GAME_SIZES,
   optionalRules,
   pickedOptionalRules,
@@ -53,6 +54,7 @@ import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetach
 import { type CatalogueEdition, rulesVersionLabel } from '../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import { onFoldedEdition } from '../../../core/editionMigrations'
+import { Problem } from '../../components/Problem'
 
 type Detachment = {
   id: string
@@ -140,7 +142,7 @@ const CUSTOM_SIZE = 'custom:'
 const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
   {
     label: '',
-    items: GAME_SIZES.map((size) => ({ label: `${size.name} · ${size.limit.toLocaleString('en')} points`, value: String(size.limit) })),
+    items: GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })),
   },
   {
     label: 'Custom points',
@@ -630,11 +632,7 @@ export function RosterSetupDialog({
             </span>
             <span className="chip shrink-0">Choose</span>
           </button>
-          {borrowedError ? (
-            <p role="alert" className="mt-2 text-sm text-destructive">
-              {borrowedError}
-            </p>
-          ) : null}
+          {borrowedError ? <Problem className="mt-2">{borrowedError}</Problem> : null}
         </div>
       ) : null}
 

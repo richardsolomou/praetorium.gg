@@ -26,6 +26,7 @@ import { CollectionExchange } from './CollectionExchange'
 import { CollectionPhoto } from './CollectionPhoto'
 import { CollectionWishlist } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
+import { groupBy } from '../../../core/collections'
 
 type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
@@ -53,11 +54,10 @@ export function CollectionPage() {
   )
   const owned = new Set(collection.data ?? [])
   const countOf = (entryId: string) => counts.data?.[entryId] ?? 1
-  const byFaction = new Map<string, Datasheet[]>()
-  for (const id of owned) {
-    const sheet = datasheets.get(id)
-    if (sheet) byFaction.set(sheet.catalogueId, [...(byFaction.get(sheet.catalogueId) ?? []), sheet])
-  }
+  const byFaction = groupBy(
+    [...owned].flatMap((id) => datasheets.get(id) ?? []),
+    (sheet) => sheet.catalogueId,
+  )
   const armies = [...byFaction.values()]
     .map((sheets) => ({ sheets: sheets.toSorted((a, b) => a.name.localeCompare(b.name)), first: sheets[0]! }))
     .toSorted((a, b) => a.first.faction.localeCompare(b.first.faction))

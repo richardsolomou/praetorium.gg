@@ -1,4 +1,5 @@
 import type { MissionSelectionView } from '../../../core/battleView'
+import { countLabel } from '../../text'
 
 function RecordedUnit({ unit }: { unit: MissionSelectionView['units'][number] | undefined }) {
   return (
@@ -8,8 +9,6 @@ function RecordedUnit({ unit }: { unit: MissionSelectionView['units'][number] | 
     </>
   )
 }
-
-const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
 
 export function MissionSelectionRecords({ records, cardKey }: { records: MissionSelectionView[]; cardKey: string }) {
   const saved = records.filter((record) => record.cardKey === cardKey)
@@ -26,19 +25,17 @@ export function MissionSelectionRecords({ records, cardKey }: { records: Mission
               {record.selection.kind === 'beacon' || record.selection.kind === 'sensor-sweep' ? <span>manual</span> : null}
               {record.selection.kind === 'sensor-sweep' ? <span>Sensor Sweep</span> : null}
               {record.selection.kind === 'locate-and-deny' ? (
-                <span>{plural(record.selection.areas.length, 'operation marker')}</span>
+                <span>{countLabel(record.selection.areas.length, 'operation marker')}</span>
               ) : null}
               {record.selection.kind === 'consecrate' ? (
-                <span>{plural(record.selection.consecrations.length, 'consecrated objective')}</span>
+                <span>{countLabel(record.selection.consecrations.length, 'consecrated objective')}</span>
               ) : null}
-              {record.selection.kind === 'guards' ? (
-                <span>{`${record.selection.guards.length} guard ${record.selection.guards.length === 1 ? 'nomination' : 'nominations'}`}</span>
-              ) : null}
+              {record.selection.kind === 'guards' ? <span>{countLabel(record.selection.guards.length, 'guard nomination')}</span> : null}
               {record.selection.kind === 'punishment' ? (
                 <span>
                   {record.selection.unavailable
                     ? 'No enemy unit on the battlefield'
-                    : `${record.selection.units.length} condemned ${record.selection.units.length === 1 ? 'unit' : 'units'}${record.selection.fallback ? ' · fallback' : ''}`}
+                    : `${countLabel(record.selection.units.length, 'condemned unit')}${record.selection.fallback ? ' · fallback' : ''}`}
                 </span>
               ) : null}
             </p>

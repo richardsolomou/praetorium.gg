@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { SendCommand } from './useCommand'
 import type { BattleView } from '../../../core/battleView'
 import { type Side } from '../../sides'
@@ -74,9 +75,12 @@ export const SidePanel = memo(function SidePanel({
       data-onboarding={side.isViewer ? 'battle-live-side' : undefined}
       data-panel="player"
       data-side={side.index}
-      className={`min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3 ${colours.edge} ${
-        side.isActive && !finished ? `ring-1 ${colours.glow}` : ''
-      } ${className}`}
+      className={cn(
+        'min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3',
+        colours.edge,
+        side.isActive && !finished ? `ring-1 ${colours.glow}` : '',
+        className,
+      )}
     >
       {/*
        * Who is on this side: each player pictured and named, with the army they

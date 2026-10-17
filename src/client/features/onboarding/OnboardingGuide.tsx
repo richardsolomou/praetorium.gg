@@ -18,7 +18,8 @@ import {
 } from '../../../core/onboarding'
 import { updateOnboardingProgress } from '../../functions'
 import { meQuery, onboardingQuery } from '../../queries'
-import { useCompactChrome } from './useCompactChrome'
+import { writeSessionValue } from '../../storedValue'
+import { useCompactChrome } from '../shell/useCompactChrome'
 import {
   FIRST_ONBOARDING_STEP,
   ONBOARDING_ADVANCE_EVENT,
@@ -92,8 +93,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   }, [])
   useEffect(() => {
     currentFocus.current = focus
-    if (focus) sessionStorage.setItem(storageKey, JSON.stringify(focus))
-    else sessionStorage.removeItem(storageKey)
+    writeSessionValue(storageKey, focus ? JSON.stringify(focus) : null)
   }, [focus, storageKey])
   // Arriving on the next step's own page is the whole transition wherever a step changes page, and a task nobody can
   // complete from the tooltip finishes when the server says the player did it.

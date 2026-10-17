@@ -7,8 +7,8 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { friendInviteQuery, friendshipsQuery, meQuery, opponentsQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { acceptFriendInvite } from '../../functions'
+import { Problem } from '../../components/Problem'
 
 export function FriendInvitePage({ token }: { token: string }) {
   const { data: invite } = useQuery(friendInviteQuery(token))
@@ -58,7 +58,7 @@ export function FriendInvitePage({ token }: { token: string }) {
                 <Button className="h-11 w-full text-base" disabled={accept.isPending} onClick={() => accept.mutate()}>
                   {accept.isPending ? 'Accepting…' : 'Accept invite'}
                 </Button>
-                {accept.error ? <p className="mt-3 text-sm text-destructive">{errorMessage(accept.error)}</p> : null}
+                {accept.error ? <Problem error={accept.error} className="mt-3" /> : null}
               </div>
             }
           />

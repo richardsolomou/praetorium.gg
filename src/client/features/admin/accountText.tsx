@@ -8,7 +8,3 @@ export function methodName(providerId: string) {
 export function MethodIcon({ providerId, className }: { providerId: string; className?: string }) {
   return <AuthMethodIcon method={providerId === 'credential' ? 'password' : (providerId as SocialAuthProvider)} className={className} />
 }
-
-export function count(total: number, one: string, many: string) {
-  return `${total} ${total === 1 ? one : many}`
-}

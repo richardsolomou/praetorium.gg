@@ -21,12 +21,15 @@ import { saveRoster } from '../functions'
 import type { LocalRoster } from './localRuntime'
 import { discardLocalResource } from './syncEngine'
 import { invalidateSyncedQueries } from '../productSignals'
+import { downloadFile } from '../downloadFile'
+import { errorMessage } from '../queryClient'
+import { localWorkKey } from '../queries/queryKeys'
 
 export function SyncStatus() {
   const client = useQueryClient()
   const { data: me } = useQuery(meQuery())
   const { data: state } = useQuery<LocalState | null>({
-    queryKey: ['local-work'],
+    queryKey: localWorkKey(),
     queryFn: async () => (await localEngine()?.storage.read()) ?? null,
     enabled: Boolean(me),
     staleTime: Infinity,
@@ -72,7 +75,7 @@ export function SyncStatus() {
       } catch (error) {
         if (!active) return
         failures++
-        setProblem(error instanceof Error ? error.message : 'Waiting to reconnect.')
+        setProblem(errorMessage(error, 'Waiting to reconnect.'))
       } finally {
         running = false
         if (active) timer = setTimeout(() => void run(), operationsPending ? Math.min(60_000, 2_000 * 2 ** Math.min(failures, 5)) : 60_000)
@@ -122,12 +125,7 @@ export function SyncStatus() {
   const exportWork = async () => {
     if (!state || state.owner !== localOwner()?.id) return
     if (await exportNativeWork(state)) return
-    const url = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `praetorium-offline-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1_000)
+    downloadFile(`praetorium-offline-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state, null, 2), 'application/json')
   }
   // A sync in flight acknowledges nothing once its change is gone, so discarding never waits for one.
   const discardResource = async () => {
@@ -147,7 +145,7 @@ export function SyncStatus() {
       setDiscard(null)
       if (!discarded.operations.length) setOpen(false)
     } catch (error) {
-      setDiscardProblem(error instanceof Error ? error.message : 'Changes could not be discarded.')
+      setDiscardProblem(errorMessage(error, 'Changes could not be discarded.'))
     } finally {
       setBusy(false)
     }
@@ -160,7 +158,7 @@ export function SyncStatus() {
       await saveRoster({ data: { ...roster, id: undefined, name: `${roster.name || 'Roster'} (offline copy)`.slice(0, 80) } })
       setDiscard(resource)
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'The copy could not be saved.')
+      setProblem(errorMessage(error, 'The copy could not be saved.'))
     } finally {
       setBusy(false)
     }
@@ -173,7 +171,7 @@ export function SyncStatus() {
       await syncLocalWork()
       setSyncChecked(true)
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'Waiting to reconnect.')
+      setProblem(errorMessage(error, 'Waiting to reconnect.'))
     } finally {
       setSyncing(false)
     }
@@ -264,7 +262,7 @@ export function SyncStatus() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => void exportWork().catch((error) => setProblem(error instanceof Error ? error.message : 'Export failed.'))}
+                  onClick={() => void exportWork().catch((error) => setProblem(errorMessage(error, 'Export failed.')))}
                 >
                   Export saved changes
                 </Button>

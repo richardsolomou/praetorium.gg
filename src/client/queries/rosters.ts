@@ -30,9 +30,17 @@ import {
   sharedRoster,
   units,
 } from '../functions'
-import { savedRosterChangedIdsQuery } from './changes'
+import { savedRosterFamilies } from '../productSignals'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { rosterPriceKey } from './rosterPriceKey'
+import {
+  homeRostersKey,
+  rosterAccessKey,
+  rosterBootstrapKey,
+  savedRosterPageKey,
+  savedRosterSummariesKey,
+  sharedRosterKey,
+} from './queryKeys'
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
 export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: RosterAudience, sort: RosterSort) =>
@@ -203,45 +211,32 @@ export const priceQuery = (
 
 export const savedRosterSummariesQuery = () =>
   queryOptions({
-    queryKey: ['saved-roster-summaries'],
+    queryKey: savedRosterSummariesKey(),
     queryFn: ({ signal }) => savedRosterSummaries({ signal }),
     staleTime: SSR_STALE_TIME,
   })
 export const savedRosterPageQuery = (ids: string[]) =>
   queryOptions({
-    queryKey: ['saved-roster-page', ids],
+    queryKey: savedRosterPageKey(ids),
     queryFn: ({ signal }) => savedRosterPage({ data: { ids }, signal }),
     staleTime: SSR_STALE_TIME,
   })
 export const homeRostersQuery = () =>
-  queryOptions({ queryKey: ['home-rosters'], queryFn: ({ signal }) => homeRosters({ signal }), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: homeRostersKey(), queryFn: ({ signal }) => homeRosters({ signal }), staleTime: SSR_STALE_TIME })
 export const rosterBootstrapQuery = (id: string, battle?: string) =>
   queryOptions({
-    queryKey: ['roster-bootstrap', id, battle ?? null],
+    queryKey: rosterBootstrapKey(id, battle),
     queryFn: ({ signal }) => rosterBootstrap({ data: { id, ...(battle ? { battle } : {}) }, signal }),
     staleTime: SSR_STALE_TIME,
   })
 
 export function invalidateSavedRosters(queryClient: QueryClient) {
-  return Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['roster-access'] }),
-    queryClient.invalidateQueries({ queryKey: ['roster-bootstrap'] }),
-    queryClient.invalidateQueries({ queryKey: ['shared-roster'] }),
-    queryClient.invalidateQueries({ queryKey: ['saved-roster-loadout-datasheets'] }),
-    queryClient.invalidateQueries({ queryKey: ['player-rosters'] }),
-    queryClient.invalidateQueries({ queryKey: ['player-profile'] }),
-    queryClient.invalidateQueries({ queryKey: savedRosterSummariesQuery().queryKey }),
-    queryClient.invalidateQueries({ queryKey: homeRostersQuery().queryKey }),
-    queryClient.invalidateQueries({ queryKey: ['saved-roster-page'] }),
-    queryClient.invalidateQueries({ queryKey: savedRosterChangedIdsQuery().queryKey }),
-    queryClient.invalidateQueries({ queryKey: ['roster-changes'] }),
-    queryClient.invalidateQueries({ queryKey: ['outdated-league-entries'] }),
-  ])
+  return queryClient.invalidateQueries({ predicate: (query) => savedRosterFamilies.has(query.queryKey[0] as string) })
 }
 
 export const sharedRosterQuery = (id: string, battle?: string) =>
   queryOptions({
-    queryKey: ['shared-roster', id, battle ?? null],
+    queryKey: sharedRosterKey(id, battle),
     queryFn: () => sharedRoster({ data: { id, ...(battle ? { battle } : {}) } }),
     staleTime: SSR_STALE_TIME,
   })
@@ -259,7 +254,7 @@ export const rostersLentToMeQuery = () =>
 
 export const rosterAccessQuery = (id: string, battle?: string) =>
   queryOptions({
-    queryKey: ['roster-access', id, battle ?? null],
+    queryKey: rosterAccessKey(id, battle),
     queryFn: ({ signal }) => rosterAccess({ data: { id, ...(battle ? { battle } : {}) }, signal }),
     staleTime: SSR_STALE_TIME,
   })

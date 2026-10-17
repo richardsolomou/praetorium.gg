@@ -13,8 +13,9 @@ import { factionIndexQuery, meQuery } from '../../../queries'
 import { useFavouriteFactions } from '../../../favouriteFactions'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { SearchField } from '../../../components/SearchField'
-import { PageState } from '../../../components/PageState'
+import { FullPageState, PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
+import { groupBy } from '../../../../core/collections'
 
 export function FactionIndexPage() {
   const { data } = useQuery(factionIndexQuery())
@@ -23,15 +24,12 @@ export function FactionIndexPage() {
   const { favourites, toggleFavourite } = useFavouriteFactions()
   if (!data)
     return (
-      <main className="flex w-full">
-        <PageState
-          className="flex-1 border-x-0 border-t-0"
-          loading
-          eyebrow="Factions"
-          title="Getting army data ready"
-          explanation="Faction rules, datasheets and points will be available shortly."
-        />
-      </main>
+      <FullPageState
+        loading
+        eyebrow="Factions"
+        title="Getting army data ready"
+        explanation="Faction rules, datasheets and points will be available shortly."
+      />
     )
 
   const wanted = factionQueryText.trim().toLowerCase()
@@ -39,11 +37,7 @@ export function FactionIndexPage() {
     (entry) => entry.isDefault && (entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted)),
   )
   const favouriteFactions = matching.filter((entry) => favourites.has(entry.id))
-  const groups = matching.reduce((grouped, entry) => {
-    const title = entry.name.split(' - ')[0] || 'Other'
-    grouped.set(title, [...(grouped.get(title) ?? []), entry])
-    return grouped
-  }, new Map<string, Faction[]>())
+  const groups = groupBy(matching, (entry) => entry.name.split(' - ')[0] || 'Other')
 
   return (
     <main className="w-full">

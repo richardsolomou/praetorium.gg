@@ -16,10 +16,11 @@ import { setLiveProductRefresh } from './liveProductRefresh'
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 import { anySignal } from './abortSignals'
+import { meKey, realtimeModeKey } from './queries/queryKeys'
 
 export function useRealtimeConfig() {
   const { data, error } = useQuery({
-    queryKey: ['realtime-mode'],
+    queryKey: realtimeModeKey(),
     queryFn: async ({ signal }) => {
       const response = await fetch('/api/realtime/mode', { signal: anySignal([signal, AbortSignal.timeout(10_000)]) })
       if (!response.ok) throw new RealtimeHttpError('Realtime mode', response.status)
@@ -209,7 +210,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
         ? () =>
             ticket().catch((error: unknown) => {
               if (error instanceof RealtimeHttpError && error.status === 401) {
-                void queryClient.invalidateQueries({ queryKey: ['me'] })
+                void queryClient.invalidateQueries({ queryKey: meKey() })
               }
               throw error
             })

@@ -1,5 +1,6 @@
 import { AGENT_INPUT_MAX_BYTES, type AgentToolDescriptor } from '../../../contracts/agentTools'
 import { anySignal } from '../../abortSignals'
+import { errorMessage } from '../../queryClient'
 
 export type ToolResult = { content: { type: 'text'; text: string }[]; isError?: boolean }
 export type WebMcpTool = {
@@ -66,7 +67,7 @@ export async function installWebMcp(context: ModelContext, descriptors: AgentToo
             if (result.isError) error = result.content.map((item) => item.text).join('\n')
             return result
           } catch (caught) {
-            error = caught instanceof Error ? caught.message : 'The request failed.'
+            error = errorMessage(caught, 'The request failed.')
             return failure(error)
           } finally {
             if (!tool.readOnly) {

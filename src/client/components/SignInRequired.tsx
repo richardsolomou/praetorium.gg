@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { buttonClass } from './buttonClass'
 import { LogIn } from 'lucide-react'
-import { PageState } from './PageState'
+import { FullPageState } from './PageState'
 
 /**
  * What a signed-out visitor is shown instead of the thing they asked for.
@@ -11,19 +11,16 @@ import { PageState } from './PageState'
  */
 export function SignInRequired({ title, explanation, next }: { title: string; explanation: string; next?: string }) {
   return (
-    <main className="flex w-full">
-      <PageState
-        className="flex-1 border-x-0 border-t-0"
-        eyebrow="Account required"
-        title={title}
-        explanation={explanation}
-        icon={LogIn}
-        action={
-          <Link to="/sign-in" search={{ next }} className={buttonClass({ className: 'h-11 w-full text-base' })}>
-            Sign in
-          </Link>
-        }
-      />
-    </main>
+    <FullPageState
+      eyebrow="Account required"
+      title={title}
+      explanation={explanation}
+      icon={LogIn}
+      action={
+        <Link to="/sign-in" search={{ next }} className={buttonClass({ className: 'h-11 w-full text-base' })}>
+          Sign in
+        </Link>
+      }
+    />
   )
 }

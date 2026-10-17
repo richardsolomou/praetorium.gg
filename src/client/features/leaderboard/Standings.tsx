@@ -3,6 +3,7 @@ import type { Standing, StandingFaction } from '../../../core/standings'
 import { averagePoints, winRate } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
+import { percentLabel } from '../../text'
 
 /** One table of players: everybody, or everybody who has fielded one faction. */
 export type StandingsTable = { faction: StandingFaction | null; players: number; rows: readonly Standing[] }
@@ -71,7 +72,7 @@ export function Standings({ table, viewerId }: { table: StandingsTable; viewerId
                   <td className="readout p-3 text-right text-info">{row.rating}</td>
                   <td className="readout p-3 text-right text-dim">{row.won}</td>
                   <td className="readout p-3 text-right text-dim">{row.battles}</td>
-                  <td className="readout p-3 text-right text-dim">{Math.round(winRate(row) * 100)}%</td>
+                  <td className="readout p-3 text-right text-dim">{percentLabel(winRate(row))}</td>
                   <td className="readout p-3 text-right text-dim">{Math.round(averagePoints(row))}</td>
                 </tr>
               ))}

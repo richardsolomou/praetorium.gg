@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { type OptionalRule, plays } from '../../../core/battle'
+import { Problem } from '../../components/Problem'
 
 type BorrowableDetachment = { id: string; name: string; points: number | null }
 
@@ -117,11 +118,7 @@ export function OptionalRulesDialog({
                   This roster has no detachment points left over, so there is no disposition it can borrow.
                 </p>
               )}
-              {borrowedError ? (
-                <p role="alert" className="mt-2 text-sm text-destructive">
-                  {borrowedError}
-                </p>
-              ) : null}
+              {borrowedError ? <Problem className="mt-2">{borrowedError}</Problem> : null}
             </fieldset>
           ) : null}
         </DialogBody>

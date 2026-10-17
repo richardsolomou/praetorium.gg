@@ -5,8 +5,6 @@ import { UpdateFactionLabel } from './UpdateFactionLabel'
 
 const SECTIONS: readonly ChangeSection[] = ['Datasheets', 'Detachments', 'Enhancements', 'Upgrades']
 
-export const changesLabel = (count: number) => `${count} ${count === 1 ? 'change' : 'changes'}`
-
 /**
  * Every change one update records, grouped by faction and then by section, as the body of its
  * row on the index. Each faction's block carries the anchor the row's faction links point to.

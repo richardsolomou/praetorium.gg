@@ -14,6 +14,7 @@ import { execFileSync, fork, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 import { type ChangeSource, catalogueChanges } from '../src/core/catalogueChanges'
 import { appendHistory, CATALOGUE_HISTORY_FORMAT, type CatalogueHistoryEntry } from '../src/core/catalogueHistory'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from '../src/server/canonicalCatalogueSources'
@@ -33,19 +34,24 @@ import {
 import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
 
 const root = path.join(import.meta.dirname, '..')
-const args = process.argv.slice(2).filter((arg) => arg !== '--')
-const option = (name: string) => {
-  const at = args.indexOf(name)
-  return at < 0 ? undefined : args[at + 1]
-}
-const out = option('--out')
+const { values } = parseArgs({
+  args: process.argv.slice(2).filter((arg) => arg !== '--'),
+  options: {
+    out: { type: 'string' },
+    workers: { type: 'string' },
+    clones: { type: 'string' },
+    'upstream-from': { type: 'string' },
+    'no-upstream': { type: 'boolean' },
+  },
+})
+const out = values.out
 if (!out) throw new Error('--out <file> names where the history is written')
-const upstreamFrom = option('--upstream-from')
-const withUpstream = !args.includes('--no-upstream')
+const upstreamFrom = values['upstream-from']
+const withUpstream = !values['no-upstream']
 // Each compile holds a whole catalogue, so memory bounds the pool as well as the cores do.
-const workers = Number(option('--workers') ?? Math.max(1, Math.min(os.cpus().length - 2, Math.floor(os.totalmem() / (3 * 1024 ** 3)))))
+const workers = Number(values.workers ?? Math.max(1, Math.min(os.cpus().length - 2, Math.floor(os.totalmem() / (3 * 1024 ** 3)))))
 const clonesRoot = path.resolve(
-  option('--clones') ?? path.join(process.env.XDG_CACHE_HOME?.trim() || path.join(os.homedir(), '.cache'), 'praetorium', 'upstream'),
+  values.clones ?? path.join(process.env.XDG_CACHE_HOME?.trim() || path.join(os.homedir(), '.cache'), 'praetorium', 'upstream'),
 )
 
 const started = performance.now()

@@ -1,3 +1,4 @@
+import { uniqueBy } from '../core/collections'
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { withoutText } from './sourceText'
 import { attachmentOf } from '../core/attach'
@@ -132,10 +133,9 @@ function cachedIn<T>(store: WeakMap<LoadedCatalogue, Map<string, T>>, loaded: Lo
  * What a datasheet is on its own, read once per snapshot.
  *
  * The reference page, the picker, the search index and the pricing of a roster all
- * ask about the datasheet before any list has touched it, and they used to walk the
- * catalogue separately to answer. The walk is made once against the default selection
- * and kept for as long as the snapshot is; a roster's own view is walked on demand by
- * the same code with the list as context. The full sheet — price, card, relationships
+ * ask about the datasheet before any list has touched it, so the walk is made once
+ * against the default selection and kept for as long as the snapshot is; a roster's
+ * own view is walked on demand by the same code with the list as context. The full sheet — price, card, relationships
  * — is dearer than the walk and is kept only once something has asked for it.
  */
 const walkRecord = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
@@ -1076,32 +1076,19 @@ function addGrantedWeaponAbilities(
 }
 
 function uniqueProfiles(profiles: Datasheet['profiles']) {
-  const seen = new Set<string>()
-  return profiles.filter((profile) => {
-    const signature = JSON.stringify({
-      name: profile.name.toLowerCase(),
-      type: profile.type,
-      count: profile.count,
-      values: profile.values,
-    })
-    if (seen.has(signature)) return false
-    seen.add(signature)
-    return true
-  })
+  return uniqueBy(profiles, (profile) =>
+    JSON.stringify({ name: profile.name.toLowerCase(), type: profile.type, count: profile.count, values: profile.values }),
+  )
 }
 
 function uniqueAbilities(abilities: Datasheet['abilities']) {
   const wargearNames = new Set(
     abilities.filter((ability) => ability.kind === 'wargear').map((ability) => ability.name.trim().toLowerCase()),
   )
-  const seen = new Set<string>()
-  return abilities.filter((ability) => {
-    if (ability.kind !== 'wargear' && wargearNames.has(ability.name.trim().toLowerCase())) return false
-    const signature = JSON.stringify({ name: ability.name.toLowerCase(), description: ability.description })
-    if (seen.has(signature)) return false
-    seen.add(signature)
-    return true
-  })
+  return uniqueBy(
+    abilities.filter((ability) => ability.kind === 'wargear' || !wargearNames.has(ability.name.trim().toLowerCase())),
+    (ability) => JSON.stringify({ name: ability.name.toLowerCase(), description: ability.description }),
+  )
 }
 
 export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {

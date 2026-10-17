@@ -47,7 +47,7 @@ export async function runRosterCombat({
   const columns = unitIndices(defendingRosters)
   if (!rows.length || !columns.length) throw new Error('Choose two rosters with units to compare.')
   if (rows.length * columns.length > MAX_ROSTER_MATCHUPS)
-    throw new Error(`Compare at most ${MAX_ROSTER_MATCHUPS.toLocaleString()} pairings at a time. Choose smaller rosters.`)
+    throw new Error(`Compare at most ${MAX_ROSTER_MATCHUPS.toLocaleString('en')} pairings at a time. Choose smaller rosters.`)
   const prepare = async (rosters: readonly CombatRoster[], indices: { rosterIndex: number; pickIndex: number }[]) => {
     type Projection = Awaited<ReturnType<typeof combatantDatasheets>>[number] | { error: string }
     const projections: Projection[][] = []

@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { cn } from '@/lib/utils'
 
 import {
   deploymentObjectiveMarkers,
@@ -51,7 +52,7 @@ export function TerrainBoard({
   const svg = (
     <svg
       viewBox={`0 0 ${board.height} ${board.width}`}
-      className={`border border-edge bg-sunken ${className ?? ''}`}
+      className={cn('border border-edge bg-sunken', className)}
       aria-label={ariaLabel ?? layout.name}
     >
       <title>{ariaLabel ?? layout.name}</title>

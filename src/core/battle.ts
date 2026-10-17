@@ -28,6 +28,11 @@ export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'en
 
 export type Phase = (typeof PHASES)[number]
 
+/** Whose turn a stratagem or reminder applies in. */
+export const TURN_SCOPES = ['your-turn', 'opponent-turn', 'either'] as const
+
+export type TurnScope = (typeof TURN_SCOPES)[number]
+
 export const BATTLE_ROUNDS = 5
 
 const COMMAND_PHASE_CP = 1
@@ -36,7 +41,7 @@ const PLAYERS_PER_BATTLE = 2
 const TEAM_BATTLE_PLAYERS = 3
 export const ROSTER_NAME_MAX_LENGTH = 80
 
-/** How many detachments one army may field, and so how many names a pooled card may name. */
+/** How many detachments one roster may hold whatever its size says, and so how many names a pooled card may name. */
 export const DETACHMENTS_MAX = 3
 
 /**
@@ -407,7 +412,7 @@ export type Stratagem = {
   cp: number
   limit: StratagemLimit
   phases?: Phase[]
-  turn?: 'your-turn' | 'opponent-turn' | 'either'
+  turn?: TurnScope
   /**
    * The detachment that prints it, where one does. Recorded because a side of allies
    * pools two detachments and their rules do not pool with them — each ally's
@@ -534,7 +539,6 @@ export function sidePaintedPoints(state: BattleState, side: number): number {
   return seated.length && seated.every((player) => player.painted) ? PAINTED_ARMY_POINTS : 0
 }
 
-/** The matched-play game sizes, smallest first. */
 const KOTC_LIMITS = [600] as const
 /**
  * Sizes King of the Colosseum was offered at before and is no longer built at.
@@ -547,6 +551,7 @@ const KOTC_LIMITS = [600] as const
 const RETIRED_KOTC_LIMITS = [500] as const
 export const DEFAULT_GAME_LIMIT = 2000
 
+/** The matched-play game sizes, smallest first. */
 export const GAME_SIZES = [
   ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit, detachmentPoints: null })),
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
@@ -587,15 +592,17 @@ export const customPointsBudget = (limit: number, budget: number | null | undefi
 /** What a roster may spend: its custom budget, or else its battle size's points total. */
 export const pointsBudgetOf = (roster: { limit: number; pointsBudget?: number | null }): number => roster.pointsBudget ?? roster.limit
 
-export const battleSizeName = (limit: number): string =>
-  GAME_SIZES.find((size) => size.limit === limit)?.name ?? `${limit.toLocaleString('en')} points`
+export const pointsLabel = (points: number): string => `${points.toLocaleString('en')} points`
+
+export const battleSizeName = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? pointsLabel(limit)
+
+export const battleSizeOptionLabel = (size: { name: string; limit: number }): string => `${size.name} · ${pointsLabel(size.limit)}`
 
 /** The battle size whose limits apply, and beside it any custom points budget. */
 export const battleSizeLabel = (limit: number, pointsBudget?: number | null): string =>
   pointsBudget === null || pointsBudget === undefined
     ? battleSizeName(limit)
     : `${battleSizeName(limit)} · ${pointsBudget.toLocaleString('en')}-point budget`
-export const battleRoundLimit = (_limit: number | null) => BATTLE_ROUNDS
 
 /** Name every waivable format restriction here so legality and picker filtering read the same roster waiver. */
 export const FORMAT_RULE_IDS = [
@@ -612,14 +619,11 @@ export const FORMAT_RULE_IDS = [
 export type FormatRuleId = (typeof FORMAT_RULE_IDS)[number]
 export type FormatRule = { id: FormatRuleId; label: string; hint: string }
 
-/** The maximum detachments a roster may hold, whatever its size says. */
-export const MAX_DETACHMENTS = 3
-
 /** Whether a rule still applies, given what the roster has waived. */
 export const enforces = (waived: readonly string[] | undefined, rule: FormatRuleId) => !waived?.includes(rule)
 
 export const detachmentLimit = (limit: number, waived: readonly string[] = []) =>
-  isKotcLimit(limit) && enforces(waived, 'detachments') ? 1 : MAX_DETACHMENTS
+  isKotcLimit(limit) && enforces(waived, 'detachments') ? 1 : DETACHMENTS_MAX
 
 /** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
 export const formatDatasheetLimit = (limit: number, repeatable: boolean, waived: readonly string[] = []) =>
@@ -637,7 +641,7 @@ export function formatRules(limit: number | null, pointsBudget?: number | null):
   const pointsLimit: FormatRule = {
     id: 'points-limit',
     label: 'Points limit',
-    hint: `The roster costs at most ${(pointsBudget ?? limit).toLocaleString('en')} points`,
+    hint: `The roster costs at most ${pointsLabel(pointsBudget ?? limit)}`,
   }
   if (isKotcLimit(limit)) {
     return [
@@ -1705,7 +1709,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
             const claimed = finalAwardTotal(
               player.primaryCard?.awards ?? [],
               score.final.claims,
-              { phase: state.phase, round: state.round, rounds: battleRoundLimit(state.settings.limit), endOfBattle: atBattleEnd(state) },
+              { phase: state.phase, round: state.round, rounds: BATTLE_ROUNDS, endOfBattle: atBattleEnd(state) },
               sameSide(state, player.id, state.activePlayerId ?? ''),
               player.secondaryMode,
             )
@@ -2186,7 +2190,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         enterTurn(state, opponent.id, state.round, seq)
         return
       }
-      if (state.round === battleRoundLimit(state.settings.limit)) {
+      if (state.round === BATTLE_ROUNDS) {
         if ((endsFirstTurn && !opponent) || state.settings.manual) {
           state.status = 'finished'
           state.result = { reason: 'completed', concededBy: null }
@@ -2653,12 +2657,9 @@ function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState,
 /**
  * What the active side still owes before the turn moves on, or null.
  *
- * The same answer whoever asks. These used to refuse the turn to anyone but the
- * side itself, on the grounds that a helper's screen could not tell whether
- * private work remained — but drawing, putting a card back and discarding one are
- * all named in the log to both sides, so the only thing actually held back is a
- * card played face down. That is one opt-in card in fixed play, and it is the
- * only case left here that its own side has to answer.
+ * The same answer whoever asks: drawing, putting a card back and discarding one are
+ * all named in the log to both sides, so the only thing held back is a card played
+ * face down, an opt-in card in fixed play that only its own side can answer.
  */
 export function sideOwes(state: BattleState, player: PlayerState): 'settlement' | 'cards' | 'secret' | null {
   if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) return 'settlement'
@@ -2697,7 +2698,7 @@ export function scoringDue(state: BattleState, player: PlayerState) {
     {
       phase: state.phase,
       round: state.round,
-      rounds: battleRoundLimit(state.settings.limit),
+      rounds: BATTLE_ROUNDS,
       endOfBattle: atBattleEnd(state) && player.finalPrimary === 0,
     },
     true,
@@ -2711,7 +2712,7 @@ export function atBattleEnd(state: BattleState): boolean {
   return (
     state.status === 'playing' &&
     state.phase === 'end' &&
-    state.round === battleRoundLimit(state.settings.limit) &&
+    state.round === BATTLE_ROUNDS &&
     (state.completionPending ||
       (state.pendingSettlement === null &&
         state.activePlayerId !== null &&
@@ -2728,7 +2729,7 @@ export function secretSettlementActionPlayerId(state: BattleState): PlayerId | n
   if (!secondary?.awards) return player.id
   const due = cardsDueFromTheirTurn(
     pending.round,
-    battleRoundLimit(state.settings.limit),
+    BATTLE_ROUNDS,
     [
       {
         ...secondary,
@@ -2795,7 +2796,7 @@ export function battlePointsBudget(state: TableArmies & { settings: BattleSettin
 export function battleSizeText(state: TableArmies & { settings: BattleSettings }): string | null {
   if (!state.settings.limit) return null
   const budget = battlePointsBudget(state)
-  return budget === null ? `${state.settings.limit.toLocaleString('en')} points` : battleSizeLabel(state.settings.limit, budget)
+  return budget === null ? pointsLabel(state.settings.limit) : battleSizeLabel(state.settings.limit, budget)
 }
 
 function inferBattleSize(state: BattleState) {

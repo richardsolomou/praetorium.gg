@@ -202,12 +202,7 @@ function placementMeasurements(area: Area): TerrainGeometry['areas'][number]['me
 
 function matches(layout: Layout['layout'], id: string) {
   if (layout?.id === id) return true
-  if (!layout?.links?.page) return false
-  try {
-    return new URL(layout.links.page).pathname.endsWith(`/${id}`)
-  } catch {
-    return false
-  }
+  return Boolean(layout?.links?.page && URL.parse(layout.links.page)?.pathname.endsWith(`/${id}`))
 }
 
 function boardPoint(point: Point, area: Footprint, part?: Part): Point {

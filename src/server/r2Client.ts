@@ -1,6 +1,6 @@
 import { AwsClient } from 'aws4fetch'
 
-function client(environment: NodeJS.ProcessEnv, prefix: string, bucket: string) {
+function configuredClient(environment: NodeJS.ProcessEnv, prefix: string, bucket: string) {
   const account = environment.R2_ACCOUNT_ID
   const accessKeyId = environment[`${prefix}_ACCESS_KEY_ID`]
   const secretAccessKey = environment[`${prefix}_SECRET_ACCESS_KEY`]
@@ -14,9 +14,31 @@ function client(environment: NodeJS.ProcessEnv, prefix: string, bucket: string) 
 }
 
 export function privateR2Client(environment: NodeJS.ProcessEnv = process.env) {
-  return client(environment, 'R2', 'praetorium-private')
+  return configuredClient(environment, 'R2', 'praetorium-private')
 }
 
 export function publicAssetsR2Client(environment: NodeJS.ProcessEnv = process.env) {
-  return client(environment, 'ASSETS_R2', 'praetorium')
+  return configuredClient(environment, 'ASSETS_R2', 'praetorium')
+}
+
+export function r2Objects({ client, base }: NonNullable<ReturnType<typeof configuredClient>>) {
+  async function request(operation: 'head' | 'get' | 'put' | 'delete', key: string, init: RequestInit = {}) {
+    const response = await client.fetch(`${base}${key}`, { ...init, signal: AbortSignal.timeout(operation === 'head' ? 10_000 : 30_000) })
+    if (response.status === 404 && operation !== 'put') return null
+    if (!response.ok) throw new Error(`R2 ${operation} failed with HTTP ${response.status}`)
+    return response
+  }
+  return {
+    head: async (key: string) => Boolean(await request('head', key, { method: 'HEAD' })),
+    get: async (key: string) => {
+      const response = await request('get', key)
+      return response && new Uint8Array(await response.arrayBuffer())
+    },
+    put: async (key: string, body: Uint8Array, headers: Record<string, string>) => {
+      await request('put', key, { method: 'PUT', body: new Uint8Array(body), headers })
+    },
+    delete: async (key: string) => {
+      await request('delete', key, { method: 'DELETE' })
+    },
+  }
 }

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
 import { chooseRosterAction, signUp } from './account'
-import { productOperator, withAuthSql } from './storage'
+import { productOperator, userIdFor } from './storage'
 
 async function countLocalCalculations(page: Page) {
   await page.addInitScript(() => {
@@ -54,11 +54,9 @@ test('a full roster matrix batches projections and uses the server without brows
   const account = await signUp(page, 'Server matchup matrix')
   const operator = await productOperator()
   const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
-    id: string
-  }
+  const userId = await userIdFor(account.email)
   const id = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id, userId: user.id, name: 'Server comparison', automaticName: false, now: Date.now() })
+  await operator.saveRoster({ ...source, id, userId, name: 'Server comparison', automaticName: false, now: Date.now() })
   await page.goto(`/rosters/${id}`)
   let projections = 0
   let calculations = 0

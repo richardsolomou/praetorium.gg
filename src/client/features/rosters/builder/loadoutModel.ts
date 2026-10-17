@@ -1,3 +1,5 @@
+import { escapeRegExp } from '../../../../core/text'
+import { uniqueBy } from '../../../../core/collections'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
 import { modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
@@ -103,9 +105,7 @@ export function loadoutInstructions(
   const candidates = groups.flatMap((group) => {
     if (group.instruction === DEFAULT_WARGEAR) return []
     const words = wordsOf(group.instruction) ?? ''
-    const namedModels = models.filter((candidate) =>
-      new RegExp(`\\b${candidate.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:s\\b|\\b)`, 'i').test(words),
-    )
+    const namedModels = models.filter((candidate) => new RegExp(`\\b${escapeRegExp(candidate.name)}(?:s\\b|\\b)`, 'i').test(words))
     if (namedModels.length && !namedModels.includes(model)) return []
     const matches = group.options.filter((option) => names.some((name) => sameWargear(wargearBaseName(option), name))).length
     return matches ? [{ instruction: group.instruction, matches }] : []
@@ -243,17 +243,9 @@ export function wargearMatches(optionName: string, abilityName: string) {
 }
 
 export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
-  const seen = new Set<string>()
-  return profiles.filter((profile) => {
-    const signature = JSON.stringify({
-      name: profile.name.trim().toLocaleLowerCase(),
-      type: profile.type,
-      values: profile.values,
-    })
-    if (seen.has(signature)) return false
-    seen.add(signature)
-    return true
-  })
+  return uniqueBy(profiles, (profile) =>
+    JSON.stringify({ name: profile.name.trim().toLocaleLowerCase(), type: profile.type, values: profile.values }),
+  )
 }
 
 export const weaponProfileNames = (profile: WeaponProfileData) =>

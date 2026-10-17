@@ -37,9 +37,12 @@ import { Fact } from '../../components/Fact'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SettingRow } from '../../components/SettingRow'
 import { AdminBattleRow } from './AdminBattleRow'
-import { count, MethodIcon, methodName } from './accountText'
-import { ConfirmDialog } from './ConfirmDialog'
-import { Notice, Problem } from './feedback'
+import { MethodIcon, methodName } from './accountText'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Problem } from '../../components/Problem'
+import { Notice } from './feedback'
+import { countLabel, formatList } from '../../text'
+import { useCopyText } from '../../useCopyText'
 
 type Role = AdminUser['role']
 type Section = 'profile' | 'access' | 'sign-in' | 'sessions' | 'connections'
@@ -566,34 +569,37 @@ function RecentBattles({ user }: { user: AdminUser }) {
 }
 
 function CopyButton({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false)
+  const { copy, copied, problem, reset } = useCopyText()
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-xs"
-      aria-label={copied ? 'Copied' : label}
-      className="shrink-0 text-faint hover:text-bone"
-      onClick={async () => {
-        await navigator.clipboard.writeText(value)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
-      }}
-    >
-      {copied ? <Check /> : <Copy />}
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label={copied ? 'Copied' : label}
+        className="shrink-0 text-faint hover:text-bone"
+        onClick={async () => {
+          if (await copy(value, { failure: 'Copy failed', operation: 'admin_copy' })) setTimeout(reset, 1500)
+        }}
+      >
+        {copied ? <Check /> : <Copy />}
+      </Button>
+      {problem ? (
+        <span role="alert" className="shrink-0 text-xs text-destructive">
+          {problem}
+        </span>
+      ) : null}
+    </>
   )
 }
 
 function deletionImpact(user: AdminUser) {
   const parts = [
-    user.rosterCount ? count(user.rosterCount, 'roster', 'rosters') : '',
-    user.battleCount ? count(user.battleCount, 'battle', 'battles') : '',
-    user.leagueCount ? count(user.leagueCount, 'league they organize', 'leagues they organize') : '',
+    user.rosterCount ? countLabel(user.rosterCount, 'roster') : '',
+    user.battleCount ? countLabel(user.battleCount, 'battle') : '',
+    user.leagueCount ? countLabel(user.leagueCount, 'league they organize', 'leagues they organize') : '',
   ].filter(Boolean)
-  const deletes = parts.length
-    ? `Deletes the account, ${new Intl.ListFormat('en', { type: 'conjunction' }).format(parts)}.`
-    : 'Deletes the account.'
+  const deletes = parts.length ? `Deletes the account, ${formatList(parts)}.` : 'Deletes the account.'
   const shared = user.battleCount ? ' Battles are removed for every player in them.' : ''
   return `${deletes}${shared} This cannot be undone.`
 }

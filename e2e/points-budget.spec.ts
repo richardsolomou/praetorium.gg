@@ -1,29 +1,12 @@
 import { expect, test, type Locator, type Page } from './test'
-import {
-  attachRoster,
-  chooseRosterAction,
-  createBattle,
-  PRACTICE_OPPONENT,
-  setupStep,
-  signUp,
-  uniqueName,
-  waitForRosterSave,
-} from './account'
-import { productOperator, withAuthSql } from './storage'
+import { attachRoster, chooseRosterAction, createBattle, PRACTICE_OPPONENT, savedArmy, setupStep, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
-async function savedArmy(page: Page, name: string) {
-  const account = await signUp(page, uniqueName('Points budget'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const user = (await withAuthSql((database) => database.prepare('SELECT id FROM user WHERE email = ?').get(account.email))) as {
-    id: string
-  }
-  const id = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id, userId: user.id, name, automaticName: false, visibility: 'private', now: Date.now() })
-  await page.goto(`/rosters/${id}`)
+async function openArmy(page: Page, name: string) {
+  const army = await savedArmy(page, 'Points budget', { name })
+  await page.goto(`/rosters/${army.id}`)
   await expect(page.getByLabel('List name')).toHaveValue(name)
-  return { id, operator }
+  return army
 }
 
 async function openSetup(page: Page) {
@@ -55,7 +38,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   test.setTimeout(180_000)
   await page.setViewportSize(desktop)
   const name = 'Budget army'
-  const { id, operator } = await savedArmy(page, name)
+  const { id, operator } = await openArmy(page, name)
   const points = page.locator('[data-stat="points"]')
   await expect(points).toContainText('/2000')
 

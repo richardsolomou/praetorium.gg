@@ -47,10 +47,5 @@ export function crawlerRequestEvent(request: Request, status: number, now = new 
 }
 
 function referrerOrigin(referrer: string | null) {
-  if (!referrer) return null
-  try {
-    return new URL(referrer).origin
-  } catch {
-    return null
-  }
+  return referrer ? (URL.parse(referrer)?.origin ?? null) : null
 }

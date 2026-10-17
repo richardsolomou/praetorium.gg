@@ -1,3 +1,4 @@
+import { groupBy } from '../core/collections'
 import type { Condition, Definition, ModifierGroup, SelectionEntry } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
@@ -84,12 +85,10 @@ function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
   // Keyed once: a price asks for every enhancement of every chosen detachment, and
   // slugging every upgrade in the index each time made the answer slow enough for the
   // builder's next press to race it.
-  const byCardName = new Map<string, SelectionEntry[]>()
-  for (const entry of upgrades) {
-    if (!entry.name) continue
-    const key = cardName(entry.name)
-    byCardName.set(key, [...(byCardName.get(key) ?? []), entry])
-  }
+  const byCardName = groupBy(
+    upgrades.filter((entry) => entry.name),
+    (entry) => cardName(entry.name!),
+  )
   const forced = new Map<string, SelectionEntry[]>()
   for (const entry of upgrades) {
     const catalogueId = loaded.index.catalogueOf.get(entry.id)

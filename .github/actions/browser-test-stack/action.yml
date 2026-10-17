@@ -1,0 +1,40 @@
+name: Browser-test stack
+description: Prepare a runner to start the shared browser-test build with the synced catalogue and SpacetimeDB.
+inputs:
+  r2-account-id:
+    description: Cloudflare account that holds the private catalogue snapshots.
+    required: true
+  r2-access-key-id:
+    description: Read key for the private catalogue snapshots.
+    required: true
+  r2-secret-access-key:
+    description: Read secret for the private catalogue snapshots.
+    required: true
+outputs:
+  spacetime-bin:
+    description: Path to the installed SpacetimeDB CLI.
+    value: ${{ steps.spacetime.outputs.cli-path }}
+runs:
+  using: composite
+  steps:
+    - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      with:
+        install: 'false'
+    - uses: ./.github/actions/e2e-dependencies
+    - name: Sync the catalogue
+      shell: bash
+      run: pnpm catalogue:sync
+      env:
+        R2_ACCOUNT_ID: ${{ inputs.r2-account-id }}
+        R2_ACCESS_KEY_ID: ${{ inputs.r2-access-key-id }}
+        R2_SECRET_ACCESS_KEY: ${{ inputs.r2-secret-access-key }}
+    - name: Require the terrain geometry
+      shell: bash
+      run: pnpm catalogue:terrain
+    - uses: actions/download-artifact@v8
+      with:
+        name: browser-test-build
+        path: data-dev/e2e-build
+    - uses: ./.github/actions/verify-browser-build
+    - uses: ./.github/actions/setup-spacetime
+      id: spacetime

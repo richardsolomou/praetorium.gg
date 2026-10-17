@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { PageState } from '../../components/PageState'
+import { FullPageState } from '../../components/PageState'
 import { battleArrivalQuery } from '../../queries'
 
 /**
@@ -16,13 +16,10 @@ export function BattleNotFound({ token }: { token: string }) {
     if (screen) void router.invalidate({ filter: (match) => match.routeId === '/battles/$token' })
   }, [router, screen])
   return (
-    <main className="flex w-full">
-      <PageState
-        className="flex-1 border-x-0 border-t-0"
-        eyebrow="404"
-        title="Nothing here"
-        explanation="This page does not exist or its current data is unavailable. Check the link and try again."
-      />
-    </main>
+    <FullPageState
+      eyebrow="404"
+      title="Nothing here"
+      explanation="This page does not exist or its current data is unavailable. Check the link and try again."
+    />
   )
 }

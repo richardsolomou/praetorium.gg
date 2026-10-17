@@ -1,5 +1,6 @@
 import { Choice, type ChoiceOption } from '../../components/Choice'
 import { chooseTextSize, useTextSize, type TextSize } from '../../textSize'
+import { SettingsSection } from './SettingsSection'
 
 const SIZES: ChoiceOption<TextSize>[] = [
   { value: 'standard', name: 'Standard', detail: 'The compact layout' },
@@ -11,12 +12,8 @@ const SIZES: ChoiceOption<TextSize>[] = [
 export function TextSizeSettings() {
   const size = useTextSize()
   return (
-    <section className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
-      <div>
-        <h2 className="rubric border-b border-edge pb-2">Text size</h2>
-        <p className="mt-2 text-sm text-dim">Applies on this device only.</p>
-      </div>
+    <SettingsSection title="Text size" description="Applies on this device only.">
       <Choice label="Text size" value={size} options={SIZES} onChange={chooseTextSize} />
-    </section>
+    </SettingsSection>
   )
 }

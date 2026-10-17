@@ -3,7 +3,6 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
@@ -11,6 +10,7 @@ import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDe
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
+import { installedSpacetimeCli, SPACETIME_VERSION } from './lib/spacetimeCli.ts'
 import { callSpacetime, publishSpacetimeModule } from 'ras-stack/spacetime'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
 
@@ -37,8 +37,7 @@ let publicUrl = ''
 let spacetimeUrl = ''
 let database = ''
 const credentialsPath = path.join(root, 'credentials.json')
-const installedCli = path.join(os.homedir(), '.local/share/spacetime/bin/2.12.0/spacetimedb-cli')
-const cli = process.env.SPACETIME_BIN ?? (existsSync(installedCli) ? installedCli : 'spacetime')
+const cli = process.env.SPACETIME_BIN ?? (existsSync(installedSpacetimeCli) ? installedSpacetimeCli : 'spacetime')
 const buildDir = path.join(root, 'build')
 const environment: NodeJS.ProcessEnv = { ...process.env, LOCAL_BUILD_DIR: buildDir, LOCAL_TEST_MODE: String(testMode) }
 delete environment.LOCAL_VITE_ORIGIN
@@ -215,7 +214,8 @@ async function main() {
   if (!testMode) await mkdir(path.dirname(previewFile), { recursive: true })
   await writePreview()
   const { stdout } = await execute(cli, ['--version'], { signal: abort.signal })
-  if (!stdout.includes('spacetimedb tool version 2.12.0;')) throw new Error('Local development requires SpacetimeDB CLI 2.12.0')
+  if (!stdout.includes(`spacetimedb tool version ${SPACETIME_VERSION};`))
+    throw new Error(`Local development requires SpacetimeDB CLI ${SPACETIME_VERSION}`)
   await product.release()
   start(
     cli,

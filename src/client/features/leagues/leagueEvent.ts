@@ -6,9 +6,12 @@ import {
   type LeagueAdmission,
   type LeagueEntryView,
 } from '../../../core/league'
+import { pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import type { openLeague } from '../../functions'
 import { leaguesQuery } from '../../queries'
+import { formatList } from '../../text'
+import { groupBy } from '../../../core/collections'
 
 export type League = NonNullable<Awaited<ReturnType<typeof openLeague>>>
 
@@ -23,14 +26,9 @@ export function useLeagueRefresh(token: string) {
   }
 }
 
-export function formatNames(names: string[]) {
-  if (names.length < 2) return names[0] ?? ''
-  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
-}
-
 /** Names a few people outright and counts the rest, so a long waiting list stays one line. */
 export function namesPhrase(names: string[], shown = 3) {
-  if (names.length <= shown) return formatNames(names)
+  if (names.length <= shown) return formatList(names)
   const rest = names.length - (shown - 1)
   return `${names.slice(0, shown - 1).join(', ')} and ${rest} others`
 }
@@ -44,10 +42,10 @@ export function soloOrAllied(league: Pick<League, 'format' | 'rosterLimit'>, ent
 
 /** The fixed pairs of an event in the order their first member joined, each with its entries. */
 export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'>>(entries: readonly T[]) {
-  const teams = new Map<string, T[]>()
-  for (const entry of entries) {
-    if (entry.status === 'accepted' && entry.teamId) teams.set(entry.teamId, [...(teams.get(entry.teamId) ?? []), entry])
-  }
+  const teams = groupBy(
+    entries.filter((entry) => entry.status === 'accepted' && entry.teamId),
+    (entry) => entry.teamId!,
+  )
   return [...teams].map(([id, members]) => ({ id, members }))
 }
 
@@ -55,9 +53,9 @@ export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'
 export function sideGroups(league: Pick<League, 'rosterLimit'>): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
   const solo = league.rosterLimit ?? 0
   return {
-    solo: { title: `Solo · ${solo.toLocaleString('en')} points`, detail: 'Plays alone against a pair.' },
+    solo: { title: `Solo · ${pointsLabel(solo)}`, detail: 'Plays alone against a pair.' },
     allied: {
-      title: `Allied · ${alliedLeagueRosterLimit(solo).toLocaleString('en')} points`,
+      title: `Allied · ${pointsLabel(alliedLeagueRosterLimit(solo))}`,
       detail: 'Plays beside another ally.',
     },
     unsized: { title: 'Waiting for a size' },
@@ -132,7 +130,7 @@ type LeagueFacts = {
 /** A league's table shape and points, such as "Duel · 2,000 points", or null for an event that fixed neither. */
 export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'>) {
   return league.format && league.rosterLimit
-    ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? `${league.rosterLimit.toLocaleString('en')} points`}`
+    ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? pointsLabel(league.rosterLimit)}`
     : null
 }
 

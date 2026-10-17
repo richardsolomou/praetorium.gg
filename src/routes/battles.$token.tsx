@@ -10,7 +10,7 @@ import {
   terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
-import { battlePreview, hiddenBattle, pageMeta } from '../client/linkPreview'
+import { battlePreview, hiddenBattle, pageMeta, previewImage } from '../client/linkPreview'
 import { armyRulesRequest } from '../client/features/battle/sideRules'
 
 export const Route = createFileRoute('/battles/$token')({
@@ -60,7 +60,7 @@ export const Route = createFileRoute('/battles/$token')({
       meta: pageMeta(
         match.context.origin,
         preview
-          ? { title: preview.title, description: preview.description, path, image: { path: `/api/previews${path}`, alt: preview.title } }
+          ? { title: preview.title, description: preview.description, path, image: previewImage(path, preview.title) }
           : { ...hiddenBattle, path },
       ),
     }

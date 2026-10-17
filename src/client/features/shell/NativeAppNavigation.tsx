@@ -8,6 +8,7 @@ import { nativeNavigation, type NativeSection } from './nativeNavigation'
 import { meQuery } from '../../queries'
 import { restoreNativeTabScroll } from './nativeTabScroll'
 import { forgetTab, recallTab, rememberTab, tabLocation } from './nativeTabs'
+import { compactChrome } from './useCompactChrome'
 
 type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
 
@@ -67,9 +68,7 @@ export function NativeAppNavigation({
   }, [me?.image, me?.name])
 
   useLayoutEffect(() => {
-    const usesApplicationNavigation =
-      document.documentElement.dataset.nativeApp === 'true' || window.matchMedia('(max-width: 859px)').matches
-    if (!usesApplicationNavigation) return
+    if (!compactChrome()) return
     if (notFound) {
       forgetTab(href)
       return

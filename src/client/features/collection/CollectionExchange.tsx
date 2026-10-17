@@ -15,14 +15,16 @@ import {
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { importCollection } from '../../functions'
 import { nativeBridgeVersion } from '../../nativeBridge'
-import { errorMessage } from '../../queryClient'
+import { Problem } from '../../components/Problem'
+import { useCopyText } from '../../useCopyText'
+import { downloadFile } from '../../downloadFile'
 
 type Sheet = { id: string; name: string; faction: string }
 
 /** A collection file's export and its reviewed import; importing adds what is missing and changes saved counts only when asked. */
 export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet[]; current: ReadonlyMap<string, CollectionCounts> }) {
   const [reading, setReading] = useState<{ rows: ImportedRow[] } | { error: string } | null>(null)
-  const [copied, setCopied] = useState(false)
+  const { copy, copied, problem } = useCopyText()
   const byId = new Map(sheets.map((sheet) => [sheet.id, sheet]))
   const csv = () =>
     collectionCsv(
@@ -34,27 +36,19 @@ export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet
   const native = nativeBridgeVersion() !== undefined
   const exportFile = async () => {
     posthog.capture('collection_exported', { datasheets: current.size })
-    if (native) {
-      await navigator.clipboard.writeText(csv())
-      setCopied(true)
-      return
-    }
-    const url = URL.createObjectURL(new Blob([csv()], { type: 'text/csv;charset=utf-8' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'praetorium-collection.csv'
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1_000)
+    if (native) await copy(csv(), { failure: 'Copy failed. Try again.', operation: 'collection_export_copy' })
+    else downloadFile('praetorium-collection.csv', csv(), 'text/csv;charset=utf-8')
   }
   const input = useRef<HTMLInputElement>(null)
   return (
     <>
-      <Button variant="outline" size="sm" disabled={!current.size} onClick={() => void exportFile().catch(() => setCopied(false))}>
+      <Button variant="outline" size="sm" disabled={!current.size} onClick={() => void exportFile()}>
         <Download /> {native ? (copied ? 'Copied CSV' : 'Copy CSV') : 'Export CSV'}
       </Button>
       <Button variant="outline" size="sm" onClick={() => input.current?.click()}>
         <FileUp /> Import CSV
       </Button>
+      {problem ? <Problem className="basis-full">{problem}</Problem> : null}
       <input
         ref={input}
         type="file"
@@ -143,9 +137,7 @@ function ImportReview({
         </DialogHeader>
         <DialogBody>
           {reading && 'error' in reading ? (
-            <p role="alert" className="text-sm text-destructive">
-              {reading.error}
-            </p>
+            <Problem>{reading.error}</Problem>
           ) : (
             <>
               <p className="text-sm text-dim" data-import-summary>
@@ -201,9 +193,7 @@ function ImportReview({
                 </label>
               ) : null}
               {save.error ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {errorMessage(save.error)}
-                </p>
+                <Problem error={save.error} />
               ) : save.data ? (
                 <output className="block text-sm text-bone">
                   Imported: {save.data.added} added, {save.data.replaced} replaced, {save.data.kept} kept as saved.

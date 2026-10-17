@@ -1,6 +1,7 @@
 import { TriangleAlert, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import { type FormatRule, waivedFormatRules } from '../../core/battle'
 
 /**
@@ -36,7 +37,7 @@ export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRu
   const summary = `${rules.length} format ${rules.length === 1 ? 'restriction' : 'restrictions'} switched off: ${waiverLabels(rules)}`
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className={`relative inline-flex shrink-0 items-center text-discarded ${className}`} />}>
+      <TooltipTrigger render={<span className={cn('relative inline-flex shrink-0 items-center text-discarded', className)} />}>
         <TriangleAlert className="size-4" aria-hidden />
         {/* The mark shows on hover and the tooltip is not read aloud, so the sentence travels with it. */}
         <span className="sr-only">{summary}</span>
@@ -54,7 +55,7 @@ export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRu
 /** The same fact as a line, where a row or an army has room for one. */
 export function WaiverNote({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
   if (!rules.length) return null
-  return <p className={`text-xs text-discarded ${className}`}>Format restrictions off: {waiverLabels(rules)}</p>
+  return <p className={cn('text-xs text-discarded', className)}>Format restrictions off: {waiverLabels(rules)}</p>
 }
 
 /**
