@@ -200,9 +200,9 @@ export function CollectionPage() {
                       <li
                         key={sheet.id}
                         data-unit={sheet.name}
-                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 p-2 sm:grid-rows-[auto_1fr]"
+                        className="grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr] gap-x-3 gap-y-2 p-2"
                       >
-                        <span className="sm:row-span-2">
+                        <span className="row-span-2">
                           <CollectionPhoto entryId={sheet.id} name={sheet.name} />
                         </span>
                         <div className="flex items-start justify-between gap-2">
@@ -215,7 +215,7 @@ export function CollectionPage() {
                           </FactionReferenceLink>
                           <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
                         </div>
-                        <div className="col-span-2 self-end sm:col-span-1 sm:col-start-2">
+                        <div className="col-start-2 self-end">
                           <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
                         </div>
                       </li>
