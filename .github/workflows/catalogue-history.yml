@@ -16,9 +16,12 @@ jobs:
     timeout-minutes: 360
     env:
       GH_TOKEN: ${{ github.token }}
-      CATALOGUE_BASE_URL: https://s3.praetorium.gg/catalogue
-      AWS_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+      # Catalogue snapshots are private: the scripts read them with these.
+      R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
       SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
     steps:
@@ -28,6 +31,6 @@ jobs:
         run: pnpm catalogue:history-seed --out /tmp/catalogue-history-seed.json
       - name: Publish and verify the seed
         run: |
-          aws s3 cp /tmp/catalogue-history-seed.json s3://praetorium/catalogue/changes/seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
-          aws s3 cp s3://praetorium/catalogue/changes/seed.json /tmp/published-seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+          aws s3 cp /tmp/catalogue-history-seed.json s3://praetorium-private/catalogue/changes/seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
+          aws s3 cp s3://praetorium-private/catalogue/changes/seed.json /tmp/published-seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           cmp /tmp/catalogue-history-seed.json /tmp/published-seed.json

@@ -27,3 +27,7 @@ jobs:
       build-args: |
         GITHUB_SHA=${{ github.event.pull_request.head.sha }}
       cache-scope: praetorium-preview
+      # Catalogue snapshots are private; same-repository builds read one with this.
+      build-secret-id: catalogue_store
+    secrets:
+      build-secret: ${{ format('{0} {1} {2}', vars.CLOUDFLARE_ACCOUNT_ID, secrets.PRIVATE_R2_ACCESS_KEY_ID, secrets.PRIVATE_R2_SECRET_ACCESS_KEY) }}
