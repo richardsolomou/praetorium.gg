@@ -1,17 +1,10 @@
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { forwardedOrigin } from 'ras-stack/auth'
+import { publicOrigin as sharedPublicOrigin } from 'ras-stack/auth'
 
-export { forwardedOrigin, parseOrigin } from 'ras-stack/auth'
-
-/**
- * Where readers reach this instance, for anything that prints an absolute link.
- *
- * `APP_URL` when it is set, which is also where every other host redirects; then the
- * host and protocol the proxy forwarded; then the address the request arrived at.
- */
+/** Where readers reach this instance, for absolute links. `APP_URL` wins because every other host redirects there. */
 export function publicOrigin(request: Request) {
-  return (process.env.APP_URL?.trim() || forwardedOrigin(request) || new URL(request.url).origin).replace(/\/$/, '')
+  return sharedPublicOrigin(request, { configured: [process.env.APP_URL], trustForwardedHeaders: true })
 }
 
 /**
