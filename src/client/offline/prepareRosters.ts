@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 import { savedRosterPageQuery, rosterAccessQuery } from '../queries/rosters'
 import type { savedRosterSummaries } from '../functions'
-import { sortRosters } from '../features/rosters/rosterSort'
+import { sortRosters } from '../../core/rosterSort'
 import { localDocument, type LocalRoster } from './localRuntime'
 
 export async function prepareRosters(

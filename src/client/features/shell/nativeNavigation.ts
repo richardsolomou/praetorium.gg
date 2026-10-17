@@ -19,8 +19,6 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
 
   if (root === 'rosters') {
     if (!id) return { section: 'rosters', title: 'Rosters' }
-    if (id === 'discover')
-      return { back: { href: '/rosters', label: 'Back to rosters', preferHistory: true }, section: 'rosters', title: 'Discover armies' }
     if (typeof search.battle === 'string') {
       return {
         back: { href: `/battles/${search.battle}`, label: 'Back to battle', preferHistory: true },

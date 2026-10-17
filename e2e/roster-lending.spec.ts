@@ -63,6 +63,7 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
 
   await setLoan(owner, rosterUrl, borrowerName, false)
   await borrower.goto('/rosters')
+  await expect(borrower.getByLabel('Loading roster count')).toHaveCount(0)
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await borrower.goto(battle)
   await expect(borrower.getByRole('region', { name: 'Armies' }).getByText(`Lent by ${ownerName}`)).toBeVisible()
@@ -85,6 +86,7 @@ test('a borrower hands a lent roster back', async ({ browser }) => {
   await borrower.goto(rosterUrl)
   // The button stays disabled until its navigation finishes, so a repeated press cannot return the roster twice.
   await followLink(borrower.locator('[data-roster-lent-by]').getByRole('button', { name: 'Return it' }), /\/rosters$/)
+  await expect(borrower.getByLabel('Loading roster count')).toHaveCount(0)
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await owner.goto(rosterUrl)
   await chooseRosterAction(owner, 'Lend to a friend')

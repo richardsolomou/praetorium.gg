@@ -194,7 +194,15 @@ describe('public roster discovery', () => {
     const discoverRosters = vi.fn().mockResolvedValue({ rows, nextCursor: { at: 2, id: 'roster-1' } })
     const namesByIds = vi.fn().mockResolvedValue(names)
     const service = new RosterService({ discoverRosters, namesByIds } as unknown as RepositoryPort, () => 0)
-    return service.discoverRosters({ catalogueIds: null, detachmentIds: null, before: null, limit: 24 })
+    return service.discoverRosters({
+      audience: 'public',
+      viewerId: null,
+      sort: 'updated-desc',
+      catalogueIds: null,
+      detachmentIds: null,
+      before: null,
+      limit: 24,
+    })
   }
 
   it('names the owner of a discovered roster', async () => {

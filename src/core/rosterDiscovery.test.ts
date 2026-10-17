@@ -1,26 +1,49 @@
 import { describe, expect, it } from 'vitest'
-import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, discoveryPage, rosterDiscoveryQuerySchema, type RosterDiscoveryQuery } from './rosterDiscovery'
+import {
+  ROSTER_DISCOVERY_MAX_PAGE_SIZE,
+  discoveryPage,
+  rosterDiscoveryCursorSchema,
+  rosterDiscoveryQuerySchema,
+  type RosterDiscoveryQuery,
+} from './rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from './rosterDiscoveryScope'
 
-type Row = { id: string; visibility: string; catalogueId: string; detachmentId: string | null; updatedAt: number }
+type Row = {
+  id: string
+  userId: string
+  name: string
+  limit: number
+  visibility: string
+  catalogueId: string
+  detachmentId: string | null
+  createdAt: number
+  updatedAt: number
+}
 
 const row = (id: string, updatedAt: number, overrides: Partial<Row> = {}): Row => ({
   id,
+  userId: 'owner',
+  name: id,
+  limit: 2_000,
   visibility: 'public',
   catalogueId: 'necrons',
   detachmentId: '["awakened"]',
+  createdAt: updatedAt,
   updatedAt,
   ...overrides,
 })
 const query = (overrides: Partial<RosterDiscoveryQuery> = {}): RosterDiscoveryQuery => ({
+  audience: 'public',
+  viewerId: null,
+  sort: 'updated-desc',
   catalogueIds: null,
   detachmentIds: null,
   before: null,
   limit: 10,
   ...overrides,
 })
-const ids = (rows: Iterable<Row>, overrides: Partial<RosterDiscoveryQuery> = {}) =>
-  discoveryPage(rows, query(overrides)).rows.map((r) => r.id)
+const ids = (rows: Iterable<Row>, overrides: Partial<RosterDiscoveryQuery> = {}, friendIds?: ReadonlySet<string>) =>
+  discoveryPage(rows, query(overrides), friendIds).rows.map((r) => r.id)
 
 const ultramarines = { retired: 'a603-5039-f08d-e841', current: '4029-9237-e8db-af55' }
 const factions = [
@@ -42,6 +65,32 @@ describe('roster discovery eligibility', () => {
 
   it('leaves out an unlisted roster', () => {
     expect(ids([row('unlisted', 1, { visibility: 'unlisted' })])).toEqual([])
+  })
+})
+
+describe('roster discovery audiences', () => {
+  it("leaves the viewer's own roster out of the public audience", () => {
+    expect(ids([row('own', 2, { userId: 'viewer' }), row('other', 1)], { viewerId: 'viewer' })).toEqual(['other'])
+  })
+
+  it("keeps a friend's public roster in the friends audience", () => {
+    expect(ids([row('friend', 1, { userId: 'friend' })], { audience: 'friends', viewerId: 'viewer' }, new Set(['friend']))).toEqual([
+      'friend',
+    ])
+  })
+
+  it("leaves a stranger's roster out of the friends audience", () => {
+    expect(ids([row('stranger', 1)], { audience: 'friends', viewerId: 'viewer' }, new Set(['friend']))).toEqual([])
+  })
+
+  it("leaves a friend's unlisted roster out of the friends audience", () => {
+    expect(
+      ids(
+        [row('unlisted', 1, { userId: 'friend', visibility: 'unlisted' })],
+        { audience: 'friends', viewerId: 'viewer' },
+        new Set(['friend']),
+      ),
+    ).toEqual([])
   })
 })
 
@@ -75,7 +124,23 @@ describe('roster discovery pages', () => {
   })
 
   it('points the next page after the last roster shown', () => {
-    expect(discoveryPage([row('a', 1), row('b', 2), row('c', 3)], query({ limit: 2 })).nextCursor).toEqual({ at: 2, id: 'b' })
+    expect(discoveryPage([row('a', 1), row('b', 2), row('c', 3)], query({ limit: 2 })).nextCursor).toMatchObject({ at: 2, id: 'b' })
+  })
+
+  it('lists rosters in the requested order', () => {
+    expect(ids([row('beta', 1), row('alpha', 2), row('gamma', 3)], { sort: 'name-asc' })).toEqual(['alpha', 'beta', 'gamma'])
+  })
+
+  it('continues a sorted page from its cursor', () => {
+    const rows = [row('small', 3, { limit: 500 }), row('large', 1, { limit: 3_000 }), row('middle', 2, { limit: 2_000 })]
+    const first = discoveryPage(rows, query({ limit: 1, sort: 'size-desc' }))
+    expect(ids(rows, { limit: 2, sort: 'size-desc', before: first.nextCursor })).toEqual(['middle', 'small'])
+  })
+
+  it('reads a cursor from a web build that paged only by update time', () => {
+    expect(ids([row('older', 1), row('newer', 2)], { before: rosterDiscoveryCursorSchema.parse({ at: 2, id: 'newer' }) })).toEqual([
+      'older',
+    ])
   })
 
   it('has no next page when the last roster fits', () => {
@@ -85,7 +150,12 @@ describe('roster discovery pages', () => {
   it('continues from the cursor without repeating or skipping rosters saved at the same moment', () => {
     const rows = [row('a', 5), row('b', 5), row('c', 5), row('d', 4)]
     const first = discoveryPage(rows, query({ limit: 2 }))
-    expect([...first.rows.map((r) => r.id), ...ids(rows, { limit: 2, before: first.nextCursor })]).toEqual(['c', 'b', 'a', 'd'])
+    expect([...first.rows.map((r) => r.id), ...ids(rows, { limit: 2, before: first.nextCursor })]).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('reads a query from a web build that names no audience as public', () => {
+    const { audience: _audience, viewerId: _viewerId, sort: _sort, ...previous } = query()
+    expect(rosterDiscoveryQuerySchema.parse(previous)).toMatchObject({ audience: 'public', viewerId: null, sort: 'updated-desc' })
   })
 
   it('refuses a page larger than the bound', () => {

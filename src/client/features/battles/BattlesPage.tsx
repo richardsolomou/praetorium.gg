@@ -18,8 +18,8 @@ export type BattlesView = 'mine' | 'friends' | 'public'
 
 const VIEWS: readonly [BattlesView, string][] = [
   ['mine', 'Mine'],
-  ['friends', "Friends' games"],
-  ['public', 'Public games'],
+  ['friends', 'Friends'],
+  ['public', 'Public'],
 ]
 
 export function BattlesPage({ view: asked }: { view: BattlesView }) {

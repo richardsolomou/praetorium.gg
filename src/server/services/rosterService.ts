@@ -266,13 +266,18 @@ export class RosterService {
     return (await this.repository.rosterLoansByRoster(rosterId, ownerId)).map(({ borrowerId, lentAt }) => ({ borrowerId, lentAt }))
   }
 
-  /** Rosters friends have lent this player, named for their owner; a roster whose owner has no account is left out. */
+  /** Rosters friends have lent this player, named for their owner; a roster whose owner has no account is left out. Priceable picks stay server-side. */
   async rostersLentTo(userId: string) {
     const rows = await this.repository.rostersLentTo(userId)
     const owners = await this.repository.namesByIds(rows.map((row) => row.ownerId))
     const lent = rows.filter((row) => owners.has(row.ownerId))
     const summaries = rosterSummaries(lent)
-    return lent.map((row, index) => ({ summary: summaries[index]!, owner: owners.get(row.ownerId)!, lentAt: row.lentAt }))
+    return lent.map((row, index) => ({
+      summary: summaries[index]!,
+      owner: owners.get(row.ownerId)!,
+      lentAt: row.lentAt,
+      priceable: rosterFromRow({ ...row, userId: row.ownerId, prep: null, tags: '[]', copiedFromRosterId: null }),
+    }))
   }
 
   /** The datasheets a user owns, as a set the picker can ask about directly. */

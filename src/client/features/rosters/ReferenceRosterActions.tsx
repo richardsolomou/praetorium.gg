@@ -13,7 +13,7 @@ import { EMPTY_SETUP, type GuestDraft, readGuestDraft } from './guestDraft'
 import { type RosterReference, useNewRoster } from './newRoster'
 import { RosterSetupDialog, type RosterSetupFaction } from './RosterSetupDialog'
 import { rosterTitle } from './RosterSummary'
-import { sortRosters } from './rosterSort'
+import { sortRosters } from '../../../core/rosterSort'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 
 const NO_DETACHMENTS: string[] = []
