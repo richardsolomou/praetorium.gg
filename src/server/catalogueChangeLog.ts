@@ -106,22 +106,52 @@ export function factionHistory(history: readonly CatalogueHistoryEntry[], canoni
 /** The page a reference link opens. */
 export const referencePath = (link: ReferenceLink) => `/factions/${link.faction}/${link.kind}s/${link.slug}`
 
+/** How many of its own changes a reference page lists before pointing at its faction's updates. */
+const REFERENCE_CHANGES = 10
+
+type ReferenceChange = { recordedAt: number; change: CatalogueChange }
+const referenceHistoriesCache = new WeakMap<readonly CatalogueHistoryEntry[], WeakMap<CanonicalCatalogue, Map<string, ReferenceChange[]>>>()
+
+/** Every datasheet and detachment page's recorded changes, newest first, by the page's path. */
+function referenceHistories(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue) {
+  const byCanonical = referenceHistoriesCache.get(history) ?? new WeakMap()
+  referenceHistoriesCache.set(history, byCanonical)
+  const cached = byCanonical.get(canonical)
+  if (cached) return cached
+  const routes = routesOf(canonical)
+  const histories = new Map<string, ReferenceChange[]>()
+  for (const entry of history)
+    for (const faction of entry.changes.factions)
+      for (const change of faction.changes) {
+        const link = linkOf(routes, faction.catalogueId, change)
+        if (!link) continue
+        const path = referencePath(link)
+        histories.set(path, [...(histories.get(path) ?? []), { recordedAt: entry.recordedAt, change }])
+      }
+  for (const [path, changes] of histories)
+    histories.set(
+      path,
+      changes.toSorted((left, right) => right.recordedAt - left.recordedAt),
+    )
+  byCanonical.set(canonical, histories)
+  return histories
+}
+
 /**
  * The changes the history recorded to the one datasheet or detachment the current data files at
  * `path`, newest first, linked the same way the index links them.
  */
 export function referenceHistory(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue, path: string) {
-  const routes = routesOf(canonical)
-  return history
-    .flatMap((entry) =>
-      entry.changes.factions.flatMap((faction) =>
-        faction.changes.flatMap((change) => {
-          const link = linkOf(routes, faction.catalogueId, change)
-          return link && referencePath(link) === path ? [{ recordedAt: entry.recordedAt, change }] : []
-        }),
-      ),
-    )
-    .toSorted((left, right) => right.recordedAt - left.recordedAt)
+  return referenceHistories(history, canonical).get(path) ?? []
+}
+
+/** The newest changes one reference page lists. */
+export function recentReferenceChanges(
+  history: readonly CatalogueHistoryEntry[],
+  canonical: CanonicalCatalogue | null,
+  link: ReferenceLink,
+) {
+  return canonical ? referenceHistory(history, canonical, referencePath(link)).slice(0, REFERENCE_CHANGES) : []
 }
 
 /** When the history last recorded a change to each datasheet and detachment page the current data can address. */

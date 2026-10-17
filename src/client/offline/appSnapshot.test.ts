@@ -24,6 +24,19 @@ it('rejects a snapshot whose private data belongs to another account', () => {
   expect(parseAppSnapshot({ version: 1, owner: 'bob', queries: [{ key: ['me'], data: { id: 'alice' }, updatedAt: 1 }] })).toBeNull()
 })
 
+it('restores a snapshot an earlier release saved with reference queries, leaving those to the download', () => {
+  const saved = {
+    version: 1,
+    owner: 'alice',
+    queries: [
+      { key: ['me'], data: { id: 'alice' }, updatedAt: 1 },
+      { key: ['home-rosters'], data: [], updatedAt: 1 },
+      { key: ['reference-changes', 'datasheet', 'necrons', 'warriors'], data: [], updatedAt: 1 },
+    ],
+  }
+  expect(parseAppSnapshot(saved)?.queries.map((query) => query.key[0])).toEqual(['me', 'home-rosters'])
+})
+
 it('does not save an impersonated account', () => {
   const client = new QueryClient()
   client.setQueryData(['me'], { id: 'alice', impersonatedBy: 'admin' })

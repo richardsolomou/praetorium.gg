@@ -4,16 +4,22 @@ import { packRuntimeData } from '../../contracts/runtimeData'
 import { catalogueEditionSchema } from '../../core/catalogueEdition'
 import type { OfflineConstructionSource } from '../../contracts/offlineReference'
 import { calculateRosterAssessment } from '../../shared/pricing'
-import { buildConstruction, localConstruction, constructionRead } from './construction'
+import { localConstruction, constructionRead } from './construction'
+import { buildConstruction } from './constructionSource'
 import { datacardOf } from '../../shared/datasheetJoin'
 import { shareRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
 import type { TerrainLayout, TerrainTemplate } from '../../contracts/terrain'
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
 
-const mocks = vi.hoisted(() => ({ reference: vi.fn() }))
+const mocks = vi.hoisted(() => ({ reference: vi.fn(), device: vi.fn() }))
 vi.mock('./runtime', () => ({ referenceData: mocks.reference }))
-afterEach(() => vi.unstubAllGlobals())
+vi.mock('./constructionWorker', () => ({ deviceConstructionRead: mocks.device }))
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+  mocks.device.mockReset()
+})
 
 function source(cost: number, versioned = false): OfflineConstructionSource {
   const loaded = bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'model', costs: points(cost) }] })
@@ -208,7 +214,9 @@ it('refuses unavailable codexes offline instead of reading base rules or request
   vi.stubGlobal('window', {})
   vi.stubGlobal('navigator', { onLine: false })
   const online = vi.fn()
-  await expect(constructionRead(() => 'base', online, 'missing~cat')).rejects.toThrow('Download this army')
+  await expect(constructionRead('unitWounds', { catalogueId: 'missing~cat', entryIds: [] }, online, 'missing~cat')).rejects.toThrow(
+    'Download this army',
+  )
   expect(online).not.toHaveBeenCalled()
 })
 
@@ -230,5 +238,59 @@ it('uses connected reads when the server navigator has no connectivity property'
   mocks.reference.mockReturnValue(undefined)
   vi.stubGlobal('navigator', { userAgent: 'Node.js' })
   const online = vi.fn().mockResolvedValue('server')
-  expect(await constructionRead(() => 'local', online)).toBe('server')
+  expect(await constructionRead('unitWounds', { catalogueId: 'cat', entryIds: [] }, online)).toBe('server')
+})
+
+const wounds = (online: () => Promise<unknown>, signal?: AbortSignal) =>
+  constructionRead('unitWounds', { catalogueId: 'cat', entryIds: [] }, online, 'cat', signal)
+
+it('answers from the device without asking the server once the device has prepared the read', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.device.mockReturnValue(Promise.resolve('device'))
+  const online = vi.fn()
+  expect({ answer: await wounds(online), asked: online.mock.calls.length }).toEqual({ answer: 'device', asked: 0 })
+})
+
+it('asks only the server while the device has not prepared the read', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.device.mockReturnValue(null)
+  expect(await wounds(() => Promise.resolve('server'))).toBe('server')
+})
+
+it('asks the server when the device fails to answer', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.device.mockReturnValue(Promise.reject(new Error('worker failed')))
+  expect(await wounds(() => Promise.resolve('server'))).toBe('server')
+})
+
+it('stops waiting for the device when the read is cancelled', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.device.mockReturnValue(new Promise(() => {}))
+  const controller = new AbortController()
+  const answer = wounds(vi.fn(), controller.signal)
+  controller.abort(new Error('left the page'))
+  await expect(answer).rejects.toThrow('left the page')
+})
+
+it('does not ask the server for a cancelled read the device failed', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  const controller = new AbortController()
+  mocks.device.mockReturnValue(Promise.reject(new Error('worker failed')))
+  controller.abort(new Error('left the page'))
+  const online = vi.fn()
+  await expect(wounds(online, controller.signal)).rejects.toThrow('left the page')
+  expect(online).not.toHaveBeenCalled()
+})
+
+it('keeps exports on the server, which records them, while the device could answer', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.device.mockReturnValue(Promise.resolve('device'))
+  const online = vi.fn().mockResolvedValue('server')
+  expect(await constructionRead('exportRoster', {} as never, online, 'cat')).toBe('server')
 })

@@ -272,3 +272,42 @@ test('both searches debounce typing for 250 milliseconds and retain prior result
   await page.clock.runFor(100)
   await expect(result).toContainText('Gilded Champion stratagem')
 })
+
+test('search remembers opened results on this device until they are removed', async ({ page }) => {
+  await page.goto('/search')
+  const openSearch = () =>
+    retryUntilVisible(page.getByRole('combobox'), () =>
+      page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
+    )
+  const recent = page.getByRole('region', { name: 'Recent' })
+  for (const name of ['Immortals', 'Overlord']) {
+    await openSearch()
+    await page.getByRole('combobox').fill(name)
+    await scrollSearchResultIntoView(page, page.getByRole('option', { name: new RegExp(name) }).first())
+    await page
+      .getByRole('option', { name: new RegExp(name) })
+      .first()
+      .click()
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+  }
+  await page.reload()
+  await openSearch()
+  await expect(recent.getByRole('button', { name: /^(Immortals|Overlord)/ })).toHaveText([/^Overlord/, /^Immortals/])
+  await recent.getByRole('button', { name: 'Remove Overlord from recent searches' }).click()
+  await expect(recent.getByRole('button', { name: /^(Immortals|Overlord)/ })).toHaveText([/^Immortals/])
+  // Removing an entry keeps a keyboard user's place on its neighbour.
+  await expect(recent.getByRole('button', { name: /^Immortals/ })).toBeFocused()
+  await page.screenshot({ path: test.info().outputPath('recent-searches.png') })
+  await recent.getByRole('button', { name: /^Immortals/ }).click()
+  await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
+  await page.goto('/search')
+  await expect(
+    page
+      .getByRole('main')
+      .getByRole('region', { name: 'Recent' })
+      .getByRole('link', { name: /^Immortals/ }),
+  ).toBeVisible()
+  await page.getByRole('main').getByRole('button', { name: 'Clear' }).click()
+  await expect(page.getByRole('region', { name: 'Recent' })).toHaveCount(0)
+  await expect(page.getByRole('main').getByRole('searchbox', { name: 'Search Praetorium' })).toBeFocused()
+})

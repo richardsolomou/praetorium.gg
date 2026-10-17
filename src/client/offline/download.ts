@@ -9,7 +9,7 @@ import {
 } from '../../contracts/offlineReference'
 import { anySignal } from '../abortSignals'
 import { referenceJsonExpression } from '../../contracts/embeddedReference'
-import { compressReference } from './compressedReference'
+import { compressReference, updatedReference } from './compressedReference'
 
 async function fetchManifest(url: string, signal: AbortSignal) {
   const response = await fetch(url, {
@@ -34,25 +34,31 @@ export async function offlineAppVersion(signal: AbortSignal): Promise<OfflineApp
   return value
 }
 
+const isAsset = (value: unknown, name: string) =>
+  typeof value === 'string' && new RegExp(`^/assets/${name}-[a-f0-9]{64}\\.bin$`).test(value)
+
 export async function offlineReferenceVersion(signal: AbortSignal): Promise<OfflineReferenceVersion> {
   const value = await fetchManifest('/offline-reference-version.json', signal)
   if (
     typeof value.revision !== 'string' ||
     !/^[a-f0-9]{64}$/.test(value.revision) ||
-    value.bundle !== `/assets/reference-${value.revision}.bin`
+    value.bundle !== `/assets/reference-${value.revision}.bin` ||
+    !isAsset(value.construction?.current, 'construction') ||
+    !isAsset(value.construction?.complete, 'construction') ||
+    !Array.isArray(value.construction.versions) ||
+    !value.construction.versions.every((id: unknown) => typeof id === 'string')
   )
     throw new Error('The reference version is invalid')
   return value
 }
 
-export async function referenceBundle(
-  version: OfflineReferenceVersion,
-  signal: AbortSignal,
-  previous?: OfflineReferenceData | null,
-): Promise<OfflineReferenceBundle> {
-  if (previous?.revision === version.revision) return previous
+/** The construction download for the current rules, or with every other rules version when this device uses one. */
+export const constructionBundleFor = (manifest: OfflineReferenceVersion, otherVersions: boolean) =>
+  otherVersions ? manifest.construction.complete : manifest.construction.current
+
+export async function bundleAt(url: string, signal: AbortSignal): Promise<OfflineReferenceBundle> {
   const downloadSignal = anySignal([signal, AbortSignal.timeout(60_000)])
-  const response = await fetch(version.bundle, { credentials: 'omit', signal: downloadSignal })
+  const response = await fetch(url, { credentials: 'omit', signal: downloadSignal })
   if (!response.ok || !response.body) throw new Error('The reference bundle is unavailable')
   const reader = response.body.pipeThrough(new DecompressionStream('gzip')).getReader()
   const decoder = new TextDecoder()
@@ -72,12 +78,29 @@ export async function referenceBundle(
     }
     json += decoder.decode()
     const value = decodeReferenceBundle(JSON.parse(json))
-    if (!isReferenceBundle(value) || value.revision !== version.revision) throw new Error('The reference bundle is invalid')
+    if (!isReferenceBundle(value)) throw new Error('The reference bundle is invalid')
     return value
   } finally {
     downloadSignal.removeEventListener('abort', abort)
     await reader.cancel().catch(() => {})
   }
+}
+
+export async function referenceBundle(
+  version: OfflineReferenceVersion,
+  signal: AbortSignal,
+  previous?: OfflineReferenceData | null,
+): Promise<OfflineReferenceBundle> {
+  if (previous?.revision === version.revision) return previous
+  const value = await bundleAt(version.bundle, signal)
+  if (value.revision !== version.revision) throw new Error('The reference bundle is invalid')
+  return value
+}
+
+export async function constructionBundle(url: string, signal: AbortSignal) {
+  const value = await bundleAt(url, signal)
+  if (!value.construction) throw new Error('The construction bundle is invalid')
+  return value.construction
 }
 
 async function resource(url: string, signal: AbortSignal) {
@@ -93,14 +116,9 @@ async function resource(url: string, signal: AbortSignal) {
   })
 }
 
-export async function downloadReference(
-  signal: AbortSignal,
-  manifest: OfflineReferenceVersion,
-  version: OfflineAppVersion,
-  previous?: OfflineReferenceData | null,
-) {
-  const bundle = await referenceBundle(manifest, signal, previous)
-  const saved: OfflineReferenceData = { ...bundle, version: 1, savedAt: Date.now(), appRevision: version.revision, css: '', logo: '' }
+/** The offline application around a complete saved reference, for the service worker or native shell to store. */
+export async function offlineApplication(data: OfflineReferenceData, version: OfflineAppVersion, signal: AbortSignal) {
+  const saved = updatedReference(data, { appRevision: version.revision })
   const cssResponse = await fetch(version.css, { credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
   if (!cssResponse.ok) throw new Error('The app styles could not be downloaded.')
   let css = await cssResponse.text()

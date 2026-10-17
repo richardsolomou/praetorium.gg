@@ -89,17 +89,17 @@ function useEntryMutation<Value, Input extends { entryId: string }>(
     mutationFn: save,
     onMutate: async (input: Input) => {
       await queryClient.cancelQueries({ queryKey })
-      if (localEngine()) return { durable: true, previous: undefined }
       const previous = queryClient.getQueryData<Record<string, Value>>(queryKey)
+      // Shown at once, durable or not: a counter bounded by this one reads its bound from here before the save lands.
       queryClient.setQueryData<Record<string, Value>>(queryKey, (current = {}) => {
         const { [input.entryId]: _replaced, ...rest } = current
         const next = value(input)
         return next === undefined ? rest : { ...rest, [input.entryId]: next }
       })
-      return { durable: false, previous }
+      return { durable: Boolean(localEngine()), previous }
     },
     onError: (_error, _input, context) => {
-      if (!context?.durable) queryClient.setQueryData(queryKey, context?.previous)
+      queryClient.setQueryData(queryKey, context?.previous)
     },
     onSettled: (_data, _error, _input, context) => {
       if (!context?.durable) return queryClient.invalidateQueries({ queryKey })

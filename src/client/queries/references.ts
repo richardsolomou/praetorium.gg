@@ -1,9 +1,10 @@
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
 import { anySignal } from '../abortSignals'
 export { terrainMatchupIds } from '../../contracts/terrainReference'
-import { offlineData, offlineSearch } from '../offline/runtime'
+import { offlineSearch } from '../offline/runtime'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { referenceFactionId } from '../../core/factionReferenceRoute'
+import { SEARCH_MIN_LENGTH } from '../../core/referenceSearch'
 import {
   catalogueStatus,
   datasheetBySlug,
@@ -22,7 +23,7 @@ import {
   ruleSection,
   terrainReferences,
 } from '../functions'
-import { referenceQuery, SSR_STALE_TIME } from './shared'
+import { referenceQuery, referenceStaleTime, SSR_STALE_TIME } from './shared'
 
 export const factionQuery = (catalogueId: string) => referenceQuery(['faction', catalogueId], () => faction({ data: { catalogueId } }))
 export const factionIndexQuery = () => referenceQuery(['faction-index'], () => factionIndex())
@@ -55,7 +56,7 @@ export const favouriteDetachmentsQuery = () =>
 export const gameReferencesQuery = () =>
   queryOptions({
     ...referenceQuery(['game-references'], () => gameReferences()),
-    staleTime: ({ state }) => (state.data ? (offlineData() ? Infinity : SSR_STALE_TIME) : 0),
+    staleTime: ({ state }) => (state.data ? referenceStaleTime() : 0),
     refetchInterval: ({ state }) => gameReferencesRefreshInterval(state.data),
   })
 
@@ -64,7 +65,7 @@ export const globalSearchQuery = (query: string) =>
   queryOptions({
     queryKey: ['global-search', query],
     networkMode: 'always',
-    initialData: () => offlineSearch(query) ?? undefined,
+    initialData: () => (query.trim().length >= SEARCH_MIN_LENGTH ? (offlineSearch(query) ?? undefined) : undefined),
     initialDataUpdatedAt: 0,
     queryFn: async ({ signal, client }) => {
       const saved = offlineSearch(query, client)
@@ -76,7 +77,7 @@ export const globalSearchQuery = (query: string) =>
         throw error
       }
     },
-    enabled: query.trim().length >= 2,
+    enabled: query.trim().length >= SEARCH_MIN_LENGTH,
     staleTime: 30_000,
   })
 
@@ -111,7 +112,7 @@ export const deploymentsQuery = () => referenceQuery(['deployments'], () => depl
 export const ruleIndexQuery = () =>
   queryOptions({
     ...referenceQuery(['rule-index'], () => ruleIndex()),
-    staleTime: ({ state }) => (state.data ? (offlineData() ? Infinity : SSR_STALE_TIME) : 0),
+    staleTime: ({ state }) => (state.data ? referenceStaleTime() : 0),
     refetchInterval: ({ state }) => (state.data ? false : 1_000),
   })
 export const ruleSectionQuery = (documentId: string, sectionId: string) =>

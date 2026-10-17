@@ -65,7 +65,7 @@ test('a first roster open shows progress until the army is ready', async ({ page
   }
 })
 
-test('an unopened saved rule stays readable throughout hosted revalidation', async ({ page }) => {
+test('an unopened rule from an older download stays readable throughout hosted revalidation', async ({ page }) => {
   test.setTimeout(240_000)
   await page.goto('/rules/core-rules/moving')
   await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumReferenceCache)), { timeout: 180_000 }).toBe(true)
@@ -76,7 +76,8 @@ test('an unopened saved rule stays readable throughout hosted revalidation', asy
     )
     const rule = queries.find((entry) => entry.key[0] === 'rule-section')!.data as { section: { title: string } }
     rule.section.title = 'Saved Moving'
-    return { ...reference, construction: undefined, queries, savedAt: 1 }
+    // A download the service still publishes answers without revalidating, so this one predates it.
+    return { ...reference, revision: 'previous-reference', construction: undefined, queries, savedAt: 1 }
   })
   await page.addInitScript((reference) => {
     window.PraetoriumReferenceCache = reference

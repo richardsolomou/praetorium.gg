@@ -66,7 +66,11 @@ export function matchDatasheet(query: string, fields: DatasheetSearchFields): Da
   const nameMatch = fieldMatch(wanted, fields.name)
   if (nameMatch?.complete) return { score: nameMatch.quality, reasons: [] }
 
+  const searchable = searchableText(fields)
+  if (!wanted.every((word) => textHasWord(searchable, word))) return null
+
   const descriptions = (fields.abilityDescriptions ?? []).map(({ name, description }) => ({ name, text: `${name} ${description}` }))
+
   const metadata: MetadataMatch[] = [
     ...METADATA.flatMap(({ field, kind, weight }) =>
       fields[field].flatMap((value) => {
@@ -79,9 +83,6 @@ export function matchDatasheet(query: string, fields: DatasheetSearchFields): Da
       return match ? [{ ...match, reason: { kind: 'ability' as const, value: name }, weight: 250 }] : []
     }),
   ]
-  const searchable = [fields.name, ...METADATA.flatMap(({ field }) => fields[field]), ...descriptions.map(({ text }) => text)]
-  if (!wanted.every((word) => searchable.some((value) => wordsIn(value).some((candidate) => wordMatches(word, candidate))))) return null
-
   const ranked = metadata.toSorted(
     (left, right) =>
       Number(right.complete) - Number(left.complete) ||
@@ -171,9 +172,8 @@ export function matchSearchText(query: string, value: string): number | null {
 }
 
 function fieldMatch(wanted: readonly string[], value: string) {
-  const normalized = normalize(value)
-  const candidates = wordsIn(value)
-  const matchingWords = wanted.filter((word) => candidates.some((candidate) => wordMatches(word, candidate)))
+  const { normalized, padded } = indexed(value)
+  const matchingWords = wanted.filter((word) => textHasWord(padded, word))
   const coverage = matchingWords.length
   if (!coverage) return null
   const query = wanted.join(' ')
@@ -181,14 +181,64 @@ function fieldMatch(wanted: readonly string[], value: string) {
   return { complete: coverage === wanted.length, coverage, matchingWords, quality }
 }
 
-const wordMatches = (wanted: string, candidate: string) =>
-  /^\d+$/.test(wanted)
-    ? candidate === wanted
-    : wanted === 'gain'
-      ? candidate.startsWith(wanted)
-      : candidate.includes(wanted) || (wanted === 'death' && candidate === 'destroyed')
-
 const wordsIn = (value: string) => normalize(value).split(' ').filter(Boolean)
+
+const MAX_INDEXED = 500_000
+const indexedText = new Map<string, { normalized: string; padded: string; words: string[] }>()
+
+/** Normalizes searched text before the first query needs it. */
+export function prepareSearchText(value: string) {
+  indexed(value)
+}
+
+/** Normalizes a datasheet's searched text before the first query needs it. */
+export function prepareDatasheetSearch(fields: DatasheetSearchFields) {
+  indexed(fields.name)
+  searchableText(fields)
+}
+
+const searchableTextCache = new WeakMap<DatasheetSearchFields, string>()
+
+/**
+ * Every distinct word a datasheet can be found by, space-separated, so most datasheets are rejected by one native
+ * substring search before their fields are ranked.
+ */
+function searchableText(fields: DatasheetSearchFields) {
+  let text = searchableTextCache.get(fields)
+  if (text === undefined) {
+    const values = [
+      fields.name,
+      ...METADATA.flatMap(({ field }) => fields[field]),
+      ...(fields.abilityDescriptions ?? []).map(({ name, description }) => `${name} ${description}`),
+    ]
+    text = ` ${[...new Set(values.flatMap((value) => indexed(value).words))].join(' ')} `
+    searchableTextCache.set(fields, text)
+  }
+  return text
+}
+
+/**
+ * Whether a normalized text padded with spaces has a word matching `wanted`: numbers match whole words, `gain` a
+ * word's start, anything else part of a word. Query words hold no spaces, so no match spans two words.
+ */
+const textHasWord = (text: string, wanted: string) =>
+  /^\d+$/.test(wanted)
+    ? text.includes(` ${wanted} `)
+    : wanted === 'gain'
+      ? text.includes(` ${wanted}`)
+      : text.includes(wanted) || (wanted === 'death' && text.includes(' destroyed '))
+
+/** Searched text is normalized once, because every keystroke matches it against thousands of datasheets. */
+function indexed(value: string) {
+  let found = indexedText.get(value)
+  if (!found) {
+    if (indexedText.size >= MAX_INDEXED) indexedText.clear()
+    const normalized = normalize(value)
+    found = { normalized, padded: ` ${normalized} `, words: normalized.split(' ').filter(Boolean) }
+    indexedText.set(value, found)
+  }
+  return found
+}
 
 const normalize = (value: string) =>
   value

@@ -17,6 +17,8 @@ export function rosterCombatant(
   rules: LoadedRules | null,
   data: Parameters<typeof rosterDatasheetContext>[1] & { inactivePicks?: number[] },
   prepared?: Parameters<typeof rosterDatasheetContext>[2],
+  /** The leaders and bodyguards that could join, which the simulator offers; a loadout search reads none of them. */
+  { attachmentChoices = true }: { attachmentChoices?: boolean } = {},
 ) {
   data = {
     ...data,
@@ -134,7 +136,7 @@ export function rosterCombatant(
         },
       ]
     })
-  const bodyguardOptions =
+  const bodyguardOptions = () =>
     data.picks.length === 1
       ? sheet.attachments.flatMap((member) => {
           if (!member.entryId) return []
@@ -153,10 +155,11 @@ export function rosterCombatant(
           return [{ ...candidate, factionSlug: member.route?.catalogueId, name: member.name, kind: 'bodyguard' as const }]
         })
       : []
-  const attachmentOptions = selectedPick.attachedTo === undefined && data.picks.length < 8 ? [...optionsFor(), ...bodyguardOptions] : []
-  const attachmentReplacements = Object.fromEntries(
-    members.filter((index) => data.picks[index]?.attachedTo === hostIndex).map((index) => [index, optionsFor(index)]),
-  )
+  const attachmentOptions =
+    attachmentChoices && selectedPick.attachedTo === undefined && data.picks.length < 8 ? [...optionsFor(), ...bodyguardOptions()] : []
+  const attachmentReplacements = attachmentChoices
+    ? Object.fromEntries(members.filter((index) => data.picks[index]?.attachedTo === hostIndex).map((index) => [index, optionsFor(index)]))
+    : {}
   return {
     selected: sheet,
     models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)!.models,

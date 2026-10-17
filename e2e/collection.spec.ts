@@ -414,12 +414,18 @@ async function setOwned(page: Page, name: string, value: string) {
   await expect(progress(page, name, 'built')).toHaveAttribute('max', value)
 }
 
+/** Painted models are bounded by those built, so the painted count is ready once its bound follows the built count. */
+async function setBuilt(page: Page, name: string, value: string) {
+  await setCount(progress(page, name, 'built'), value)
+  await expect(progress(page, name, 'painted')).toHaveAttribute('max', value)
+}
+
 test('built and painted counts stay within the models owned', async ({ page }) => {
   await signUp(page, uniqueName('Collection progress'))
   await page.goto('/collection')
   await addDatasheet(page, 'Necron Warriors', 'Necrons')
   await setOwned(page, 'Necron Warriors', '20')
-  await setCount(progress(page, 'Necron Warriors', 'built'), '12')
+  await setBuilt(page, 'Necron Warriors', '12')
   await setCount(progress(page, 'Necron Warriors', 'painted'), '8')
   await progress(page, 'Necron Warriors', 'painted').fill('13')
   await progress(page, 'Necron Warriors', 'painted').press('Enter')

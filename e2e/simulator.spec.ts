@@ -860,7 +860,8 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
     let first = true
     window.Worker = class extends RealWorker {
       override postMessage(message: unknown, options?: StructuredSerializeOptions) {
-        if (first && message && typeof message === 'object' && !('kind' in message)) {
+        // Only a combat calculation carries a phase; other workers, such as the reference restore, start normally.
+        if (first && message && typeof message === 'object' && 'ranged' in message) {
           first = false
           this.terminate()
           throw new Error('Worker startup failure')

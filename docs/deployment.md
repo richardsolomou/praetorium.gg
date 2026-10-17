@@ -29,7 +29,7 @@ Each deploy keeps old and new versions compatible:
 
 The start period in `scripts/configureDokployNode.ts` must be at least as long as the readiness loop in `scripts/nodeServer.ts`, since warming retained rules can take over a minute on the production VM. That proxy opens its public listener only after the Nitro child is healthy; its readiness requests share one deadline and the shutdown signal rather than short per-request timeouts, and its shutdown must finish within Docker's ten-second stop grace period. [Catalogue data](development/catalogue-data.md#sources-and-loading) owns runtime loading and memory.
 
-The offline reference and app manifests (`offline-reference-version.json`, `offline-app-version.json`) are uncached and point to retained hashed assets. The reference is gzip data served as `application/octet-stream` without HTTP content encoding, so the client decompresses it consistently through Nitro and the CDN. Keep generated bundles and copied rules out of Git.
+The offline reference and app manifests (`offline-reference-version.json`, `offline-app-version.json`) are uncached and point to retained hashed assets. The reference and construction downloads are gzip data served as `application/octet-stream` without HTTP content encoding, so the client decompresses it consistently through Nitro and the CDN. Keep generated bundles and copied rules out of Git.
 
 Open pages poll the uncached `/api/release` and offer a manual Refresh for a newer version. `/whats-new` reads `CHANGELOG.md`, so changeset summaries are player-facing copy. `INDEXNOW_KEY` is production-only; IndexNow submission failure does not fail the release. `TYPESAFE_API_KEY` is production-only too, so only real uploads are screened.
 

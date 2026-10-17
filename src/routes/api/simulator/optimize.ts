@@ -4,6 +4,13 @@ import { combatLoadoutCandidates } from '../../../shared/combatLoadouts'
 import { requireMutationOrigin } from '../../../server/mutationOrigin'
 import { combatLoadoutSchema } from '../../../contracts/schemas'
 
+/**
+ * Searches this instance runs at once. Each holds up to its retained-key limit in memory and shares the event loop
+ * with every other request; devices with the download search for themselves.
+ */
+const MAX_SEARCHES = 2
+let searches = 0
+
 export const Route = createFileRoute('/api/simulator/optimize')({
   server: {
     handlers: {
@@ -13,12 +20,20 @@ export const Route = createFileRoute('/api/simulator/optimize')({
         if (!parsed.success) return new Response('Invalid loadout', { status: 400 })
         const loaded = await app().catalogueFor(parsed.data.catalogueId)
         if (!loaded) return new Response('The loadout could not be loaded.', { status: 503 })
+        const rules = await app().rulesFor(parsed.data.catalogueId)
+        if (searches >= MAX_SEARCHES) return new Response('Loadout searches are busy. Try again shortly.', { status: 503 })
+        searches++
         const controller = new AbortController()
         const abort = () => controller.abort()
         if (request.signal.aborted) abort()
         else request.signal.addEventListener('abort', abort, { once: true })
-        const cleanup = () => request.signal.removeEventListener('abort', abort)
-        const batches = combatLoadoutCandidates(loaded, parsed.data, controller.signal, await app().rulesFor(parsed.data.catalogueId))
+        let finished = false
+        const cleanup = () => {
+          request.signal.removeEventListener('abort', abort)
+          if (!finished) searches--
+          finished = true
+        }
+        const batches = combatLoadoutCandidates(loaded, parsed.data, controller.signal, rules)
         const encoder = new TextEncoder()
         const stream = new ReadableStream<Uint8Array>({
           async pull(output) {

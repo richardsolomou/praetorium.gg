@@ -2,10 +2,21 @@ import { QueryClient, onlineManager } from '@tanstack/react-query'
 import * as functions from '../../server/functions'
 import { globalSearchQuery } from '../queries/references'
 import { factionDatasheetsQuery } from '../queries/rosters'
+import { referenceChangesQuery } from '../queries/changes'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
-import { offlineDatasheets, offlineSearch, referenceRead, referenceData } from './runtime'
+import {
+  offlineDatasheets,
+  offlineSearch,
+  referenceRead,
+  referenceData,
+  searchDownload,
+  setPublishedReference,
+  currentConstruction,
+} from './runtime'
 import { compressReference } from './compressedReference'
+const CONSTRUCTION = { current: '/assets/construction-a.bin', complete: '/assets/construction-b.bin', versions: [] }
+const published = (revision: string) => ({ revision, construction: CONSTRUCTION })
 const saved: OfflineReferenceData = {
   version: 1,
   savedAt: 1,
@@ -49,6 +60,7 @@ beforeEach(() => {
   vi.stubGlobal('navigator', { onLine: false })
 })
 afterEach(() => {
+  setPublishedReference(null)
   onlineManager.setOnline(true)
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -58,18 +70,19 @@ it('reads a downloaded rule without contacting the service', async () => {
   expect(await referenceRead(['rule-section', 'core', 'moving'], online)).toEqual({ title: 'Moving' })
   expect(online).not.toHaveBeenCalled()
 })
-it.each(['PraetoriumOffline', 'PraetoriumReferenceCache'])(
-  'restores a compressed %s once and releases the compressed copy',
-  async (key) => {
-    vi.stubGlobal('window', { [key]: await compressReference(saved) })
-    const restored = referenceData()
-    expect({ restored, reused: referenceData() === restored, global: window[key as keyof Window] }).toEqual({
-      restored: saved,
-      reused: true,
-      global: saved,
-    })
-  },
-)
+it('restores a compressed offline application once and releases the compressed copy', async () => {
+  vi.stubGlobal('window', { PraetoriumOffline: await compressReference(saved) })
+  const restored = referenceData()
+  expect({ restored, reused: referenceData() === restored, global: window.PraetoriumOffline }).toEqual({
+    restored: saved,
+    reused: true,
+    global: saved,
+  })
+})
+it('leaves a compressed native reference for background decoding', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: await compressReference(saved) })
+  expect(referenceData()).toBeUndefined()
+})
 it('ignores an unreadable native reference and uses the connected service', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: { encoding: 'gzip-base64', data: 'broken' } })
   vi.stubGlobal('navigator', { onLine: true })
@@ -182,4 +195,66 @@ it('keeps public search usable when connectivity is reported but the service is 
   } finally {
     client.clear()
   }
+})
+
+it('reads a download the service still publishes without contacting the service', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
+  vi.stubGlobal('navigator', { onLine: true })
+  setPublishedReference(published('test'))
+  expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toEqual({ title: 'Moving' })
+})
+it('trusts a current download’s construction data while the service still publishes it', () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: { ...saved, constructionBundle: CONSTRUCTION.complete } })
+  setPublishedReference(published('test'))
+  expect(currentConstruction()).toBe(CONSTRUCTION.complete)
+})
+it('does not trust construction data the service no longer publishes, though the reference is current', () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: { ...saved, constructionBundle: '/assets/construction-old.bin' } })
+  setPublishedReference(published('test'))
+  expect(currentConstruction()).toBeUndefined()
+})
+it('reads from the service once it publishes another revision', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
+  vi.stubGlobal('navigator', { onLine: true })
+  setPublishedReference(published('newer'))
+  expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toBe('Live rule')
+})
+it('filters a current download’s datasheets without contacting the service', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
+  vi.stubGlobal('navigator', { onLine: true })
+  setPublishedReference(published('test'))
+  vi.spyOn(functions, 'factionDatasheets').mockResolvedValue([{ id: 'live', name: 'Live Warriors' }] as never)
+  const client = new QueryClient()
+  try {
+    expect((await client.query(factionDatasheetsQuery('necrons', 'Warriors'))).map((unit) => unit.name)).toEqual(['Necron Warriors'])
+  } finally {
+    client.clear()
+  }
+})
+it('reads a current download’s datasheet changes without contacting the service', async () => {
+  const changes = [{ recordedAt: 1, change: { kind: 'datasheet-points', id: 'warriors' } }]
+  vi.stubGlobal('window', {
+    PraetoriumReferenceCache: {
+      ...saved,
+      queries: [...saved.queries, { key: ['reference-changes', 'datasheet', 'necrons', 'warriors'], data: changes }],
+    },
+  })
+  vi.stubGlobal('navigator', { onLine: true })
+  setPublishedReference(published('test'))
+  vi.spyOn(functions, 'referenceChanges').mockResolvedValue([])
+  const client = new QueryClient()
+  try {
+    expect(await client.query(referenceChangesQuery({ kind: 'datasheet', faction: 'necrons', slug: 'warriors' }))).toEqual(changes)
+  } finally {
+    client.clear()
+  }
+})
+it('searches the download together with the player’s own loaded lists', () => {
+  expect(
+    searchDownload('Warriors', undefined, {
+      owner: { id: 'alice' },
+      rosters: [{ id: 'army', name: 'Warriors army', catalogueId: 'necrons', detachmentIds: [], limit: 2000 }] as never,
+      battles: undefined,
+    })?.map((result) => result.href),
+  ).toEqual(['/factions/necrons/datasheets/1', '/rosters/army'])
 })

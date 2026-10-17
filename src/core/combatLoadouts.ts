@@ -38,7 +38,8 @@ export type LoadoutCandidate = {
   members: { pickIndex: number; pick: RosterPick; sheet: Datasheet; models: number; carriers: CombatCarrier[]; rules: CombatRule[] }[]
 }
 export type LoadoutCandidates = { candidates: LoadoutCandidate[] }
-export type LoadoutBatch = LoadoutCandidates & { built: number; scheduled: number; done: boolean }
+/** A search's next candidates and its progress: states built, states found, and how many it estimates there are. */
+export type LoadoutBatch = LoadoutCandidates & { built: number; scheduled: number; estimated: number; done: boolean }
 export type OptimizedLoadout = {
   picks: { pickIndex: number; pick: RosterPick }[]
   preferences: Record<string, string>

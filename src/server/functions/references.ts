@@ -1,5 +1,6 @@
 import { rosterLoadoutDatasheets, rosterDatasheet } from '../../shared/rosterReads'
 import { z } from 'zod'
+import { rosterDatasheetLoadedProperties } from '../../shared/rosterTelemetry'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { unitWoundsIn } from '../../shared/catalogue'
@@ -12,7 +13,7 @@ import { detachmentsOffering } from '../../shared/factionReferences'
 import { gameReferencesFor } from '../../shared/gameReferences'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
-import { rosterLabel } from '../../core/rosterLabel'
+import { OWN_SEARCH_BATTLES, ownSearchLists } from '../../core/referenceSearch'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
@@ -71,32 +72,11 @@ export const globalSearch = createServerFn({ method: 'GET' })
           const userId = await currentUserId()
           if (!userId) return null
           const rules = await app().rulesFor()
-          // Bounded: search offers the recently active battles, not a fold of every
-          // battle the account has ever played on each keystroke.
           const [rosters, page] = await Promise.all([
             app().service.savedRosterSummaries(userId),
-            app().service.battles(userId, rules, { limit: 50 }),
+            app().service.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
           ])
-          const factions = (await app().factionsFor())?.factions ?? []
-          return {
-            rosters: rosters.map((roster) => ({
-              ...roster,
-              label: (() => {
-                const rosterFaction = factions.find((entry) => entry.id === roster.catalogueId)
-                return rosterFaction
-                  ? rosterLabel({
-                      factionName: rosterFaction.displayName,
-                      detachmentNames: roster.detachmentIds.flatMap((id) => {
-                        const detachment = rosterFaction.detachments.find((entry) => entry.id === id)
-                        return detachment ? [detachment.name] : []
-                      }),
-                      limit: roster.limit,
-                    })
-                  : ''
-              })(),
-            })),
-            battles: page.battles,
-          }
+          return ownSearchLists(rosters, page.battles, (await app().factionsFor())?.factions ?? [])
         },
       })
     }),
@@ -191,10 +171,8 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
       const userId = await currentUserId()
       if (userId)
         await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
-          unit_count: data.picks.length,
+          ...rosterDatasheetLoadedProperties(data, result),
           duration_ms: Math.round(performance.now() - startedAt),
-          persisted: false,
-          datacard_join: result.datacardJoin,
         })
       return result
     }),

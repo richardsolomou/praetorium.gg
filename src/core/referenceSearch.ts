@@ -1,5 +1,6 @@
 import type { DatasheetSearchFields, DatasheetSearchReason } from './datasheetSearch'
 import type { CatalogueEdition } from './catalogueEdition'
+import { rosterLabel } from './rosterLabel'
 
 export type GlobalSearchResult = {
   id: string
@@ -38,7 +39,7 @@ export type GlobalSearchIndex = {
 }
 
 import { distance } from 'fastest-levenshtein'
-import { matchDatasheet, matchSearchText } from './datasheetSearch'
+import { matchDatasheet, matchSearchText, prepareDatasheetSearch, prepareSearchText } from './datasheetSearch'
 
 export function searchReference(query: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
@@ -81,7 +82,7 @@ function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalS
       const matches = (entry.cards ?? [])
         .flatMap((card) => {
           const nameScore = matchSearchText(query, card.name)
-          const effectScore = card.description ? matchSearchText(query, `${card.name} ${card.description}`) : null
+          const effectScore = card.description ? matchSearchText(query, cardText(card)) : null
           const score = nameScore ?? (effectScore === null ? null : 100 + effectScore)
           return score === null ? [] : [{ score, reason: { kind: card.kind, value: card.name } }]
         })
@@ -92,6 +93,34 @@ function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalS
     })
     .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
     .map(({ result }) => result)
+}
+
+const cardTexts = new WeakMap<NonNullable<IndexedDetachment['cards']>[number], string>()
+
+/** A card's name and effect as one searched text, built once so its normalization is looked up rather than redone. */
+function cardText(card: NonNullable<IndexedDetachment['cards']>[number]) {
+  let text = cardTexts.get(card)
+  if (text === undefined) {
+    text = `${card.name} ${card.description}`
+    cardTexts.set(card, text)
+  }
+  return text
+}
+
+/** Normalizes an index's searched text ahead of the first query, yielding between slices so it can run while idle. */
+export function* prepareReferenceSearch(index: GlobalSearchIndex) {
+  for (const [at, entry] of index.datasheets.entries()) {
+    prepareDatasheetSearch(entry.fields)
+    if (at % 200 === 199) yield
+  }
+  for (const [at, entry] of index.detachments.entries()) {
+    prepareSearchText(entry.search)
+    for (const card of entry.cards ?? []) {
+      prepareSearchText(card.name)
+      if (card.description) prepareSearchText(cardText(card))
+    }
+    if (at % 40 === 39) yield
+  }
 }
 
 type RankedResult = { result: GlobalSearchResult; score: number }
@@ -131,6 +160,58 @@ function fuzzyScore(query: string, name: string) {
 }
 
 const wordsIn = (value: string) => value.toLowerCase().match(/[a-z0-9]+/g) ?? []
+
+/** The fewest characters global search answers. */
+export const SEARCH_MIN_LENGTH = 2
+
+/** Search offers a player's recently active battles, not every battle the account has played. */
+export const OWN_SEARCH_BATTLES = 50
+
+const SEARCH_GROUPS: GlobalSearchResult['group'][] = [
+  'Factions',
+  'Datasheets',
+  'Detachments',
+  'Missions',
+  'Rules',
+  'Your rosters',
+  'Your battles',
+]
+
+type SearchedRoster = { id: string; name: string; limit: number; catalogueId: string; detachmentIds: readonly string[] }
+type SearchedFaction = { id: string; displayName: string; detachments: readonly { id: string; name: string }[] }
+
+/** A player's rosters labelled as search shows them, and their most recent distinct battles. */
+export function ownSearchLists<B extends OwnSearchData['battles'][number]>(
+  rosters: readonly SearchedRoster[],
+  battles: readonly B[],
+  factions: readonly SearchedFaction[],
+): OwnSearchData {
+  const seen = new Set<string>()
+  return {
+    rosters: rosters.map((roster) => {
+      const faction = factions.find((entry) => entry.id === roster.catalogueId)
+      return {
+        ...roster,
+        label: faction
+          ? rosterLabel({
+              factionName: faction.displayName,
+              detachmentNames: roster.detachmentIds.flatMap((id) =>
+                faction.detachments.filter((entry) => entry.id === id).map((entry) => entry.name),
+              ),
+              limit: roster.limit,
+            })
+          : '',
+      }
+    }),
+    battles: battles.filter((battle) => !seen.has(battle.token) && seen.add(battle.token)).slice(0, OWN_SEARCH_BATTLES),
+  }
+}
+
+/** Global search over a reference index and the player's own lists, in the order search shows them. */
+export function searchAll(query: string, index: GlobalSearchIndex, own: OwnSearchData | null) {
+  const results = [...searchReference(query, index), ...searchOwn(query, own)]
+  return SEARCH_GROUPS.flatMap((group) => results.filter((result) => result.group === group))
+}
 
 export type OwnSearchData = {
   rosters: { id: string; name: string; limit: number; label: string }[]

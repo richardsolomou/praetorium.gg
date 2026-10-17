@@ -46,3 +46,27 @@ it('streams candidates using the selected codex rules', async () => {
   })
   expect(await response.text()).toBe('{"rules":"Preview rules"}\n')
 })
+
+const loadout = { catalogueId: 'cat', detachmentIds: [], picks: [{ entryId: 'guard' }], pickIndex: 0 }
+
+it('refuses a search beyond the ones the instance runs at once', async () => {
+  catalogueFor.mockResolvedValue({})
+  candidates.mockImplementation(async function* () {
+    yield {}
+    await new Promise(() => {})
+  })
+  const running = [await optimize('https://praetorium.gg', loadout), await optimize('https://praetorium.gg', loadout)]
+  const refused = await optimize('https://praetorium.gg', loadout)
+  await Promise.all(running.map((response) => response.body!.cancel()))
+  expect(refused.status).toBe(503)
+})
+
+it('runs another search once one finishes', async () => {
+  catalogueFor.mockResolvedValue({})
+  candidates.mockImplementation(async function* () {
+    yield {}
+  })
+  for (const response of [await optimize('https://praetorium.gg', loadout), await optimize('https://praetorium.gg', loadout)])
+    await response.text()
+  expect((await optimize('https://praetorium.gg', loadout)).status).toBe(200)
+})

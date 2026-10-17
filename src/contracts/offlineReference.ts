@@ -35,13 +35,25 @@ export type OfflineReferenceData = {
   css: string
   logo: string
   construction?: OfflineConstructionData
+  /** The published construction download `construction` came from, so an unchanged one is not fetched again. */
+  constructionBundle?: string
+  /** Whether `construction` holds every rules version, which a device keeps once it has needed them. */
+  allRulesVersions?: boolean
 }
 
 export const MAX_OFFLINE_BYTES = 100_000_000
 export const MAX_OFFLINE_QUERIES = 20_000
 
 export type OfflineReferenceBundle = Pick<OfflineReferenceData, 'version' | 'revision' | 'queries' | 'search' | 'construction'>
-export type OfflineReferenceVersion = { revision: string; bundle: string }
+/**
+ * The published download: the reference, then construction data for the current rules alone or with every other
+ * rules version, which a device downloads only while it holds rosters on one of `versions`.
+ */
+export type OfflineReferenceVersion = {
+  revision: string
+  bundle: string
+  construction: { current: string; complete: string; versions: string[] }
+}
 export type OfflineAppVersion = { revision: string; css: string; script: string }
 
 export function decodeReferenceBundle(value: unknown): unknown {
@@ -67,7 +79,8 @@ export function decodeReferenceBundle(value: unknown): unknown {
     }
   }
   const expanded = { ...(value as OfflineReferenceBundle), version: 1 as const }
-  if (!isReferenceBundle(expanded) || !expanded.construction) throw new Error('Invalid shared reference bundle')
+  if (!isReferenceBundle(expanded) || (version === 2 && !expanded.construction)) throw new Error('Invalid shared reference bundle')
+  if (!expanded.construction) return expanded
   if (version === 3) return { ...expanded, construction: { ...expanded.construction, shared: true } }
   const base = expanded.construction
   const budget = { remaining: MAX_OFFLINE_BYTES - new TextEncoder().encode(JSON.stringify(value)).byteLength }
@@ -100,26 +113,7 @@ export function isReferenceBundle(value: unknown): value is OfflineReferenceBund
   return (
     data?.version === 1 &&
     typeof data.revision === 'string' &&
-    (data.construction === undefined ||
-      (isConstructionSource(data.construction) &&
-        (data.construction.shared === undefined || (data.construction as { shared?: unknown }).shared === true) &&
-        (data.construction.texts === undefined || isReferenceTexts(data.construction.texts)) &&
-        (data.construction.editions === undefined ||
-          (Array.isArray(data.construction.editions) &&
-            data.construction.editions.length <= 16 &&
-            new Set(data.construction.editions.map((source) => source?.edition?.id)).size === data.construction.editions.length &&
-            data.construction.editions.every(
-              (edition) =>
-                edition !== null &&
-                typeof edition === 'object' &&
-                ('base' in edition
-                  ? (edition as { base: unknown }).base === true &&
-                    edition.version === 1 &&
-                    typeof edition.revision === 'string' &&
-                    edition.revision.length > 0
-                  : isConstructionSource(edition)) &&
-                catalogueEditionSchema.safeParse(edition.edition).success,
-            ))))) &&
+    (data.construction === undefined || isConstructionData(data.construction)) &&
     Array.isArray(data.queries) &&
     data.queries.length <= MAX_OFFLINE_QUERIES &&
     data.queries.every((entry) => Array.isArray(entry?.key) && PUBLIC_REFERENCE_QUERIES.has(String(entry.key[0]))) &&
@@ -127,6 +121,31 @@ export function isReferenceBundle(value: unknown): value is OfflineReferenceBund
     ['factions', 'detachments', 'datasheets', 'missions', 'rules'].every((key) =>
       Array.isArray(data.search[key as keyof typeof data.search]),
     )
+  )
+}
+
+/** Construction data as a download carries it: the current rules, and any other rules versions sharing their data. */
+export function isConstructionData(construction: OfflineConstructionData): boolean {
+  return (
+    isConstructionSource(construction) &&
+    (construction.shared === undefined || (construction as { shared?: unknown }).shared === true) &&
+    (construction.texts === undefined || isReferenceTexts(construction.texts)) &&
+    (construction.editions === undefined ||
+      (Array.isArray(construction.editions) &&
+        construction.editions.length <= 16 &&
+        new Set(construction.editions.map((source) => source?.edition?.id)).size === construction.editions.length &&
+        construction.editions.every(
+          (edition) =>
+            edition !== null &&
+            typeof edition === 'object' &&
+            ('base' in edition
+              ? (edition as { base: unknown }).base === true &&
+                edition.version === 1 &&
+                typeof edition.revision === 'string' &&
+                edition.revision.length > 0
+              : isConstructionSource(edition)) &&
+            catalogueEditionSchema.safeParse(edition.edition).success,
+        )))
   )
 }
 

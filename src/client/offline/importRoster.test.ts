@@ -3,7 +3,8 @@ import { importRoster } from '../functions'
 
 const mocks = vi.hoisted(() => ({ exchangeFaction: vi.fn() }))
 vi.mock('../../server/functions', () => ({ importRoster: async () => Promise.reject(new TypeError('Failed to fetch')) }))
-vi.mock('./runtime', () => ({
+vi.mock('./runtime', async (actual) => ({
+  ...(await actual<typeof import('./runtime')>()),
   referenceData: () => ({
     queries: [
       { key: ['faction-index'], data: { factions: [{ id: 'mfm~necrons-root', name: 'Necrons', isDefault: true }] } },
@@ -13,7 +14,8 @@ vi.mock('./runtime', () => ({
 }))
 vi.mock('./construction', async (actual) => ({
   ...(await actual<typeof import('./construction')>()),
-  constructionRead: (local: (data: unknown) => unknown) => Promise.resolve(local({ catalogue: {}, rules: null })),
+  constructionRead: async (name: 'importExchange', data: never) =>
+    (await import('./constructionReads')).constructionReads[name]({ catalogue: {}, rules: null } as never, data),
 }))
 vi.mock('../../core/rosterExchange', async (actual) => ({
   ...(await actual<typeof import('../../core/rosterExchange')>()),

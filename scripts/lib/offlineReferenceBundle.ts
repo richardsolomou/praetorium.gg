@@ -20,12 +20,15 @@ import { editionCatalogueId, type CatalogueEdition } from '../../src/core/catalo
 import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { routeSlug } from '../../src/core/slug'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
+import { loadCatalogueHistory } from '../../src/server/catalogueHistory'
+import { recentReferenceChanges } from '../../src/server/catalogueChangeLog'
 import {
   decodeReferenceBundle,
   isReferenceBundle,
   MAX_OFFLINE_BYTES,
   MAX_OFFLINE_QUERIES,
   type OfflineReferenceBundle,
+  type OfflineReferenceVersion,
 } from '../../src/contracts/offlineReference'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
@@ -70,12 +73,12 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
         version: 3,
       }
     : { version: 1, ...content }
-  const shared = wire.version === 3 ? shareReferenceText(wire) : null
-  const encoded = shared?.texts.length ? { ...(shared.value as typeof wire), texts: shared.texts } : wire
+  const shared = shareReferenceText(wire)
+  const encoded = shared.texts.length ? { ...(shared.value as typeof wire), version: 3, texts: shared.texts } : wire
   const revision = createHash('sha256').update(JSON.stringify(encoded)).digest('hex')
   const json = Buffer.from(JSON.stringify({ ...encoded, revision }))
   if (json.length > MAX_OFFLINE_BYTES) throw new Error('Offline reference is too large')
-  const compressed = gzipSync(json, { level: wire.version === 3 ? 9 : 6 })
+  const compressed = gzipSync(json, { level: 9 })
   if (compressed.length > 10_000_000) throw new Error(`Compressed reference exceeds the web asset limit (${compressed.length} bytes)`)
   const decoded = decodeReferenceBundle(JSON.parse(gunzipSync(compressed, { maxOutputLength: MAX_OFFLINE_BYTES }).toString()))
   if (!isReferenceBundle(decoded)) throw new Error('Invalid offline reference bundle')
@@ -101,6 +104,8 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
   )
   if (!canonical) throw new Error('Offline reference canonical catalogue is unavailable')
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
+  const history = loadCatalogueHistory(directory) ?? []
+  const historyCanonical = (slug: string) => versions.pageCanonical(slug, versions.canonicalFor(slug), () => canonical)
   const queries: OfflineReferenceBundle['queries'] = []
   const put = (key: readonly unknown[], data: unknown) => {
     if (data == null) throw new Error(`Offline reference is incomplete: ${key.join('/')}`)
@@ -140,6 +145,11 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
     for (const unit of units) {
       const sheet = referenceDatasheetBySlug(selectedSources, { catalogueId: faction.id, slug: unit.slug })
       put(['datasheet-slug', faction.id, unit.slug], sheet)
+      const changes = { kind: 'datasheet' as const, faction: faction.slug, slug: sheet?.slug ?? unit.slug }
+      put(
+        ['reference-changes', changes.kind, changes.faction, changes.slug],
+        recentReferenceChanges(history, historyCanonical(faction.slug), changes),
+      )
       for (const relationship of [...(sheet?.attachments ?? []), ...(sheet?.leaders ?? []), ...(sheet?.supporters ?? [])])
         if (relationship.route) queueReference(relationship.route.catalogueId)
     }
@@ -209,8 +219,26 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
       return constructionFor(path.join(directory, 'editions', edition.id), selectedCatalogue, selectedRules)
     }),
   }
-  const { revision, compressed } = encodeReferenceBundle({ queries, search: versions.searchIndex()!, construction })
-  const bundle = `/assets/reference-${revision}.bin`
-  await writeFile(path.join(outDir, bundle), compressed)
-  await writeFile(path.join(outDir, 'offline-reference-version.json'), JSON.stringify({ revision, bundle }))
+  const reference = encodeReferenceBundle({ queries, search: versions.searchIndex()! })
+  const bundle = `/assets/reference-${reference.revision}.bin`
+  await writeFile(path.join(outDir, bundle), reference.compressed)
+  const writeConstruction = async (editions: typeof construction.editions) => {
+    const encoded = encodeReferenceBundle({ queries: [], search: EMPTY_SEARCH, construction: { ...construction, editions } })
+    const asset = `/assets/construction-${encoded.revision}.bin`
+    await writeFile(path.join(outDir, asset), encoded.compressed)
+    return asset
+  }
+  const versionsOffered = construction.editions.filter((source) => !('base' in source))
+  const manifest: OfflineReferenceVersion = {
+    revision: reference.revision,
+    bundle,
+    construction: {
+      current: await writeConstruction(construction.editions.filter((source) => 'base' in source)),
+      complete: await writeConstruction(construction.editions),
+      versions: versionsOffered.map((source) => source.edition!.id),
+    },
+  }
+  await writeFile(path.join(outDir, 'offline-reference-version.json'), JSON.stringify(manifest))
 }
+
+const EMPTY_SEARCH = { factions: [], detachments: [], datasheets: [], missions: [], rules: [] }

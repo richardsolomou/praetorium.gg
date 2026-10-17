@@ -1,4 +1,3 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -8,12 +7,14 @@ import { CommandDialog } from '@/components/ui/command'
 import { DialogClose } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../functions'
-import { globalSearchQuery } from '../../queries'
 import { useClientValue } from '../../useClientValue'
-import { useSettled } from '../../useSettled'
-import { globalSearchGroups, matchingPages, SEARCH_DEBOUNCE_MS } from './globalSearchPages'
+import { globalSearchGroups, matchingPages } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
+import { RecentSearches } from './RecentSearches'
+import { rememberSearch } from './searchHistory'
 import { SearchResults } from './SearchResults'
+import { useGlobalSearch } from './useGlobalSearch'
+import { SEARCH_MIN_LENGTH } from '../../../core/referenceSearch'
 
 type GlobalSearchContextValue = {
   open: () => void
@@ -32,20 +33,14 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const listId = useId()
   const shortcutModifier = useClientValue(shortcutModifierOfBrowser, 'Ctrl')
   const trimmed = query.trim()
-  const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
-  const {
-    data = [],
-    isFetching,
-    isPending,
-    isError,
-    refetch,
-  } = useQuery({ ...globalSearchQuery(settled), placeholderData: keepPreviousData })
+  const { query: settled, typingSettled, data, isFetching, isPending, isError, refetch } = useGlobalSearch(trimmed, open)
   const results = useMemo(
     () => globalSearchGroups.flatMap((group) => [...matchingPages(settled), ...data].filter((result) => result.group === group)),
     [data, settled],
   )
   const resultCount = results.length
   const reportedQuery = useRef<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const changeOpen = useCallback(
     (next: boolean, selected = false) => {
       if (next === open) return
@@ -73,10 +68,10 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const outcome = isError ? 'error' : 'success'
     const key = `${outcome}:${settled}`
-    if (!open || settled.length < 2 || trimmed !== settled || isFetching || isPending || reportedQuery.current === key) return
+    if (!open || settled.length < SEARCH_MIN_LENGTH || !typingSettled || isFetching || isPending || reportedQuery.current === key) return
     reportedQuery.current = key
     posthog.capture('global_search_completed', { outcome, result_count: isError ? 0 : resultCount })
-  }, [isError, isFetching, isPending, open, resultCount, settled, trimmed])
+  }, [isError, isFetching, isPending, open, resultCount, settled, typingSettled])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -94,8 +89,14 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('praetorium:open-search', openNativeSearch)
   }, [changeOpen])
 
-  const go = async (result: GlobalSearchResult) => {
-    posthog.capture('global_search_result_opened', { group: result.group, result_count: results.length, fuzzy: Boolean(result.fuzzy) })
+  const go = async (result: GlobalSearchResult, recent = false) => {
+    posthog.capture('global_search_result_opened', {
+      group: result.group,
+      result_count: results.length,
+      fuzzy: Boolean(result.fuzzy),
+      recent,
+    })
+    rememberSearch(result)
     changeOpen(false, true)
     await navigate({ href: result.href })
   }
@@ -108,11 +109,12 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
         onOpenChange={(next) => changeOpen(next)}
         title="Search Praetorium"
         description="Search pages, factions, datasheets and their rules, detachments, missions, rosters and battles."
-        className="top-1/2 max-w-xl -translate-y-1/2 rounded-none!"
+        className="top-1/2 flex max-w-xl -translate-y-1/2 flex-col rounded-none!"
       >
-        <div className="flex flex-col bg-popover p-1">
+        <div className="flex min-h-0 flex-col bg-popover p-1">
           <div className="flex gap-1">
             <input
+              ref={inputRef}
               className="h-9 min-w-0 flex-1 border border-edge bg-sunken px-3 text-base outline-none md:text-sm focus-visible:border-info"
               role="combobox"
               aria-label="Search Praetorium"
@@ -144,8 +146,8 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
             />
             <DialogClose render={<Button variant="ghost" className="h-9 pointer-fine:hidden" />}>Cancel</DialogClose>
           </div>
-          {trimmed.length >= 2 && isFetching ? <output className="sr-only">Searching</output> : null}
-          {trimmed.length >= 2 && trimmed === settled && !isFetching && !results.length ? (
+          {trimmed.length >= SEARCH_MIN_LENGTH && isFetching ? <output className="sr-only">Searching</output> : null}
+          {trimmed.length >= SEARCH_MIN_LENGTH && trimmed === settled && !isFetching && !results.length ? (
             isError ? (
               <p className="flex items-center justify-center gap-3 py-6 text-sm text-dim">
                 Search unavailable.
@@ -157,6 +159,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
               <p className="py-6 text-center text-sm text-dim">No results found.</p>
             )
           ) : null}
+          {trimmed ? null : <RecentSearches onOpen={(result) => void go(result, true)} onEmptied={() => inputRef.current?.focus()} />}
           <SearchResults
             results={results}
             query={settled}

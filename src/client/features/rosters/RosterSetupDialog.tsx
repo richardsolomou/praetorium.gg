@@ -4,6 +4,7 @@ import { SetupConsequences } from './SetupConsequences'
 import type { RosterDraft } from './rosterDraft'
 import { errorMessage } from '../../queryClient'
 import { RulesVersionLabel } from '../../components/RulesVersionLabel'
+import { prepareFactionUnits } from '../../functions'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
@@ -204,6 +205,10 @@ export function RosterSetupDialog({
     enabled: open && Boolean(draft.catalogueId) && initialFaction?.id !== draft.catalogueId,
   })
   const faction = loadedFaction ?? (initialFaction?.id === draft.catalogueId ? initialFaction : null)
+
+  useEffect(() => {
+    if (open && draft.catalogueId) prepareFactionUnits(draft.catalogueId)
+  }, [open, draft.catalogueId])
 
   useEffect(() => {
     if (!reference) return

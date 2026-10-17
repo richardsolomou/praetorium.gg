@@ -1,4 +1,4 @@
-import { localCombatStream } from '../../offline/combatStream'
+import { deviceLoadoutSearch } from '../../functions'
 import CombatWorker from './combatWorker'
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
@@ -14,6 +14,9 @@ import type { Combatant } from './useCombatant'
 
 export type OptimizeLoadoutRequest = { kind: 'optimize'; space: LoadoutCandidates; scoring: LoadoutScoring }
 export type OptimizeLoadoutAnswer = { optimized: OptimizedLoadout; error?: never } | { error: string; optimized?: never }
+
+/** Candidates the page scores before calling a search incomplete. */
+const MAX_CANDIDATES = 20_000
 
 export function useLoadoutOptimizer(combatant: Combatant) {
   const context = useContext(LoadoutOptimizationContext)
@@ -83,7 +86,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
         pickIndex: combatant.pickIndex,
       }
       const response =
-        localCombatStream(input, controller.signal) ??
+        deviceLoadoutSearch(input, controller.signal) ??
         (await fetch('/api/simulator/optimize', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -140,27 +143,18 @@ export function useLoadoutOptimizer(combatant: Combatant) {
         })
       const space: LoadoutCandidates = { candidates: [] }
       let discovered = 0
-      let built = 0
-      let scheduled = 0
-      const updateProgress = () => {
-        // The unfinished search can discover more work, so estimate from its current frontier.
-        const expectedCandidates = built ? Math.max(discovered, (scheduled * discovered) / built) : 0
-        const work = scheduled + expectedCandidates
-        const percentage = work ? Math.min(99, Math.floor(((built + scored) / work) * 100)) : 0
-        setProgress((previous) => Math.max(previous, percentage))
-      }
       let streamError: unknown
       let wake: (() => void) | undefined
       controller.signal.addEventListener('abort', () => wake?.(), { once: true })
       const process = (batch: LoadoutBatch & { error?: string }) => {
         if (batch.error) throw new Error(batch.error)
         discovered += batch.candidates.length
-        if (discovered > 20_000) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+        // States explored of those the unit's choices allow, or of those found once the search has found more.
+        const states = Math.max(batch.estimated ?? 0, batch.scheduled)
+        setProgress((previous) => Math.max(previous, Math.min(99, Math.floor((batch.built / states) * 100))))
+        if (discovered > MAX_CANDIDATES) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
         space.candidates.push(...batch.candidates)
         complete = batch.done
-        built = batch.built
-        scheduled = batch.scheduled
-        updateProgress()
         wake?.()
       }
       const reader = response.body.getReader()
@@ -218,7 +212,6 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           }
         if (improved && best) apply(best)
         scored += batch.length
-        updateProgress()
       }
       if (!current()) return
       await reading

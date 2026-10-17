@@ -1,4 +1,4 @@
-import { offlineData, offlineDatasheets, referenceData } from '../offline/runtime'
+import { currentReference, offlineDatasheets, referenceData } from '../offline/runtime'
 import { infiniteQueryOptions, type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
@@ -31,7 +31,7 @@ import {
   units,
 } from '../functions'
 import { savedRosterChangedIdsQuery } from './changes'
-import { SSR_STALE_TIME } from './shared'
+import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { rosterPriceKey } from './rosterPriceKey'
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
@@ -100,12 +100,12 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
     queryKey: ['faction-datasheets', catalogueId, query],
     networkMode: 'always',
     initialData: () => offlineDatasheets(catalogueId, query) ?? undefined,
-    initialDataUpdatedAt: () => referenceData()?.savedAt ?? 0,
+    initialDataUpdatedAt: () => (currentReference() ? Date.now() : (referenceData()?.savedAt ?? 0)),
     queryFn: async ({ client }) => {
       const saved = offlineDatasheets(catalogueId, query)
       const current = client.getQueryData<UnitSummary[]>(['faction-datasheets', catalogueId, query])
       if (typeof window !== 'undefined' && !navigator.onLine && current !== undefined) return current
-      if (saved && offlineData()) return saved
+      if (saved && currentReference()) return saved
       try {
         return await factionDatasheets({ data: { catalogueId, query } })
       } catch (error) {
@@ -115,7 +115,7 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
       }
     },
     enabled: Boolean(catalogueId),
-    staleTime: () => (offlineData() ? Infinity : SSR_STALE_TIME),
+    staleTime: referenceStaleTime,
   })
 
 export const datasheetQuery = (

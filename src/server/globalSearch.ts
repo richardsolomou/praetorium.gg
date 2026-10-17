@@ -1,4 +1,4 @@
-import { searchReference, searchOwn, type OwnSearchData } from '../core/referenceSearch'
+import { searchAll, type OwnSearchData } from '../core/referenceSearch'
 import type {
   GlobalSearchIndex,
   GlobalSearchResult,
@@ -18,8 +18,6 @@ import { gameReferencesFor } from '../shared/gameReferences'
 import { ruleIndexOf } from './rulesCore'
 import { factionReferenceHref } from '../core/factionReferenceRoute'
 import type { LoadedRules } from './rules'
-
-const GROUPS: GlobalSearchResult['group'][] = ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Rules', 'Your rosters', 'Your battles']
 
 type Sources = {
   catalogue: LoadedCatalogue | null
@@ -107,20 +105,17 @@ export function compiledGlobalSearchIndex(loaded: LoadedCatalogue, rules: Loaded
 
 export async function searchEverything(query: string, sources: Sources): Promise<GlobalSearchResult[]> {
   const index = sources.catalogueIndex ?? (sources.catalogue ? globalSearchIndexFor(sources.catalogue, sources.rules) : null)
-  const results: GlobalSearchResult[] = [
-    ...searchReference(
-      query,
-      index ?? {
-        factions: [],
-        datasheets: [],
-        detachments: [],
-        missions: indexedMissions(sources.rules),
-        rules: indexedRules(sources.rules),
-      },
-    ),
-    ...searchOwn(query, await sources.own()),
-  ]
-  return GROUPS.flatMap((group) => results.filter((result) => result.group === group))
+  return searchAll(
+    query,
+    index ?? {
+      factions: [],
+      datasheets: [],
+      detachments: [],
+      missions: indexedMissions(sources.rules),
+      rules: indexedRules(sources.rules),
+    },
+    await sources.own(),
+  )
 }
 
 function indexedMissions(rules: LoadedRules | null): IndexedResult[] {

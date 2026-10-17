@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test'
 import { expect, type Page, test } from './test'
 import { createRoster, signUp, waitForRosterSave } from './account'
 import { add, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
@@ -123,6 +124,23 @@ test('a unit attaches a character already in the roster from its own card', asyn
   await expect(page.locator('[data-unit]')).toHaveCount(2)
 })
 
+/** A card's height once two readings a quarter-second apart agree: the picker can reflow while the roster's price arrives. */
+async function settledHeight(card: Locator) {
+  let last: number | undefined
+  await expect
+    .poll(
+      async () => {
+        const height = (await card.boundingBox())?.height
+        const settled = height !== undefined && height === last
+        last = height
+        return settled
+      },
+      { intervals: [250] },
+    )
+    .toBe(true)
+  return last!
+}
+
 test('picker card height stays stable as the roster crosses the points budget', async ({ page }) => {
   await signUp(page, 'Richard')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, size: /Incursion/ })
@@ -130,11 +148,11 @@ test('picker card height stays stable as the roster crosses the points budget', 
   await page.getByLabel('Add a unit').fill('Monolith')
   const monolith = page.locator('[data-picker-unit="Monolith"]')
   await expect(monolith).toBeVisible()
-  const before = (await monolith.boundingBox())!.height
+  const before = await settledHeight(monolith)
   await waitForRosterSave(page, () => add(page, "C'tan Shard of the Void Dragon"))
   await page.getByLabel('Add a unit').fill('Monolith')
   await expect(monolith).toBeVisible()
-  expect((await monolith.boundingBox())!.height).toBe(before)
+  expect(await settledHeight(monolith)).toBe(before)
   await expect(monolith).not.toContainText('over the remaining budget')
   await expect(monolith.getByRole('button', { name: 'Add Monolith', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Points fit', exact: true }).click()
