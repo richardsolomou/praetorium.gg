@@ -146,9 +146,10 @@ export function textSourceFiles(root: string, composition: CatalogueComposition 
 }
 
 const TOKENS_AND_WORDS = /(\u27E6[^\u27E7]*\u27E7)/
+const TEXT_PROFILE_KINDS = new Set(['rule', 'other', 'transport'])
 
 /**
- * A published value with every BSData rules text in its descriptions swapped for its token.
+ * A published value with every BSData rules text in its descriptions and rule-like profiles swapped for its token.
  *
  * A description is a definitions file's text as written, or Game Datacards tokens with such
  * text between them, or paragraphs of either; each piece the files state is swapped whole.
@@ -168,11 +169,17 @@ export function withDefinitionTokens<T>(value: T, token: ((raw: string) => strin
               .join('\n\n'),
       )
       .join('')
-  const visit = (item: unknown, key?: string): unknown => {
-    if (typeof item === 'string') return key === 'description' ? published(item) : item
-    if (Array.isArray(item)) return item.map((entry) => visit(entry))
-    if (item && typeof item === 'object' && Object.getPrototypeOf(item) === Object.prototype)
-      return Object.fromEntries(Object.entries(item).map(([field, entry]) => [field, visit(entry, field)]))
+  // A rule-like profile's characteristics are its rules text, where a unit or weapon profile's are numbers and keywords.
+  const visit = (item: unknown, key?: string, ruleProfile = false): unknown => {
+    if (typeof item === 'string') return key === 'description' || (ruleProfile && key === 'value') ? published(item) : item
+    if (Array.isArray(item)) return item.map((entry) => visit(entry, undefined, ruleProfile))
+    if (item && typeof item === 'object' && Object.getPrototypeOf(item) === Object.prototype) {
+      const record = item as Record<string, unknown>
+      const rules = Array.isArray(record.values) && TEXT_PROFILE_KINDS.has(String(record.kind))
+      return Object.fromEntries(
+        Object.entries(record).map(([field, entry]) => [field, visit(entry, field, ruleProfile || (rules && field === 'values'))]),
+      )
+    }
     return item
   }
   return visit(value) as T

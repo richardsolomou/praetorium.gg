@@ -5,7 +5,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { catalogueSources } from './catalogueSources'
 import type { CatalogueComposition } from './catalogueComposition'
-import { publishedTexts, sourceTexts, textFileId, textSourceFiles, upstreamUrl } from './sourceTexts'
+import { publishedTexts, sourceTexts, textFileId, textSourceFiles, upstreamUrl, withDefinitionTokens } from './sourceTexts'
 import { resolvedText, textTokensIn } from '../shared/sourceText'
 
 const base = {
@@ -150,5 +150,19 @@ describe('the tokens a snapshot file publishes', () => {
     expect(textTokensIn(token('datacards/11th/gdc/necrons.json'))[0]?.file).toBe(
       textFileId(raw(catalogueSources.datacards.repository, catalogueSources.datacards.revision, '11th/gdc/necrons.json')),
     )
+  })
+})
+
+describe('publishing a canonical record', () => {
+  const token = (raw: string) => (raw.startsWith('While') ? `⟦0000000a:prose:${'1'.repeat(16)}⟧` : null)
+
+  it('swaps a rule-like profile’s characteristic for its token', () => {
+    const profile = { kind: 'other', values: [{ name: 'Ability', value: 'While a friendly unit is within 6", re-roll the Hit roll.' }] }
+    expect(withDefinitionTokens({ profiles: [profile] }, token).profiles[0]!.values[0]!.value).toBe(`⟦0000000a:prose:${'1'.repeat(16)}⟧`)
+  })
+
+  it('keeps a unit profile’s characteristics as numbers', () => {
+    const profile = { kind: 'unit', values: [{ name: 'M', value: 'While 6"' }] }
+    expect(withDefinitionTokens({ profiles: [profile] }, token).profiles[0]!.values[0]!.value).toBe('While 6"')
   })
 })
