@@ -5,7 +5,6 @@ import { saveRoster } from '../../functions'
 import { invalidateSavedRosters, meQuery } from '../../queries'
 import { newGuestDraft, writeGuestDraft } from './guestDraft'
 import type { RosterSetup } from './RosterSetupDialog'
-import type { RosterPick } from '../../../core/roster'
 
 /** The reference page a roster was started from, as telemetry names it. */
 export type RosterReference = 'datasheet' | 'detachment'
@@ -25,16 +24,15 @@ export function useNewRoster(reference?: RosterReference) {
   const create = useMutation({
     onMutate: () => posthog.capture('roster_creation_submitted', from),
     onError: () => posthog.capture('roster_creation_failed', { reason: 'request', ...from }),
-    mutationFn: ({ setup, picks = [] }: { setup: RosterSetup; add?: string; picks?: RosterPick[] }) =>
-      saveRoster({ data: { ...setup, picks, prep: null, source: 'editable' } }),
+    mutationFn: ({ setup }: { setup: RosterSetup; add?: string }) =>
+      saveRoster({ data: { ...setup, picks: [], prep: null, source: 'editable' } }),
     onSuccess: async ({ id }, { add }) => {
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id }, search: add ? { add } : {} })
     },
   })
-  /** `picks` start a player's list with units already in it; a visitor's list always starts empty. */
-  const start = (setup: RosterSetup, add?: string, picks?: RosterPick[]) => {
-    if (me) return create.mutate({ setup, add, picks })
+  const start = (setup: RosterSetup, add?: string) => {
+    if (me) return create.mutate({ setup, add })
     writeGuestDraft(newGuestDraft(setup))
     posthog.capture('guest_roster_started', { limit: setup.limit, detachment_count: setup.detachmentIds.length, ...from })
     void navigate({ to: '/rosters', search: add ? { add } : {} })

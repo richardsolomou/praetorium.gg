@@ -26,7 +26,6 @@ import { CollectionExchange } from './CollectionExchange'
 import { CollectionPhoto } from './CollectionPhoto'
 import { CollectionWishlist } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
-import { StarterDraft } from './StarterDraft'
 
 type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
@@ -76,7 +75,6 @@ export function CollectionPage() {
       painted: progress.data?.[id]?.painted ?? 0,
       wanted: wishes.data?.[id] ?? 0,
     })
-  const ownedFactions = (factions.data?.factions ?? []).filter((faction) => byFaction.has(faction.id))
   const pending = collection.isPending || units.isPending
   const add = (entryId: string) => setOwned({ entryId, owned: true })
   // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
@@ -156,7 +154,6 @@ export function CollectionPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <StarterDraft factionOptions={ownedFactions} counts={counts.data ?? {}} />
           <CollectionExchange sheets={[...datasheets.values()]} current={exchanged} />
         </div>
 
