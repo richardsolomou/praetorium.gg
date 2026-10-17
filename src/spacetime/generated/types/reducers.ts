@@ -30,6 +30,8 @@ import RevokeSessionReducer from '../revoke_session_reducer'
 import SetCollectionModelsReducer from '../set_collection_models_reducer'
 import SetCollectionPhotoReducer from '../set_collection_photo_reducer'
 import SetCollectionPhotoLikeReducer from '../set_collection_photo_like_reducer'
+import SetCollectionProgressReducer from '../set_collection_progress_reducer'
+import SetCollectionWantedReducer from '../set_collection_wanted_reducer'
 import UnregisterPushTokenReducer from '../unregister_push_token_reducer'
 import UnwatchBattleReducer from '../unwatch_battle_reducer'
 import WatchBattleReducer from '../watch_battle_reducer'
@@ -58,6 +60,8 @@ export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>
 export type SetCollectionModelsParams = __Infer<typeof SetCollectionModelsReducer>
 export type SetCollectionPhotoParams = __Infer<typeof SetCollectionPhotoReducer>
 export type SetCollectionPhotoLikeParams = __Infer<typeof SetCollectionPhotoLikeReducer>
+export type SetCollectionProgressParams = __Infer<typeof SetCollectionProgressReducer>
+export type SetCollectionWantedParams = __Infer<typeof SetCollectionWantedReducer>
 export type UnregisterPushTokenParams = __Infer<typeof UnregisterPushTokenReducer>
 export type UnwatchBattleParams = __Infer<typeof UnwatchBattleReducer>
 export type WatchBattleParams = __Infer<typeof WatchBattleReducer>

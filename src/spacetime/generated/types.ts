@@ -58,6 +58,8 @@ export const Collection = __t.object('Collection', {
   entryId: __t.string(),
   at: __t.u64(),
   models: __t.option(__t.u32()),
+  built: __t.option(__t.u32()),
+  painted: __t.option(__t.u32()),
 })
 export type Collection = __Infer<typeof Collection>
 
@@ -97,6 +99,15 @@ export const CollectionStock = __t.object('CollectionStock', {
   lot: __t.string(),
 })
 export type CollectionStock = __Infer<typeof CollectionStock>
+
+export const CollectionWish = __t.object('CollectionWish', {
+  key: __t.string(),
+  userId: __t.string(),
+  entryId: __t.string(),
+  wanted: __t.u32(),
+  at: __t.u64(),
+})
+export type CollectionWish = __Infer<typeof CollectionWish>
 
 export const Commands = __t.object('Commands', {
   key: __t.string(),

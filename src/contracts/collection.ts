@@ -10,10 +10,16 @@ export const collectionProfileSchema = z
         z.object({
           entryId: z.string(),
           models: z.number().int().min(1).max(MAX_COLLECTION_MODELS),
+          built: z.number().int().min(0).max(MAX_COLLECTION_MODELS).default(0),
+          painted: z.number().int().min(0).max(MAX_COLLECTION_MODELS).default(0),
           photoIds: z.array(z.uuid()).max(MAX_DATASHEET_PHOTOS).optional(),
         }),
       )
       .max(MAX_COLLECTION_DATASHEETS),
+    wishes: z
+      .array(z.object({ entryId: z.string(), wanted: z.number().int().min(1).max(MAX_COLLECTION_MODELS) }))
+      .max(MAX_COLLECTION_DATASHEETS)
+      .default([]),
   })
   .nullable()
 

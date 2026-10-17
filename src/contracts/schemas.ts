@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
-import { MAX_COLLECTION_MODELS } from '../core/collection'
+import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS } from '../core/collection'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import { PUSH_PLATFORMS, pushTokenSchema } from '../core/notifications'
 import {
@@ -386,6 +386,18 @@ export const rosterLoanSchema = z.object({ id, borrowerId: id })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const collectionModelsSchema = z.object({ entryId: id, models: z.number().int().min(1).max(MAX_COLLECTION_MODELS) })
+const collectionCount = z.number().int().min(0).max(MAX_COLLECTION_MODELS)
+export const collectionProgressSchema = z
+  .object({ entryId: id, built: collectionCount, painted: collectionCount })
+  .refine((input) => input.painted <= input.built, 'Painted models must be built')
+export const collectionWantedSchema = z.object({ entryId: id, wanted: collectionCount })
+export const collectionImportSchema = z.object({
+  rows: z
+    .array(z.object({ entryId: id, models: collectionCount, built: collectionCount, painted: collectionCount, wanted: collectionCount }))
+    .min(1)
+    .max(MAX_COLLECTION_DATASHEETS),
+  replace: z.boolean(),
+})
 export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
 export const favouriteDatasheetSchema = z.object({ entryId: id, favourite: z.boolean() })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })

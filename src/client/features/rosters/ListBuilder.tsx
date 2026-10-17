@@ -96,6 +96,7 @@ import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './R
 import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
+import { RosterReadiness } from './RosterReadiness'
 import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
@@ -105,7 +106,7 @@ import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { type CatalogueEdition, rulesVersionDetails } from '../../../core/catalogueEdition'
-import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
+import { currentCatalogueFamilyId, currentEntryId } from '../../../core/retiredCatalogueIds'
 import { armyAvailability } from './armyAvailability'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
@@ -1558,6 +1559,15 @@ export function ListBuilder({
           ) : (
             <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
           )}
+          {me && !frozen && !guest && !print && units.length ? (
+            <RosterReadiness
+              units={units.map((unit) => ({
+                entryId: currentEntryId(unit.entryId, catalogueId),
+                name: unit.name,
+                models: unit.size.models,
+              }))}
+            />
+          ) : null}
         </RosterUnits>
 
         {/* A list with no frozen selections has nothing to open, so it offers nothing. */}

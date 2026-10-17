@@ -13,6 +13,12 @@ export const offlineActions: Record<OfflineActionKind, (owner: string, input: un
   setCollectionModels: action(schemas.setCollectionModels, (owner, data) =>
     service().setCollectionModels(owner, data.entryId, data.models),
   ),
+  setCollectionProgress: action(schemas.setCollectionProgress, (owner, data) =>
+    service().setCollectionProgress(owner, data.entryId, { built: data.built, painted: data.painted }),
+  ),
+  setCollectionWanted: action(schemas.setCollectionWanted, (owner, data) =>
+    service().setCollectionWanted(owner, data.entryId, data.wanted),
+  ),
   setFavouriteFaction: action(schemas.setFavouriteFaction, (owner, data) =>
     service().setFavouriteFaction(owner, data.catalogueId, data.favourite),
   ),

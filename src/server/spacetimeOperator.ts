@@ -1,6 +1,7 @@
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
 import { collectionProfileSchema } from '../contracts/collection'
+import type { CollectionImportRow } from '../core/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
@@ -52,6 +53,8 @@ const collectionRow = z.object({
   entryId: z.string(),
   at: z.number().int(),
   models: z.number().int(),
+  built: z.number().int().default(0),
+  painted: z.number().int().default(0),
   photoIds: z.array(z.uuid()).optional(),
 })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
@@ -627,6 +630,26 @@ export class SpacetimeOperator {
 
   async setCollectionModels(input: { userId: string; entryId: string; models: number; now: number }) {
     await this.call('set_collection_models', [input.userId, input.entryId, input.models, input.now])
+  }
+
+  async setCollectionProgress(input: { userId: string; entryId: string; built: number; painted: number }) {
+    await this.call('set_collection_progress', [input.userId, input.entryId, input.built, input.painted])
+  }
+
+  async collectionWishesByUser(userId: string) {
+    return z
+      .array(z.object({ entryId: z.string(), wanted: z.number().int().positive() }))
+      .parse(await this.read('collection_wishes_by_user', [userId]))
+  }
+
+  async setCollectionWanted(input: { userId: string; entryId: string; wanted: number; now: number }) {
+    await this.call('set_collection_wanted', [input.userId, input.entryId, input.wanted, input.now])
+  }
+
+  async importCollection(input: { userId: string; rows: CollectionImportRow[]; replace: boolean; now: number }) {
+    return z
+      .object({ added: z.number().int(), replaced: z.number().int(), kept: z.number().int() })
+      .parse(await this.read('import_collection', [input.userId, JSON.stringify(input.rows), input.replace, input.now]))
   }
 
   async setCollectionPhoto(input: { userId: string; entryId: string; photoId: string; now: number }) {

@@ -398,3 +398,118 @@ test('a reported photo is hidden from everyone but its owner until an administra
   await expect(shared(reader)).toHaveCount(0)
   await Promise.all([readerContext.close(), adminContext.close()])
 })
+
+const progress = (page: Page, name: string, field: 'built' | 'painted') =>
+  page.getByRole('spinbutton', { name: `${name} models ${field}`, exact: true })
+
+async function setCount(field: Locator, value: string) {
+  await field.fill(value)
+  await field.press('Enter')
+  await expect(field).toHaveValue(value)
+}
+
+/** Built models are bounded by those owned, so the built count is ready once its bound follows the saved total. */
+async function setOwned(page: Page, name: string, value: string) {
+  await setCount(owned(page, name), value)
+  await expect(progress(page, name, 'built')).toHaveAttribute('max', value)
+}
+
+test('built and painted counts stay within the models owned', async ({ page }) => {
+  await signUp(page, uniqueName('Collection progress'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  await setOwned(page, 'Necron Warriors', '20')
+  await setCount(progress(page, 'Necron Warriors', 'built'), '12')
+  await setCount(progress(page, 'Necron Warriors', 'painted'), '8')
+  await progress(page, 'Necron Warriors', 'painted').fill('13')
+  await progress(page, 'Necron Warriors', 'painted').press('Enter')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('8')
+  await setOwned(page, 'Necron Warriors', '5')
+  await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('5')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('5')
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await page.reload()
+  await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('5')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('5')
+})
+
+const csv = (text: string) => ({ name: 'collection.csv', mimeType: 'text/csv', buffer: Buffer.from(text) })
+
+test('imports a reviewed collection file without overwriting saved counts unless asked', async ({ page }) => {
+  await signUp(page, uniqueName('Collection import'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Overlord', 'Necrons')
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  const file = [
+    'faction,datasheet,models,built,painted,wanted',
+    'Necrons,Necron Warriors,20,10,5,',
+    'Necrons,Overlord,3,,,',
+    ',Rhino,1,,,',
+    ',Squiggoth,1,,,',
+    'Necrons,Necron Warriors,5,,,',
+    'Necrons,Immortals,5,6,,',
+    'Necrons,Skorpekh Destroyers,,,,3',
+  ].join('\n')
+  const review = page.getByRole('dialog', { name: 'Import collection' })
+  await page.locator('input[type=file]').setInputFiles(csv(file))
+  await expect(review.locator('[data-import-summary]')).toHaveText('3 recognised · 1 to choose · 3 skipped')
+  await expect(review.locator('[data-import-row="Overlord"]')).toContainText('Differs')
+  await expect(review.locator('[data-import-row="Squiggoth"]')).toContainText('No current datasheet has this name.')
+  await review.getByRole('combobox', { name: /Which Rhino/ }).selectOption({ label: 'Rhino (Space Marines)' })
+  await review.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(review.locator('output')).toHaveText('Imported: 3 added, 0 replaced, 1 kept as saved.')
+  await review.getByRole('button', { name: 'Done', exact: true }).click()
+  await expect(owned(page, 'Overlord')).toHaveValue('1')
+  await expect(owned(page, 'Necron Warriors')).toHaveValue('20')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('5')
+  await expect(page.locator('[data-wish="Skorpekh Destroyers"]')).toBeVisible()
+
+  await page.locator('input[type=file]').setInputFiles(csv(file))
+  await review.getByLabel(/Replace my saved counts/).check()
+  await review.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(review.locator('output')).toHaveText('Imported: 0 added, 1 replaced, 0 kept as saved.')
+  await review.getByRole('button', { name: 'Done', exact: true }).click()
+  await expect(owned(page, 'Overlord')).toHaveValue('3')
+})
+
+test('exports a collection that imports back unchanged', async ({ page }) => {
+  await signUp(page, uniqueName('Collection export'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  await setOwned(page, 'Necron Warriors', '10')
+  await setCount(progress(page, 'Necron Warriors', 'built'), '4')
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
+  ])
+  const exported = await download.path().then((path) => import('node:fs/promises').then((fs) => fs.readFile(path, 'utf8')))
+  expect(exported).toContain('Necrons,Necron Warriors,')
+  await page.locator('input[type=file]').setInputFiles(csv(exported))
+  const review = page.getByRole('dialog', { name: 'Import collection' })
+  await expect(review.locator('[data-import-row="Necron Warriors"]')).toContainText('Unchanged')
+  await expect(review.getByRole('button', { name: 'Import', exact: true })).toBeDisabled()
+})
+
+test('a saved roster shows shortages its units share and adds them to the wishlist', async ({ page }) => {
+  await signUp(page, uniqueName('Roster readiness'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  await setOwned(page, 'Necron Warriors', '15')
+  await setCount(progress(page, 'Necron Warriors', 'built'), '15')
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Readiness' })
+  for (let copy = 0; copy < 2; copy++) {
+    await page.getByLabel('Add a unit').fill('Necron Warriors')
+    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Necron Warriors', exact: true }).first().click())
+  }
+  const panel = page.locator('[data-roster-readiness]')
+  await expect(panel.locator('[data-readiness-summary]')).toHaveText('5 models short')
+  await panel.getByRole('button', { name: 'Toggle Your collection', exact: true }).click()
+  const row = panel.locator('[data-readiness-unit="Necron Warriors"]')
+  await expect(row).toContainText('20 needed · 15 owned · 15 built · 0 painted')
+  await row.getByRole('button', { name: 'Add 5 to wishlist', exact: true }).click()
+  await expect(row).toContainText('5 on your wishlist')
+  await page.goto('/collection')
+  await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('5')
+})

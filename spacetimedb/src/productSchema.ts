@@ -247,6 +247,20 @@ const collection = table(
     entryId: t.string(),
     at: t.u64(),
     models: t.option(t.u32()).default(undefined),
+    built: t.option(t.u32()).default(undefined),
+    painted: t.option(t.u32()).default(undefined),
+  },
+)
+
+/** Models a player wants beyond those they own, kept apart so a wish never counts as ownership. */
+const collectionWishes = table(
+  { name: 'collection_wish' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    entryId: t.string(),
+    wanted: t.u32(),
+    at: t.u64(),
   },
 )
 
@@ -388,6 +402,7 @@ export const productTables = {
   leagueAdmins,
   collection,
   collectionSharing,
+  collectionWishes,
   collectionStock,
   collectionPhotos,
   collectionPhotoDeletions,

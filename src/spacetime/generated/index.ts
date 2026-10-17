@@ -58,6 +58,8 @@ import RevokeSessionReducer from './revoke_session_reducer'
 import SetCollectionModelsReducer from './set_collection_models_reducer'
 import SetCollectionPhotoReducer from './set_collection_photo_reducer'
 import SetCollectionPhotoLikeReducer from './set_collection_photo_like_reducer'
+import SetCollectionProgressReducer from './set_collection_progress_reducer'
+import SetCollectionWantedReducer from './set_collection_wanted_reducer'
 import UnregisterPushTokenReducer from './unregister_push_token_reducer'
 import UnwatchBattleReducer from './unwatch_battle_reducer'
 import WatchBattleReducer from './watch_battle_reducer'
@@ -75,6 +77,7 @@ import * as CollectionPhotoProcedure from './collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from './collection_photo_deletions_procedure'
 import * as CollectionPhotoForAdminProcedure from './collection_photo_for_admin_procedure'
 import * as CollectionProfileProcedure from './collection_profile_procedure'
+import * as CollectionWishesByUserProcedure from './collection_wishes_by_user_procedure'
 import * as CreateBattleProcedure from './create_battle_procedure'
 import * as DatasheetPhotosProcedure from './datasheet_photos_procedure'
 import * as DeleteBattleForOperatorProcedure from './delete_battle_for_operator_procedure'
@@ -88,6 +91,7 @@ import * as FriendInviteByTokenProcedure from './friend_invite_by_token_procedur
 import * as FriendshipsByUserProcedure from './friendships_by_user_procedure'
 import * as HeldCollectionPhotosProcedure from './held_collection_photos_procedure'
 import * as HomeRostersByUserProcedure from './home_rosters_by_user_procedure'
+import * as ImportCollectionProcedure from './import_collection_procedure'
 import * as LeagueBattleCandidatesProcedure from './league_battle_candidates_procedure'
 import * as LeagueByTokenProcedure from './league_by_token_procedure'
 import * as LeagueCommandProcedure from './league_command_procedure'
@@ -221,6 +225,8 @@ const reducersSchema = __reducers(
   __reducerSchema('set_collection_models', SetCollectionModelsReducer),
   __reducerSchema('set_collection_photo', SetCollectionPhotoReducer),
   __reducerSchema('set_collection_photo_like', SetCollectionPhotoLikeReducer),
+  __reducerSchema('set_collection_progress', SetCollectionProgressReducer),
+  __reducerSchema('set_collection_wanted', SetCollectionWantedReducer),
   __reducerSchema('unregister_push_token', UnregisterPushTokenReducer),
   __reducerSchema('unwatch_battle', UnwatchBattleReducer),
   __reducerSchema('watch_battle', WatchBattleReducer),
@@ -240,6 +246,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('collection_photo_deletions', CollectionPhotoDeletionsProcedure.params, CollectionPhotoDeletionsProcedure.returnType),
   __procedureSchema('collection_photo_for_admin', CollectionPhotoForAdminProcedure.params, CollectionPhotoForAdminProcedure.returnType),
   __procedureSchema('collection_profile', CollectionProfileProcedure.params, CollectionProfileProcedure.returnType),
+  __procedureSchema('collection_wishes_by_user', CollectionWishesByUserProcedure.params, CollectionWishesByUserProcedure.returnType),
   __procedureSchema('create_battle', CreateBattleProcedure.params, CreateBattleProcedure.returnType),
   __procedureSchema('datasheet_photos', DatasheetPhotosProcedure.params, DatasheetPhotosProcedure.returnType),
   __procedureSchema('delete_battle_for_operator', DeleteBattleForOperatorProcedure.params, DeleteBattleForOperatorProcedure.returnType),
@@ -261,6 +268,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('friendships_by_user', FriendshipsByUserProcedure.params, FriendshipsByUserProcedure.returnType),
   __procedureSchema('held_collection_photos', HeldCollectionPhotosProcedure.params, HeldCollectionPhotosProcedure.returnType),
   __procedureSchema('home_rosters_by_user', HomeRostersByUserProcedure.params, HomeRostersByUserProcedure.returnType),
+  __procedureSchema('import_collection', ImportCollectionProcedure.params, ImportCollectionProcedure.returnType),
   __procedureSchema('league_battle_candidates', LeagueBattleCandidatesProcedure.params, LeagueBattleCandidatesProcedure.returnType),
   __procedureSchema('league_by_token', LeagueByTokenProcedure.params, LeagueByTokenProcedure.returnType),
   __procedureSchema('league_command', LeagueCommandProcedure.params, LeagueCommandProcedure.returnType),
