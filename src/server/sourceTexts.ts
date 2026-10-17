@@ -139,3 +139,36 @@ export function textSourceFiles(root: string, composition: CatalogueComposition 
     for (const source of ['definitions', 'datacards']) if (fs.existsSync(path.join(root, prefix, source))) visit(`${prefix}${source}`)
   return files
 }
+
+const TOKENS_AND_WORDS = /(\u27E6[^\u27E7]*\u27E7)/
+
+/**
+ * A published value with every BSData rules text in its descriptions swapped for its token.
+ *
+ * A description is a definitions file's text as written, or Game Datacards tokens with such
+ * text between them, or paragraphs of either; each piece the files state is swapped whole.
+ */
+export function withDefinitionTokens<T>(value: T, token: ((raw: string) => string | null) | undefined): T {
+  if (!token) return value
+  const published = (text: string) =>
+    token(text) ??
+    text
+      .split(TOKENS_AND_WORDS)
+      .map((piece) =>
+        TOKENS_AND_WORDS.test(piece)
+          ? piece
+          : piece
+              .split('\n\n')
+              .map((paragraph) => token(paragraph) ?? paragraph)
+              .join('\n\n'),
+      )
+      .join('')
+  const visit = (item: unknown, key?: string): unknown => {
+    if (typeof item === 'string') return key === 'description' ? published(item) : item
+    if (Array.isArray(item)) return item.map((entry) => visit(entry))
+    if (item && typeof item === 'object' && Object.getPrototypeOf(item) === Object.prototype)
+      return Object.fromEntries(Object.entries(item).map(([field, entry]) => [field, visit(entry, field)]))
+    return item
+  }
+  return visit(value) as T
+}

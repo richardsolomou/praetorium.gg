@@ -1,7 +1,10 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { MissionActions } from './MissionActions'
+
+// These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
+vi.mock('../rulesText', async (original) => ({ ...(await original<typeof import('../rulesText')>()), useRulesTextChoice: () => true }))
 
 const action = {
   name: 'SECURE ASSET',

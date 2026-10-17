@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
+import { useRulesTextChoice } from '../rulesText'
 import Markdown, { type Components } from 'react-markdown'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
@@ -65,12 +66,26 @@ export function ruleSegments(text: string): RuleSegment[] {
 
 const noLinks: RuleLinks = new Map()
 
-export function RuleText({ text, rules = noRules, className }: { text: string; rules?: KeywordRule[]; className?: string }) {
-  return hasTextTokens(text) ? (
-    <SourcedRuleText text={text} rules={rules} className={className} />
-  ) : (
-    <RuleTextBody text={text} rules={rules} className={className} />
-  )
+/**
+ * Rules text, shown once the reader has chosen to load rules text on this device. `authored`
+ * marks words the app writes itself, which show to everyone.
+ */
+export function RuleText({
+  text,
+  rules = noRules,
+  className,
+  authored = false,
+}: {
+  text: string
+  rules?: KeywordRule[]
+  className?: string
+  authored?: boolean
+}) {
+  const chosen = useRulesTextChoice()
+  if (hasTextTokens(text)) return <SourcedRuleText text={text} rules={rules} className={className} />
+  // BSData's words reach this device to compute from, and show only where the reader asked for rules text.
+  if (!authored && !chosen) return <SourceTextPrompt missing="unchosen" className={cn('mt-2', className)} />
+  return <RuleTextBody text={text} rules={rules} className={className} />
 }
 
 /** Published text names its source rather than stating it, so it is read from that source before it is drawn. */
@@ -89,7 +104,7 @@ function RuleTextBody({ text, rules, className }: { text: string; rules: Keyword
       <div className={cn('mt-2 space-y-2 font-rules text-sm text-dim', className)}>
         {segments.map((segment, at) => {
           const key = `${segment.kind}-${at}`
-          if (segment.kind === 'table') return <RuleMarkup key={key} markup={segment.text} links={noLinks} />
+          if (segment.kind === 'table') return <RuleMarkup key={key} markup={segment.text} links={noLinks} authored />
           return (
             <Markdown key={key} components={components}>
               {segment.text}

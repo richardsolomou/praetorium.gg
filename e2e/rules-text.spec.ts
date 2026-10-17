@@ -41,3 +41,15 @@ test('a file that is not the pinned one is refused', async ({ page }) => {
   await expect(page.getByRole('alert')).toHaveText('Couldn’t load the rules text from Game Datacards.')
   await expect(page.getByText('Models move however they like.')).toHaveCount(0)
 })
+
+test('a datasheet shows its ability text only once the reader loads rules text', async ({ page }) => {
+  const ability = 'subtract 1 from that attack’s Damage characteristic'
+  const response = await page.goto('/factions/necrons/datasheets/overlord')
+  expect(await response?.text()).not.toContain(ability)
+  await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
+  await expect(page.getByText(ability)).toHaveCount(0)
+  // One way to ask per page, however many rules are waiting on their text.
+  await expect(page.getByRole('button', { name: 'Load rules text' })).toHaveCount(1)
+  await page.getByRole('button', { name: 'Load rules text' }).click()
+  await expect(page.getByText(ability)).toBeVisible()
+})

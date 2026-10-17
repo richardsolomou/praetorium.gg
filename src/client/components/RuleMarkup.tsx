@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { useRulesTextChoice } from '../rulesText'
 import { type ReactNode, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
@@ -14,12 +15,22 @@ import { SourceTextPrompt } from './SourceTextPrompt'
  * browser as markup. A number one rule quotes in another becomes a link when the
  * reader can reach that rule and stays the printed number when they cannot.
  */
-export function RuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
-  return hasTextTokens(markup) ? (
-    <SourcedRuleMarkup markup={markup} links={links} className={className} />
-  ) : (
-    <RuleMarkupBody markup={markup} links={links} className={className} />
-  )
+export function RuleMarkup({
+  markup,
+  links,
+  className,
+  authored = false,
+}: {
+  markup: string
+  links: RuleLinks
+  className?: string
+  /** Words already shown or written by the app itself, which show to everyone. */
+  authored?: boolean
+}) {
+  const chosen = useRulesTextChoice()
+  if (hasTextTokens(markup)) return <SourcedRuleMarkup markup={markup} links={links} className={className} />
+  if (!authored && !chosen) return <SourceTextPrompt missing="unchosen" className={className} />
+  return <RuleMarkupBody markup={markup} links={links} className={className} />
 }
 
 function SourcedRuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {

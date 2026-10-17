@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { withDefinitionTokens } from './sourceTexts'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
@@ -488,14 +489,18 @@ export function* canonicalCatalogueSteps(
     leaders: keepCanonicalRoutes(sheet.leaders),
     supporters: keepCanonicalRoutes(sheet.supporters),
   }))
+  // The canonical catalogue is what pages, the API, agents, and search publish: rules text goes out as tokens.
   return canonicalCatalogueSchema.parse({
     format: CANONICAL_CATALOGUE_FORMAT,
     compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
     revisions: Object.fromEntries(Object.entries(revisions).toSorted(([left], [right]) => compareText(left, right))),
-    datasheets: routedDatasheets.toSorted(
-      (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
+    datasheets: withDefinitionTokens(
+      routedDatasheets.toSorted(
+        (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
+      ),
+      loaded.definitionTexts,
     ),
-    detachments: compileCanonicalDetachments(loaded, revisions, rules),
+    detachments: withDefinitionTokens(compileCanonicalDetachments(loaded, revisions, rules), loaded.definitionTexts),
     ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.datacards ?? 'unknown'),
     issues: issues.toSorted(
       (left, right) =>

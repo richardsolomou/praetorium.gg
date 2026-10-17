@@ -20,6 +20,11 @@ export type LoadedCatalogue = {
   mfm?: MfmIndex | null
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
+  /**
+   * The token a BSData rules text is published as, or null for a string no definitions file
+   * states. The catalogue computes from the words; only what it publishes carries tokens.
+   */
+  definitionTexts?: (raw: string) => string | null
 }
 const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
 const DETACHMENT_ENTRY = 'detachment'
