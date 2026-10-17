@@ -121,6 +121,22 @@ export const battleQuery = (token: string) =>
     structuralSharing: newestBattleScreen,
   })
 
+export const BATTLE_ARRIVAL_INTERVAL_MS = 2_000
+export const BATTLE_ARRIVAL_CHECKS = 30
+
+/**
+ * A battle link that names no battle yet. A device can create a battle before the service
+ * has it, so its link may be opened first; this asks again for a minute, under the same key
+ * the route loader reads, and gives up after that so a wrong link stops costing requests.
+ */
+export const battleArrivalQuery = (token: string) =>
+  queryOptions({
+    ...battleQuery(token),
+    staleTime: 0,
+    refetchInterval: (query) =>
+      !query.state.data && query.state.dataUpdateCount < BATTLE_ARRIVAL_CHECKS ? BATTLE_ARRIVAL_INTERVAL_MS : false,
+  })
+
 export const replayAtQuery = (token: string, seq: number, enabled: boolean) =>
   queryOptions({
     queryKey: ['battle-replay', token, seq],
