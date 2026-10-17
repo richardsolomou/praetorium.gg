@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { useRulesTextChoice } from '../rulesText'
+import { useTextSourceChoice } from '../rulesText'
 import { type ReactNode, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { parseRuleMarkup, type RuleInline, type RuleMarkupBlock } from '../ruleMarkup'
 import { useSourceText } from '../sourceText'
-import { hasTextTokens } from '../../shared/sourceText'
+import { type TextSource, hasTextTokens } from '../../shared/sourceText'
 import { SourceTextPrompt } from './SourceTextPrompt'
 
 /**
@@ -20,23 +20,26 @@ export function RuleMarkup({
   links,
   className,
   authored = false,
+  source = 'bsdata',
 }: {
   markup: string
   links: RuleLinks
   className?: string
   /** Words already shown or written by the app itself, which show to everyone. */
   authored?: boolean
+  /** Where untokenized words came from: the catalogue's BSData words unless a loaded document says otherwise. */
+  source?: TextSource
 }) {
-  const chosen = useRulesTextChoice()
+  const choice = useTextSourceChoice()
   if (hasTextTokens(markup)) return <SourcedRuleMarkup markup={markup} links={links} className={className} />
-  if (!authored && !chosen) return <SourceTextPrompt missing="unchosen" className={className} />
+  if (!authored && !choice.sources.has(source)) return <SourceTextPrompt missing="unchosen" needs={[source]} className={className} />
   return <RuleMarkupBody markup={markup} links={links} className={className} />
 }
 
 function SourcedRuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
   const source = useSourceText(markup)
   if (source.missing === 'unchosen' || source.missing === 'loading')
-    return <SourceTextPrompt missing={source.missing} className={className} />
+    return <SourceTextPrompt missing={source.missing} needs={source.needs} className={className} />
   return <RuleMarkupBody markup={source.text} links={links} className={className} />
 }
 

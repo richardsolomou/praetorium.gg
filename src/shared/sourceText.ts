@@ -23,6 +23,12 @@ const TOKEN = new RegExp(`${OPEN}([0-9a-f]{8}):(${TRANSFORM}):([0-9a-f]{${TEXT_H
 
 export type TextToken = { file: string; transform: TextTransform; hash: string }
 
+/** The community sources rules text loads from: BSData's catalogue files and Game Datacards' cards, each chosen on its own. */
+export const TEXT_SOURCES = ['bsdata', 'game-datacards'] as const
+export type TextSource = (typeof TEXT_SOURCES)[number]
+/** Where one file a token names lives upstream, and which source it belongs to. */
+export type TextSourceFile = { url: string; source: TextSource }
+
 export const textToken = ({ file, transform, hash }: TextToken) => `${OPEN}${file}:${transform}:${hash}${CLOSE}`
 
 export const hasTextTokens = (text: string) => text.includes(OPEN)

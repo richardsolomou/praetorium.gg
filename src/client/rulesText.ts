@@ -1,19 +1,50 @@
 import { useQuery } from '@tanstack/react-query'
 import type { RuleDocument, RuleTextSource } from '../contracts/rules'
 import { ruleDocumentFrom } from '../shared/ruleDocuments'
+import { TEXT_SOURCES, type TextSource } from '../shared/sourceText'
 import { readStoredValue, useStoredValue, writeStoredValue } from './storedValue'
 
-/** The only source a reader can choose today; kept as a value so another can join it. */
-export const GAME_DATACARDS = 'game-datacards'
-
-const KEY = 'praetorium-rules-text'
+/**
+ * The sources this device loads rules text from, kept as their names in order. An empty
+ * value is a decision to load none; no value at all means the reader has not decided yet.
+ */
+const KEY = 'praetorium-text-sources'
 /** Pinned files never change, so a verified copy serves every later visit, offline too. */
 const CACHE = 'praetorium-rules-text-v1'
 
-export const useRulesTextChoice = () => useStoredValue(KEY) === GAME_DATACARDS
+export const TEXT_SOURCE_NAMES: Record<TextSource, string> = { bsdata: 'BSData', 'game-datacards': 'Game Datacards' }
+
+export type TextSourceChoice = { decided: boolean; sources: ReadonlySet<TextSource> }
+
+const choices = new Map<string | null, TextSourceChoice>()
+/** One object per stored value, so a choice can be compared and memoized on. */
+export function textSourceChoiceFrom(stored: string | null): TextSourceChoice {
+  let choice = choices.get(stored)
+  if (!choice) {
+    const named = new Set(stored?.split(','))
+    choice = { decided: stored !== null, sources: new Set(TEXT_SOURCES.filter((source) => named.has(source))) }
+    choices.set(stored, choice)
+  }
+  return choice
+}
+
+/** Undecided on the server and while hydrating, like every stored value. */
+export const useTextSourceChoice = () => textSourceChoiceFrom(useStoredValue(KEY))
 /** The choice outside React, for reads that run where no component renders. */
-export const rulesTextChosen = () => readStoredValue(KEY) === GAME_DATACARDS
-export const chooseRulesText = (load: boolean) => writeStoredValue(KEY, load ? GAME_DATACARDS : null)
+export const textSourceChoice = () => textSourceChoiceFrom(readStoredValue(KEY))
+
+/** Records exactly these sources as the ones to load, none included, which also settles the question. */
+export const chooseTextSources = (sources: Iterable<TextSource>) => {
+  const chosen = new Set(sources)
+  writeStoredValue(KEY, TEXT_SOURCES.filter((source) => chosen.has(source)).join(','))
+}
+
+export function chooseTextSource(source: TextSource, load: boolean) {
+  const chosen = new Set(textSourceChoice().sources)
+  if (load) chosen.add(source)
+  else chosen.delete(source)
+  chooseTextSources(chosen)
+}
 
 const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 
@@ -50,7 +81,8 @@ export async function loadRuleText(text: RuleTextSource): Promise<RuleDocument> 
 
 /** The document's text when this device has chosen to load it, and where that choice stands. */
 export function useRuleText(text: RuleTextSource | null) {
-  const chosen = useRulesTextChoice()
+  // Rules documents are Game Datacards files.
+  const chosen = useTextSourceChoice().sources.has('game-datacards')
   const query = useQuery({
     queryKey: ['rules-text', text?.sha256],
     queryFn: () => (text ? loadRuleText(text) : Promise.reject(new Error('This document has no rules text'))),

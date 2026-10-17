@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { textToken } from '../shared/sourceText'
+import type { TextSource } from '../shared/sourceText'
+import { textSourceChoiceFrom } from './rulesText'
 import { loadTextFile, loadedText, loadedWords, registerTextSources } from './sourceText'
 
 const words = 'Re-roll a Hit roll of 1.'
@@ -14,41 +16,69 @@ const serve = (body: unknown) =>
 
 afterEach(() => vi.unstubAllGlobals())
 
+const all = textSourceChoiceFrom('bsdata,game-datacards')
+const file = (id: string, source: TextSource = 'game-datacards') =>
+  registerTextSources({ [id]: { url: `https://raw.githubusercontent.com/owner/repo/sha/${id}.json`, source } })
+
 describe('rules text on this device', () => {
-  it('shows nothing of a text the reader has not chosen to load', () => {
-    expect(loadedText(`**Effect:** ${token('0000000a')}`, false)).toEqual({ text: '**Effect:**', missing: 'unchosen' })
+  // Runs first: no file list has arrived yet, so the source a text needs is not known.
+  it('shows nothing of a text while no source is chosen', () => {
+    expect(loadedText(`**Effect:** ${token('0000000a')}`, textSourceChoiceFrom(null))).toEqual({
+      text: '**Effect:**',
+      missing: 'unchosen',
+      needs: [],
+    })
+  })
+
+  it('names the source a text not chosen would load from', () => {
+    file('00000010', 'bsdata')
+    expect(loadedText(token('00000010'), textSourceChoiceFrom('game-datacards')).needs).toEqual(['bsdata'])
   })
 
   it('waits for the file a token names', () => {
-    registerTextSources({ '0000000b': 'https://raw.githubusercontent.com/owner/repo/sha/b.json' })
-    expect(loadedText(token('0000000b'), true).missing).toBe('loading')
+    file('0000000b')
+    expect(loadedText(token('0000000b'), all).missing).toBe('loading')
   })
 
   it('shows the words of a loaded file whose string matches the token', async () => {
     serve({ effect: { en: words } })
-    registerTextSources({ '0000000c': 'https://raw.githubusercontent.com/owner/repo/sha/c.json' })
+    file('0000000c')
     await loadTextFile('0000000c')
-    expect(loadedText(`**Effect:** ${token('0000000c')}`, true)).toEqual({ text: `**Effect:** ${words}`, missing: null })
+    expect(loadedText(`**Effect:** ${token('0000000c')}`, all)).toEqual({ text: `**Effect:** ${words}`, missing: null, needs: [] })
+  })
+
+  it('shows a loaded file’s words only while its source stays chosen', async () => {
+    serve({ effect: { en: words } })
+    file('00000011')
+    await loadTextFile('00000011')
+    expect(loadedText(token('00000011'), textSourceChoiceFrom('bsdata')).missing).toBe('unchosen')
+  })
+
+  it('shows one source’s words while the other is not chosen', async () => {
+    serve({ effect: { en: words } })
+    file('00000012', 'bsdata')
+    await loadTextFile('00000012')
+    expect(loadedText(token('00000012'), textSourceChoiceFrom('bsdata')).text).toBe(words)
   })
 
   it('gives rules the words of a text it fully loaded', async () => {
     serve({ effect: { en: words } })
-    registerTextSources({ '0000000f': 'https://raw.githubusercontent.com/owner/repo/sha/f.json' })
+    file('0000000f')
     await loadTextFile('0000000f')
-    expect(loadedWords(token('0000000f'), true)).toBe(words)
+    expect(loadedWords(token('0000000f'), all)).toBe(words)
   })
 
   it('marks a token the loaded file holds no string for', async () => {
     serve({ effect: { en: 'Something else entirely.' } })
-    registerTextSources({ '0000000d': 'https://raw.githubusercontent.com/owner/repo/sha/d.json' })
+    file('0000000d')
     await loadTextFile('0000000d')
-    expect(loadedText(token('0000000d'), true)).toEqual({ text: '—', missing: 'unavailable' })
+    expect(loadedText(token('0000000d'), all)).toEqual({ text: '—', missing: 'unavailable', needs: [] })
   })
 
   it('gives rules no words from a text it could only partly load', async () => {
     serve({ effect: { en: words } })
-    registerTextSources({ '0000000e': 'https://raw.githubusercontent.com/owner/repo/sha/e.json' })
+    file('0000000e')
     await loadTextFile('0000000e')
-    expect(loadedWords(`${token('0000000e')} ${token('0000000e', 'Missing.')}`, true)).toBeNull()
+    expect(loadedWords(`${token('0000000e')} ${token('0000000e', 'Missing.')}`, all)).toBeNull()
   })
 })

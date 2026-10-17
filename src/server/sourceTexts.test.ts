@@ -103,12 +103,12 @@ describe('the files a reader can load', () => {
 
   it('lists a root file at its upstream address', () => {
     const url = raw('owner/datacards', 'c'.repeat(40), '11th/gdc/necrons.json')
-    expect(files[textFileId(url)]).toBe(url)
+    expect(files[textFileId(url)]).toEqual({ url, source: 'game-datacards' })
   })
 
   it('lists a rules version’s own file', () => {
     const url = raw('owner/fork', 'e'.repeat(40), 'Necrons.json')
-    expect(files[textFileId(url)]).toBe(url)
+    expect(files[textFileId(url)]).toEqual({ url, source: 'bsdata' })
   })
 
   it('lists nothing outside the text sources', () => {

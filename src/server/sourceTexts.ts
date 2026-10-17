@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 import { type CatalogueSourceConfig, catalogueSources } from './catalogueSources'
-import { type SourceTexts, TEXT_HASH_LENGTH, textToken } from '../shared/sourceText'
+import { type SourceTexts, TEXT_HASH_LENGTH, type TextSource, type TextSourceFile, textToken } from '../shared/sourceText'
 
 export type { SourceTexts }
 
@@ -121,22 +121,27 @@ export const retainedSnapshots =
  * three text sources the snapshot holds, at the root and in every rules version, so a
  * token built by another process — the offline download's — still finds its file.
  */
-export function textSourceFiles(root: string, composition: CatalogueComposition | null): Record<string, string> {
-  const files: Record<string, string> = {}
+export function textSourceFiles(root: string, composition: CatalogueComposition | null): Record<string, TextSourceFile> {
+  const files: Record<string, TextSourceFile> = {}
   const retained = retainedSnapshots(root)
-  const visit = (directory: string) => {
+  const visit = (directory: string, source: TextSource) => {
     for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
       const file = `${directory}/${entry.name}`
-      if (entry.isDirectory()) visit(file)
+      if (entry.isDirectory()) visit(file, source)
       else if (entry.name.endsWith('.json')) {
         const url = upstreamUrl(file, composition, retained)
-        if (url) files[textFileId(url)] = url
+        if (url) files[textFileId(url)] = { url, source }
       }
     }
   }
   const editions = fs.existsSync(path.join(root, 'editions')) ? fs.readdirSync(path.join(root, 'editions')) : []
+  // A file belongs to the source whose place in the snapshot it holds, whichever repository a correction or fork serves it from.
   for (const prefix of ['', ...editions.map((edition) => `editions/${edition}/`)])
-    for (const source of ['definitions', 'datacards']) if (fs.existsSync(path.join(root, prefix, source))) visit(`${prefix}${source}`)
+    for (const [directory, source] of [
+      ['definitions', 'bsdata'],
+      ['datacards', 'game-datacards'],
+    ] as const)
+      if (fs.existsSync(path.join(root, prefix, directory))) visit(`${prefix}${directory}`, source)
   return files
 }
 

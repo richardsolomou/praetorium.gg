@@ -5,7 +5,10 @@ import type { MissionAward } from '../missionText'
 import { MissionCardReference } from './MissionCardReference'
 
 // These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
-vi.mock('../rulesText', async (original) => ({ ...(await original<typeof import('../rulesText')>()), useRulesTextChoice: () => true }))
+vi.mock('../rulesText', async (original) => {
+  const actual = await original<typeof import('../rulesText')>()
+  return { ...actual, useTextSourceChoice: () => actual.textSourceChoiceFrom('bsdata,game-datacards') }
+})
 
 const trigger = {
   timing: 'end-of-turn',

@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { MissionActions } from './MissionActions'
 
 // These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
-vi.mock('../rulesText', async (original) => ({ ...(await original<typeof import('../rulesText')>()), useRulesTextChoice: () => true }))
+vi.mock('../rulesText', async (original) => {
+  const actual = await original<typeof import('../rulesText')>()
+  return { ...actual, useTextSourceChoice: () => actual.textSourceChoiceFrom('bsdata,game-datacards') }
+})
 
 const action = {
   name: 'SECURE ASSET',

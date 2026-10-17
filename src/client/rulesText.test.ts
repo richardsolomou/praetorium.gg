@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { loadRuleText } from './rulesText'
+import { loadRuleText, textSourceChoiceFrom } from './rulesText'
 
 const file = JSON.stringify({
   id: 'core-rules-document',
@@ -48,5 +48,19 @@ describe('loading a document’s rules text', () => {
     serve(file)
     await loadRuleText(text)
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(text.url, { credentials: 'omit', referrerPolicy: 'no-referrer' })
+  })
+})
+
+describe('the sources a reader has chosen', () => {
+  it('has not decided while nothing is stored', () => {
+    expect(textSourceChoiceFrom(null).decided).toBe(false)
+  })
+
+  it('counts loading no source as a decision', () => {
+    expect(textSourceChoiceFrom('')).toEqual({ decided: true, sources: new Set() })
+  })
+
+  it('reads only the sources it knows', () => {
+    expect(textSourceChoiceFrom('bsdata,elsewhere').sources).toEqual(new Set(['bsdata']))
   })
 })

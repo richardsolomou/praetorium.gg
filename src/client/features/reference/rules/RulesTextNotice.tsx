@@ -1,6 +1,7 @@
+import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import type { RuleTextSource } from '../../../../contracts/rules'
-import { chooseRulesText, type useRuleText } from '../../../rulesText'
+import { chooseTextSource, type useRuleText } from '../../../rulesText'
 
 /**
  * Where the text on a rules page comes from, and the reader's choice to load it.
@@ -25,9 +26,12 @@ export function RulesTextNotice({ text, state }: { text: RuleTextSource | null; 
         <p className="min-w-0 flex-1 text-dim">
           Praetorium shows rule numbers and titles. The text loads in your browser from {source} on GitHub.
         </p>
-        <Button size="sm" onClick={() => chooseRulesText(true)}>
-          Load rules text
+        <Button size="sm" onClick={() => chooseTextSource('game-datacards', true)}>
+          Load Game Datacards text
         </Button>
+        <Link to="/sources" className="text-info hover:text-bone">
+          Data sources
+        </Link>
       </div>
     )
   }
@@ -47,9 +51,9 @@ export function RulesTextNotice({ text, state }: { text: RuleTextSource | null; 
   return (
     <p className="text-xs text-dim">
       Text loaded on this device from {source}.{' '}
-      <button type="button" className="text-info hover:text-bone" onClick={() => chooseRulesText(false)}>
-        Stop loading
-      </button>
+      <Link to="/sources" className="text-info hover:text-bone">
+        Data sources
+      </Link>
     </p>
   )
 }

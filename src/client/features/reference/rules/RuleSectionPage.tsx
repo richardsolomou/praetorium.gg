@@ -73,7 +73,6 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
             ) : null,
           )}
         </nav>
-        <p className="border-t border-edge pt-3 text-xs text-dim">{index.attribution}</p>
       </PageContent>
     </main>
   )
@@ -105,7 +104,7 @@ function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {
             <div key={fact.label}>
               <dt className="eyebrow">{fact.label}</dt>
               <dd>
-                <RuleMarkup markup={fact.markup} links={links} className="mt-1" />
+                <RuleMarkup markup={fact.markup} links={links} source="game-datacards" className="mt-1" />
               </dd>
             </div>
           ))}
@@ -120,7 +119,8 @@ function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {
             </h3>
           )
         }
-        if (block.kind === 'prose') return <RuleMarkup key={key} markup={block.markup} links={links} className="mt-3" />
+        if (block.kind === 'prose')
+          return <RuleMarkup key={key} markup={block.markup} links={links} source="game-datacards" className="mt-3" />
         if (block.markup === null) {
           return (
             <div
@@ -140,7 +140,7 @@ function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {
               <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
               <ChevronRight className="size-3.5 shrink-0 text-faint transition-transform group-open:rotate-90" aria-hidden />
             </summary>
-            <RuleMarkup markup={block.markup} links={links} className="border-t border-edge px-3 py-2" />
+            <RuleMarkup markup={block.markup} links={links} source="game-datacards" className="border-t border-edge px-3 py-2" />
           </details>
         )
       })}

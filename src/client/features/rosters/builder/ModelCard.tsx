@@ -110,7 +110,7 @@ export function ModelCard({
       onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
     }
   }
-  const { chosen } = useSourceTexts((wargearGroups ?? []).map((group) => group.instruction))
+  const { choice: textChoice } = useSourceTexts((wargearGroups ?? []).map((group) => group.instruction))
   const counted = heading()
   if (!showOptions && !count) return null
   const statedInstructions = new Set<string>()
@@ -187,7 +187,7 @@ export function ModelCard({
           const picked = choice.uniform || (choice.optional && choice.room === 1 && choice.options.length === 1)
           const instructions = showOptions
             ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? [], (text) =>
-                loadedWords(text, chosen),
+                loadedWords(text, textChoice),
               ).filter((instruction) => {
                 if (statedInstructions.has(instruction)) return false
                 statedInstructions.add(instruction)

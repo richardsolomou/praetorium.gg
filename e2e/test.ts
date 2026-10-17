@@ -87,20 +87,20 @@ async function serveRulesText(context: BrowserContext) {
       const body = await read(new URL(url).href)
       return body === null ? new Response(null, { status: 404 }) : new Response(body, { headers: { 'Content-Type': 'text/plain' } })
     }
-    // Chosen once per browser context, so a test that stops loading rules text keeps that choice.
+    // Chosen once per browser context, so a test that turns a source off keeps that choice.
     if (localStorage.getItem('praetorium-e2e-rules-text') === null) {
       localStorage.setItem('praetorium-e2e-rules-text', 'set')
-      localStorage.setItem('praetorium-rules-text', 'game-datacards')
+      localStorage.setItem('praetorium-text-sources', 'bsdata,game-datacards')
     }
   })
 }
 
-/** Starts a context where a reader who has not chosen to load rules text starts; a choice made later is kept. */
+/** Starts a context where a new device starts, undecided about its sources; a choice made later is kept. */
 const startUnchosen = (context: BrowserContext) =>
   context.addInitScript(() => {
     if (localStorage.getItem('praetorium-e2e-rules-text-unchosen') !== null) return
     localStorage.setItem('praetorium-e2e-rules-text-unchosen', 'set')
-    localStorage.removeItem('praetorium-rules-text')
+    localStorage.removeItem('praetorium-text-sources')
   })
 
 export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean }>({

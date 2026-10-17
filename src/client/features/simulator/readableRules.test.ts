@@ -30,12 +30,12 @@ describe('rules the simulator can compile on this device', () => {
   })
 
   it('compiles a rule from the words it loaded', async () => {
-    vi.stubGlobal('localStorage', { getItem: () => 'game-datacards' })
+    vi.stubGlobal('localStorage', { getItem: () => 'bsdata' })
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ effect: words }))),
     )
-    registerTextSources({ '000000aa': 'https://raw.githubusercontent.com/owner/repo/sha/rules.json' })
+    registerTextSources({ '000000aa': { url: 'https://raw.githubusercontent.com/owner/repo/sha/rules.json', source: 'bsdata' } })
     await loadTextFile('000000aa')
     expect(readableRules([rule(tokenFor(words))]).map((read) => read.description)).toEqual([words])
   })
