@@ -342,7 +342,9 @@ test('public reference data renders without client JavaScript', async ({ browser
 
   await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold')
   const deathTrap = page.getByRole('heading', { name: 'Death Trap', exact: true }).locator('..')
-  await expect(deathTrap).toContainText('For each terrain area trapped this turn.')
+  // The payouts are facts the page publishes; what each asks for is rules text, which loads only in a browser that asks for it.
+  await expect(deathTrap).toContainText('2 VP')
+  await expect(deathTrap).not.toContainText('For each terrain area trapped this turn.')
   const missionId = await deathTrap.getAttribute('id')
   expect(missionId).toMatch(/^mission-/)
   await page.goto(`/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#${missionId}`)
@@ -390,7 +392,8 @@ test('public reference data renders without client JavaScript', async ({ browser
 
   await page.goto('/rules/core-rules/movement-phase')
   await expect(page.getByRole('heading', { name: 'Movement Phase', exact: true })).toBeVisible()
-  await expect(page.locator('[id="09.00"]')).toContainText('In the Movement phase')
+  await expect(page.locator('[id="09.00"]')).toContainText('Movement Phase')
+  await expect(page.locator('[id="09.00"]')).not.toContainText('In the Movement phase')
   await expect(page).toHaveTitle(/Movement Phase — Core Rules — Praetorium/)
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Movement Phase from Core Rules/)
   await expectCanonical(page, '/rules/core-rules/movement-phase')

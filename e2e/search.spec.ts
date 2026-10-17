@@ -211,12 +211,13 @@ for (const width of [390, 1280]) {
   })
 }
 
-test('detachment rule names, effect text, and weapon traits explain their matches', async ({ page }) => {
+// Game Datacards rules text is published only as tokens, so search matches stratagems by name rather than by what they say.
+test('detachment rule and stratagem names, enhancement text, and weapon traits explain their matches', async ({ page }) => {
   for (const [query, reason] of [
     ['Assemblage of Might', 'Assemblage of Might detachment rule'],
-    ['Duty Unto Death stays on the battlefield', 'Duty Unto Death stratagem'],
+    ['Duty Unto Death', 'Duty Unto Death stratagem'],
     ['Lone Operative Stealth', 'Shroud of the Hidden Blade enhancement'],
-    ['one additional time not in the same phase', 'Gilded Champion stratagem'],
+    ['Gilded Champion', 'Gilded Champion stratagem'],
   ] as const) {
     await page.goto(`/search?q=${encodeURIComponent(query)}`)
     const result = page

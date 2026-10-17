@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect } from 'react'
-import type { RuleEntry } from '../../../../contracts/rules'
+import type { RuleEntry, RuleSection } from '../../../../contracts/rules'
 import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
 import { RuleMarkup } from '../../../components/RuleMarkup'
@@ -21,8 +21,9 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
   const { data } = useQuery(ruleSectionQuery(documentId, sectionId))
   const text = useRuleText(data?.document.text ?? null)
   const hash = useLocation({ select: (location) => location.hash })
-  // The outline's addresses come from the same file, so the loaded section lands on them.
-  const shown = text.document?.sections.find((candidate) => candidate.slug === sectionId) ?? data?.section
+  const loaded = text.document?.sections.find((candidate) => candidate.slug === sectionId)
+  // The outline names and numbers every rule; the loaded file gives each rule its text, matched by the rule's id.
+  const shown = data?.section && loaded ? withText(data.section, loaded) : data?.section
   // A link to a clarification lands on a collapsed one, so the address opens it. Done
   // to the element rather than through a prop: the server cannot know the address, and
   // a reader's own toggle must survive every later render. Loaded text replaces the
@@ -76,6 +77,17 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
       </PageContent>
     </main>
   )
+}
+
+function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
+  const texts = new Map(loaded.entries.map((entry) => [entry.id, entry]))
+  return {
+    ...outline,
+    entries: outline.entries.map((entry) => {
+      const source = texts.get(entry.id)
+      return source ? { ...entry, blocks: source.blocks, facts: source.facts, lore: source.lore } : entry
+    }),
+  }
 }
 
 function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {

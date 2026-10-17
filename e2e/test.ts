@@ -57,20 +57,27 @@ function upstreamFiles() {
  * was verified into, so no test reaches GitHub. A string Praetorium corrected differs from
  * upstream either way, and the browser shows it as unavailable as it would in production.
  */
-async function serveRulesText(context: BrowserContext, chosen: boolean) {
+async function serveRulesText(context: BrowserContext) {
   await context.route('https://raw.githubusercontent.com/**', (route) => {
     const file = upstreamFiles().get(route.request().url())
     return file ? route.fulfill({ path: file, contentType: 'text/plain' }) : route.fulfill({ status: 404 })
   })
-  if (chosen)
-    await context.addInitScript(() => {
-      // Chosen once per browser context, so a test that stops loading rules text keeps that choice.
-      if (localStorage.getItem('praetorium-e2e-rules-text') === null) {
-        localStorage.setItem('praetorium-e2e-rules-text', 'set')
-        localStorage.setItem('praetorium-rules-text', 'game-datacards')
-      }
-    })
+  await context.addInitScript(() => {
+    // Chosen once per browser context, so a test that stops loading rules text keeps that choice.
+    if (localStorage.getItem('praetorium-e2e-rules-text') === null) {
+      localStorage.setItem('praetorium-e2e-rules-text', 'set')
+      localStorage.setItem('praetorium-rules-text', 'game-datacards')
+    }
+  })
 }
+
+/** Starts a context where a reader who has not chosen to load rules text starts; a choice made later is kept. */
+const startUnchosen = (context: BrowserContext) =>
+  context.addInitScript(() => {
+    if (localStorage.getItem('praetorium-e2e-rules-text-unchosen') !== null) return
+    localStorage.setItem('praetorium-e2e-rules-text-unchosen', 'set')
+    localStorage.removeItem('praetorium-rules-text')
+  })
 
 export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean }>({
   /** Whether the reader has chosen to load rules text; specs about the unloaded state turn it off. */
@@ -79,7 +86,7 @@ export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean 
     // Playwright opens this context through `browser.newContext`, which attaches the wait before this option is known.
     context.off('page', awaitHydration)
     if (javaScriptEnabled) context.on('page', awaitHydration)
-    await serveRulesText(context, rulesText)
+    if (!rulesText) await startUnchosen(context)
     await use(context)
   },
   /** Closes the contexts a test opens with `browser.newContext()`; Playwright closes only those its fixtures create. */
@@ -90,7 +97,7 @@ export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean 
       browser.newContext = async (options) => {
         const context = await newContext(options)
         if (options?.javaScriptEnabled !== false) context.on('page', awaitHydration)
-        await serveRulesText(context, true)
+        await serveRulesText(context)
         return context
       }
       await use()
