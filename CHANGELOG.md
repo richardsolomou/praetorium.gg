@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.156.0
+
+### Minor Changes
+
+- 57e2654: Search lists the results you opened recently before you type, and you can remove any of them or clear the list.
+
+### Patch Changes
+
+- 5b3e162: A painted count entered right after changing the built count is no longer reset to zero.
+- 94653bd: Loadout optimisation is up to ten times faster, finishes for large squads such as Plague Marines, shows its progress from the start, and no longer slows down the service for other players.
+- 57e2654: Datasheets, rules and other reference pages open straight from your downloaded reference while it is up to date.
+- 790bce3: The roster builder prices units and opens datasheets on your device while your downloaded rules are up to date.
+- 57e2654: Search shows results as you type once the reference has downloaded, instead of waiting for the server.
+- 57e2654: The offline download is smaller and its pages and search work before the rest finishes; older rules versions download only when one of your rosters uses them.
+
 ## 0.155.2
 
 ### Patch Changes
