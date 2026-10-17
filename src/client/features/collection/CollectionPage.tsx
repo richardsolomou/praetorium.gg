@@ -82,7 +82,10 @@ export function CollectionPage() {
   // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
   const fieldedShelf = suggestions.length ? (
     <section aria-labelledby="fielded-heading">
-      <h2 id="fielded-heading" className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
+      <h2
+        id="fielded-heading"
+        className="rubric flex flex-col gap-1 border-b border-edge pb-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"
+      >
         <span className="flex items-center gap-2">
           <Swords className="size-4 text-info" aria-hidden /> From your battles
         </span>

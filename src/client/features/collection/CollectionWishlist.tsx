@@ -23,11 +23,16 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
   const set = (entryId: string, count: number) => mutation.mutateAsync({ entryId, wanted: count })
   return (
     <section aria-labelledby="wishlist-heading" className="space-y-3">
-      <h2 id="wishlist-heading" className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
+      <h2
+        id="wishlist-heading"
+        className="rubric flex flex-col gap-1 border-b border-edge pb-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"
+      >
         <span className="flex items-center gap-2">
           <Star className="size-4 text-info" aria-hidden /> Wishlist
         </span>
-        <span className="text-xs text-dim normal-case">{total ? `${total} to buy` : 'Models to buy'}</span>
+        <span className="text-xs text-dim normal-case">
+          {total ? `${total} ${total === 1 ? 'model' : 'models'} to buy, apart from those you own` : 'Models you plan to buy'}
+        </span>
       </h2>
       <SearchableSelect
         ariaLabel="Add a datasheet to your wishlist"
