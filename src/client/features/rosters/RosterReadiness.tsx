@@ -6,13 +6,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { rosterReadiness, type RosterReadiness as Readiness } from '../../../core/collectionReadiness'
 import { collectionCountsQuery, collectionProgressQuery, collectionWishesQuery } from '../../queries'
 import { useCollectionWantedMutation } from '../../useCollection'
+import { useHydrated } from '../../useClientValue'
 
 /** The reader's own collection against this roster, closed until asked for; it never changes points or legality. */
 export function RosterReadiness({ units }: { units: readonly { entryId: string; name: string; models: number }[] }) {
   const counts = useQuery(collectionCountsQuery())
   const progress = useQuery(collectionProgressQuery())
   const wishes = useQuery(collectionWishesQuery())
-  if (!counts.data || !progress.data || !wishes.data) return null
+  // A launch from saved state has these before the server's page does, so the section waits for hydration.
+  const hydrated = useHydrated()
+  if (!hydrated || !counts.data || !progress.data || !wishes.data) return null
   const readiness = rosterReadiness(units, { counts: counts.data, progress: progress.data, wishes: wishes.data })
   const empty = !Object.keys(counts.data).length
   return (
