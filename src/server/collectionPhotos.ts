@@ -8,6 +8,7 @@ const DELETION_BATCH = 100
 const DELETION_BATCHES_PER_DRAIN = 20
 export const DATASHEET_GALLERY_SIZE = 12
 const HELD_LIST_SIZE = 100
+const RECENT_LIST_SIZE = 24
 
 type PhotoRepository = Pick<
   SpacetimeRepository,
@@ -18,6 +19,7 @@ type PhotoRepository = Pick<
   | 'reportCollectionPhoto'
   | 'keepCollectionPhoto'
   | 'heldCollectionPhotos'
+  | 'recentCollectionPhotos'
   | 'setCollectionPhotoLike'
   | 'collectionPhoto'
   | 'datasheetPhotos'
@@ -35,6 +37,12 @@ export function collectionPhotoStore(
   privateObjects: () => PrivateObjects | null,
   clock: () => number = Date.now,
 ) {
+  /** Names each photo's owner, keeping a deleted owner's photo reviewable. */
+  async function withOwners<Row extends { userId: string }>(rows: Row[]) {
+    const owners = await repository.namesByIds(rows.map((row) => row.userId))
+    return rows.map(({ userId, ...photo }) => ({ ...photo, owner: owners.get(userId) ?? { id: userId, name: 'Deleted player' } }))
+  }
+
   return {
     async upload(userId: string, entryId: string, image: string) {
       const objects = privateObjects()
@@ -73,7 +81,7 @@ export function collectionPhotoStore(
       return repository.removeCollectionPhotoById(photoId)
     },
 
-    /** Holds the photo from everyone but its owner and administrators until one keeps or removes it. */
+    /** Holds the photo from everyone but its owner and administrators until one keeps or removes it; a kept photo is only flagged. */
     report(userId: string, photoId: string) {
       return repository.reportCollectionPhoto({ userId, photoId })
     },
@@ -82,11 +90,14 @@ export function collectionPhotoStore(
       return repository.keepCollectionPhoto(photoId)
     },
 
-    /** Photos reports hold, oldest first, named for their owners. */
+    /** Reported photos awaiting a decision, oldest first. */
     async held() {
-      const rows = await repository.heldCollectionPhotos(HELD_LIST_SIZE)
-      const owners = await repository.namesByIds(rows.map((row) => row.userId))
-      return rows.map(({ userId, ...photo }) => ({ ...photo, owner: owners.get(userId) ?? { id: userId, name: 'Deleted player' } }))
+      return withOwners(await repository.heldCollectionPhotos(HELD_LIST_SIZE))
+    },
+
+    /** The newest photos no report holds, so administrators can remove one nobody has reported yet. */
+    async recent() {
+      return withOwners(await repository.recentCollectionPhotos(RECENT_LIST_SIZE))
     },
 
     /** Whether `viewerId` may see the photo, and whose it is. */
@@ -136,7 +147,7 @@ export function collectionPhotoReportEmail(
       '',
       report.reason || 'No reason given.',
       '',
-      `It stays hidden until you keep or remove it at ${new URL('/admin?tab=photos', appUrl).href}, unless an administrator has kept it before.`,
+      `Review it at ${new URL('/admin?tab=photos', appUrl).href}. It stays hidden until you keep or remove it, unless an administrator kept it before.`,
     ].join('\n'),
   }
 }

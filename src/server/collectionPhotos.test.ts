@@ -47,7 +47,11 @@ function fakeRepository({ refuse = false } = {}) {
     reportCollectionPhoto: async ({ photoId }: { photoId: string }) => void (photos.get(photoId)!.held = true),
     keepCollectionPhoto: async (photoId: string) => void (photos.get(photoId)!.held = false),
     heldCollectionPhotos: async () =>
-      [...photos].filter(([, photo]) => photo.held).map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1 })),
+      [...photos]
+        .filter(([, photo]) => photo.held)
+        .map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1, shown: false })),
+    recentCollectionPhotos: async () =>
+      [...photos].filter(([, photo]) => !photo.held).map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1 })),
     collectionPhotoDeletions: async (limit: number) => deletions.slice(0, limit),
     clearCollectionPhotoDeletions: async (photoIds: readonly string[]) => {
       for (const photoId of photoIds) deletions.splice(deletions.indexOf(photoId), 1)
@@ -105,6 +109,13 @@ describe('collectionPhotoStore', () => {
     const photoId = await store.upload('deleted', 'warriors', image)
     await store.report('reader', photoId)
     expect((await store.held()).map(({ owner }) => owner.name)).toEqual(['Deleted player'])
+  })
+
+  it('lists recent photos named for their owners', async () => {
+    const { objects } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    await store.upload('owner', 'warriors', image)
+    expect((await store.recent()).map(({ owner }) => owner.name)).toEqual(['Player owner'])
   })
 
   it('answers a malformed photo id as not found without asking the collection', async () => {

@@ -12,6 +12,7 @@ import {
   friendInvite,
   githubSponsorship,
   heldCollectionPhotos,
+  recentCollectionPhotos,
   me,
   notificationSettings,
   onboardingProgress,
@@ -85,6 +86,8 @@ export const adminPlayerBattlesQuery = (userId: string) =>
   queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'player-battles', userId], queryFn: () => adminPlayerBattles({ data: { userId } }) })
 export const heldCollectionPhotosQuery = () =>
   queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'held-photos'], queryFn: () => heldCollectionPhotos() })
+export const recentCollectionPhotosQuery = () =>
+  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'recent-photos'], queryFn: () => recentCollectionPhotos() })
 
 export const userProfileQuery = (userId: string) =>
   queryOptions({

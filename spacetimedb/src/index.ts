@@ -1497,6 +1497,7 @@ export const setCollectionPhoto = spacetime.reducer(
       throw new SenderError(`You can add up to ${MAX_DATASHEET_PHOTOS} photos of a datasheet`)
     ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId, at: input.at, likes: 0, review: undefined })
     touchCollection(ctx, userId)
+    touchAdmin(ctx)
   },
 )
 
@@ -1575,19 +1576,24 @@ export const setCollectionPhotoLike = spacetime.reducer(
   },
 )
 
-/** A reader's report, which holds the photo for review unless an administrator has already kept it. */
+/** A reader's report, which holds the photo for review; a photo an administrator kept stays shown and is flagged for another look. */
 export const reportCollectionPhoto = spacetime.reducer({ userId: t.string(), photoId: t.string() }, (ctx, { userId, photoId }) => {
   requireOperator(ctx)
   const photo = ctx.db.collectionPhotos.photoId.find(photoId)
   if (!photo || !photoShown(ctx, photo, userId)) throw new SenderError('That photo is no longer shown')
   if (photo.userId === userId) throw new SenderError('You cannot report your own photo')
+  if (photo.review === 'kept') {
+    ctx.db.collectionPhotos.photoId.update({ ...photo, review: 'flagged' })
+    touchAdmin(ctx)
+    return
+  }
   if (photo.review) return
   ctx.db.collectionPhotos.photoId.update({ ...photo, review: 'held' })
   touchCollection(ctx, photo.userId)
   touchAdmin(ctx)
 })
 
-/** An administrator's decision to show a reported photo again and ignore later reports of it. */
+/** An administrator's decision to show a reported photo, after which a report only flags it. */
 export const keepCollectionPhoto = spacetime.reducer({ photoId: t.string() }, (ctx, { photoId }) => {
   requireOperator(ctx)
   const photo = ctx.db.collectionPhotos.photoId.find(photoId)
@@ -1597,20 +1603,39 @@ export const keepCollectionPhoto = spacetime.reducer({ photoId: t.string() }, (c
   touchAdmin(ctx)
 })
 
-/** Photos a report holds, oldest first, for administrators to keep or remove. */
+/** Reported photos awaiting an administrator's decision, oldest first, and whether each is still shown. */
 export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     const held = []
-    for (const row of tx.db.collectionPhotos.iter()) if (row.review === 'held') held.push(row)
+    for (const row of tx.db.collectionPhotos.iter()) if (awaitsReview(row)) held.push(row)
     return productJson(
       held
         .sort((left, right) => Number(left.at - right.at) || left.photoId.localeCompare(right.photoId))
+        .slice(0, Math.min(limit, 100))
+        .map(({ photoId, userId, entryId, at, review }) => ({ photoId, userId, entryId, at, shown: review === 'flagged' })),
+    )
+  }),
+)
+
+/** The newest photos awaiting no review, for administrators to catch what nobody has reported yet. */
+export const recentCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const recent = []
+    for (const row of tx.db.collectionPhotos.iter()) if (!awaitsReview(row)) recent.push(row)
+    return productJson(
+      recent
+        .sort((left, right) => Number(right.at - left.at) || left.photoId.localeCompare(right.photoId))
         .slice(0, Math.min(limit, 100))
         .map(({ photoId, userId, entryId, at }) => ({ photoId, userId, entryId, at })),
     )
   }),
 )
+
+function awaitsReview(row: { review?: string }) {
+  return row.review === 'held' || row.review === 'flagged'
+}
 
 function setLike(ctx: Context, photoId: string, userId: string, liked: boolean, at: bigint) {
   const key = JSON.stringify([photoId, userId])
@@ -1661,11 +1686,11 @@ function collectionPhotoField(ctx: Context, key: string, owner = true) {
 }
 
 /** Drops a photo and its likes, leaving its id for the web server to delete the stored object. */
-function dropCollectionPhoto(ctx: Context, photo: { photoId: string; review?: string }) {
+function dropCollectionPhoto(ctx: Context, photo: { photoId: string }) {
   ctx.db.collectionPhotos.photoId.delete(photo.photoId)
   for (const like of Array.from(ctx.db.collectionPhotoLikes.photoId.filter(photo.photoId))) ctx.db.collectionPhotoLikes.key.delete(like.key)
   ctx.db.collectionPhotoDeletions.insert({ photoId: photo.photoId })
-  if (photo.review === 'held') touchAdmin(ctx)
+  touchAdmin(ctx)
 }
 
 function dropCollectionRowPhotos(ctx: Context, key: string) {

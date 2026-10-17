@@ -152,14 +152,14 @@ it.skipIf(!url || !database || !token)(
 )
 
 it.skipIf(!url || !database || !token)(
-  'holds a reported photo from everyone but its owner and administrators until one keeps it',
+  'holds a reported photo from everyone but its owner and administrators until one keeps it, then only flags it',
   async () => {
     const operator = new SpacetimeOperator(url!, database!, token!)
     const entryId = `held-${randomUUID()}`
     const [owner, reader] = [randomUUID(), randomUUID()]
     const photoId = randomUUID()
     const shown = async (viewerId: string | null) => (await operator.datasheetPhotos(entryId, viewerId, 12)).map((row) => row.photoId)
-    const held = async () => (await operator.heldCollectionPhotos(1_000)).some((row) => row.photoId === photoId)
+    const held = async () => (await operator.heldCollectionPhotos(1_000)).find((row) => row.photoId === photoId)?.shown ?? null
     try {
       await operator.setCollectionModels({ userId: owner, entryId, models: 1, now: 1 })
       await operator.setCollectionPhoto({ userId: owner, entryId, photoId, now: 1 })
@@ -171,17 +171,42 @@ it.skipIf(!url || !database || !token)(
         [photoId],
         null,
       ])
-      expect([await held(), await operator.collectionPhotoForAdmin(photoId)]).toEqual([true, { userId: owner, entryId }])
+      expect([await held(), await operator.collectionPhotoForAdmin(photoId)]).toEqual([false, { userId: owner, entryId }])
       expect([
         (await operator.collectionProfile(owner, reader))?.entries,
         (await operator.collectionProfile(owner, owner))?.entries,
       ]).toEqual([[{ entryId, models: 1 }], [{ entryId, models: 1, photoIds: [photoId] }]])
       await expect(operator.setCollectionPhotoLike({ userId: reader, photoId, liked: true, now: 2 })).rejects.toThrow('no longer shown')
       await operator.keepCollectionPhoto(photoId)
+      expect([await shown(null), await held()]).toEqual([[photoId], null])
       await operator.reportCollectionPhoto({ userId: randomUUID(), photoId })
-      expect([await shown(null), await held()]).toEqual([[photoId], false])
+      expect([await shown(null), await held()]).toEqual([[photoId], true])
+      await operator.keepCollectionPhoto(photoId)
+      expect(await held()).toBeNull()
     } finally {
       await Promise.all([operator.deleteUserData(owner), operator.deleteUserData(reader)])
     }
   },
 )
+
+it.skipIf(!url || !database || !token)('lists the newest photos for administrators, leaving out those awaiting review', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const entryId = `recent-${randomUUID()}`
+  const [owner, reader] = [randomUUID(), randomUUID()]
+  const [older, newer, reported, flagged] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()]
+  const now = Date.now()
+  try {
+    await operator.setCollectionModels({ userId: owner, entryId, models: 4, now })
+    await operator.setCollectionPhoto({ userId: owner, entryId, photoId: older, now })
+    await operator.setCollectionPhoto({ userId: owner, entryId, photoId: newer, now: now + 1 })
+    await operator.setCollectionPhoto({ userId: owner, entryId, photoId: reported, now: now + 2 })
+    await operator.setCollectionPhoto({ userId: owner, entryId, photoId: flagged, now: now + 3 })
+    await operator.reportCollectionPhoto({ userId: reader, photoId: reported })
+    await operator.keepCollectionPhoto(flagged)
+    await operator.reportCollectionPhoto({ userId: reader, photoId: flagged })
+    const recent = (await operator.recentCollectionPhotos(100)).filter((row) => row.entryId === entryId).map((row) => row.photoId)
+    expect(recent).toEqual([newer, older])
+  } finally {
+    await Promise.all([operator.deleteUserData(owner), operator.deleteUserData(reader)])
+  }
+})

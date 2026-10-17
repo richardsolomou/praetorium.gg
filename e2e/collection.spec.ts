@@ -333,7 +333,10 @@ test('players add photos from datasheet pages and rosters, which show shared pho
   await builderContext.close()
 })
 
-test('a reported photo is hidden from everyone but its owner until an administrator keeps it', async ({ page, browser }) => {
+test('a reported photo is hidden from everyone but its owner until an administrator keeps it, and removal asks first', async ({
+  page,
+  browser,
+}) => {
   const sharer = uniqueName('Reported sharer')
   await signUp(page, sharer)
   const shared = (scope: Page) =>
@@ -368,15 +371,30 @@ test('a reported photo is hidden from everyone but its owner until an administra
   await admin.getByRole('button', { name: 'Sign in', exact: true }).click()
   await admin.waitForURL('/')
   await admin.goto('/admin')
-  await admin.getByRole('tab', { name: /^Reported photos/ }).click()
+  await admin.getByRole('tab', { name: /^Photos/ }).click()
   await expect(admin).toHaveURL(/\/admin\?tab=photos$/)
   await admin.reload()
-  const held = admin.getByRole('listitem').filter({ has: admin.getByRole('link', { name: sharer, exact: true }) })
-  await loaded(held.getByRole('img'))
-  await held.getByRole('button', { name: 'Keep', exact: true }).click()
-  await expect(held).toHaveCount(0)
-
+  const sharers = (section: string) =>
+    admin
+      .getByRole('region', { name: section, exact: true })
+      .getByRole('listitem')
+      .filter({ has: admin.getByRole('link', { name: sharer, exact: true }) })
+  await expect(sharers('Recently uploaded')).toHaveCount(0)
+  await loaded(sharers('Reported').getByRole('img'))
+  await sharers('Reported').getByRole('button', { name: 'Keep', exact: true }).click()
+  await expect(sharers('Reported')).toHaveCount(0)
+  await expect(sharers('Recently uploaded')).toHaveCount(1)
   await reader.reload()
   await expect(shared(reader)).toBeVisible()
+
+  const confirm = admin.getByRole('alertdialog', { name: 'Remove this photo?', exact: true })
+  await sharers('Recently uploaded').getByRole('button', { name: 'Remove', exact: true }).click()
+  await confirm.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(sharers('Recently uploaded')).toHaveCount(1)
+  await sharers('Recently uploaded').getByRole('button', { name: 'Remove', exact: true }).click()
+  await confirm.getByRole('button', { name: 'Remove', exact: true }).click()
+  await expect(sharers('Recently uploaded')).toHaveCount(0)
+  await reader.reload()
+  await expect(shared(reader)).toHaveCount(0)
   await Promise.all([readerContext.close(), adminContext.close()])
 })
