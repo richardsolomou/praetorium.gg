@@ -180,11 +180,8 @@ export function TerrainBoard({
     <figure className="contents">
       {svg}
       <figcaption className="mt-2 text-sm text-dim">
-        The walls, ruins, and objectives are traced from diagrams by{' '}
-        <a href={layout.publisherUrl} target="_blank" rel="noopener noreferrer" className="text-info underline">
-          Play On Tabletop
-        </a>
-        . The diagrams print no placement distances, so those positions are approximate.
+        The walls, ruins, and objectives are traced from published diagrams that print no placement distances, so those positions are
+        approximate.
       </figcaption>
     </figure>
   )

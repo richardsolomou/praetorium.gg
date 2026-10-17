@@ -49,7 +49,6 @@ export function CombatSimulator({
             </div>
           }
         />
-        <p className="mt-3 text-xs text-faint">Data provided by game-datacards and BSData.</p>
       </PageContent>
     </main>
   )
