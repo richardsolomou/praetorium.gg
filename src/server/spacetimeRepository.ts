@@ -764,6 +764,10 @@ export class SpacetimeRepository {
     return this.product.heldCollectionPhotos(...args)
   }
 
+  recentCollectionPhotos(...args: Parameters<SpacetimeOperator['recentCollectionPhotos']>) {
+    return this.product.recentCollectionPhotos(...args)
+  }
+
   collectionPhotoDeletions(...args: Parameters<SpacetimeOperator['collectionPhotoDeletions']>) {
     return this.product.collectionPhotoDeletions(...args)
   }

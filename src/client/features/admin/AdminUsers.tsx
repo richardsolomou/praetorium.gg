@@ -3,30 +3,35 @@ import { useQuery } from '@tanstack/react-query'
 import type { PaginationState, SortingState } from '@tanstack/react-table'
 import { ShieldCheck } from 'lucide-react'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import type { AdminUser, AdminUserSort } from '../../../admin'
+import { ADMIN_USER_ROLES, type AdminUser, type AdminUserSort } from '../../../admin'
 import { adminUsersQuery, heldCollectionPhotosQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useSettled } from '../../useSettled'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageTabsList } from '../../components/PageTabs'
-import { AdminHeldPhotos } from './AdminHeldPhotos'
+import { AdminPhotos } from './AdminPhotos'
 import { AdminUserPanel } from './AdminUserPanel'
 import { AdminUsersTable } from './AdminUsersTable'
+import { type AdminSearch, type AdminTab, DEFAULT_PAGE_SIZE, DEFAULT_SORT } from './adminSearch'
 
 const NO_USERS: AdminUser[] = []
 
-export type AdminTab = 'players' | 'photos'
-
-/** Players is the default, so it stays out of the address. */
-export const readAdminSearch = (search: Record<string, unknown>): { tab?: Exclude<AdminTab, 'players'> } =>
-  search.tab === 'photos' ? { tab: 'photos' } : {}
-
-export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: string; tab: AdminTab; onTab: (tab: AdminTab) => void }) {
-  const [search, setSearch] = useState('')
-  const query = useSettled(search.trim())
-  const [roles, setRoles] = useState<AdminUser['role'][]>([])
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'joined', desc: true }])
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 25 })
+export function AdminUsers({
+  currentUserId,
+  search,
+  onTab,
+  onSearch,
+}: {
+  currentUserId: string
+  search: AdminSearch
+  onTab: (tab: AdminTab) => void
+  /** Replaces the players table's part of the address; `undefined` restores a default. */
+  onSearch: (change: Omit<AdminSearch, 'tab'>) => void
+}) {
+  const query = useSettled(search.q?.trim() ?? '')
+  const roles = (search.role?.split(',') ?? []) as AdminUser['role'][]
+  const sorting: SortingState = [{ id: search.sort ?? DEFAULT_SORT, desc: search.order !== 'asc' }]
+  const pagination: PaginationState = { pageIndex: (search.page ?? 1) - 1, pageSize: search.size ?? DEFAULT_PAGE_SIZE }
   const usersResult = useQuery(
     adminUsersQuery({
       query,
@@ -42,14 +47,13 @@ export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: strin
   // Held rather than looked up, so a new search or page does not close the player being worked on.
   const [opened, setOpened] = useState<AdminUser>()
   const selected = opened && (users.find((user) => user.id === opened.id) ?? opened)
-  const firstPage = () => setPagination((current) => ({ ...current, pageIndex: 0 }))
 
   return (
     <main className="ph-no-capture w-full">
       <PageHeader
         eyebrow="Administrator tools"
         title="Administration"
-        description="Change a player’s access, help them sign in, delete their account, or review reported photos."
+        description="Change a player’s access, help them sign in, delete their account, or review players’ photos."
         media={
           <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
@@ -59,11 +63,11 @@ export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: strin
 
       <PageContent>
         {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
-        <Tabs value={tab} className="flex-col gap-0" onValueChange={(value) => onTab(value as AdminTab)}>
+        <Tabs value={search.tab ?? 'players'} className="flex-col gap-0" onValueChange={(value) => onTab(value as AdminTab)}>
           <PageTabsList
             tabs={[
               { value: 'players', label: 'Players', count: usersResult.data?.total },
-              { value: 'photos', label: 'Reported photos', count: held.data?.length },
+              { value: 'photos', label: 'Photos', count: held.data?.length },
             ]}
           />
           <TabsContent value="players" className="mt-4 space-y-2">
@@ -73,23 +77,27 @@ export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: strin
               currentUserId={currentUserId}
               openedUserId={opened?.id}
               pending={usersResult.isPending}
-              search={search}
-              onSearch={(value) => {
-                setSearch(value)
-                firstPage()
-              }}
+              search={search.q ?? ''}
+              onSearch={(value) => onSearch({ q: value || undefined, page: undefined })}
               roles={roles}
-              onRoles={(value) => {
-                setRoles(value)
-                firstPage()
-              }}
+              onRoles={(value) =>
+                onSearch({ role: ADMIN_USER_ROLES.filter((role) => value.includes(role)).join(',') || undefined, page: undefined })
+              }
               sorting={sorting}
-              onSorting={(value) => {
-                setSorting(value)
-                firstPage()
-              }}
+              onSorting={([value]) =>
+                onSearch({
+                  sort: !value || value.id === DEFAULT_SORT ? undefined : (value.id as AdminUserSort),
+                  order: value && !value.desc ? 'asc' : undefined,
+                  page: undefined,
+                })
+              }
               pagination={pagination}
-              onPagination={setPagination}
+              onPagination={(value) =>
+                onSearch({
+                  page: value.pageIndex ? value.pageIndex + 1 : undefined,
+                  size: value.pageSize === DEFAULT_PAGE_SIZE ? undefined : value.pageSize,
+                })
+              }
               onOpen={setOpened}
             />
             {usersResult.error ? (
@@ -99,7 +107,7 @@ export function AdminUsers({ currentUserId, tab, onTab }: { currentUserId: strin
             ) : null}
           </TabsContent>
           <TabsContent value="photos" className="mt-4">
-            <AdminHeldPhotos />
+            <AdminPhotos />
           </TabsContent>
         </Tabs>
       </PageContent>

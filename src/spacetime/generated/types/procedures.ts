@@ -48,6 +48,7 @@ import * as ProductStatsProcedure from '../product_stats_procedure'
 import * as PublicStandingsRevisionProcedure from '../public_standings_revision_procedure'
 import * as PushEnabledProcedure from '../push_enabled_procedure'
 import * as PushTargetsProcedure from '../push_targets_procedure'
+import * as RecentCollectionPhotosProcedure from '../recent_collection_photos_procedure'
 import * as RejectFriendProcedure from '../reject_friend_procedure'
 import * as RemoveBattleProcedure from '../remove_battle_procedure'
 import * as RemoveFriendProcedure from '../remove_friend_procedure'
@@ -159,6 +160,8 @@ export type PushEnabledArgs = __Infer<typeof PushEnabledProcedure.params>
 export type PushEnabledResult = __Infer<typeof PushEnabledProcedure.returnType>
 export type PushTargetsArgs = __Infer<typeof PushTargetsProcedure.params>
 export type PushTargetsResult = __Infer<typeof PushTargetsProcedure.returnType>
+export type RecentCollectionPhotosArgs = __Infer<typeof RecentCollectionPhotosProcedure.params>
+export type RecentCollectionPhotosResult = __Infer<typeof RecentCollectionPhotosProcedure.returnType>
 export type RejectFriendArgs = __Infer<typeof RejectFriendProcedure.params>
 export type RejectFriendResult = __Infer<typeof RejectFriendProcedure.returnType>
 export type RemoveBattleArgs = __Infer<typeof RemoveBattleProcedure.params>

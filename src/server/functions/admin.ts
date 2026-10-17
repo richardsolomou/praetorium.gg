@@ -216,6 +216,13 @@ export const heldCollectionPhotos = createServerFn({ method: 'GET' }).handler(()
   }),
 )
 
+export const recentCollectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    await requireAdmin()
+    return app().collectionPhotos.recent()
+  }),
+)
+
 export const keepCollectionPhotoAsAdmin = createServerFn({ method: 'POST' })
   .validator(collectionPhotoIdSchema)
   .handler(({ data }) =>
