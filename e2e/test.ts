@@ -53,17 +53,40 @@ function upstreamFiles() {
   return upstream
 }
 
+const replaced = new WeakMap<BrowserContext, Map<string, string>>()
+
+/** Serves `body` in place of the upstream file whose address ends with `suffix`, for this context only. */
+export function replaceUpstreamFile(context: BrowserContext, suffix: string, body: string) {
+  const files = replaced.get(context) ?? new Map<string, string>()
+  files.set(suffix, body)
+  replaced.set(context, files)
+}
+
 /**
- * Rules text loads from GitHub in a reader's browser; here it is served from the snapshot it
+ * Rules text loads from GitHub in a reader's browser; here it is answered from the snapshot it
  * was verified into, so no test reaches GitHub. A string Praetorium corrected differs from
  * upstream either way, and the browser shows it as unavailable as it would in production.
+ *
+ * The page's `fetch` asks a binding rather than the network being routed: any Playwright
+ * route intercepts every request in the context and turns its HTTP cache off, which slows
+ * every page load enough for tests to act before the app hydrates.
  */
 async function serveRulesText(context: BrowserContext) {
-  await context.route('https://raw.githubusercontent.com/**', (route) => {
-    const file = upstreamFiles().get(route.request().url())
-    return file ? route.fulfill({ path: file, contentType: 'text/plain' }) : route.fulfill({ status: 404 })
+  await context.exposeBinding('__praetoriumUpstreamFile', (_source, url: string) => {
+    for (const [suffix, body] of replaced.get(context) ?? []) if (url.endsWith(suffix)) return body
+    const file = upstreamFiles().get(url)
+    return file ? fs.readFileSync(file, 'utf8') : null
   })
   await context.addInitScript(() => {
+    const github = 'https://raw.githubusercontent.com/'
+    const read = (window as unknown as { __praetoriumUpstreamFile: (url: string) => Promise<string | null> }).__praetoriumUpstreamFile
+    const network = window.fetch.bind(window)
+    window.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      if (!url.startsWith(github)) return network(input, init)
+      const body = await read(new URL(url).href)
+      return body === null ? new Response(null, { status: 404 }) : new Response(body, { headers: { 'Content-Type': 'text/plain' } })
+    }
     // Chosen once per browser context, so a test that stops loading rules text keeps that choice.
     if (localStorage.getItem('praetorium-e2e-rules-text') === null) {
       localStorage.setItem('praetorium-e2e-rules-text', 'set')
