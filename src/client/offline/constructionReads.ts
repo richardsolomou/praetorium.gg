@@ -14,6 +14,7 @@ import { rosterCombatantsSchema } from '../../contracts/combatCalculation'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import type { LoadedCatalogue } from '../../shared/catalogueIndex'
 import type { LoadedRules } from '../../shared/rules'
+import { ROSTER_PRICED_SAMPLE_RATE, rosterDatasheetLoadedProperties, rosterPricedProperties } from '../../shared/rosterTelemetry'
 
 type Construction = { catalogue: LoadedCatalogue; rules: LoadedRules }
 type Data<F extends (...args: never[]) => unknown> = Parameters<F>[0] extends { data: infer D } ? D : never
@@ -71,7 +72,53 @@ export const constructionReads = {
   },
 }
 
+/**
+ * Reads the server records as product events (`roster_exported`, `roster_imported`). They are one-off actions, so
+ * they stay on the server while it answers; the device answers them only when it cannot.
+ */
+export const SERVER_READS = new Set<ConstructionReadName>(['exportRoster', 'importExchange', 'importFile'])
+
+type ReadEvent = { name: string; properties: Record<string, unknown>; sampleRate?: number }
+
+/** The event the server records for a read, which the device records instead when it answers. */
+export const constructionReadEvents: {
+  [K in ConstructionReadName]?: (construction: Construction, data: ConstructionReadData<K>, result: ConstructionReadResult<K>) => ReadEvent
+} = {
+  priceRoster: ({ catalogue, rules }, data, result) => ({
+    name: 'roster_priced',
+    properties: rosterPricedProperties(data, catalogue, rules, result),
+    sampleRate: ROSTER_PRICED_SAMPLE_RATE,
+  }),
+  loadoutDatasheets: (_, data, result) => ({
+    name: 'roster_datasheet_loaded',
+    properties: rosterDatasheetLoadedProperties(datasheetSchema.parse(data), result),
+  }),
+}
+
+export type ConstructionReadEvent = ReadEvent
+
 export type ConstructionReads = typeof constructionReads
 export type ConstructionReadName = keyof ConstructionReads
 export type ConstructionReadData<K extends ConstructionReadName> = Parameters<ConstructionReads[K]>[1]
 export type ConstructionReadResult<K extends ConstructionReadName> = ReturnType<ConstructionReads[K]>
+
+/** What each read's server function answers; the device must answer the same so a page cannot tell them apart. */
+type ServerAnswers = {
+  priceRoster: Awaited<ReturnType<typeof server.priceRoster>>
+  units: Awaited<ReturnType<typeof server.units>>
+  booksOffering: Awaited<ReturnType<typeof server.datasheetOfferedBy>>
+  datasheet: Awaited<ReturnType<typeof server.datasheet>>
+  loadoutDatasheets: Awaited<ReturnType<typeof server.loadoutDatasheets>>
+  combatantDatasheet: Awaited<ReturnType<typeof server.combatantDatasheet>>
+  combatantDatasheets: Awaited<ReturnType<typeof server.combatantDatasheets>>
+  combatLoadouts: Awaited<ReturnType<typeof server.combatLoadouts>>
+  unitWounds: Awaited<ReturnType<typeof server.unitWounds>>
+  detachmentRules: Awaited<ReturnType<typeof server.detachmentRules>>
+  exportRoster: Awaited<ReturnType<typeof server.exportRoster>>
+  importExchange: Awaited<ReturnType<typeof server.importRoster>>
+  importFile: Awaited<ReturnType<typeof server.importRoster>>
+}
+type Agreement = { [K in ConstructionReadName]: ConstructionReadResult<K> extends ServerAnswers[K] ? true : K }
+/** Fails to compile, naming the read, when a device read answers differently from its server function. */
+type EveryReadAgrees<T extends Record<ConstructionReadName, true>> = T
+export type ReadsAnswerAsServer = EveryReadAgrees<Agreement>

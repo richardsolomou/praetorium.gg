@@ -5,8 +5,18 @@ import { factionDatasheetsQuery } from '../queries/rosters'
 import { referenceChangesQuery } from '../queries/changes'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
-import { offlineDatasheets, offlineSearch, referenceRead, referenceData, searchDownload, setPublishedReferenceRevision } from './runtime'
+import {
+  offlineDatasheets,
+  offlineSearch,
+  referenceRead,
+  referenceData,
+  searchDownload,
+  setPublishedReference,
+  currentConstruction,
+} from './runtime'
 import { compressReference } from './compressedReference'
+const CONSTRUCTION = { current: '/assets/construction-a.bin', complete: '/assets/construction-b.bin', versions: [] }
+const published = (revision: string) => ({ revision, construction: CONSTRUCTION })
 const saved: OfflineReferenceData = {
   version: 1,
   savedAt: 1,
@@ -50,7 +60,7 @@ beforeEach(() => {
   vi.stubGlobal('navigator', { onLine: false })
 })
 afterEach(() => {
-  setPublishedReferenceRevision(null)
+  setPublishedReference(null)
   onlineManager.setOnline(true)
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -190,19 +200,29 @@ it('keeps public search usable when connectivity is reported but the service is 
 it('reads a download the service still publishes without contacting the service', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
-  setPublishedReferenceRevision('test')
+  setPublishedReference(published('test'))
   expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toEqual({ title: 'Moving' })
+})
+it('trusts a current download’s construction data while the service still publishes it', () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: { ...saved, constructionBundle: CONSTRUCTION.complete } })
+  setPublishedReference(published('test'))
+  expect(currentConstruction()).toBe(CONSTRUCTION.complete)
+})
+it('does not trust construction data the service no longer publishes, though the reference is current', () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: { ...saved, constructionBundle: '/assets/construction-old.bin' } })
+  setPublishedReference(published('test'))
+  expect(currentConstruction()).toBeUndefined()
 })
 it('reads from the service once it publishes another revision', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
-  setPublishedReferenceRevision('newer')
+  setPublishedReference(published('newer'))
   expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toBe('Live rule')
 })
 it('filters a current download’s datasheets without contacting the service', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
-  setPublishedReferenceRevision('test')
+  setPublishedReference(published('test'))
   vi.spyOn(functions, 'factionDatasheets').mockResolvedValue([{ id: 'live', name: 'Live Warriors' }] as never)
   const client = new QueryClient()
   try {
@@ -220,7 +240,7 @@ it('reads a current download’s datasheet changes without contacting the servic
     },
   })
   vi.stubGlobal('navigator', { onLine: true })
-  setPublishedReferenceRevision('test')
+  setPublishedReference(published('test'))
   vi.spyOn(functions, 'referenceChanges').mockResolvedValue([])
   const client = new QueryClient()
   try {

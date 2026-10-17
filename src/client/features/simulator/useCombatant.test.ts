@@ -22,7 +22,10 @@ const hooks = vi.hoisted(() => ({
   stream: vi.fn(),
   worker: vi.fn(),
 }))
-vi.mock('../../offline/combatStream', () => ({ localCombatStream: () => hooks.stream() }))
+vi.mock('../../functions', async (actual) => ({
+  ...(await actual<typeof import('../../functions')>()),
+  deviceLoadoutSearch: () => hooks.stream(),
+}))
 vi.mock('./combatWorker', () => ({
   default: function CombatWorker() {
     return hooks.worker()

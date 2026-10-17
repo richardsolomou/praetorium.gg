@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bookOf } from './catalogue.fixtures'
+import { bookOf } from '../server/catalogue.fixtures'
 import type { LoadedRules } from './rules'
 import { rosterTelemetryProperties } from './rosterTelemetry'
 

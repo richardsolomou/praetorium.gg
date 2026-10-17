@@ -25,7 +25,7 @@ vi.mock('../../server/functions', () => ({
   priceRoster: mocks.price,
   savedRosterSummaries: mocks.summaries,
 }))
-vi.mock('./runtime', () => ({ referenceData: mocks.reference }))
+vi.mock('./runtime', async (actual) => ({ ...(await actual<typeof import('./runtime')>()), referenceData: mocks.reference }))
 // These read connected and offline construction; the construction worker answers neither.
 vi.mock('./constructionWorker', () => ({ deviceConstructionRead: () => null, prepareDeviceConstruction: () => {} }))
 vi.mock('../../core/catalogue', async (importOriginal) => {

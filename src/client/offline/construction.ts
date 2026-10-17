@@ -1,7 +1,7 @@
 import { referenceData } from './runtime'
 import { calculationRead } from './calculationRead'
 import { deviceConstructionRead } from './constructionWorker'
-import type { ConstructionReadData, ConstructionReadName } from './constructionReads'
+import { SERVER_READS, type ConstructionReadData, type ConstructionReadName } from './constructionReads'
 import { buildConstruction, constructionSource, runConstructionRead } from './constructionSource'
 import type { OfflineConstructionSource } from '../../contracts/offlineReference'
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
@@ -57,7 +57,7 @@ export function constructionRead<K extends ConstructionReadName, T>(
       },
       signal,
     )
-  const device = typeof window === 'undefined' ? null : deviceConstructionRead(name, data, catalogueId)
+  const device = typeof window === 'undefined' || SERVER_READS.has(name) ? null : deviceConstructionRead(name, data, catalogueId)
   if (!device) return remote()
   return untilAborted(device as Promise<T>, signal).catch(() => {
     signal?.throwIfAborted()

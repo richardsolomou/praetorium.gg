@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { combatUnits } from '../functions'
 
 const mocks = vi.hoisted(() => ({ reference: vi.fn(), server: vi.fn(), construction: vi.fn() }))
-vi.mock('./runtime', () => ({ referenceData: mocks.reference }))
+vi.mock('./runtime', async (actual) => ({ ...(await actual<typeof import('./runtime')>()), referenceData: mocks.reference }))
 vi.mock('./construction', () => ({ localConstruction: mocks.construction }))
 vi.mock('../../server/functions', () => ({ combatUnits: mocks.server }))
 afterEach(() => vi.clearAllMocks())

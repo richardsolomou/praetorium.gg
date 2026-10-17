@@ -286,3 +286,11 @@ it('does not ask the server for a cancelled read the device failed', async () =>
   await expect(wounds(online, controller.signal)).rejects.toThrow('left the page')
   expect(online).not.toHaveBeenCalled()
 })
+
+it('keeps exports on the server, which records them, while the device could answer', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.device.mockReturnValue(Promise.resolve('device'))
+  const online = vi.fn().mockResolvedValue('server')
+  expect(await constructionRead('exportRoster', {} as never, online, 'cat')).toBe('server')
+})

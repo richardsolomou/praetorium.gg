@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { afterInitialScreen } from './background'
 import { requestNativeOfflineSave, supportsNativeOffline } from '../nativeBridge'
-import { referenceData, setPublishedReferenceRevision, warmDownloadSearch } from './runtime'
+import { referenceData, setPublishedReference, warmDownloadSearch } from './runtime'
+import { withConstructionOf } from './compressedReference'
 import { applyReferenceData } from './referenceData'
 import { restoreReferenceInBackground } from './referenceRestoreWorker'
 import { REFERENCE_CACHE, SAVED_APPLICATION } from './referenceRestore'
@@ -64,13 +65,15 @@ export function OfflineReference() {
         const [manifest, version] = await Promise.all([offlineReferenceVersion(signal), offlineAppVersion(signal)])
         abort.signal.throwIfAborted()
         published = manifest
-        setPublishedReferenceRevision(manifest.revision)
+        setPublishedReference(manifest)
         const held = referenceData()
-        otherVersions = usesOtherVersions(manifest, rulesVersionsInUse(client))
+        // Every rules version stays once needed: account data naming one can leave the query cache.
+        otherVersions ||= held?.allRulesVersions === true || usesOtherVersions(manifest, rulesVersionsInUse(client))
         const constructionUrl = constructionBundleFor(manifest, otherVersions)
         if (held?.revision === manifest.revision && held.appRevision === version.revision && held.constructionBundle === constructionUrl)
           return
         if (!downloads) {
+          // The download pass after the page settles checks again without waiting out the recheck interval.
           lastCheck.current = 0
           return
         }
@@ -84,16 +87,20 @@ export function OfflineReference() {
           savedAt: Date.now(),
           css: '',
           logo: '',
+          allRulesVersions: otherVersions,
         }
-        // Pages and search answer from a new reference while its construction data downloads.
+        // Pages and search answer from a new reference while its construction data downloads. The held construction
+        // data stays for offline use meanwhile; the device answers from it only while the service still publishes it.
         if (held?.revision !== manifest.revision) {
-          applyReferenceData(client, content)
-          setPublishedReferenceRevision(manifest.revision)
+          applyReferenceData(client, held ? withConstructionOf({ ...content, constructionBundle: held.constructionBundle }, held) : content)
           warmDownloadSearch()
         }
-        const construction = await constructionBundle(constructionUrl, abort.signal, held)
+        const next =
+          held?.constructionBundle === constructionUrl
+            ? withConstructionOf({ ...content, constructionBundle: constructionUrl }, held)
+            : { ...content, construction: await constructionBundle(constructionUrl, abort.signal), constructionBundle: constructionUrl }
         abort.signal.throwIfAborted()
-        const pack = await offlineApplication({ ...content, construction, constructionBundle: constructionUrl }, version, abort.signal)
+        const pack = await offlineApplication(next, version, abort.signal)
         abort.signal.throwIfAborted()
         if (supportsNativeOffline()) {
           if (!(await requestNativeOfflineSave({ html: pack.html, savedAt: pack.savedAt })))
@@ -109,7 +116,6 @@ export function OfflineReference() {
         }
         abort.signal.throwIfAborted()
         applyReferenceData(client, pack.data)
-        setPublishedReferenceRevision(manifest.revision)
       } catch {
         // A failed background refresh leaves the last complete download in use.
       } finally {

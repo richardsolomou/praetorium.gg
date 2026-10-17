@@ -26,7 +26,7 @@ vi.mock('./construction', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./construction')>()),
   localConstruction: () => null,
 }))
-vi.mock('./runtime', () => ({ referenceData: () => undefined }))
+vi.mock('./runtime', async (actual) => ({ ...(await actual<typeof import('./runtime')>()), referenceData: () => undefined }))
 // These read connected and offline construction; the construction worker answers neither.
 vi.mock('./constructionWorker', () => ({ deviceConstructionRead: () => null, prepareDeviceConstruction: () => {} }))
 const client = new QueryClient()

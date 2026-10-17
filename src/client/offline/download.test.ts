@@ -116,25 +116,9 @@ it.each([
   expect(constructionBundleFor(version, otherVersions)).toBe(url)
 })
 const constructionSource = { version: 1, revision: 'base', files: [], datacards: null, mfm: null, rules: {} }
-it('keeps held construction data whose download is still published', async () => {
-  const fetch = vi.fn(async () => response({ ...saved, construction: constructionSource }))
-  vi.stubGlobal('fetch', fetch)
-  await constructionBundle(construction.current, signal, {
-    ...saved,
-    construction: constructionSource as never,
-    constructionBundle: construction.current,
-  })
-  expect(fetch).not.toHaveBeenCalled()
-})
-it('downloads construction data published at another address', async () => {
+it('downloads construction data', async () => {
   vi.stubGlobal('fetch', async () => response({ ...saved, construction: constructionSource }))
-  expect(
-    await constructionBundle(construction.complete, signal, {
-      ...saved,
-      construction: { ...constructionSource, revision: 'old' } as never,
-      constructionBundle: construction.current,
-    }),
-  ).toEqual(constructionSource)
+  expect(await constructionBundle(construction.complete, signal)).toEqual(constructionSource)
 })
 it('rejects a construction download without construction data', async () => {
   vi.stubGlobal('fetch', async () => response(saved))

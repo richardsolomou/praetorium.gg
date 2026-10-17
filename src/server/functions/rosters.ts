@@ -8,7 +8,8 @@ import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, c
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
-import { captureRosterCreated, rosterTelemetryProperties } from '../rosterTelemetry'
+import { captureRosterCreated } from '../rosterTelemetry'
+import { ROSTER_PRICED_SAMPLE_RATE, rosterPricedProperties, rosterTelemetryProperties } from '../../shared/rosterTelemetry'
 import { isRosterExchangeCode } from '../../core/rosterExchange'
 import { ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
@@ -42,14 +43,10 @@ export const priceRoster = createServerFn({ method: 'POST' })
       const rules = await instance.rulesFor(data.catalogueId)
       const result = calculateRosterPrice(data, loaded, rules)
       const userId = await currentUserId()
-      if (userId && Math.random() < 0.1)
+      if (userId && Math.random() < ROSTER_PRICED_SAMPLE_RATE)
         await instance.telemetry.capture(userId, 'roster_priced', {
-          ...rosterTelemetryProperties(data, loaded, rules),
-          sample_rate: 0.1,
-          unit_count: data.units.length,
+          ...rosterPricedProperties(data, loaded, rules, result),
           duration_ms: Math.round(performance.now() - startedAt),
-          error_count: result?.errors.length ?? 0,
-          unhandled_count: result?.unhandled.length ?? 0,
         })
       return result
     }),

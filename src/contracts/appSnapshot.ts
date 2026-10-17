@@ -76,6 +76,8 @@ export function parseAppSnapshot(value: unknown): AppSnapshot | null {
   const result = snapshotSchema.safeParse(value)
   if (!result.success) return null
   const snapshot = result.data
+  // Reference queries come from the download; snapshots saved by earlier releases may still carry some.
+  snapshot.queries = snapshot.queries.filter((query) => !PUBLIC_REFERENCE_QUERIES.has(String(query.key[0])))
   const me = snapshot.queries.find((query) => query.key[0] === 'me')?.data as { id?: unknown; impersonatedBy?: unknown } | null | undefined
   if (snapshot.owner ? me?.id !== snapshot.owner || Boolean(me.impersonatedBy) : me != null) return null
   if (

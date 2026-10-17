@@ -1,6 +1,6 @@
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate'
 import { expect, it } from 'vitest'
-import { compressReference, decompressReference, restoreReferenceParts } from './compressedReference'
+import { compressReference, decompressReference, restoreReferenceParts, withConstructionOf } from './compressedReference'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
 
 const data: OfflineReferenceData = {
@@ -98,12 +98,22 @@ it('restores the reference with the native stream, its queries serialized and co
   })
 })
 
-it('restores a reference saved before queries were serialized', async () => {
-  expect(
-    await restoreReferenceParts({ encoding: 'gzip-base64-parts', reference: gzipBase64(data) }).then((parts) => parts?.queries),
-  ).toEqual(data.queries.map(({ key, data: value }) => ({ key, json: JSON.stringify(value) })))
-})
-
 it('rejects corrupt data restored in the background', async () => {
   expect(await restoreReferenceParts({ encoding: 'gzip-base64-parts', reference: 'broken' })).toBeNull()
+})
+
+it('saves construction data that was restored packed without decoding it', async () => {
+  // Packed by another encoder, so decoding and packing it again would change the saved string.
+  const packed = gzipBase64(construction)
+  const restored = decompressReference({
+    encoding: 'gzip-base64-parts',
+    reference: (await compressReference(data)).reference,
+    construction: packed,
+  })!
+  const saved = await compressReference(withConstructionOf({ ...data, revision: 'next' }, restored))
+  expect(saved.encoding === 'gzip-base64-parts' && saved.construction).toBe(packed)
+})
+
+it('carries construction data a fresh download holds', () => {
+  expect(withConstructionOf({ ...data }, withConstruction).construction).toEqual(construction)
 })

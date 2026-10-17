@@ -4,6 +4,7 @@ export { terrainMatchupIds } from '../../contracts/terrainReference'
 import { offlineSearch } from '../offline/runtime'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { referenceFactionId } from '../../core/factionReferenceRoute'
+import { SEARCH_MIN_LENGTH } from '../../core/referenceSearch'
 import {
   catalogueStatus,
   datasheetBySlug,
@@ -64,7 +65,7 @@ export const globalSearchQuery = (query: string) =>
   queryOptions({
     queryKey: ['global-search', query],
     networkMode: 'always',
-    initialData: () => (query.trim().length >= 2 ? (offlineSearch(query) ?? undefined) : undefined),
+    initialData: () => (query.trim().length >= SEARCH_MIN_LENGTH ? (offlineSearch(query) ?? undefined) : undefined),
     initialDataUpdatedAt: 0,
     queryFn: async ({ signal, client }) => {
       const saved = offlineSearch(query, client)
@@ -76,7 +77,7 @@ export const globalSearchQuery = (query: string) =>
         throw error
       }
     },
-    enabled: query.trim().length >= 2,
+    enabled: query.trim().length >= SEARCH_MIN_LENGTH,
     staleTime: 30_000,
   })
 

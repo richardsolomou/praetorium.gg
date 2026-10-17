@@ -22,7 +22,6 @@ import { routeSlug } from '../../src/core/slug'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
 import { loadCatalogueHistory } from '../../src/server/catalogueHistory'
 import { recentReferenceChanges } from '../../src/server/catalogueChangeLog'
-import { catalogueEditionId } from '../../src/core/catalogueEdition'
 import {
   decodeReferenceBundle,
   isReferenceBundle,
@@ -106,8 +105,7 @@ export async function writeReferenceBundle(outDir: string, directory = process.e
   if (!canonical) throw new Error('Offline reference canonical catalogue is unavailable')
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
   const history = loadCatalogueHistory(directory) ?? []
-  // Matches the service, which reads a page's history against its rules version's data and an unversioned page's against the current data.
-  const historyCanonical = (slug: string) => versions.canonicalFor(slug) ?? (catalogueEditionId(versions.resolve(slug)) ? null : canonical)
+  const historyCanonical = (slug: string) => versions.pageCanonical(slug, versions.canonicalFor(slug), () => canonical)
   const queries: OfflineReferenceBundle['queries'] = []
   const put = (key: readonly unknown[], data: unknown) => {
     if (data == null) throw new Error(`Offline reference is incomplete: ${key.join('/')}`)

@@ -295,6 +295,8 @@ test('search remembers opened results on this device until they are removed', as
   await expect(recent.getByRole('button', { name: /^(Immortals|Overlord)/ })).toHaveText([/^Overlord/, /^Immortals/])
   await recent.getByRole('button', { name: 'Remove Overlord from recent searches' }).click()
   await expect(recent.getByRole('button', { name: /^(Immortals|Overlord)/ })).toHaveText([/^Immortals/])
+  // Removing an entry keeps a keyboard user's place on its neighbour.
+  await expect(recent.getByRole('button', { name: /^Immortals/ })).toBeFocused()
   await page.screenshot({ path: test.info().outputPath('recent-searches.png') })
   await recent.getByRole('button', { name: /^Immortals/ }).click()
   await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
@@ -307,4 +309,5 @@ test('search remembers opened results on this device until they are removed', as
   ).toBeVisible()
   await page.getByRole('main').getByRole('button', { name: 'Clear' }).click()
   await expect(page.getByRole('region', { name: 'Recent' })).toHaveCount(0)
+  await expect(page.getByRole('main').getByRole('searchbox', { name: 'Search Praetorium' })).toBeFocused()
 })

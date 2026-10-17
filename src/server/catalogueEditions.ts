@@ -248,6 +248,12 @@ export function catalogueEditionLoaders(
       return id && catalogueEditionId(id) ? (lookup(id)?.rules ?? null) : baseRules()
     },
     canonicalFor,
+    /**
+     * The canonical catalogue a page reads, given the one compiled for `id`: its rules version's, none for an unknown
+     * rules version, and the current one otherwise.
+     */
+    pageCanonical: <T>(id: string, selected: T | null | undefined, current: () => T) =>
+      selected ?? (catalogueEditionId(resolve(id)) ? null : current()),
     /** Compiles a missing catalogue between other requests, sharing one compile among concurrent reads of it. */
     canonicalForRequest: async (id: string) => canonical(id, compileCooperatively),
     /** Every edition catalogue compiled or read so far, keyed as the snapshot packages them. */

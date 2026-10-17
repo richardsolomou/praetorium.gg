@@ -9,7 +9,7 @@ import {
 } from '../../contracts/offlineReference'
 import { anySignal } from '../abortSignals'
 import { referenceJsonExpression } from '../../contracts/embeddedReference'
-import { compressReference } from './compressedReference'
+import { compressReference, updatedReference } from './compressedReference'
 
 async function fetchManifest(url: string, signal: AbortSignal) {
   const response = await fetch(url, {
@@ -97,9 +97,7 @@ export async function referenceBundle(
   return value
 }
 
-export async function constructionBundle(url: string, signal: AbortSignal, previous?: OfflineReferenceData | null) {
-  const held = previous?.constructionBundle === url ? previous.construction : undefined
-  if (held) return held
+export async function constructionBundle(url: string, signal: AbortSignal) {
   const value = await bundleAt(url, signal)
   if (!value.construction) throw new Error('The construction bundle is invalid')
   return value.construction
@@ -120,7 +118,7 @@ async function resource(url: string, signal: AbortSignal) {
 
 /** The offline application around a complete saved reference, for the service worker or native shell to store. */
 export async function offlineApplication(data: OfflineReferenceData, version: OfflineAppVersion, signal: AbortSignal) {
-  const saved: OfflineReferenceData = { ...data, appRevision: version.revision }
+  const saved = updatedReference(data, { appRevision: version.revision })
   const cssResponse = await fetch(version.css, { credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
   if (!cssResponse.ok) throw new Error('The app styles could not be downloaded.')
   let css = await cssResponse.text()

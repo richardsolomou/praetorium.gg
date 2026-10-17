@@ -223,6 +223,8 @@ test('the roster builder prices units and opens datasheets on the device once it
   // Server function ids hash their file and export: `datasheet` in references.ts and `priceRoster` in rosters.ts.
   const DATASHEET = '50de9b8fbcf16262f1323f158c2bd2a5e6d32b2eb6e5a6ebd58064efaadf69b8'
   const PRICE = '2305a40a0317ee9af2a331b9753b8bc50d8b6fea03575e255596193749f7ac88'
+  // The ids must name real functions for the checks below to mean anything; the server fails an unknown id.
+  for (const id of [DATASHEET, PRICE]) expect((await page.request.get(`/_serverFn/${id}`)).status()).not.toBe(500)
   const asked: string[] = []
   page.on('request', (request) => asked.push(request.url().split('/_serverFn/')[1]?.slice(0, 64) ?? ''))
   const picker = page.getByLabel('Add a unit')

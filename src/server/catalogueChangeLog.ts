@@ -107,7 +107,7 @@ export function factionHistory(history: readonly CatalogueHistoryEntry[], canoni
 export const referencePath = (link: ReferenceLink) => `/factions/${link.faction}/${link.kind}s/${link.slug}`
 
 /** How many of its own changes a reference page lists before pointing at its faction's updates. */
-export const REFERENCE_CHANGES = 10
+const REFERENCE_CHANGES = 10
 
 type ReferenceChange = { recordedAt: number; change: CatalogueChange }
 const referenceHistoriesCache = new WeakMap<readonly CatalogueHistoryEntry[], WeakMap<CanonicalCatalogue, Map<string, ReferenceChange[]>>>()

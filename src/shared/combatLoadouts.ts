@@ -125,6 +125,11 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
   }
 }
 
+const LOADOUT_SLICE_MS = 16
+
+/** Where a search stops without claiming an optimum. */
+const SEARCH_LIMITS = { retainedBytes: 64 * 1024 * 1024, queued: 50_000, equipment: 20_000, ms: 120_000, attempts: 100_000 }
+
 export async function* combatLoadoutCandidates(
   loaded: LoadedCatalogue,
   data: LoadoutRequest,
@@ -159,6 +164,20 @@ export async function* combatLoadoutCandidates(
       },
     ).errors.map((error) => `${error.entryId}:${error.message}`)
   const known = new Set(errors(units))
+  const estimated = units.reduce((states, unit) => states * loadoutStates(unit.choices), 1)
+  const memberSelections = indexes.map((pickIndex) => context.unitSelections.find((unit) => unit.pickIndex === pickIndex))
+  if (memberSelections.some((unit) => !unit)) throw new Error('The attached unit could not be loaded.')
+  // The roster as built for a candidate, reusing the members just built and every other unit as the roster built it.
+  const prepared = (built: BuiltUnit[]) => {
+    const replaced = new Map(memberSelections.map((unit, at) => [unit!.selectionIndex, built[at]!]))
+    return {
+      selections: context.selections.map((selection, at) => replaced.get(at)?.selection ?? selection),
+      unitSelections: context.unitSelections.map((unit) => {
+        const member = replaced.get(unit.selectionIndex)
+        return member ? { ...unit, models: member.size.models } : unit
+      }),
+    }
+  }
   const queue: ({ units: BuiltUnit[]; resolved: RosterPick[] } | null)[] = []
   const requestKey = (members: RosterPick[]) => JSON.stringify(members.map(loadoutRequestKey))
   const requested = new Set([requestKey(picks)])
@@ -170,23 +189,27 @@ export async function* combatLoadoutCandidates(
   let head = 0
   const started = performance.now()
   let work = 0
+  let slice = performance.now()
+  // A batch ends after 32 steps or a slice of time, whichever comes first: one step can take tens of milliseconds, and
+  // the service runs this search between other requests.
+  const due = () => ++work >= 32 || performance.now() - slice >= LOADOUT_SLICE_MS
   let retainedBytes = 0
   const incomplete = () => new Error('The full search could not finish. The best loadout found so far has been kept.')
   const retain = (key: string) => {
     retainedBytes += key.length * 2
-    if (retainedBytes > 64 * 1024 * 1024) throw incomplete()
+    if (retainedBytes > SEARCH_LIMITS.retainedBytes) throw incomplete()
   }
   const takeBatch = (done = false): LoadoutBatch => {
-    const batch = { candidates, built: expanded, scheduled: seen.size, done }
+    const batch = { candidates, built: expanded, scheduled: seen.size, estimated, done }
     candidates = []
     work = 0
     return batch
   }
-  const enqueue = (members: RosterPick[], built: BuiltUnit[]) => {
+  const enqueue = async (members: RosterPick[], built: BuiltUnit[]) => {
     if (built.some((unit, index) => unit.size.models !== units[index]!.size.models)) return
-    const key = JSON.stringify(built.map((unit) => unit.selection))
+    const key = await digest(JSON.stringify(built.map((unit) => unit.selection)))
     if (seen.has(key)) return
-    if (queue.length - head >= 50_000) throw incomplete()
+    if (queue.length - head >= SEARCH_LIMITS.queued) throw incomplete()
     retain(key)
     seen.add(key)
     const resolved = members.map((candidate, index) => ({
@@ -205,7 +228,7 @@ export async function* combatLoadoutCandidates(
     if (!errors(built).every((error) => known.has(error))) return
     const updates = new Map(indexes.map((pickIndex, at) => [pickIndex, resolved[at]!]))
     const roster = data.picks.map((pick, pickIndex) => updates.get(pickIndex) ?? pick)
-    const projected = rosterCombatant(loaded, rules, { ...data, picks: roster })
+    const projected = rosterCombatant(loaded, rules, { ...data, picks: roster }, prepared(built), { attachmentChoices: false })
     if (!projected) throw new Error('The attached unit could not be loaded.')
     if (projected.attachmentErrors.length) {
       if (seen.size === 1) throw new Error('The attached unit could not be evaluated legally.')
@@ -233,19 +256,19 @@ export async function* combatLoadoutCandidates(
         ),
       ],
     }
-    const equipmentKey = JSON.stringify(candidate.members.map(({ pick: _pick, ...description }) => description))
+    const equipmentKey = await digest(JSON.stringify(candidate.members.map(({ pick: _pick, ...description }) => description)))
     if (equipment.has(equipmentKey)) return
-    if (equipment.size >= 20_000) throw incomplete()
+    if (equipment.size >= SEARCH_LIMITS.equipment) throw incomplete()
     retain(equipmentKey)
     equipment.add(equipmentKey)
     candidates.push(candidate)
   }
-  enqueue(picks, units)
-  yield { candidates: [], built: 0, scheduled: 1, done: false }
+  await enqueue(picks, units)
+  yield { candidates: [], built: 0, scheduled: 1, estimated, done: false }
   await new Promise<void>((resolve) => setTimeout(resolve, 0))
   while (head < queue.length) {
     if (signal.aborted) return
-    if (performance.now() - started > 120_000) throw incomplete()
+    if (performance.now() - started > SEARCH_LIMITS.ms) throw incomplete()
     const current = queue[head]!
     queue[head++] = null
     expanded++
@@ -253,9 +276,10 @@ export async function* combatLoadoutCandidates(
       queue.splice(0, head)
       head = 0
     }
-    if (++work >= 32) {
+    if (due()) {
       yield takeBatch()
       await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      slice = performance.now()
       if (signal.aborted) return
     }
     for (let at = 0; at < indexes.length; at++) {
@@ -265,18 +289,19 @@ export async function* combatLoadoutCandidates(
         const members = current.resolved.map((pick, index) => (index === at ? candidate : pick))
         const key = requestKey(members)
         if (requested.has(key)) continue
-        if (++work >= 32) {
+        if (due()) {
           yield takeBatch()
           await new Promise<void>((resolve) => setTimeout(resolve, 0))
+          slice = performance.now()
           if (signal.aborted) return
         }
-        if (attempts >= 100_000 || performance.now() - started > 120_000) throw incomplete()
+        if (attempts >= SEARCH_LIMITS.attempts || performance.now() - started > SEARCH_LIMITS.ms) throw incomplete()
         retain(key)
         requested.add(key)
         attempts++
         const built = build(candidate)
         if (built)
-          enqueue(
+          await enqueue(
             members,
             current.units.map((unit, index) => (index === at ? built : unit)),
           )
@@ -284,6 +309,40 @@ export async function* combatLoadoutCandidates(
     }
   }
   yield takeBatch(true)
+}
+
+/**
+ * How many loadouts a unit's weapon choices allow, counted from each choice's options, their bounds and its room. The
+ * choices on offer change as weapons are swapped, so this estimates the search's size rather than bounding it.
+ */
+export function loadoutStates(choices: UnitChoice[]) {
+  return weaponChoices(choices).reduce((states, choice) => {
+    if (choice.room <= 1) return states * (choice.options.length + (choice.optional ? 1 : 0))
+    if (choice.uniform) return states * choice.options.length
+    const used = choice.options.reduce((sum, option) => sum + option.count, 0)
+    const free = choice.optional || !choice.options.some((option) => option.profile !== undefined)
+    // How many ways each total can be split among the options, within each option's bounds.
+    let splits = new Map([[0, 1]])
+    for (const option of choice.options) {
+      const next = new Map<number, number>()
+      for (const [total, ways] of splits)
+        for (let count = option.mutableMin ? 0 : option.min; count <= option.max && total + count <= choice.room; count++)
+          next.set(total + count, (next.get(total + count) ?? 0) + ways)
+      splits = next
+    }
+    return states * [...splits].reduce((sum, [total, ways]) => sum + (free || total === used ? ways : 0), 0)
+  }, 1)
+}
+
+/**
+ * A state's identity for the search's memory, short whatever the state's size. A collision could prune a distinct
+ * state, so the digest is SHA-256, whose collisions are not a practical concern.
+ */
+async function digest(value: string) {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))
+  let text = ''
+  for (const byte of bytes) text += String.fromCharCode(byte)
+  return btoa(text)
 }
 
 function loadoutRequestKey(pick: RosterPick): string {

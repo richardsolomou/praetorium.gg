@@ -1,11 +1,12 @@
 import { notifyManager, type QueryClient } from '@tanstack/react-query'
-import { referenceData, savedQuery } from './runtime'
+import { referenceChanged, referenceData, savedQuery } from './runtime'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
 
 export function applyReferenceData(client: QueryClient, data: OfflineReferenceData, restore = false) {
   const previous = referenceData()
   if (window.PraetoriumOffline) window.PraetoriumOffline = data
   window.PraetoriumReferenceCache = data
+  referenceChanged()
   if (previous?.revision === data.revision && !restore) return
   notifyManager.batch(() => {
     const keys = new Set(data.queries.map((entry) => JSON.stringify(entry.key)))

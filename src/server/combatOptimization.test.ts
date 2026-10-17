@@ -3,7 +3,7 @@ import type { SelectionEntry } from '../core/catalogue'
 import { DEFAULT_COMBAT_OPTIONS } from '../core/combat'
 import { applyOptimizedLoadout, optimizeLoadout } from '../core/combatLoadouts'
 import { bookOf } from './catalogue.fixtures'
-import { combatLoadoutCandidates } from '../shared/combatLoadouts'
+import { combatLoadoutCandidates, loadoutStates } from '../shared/combatLoadouts'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 
 function unit(id: string, name: string, kind?: 'Leader' | 'Support'): SelectionEntry {
@@ -215,4 +215,45 @@ it('refuses an illegal starting attachment instead of optimizing a partial unit'
   await expect(candidates({ ...request, picks: [{ entryId: 'squad' }, { entryId: 'other', attachedTo: 0 }] })).rejects.toThrow(
     'The attached unit could not be evaluated legally.',
   )
+})
+
+it('projects each candidate as the roster would project its loadout from scratch', async () => {
+  for (const candidate of await candidates()) {
+    const updates = new Map(candidate.members.map((member) => [member.pickIndex, member.pick]))
+    const roster = request.picks.map((pick, pickIndex) => updates.get(pickIndex) ?? pick)
+    const projected = rosterCombatant(book, null, { ...request, picks: roster })!
+    expect(candidate.members.map(({ sheet, carriers, rules }) => ({ sheet, carriers, rules }))).toEqual([
+      { sheet: projected.selected, carriers: projected.carriers, rules: projected.rules },
+      ...projected.companions.map((companion) => ({ sheet: companion.selected, carriers: companion.carriers, rules: companion.rules })),
+    ])
+  }
+})
+
+it('offers leaders and bodyguards to the simulator but not to a loadout search', () => {
+  const alone = { ...request, picks: [{ entryId: 'squad' }] }
+  expect({
+    simulator: rosterCombatant(book, null, alone)!.attachmentOptions.length > 0,
+    search: rosterCombatant(book, null, alone, undefined, { attachmentChoices: false })!.attachmentOptions,
+  }).toEqual({ simulator: true, search: [] })
+})
+
+it('estimates a search by the loadouts its unit’s weapon choices allow', async () => {
+  const batches = []
+  for await (const batch of combatLoadoutCandidates(book, request, new AbortController().signal)) batches.push(batch)
+  // Squad, leader and support each choose between a strong and a weak weapon.
+  expect(batches[0]!.estimated).toBe(8)
+})
+
+it('counts the ways a squad can split a weapon choice among its models', () => {
+  const option = (id: string, count: number, max: number) => ({ id, count, min: 0, max, mutableMin: false })
+  const split = {
+    key: 'split',
+    name: 'Special weapons',
+    room: 3,
+    uniform: false,
+    optional: true,
+    options: [option('a', 0, 2), option('b', 0, 3)],
+  }
+  // Totals of 0 to 3 with at most 2 of a: 1 + 2 + 3 + 3.
+  expect(loadoutStates([split as never])).toBe(9)
 })

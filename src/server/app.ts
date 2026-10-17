@@ -40,7 +40,6 @@ import { battleDetachmentData, type BattleDetachmentData } from '../shared/battl
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
 import type { compiledGlobalSearchIndex } from './globalSearch'
 import { catalogueEditionLoaders } from './catalogueEditions'
-import { catalogueEditionId } from '../core/catalogueEdition'
 import { reportRuntimeMetrics } from './runtimeMetrics'
 import type { BattleFaction } from '../shared/battleSummary'
 import { type Steps, stepThrough, stepwise } from '../shared/steps'
@@ -221,13 +220,10 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
   const versions = () => loaded.editions
   return {
     catalogueFor: async (catalogueId: string) => versions().catalogueFor(catalogueId),
-    canonicalCatalogueFor: async (catalogueId?: string) => {
-      if (catalogueId) {
-        const selected = await versions().canonicalForRequest(catalogueId)
-        if (selected || catalogueEditionId(versions().resolve(catalogueId))) return selected
-      }
-      return getInstance().canonicalCatalogue()
-    },
+    canonicalCatalogueFor: async (catalogueId?: string) =>
+      catalogueId
+        ? versions().pageCanonical(catalogueId, await versions().canonicalForRequest(catalogueId), () => getInstance().canonicalCatalogue())
+        : getInstance().canonicalCatalogue(),
     rulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
     battleMissionRulesFor: async () => getInstance().rules(),
     battleReadRulesFor: async () => getInstance().rules(),

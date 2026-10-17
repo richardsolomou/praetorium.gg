@@ -27,7 +27,7 @@ import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } fr
 import { decodeRosterExchange, isRosterExchangeCode } from '../core/rosterExchange'
 import { attachedUnitCount } from '../core/attachedUnits'
 import { rosterUseProblem } from '../core/rosterLegality'
-import { referenceData } from './offline/runtime'
+import { referenceData, savedQuery } from './offline/runtime'
 import { orderVariantGroup, variantName } from '../core/rosterVariants'
 import type { LocalState } from '../contracts/localState'
 import { playerDefaults } from './offline/actionFunctions'
@@ -43,7 +43,7 @@ const read =
   (args: { data: ConstructionReadData<K> & { catalogueId?: string }; signal?: AbortSignal }) =>
     constructionRead(name, args.data, (signal) => online({ ...args, signal }), args.data.catalogueId, args.signal)
 
-export { retireDeviceConstruction } from './offline/constructionWorker'
+export { deviceLoadoutSearch, retireDeviceConstruction } from './offline/constructionWorker'
 /** Prepares a faction's units on the device ahead of the roster that will list them. */
 export const prepareFactionUnits = (catalogueId: string) => prepareDeviceConstruction(catalogueId, true)
 
@@ -73,11 +73,7 @@ export const unitWounds = read('unitWounds', (args) => server.unitWounds(args))
 export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
 export const exportRoster = read('exportRoster', (args) => server.exportRoster(args))
 export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
-  const factions = (
-    referenceData()?.queries.find((entry) => entry.key[0] === 'faction-index')?.data as
-      | Awaited<ReturnType<typeof server.factionIndex>>
-      | undefined
-  )?.factions
+  const factions = savedQuery<Awaited<ReturnType<typeof server.factionIndex>>>(referenceData(), ['faction-index'])?.factions
   if (isRosterExchangeCode(args.data.file)) {
     const exchange = await decodeRosterExchange(args.data.file)
     if (!factions) return server.importRoster(args)
@@ -117,9 +113,7 @@ function savedFaction(id: string, factions: { id: string; name: string }[]) {
 }
 
 function factionFor(id: string) {
-  return referenceData()?.queries.find((entry) => entry.key[0] === 'faction' && entry.key[1] === id)?.data as
-    | NonNullable<Awaited<ReturnType<typeof server.rosterBootstrap>>>['faction']
-    | undefined
+  return savedQuery<NonNullable<Awaited<ReturnType<typeof server.rosterBootstrap>>>['faction']>(referenceData(), ['faction', id])
 }
 
 function accessFor(roster: LocalRoster, state?: LocalState) {
@@ -797,9 +791,7 @@ export async function rosterChanges(args: Parameters<typeof server.rosterChanges
 export const savedRosterChangedIds = () => cachedRead(['saved-roster-changed-ids'], () => server.savedRosterChangedIds())
 
 export const combatUnits = () => {
-  const saved = referenceData()?.queries.find((entry) => entry.key[0] === 'combat-units')?.data as
-    | Awaited<ReturnType<typeof server.combatUnits>>
-    | undefined
+  const saved = savedQuery<Awaited<ReturnType<typeof server.combatUnits>>>(referenceData(), ['combat-units'])
   return saved ? Promise.resolve(saved) : server.combatUnits()
 }
 

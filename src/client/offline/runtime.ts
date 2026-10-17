@@ -1,7 +1,6 @@
 import { searchDatasheetEntries } from '../../core/datasheetSearch'
-import type { OfflineReferenceData } from '../../contracts/offlineReference'
-import { prepareReferenceSearch, searchReference, searchOwn } from '../../core/referenceSearch'
-import { rosterLabel } from '../../core/rosterLabel'
+import type { OfflineReferenceData, OfflineReferenceVersion } from '../../contracts/offlineReference'
+import { ownSearchLists, prepareReferenceSearch, searchAll } from '../../core/referenceSearch'
 import type { QueryClient } from '@tanstack/react-query'
 import type { savedRosterSummaries, myBattles, factionIndex } from '../functions'
 type FactionIndex = NonNullable<Awaited<ReturnType<typeof factionIndex>>>
@@ -31,18 +30,23 @@ export function referenceData() {
   return offlineData() ?? (cached && !('encoding' in cached) ? cached : undefined)
 }
 
-let publishedRevision: string | null = null
-const revisionListeners = new Set<() => void>()
+let published: { revision: string; construction: readonly string[] } | null = null
+const referenceListeners = new Set<() => void>()
 
-/** Records the reference revision the service last published, which decides whether the download still matches it. */
-export function setPublishedReferenceRevision(revision: string | null) {
-  publishedRevision = revision
-  for (const listener of revisionListeners) listener()
+/** Records what the service last published, which decides whether the download still matches it. */
+export function setPublishedReference(manifest: Pick<OfflineReferenceVersion, 'revision' | 'construction'> | null) {
+  published = manifest && { revision: manifest.revision, construction: [manifest.construction.current, manifest.construction.complete] }
+  referenceChanged()
 }
 
-export function subscribePublishedReferenceRevision(listener: () => void) {
-  revisionListeners.add(listener)
-  return () => void revisionListeners.delete(listener)
+/** Tells subscribers that the download in use, or what the service publishes, changed. */
+export function referenceChanged() {
+  for (const listener of referenceListeners) listener()
+}
+
+export function subscribeReference(listener: () => void) {
+  referenceListeners.add(listener)
+  return () => void referenceListeners.delete(listener)
 }
 
 /**
@@ -51,7 +55,16 @@ export function subscribePublishedReferenceRevision(listener: () => void) {
  */
 export function currentReference() {
   const saved = referenceData()
-  return saved && (offlineData() || saved.revision === publishedRevision) ? saved : undefined
+  return saved && (offlineData() || (published !== null && saved.revision === published.revision)) ? saved : undefined
+}
+
+/**
+ * The current download's construction asset while the service still publishes it. A download keeps an older asset
+ * while a newer one downloads, for offline use, so a current reference alone does not make its construction current.
+ */
+export function currentConstruction() {
+  const url = currentReference()?.constructionBundle
+  return url && published?.construction.includes(url) ? url : undefined
 }
 
 const queryIndexes = new WeakMap<OfflineReferenceData, Map<string, OfflineReferenceData['queries'][number]>>()
@@ -102,28 +115,15 @@ export function offlineSearch(query: string, client?: QueryClient) {
   })
 }
 
-/** Global search over the downloaded reference and the player's own loaded lists. */
+/** Global search over the downloaded reference and the player's own loaded lists, as the service answers it. */
 export function searchDownload(query: string, factionIndex: FactionIndex | undefined, own: OwnLists) {
   const saved = referenceData()
   if (!saved) return null
   const factions = factionIndex ?? savedQuery<FactionIndex>(saved, ['faction-index'])
-  const rosters = (own.owner ? (own.rosters ?? []) : []).map((roster) => {
-    const faction = factions?.factions.find((entry) => entry.id === roster.catalogueId)
-    return {
-      ...roster,
-      label: faction
-        ? rosterLabel({
-            factionName: faction.displayName,
-            detachmentNames: roster.detachmentIds.flatMap((id) =>
-              faction.detachments.filter((entry) => entry.id === id).map((entry) => entry.name),
-            ),
-            limit: roster.limit,
-          })
-        : '',
-    }
-  })
-  const battles = own.owner ? (own.battles?.pages.flatMap((page) => page.battles) ?? []) : []
-  return [...searchReference(query, saved.search), ...searchOwn(query, { rosters, battles })]
+  const lists = own.owner
+    ? ownSearchLists(own.rosters ?? [], own.battles?.pages.flatMap((page) => page?.battles ?? []) ?? [], factions?.factions ?? [])
+    : null
+  return searchAll(query, saved.search, lists)
 }
 
 /** Prepares search while the page is idle, a slice at a time, so the first search a player types is as fast as the rest. */
