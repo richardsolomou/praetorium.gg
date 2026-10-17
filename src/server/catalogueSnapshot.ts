@@ -14,11 +14,9 @@ import {
 } from './catalogueSources'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import pRetry from 'p-retry'
-import { fetchWithRetry } from './fetch'
-import { publicAssetsBaseUrl } from './objectStorage'
 import { readCatalogueComposition } from './catalogueComposition'
 import { extractCatalogueArchive, hashCatalogueFile, downloadCatalogueObject } from './catalogueArchive'
-import { fetchCatalogueArtifact, catalogueReleaseUrl } from './catalogueDistribution'
+import { PRIVATE_CATALOGUE_BASE, fetchCatalogueObject } from './catalogueStore'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
@@ -145,8 +143,11 @@ export const catalogueLock = parseCatalogueLock(rawLock)
 export const catalogueRevocations = parseRevocations(rawRevocations)
 
 export function catalogueBaseUrl(value = process.env.CATALOGUE_BASE_URL) {
-  return (value?.trim() || `${publicAssetsBaseUrl()}/catalogue`).replace(/\/$/, '')
+  return (value?.trim() || PRIVATE_CATALOGUE_BASE).replace(/\/$/, '')
 }
+
+// The timeout also bounds reading the body, which for a snapshot archive is tens of megabytes.
+const ARTIFACT_REQUEST = { timeoutMs: 60_000 }
 
 function configuredRevocations() {
   return mergeRevocations(catalogueRevocations, {
@@ -455,7 +456,7 @@ async function fetchSnapshotObjects(
   const base = baseUrl.replace(/\/$/, '')
   const request = async (url: string) => {
     try {
-      const response = await fetchWithRetry(url)
+      const response = await fetchCatalogueObject(url)
       if (!response.ok) throw new CatalogueObjectTransportError(`catalogue object answered ${response.status}`)
       return response
     } catch (error) {
@@ -567,17 +568,14 @@ export function historicalSnapshotSources(directory: string): SnapshotSourceName
 
 export async function fetchCurrentPointer(baseUrl: string) {
   const base = baseUrl.replace(/\/$/, '')
-  const response = await fetchWithRetry(`${base}/current.json`, { cache: 'no-store' })
+  const response = await fetchCatalogueObject(`${base}/current.json`, { cache: 'no-store' })
   if (!response.ok) throw new Error(`catalogue snapshot pointer answered ${response.status}`)
   return parsePointer(await response.json())
 }
 
 export async function fetchReleasePointer(baseUrl: string, id: string) {
   if (!/^[a-f0-9]{64}$/.test(id)) throw new Error('catalogue release id is invalid')
-  const response = await fetchCatalogueArtifact(
-    `${baseUrl.replace(/\/$/, '')}/releases/${id}.json`,
-    catalogueReleaseUrl(id, 'release.json'),
-  )
+  const response = await fetchCatalogueObject(`${baseUrl.replace(/\/$/, '')}/releases/${id}.json`, {}, ARTIFACT_REQUEST)
   if (!response.ok) throw new Error(`catalogue release pointer answered ${response.status}`)
   const pointer = parsePointer(await response.json())
   if (pointer.id !== id) throw new Error('catalogue release pointer does not match its id')
@@ -586,7 +584,7 @@ export async function fetchReleasePointer(baseUrl: string, id: string) {
 
 export async function remoteRevocations(baseUrl: string) {
   const base = baseUrl.replace(/\/$/, '')
-  const response = await fetchWithRetry(`${base}/revocations.json`, { cache: 'no-store' })
+  const response = await fetchCatalogueObject(`${base}/revocations.json`, { cache: 'no-store' })
   if (response.status === 404) return configuredRevocations()
   if (!response.ok) throw new Error(`catalogue revocations answered ${response.status}`)
   return mergeRevocations(configuredRevocations(), parseRevocations(await response.json()))
@@ -707,10 +705,7 @@ export function catalogueUpdateMode(value = process.env.CATALOGUE_UPDATE_MODE): 
 async function saveSnapshotArchive(baseUrl: string, pointer: SnapshotPointer, file: string) {
   await pRetry(
     async () => {
-      const response = await fetchCatalogueArtifact(
-        `${baseUrl.replace(/\/$/, '')}/snapshots/${pointer.id}.zip`,
-        catalogueReleaseUrl(pointer.id, 'snapshot.zip'),
-      )
+      const response = await fetchCatalogueObject(`${baseUrl.replace(/\/$/, '')}/snapshots/${pointer.id}.zip`, {}, ARTIFACT_REQUEST)
       if (!response.ok) throw new Error(`catalogue snapshot answered ${response.status}`)
       if (Number(response.headers.get('content-length') ?? 0) > MAX_ARCHIVE_BYTES)
         throw new Error('catalogue snapshot archive is too large')
