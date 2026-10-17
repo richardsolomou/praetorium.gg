@@ -3,7 +3,7 @@ import type { LocalState } from '../src/contracts/localState'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { spacetimeSqlEndpoint } from '../scripts/lib/spacetimeSqlEndpoint'
+import { spacetimeDatabaseUrl } from 'ras-stack/spacetime'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { port, root, spacetimePort } from './stackEnv'
 
@@ -69,7 +69,7 @@ export async function productSql<T extends Record<string, unknown> = Record<stri
 ): Promise<T[]> {
   const query = parts.reduce((text, part, index) => text + (index ? literal(values[index - 1]) : '') + part, '')
   const credentials = await productCredentials()
-  const endpoint = spacetimeSqlEndpoint(`http://127.0.0.1:${spacetimePort}`, `praetorium-local-${port}`)
+  const endpoint = spacetimeDatabaseUrl({ url: `http://127.0.0.1:${spacetimePort}`, database: `praetorium-local-${port}` }, '/sql')
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { authorization: `Bearer ${credentials.owner.token}`, 'content-type': 'text/plain' },

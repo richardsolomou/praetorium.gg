@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { spacetimeSqlEndpoint } from './spacetimeSqlEndpoint.ts'
+import { spacetimeDatabaseUrl } from 'ras-stack/spacetime'
 
 const tables = ['rosters', 'collection'] as const
 type Source = {
@@ -32,7 +32,7 @@ async function responseJson(response: Response) {
 }
 
 export async function migrateProductData(source: Source, request: typeof fetch = fetch) {
-  const endpoint = spacetimeSqlEndpoint(source.url, source.database)
+  const endpoint = spacetimeDatabaseUrl({ url: source.url, database: source.database }, '/sql')
   if (!source.ownerToken || !source.operatorToken) throw new Error('Product migration needs owner and operator credentials')
   if (Boolean(source.accessClientId) !== Boolean(source.accessClientSecret)) throw new Error('Supply both Cloudflare Access credentials')
   const access: Record<string, string> = source.accessClientId

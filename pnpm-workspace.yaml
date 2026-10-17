@@ -9,8 +9,8 @@ allowBuilds:
   esbuild: true
   protobufjs: false
 minimumReleaseAgeExclude:
-  # ras-stack 4.0.0 adds publicOrigin and drops unused exports; drop once it passes the age threshold on 2026-10-24.
-  - ras-stack@4.0.0
+  # ras-stack 4.2.0 adds the SpacetimeDB helpers; drop once it passes the age threshold on 2026-10-24.
+  - ras-stack@4.2.0
   - ras-stack-config@3.0.0
   # better-auth 1.7.10 carries the oauth-provider resource-seeding fix; drop these once it is
   # seven days old (2026-10-22).

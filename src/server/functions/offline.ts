@@ -1,4 +1,4 @@
-import { SpacetimeRequestError } from '../spacetimeOperator'
+import { SpacetimeRequestError } from 'ras-stack/spacetime'
 import { offlineActionSchema } from '../../contracts/offlineActions'
 import { offlineActions } from '../offlineActions'
 import { offlineContext } from '../offlineContext'
