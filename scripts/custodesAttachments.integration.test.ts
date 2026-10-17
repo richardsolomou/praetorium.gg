@@ -95,7 +95,9 @@ describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
     const published = [...loaded.factionContents.values()]
       .find((content) => content.name === 'Adeptus Custodes')!
       .armyRules.find((rule) => rule.name === 'Anathema Psykana')?.description
-    expect(digest(published && wordsFrom(source)(published))).toBe(anathemaPsykana)
+    expect(digest(published && wordsFrom(path.join(source, 'datacards', '11th', 'gdc', 'adeptuscustodes.json'))(published))).toBe(
+      anathemaPsykana,
+    )
   })
 
   it.each(attachments)('offers exactly the accepted $kind targets for $name', ({ name, kind, targets }) => {
