@@ -1,8 +1,8 @@
 import { queryOptions } from '@tanstack/react-query'
-import { referenceData } from '../offline/runtime'
+import { currentReference, referenceData, savedQuery } from '../offline/runtime'
 import { armyUpdates, catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds } from '../functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
-import { SSR_STALE_TIME } from './shared'
+import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
 
 /**
@@ -25,21 +25,27 @@ export const armyUpdatesQuery = (factions: readonly string[]) =>
   })
 
 /** The newest recorded changes to one datasheet or detachment page. */
-export const referenceChangesQuery = (link: ReferenceLink) =>
-  queryOptions({
-    queryKey: ['reference-changes', link.kind, link.faction, link.slug],
+export const referenceChangesQuery = (link: ReferenceLink) => {
+  const key = ['reference-changes', link.kind, link.faction, link.slug]
+  type Changes = Awaited<ReturnType<typeof referenceChanges>>
+  return queryOptions({
+    queryKey: key,
     networkMode: 'always',
+    initialData: () => savedQuery<Changes>(currentReference(), key),
     queryFn: async ({ signal }) => {
-      if (referenceData() && !navigator.onLine) return []
+      const saved = savedQuery<Changes>(referenceData(), key)
+      if (saved && currentReference()) return saved
+      if (referenceData() && !navigator.onLine) return saved ?? []
       try {
         return await referenceChanges({ data: link, signal: anySignal([signal, AbortSignal.timeout(5000)]) })
       } catch (error) {
-        if (referenceData()) return []
+        if (referenceData()) return saved ?? []
         throw error
       }
     },
-    staleTime: SSR_STALE_TIME,
+    staleTime: referenceStaleTime,
   })
+}
 
 /** The cursor a data updates address carries, or none for anything that cannot be one. */
 export const historySearch = (search: Record<string, unknown>): { before?: string } =>

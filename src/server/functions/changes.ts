@@ -4,7 +4,7 @@ import type { IndexedUpdate } from '../../contracts/catalogueChanges'
 import type { CatalogueChange } from '../../core/catalogueChanges'
 import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../../core/catalogueHistory'
 import { app } from '../app'
-import { factionHistory, indexedUpdate, referenceHistory, referencePath } from '../catalogueChangeLog'
+import { factionHistory, indexedUpdate, recentReferenceChanges } from '../catalogueChangeLog'
 import { historyAnchor } from '../catalogueHistory'
 import { rpc } from '../rpc'
 import { parseReleaseNotes } from '../../core/releaseNotes'
@@ -12,9 +12,6 @@ import changelog from '../../../CHANGELOG.md?raw'
 
 /** How many data updates one page of the index lists. */
 const CHANGE_LOG_PAGE = 20
-
-/** How many of its own changes a reference page lists before pointing at its faction's updates. */
-const REFERENCE_CHANGES = 10
 
 /**
  * One page of the index of data updates the installed snapshot carries, newest first, and
@@ -46,7 +43,7 @@ export const referenceChanges = createServerFn({ method: 'GET' })
       const instance = app()
       const history = (await instance.catalogueHistoryFor()) ?? []
       const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
-      return canonical ? referenceHistory(history, canonical, referencePath(data)).slice(0, REFERENCE_CHANGES) : []
+      return recentReferenceChanges(history, canonical, data)
     }),
   )
 

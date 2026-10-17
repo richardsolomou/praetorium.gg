@@ -1,21 +1,6 @@
 import { notifyManager, type QueryClient } from '@tanstack/react-query'
-import { referenceData } from './runtime'
-import { MAX_OFFLINE_BYTES, isReferenceBundle, type OfflineReferenceData } from '../../contracts/offlineReference'
-import { embeddedReferenceJson } from '../../contracts/embeddedReference'
-import { decompressReference } from './compressedReference'
-
-export function savedReferenceData(html: string): OfflineReferenceData | null {
-  if (html.length > MAX_OFFLINE_BYTES) return null
-  const serialized = embeddedReferenceJson(html)
-  if (!serialized) return null
-  try {
-    const data = JSON.parse(serialized) as OfflineReferenceData
-    if ('encoding' in data) return decompressReference(data)
-    return isReferenceBundle(data) && Number.isFinite(data.savedAt) ? data : null
-  } catch {
-    return null
-  }
-}
+import { referenceData, savedQuery } from './runtime'
+import type { OfflineReferenceData } from '../../contracts/offlineReference'
 
 export function applyReferenceData(client: QueryClient, data: OfflineReferenceData, restore = false) {
   const previous = referenceData()
@@ -27,10 +12,15 @@ export function applyReferenceData(client: QueryClient, data: OfflineReferenceDa
     for (const entry of restore ? [] : (previous?.queries ?? [])) {
       if (!keys.has(JSON.stringify(entry.key))) client.setQueryData(entry.key, null)
     }
-    for (const entry of data.queries) {
-      if (!restore || client.getQueryData(entry.key) === undefined) client.setQueryData(entry.key, entry.data)
+    if (restore) {
+      // Reference queries read the download when they are created, so restoring fills only those already waiting.
+      for (const query of client.getQueryCache().getAll()) {
+        const saved = query.state.data === undefined ? savedQuery(data, query.queryKey) : undefined
+        if (saved !== undefined) client.setQueryData(query.queryKey, saved)
+      }
+      return
     }
-    if (restore) return
+    for (const entry of data.queries) client.setQueryData(entry.key, entry.data)
     void client.invalidateQueries({
       predicate: (query) =>
         query.queryKey[0] === 'global-search' || (query.queryKey[0] === 'faction-datasheets' && query.queryKey[2] !== ''),

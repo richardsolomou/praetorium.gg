@@ -35,13 +35,23 @@ export type OfflineReferenceData = {
   css: string
   logo: string
   construction?: OfflineConstructionData
+  /** The published construction download `construction` came from, so an unchanged one is not fetched again. */
+  constructionBundle?: string
 }
 
 export const MAX_OFFLINE_BYTES = 100_000_000
 export const MAX_OFFLINE_QUERIES = 20_000
 
 export type OfflineReferenceBundle = Pick<OfflineReferenceData, 'version' | 'revision' | 'queries' | 'search' | 'construction'>
-export type OfflineReferenceVersion = { revision: string; bundle: string }
+/**
+ * The published download: the reference, then construction data for the current rules alone or with every other
+ * rules version, which a device downloads only while it holds rosters on one of `versions`.
+ */
+export type OfflineReferenceVersion = {
+  revision: string
+  bundle: string
+  construction: { current: string; complete: string; versions: string[] }
+}
 export type OfflineAppVersion = { revision: string; css: string; script: string }
 
 export function decodeReferenceBundle(value: unknown): unknown {
@@ -67,7 +77,8 @@ export function decodeReferenceBundle(value: unknown): unknown {
     }
   }
   const expanded = { ...(value as OfflineReferenceBundle), version: 1 as const }
-  if (!isReferenceBundle(expanded) || !expanded.construction) throw new Error('Invalid shared reference bundle')
+  if (!isReferenceBundle(expanded) || (version === 2 && !expanded.construction)) throw new Error('Invalid shared reference bundle')
+  if (!expanded.construction) return expanded
   if (version === 3) return { ...expanded, construction: { ...expanded.construction, shared: true } }
   const base = expanded.construction
   const budget = { remaining: MAX_OFFLINE_BYTES - new TextEncoder().encode(JSON.stringify(value)).byteLength }

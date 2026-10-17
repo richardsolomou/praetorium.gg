@@ -1,9 +1,14 @@
 import { gzipSync } from 'node:zlib'
 import { afterEach, expect, it, vi } from 'vitest'
-import { referenceBundle, offlineReferenceVersion, offlineAppVersion } from './download'
+import { constructionBundle, constructionBundleFor, referenceBundle, offlineReferenceVersion, offlineAppVersion } from './download'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
 const revision = 'a'.repeat(64)
-const version = { revision, bundle: `/assets/reference-${revision}.bin` }
+const construction = {
+  current: `/assets/construction-${'b'.repeat(64)}.bin`,
+  complete: `/assets/construction-${'c'.repeat(64)}.bin`,
+  versions: ['legacy'],
+}
+const version = { revision, bundle: `/assets/reference-${revision}.bin`, construction }
 const saved: OfflineReferenceData = {
   version: 1,
   revision,
@@ -90,4 +95,48 @@ it('rejects manifests that point outside immutable application assets', async ()
   )
   await expect(offlineReferenceVersion(signal)).rejects.toThrow('version is invalid')
   await expect(offlineAppVersion(signal)).rejects.toThrow('version is invalid')
+})
+
+it('accepts a manifest naming its reference and both construction downloads', async () => {
+  vi.stubGlobal('fetch', async () => Response.json(version))
+  expect(await offlineReferenceVersion(signal)).toEqual(version)
+})
+it.each([
+  { ...version, construction: undefined },
+  { ...version, construction: { ...construction, complete: '/private' } },
+  { ...version, construction: { ...construction, versions: [1] } },
+])('rejects a manifest without valid construction downloads', async (value) => {
+  vi.stubGlobal('fetch', async () => Response.json(value))
+  await expect(offlineReferenceVersion(signal)).rejects.toThrow('version is invalid')
+})
+it.each([
+  [false, construction.current],
+  [true, construction.complete],
+])('chooses the construction download for a device using other rules versions: %s', (otherVersions, url) => {
+  expect(constructionBundleFor(version, otherVersions)).toBe(url)
+})
+const constructionSource = { version: 1, revision: 'base', files: [], datacards: null, mfm: null, rules: {} }
+it('keeps held construction data whose download is still published', async () => {
+  const fetch = vi.fn(async () => response({ ...saved, construction: constructionSource }))
+  vi.stubGlobal('fetch', fetch)
+  await constructionBundle(construction.current, signal, {
+    ...saved,
+    construction: constructionSource as never,
+    constructionBundle: construction.current,
+  })
+  expect(fetch).not.toHaveBeenCalled()
+})
+it('downloads construction data published at another address', async () => {
+  vi.stubGlobal('fetch', async () => response({ ...saved, construction: constructionSource }))
+  expect(
+    await constructionBundle(construction.complete, signal, {
+      ...saved,
+      construction: { ...constructionSource, revision: 'old' } as never,
+      constructionBundle: construction.current,
+    }),
+  ).toEqual(constructionSource)
+})
+it('rejects a construction download without construction data', async () => {
+  vi.stubGlobal('fetch', async () => response(saved))
+  await expect(constructionBundle(construction.current, signal)).rejects.toThrow('construction bundle is invalid')
 })

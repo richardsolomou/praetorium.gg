@@ -163,3 +163,17 @@ it.each([null, 1, 'invalid', { base: false }, { base: true, version: 1, revision
     ).toBe(false)
   },
 )
+
+it('shares repeated prose in a reference published without construction data', () => {
+  const description = 'Each model in this unit is equipped with a boltgun and close combat weapon. '.repeat(10)
+  const queries = [
+    { key: ['rule-section', 'core', 'moving'], data: description },
+    { key: ['rule-section', 'core', 'shooting'], data: description },
+  ]
+  const encoded = encodeReferenceBundle({ queries, search })
+  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
+  expect({ texts: wire.texts, decoded: decodeReferenceBundle(wire) }).toEqual({
+    texts: [description],
+    decoded: { version: 1, revision: encoded.revision, queries, search, construction: undefined },
+  })
+})

@@ -1,28 +1,17 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
-import { globalSearchQuery } from '../../queries'
-import { useSettled } from '../../useSettled'
-import { matchingPages, SEARCH_DEBOUNCE_MS } from './globalSearchPages'
+import { matchingPages } from './globalSearchPages'
+import { RecentSearches } from './RecentSearches'
 import { SearchResults } from './SearchResults'
+import { useGlobalSearch } from './useGlobalSearch'
 
 export function SearchPage({ query }: { query: string }) {
   const navigate = useNavigate()
   const trimmed = query.trim()
-  const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
-  const {
-    data = [],
-    isPending,
-    isFetching,
-    isError,
-    refetch,
-  } = useQuery({
-    ...globalSearchQuery(settled),
-    placeholderData: keepPreviousData,
-  })
+  const { query: settled, data, isPending, isFetching, isError, refetch } = useGlobalSearch(trimmed)
   const results = [...matchingPages(settled), ...data]
   const searchable = trimmed.length >= 2
   const searching = trimmed !== settled || isFetching
@@ -47,7 +36,10 @@ export function SearchPage({ query }: { query: string }) {
         <div className="mt-4" aria-live="polite">
           {searchable && searching ? <output className="sr-only">Searching</output> : null}
           {!searchable ? (
-            <p className="text-sm text-dim">Enter at least two characters to search.</p>
+            <>
+              {trimmed ? null : <RecentSearches />}
+              <p className="mt-4 text-sm text-dim">Enter at least two characters to search.</p>
+            </>
           ) : isError ? (
             <PageState
               headingLevel={2}

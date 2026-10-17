@@ -1,6 +1,17 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
-import { createBattle, createRoster, signUp, uniqueName, setupStep, retryUntilVisible, attachRoster, startBattle, advance } from './account'
+import {
+  createBattle,
+  createRoster,
+  confirmRosterSetup,
+  signUp,
+  uniqueName,
+  setupStep,
+  retryUntilVisible,
+  attachRoster,
+  startBattle,
+  advance,
+} from './account'
 import { battleLog, productOperator, savedWork, withAuthSql } from './storage'
 import { chooseCombatUnit } from './combat'
 
@@ -321,4 +332,36 @@ test('conflicting roster edits stay saved and export before choosing the server 
   await page.keyboard.press('Escape')
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue('Other device edit')
+})
+
+test('a roster on another rules version saves that version for offline edits', async ({ page, context, request }) => {
+  test.setTimeout(300_000)
+  const { construction } = await (await request.get('/offline-reference-version.json')).json()
+  await signUp(page, uniqueName('Older rules'))
+  await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: 'Archived army' })
+  await waitForOfflineApp(page)
+  // A device without rosters on other versions downloads construction data for the current rules alone.
+  expect(await page.evaluate(() => window.PraetoriumReferenceCache?.constructionBundle)).toBe(construction.current)
+  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Convert rules version', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
+  await dialog.getByRole('combobox', { name: 'Rules version' }).click()
+  await page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true }).click()
+  await expect(dialog.getByRole('button', { name: 'Select Shield Host', exact: true })).toBeVisible()
+  const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
+  if (await unavailable.isVisible()) await unavailable.click()
+  const chosen = dialog.getByRole('button', { name: 'Select Shield Host', exact: true, pressed: true })
+  if (!(await chosen.isVisible())) await dialog.getByRole('button', { name: 'Select Shield Host', exact: true }).click()
+  const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
+  if ((await dispositions.count()) > 1) await dispositions.first().click()
+  await confirmRosterSetup(dialog)
+  await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
+  await expect
+    .poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.constructionBundle), { timeout: 180_000 })
+    .toBe(construction.complete)
+  await context.setOffline(true)
+  await page.getByLabel('Add a unit').fill('Allarus Custodians')
+  await page.getByRole('button', { name: 'Add Allarus Custodians', exact: true }).first().click()
+  await expect(page.locator('[data-unit="Allarus Custodians"]')).toHaveCount(1)
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
 })

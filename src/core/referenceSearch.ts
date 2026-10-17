@@ -38,7 +38,7 @@ export type GlobalSearchIndex = {
 }
 
 import { distance } from 'fastest-levenshtein'
-import { matchDatasheet, matchSearchText } from './datasheetSearch'
+import { matchDatasheet, matchSearchText, prepareDatasheetSearch, prepareSearchText } from './datasheetSearch'
 
 export function searchReference(query: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
@@ -81,7 +81,7 @@ function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalS
       const matches = (entry.cards ?? [])
         .flatMap((card) => {
           const nameScore = matchSearchText(query, card.name)
-          const effectScore = card.description ? matchSearchText(query, `${card.name} ${card.description}`) : null
+          const effectScore = card.description ? matchSearchText(query, cardText(card)) : null
           const score = nameScore ?? (effectScore === null ? null : 100 + effectScore)
           return score === null ? [] : [{ score, reason: { kind: card.kind, value: card.name } }]
         })
@@ -92,6 +92,34 @@ function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalS
     })
     .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
     .map(({ result }) => result)
+}
+
+const cardTexts = new WeakMap<NonNullable<IndexedDetachment['cards']>[number], string>()
+
+/** A card's name and effect as one searched text, built once so its normalization is looked up rather than redone. */
+function cardText(card: NonNullable<IndexedDetachment['cards']>[number]) {
+  let text = cardTexts.get(card)
+  if (text === undefined) {
+    text = `${card.name} ${card.description}`
+    cardTexts.set(card, text)
+  }
+  return text
+}
+
+/** Normalizes an index's searched text ahead of the first query, yielding between slices so it can run while idle. */
+export function* prepareReferenceSearch(index: GlobalSearchIndex) {
+  for (const [at, entry] of index.datasheets.entries()) {
+    prepareDatasheetSearch(entry.fields)
+    if (at % 200 === 199) yield
+  }
+  for (const [at, entry] of index.detachments.entries()) {
+    prepareSearchText(entry.search)
+    for (const card of entry.cards ?? []) {
+      prepareSearchText(card.name)
+      if (card.description) prepareSearchText(cardText(card))
+    }
+    if (at % 40 === 39) yield
+  }
 }
 
 type RankedResult = { result: GlobalSearchResult; score: number }

@@ -1,3 +1,4 @@
+import { waitForOfflineApp } from './offline'
 import { confirmRosterSetup } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
@@ -90,7 +91,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
     await page.screenshot({ path: `test-results/custodes-datasheet-${viewport.width}.png` })
   }
   await page.setViewportSize(desktop)
-  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).toBeTruthy()
+  await waitForOfflineApp(page)
   await context.setOffline(true)
   await page.goto('/rosters')
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('2x Castellan Axe')

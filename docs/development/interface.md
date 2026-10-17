@@ -67,7 +67,7 @@ League entrants and organizers share one event page, whose next-action card and 
 
 `Home` owns fetching and `HomeView` renders props. Many players only build lists, so nothing assumes battles. The home loader waits for the player's record only within `RECORD_BUDGET_MS`. Never leave a query pending in the SSR query cache: a streamed pending query holds the document, and hydration, open until it settles.
 
-`/search?q=…` and global autocomplete share `globalSearchQuery`. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
+`/search?q=…` and global autocomplete share `useGlobalSearch`: a current download answers on every keystroke, otherwise `globalSearchQuery` asks the service once typing settles. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. Before anything is typed, both list the last eight public results opened from search on this device (`searchHistory.ts`), each removable; the player's own rosters and battles are never remembered. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
 
 Onboarding opens only by player choice and stays nonmodal. Domain-backed progress is derived; only reading tours, skips, and welcome state are stored. Finishing a tour dismisses its prompt only after progress is saved durably.
 
@@ -99,7 +99,9 @@ Restoration and refresh:
 - Hosted pages preserve server-rendered data through hydration; injected native reference data must not seed the hosted query client.
 - Restore cached public references only into missing queries after the initial screen settles; never overwrite the saved snapshot before restoration. A failed refresh retains the last successful response, and a refreshed response never replaces a newer one.
 - Refresh saved account queries only when focus or connectivity returns or the account changes, never on a timer: each refresh refetches the whole snapshot, and screens in view already poll or subscribe.
-- Defer account preparation and reference downloads until after the initial route paints and idles. Publish only complete saved applications, retaining the previous version on failure. Manifest checks bypass caches.
+- A download whose revision the service still publishes is current (`currentReference()` in [`runtime.ts`](../../src/client/offline/runtime.ts)): reference reads, search, datasheet filters and datasheet changes answer from it without a request until a manifest check finds another revision. Any other download is only a fallback behind the service.
+- Restore the saved download and check the manifest right after the initial route paints; defer account preparation and new downloads until it has idled for ten seconds. Publish only complete saved applications, retaining the previous version on failure. Manifest checks bypass caches.
+- A new download applies its reference before fetching construction data, so pages and search use it first. Saved downloads pack construction data apart from the reference and keep each query serialized. A hosted page restores one in a worker (`referenceRestore.ts`), parses each saved query only when it is read, decodes construction only when offline construction first reads it, and prepares search in idle slices; keep that work off the main thread.
 - Development websites do not install the service worker. Authentication, administration, and API documents keep their hosted path.
 
 Account boundaries:

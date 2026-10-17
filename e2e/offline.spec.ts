@@ -1,3 +1,4 @@
+import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import { scrollSearchResultIntoView, signUp, uniqueName } from './account'
 
@@ -9,23 +10,28 @@ test('the home page paints before downloading the offline application and keeps 
   test.setTimeout(240_000)
   const bundles: string[] = []
   page.on('request', (assetRequest) => {
-    if (/\/assets\/reference-[a-f0-9]+\.bin$/.test(assetRequest.url())) bundles.push(assetRequest.url())
+    if (/\/assets\/(reference|construction)-[a-f0-9]+\.bin$/.test(assetRequest.url())) bundles.push(assetRequest.url())
   })
   await page.goto('/')
   await expect(page.locator('main h1')).toBeVisible()
-  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).toBeTruthy()
+  await waitForOfflineApp(page)
   const downloads = await page.evaluate(() =>
     performance
       .getEntriesByType('resource')
-      .filter((entry) => /\/assets\/(reference-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(entry.name))
+      .filter((entry) => /\/assets\/((reference|construction)-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(entry.name))
       .map((entry) => entry.startTime),
   )
-  expect(downloads).toHaveLength(2)
+  expect(downloads).toHaveLength(3)
   expect(Math.min(...downloads)).toBeGreaterThanOrEqual(10_000)
 
   const manifest = await request.get('/offline-reference-version.json')
   expect(manifest.headers()['cache-control']).toBe('no-store')
   const reference = await manifest.json()
+  // The reference comes first so pages and search can use it while construction data downloads.
+  expect(bundles).toEqual([
+    `${new URL(page.url()).origin}${reference.bundle}`,
+    `${new URL(page.url()).origin}${reference.construction.current}`,
+  ])
   const bundle = await request.get(reference.bundle)
   expect(bundle.headers()['content-type']).toBe('application/octet-stream')
   expect(bundle.headers()['content-encoding']).toBeUndefined()
@@ -36,7 +42,7 @@ test('the home page paints before downloading the offline application and keeps 
   await page.route('**/offline-app-version.json', (route) => route.fulfill({ json: { ...app, revision: 'next-app-version' } }))
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.appRevision), { timeout: 60_000 }).toBe('next-app-version')
-  expect(bundles).toHaveLength(1)
+  expect(bundles).toHaveLength(2)
   await expect(page.locator('main h1')).toBeVisible()
 })
 
@@ -60,14 +66,16 @@ test('the complete reference keeps its existing UI after a cold offline launch',
     const serialized = html.match(/<script>window\.PraetoriumOffline=([^]*?);<\/script>/)![1]
     const json = serialized.startsWith('JSON.parse(') ? JSON.parse(serialized.slice('JSON.parse('.length, -1)) : serialized
     const packed = JSON.parse(json)
-    const data =
-      packed.encoding === 'gzip-base64'
-        ? await new Response(
-            new Blob([Uint8Array.from(atob(packed.data), (char) => char.charCodeAt(0))])
-              .stream()
-              .pipeThrough(new DecompressionStream('gzip')),
-          ).json()
-        : packed
+    const decode = (base64: string) =>
+      new Response(
+        new Blob([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip')),
+      ).json()
+    const reference = await decode(packed.reference)
+    const data = {
+      ...reference,
+      queries: reference.queries.map((entry: { key: unknown[]; json: string }) => ({ key: entry.key, data: JSON.parse(entry.json) })),
+      ...(packed.construction ? { construction: await decode(packed.construction) } : {}),
+    }
     data.revision = 'previous-reference'
     data.queries.find((entry: { key: string[] }) => entry.key.join('/') === 'rule-section/core-rules/moving').data.section.title =
       'Saved Moving'
@@ -189,4 +197,18 @@ test('the complete reference keeps its existing UI after a cold offline launch',
       }),
   )
   expect(telemetryLoaded).toBe(true)
+})
+
+test('a returning visit searches and opens datasheets from its download without waiting for the service', async ({ page }) => {
+  test.setTimeout(240_000)
+  await page.goto('/')
+  await waitForOfflineApp(page)
+  await page.reload()
+  await expect(page.locator('main h1')).toBeVisible()
+  // Holding every service read proves the reference never waits on one; downloads are deferred far longer than this.
+  await page.route('**/_serverFn/**', () => new Promise(() => {}))
+  await page.getByRole('button', { name: 'Search Praetorium', exact: true }).first().click()
+  await page.getByPlaceholder('Search everything…').fill('Immortals')
+  await page.getByRole('option').filter({ hasText: 'Immortals' }).first().click({ timeout: 4_000 })
+  await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible({ timeout: 4_000 })
 })

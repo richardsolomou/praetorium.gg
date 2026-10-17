@@ -6,6 +6,7 @@ import type { GlobalSearchResult } from '../../functions'
 import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'
 import { useVirtualRows } from '../../components/useVirtualRows'
 import { globalSearchGroups } from './globalSearchPages'
+import { rememberSearch } from './searchHistory'
 import { SearchResultDetail } from './SearchResultDetail'
 
 /** Each search starts its list at the top. */
@@ -115,6 +116,7 @@ function ResultList({
               ) : (
                 <Link
                   to={row.result.href}
+                  onClick={() => rememberSearch(row.result)}
                   className="flex min-w-0 items-center gap-2 border border-edge bg-panel px-3 py-3 hover:border-info"
                 >
                   {content}
