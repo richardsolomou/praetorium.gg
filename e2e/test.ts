@@ -96,7 +96,7 @@ async function serveRulesText(context: BrowserContext) {
 }
 
 /** Starts a context where a new device starts, undecided about its sources; a choice made later is kept. */
-const startUnchosen = (context: BrowserContext) =>
+export const startUnchosen = (context: BrowserContext) =>
   context.addInitScript(() => {
     if (localStorage.getItem('praetorium-e2e-rules-text-unchosen') !== null) return
     localStorage.setItem('praetorium-e2e-rules-text-unchosen', 'set')
