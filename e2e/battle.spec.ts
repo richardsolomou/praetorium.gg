@@ -84,7 +84,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await page.reload()
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).click()
   await scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true }).click()
-  await expect(scoring.locator('output')).toContainText('Scoring 5 VP')
+  await expect(scoring.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 5 VP')
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(scoring).toBeVisible()
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()

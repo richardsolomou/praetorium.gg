@@ -127,7 +127,7 @@ test('both sides settle source final awards beyond round caps through cold offli
     .getByRole('button', { name: /plus 5$/ })
     .nth(1)
     .click()
-  await expect(finalTurn.locator('output')).toContainText('Scoring 10 VP')
+  await expect(finalTurn.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 10 VP')
   await expect(finalTurn).toContainText('Primary mission 15/15 this round')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -141,7 +141,7 @@ test('both sides settle source final awards beyond round caps through cold offli
       .toBe(true)
   }
   await page.reload()
-  await expect(finalTurn.locator('output')).toContainText('Scoring 0 VP')
+  await expect(finalTurn.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 0 VP')
   await primary.getByRole('button', { name: 'Gather Intel plus 4', exact: true }).click()
   await primary
     .getByRole('button', { name: /plus 5$/ })
@@ -151,7 +151,7 @@ test('both sides settle source final awards beyond round caps through cold offli
     .getByRole('button', { name: /plus 5$/ })
     .nth(1)
     .click()
-  await expect(finalTurn.locator('output')).toContainText('Scoring 10 VP')
+  await expect(finalTurn.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 10 VP')
   await waitForOfflineApp(page)
   const url = page.url()
   await context.setOffline(true)
@@ -171,7 +171,7 @@ test('both sides settle source final awards beyond round caps through cold offli
     .getByRole('button', { name: /plus 5$/ })
     .nth(1)
     .click()
-  await expect(firstFinal.locator('output')).toContainText('Scoring 10 VP')
+  await expect(firstFinal.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 10 VP')
   await firstFinal.getByRole('button', { name: 'Finish battle', exact: true }).click()
   await expect(page.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
   const queued = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`

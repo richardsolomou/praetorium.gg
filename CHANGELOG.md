@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.157.1
+
+### Patch Changes
+
+- 9b7facd: Every place where rules text isn't loaded now has a Choose sources link.
+- 9b7facd: Rules text prompts and the sources banner no longer flash the wrong state while a page loads.
+
 ## 0.157.0
 
 ### Minor Changes

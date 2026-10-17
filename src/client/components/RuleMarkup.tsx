@@ -32,7 +32,7 @@ export function RuleMarkup({
 }) {
   const choice = useTextSourceChoice()
   if (hasTextTokens(markup)) return <SourcedRuleMarkup markup={markup} links={links} className={className} />
-  if (!authored && !choice.sources.has(source)) return <SourceTextPrompt missing="unchosen" className={className} />
+  if (!authored && !choice.sources.has(source)) return <SourceTextPrompt missing="unchosen" source={source} className={className} />
   return <RuleMarkupBody markup={markup} links={links} className={className} />
 }
 

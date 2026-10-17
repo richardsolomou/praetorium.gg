@@ -28,7 +28,7 @@ export function writeStoredValue(key: string, value: string | null) {
   return kept
 }
 
-/** For `useSyncExternalStore` snapshots that combine a stored value with other browser state. */
+/** Calls `changed` after any stored value changes, in this tab or another. */
 export function subscribeStoredValues(changed: () => void) {
   const fromOtherTab = (event: StorageEvent) => {
     if (event.key !== null) written.delete(event.key)

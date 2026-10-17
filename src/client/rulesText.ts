@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { RuleDocument, RuleTextSource } from '../contracts/rules'
 import { ruleDocumentFrom } from '../shared/ruleDocuments'
 import { TEXT_SOURCES, type TextSource } from '../shared/sourceText'
-import { readStoredValue, useStoredValue, writeStoredValue } from './storedValue'
+import { readStoredValue, subscribeStoredValues, useStoredValue, writeStoredValue } from './storedValue'
 import { rulesTextKey } from './queries/queryKeys'
 
 /**
@@ -41,6 +41,27 @@ export function textSourceChoiceFrom(stored: string | null): TextSourceChoice {
     choices.set(stored, choice)
   }
   return choice
+}
+
+/**
+ * Runs in the document head before the first paint and puts the stored choice on the document
+ * as `data-text-sources`, absent while undecided, so styles draw the reader's own state before
+ * React reads storage. It parses the value as `textSourceChoiceFrom` does.
+ */
+export const TEXT_SOURCES_SCRIPT = `try{var v=localStorage.getItem(${JSON.stringify(KEY)});if(v!==null)document.documentElement.dataset.textSources=v.split(',').filter(function(s){return ${JSON.stringify(TEXT_SOURCES)}.indexOf(s)>=0}).join(' ')}catch(e){}`
+
+/** Puts a choice on the document as the head script does. */
+export function applyTextSourceChoice(choice: TextSourceChoice) {
+  const root = document.documentElement
+  if (choice.decided) root.dataset.textSources = TEXT_SOURCES.filter((source) => choice.sources.has(source)).join(' ')
+  else delete root.dataset.textSources
+}
+
+/** Keeps the document on the stored choice as it changes, and sets it where the head script never ran. */
+export function followTextSourceChoice() {
+  const apply = () => applyTextSourceChoice(textSourceChoice())
+  apply()
+  return subscribeStoredValues(apply)
 }
 
 /** Undecided on the server and while hydrating, like every stored value. */
