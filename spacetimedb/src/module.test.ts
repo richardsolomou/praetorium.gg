@@ -216,3 +216,93 @@ describe('roster lock', () => {
     ])
   })
 })
+
+describe('collection counts', () => {
+  const key = JSON.stringify(['owner', 'warriors'])
+  const owned = (models: number, built: number, painted: number) => {
+    const setup = harness()
+    setup.call(setup.operator, (ctx) => module.setCollectionModels(ctx, { userId: 'owner', entryId: 'warriors', models, at: BigInt(NOW) }))
+    setup.call(setup.operator, (ctx) => module.setCollectionProgress(ctx, { userId: 'owner', entryId: 'warriors', built, painted }))
+    return setup
+  }
+  const row = ({ test }: ReturnType<typeof harness>) => {
+    const found = test.db.collection.key.find(key)
+    return { models: found?.models, built: found?.built, painted: found?.painted }
+  }
+  const imported = (setup: ReturnType<typeof harness>, rows: unknown[], replace = false) =>
+    JSON.parse(
+      module.importCollection(setup.procedure(setup.operator), { userId: 'owner', rows: JSON.stringify(rows), replace, at: BigInt(NOW) }),
+    ) as unknown
+
+  it('keeps built and painted counts', () => {
+    expect(row(owned(10, 6, 2))).toEqual({ models: 10, built: 6, painted: 2 })
+  })
+
+  it('lowers built and painted counts above what is owned', () => {
+    expect(row(owned(10, 20, 15))).toEqual({ models: 10, built: 10, painted: 10 })
+  })
+
+  it('lowers built and painted counts when fewer models are owned', () => {
+    const setup = owned(10, 8, 5)
+    setup.call(setup.operator, (ctx) =>
+      module.setCollectionModels(ctx, { userId: 'owner', entryId: 'warriors', models: 4, at: BigInt(NOW) }),
+    )
+    expect(row(setup)).toEqual({ models: 4, built: 4, painted: 4 })
+  })
+
+  it('refuses progress for a datasheet that is not in the collection', () => {
+    const { call, operator } = harness()
+    expect(() =>
+      call(operator, (ctx) => module.setCollectionProgress(ctx, { userId: 'owner', entryId: 'warriors', built: 1, painted: 0 })),
+    ).toThrow('Add this datasheet')
+  })
+
+  it('removes a wish set to zero', () => {
+    const { test, call, operator } = harness()
+    call(operator, (ctx) => module.setCollectionWanted(ctx, { userId: 'owner', entryId: 'warriors', wanted: 5, at: BigInt(NOW) }))
+    call(operator, (ctx) => module.setCollectionWanted(ctx, { userId: 'owner', entryId: 'warriors', wanted: 0, at: BigInt(NOW) }))
+    expect(test.db.collectionWishes.key.find(key)).toBeNull()
+  })
+
+  it('imports a datasheet the collection lacks', () => {
+    const setup = harness()
+    imported(setup, [{ entryId: 'warriors', models: 10, built: 4, painted: 1, wanted: 0 }])
+    expect(row(setup)).toEqual({ models: 10, built: 4, painted: 1 })
+  })
+
+  it('keeps saved counts an import differs from', () => {
+    const setup = owned(10, 6, 2)
+    expect([imported(setup, [{ entryId: 'warriors', models: 20, built: 0, painted: 0, wanted: 3 }]), row(setup)]).toEqual([
+      { added: 1, replaced: 0, kept: 1 },
+      { models: 10, built: 6, painted: 2 },
+    ])
+  })
+
+  it('adds a wish beside identical owned counts without keeping anything', () => {
+    const setup = owned(10, 6, 2)
+    expect(imported(setup, [{ entryId: 'warriors', models: 10, built: 6, painted: 2, wanted: 3 }])).toEqual({
+      added: 1,
+      replaced: 0,
+      kept: 0,
+    })
+  })
+
+  it('replaces saved counts when asked', () => {
+    const setup = owned(10, 6, 2)
+    imported(setup, [{ entryId: 'warriors', models: 20, built: 0, painted: 0, wanted: 0 }], true)
+    expect(row(setup)).toEqual({ models: 20, built: 0, painted: 0 })
+  })
+
+  it('refuses an import that lists a datasheet twice', () => {
+    const setup = harness()
+    const rows = [{ entryId: 'warriors', models: 1, built: 0, painted: 0, wanted: 0 }]
+    expect(() => imported(setup, [...rows, ...rows])).toThrow()
+  })
+
+  it('deletes wishes with the account', () => {
+    const { test, call, operator } = harness()
+    call(operator, (ctx) => module.setCollectionWanted(ctx, { userId: 'owner', entryId: 'warriors', wanted: 5, at: BigInt(NOW) }))
+    call(operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(test.db.collectionWishes.key.find(key)).toBeNull()
+  })
+})

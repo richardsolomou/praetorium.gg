@@ -31,7 +31,7 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
   for (const [entryId, models] of [['heart', undefined], ['duplicate', undefined], ['models', 12]] as const) {
     const key = JSON.stringify([base.userId, entryId])
     ctx.db.collection.key.delete(key)
-    ctx.db.collection.insert({ key, userId: base.userId, entryId, at: 3n, models })
+    ctx.db.collection.insert({ key, userId: base.userId, entryId, at: 3n, models, built: undefined, painted: undefined })
   }
   const key = JSON.stringify([base.userId, 'duplicate'])
   ctx.db.favouriteDatasheets.key.delete(key)
@@ -111,7 +111,8 @@ it.skipIf(!existsSync(cli))(
       const store = new SpacetimeOperator(url, database, identity.token)
       expect(await store.collectionProfile('migration-owner', null)).toEqual({
         published: true,
-        entries: [{ entryId: 'models', models: 12 }],
+        entries: [{ entryId: 'models', models: 12, built: 0, painted: 0 }],
+        wishes: [],
       })
       expect(await store.favouriteDatasheetsByUser('migration-owner')).toEqual(
         expect.arrayContaining([

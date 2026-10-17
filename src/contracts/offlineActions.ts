@@ -4,6 +4,8 @@ import * as schemas from './schemas'
 export const offlineActionSchemas = {
   setOwned: schemas.ownedSchema,
   setCollectionModels: schemas.collectionModelsSchema,
+  setCollectionProgress: schemas.collectionProgressSchema,
+  setCollectionWanted: schemas.collectionWantedSchema,
   setFavouriteFaction: schemas.favouriteFactionSchema,
   setFavouriteDetachment: schemas.favouriteDetachmentSchema,
   setFavouriteDatasheet: schemas.favouriteDatasheetSchema,

@@ -1,3 +1,4 @@
+import { boundedProgress, type CollectionProgress } from '../../core/collection'
 import { leagueWarlordRefusal, leagueWarlords } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
@@ -30,6 +31,8 @@ async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>)
 
 export const collection = () => accountRead(['collection'], () => server.collection())
 export const collectionCounts = () => accountRead(['collection-counts'], () => server.collectionCounts())
+export const collectionProgress = () => accountRead(['collection-progress'], () => server.collectionProgress())
+export const collectionWishes = () => accountRead(['collection-wishes'], () => server.collectionWishes())
 export const fieldedDatasheets = () => cachedRead(['fielded-datasheets'], () => server.fieldedDatasheets())
 export const favouriteFactions = () => accountRead(['favourite-factions'], () => server.favouriteFactions())
 export const favouriteDetachments = () => accountRead(['favourite-detachments'], () => server.favouriteDetachments())
@@ -137,25 +140,65 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
     input.owned
       ? undefined
       : {
-          [queryResource(['collection-counts'])]: (current) => {
-            if (!current) return undefined
-            const { [input.entryId]: _removed, ...counts } = current as Record<string, number>
-            return counts
-          },
+          [queryResource(['collection-counts'])]: (current) => withoutEntry(current, input.entryId),
+          [queryResource(['collection-progress'])]: (current) => withoutEntry(current, input.entryId),
         },
   )
   return undefined
 }
+function withoutEntry(current: unknown, entryId: string) {
+  if (!current) return undefined
+  const { [entryId]: _removed, ...rest } = current as Record<string, unknown>
+  return rest
+}
 export async function setCollectionModels(
   args: Parameters<typeof server.setCollectionModels>[0],
 ): ReturnType<typeof server.setCollectionModels> {
-  const defer = deferredForAccount(false)
+  const owner = localOwner()?.id
   if (!localEngine()) return server.setCollectionModels(args)
-  const counts = (await localDocument<Record<string, number>>(queryResource(['collection-counts']))) ?? (await collectionCounts())
-  await defer('setCollectionModels', args.data, queryResource(['collection-counts']), undefined, {}, undefined, (current) => ({
-    ...(current ?? counts),
-    [args.data.entryId]: args.data.models,
-  }))
+  const input = offlineActionSchemas.setCollectionModels.parse(args.data)
+  const resource = queryResource(['collection-counts'])
+  const counts = (await localDocument<Record<string, number>>(resource)) ?? (await collectionCounts())
+  await queueLocal(
+    'setCollectionModels',
+    { input, identifiers: {} },
+    resource,
+    undefined,
+    undefined,
+    undefined,
+    owner,
+    (current) => ({ ...(current ?? counts), [input.entryId]: input.models }),
+    {
+      [queryResource(['collection-progress'])]: (current) => {
+        const saved = current as Record<string, CollectionProgress> | undefined
+        const progress = saved?.[input.entryId]
+        return progress ? { ...saved, [input.entryId]: boundedProgress(input.models, progress) } : current
+      },
+    },
+  )
+}
+export async function setCollectionProgress(
+  args: Parameters<typeof server.setCollectionProgress>[0],
+): ReturnType<typeof server.setCollectionProgress> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.setCollectionProgress(args)
+  const progress =
+    (await localDocument<Record<string, CollectionProgress>>(queryResource(['collection-progress']))) ?? (await collectionProgress())
+  const { entryId, built, painted } = args.data
+  await defer('setCollectionProgress', args.data, queryResource(['collection-progress']), undefined, {}, undefined, (current) =>
+    built ? { ...(current ?? progress), [entryId]: { built, painted } } : withoutEntry(current ?? progress, entryId),
+  )
+}
+export async function setCollectionWanted(
+  args: Parameters<typeof server.setCollectionWanted>[0],
+): ReturnType<typeof server.setCollectionWanted> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.setCollectionWanted(args)
+  const wishes = (await localDocument<Record<string, number>>(queryResource(['collection-wishes']))) ?? (await collectionWishes())
+  const { entryId, wanted } = args.data
+  await defer('setCollectionWanted', args.data, queryResource(['collection-wishes']), undefined, {}, undefined, (current) =>
+    wanted ? { ...(current ?? wishes), [entryId]: wanted } : withoutEntry(current ?? wishes, entryId),
+  )
 }
 export async function setFavouriteFaction(
   args: Parameters<typeof server.setFavouriteFaction>[0],

@@ -32,7 +32,7 @@ import {
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection, authConfiguration } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
-import { DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
+import { boundedProgress, DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -365,6 +365,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.collectionPhotos.userId.filter(userId))) dropCollectionPhoto(ctx, row)
   for (const row of Array.from(ctx.db.collectionPhotoLikes.userId.filter(userId))) setLike(ctx, row.photoId, userId, false, 0n)
   for (const row of Array.from(ctx.db.collection.userId.filter(userId))) ctx.db.collection.key.delete(row.key)
+  for (const row of Array.from(ctx.db.collectionWishes.userId.filter(userId))) ctx.db.collectionWishes.key.delete(row.key)
   for (const row of Array.from(ctx.db.collectionStock.userId.filter(userId))) ctx.db.collectionStock.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
@@ -1419,16 +1420,29 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
     requireOperator(tx)
     moveHeartsToFavourites(tx, userId)
     return productJson(
-      Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models }) => ({
+      Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models, built, painted }) => ({
         userId: ownerId,
         entryId,
         at,
         models,
+        built: built ?? 0,
+        painted: painted ?? 0,
         ...collectionPhotoField(tx, key),
       })),
     )
   }),
 )
+
+export const collectionWishesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(collectionWishes(tx, userId))
+  }),
+)
+
+function collectionWishes(ctx: Context, userId: string) {
+  return Array.from(ctx.db.collectionWishes.userId.filter(userId)).map(({ entryId, wanted }) => ({ entryId, wanted }))
+}
 
 export const collectionProfile = spacetime.procedure(
   { userId: t.string(), viewerId: t.option(t.string()) },
@@ -1442,9 +1456,15 @@ export const collectionProfile = spacetime.procedure(
       const entries = []
       for (const row of tx.db.collection.userId.filter(userId)) {
         if (entries.length >= MAX_COLLECTION_DATASHEETS) throw new SenderError('Collection exceeds the supported limit')
-        entries.push({ entryId: row.entryId, models: row.models, ...collectionPhotoField(tx, row.key, viewerId === userId) })
+        entries.push({
+          entryId: row.entryId,
+          models: row.models,
+          built: row.built ?? 0,
+          painted: row.painted ?? 0,
+          ...collectionPhotoField(tx, row.key, viewerId === userId),
+        })
       }
-      return productJson({ published, entries })
+      return productJson({ published, entries, wishes: collectionWishes(tx, userId) })
     }),
 )
 
@@ -1482,6 +1502,83 @@ export const setCollectionModels = spacetime.reducer(
   (ctx, input) => {
     setCollectionModelsIn(ctx, [input.userId, input.entryId, input.models, input.at])
   },
+)
+
+export const setCollectionProgress = spacetime.reducer(
+  { userId: t.string(), entryId: t.string(), built: t.u32(), painted: t.u32() },
+  (ctx, input) => {
+    setCollectionProgressIn(ctx, [input.userId, input.entryId, input.built, input.painted])
+  },
+)
+
+export const setCollectionWanted = spacetime.reducer(
+  { userId: t.string(), entryId: t.string(), wanted: t.u32(), at: t.u64() },
+  (ctx, input) => {
+    setCollectionWantedIn(ctx, [input.userId, input.entryId, input.wanted, input.at])
+  },
+)
+
+const importedCollectionRow = z.object({
+  entryId: z.string().min(1).max(64),
+  models: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+  built: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+  painted: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+  wanted: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+})
+
+/** Adds what each row lists; saved counts change only when `replace` is set, and nothing is removed. */
+export const importCollection = spacetime.procedure(
+  { userId: t.string(), rows: t.string(), replace: t.bool(), at: t.u64() },
+  t.string(),
+  (ctx, input) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (!input.userId || input.userId.length > 128) throw new SenderError('Invalid user ID')
+      const rows = z
+        .array(importedCollectionRow)
+        .max(MAX_COLLECTION_DATASHEETS)
+        .refine((items) => new Set(items.map((row) => row.entryId)).size === items.length, 'Each datasheet can appear once')
+        .parse(JSON.parse(input.rows))
+      moveHeartsToFavourites(tx, input.userId)
+      let owned = Array.from(tx.db.collection.userId.filter(input.userId)).length
+      const result = { added: 0, replaced: 0, kept: 0 }
+      for (const row of rows) {
+        const key = JSON.stringify([input.userId, row.entryId])
+        if (row.models) {
+          const current = tx.db.collection.key.find(key)
+          const progress = boundedProgress(row.models, row)
+          if (!current) {
+            if (++owned > MAX_COLLECTION_DATASHEETS)
+              throw new SenderError(`A collection holds up to ${MAX_COLLECTION_DATASHEETS} datasheets`)
+            tx.db.collection.insert({ key, userId: input.userId, entryId: row.entryId, at: input.at, models: row.models, ...progress })
+            result.added++
+          } else if (
+            current.models !== row.models ||
+            (current.built ?? 0) !== progress.built ||
+            (current.painted ?? 0) !== progress.painted
+          ) {
+            if (input.replace) {
+              tx.db.collection.key.update({ ...current, models: row.models, ...progress })
+              result.replaced++
+            } else result.kept++
+          }
+        }
+        if (row.wanted) {
+          const current = tx.db.collectionWishes.key.find(key)
+          if (!current) {
+            tx.db.collectionWishes.insert({ key, userId: input.userId, entryId: row.entryId, wanted: row.wanted, at: input.at })
+            result.added++
+          } else if (current.wanted !== row.wanted) {
+            if (input.replace) {
+              tx.db.collectionWishes.key.update({ ...current, wanted: row.wanted })
+              result.replaced++
+            } else result.kept++
+          }
+        }
+      }
+      if (result.added || result.replaced) touchCollection(tx, input.userId)
+      return productJson(result)
+    }),
 )
 
 export const setCollectionPhoto = spacetime.reducer(
@@ -2495,7 +2592,7 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
   moveHeartsToFavourites(ctx, input.userId)
   const key = JSON.stringify([input.userId, input.entryId])
   if (!ctx.db.collection.key.find(key)) {
-    ctx.db.collection.insert({ key, ...input, models: 1 })
+    ctx.db.collection.insert({ key, ...input, models: 1, built: undefined, painted: undefined })
     touchCollection(ctx, input.userId)
   }
 }
@@ -2525,8 +2622,52 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   const current = ctx.db.collection.key.find(key)
-  if (current) ctx.db.collection.key.update({ ...current, models })
-  else ctx.db.collection.insert({ key, userId, entryId, at, models })
+  if (current)
+    ctx.db.collection.key.update({
+      ...current,
+      models,
+      ...boundedProgress(models, { built: current.built ?? 0, painted: current.painted ?? 0 }),
+    })
+  else ctx.db.collection.insert({ key, userId, entryId, at, models, built: undefined, painted: undefined })
+  touchCollection(ctx, userId)
+}
+
+/** Counts above what is owned are lowered rather than refused, because another device may have lowered the owned count first. */
+function setCollectionProgressIn(ctx: Context, args: unknown[]) {
+  const [userId, entryId, built, painted] = z
+    .tuple([
+      z.string().max(2_000_000),
+      z.string().max(2_000_000),
+      z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+      z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+    ])
+    .parse(args)
+
+  requireOperator(ctx)
+  moveHeartsToFavourites(ctx, userId)
+  const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
+  if (!current) throw new SenderError('Add this datasheet to your collection before counting built or painted models')
+  ctx.db.collection.key.update({ ...current, ...boundedProgress(current.models ?? 1, { built, painted }) })
+  touchCollection(ctx, userId)
+}
+
+function setCollectionWantedIn(ctx: Context, args: unknown[]) {
+  const [userId, entryId, wanted, at] = z
+    .tuple([
+      z.string().max(2_000_000),
+      z.string().max(2_000_000),
+      z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
+    ])
+    .parse(args)
+
+  requireOperator(ctx)
+  const key = JSON.stringify([userId, entryId])
+  const current = ctx.db.collectionWishes.key.find(key)
+  if (!wanted) {
+    if (!ctx.db.collectionWishes.key.delete(key)) return
+  } else if (current) ctx.db.collectionWishes.key.update({ ...current, wanted })
+  else ctx.db.collectionWishes.insert({ key, userId, entryId, wanted, at })
   touchCollection(ctx, userId)
 }
 
@@ -3273,6 +3414,8 @@ const syncProductActions = {
   add_to_collection: addToCollectionIn,
   remove_from_collection: removeFromCollectionIn,
   set_collection_models: setCollectionModelsIn,
+  set_collection_progress: setCollectionProgressIn,
+  set_collection_wanted: setCollectionWantedIn,
   add_favourite_faction: addFavouriteFactionIn,
   remove_favourite_faction: removeFavouriteFactionIn,
   add_favourite_detachment: addFavouriteDetachmentIn,

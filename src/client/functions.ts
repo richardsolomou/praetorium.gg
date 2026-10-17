@@ -828,6 +828,8 @@ export {
 export {
   collection,
   collectionCounts,
+  collectionProgress,
+  collectionWishes,
   fieldedDatasheets,
   updateOnboardingProgress,
   favouriteFactions,
@@ -864,6 +866,8 @@ export {
   deleteBattle,
   setOwned,
   setCollectionModels,
+  setCollectionProgress,
+  setCollectionWanted,
   setFavouriteFaction,
   setFavouriteDetachment,
   setFavouriteDatasheet,

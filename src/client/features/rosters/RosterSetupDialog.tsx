@@ -121,6 +121,8 @@ type Props = {
   guest?: boolean
   /** Drawn as the page itself rather than over it, for a page that has nothing else to show yet. */
   inline?: boolean
+  /** Wording for a caller that uses the setup for something other than saving a roster straight away. */
+  labels?: { title: string; description: string; submit: string; pending: string }
 }
 
 /**
@@ -167,6 +169,7 @@ export function RosterSetupDialog({
   saveError,
   guest = false,
   inline = false,
+  labels,
   canKeepOriginal = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
@@ -351,7 +354,13 @@ export function RosterSetupDialog({
     })
   }
 
-  const title = mode === 'create' ? 'Create roster' : mode === 'convert' ? 'Convert rules version' : 'Edit roster setup'
+  const title = labels
+    ? labels.title
+    : mode === 'create'
+      ? 'Create roster'
+      : mode === 'convert'
+        ? 'Convert rules version'
+        : 'Edit roster setup'
   const missingId = useId()
   const missing = !draft.catalogueId
     ? 'Choose your faction.'
@@ -370,11 +379,13 @@ export function RosterSetupDialog({
                 : pointsError
   const description = (
     <>
-      {mode === 'create'
-        ? 'Set the roster identity and army rules before adding units.'
-        : mode === 'convert'
-          ? 'Convert this roster to another rules version. Your units and choices are kept and checked against its rules.'
-          : 'Set the roster identity and the rules that shape its available units.'}
+      {labels
+        ? labels.description
+        : mode === 'create'
+          ? 'Set the roster identity and army rules before adding units.'
+          : mode === 'convert'
+            ? 'Convert this roster to another rules version. Your units and choices are kept and checked against its rules.'
+            : 'Set the roster identity and the rules that shape its available units.'}
       {guest ? (
         <>
           {' '}
@@ -758,18 +769,22 @@ export function RosterSetupDialog({
             : loadingFaction
               ? 'Loading faction…'
               : pending
-                ? mode === 'create'
-                  ? 'Creating…'
-                  : 'Saving…'
-                : mode === 'create'
-                  ? inline
-                    ? 'Start building'
-                    : 'Create roster'
-                  : mode === 'convert'
-                    ? 'Convert roster'
-                    : reviewSource
-                      ? 'Review changes'
-                      : 'Save changes'}
+                ? labels
+                  ? labels.pending
+                  : mode === 'create'
+                    ? 'Creating…'
+                    : 'Saving…'
+                : labels
+                  ? labels.submit
+                  : mode === 'create'
+                    ? inline
+                      ? 'Start building'
+                      : 'Create roster'
+                    : mode === 'convert'
+                      ? 'Convert roster'
+                      : reviewSource
+                        ? 'Review changes'
+                        : 'Save changes'}
       </Button>
     </>
   )

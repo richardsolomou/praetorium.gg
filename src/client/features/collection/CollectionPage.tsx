@@ -1,4 +1,4 @@
-import { collectionDatasheets } from '../../../core/collection'
+import { collectionDatasheets, type CollectionCounts } from '../../../core/collection'
 import { useQuery } from '@tanstack/react-query'
 import { Boxes, Plus, Swords, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -10,11 +10,23 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { SignInRequired } from '../../components/SignInRequired'
-import { collectionCountsQuery, collectionQuery, combatUnitsQuery, factionIndexQuery, fieldedDatasheetsQuery, meQuery } from '../../queries'
+import {
+  collectionCountsQuery,
+  collectionProgressQuery,
+  collectionQuery,
+  collectionWishesQuery,
+  combatUnitsQuery,
+  factionIndexQuery,
+  fieldedDatasheetsQuery,
+  meQuery,
+} from '../../queries'
 import { useCollectionMutation } from '../../useCollection'
-import { CollectionCount } from './CollectionCount'
+import { CollectionEntryCounts } from './CollectionEntryCounts'
+import { CollectionExchange } from './CollectionExchange'
 import { CollectionPhoto } from './CollectionPhoto'
+import { CollectionWishlist } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
+import { StarterDraft } from './StarterDraft'
 
 type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
@@ -24,6 +36,8 @@ export function CollectionPage() {
   const { data: me } = useQuery(meQuery())
   const collection = useQuery({ ...collectionQuery(), enabled: Boolean(me) })
   const counts = useQuery({ ...collectionCountsQuery(), enabled: Boolean(me) })
+  const progress = useQuery({ ...collectionProgressQuery(), enabled: Boolean(me) })
+  const wishes = useQuery({ ...collectionWishesQuery(), enabled: Boolean(me) })
   const fielded = useQuery({ ...fieldedDatasheetsQuery(), enabled: Boolean(me) })
   const units = useQuery(combatUnitsQuery())
   const factions = useQuery(factionIndexQuery())
@@ -54,6 +68,15 @@ export function CollectionPage() {
     return sheet && !owned.has(entryId) ? [{ ...sheet, battles }] : []
   })
   const models = [...owned].reduce((total, id) => total + countOf(id), 0)
+  const exchanged = new Map<string, CollectionCounts>()
+  for (const id of new Set([...owned, ...Object.keys(wishes.data ?? {})]))
+    exchanged.set(id, {
+      models: owned.has(id) ? countOf(id) : 0,
+      built: progress.data?.[id]?.built ?? 0,
+      painted: progress.data?.[id]?.painted ?? 0,
+      wanted: wishes.data?.[id] ?? 0,
+    })
+  const ownedFactions = (factions.data?.factions ?? []).filter((faction) => byFaction.has(faction.id))
   const pending = collection.isPending || units.isPending
   const add = (entryId: string) => setOwned({ entryId, owned: true })
   // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
@@ -129,6 +152,10 @@ export function CollectionPage() {
             <Tally label={owned.size === 1 ? 'datasheet' : 'datasheets'} value={pending ? null : owned.size} />
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <StarterDraft factionOptions={ownedFactions} counts={counts.data ?? {}} />
+          <CollectionExchange sheets={[...datasheets.values()]} current={exchanged} />
+        </div>
 
         {owned.size ? null : fieldedShelf}
 
@@ -170,9 +197,15 @@ export function CollectionPage() {
                   </header>
                   <ul className="divide-y divide-edge">
                     {sheets.map((sheet) => (
-                      <li key={sheet.id} data-unit={sheet.name} className="flex gap-3 p-2">
-                        <CollectionPhoto entryId={sheet.id} name={sheet.name} />
-                        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
+                      <li
+                        key={sheet.id}
+                        data-unit={sheet.name}
+                        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 p-2 sm:grid-rows-[auto_1fr]"
+                      >
+                        <span className="sm:row-span-2">
+                          <CollectionPhoto entryId={sheet.id} name={sheet.name} />
+                        </span>
+                        <div className="flex items-start justify-between gap-2">
                           <FactionReferenceLink
                             to="/factions/$catalogueId/datasheets/$entryId"
                             params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
@@ -180,10 +213,10 @@ export function CollectionPage() {
                           >
                             {sheet.name}
                           </FactionReferenceLink>
-                          <div className="flex items-center justify-between gap-2">
-                            <CollectionCount entryId={sheet.id} name={sheet.name} />
-                            <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
-                          </div>
+                          <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
+                        </div>
+                        <div className="col-span-2 self-end sm:col-span-1 sm:col-start-2">
+                          <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
                         </div>
                       </li>
                     ))}
@@ -211,6 +244,7 @@ export function CollectionPage() {
             ) : null}
           </div>
         )}
+        <CollectionWishlist datasheets={datasheets} />
         {owned.size ? fieldedShelf : null}
       </PageContent>
       <RemoveFromCollection datasheet={removing} onClose={() => setRemoving(null)} />

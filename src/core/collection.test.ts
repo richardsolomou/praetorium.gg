@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupCollection } from './collection'
+import { boundedProgress, groupCollection } from './collection'
 
 const factions = [
   {
@@ -71,5 +71,17 @@ describe('collection grouped by faction', () => {
         entries: [{ entryId: 'retired', slug: null, name: 'A datasheet from earlier rules', models: 3 }],
       },
     ])
+  })
+})
+
+describe('bounded progress', () => {
+  it('lowers built models to the owned count', () => {
+    expect(boundedProgress(3, { built: 5, painted: 0 })).toEqual({ built: 3, painted: 0 })
+  })
+  it('lowers painted models to the built count', () => {
+    expect(boundedProgress(10, { built: 4, painted: 6 })).toEqual({ built: 4, painted: 4 })
+  })
+  it('keeps possible counts', () => {
+    expect(boundedProgress(10, { built: 6, painted: 2 })).toEqual({ built: 6, painted: 2 })
   })
 })

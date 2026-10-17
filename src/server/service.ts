@@ -362,6 +362,26 @@ export class PraetoriumService {
     return this.rosterService.setCollectionModels(...args)
   }
 
+  collectionProgress(...args: Parameters<RosterService['collectionProgress']>) {
+    return this.rosterService.collectionProgress(...args)
+  }
+
+  setCollectionProgress(...args: Parameters<RosterService['setCollectionProgress']>) {
+    return this.rosterService.setCollectionProgress(...args)
+  }
+
+  collectionWishes(...args: Parameters<RosterService['collectionWishes']>) {
+    return this.rosterService.collectionWishes(...args)
+  }
+
+  setCollectionWanted(...args: Parameters<RosterService['setCollectionWanted']>) {
+    return this.rosterService.setCollectionWanted(...args)
+  }
+
+  importCollection(...args: Parameters<RosterService['importCollection']>) {
+    return this.rosterService.importCollection(...args)
+  }
+
   favouriteFactions(...args: Parameters<RosterService['favouriteFactions']>) {
     return this.rosterService.favouriteFactions(...args)
   }

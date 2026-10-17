@@ -724,6 +724,22 @@ export class SpacetimeRepository {
     return this.product.setCollectionModels(...args)
   }
 
+  setCollectionProgress(...args: Parameters<SpacetimeOperator['setCollectionProgress']>) {
+    return this.product.setCollectionProgress(...args)
+  }
+
+  collectionWishesByUser(...args: Parameters<SpacetimeOperator['collectionWishesByUser']>) {
+    return this.product.collectionWishesByUser(...args)
+  }
+
+  setCollectionWanted(...args: Parameters<SpacetimeOperator['setCollectionWanted']>) {
+    return this.product.setCollectionWanted(...args)
+  }
+
+  importCollection(...args: Parameters<SpacetimeOperator['importCollection']>) {
+    return this.product.importCollection(...args)
+  }
+
   setCollectionPhoto(...args: Parameters<SpacetimeOperator['setCollectionPhoto']>) {
     return this.product.setCollectionPhoto(...args)
   }

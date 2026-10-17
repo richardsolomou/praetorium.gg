@@ -5,6 +5,19 @@ export const MAX_COLLECTION_DATASHEETS = 5_000
 
 export const DEFAULT_COLLECTION_PUBLISHED = true
 
+/** Owned models, how many of them are built and painted, and how many more the player wants; zero models means not owned. */
+export type CollectionCounts = { models: number; built: number; painted: number; wanted: number }
+
+export type CollectionProgress = { built: number; painted: number }
+
+export type CollectionImportRow = { entryId: string } & CollectionCounts
+
+/** Painted models are built and built models are owned, so lowering one count lowers the counts it bounds. */
+export function boundedProgress(models: number, progress: CollectionProgress): CollectionProgress {
+  const built = Math.min(progress.built, models)
+  return { built, painted: Math.min(progress.painted, built) }
+}
+
 type CollectionFaction = { catalogueId: string; name: string; units: readonly { id: string; slug: string; name: string }[] }
 
 export function collectionDatasheets(factions: readonly CollectionFaction[]) {
@@ -16,7 +29,7 @@ export function collectionDatasheets(factions: readonly CollectionFaction[]) {
 }
 
 export function groupCollection(
-  entries: readonly { entryId: string; models: number; photoIds?: string[] }[],
+  entries: readonly { entryId: string; models: number; built?: number; painted?: number; photoIds?: string[] }[],
   factions: readonly CollectionFaction[],
 ) {
   const sheets = collectionDatasheets(factions)
@@ -26,7 +39,15 @@ export function groupCollection(
       catalogueId: string | null
       name: string
       models: number
-      entries: { entryId: string; slug: string | null; name: string; models: number; photoIds?: string[] }[]
+      entries: {
+        entryId: string
+        slug: string | null
+        name: string
+        models: number
+        built?: number
+        painted?: number
+        photoIds?: string[]
+      }[]
     }
   >()
   for (const entry of entries) {

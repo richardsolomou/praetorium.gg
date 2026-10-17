@@ -26,6 +26,9 @@ import {
   playerSearchSchema,
   ownedSchema,
   collectionModelsSchema,
+  collectionImportSchema,
+  collectionProgressSchema,
+  collectionWantedSchema,
   collectionPublishedSchema,
   favouriteDatasheetSchema,
   userSchema,
@@ -322,6 +325,53 @@ export const setCollectionModels = createServerFn({ method: 'POST' })
     }),
   )
 
+export const collectionProgress = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    const progress: Record<string, { built: number; painted: number }> = id ? await app().service.collectionProgress(id) : {}
+    return progress
+  }),
+)
+
+export const setCollectionProgress = createServerFn({ method: 'POST' })
+  .validator(collectionProgressSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.setCollectionProgress(player.id, data.entryId, { built: data.built, painted: data.painted })
+      await app().telemetry.capture(player.id, 'player_collection_progressed', { built: data.built, painted: data.painted })
+    }),
+  )
+
+export const collectionWishes = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    const wishes: Record<string, number> = id ? await app().service.collectionWishes(id) : {}
+    return wishes
+  }),
+)
+
+export const setCollectionWanted = createServerFn({ method: 'POST' })
+  .validator(collectionWantedSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.setCollectionWanted(player.id, data.entryId, data.wanted)
+      await app().telemetry.capture(player.id, 'player_collection_wished', { wanted: data.wanted })
+    }),
+  )
+
+export const importCollection = createServerFn({ method: 'POST' })
+  .validator(collectionImportSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.importCollection(player.id, data.rows, data.replace)
+      await app().telemetry.capture(player.id, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
+      return result
+    }),
+  )
+
 export const collectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
@@ -462,7 +512,15 @@ export const collectionProfile = createServerFn({ method: 'GET' })
     rpc(async () => {
       const profileCollection = await app().service.collectionProfile(data.userId, await currentUserId())
       if (!profileCollection) return null
-      return { ...profileCollection, groups: groupCollection(profileCollection.entries, await app().combatUnitsFor()) }
+      const factions = await app().combatUnitsFor()
+      return {
+        ...profileCollection,
+        groups: groupCollection(profileCollection.entries, factions),
+        wishlist: groupCollection(
+          profileCollection.wishes.map((wish) => ({ entryId: wish.entryId, models: wish.wanted })),
+          factions,
+        ),
+      }
     }),
   )
 

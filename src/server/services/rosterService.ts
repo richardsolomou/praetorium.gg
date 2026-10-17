@@ -1,6 +1,7 @@
 import { randomId } from 'ras-stack/auth'
 import { attachedUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../core/battle'
+import type { CollectionImportRow, CollectionProgress } from '../../core/collection'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RosterReminder } from '../../core/reminders'
@@ -288,6 +289,28 @@ export class RosterService {
   async collectionCounts(userId: string): Promise<Record<string, number>> {
     const rows = await this.repository.collectionByUser(userId)
     return Object.fromEntries(rows.map((row) => [row.entryId, row.models]))
+  }
+
+  async collectionProgress(userId: string): Promise<Record<string, CollectionProgress>> {
+    const rows = await this.repository.collectionByUser(userId)
+    return Object.fromEntries(rows.flatMap((row) => (row.built ? [[row.entryId, { built: row.built, painted: row.painted }]] : [])))
+  }
+
+  async setCollectionProgress(userId: string, entryId: string, progress: CollectionProgress) {
+    await this.repository.setCollectionProgress({ userId, entryId, ...progress })
+  }
+
+  async collectionWishes(userId: string): Promise<Record<string, number>> {
+    const rows = await this.repository.collectionWishesByUser(userId)
+    return Object.fromEntries(rows.map((row) => [row.entryId, row.wanted]))
+  }
+
+  async setCollectionWanted(userId: string, entryId: string, wanted: number) {
+    await this.repository.setCollectionWanted({ userId, entryId, wanted, now: this.clock() })
+  }
+
+  importCollection(userId: string, rows: CollectionImportRow[], replace: boolean) {
+    return this.repository.importCollection({ userId, rows, replace, now: this.clock() })
   }
 
   async collectionPhotos(userId: string): Promise<Record<string, string[]>> {

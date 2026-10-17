@@ -5,6 +5,7 @@ export function ModelCounter({
   count,
   label,
   inputLabel,
+  min = 1,
   max,
   disabled = false,
   onChange,
@@ -12,6 +13,7 @@ export function ModelCounter({
   count: number | null
   label: string
   inputLabel: string
+  min?: number
   max: number
   disabled?: boolean
   onChange: (count: number) => void | Promise<unknown>
@@ -23,7 +25,7 @@ export function ModelCounter({
     if (!focused.current) setDraft(count === null ? '' : String(count))
   }, [count])
   const value = Number(draft)
-  const valid = draft.trim() !== '' && Number.isInteger(value) && value >= 1 && value <= max
+  const valid = draft.trim() !== '' && Number.isInteger(value) && value >= min && value <= max
   const current = valid ? value : count
   const save = async (models: number) => {
     const attempt = ++revision.current
@@ -41,12 +43,12 @@ export function ModelCounter({
       <CountButton
         label={`Fewer ${label} models`}
         decrease
-        onClick={!unavailable && current !== null && current > 1 ? () => void save(current - 1) : undefined}
+        onClick={!unavailable && current !== null && current > min ? () => void save(current - 1) : undefined}
       />
       <input
         type="number"
         inputMode="numeric"
-        min={1}
+        min={min}
         max={max}
         step={1}
         aria-label={inputLabel}
