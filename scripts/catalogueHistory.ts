@@ -25,7 +25,7 @@ import {
   remoteRevocations,
 } from '../src/server/catalogueSnapshot'
 import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
-import { fetchWithRetry } from '../src/server/fetch'
+import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { catalogueChanges, type ChangeSource } from '../src/core/catalogueChanges'
 import { compiledChangeSource } from './lib/catalogueHistoryCompile'
 import type { WorkerResult } from './catalogueHistoryWorker'
@@ -65,7 +65,7 @@ const revisionsIn = (catalogue: string): Record<string, string> =>
   )
 
 async function seedHistory() {
-  const response = await fetchWithRetry(`${base}/changes/seed.json`, { cache: 'no-store' }).catch(() => null)
+  const response = await fetchCatalogueObject(`${base}/changes/seed.json`, { cache: 'no-store' }).catch(() => null)
   if (!response?.ok) {
     console.log(`no history seed at ${base}/changes/seed.json${response ? ` (${response.status})` : ''}`)
     return null
@@ -130,7 +130,7 @@ try {
     ) {
       throw new Error('The latest published change has no readable snapshot baseline')
     }
-    const response = await fetchWithRetry(`${base.replace(/\/$/, '')}/snapshots/${latest.from}.zip`)
+    const response = await fetchCatalogueObject(`${base.replace(/\/$/, '')}/snapshots/${latest.from}.zip`)
     if (!response.ok) throw new Error(`Previous catalogue snapshot answered ${response.status}`)
     if (Number(response.headers.get('content-length') ?? 0) > MAX_ARCHIVE_BYTES) throw new Error('Previous catalogue snapshot is too large')
     const archive = path.join(work, 'baseline.zip')

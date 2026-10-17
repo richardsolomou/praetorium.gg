@@ -137,6 +137,7 @@ jobs:
             POSTHOG_CLI_PROJECT_ID=${{ vars.POSTHOG_PROJECT_ID }}
           secrets: |
             posthog_api_key=${{ secrets.POSTHOG_API_KEY }}
+            catalogue_store=${{ vars.CLOUDFLARE_ACCOUNT_ID }} ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }} ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
           cache-scope: node-web-image
       - name: Require anonymous image pulls
         env:

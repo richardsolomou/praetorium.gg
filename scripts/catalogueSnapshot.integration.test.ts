@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { unzipSync, zipSync } from 'fflate'
 import { catalogueSources } from '../src/server/catalogueSources'
 import {
@@ -18,6 +18,7 @@ import {
   packCatalogueSnapshot,
   verifyInstalledSnapshot,
   verifySnapshotArchive,
+  fetchCurrentPointer,
 } from '../src/server/catalogueSnapshot'
 
 function snapshotEntries(bytes: Uint8Array) {
@@ -33,6 +34,7 @@ const roots: string[] = []
 const originalFetch = globalThis.fetch
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
   globalThis.fetch = originalFetch
   delete process.env.CATALOGUE_DISABLED_SOURCES
@@ -426,24 +428,30 @@ it('preserves a ZIP header spanning input chunks', () => {
   expect(fs.readFileSync(path.join(installed, 'datacards/padding.json'))).toEqual(content)
 })
 
-it('uses the GitHub mirror when R2 cannot find the pinned archive', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-mirror-'))
+it('reads the private bucket with signed requests', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-private-'))
   roots.push(root)
   const archive = path.join(root, 'snapshot.zip')
   const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
-  const requests: string[] = []
-  globalThis.fetch = async (input) => {
-    const url = input instanceof Request ? input.url : input.toString()
-    requests.push(url)
-    return url.startsWith('https://github.com/') ? new Response(fs.readFileSync(archive)) : new Response('', { status: 404 })
+  vi.stubEnv('R2_ACCOUNT_ID', 'a'.repeat(32))
+  vi.stubEnv('R2_ACCESS_KEY_ID', 'key')
+  vi.stubEnv('R2_SECRET_ACCESS_KEY', 'secret')
+  const requests: { url: string; signed: boolean }[] = []
+  globalThis.fetch = async (input, init) => {
+    requests.push({ url: input instanceof Request ? input.url : input.toString(), signed: new Headers(init?.headers).has('authorization') })
+    return new Response(fs.readFileSync(archive))
   }
-  const installed = path.join(root, 'installed')
-  await fetchSnapshot(installed, 'https://r2.example.test', pointer)
+  await fetchSnapshot(path.join(root, 'installed'), 'r2://praetorium-private/catalogue', pointer)
   expect(requests).toEqual([
-    `https://r2.example.test/snapshots/${pointer.id}.zip`,
-    `https://github.com/richardsolomou/praetorium.gg/releases/download/catalogue-${pointer.id}/snapshot.zip`,
+    { url: `https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium-private/catalogue/snapshots/${pointer.id}.zip`, signed: true },
   ])
-  expect(verifyInstalledSnapshot(installed)).toEqual(pointer)
+})
+
+it('refuses to read the private bucket without its credentials', async () => {
+  vi.stubEnv('R2_ACCOUNT_ID', '')
+  vi.stubEnv('R2_ACCESS_KEY_ID', '')
+  vi.stubEnv('R2_SECRET_ACCESS_KEY', '')
+  await expect(fetchCurrentPointer('r2://praetorium-private/catalogue')).rejects.toThrow(/Catalogue snapshots are private/)
 })
 
 it('downloads the archive again when the connection drops mid-body', async () => {

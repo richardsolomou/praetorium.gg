@@ -4,7 +4,7 @@
 
 ## Catalogue
 
-`just catalogue-sync` activates the release-pinned verified snapshot from the shared platform cache, and builds reuse the compiled catalogue runtime beside it. `CATALOGUE_CACHE_DIR=off` selects worktree-local copies. `just catalogue-latest` follows the published pointer; `just catalogue-upstream` reports source drift without activation.
+`just catalogue-sync` activates the release-pinned verified snapshot from the shared platform cache. Snapshots live in a private bucket, so it reads them only with `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` set; without them, `CATALOGUE_DIR=catalogue-data just catalogue-materialize` builds the same catalogue from its pinned sources. Builds reuse the compiled catalogue runtime beside it. `CATALOGUE_CACHE_DIR=off` selects worktree-local copies. `just catalogue-latest` follows the published pointer; `just catalogue-upstream` reports source drift without activation.
 
 Sync before list, mission, or battlefield work. Never edit the shared cache in place. Generated output stays in the owning stack. [Catalogue data](catalogue-data.md) owns publication and provenance.
 

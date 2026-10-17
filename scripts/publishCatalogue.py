@@ -11,7 +11,8 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent.parent
-BUCKET = "praetorium"
+# Snapshots carry the source files, rules text included, so they are kept where only Praetorium reads them.
+BUCKET = "praetorium-private"
 OBJECT_WORKERS = 16
 
 
@@ -123,43 +124,17 @@ class Storage:
 
 def publish(directory, objects, client=None):
     pointer, manifest = validate_release(directory)
-    repository = os.environ["GITHUB_REPOSITORY"]
-    target = os.environ["CATALOGUE_RELEASE_TARGET"]
     snapshot_id = pointer["id"]
-    tag = f"catalogue-{snapshot_id}"
-    assets = [directory / name for name in ["snapshot.zip", "manifest.json", "release.json", "revocations.json"]]
     with tempfile.TemporaryDirectory(prefix="catalogue-publish-") as temporary:
-        temporary = Path(temporary)
-        storage = Storage(temporary)
-
-        # A draft can be resumed; existing assets must match before publication.
-        release = run("gh", "release", "view", tag, "--repo", repository, "--json", "isDraft", check=False)
-        draft = release.returncode != 0 or json.loads(release.stdout)["isDraft"]
-        if release.returncode:
-            run("gh", "release", "create", tag, "--repo", repository, "--draft", "--latest=false", "--target", target, "--title", f"Catalogue {tag[:12]}", "--notes", "Verified catalogue source artifacts. Application releases retain exact hashes.")
-        for file in assets:
-            existing = run("gh", "release", "download", tag, "--repo", repository, "--pattern", file.name, "--dir", str(temporary), check=False)
-            if existing.returncode:
-                if not draft:
-                    raise ValueError(f"published release is missing {file.name}")
-                run("gh", "release", "upload", tag, str(file), "--repo", repository)
-                run("gh", "release", "download", tag, "--repo", repository, "--pattern", file.name, "--dir", str(temporary))
-            if sha256(temporary / file.name) != sha256(file):
-                raise ValueError(f"GitHub mirror differs: {file.name}")
-            (temporary / file.name).unlink()
-
+        storage = Storage(Path(temporary))
         storage.immutable(directory / "snapshot.zip", f"catalogue/snapshots/{snapshot_id}.zip", "application/zip")
         storage.immutable(directory / "manifest.json", f"catalogue/manifests/{snapshot_id}.json", "application/json")
         storage.immutable(directory / "release.json", f"catalogue/releases/{snapshot_id}.json", "application/json")
-
         if pointer.get("objects"):
             client = client or r2_client(storage.endpoint)
             with concurrent.futures.ThreadPoolExecutor(max_workers=OBJECT_WORKERS) as pool:
                 list(pool.map(lambda digest: publish_object(client, BUCKET, objects, digest), sorted(set(manifest["files"].values()))))
-        if draft:
-            # Catalogue releases share the application's release list and never displace its latest release.
-            run("gh", "release", "edit", tag, "--repo", repository, "--draft=false", "--latest=false")
-        print(f"Verified catalogue release {tag}")
+        print(f"Verified catalogue release {snapshot_id}")
 
 
 def activate(snapshot_id, revocations):

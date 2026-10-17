@@ -55,7 +55,7 @@ const git = (...command: string[]) => execFileSync('git', command, { encoding: '
 async function listed() {
   const found: ListedSnapshot[] = []
   let token: string | null = null
-  const bucket = process.env.SNAPSHOT_BUCKET ?? 'praetorium'
+  const bucket = process.env.SNAPSHOT_BUCKET ?? 'praetorium-private'
   const endpoint = process.env.SNAPSHOT_ENDPOINT
   if (!endpoint) throw new Error('SNAPSHOT_ENDPOINT is required to list published catalogue snapshots')
   do {
