@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/app/.catalogue-objects \
     --mount=type=secret,id=catalogue_store \
     set -eu; \
     if [ -s /run/secrets/catalogue_store ]; then \
-      read -r R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY < /run/secrets/catalogue_store; \
+      read -r R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY < /run/secrets/catalogue_store || [ -n "${R2_SECRET_ACCESS_KEY:-}" ]; \
       export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; \
     fi; \
     CATALOGUE_CACHE_DIR=off pnpm catalogue:sync
