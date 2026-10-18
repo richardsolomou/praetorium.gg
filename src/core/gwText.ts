@@ -23,12 +23,22 @@ export type GwTextRoster = {
   }[]
 }
 
-const headings = {
+export const headings = {
   character: 'CHARACTERS',
   battleline: 'BATTLELINE',
   transport: 'DEDICATED TRANSPORTS',
   other: 'OTHER DATASHEETS',
 } as const
+
+/** Each bodyguard with the units attached to it, by roster entry. */
+export function attachedGroups(units: GwTextRoster['units']) {
+  return units.flatMap((bodyguard) => {
+    const leaders = units.filter(
+      (unit) => unit !== bodyguard && unit.attachedToEntry !== undefined && unit.attachedToEntry === bodyguard.entry,
+    )
+    return leaders.length ? [{ leaders, bodyguard }] : []
+  })
+}
 
 /** A plain-text roster in the same human-readable shape as the official app export. */
 export function toGwText(roster: GwTextRoster, version: string): string {

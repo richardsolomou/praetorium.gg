@@ -1,3 +1,4 @@
+import { attachedGroups, type GwTextRoster, headings } from './gwText'
 import { newRecruitUnits } from './newRecruit'
 import { plainQuotes } from './text'
 import { attachGroups, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
@@ -47,6 +48,59 @@ export function fromWtcText(input: string): TextRoster | null {
     units: read.units,
     ...(read.unread.length ? { unread: read.unread } : {}),
   }
+}
+
+/**
+ * A roster as WTC-style text, the official app's unit layout under a "+ FACTION KEYWORD:"
+ * header, which `fromWtcText` reads back.
+ *
+ * It names no model count and has no place for the rules version. It writes no footer,
+ * because the New Recruit reader claims this header over Praetorium's footer.
+ */
+export function toWtcText(roster: GwTextRoster) {
+  const fence = '+'.repeat(47)
+  const warlord = roster.units.find((unit) => unit.warlord)
+  const lines = [
+    fence,
+    `+ LIST NAME: ${roster.name}`,
+    `+ FACTION KEYWORD: ${roster.faction}`,
+    `+ DETACHMENT: ${roster.detachments.map((detachment) => detachment.name).join(' and ') || 'No detachment'}`,
+    ...(roster.dispositions.length ? [`+ FORCE DISPOSITION: ${roster.dispositions.join(', ')}`] : []),
+    `+ BATTLE SIZE: ${roster.size} (${roster.pointsBudget ?? roster.limit} point limit)`,
+    `+ TOTAL ARMY POINTS: ${roster.points}pts`,
+    ...(warlord ? [`+ WARLORD: ${warlord.name}`] : []),
+    ...roster.units.flatMap((unit) => [...unit.enhancements, ...unit.upgrades].map((name) => `+ ENHANCEMENT: ${name} (on ${unit.name})`)),
+    `+ NUMBER OF UNITS: ${roster.units.length}`,
+    fence,
+  ]
+  const groups = attachedGroups(roster.units)
+  const grouped = new Set(groups.flatMap(({ leaders, bodyguard }) => [...leaders, bodyguard]))
+  if (groups.length) lines.push('', 'Attached Units')
+  for (const [at, { leaders, bodyguard }] of groups.entries()) {
+    lines.push('', `Attached Unit ${at + 1}`)
+    for (const leader of leaders) {
+      const support = leader.joined.some((row) => row.label === 'Supporting')
+      lines.push('', ...wtcUnit(leader, `Attached as: ${support ? 'Support' : 'Leader'}`))
+    }
+    lines.push('', ...wtcUnit(bodyguard, 'Attached as: Bodyguard'))
+  }
+  for (const group of Object.keys(headings) as (keyof typeof headings)[]) {
+    const units = roster.units.filter((unit) => unit.group === group && !grouped.has(unit))
+    if (!units.length) continue
+    lines.push('', headings[group])
+    for (const unit of units) lines.push('', ...wtcUnit(unit))
+  }
+  return `${lines.join('\n')}\n`
+}
+
+function wtcUnit(unit: GwTextRoster['units'][number], attached?: string) {
+  return [
+    `${unit.name} (${unit.points} pts)`,
+    ...(attached ? [attached] : []),
+    ...(unit.warlord ? ['Warlord'] : []),
+    ...unit.wargear.map((item) => `${item.count}x ${item.name}`),
+    ...[...unit.enhancements, ...unit.upgrades].map((name) => `Enhancement: ${name}`),
+  ].map((line, at) => (at ? `• ${line}` : line))
 }
 
 /** "Strike Force (2000 point limit)", or "2000pts (Strike Force)", or "2000pts". */

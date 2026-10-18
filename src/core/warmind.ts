@@ -1,3 +1,4 @@
+import { attachedGroups, type GwTextRoster, headings } from './gwText'
 import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
 
 const rule = /^─{10,}$/
@@ -11,7 +12,7 @@ const unitLine = /^(?:└\s*(?:Leads|Supports):\s*)?(.+?)(?:\s+×(\d+))?(?:\s+\(
  * its bodyguard on an indented "└ Leads:" line.
  */
 export function fromWarmindText(input: string): TextRoster | null {
-  if (!/^Built with Warmind\b/m.test(input)) return null
+  if (!/^(?:Built with Warmind|Exported with Praetorium\.gg)\b/m.test(input)) return null
   const lines = input.replaceAll('\r', '').split('\n')
   const opening = lines.findIndex((line) => rule.test(line.trim()))
   if (opening < 0) return null
@@ -87,6 +88,62 @@ export function fromWarmindText(input: string): TextRoster | null {
     units,
     ...(unread.length ? { unread } : {}),
   }
+}
+
+/**
+ * A roster in Warmind's layout, which `fromWarmindText` reads back.
+ *
+ * Each section lists its attached units first: a bodyguard's "└ Leads:" line closes the
+ * group above it, so a unit listed before it would join that group.
+ */
+export function toWarmindText(roster: GwTextRoster, version: string) {
+  const divider = '─'.repeat(30)
+  const budget = roster.pointsBudget ?? roster.limit
+  const detachments = roster.detachments.map((detachment) => detachment.name).join(' and ')
+  const lines = [
+    roster.name,
+    divider,
+    `Faction: ${roster.faction}`,
+    ...(detachments ? [`Detachment: ${detachments}`] : []),
+    `Battle Size: ${roster.size} (${budget} pts)`,
+    `Total: ${roster.points} / ${budget} pts`,
+    ...(roster.dispositions.length ? [`Disposition: ${roster.dispositions.join(', ')}`] : []),
+  ]
+  const groups = attachedGroups(roster.units)
+  const grouped = new Set(groups.flatMap(({ leaders, bodyguard }) => [...leaders, bodyguard]))
+  for (const group of Object.keys(headings) as (keyof typeof headings)[]) {
+    const section = groups.flatMap(({ leaders, bodyguard }) =>
+      leaders[0]!.group === group
+        ? [
+            ...leaders.flatMap((leader) => warmindUnit(leader, '', '   ')),
+            ...warmindUnit(
+              bodyguard,
+              `   └ ${leaders.some((leader) => leader.joined.some((row) => row.label === 'Leading')) ? 'Leads' : 'Supports'}: `,
+              '      ',
+            ),
+          ]
+        : [],
+    )
+    for (const unit of roster.units) if (unit.group === group && !grouped.has(unit)) section.push(...warmindUnit(unit, '', '   '))
+    if (section.length) lines.push('', headings[group], ...section)
+  }
+  lines.push(
+    '',
+    divider,
+    `${roster.points} / ${budget} pts · ${roster.units.length} units · ${roster.size}`,
+    `Exported with Praetorium.gg v${version}`,
+  )
+  return `${lines.join('\n')}\n`
+}
+
+function warmindUnit(unit: GwTextRoster['units'][number], prefix: string, indent: string) {
+  const models = unit.models !== undefined && unit.models > 1 ? ` ×${unit.models}` : ''
+  return [
+    `${prefix}${unit.name}${models} (${unit.points} pts)${unit.warlord ? ' · Warlord' : ''}`,
+    ...unit.wargear.map((item) => `${indent}· ${item.count === 1 ? '' : `${item.count}× `}${item.name}`),
+    ...unit.enhancements.map((name) => `${indent}· Enhancement: ${name}`),
+    ...unit.upgrades.map((name) => `${indent}· Upgrade: ${name}`),
+  ]
 }
 
 function addLoadout(unit: TextRosterUnit, text: string) {

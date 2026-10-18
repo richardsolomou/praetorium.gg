@@ -1,9 +1,16 @@
+import { attachedGroups, type GwTextRoster } from './gwText'
 import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
 
 const title = /^(.+) \((\d[\d,]*) Points?\)$/i
 const heading = /^([A-Za-z][A-Za-z '’-]*):$/
 const unitHeader = /^(.+?)\s+\((\d[\d,]*) pts\)$/i
 const bullet = /^\s*•\s*(?:(\d+)x\s+)?(.+?)\s*$/
+const sections = {
+  character: 'Characters',
+  battleline: 'Battleline',
+  transport: 'Dedicated Transports',
+  other: 'Other Datasheets',
+} as const
 
 /**
  * ListForge's detailed text export.
@@ -24,11 +31,50 @@ export function fromListForgeText(input: string): TextRoster | null {
     name: parts.slice(0, disposed ? -3 : -2).join(' - '),
     reportedPoints: Number(titled[2]!.replaceAll(',', '')),
     faction: parts.at(disposed ? -3 : -2)!,
-    detachment: parts.at(-1)!,
+    detachment: /^no detachment$/i.test(parts.at(-1)!) ? null : parts.at(-1)!,
     disposition: disposed ? parts.at(-2)! : null,
     limit: null,
     ...body,
   }
+}
+
+/**
+ * A roster in ListForge's detailed layout, which `fromListForgeText` reads back.
+ *
+ * The layout names no battle size or model count, and has no place for the rules version.
+ */
+export function toListForgeText(roster: GwTextRoster) {
+  const setup = [
+    roster.name,
+    roster.faction,
+    ...(roster.dispositions.length ? [roster.dispositions.join(', ')] : []),
+    roster.detachments.map((detachment) => detachment.name).join(' and ') || 'No detachment',
+  ]
+  const lines = [`${setup.join(' - ')} (${roster.points} Points)`]
+  const groups = attachedGroups(roster.units)
+  const grouped = new Set(groups.flatMap(({ leaders, bodyguard }) => [...leaders, bodyguard]))
+  if (groups.length) lines.push('', 'Attached Units:')
+  for (const { leaders, bodyguard } of groups) {
+    const members = [...leaders, bodyguard]
+    const points = members.reduce((total, unit) => total + unit.points, 0)
+    lines.push(`${members.map((unit) => unit.name).join(' + ')} (${points} pts)`)
+    for (const unit of members) lines.push(`  ${unit.name} (${unit.points} pts)`, ...listForgeItems(unit, '    '))
+  }
+  for (const group of Object.keys(sections) as (keyof typeof sections)[]) {
+    const units = roster.units.filter((unit) => unit.group === group && !grouped.has(unit))
+    if (!units.length) continue
+    lines.push('', `${sections[group]}:`)
+    for (const unit of units) lines.push(`${unit.name} (${unit.points} pts)`, ...listForgeItems(unit, '  '))
+  }
+  return `${lines.join('\n')}\n`
+}
+
+function listForgeItems(unit: GwTextRoster['units'][number], indent: string) {
+  return [
+    ...(unit.warlord ? ['Warlord'] : []),
+    ...unit.wargear.map((item) => (item.count === 1 ? item.name : `${item.count}x ${item.name}`)),
+    ...[...unit.enhancements, ...unit.upgrades].map((name) => `Enhancement: ${name}`),
+  ].map((item) => `${indent}• ${item}`)
 }
 
 /** ListForge's WTC text export, which states the list's setup between two lines of plus signs. */

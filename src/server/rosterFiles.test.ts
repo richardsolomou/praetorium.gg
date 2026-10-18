@@ -1640,3 +1640,65 @@ Created with newrecruit.eu v35.79`,
     expect(imported).toMatchObject({ format: 'newrecruit', source: 'newrecruit', sourceUnitCount: 1 })
   })
 })
+
+describe('ListForge, Warmind, and WTC roster export', () => {
+  const data = {
+    catalogueId: 'necrons',
+    detachmentIds: ['pantheon'],
+    disposition: 'disruption',
+    limit: 2000,
+    pointsBudget: 1500,
+    name: 'Round trip',
+    units: [
+      { entryId: 'lord', choices: { enhancements: 'relic' }, attachedTo: 1 },
+      { entryId: 'immortals', models: 6 },
+      { entryId: 'tempestor', toggles: { 'scion-warlord': 1 } },
+      { entryId: 'tomb-blades', models: 4 },
+    ],
+  }
+  const priced = calculateRosterPrice(data, loaded, null)!
+  const exported = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, ['Disruption'])
+  const { source: _source, format: _format, ...readable } = importRosterFile({ file: exported.text }, loaded)
+  const withModels = (models: number) => readable.units.map((unit) => (unit.entryId === 'immortals' ? { ...unit, models } : unit))
+
+  it.each([
+    // ListForge states no battle size, and Immortals state no wargear to infer six models from.
+    ['listForgeText', 'listforge', { limit: null, pointsBudget: null, units: withModels(5) }],
+    ['warmindText', 'warmind', {}],
+    ['wtcText', 'wtc', { units: withModels(5) }],
+  ] as const)('reads %s back with only its documented losses', (layout, format, dropped) => {
+    expect(importRosterFile({ file: exported[layout] }, loaded)).toEqual({ ...readable, ...dropped, source: 'roster-file', format })
+  })
+
+  it('compares against a readable import that keeps every field', () => {
+    expect(readable).toMatchObject({
+      detachmentIds: ['pantheon'],
+      disposition: 'disruption',
+      limit: 2000,
+      pointsBudget: 1500,
+      unknown: [],
+      unplaced: [],
+      units: [
+        { entryId: 'lord', models: 1, choices: { enhancements: 'relic' }, attachedTo: 1 },
+        { entryId: 'immortals', models: 6 },
+        { entryId: 'tempestor', toggles: { 'scion-warlord': 1 } },
+        { entryId: 'tomb-blades', models: 4, spreads: { 'model/weapon': { blaster: 4, beamer: 0 } } },
+      ],
+    })
+  })
+
+  it('keeps the rules version only in Warmind text', () => {
+    const preview = exportRosterFile(
+      { ...data, catalogueId: 'codex~necrons' },
+      {
+        ...loaded,
+        edition: { id: 'codex', name: 'Necrons codex', status: 'preview', default: false, catalogueIds: ['necrons'], releases: [] },
+      },
+      { ...priced, disposition: priced.disposition ?? null },
+      ['Disruption'],
+    )
+    expect(importRosterCatalogueId(preview.warmindText)).toBe('codex~necrons')
+    expect(importRosterCatalogueId(preview.listForgeText)).toBeNull()
+    expect(importRosterCatalogueId(preview.wtcText)).toBeNull()
+  })
+})

@@ -118,6 +118,14 @@ describe('ListForge text import', () => {
     expect(parsed?.units[0]?.selections).toContainEqual({ name: 'Enhancement: Face of Death', count: 1 })
   })
 
+  it('reads a list without a detachment', () => {
+    expect(fromListForgeText('Empty - Necrons - No detachment (0 Points)\n\nOther Datasheets:\nImmortals (70 pts)\n')).toMatchObject({
+      faction: 'Necrons',
+      detachment: null,
+      disposition: null,
+    })
+  })
+
   it('does not claim other layouts', () => {
     expect(fromListForgeText(wtc)).toBeNull()
     expect(fromListForgeWtcText(detailed)).toBeNull()
