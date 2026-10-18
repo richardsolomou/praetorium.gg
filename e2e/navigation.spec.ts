@@ -35,6 +35,11 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader.getByRole('link', { name: 'Praetorium home' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
+  await expect(mobileHeader.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/kQneZ8Nae')
+  await expect(mobileHeader.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
+    'href',
+    'https://github.com/richardsolomou/praetorium.gg',
+  )
   await expect(primary).toBeHidden()
   await expect(sections).toBeVisible()
   await expect(sections.getByRole('link')).toHaveText(['Home', 'Rosters', 'Battles', 'Factions', 'More'])
@@ -58,7 +63,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
     '/whats-new',
     '/support',
   ])
-  await page.screenshot({ path: 'test-results/more-phone.png' })
+  await page.screenshot({ path: 'test-results/more-phone.png', fullPage: true })
   await expect(page.locator('[data-web-app-footer]').getByRole('link', { name: "What's new" })).toBeHidden()
   await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(1)
@@ -88,13 +93,19 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader).toBeVisible()
   await expect(sections).toBeVisible()
   await page.setViewportSize({ width: 860, height: 844 })
+  await webHeader.getByRole('button', { name: 'Open primary navigation' }).click()
+  await expect(primary.getByRole('link', { name: 'Force dispositions' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(primary).toBeHidden()
+  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  await page.setViewportSize({ width: 910, height: 844 })
   await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeHidden()
   await expect(primary).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
   expect(
     await primary.getByRole('button', { name: 'Reference' }).evaluate((button) => button.getBoundingClientRect().left),
   ).toBeGreaterThan(await primary.getByRole('link', { name: 'Simulator' }).evaluate((link) => link.getBoundingClientRect().left))
-  await page.screenshot({ path: 'test-results/navigation-desktop-860.png' })
+  await page.screenshot({ path: 'test-results/navigation-desktop-910.png' })
   await primary.getByRole('button', { name: 'Reference' }).click()
   await expect(page.getByRole('menuitem', { name: 'Force dispositions' })).toBeVisible()
   await expect(page.getByRole('menuitem')).toHaveText(['Factions', 'Missions', 'Force dispositions', 'Rules'])
@@ -107,12 +118,11 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader).toBeHidden()
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
 
-  // The wordmark and the wider gap arrive at 1000, which is the other width the
-  // seven navigation items have to fit inside.
-  await page.setViewportSize({ width: 999, height: 844 })
-  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  for (const width of [999, 1000, 1099, 1100, 1279, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 844 })
+    await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  }
   await page.setViewportSize({ width: 1000, height: 844 })
-  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   await page.screenshot({ path: 'test-results/navigation-desktop-1000.png' })
 })
 
