@@ -462,6 +462,79 @@ it('prices an option taken by several identical models per model', () => {
   ).toBe(5)
 })
 
+it('leaves a weapon chosen inside a model option to that choice', () => {
+  const catalogue = bookOf({
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        costs: points(100),
+        selectionEntryGroups: [
+          {
+            id: 'terminators',
+            name: 'Terminators',
+            defaultSelectionEntryId: 'terminator',
+            constraints: [
+              { id: 'terminators-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'terminators-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              { id: 'terminator', name: 'Terminator', type: 'model' },
+              {
+                id: 'gunner',
+                name: 'Terminator w/ Heavy Weapon',
+                type: 'model',
+                constraints: [{ id: 'gunner-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntryGroups: [
+                  {
+                    id: 'heavy',
+                    name: 'Heavy Weapon',
+                    defaultSelectionEntryId: 'cannon',
+                    constraints: [
+                      { id: 'heavy-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'heavy-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'cannon', name: 'Assault cannon', type: 'upgrade' },
+                      { id: 'cyclone', name: 'Cyclone missile launcher', type: 'upgrade', costs: points(10) },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  catalogue.mfm = new Map([
+    [
+      'test-catalogue',
+      {
+        slug: 'test-catalogue',
+        version: '1.5',
+        units: [
+          {
+            name: 'Squad',
+            pricing: [{ range: '[1,)', costs: [{ models: 5, points: 100 }] }],
+            wargear: [{ item: 'Cyclone missile launcher', points: 10 }],
+          },
+        ],
+      },
+    ],
+  ])
+  const roster = {
+    catalogueId: 'cat',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    units: [{ entryId: 'squad', choices: { 'terminators/gunner/heavy': 'cyclone' } }],
+  }
+
+  expect(calculateRosterPrice(roster, catalogue, null)?.units[0]?.points).toBe(110)
+})
+
 it('charges MFM only for the optional copy of required wargear', () => {
   const catalogue = bookOf({
     selectionEntries: [
