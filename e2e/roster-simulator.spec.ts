@@ -182,12 +182,9 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
   const card = page.locator('[data-unit="Intercessor Squad"]')
   await card.getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
   const pane = page.locator('aside[aria-label="Loadout"]')
-  await waitForRosterSave(page, () =>
-    pane
-      .getByRole('group', { name: 'Intercessor Squad Weapon 1' })
-      .getByRole('button', { name: 'Select Plasma pistol', exact: true })
-      .click(),
-  )
+  // The grenade launcher gives the squad a second kind of model, so the sergeant's options are counted on the sergeant's card.
+  await waitForRosterSave(page, () => pane.getByRole('button', { name: 'More Plasma pistol', exact: true }).click())
+  await expect(pane.getByLabel('Plasma pistol count', { exact: true })).toHaveText('1')
   await waitForRosterSave(page, () => pane.getByRole('button', { name: 'More models in Intercessor Squad', exact: true }).click())
   await expect(pane.getByLabel('Intercessor Squad models', { exact: true })).toHaveText('6')
   for (const width of [1440, 390, 900]) {

@@ -20,7 +20,7 @@ import {
   resolve,
   UNBOUNDED,
 } from './definitions'
-import type { EvaluateOptions, Selection } from './evaluate'
+import { type EvaluateOptions, type Selection, selectionCountBoundsAt } from './evaluate'
 import { expand, withChoice } from './expand'
 import { allAt, at, replaceAt, updateSelection, withCounts, withoutSelectionAt, withPlaceFor, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
@@ -55,7 +55,11 @@ export function withUnitSpread(
       ? keepingTheSquad(selection, spreadOptions(selection, path, counts, group, index), path, index)
       : withSpread(selection, key, counts)
 
-  if (group && maximumCount(group, index) === null) {
+  // A group of one option each model may take more than once fills a model at a time.
+  if (
+    group &&
+    (maximumCount(group, index) === null || (childrenOf(resolve(group, index), index).length === 1 && maximumCount(group, index)! > 1))
+  ) {
     return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, index)
   }
   return spreadRepeatedGroup(selection, path, counts, repeating, index, options)
@@ -159,7 +163,20 @@ function withModelOccupants(
     }
     const filler =
       untouched.find((child) => child.id === defaultId && minimum(child) !== null) ?? untouched.find((child) => (minimum(child) ?? 0) > 0)
-    const spare = filler ? Math.max(0, (filler.count ?? 1) - (minimum(filler) ?? 0)) : 0
+    // A per-model upgrade splits the filler into copies, so its minimum is over all of them;
+    // bodies leave the plainest copies first, so the upgrade a player chose stays.
+    const fillers = filler
+      ? untouched
+          .filter((child) => child.id === filler.id)
+          .toSorted((one, other) => (one.selections?.length ?? 0) - (other.selections?.length ?? 0))
+      : []
+    // Its minimum is read with the specialists standing, since taking one can lower it.
+    const asked = withCounts(
+      selection,
+      Object.entries(counts).map(([id, count]) => ({ path: [...path, id], count })),
+    )
+    const floor = filler ? (selectionCountBoundsAt(asked, [...path, filler.id], index, options)?.minimum ?? minimum(filler) ?? 0) : 0
+    const spare = filler ? Math.max(0, fillers.reduce((total, child) => total + (child.count ?? 1), 0) - floor) : 0
     const free =
       capacity === null || capacity === UNBOUNDED
         ? Number.POSITIVE_INFINITY
@@ -173,13 +190,19 @@ function withModelOccupants(
       allocated.set(option.id, count)
       left -= count
     }
-    const taken = Math.max(0, [...allocated.values()].reduce((total, count) => total + count, 0) - free)
+    let taken = Math.max(0, [...allocated.values()].reduce((total, count) => total + count, 0) - free)
+    const remaining = new Map<Selection, number>()
+    for (const child of fillers) {
+      const removed = Math.min(child.count ?? 1, taken)
+      remaining.set(child, (child.count ?? 1) - removed)
+      taken -= removed
+    }
     return {
       ...held,
       selections: [
         ...untouched.flatMap((child) => {
-          if (child !== filler || !taken) return [child]
-          const count = (child.count ?? 1) - taken
+          const count = remaining.get(child)
+          if (count === undefined || count === (child.count ?? 1)) return [child]
           return count > 0 ? [{ ...child, count }] : []
         }),
         ...occupants.flatMap((option) => standing(held.selections ?? [], option, allocated.get(option.id) ?? 0, index)),
@@ -362,9 +385,10 @@ function combineIdentical(selections: readonly Selection[]) {
 
 /** A weapon swap inside the squad’s size group replaces a model rather than growing the squad; models outside that group remain additions. */
 function keepingTheSquad(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex): Selection {
-  const squad = sizeOf(before, index).path.slice(0, -1)
-  const inside = squad.length > 0 && path.length > squad.length && squad.every((step, depth) => path[depth] === step)
-  if (!inside) return after
+  const sized = sizeOf(before, index).path.slice(0, -1)
+  const inside = sized.length > 0 && path.length > sized.length && sized.every((step, depth) => path[depth] === step)
+  if (!inside) return sized.length ? after : keepingAFullGroup(before, after, path, index)
+  const squad = sized
   const fielded = (tree: Selection) => {
     const held = at(tree, squad)
     return held ? modelCountOf(held, index) : 0
@@ -373,6 +397,27 @@ function keepingTheSquad(before: Selection, after: Selection, path: readonly str
   const carrier = path[squad.length] ?? ''
   if (grew > 0) return spendBodies(after, squad, carrier, grew, index)
   if (grew < 0) return refundBodies(after, squad, carrier, -grew, index)
+  return after
+}
+
+/**
+ * A unit of fixed size has no squad to resize, but a specialist group nested in a full
+ * group of models, as a Pathfinder Team's rail rifles sit inside its nine Pathfinders,
+ * still takes its bodies from the models around it.
+ */
+function keepingAFullGroup(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex): Selection {
+  for (let depth = path.length - 2; depth >= 0; depth--) {
+    const group = index.definitions.get(path[depth]!)
+    if (!group || resolve(group, index).type !== undefined) continue
+    const most = maximumCount(group, index)
+    const held = at(after, path.slice(0, depth + 1))
+    const over = most === null || !held ? 0 : modelCountOf(held, index) - most
+    const grew =
+      over > 0 ? Math.min(over, modelCountOf(held!, index) - modelCountOf(at(before, path.slice(0, depth + 1)) ?? held!, index)) : 0
+    // The squadmates' own minimums can depend on the specialists, as nine Pathfinders become six.
+    const minimum = (giver: Selection) => selectionCountBoundsAt(after, [...path.slice(0, depth + 1), giver.id], index)?.minimum ?? 0
+    return grew > 0 ? spendBodies(after, path.slice(0, depth + 1), path[depth + 1] ?? '', grew, index, minimum) : after
+  }
   return after
 }
 
@@ -432,14 +477,14 @@ function spendBodies(
   carrierId: string,
   wanted: number,
   index: CatalogueIndex,
+  minimum = (giver: Selection) => requiredCount(index.definitions.get(giver.id)!, index),
 ): Selection {
   let left = wanted
   return updateSelection(selection, groupPath, (group) => {
     const spent = new Map<string, number>()
     for (const giver of squadmates(group, carrierId, index)) {
       if (left <= 0) break
-      const definition = index.definitions.get(giver.id)!
-      const available = Math.max(0, (giver.count ?? 1) - requiredCount(definition, index))
+      const available = Math.max(0, (giver.count ?? 1) - minimum(giver))
       const take = Math.min(left, available)
       if (!take) continue
       spent.set(giver.id, take)

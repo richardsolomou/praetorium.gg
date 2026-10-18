@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from '@/lib/utils'
 import { pointsLabel } from '../../../core/battle'
 import { battleOutcome } from '../../../core/standings'
-import { battleStage } from '../../battleStage'
+import { BATTLE_ENDINGS, battleOutcomeStage, battleStage } from '../../battleStage'
 import { deploymentName, summarySides, type SummarySide } from '../../battleSummary'
 import { deploymentsQuery } from '../../queries'
 import { useDateFormatting } from '../../dates'
@@ -15,14 +15,6 @@ import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import type { OnboardingTarget } from '../onboarding/onboarding'
 import type { Battle } from './battle'
-
-const OUTCOME = {
-  won: { name: 'Won', tint: 'text-achieved' },
-  lost: { name: 'Lost', tint: 'text-rust' },
-  drawn: { name: 'Drawn', tint: 'text-dim' },
-} as const
-
-const ENDING = { 'finished-early': 'Finished early', conceded: 'Conceded' } as const
 
 /**
  * One heading's worth of battles, a short card each: how it stands, who sits on each side
@@ -70,13 +62,15 @@ export function BattleShelf({
           // Folded into sides rather than read seat by seat: an ally of a 2v1 sits second.
           const [ours, theirs] = summarySides(battle)
           const stage =
-            seat !== -1 && battle.status === 'finished' ? OUTCOME[battleOutcome(battle, battle.sides[seat]!)] : battleStage(battle.status)
+            seat !== -1 && battle.status === 'finished'
+              ? battleOutcomeStage(battleOutcome(battle, battle.sides[seat]!))
+              : battleStage(battle.status)
           const battlefield = deploymentName(battle.deploymentId, deployments)
           const setting = [
             battle.settings.limit ? pointsLabel(battle.settings.limit) : 'Legacy format',
             ...(battle.settings.manual ? ['Manual tracking'] : battle.mission ? [battle.mission.name] : []),
             ...(battlefield ? [battlefield] : []),
-            ...(battle.result?.reason && battle.result.reason !== 'completed' ? [ENDING[battle.result.reason]] : []),
+            ...(battle.result?.reason && battle.result.reason !== 'completed' ? [BATTLE_ENDINGS[battle.result.reason]] : []),
           ].join(' · ')
           const scored = battle.status !== 'setup'
           const a = ours?.score ?? 0
@@ -108,7 +102,9 @@ export function BattleShelf({
                   <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-3 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
                     <Side side={ours} viewerId={viewerId} className="order-2 sm:order-none" />
                     <span className="order-1 flex items-center justify-between gap-3 sm:order-none sm:flex-col sm:justify-center sm:gap-1.5">
-                      <span className={`chip ${stage.tint}`}>{stage.name}</span>
+                      <span data-battle-status={battle.status} className={`chip ${stage.tint}`}>
+                        {stage.name}
+                      </span>
                       {/* Stacked sides on a phone have nothing between them for "vs" to stand for. */}
                       <span className={`figure text-3xl leading-none font-bold ${scored ? '' : 'max-sm:hidden'}`}>
                         {scored ? (

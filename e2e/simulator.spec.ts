@@ -661,9 +661,9 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
 
   await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
   const loadout = page.getByRole('dialog')
-  const mode = loadout
-    .getByRole('group', { name: 'Intercessor Squad Weapon 1' })
-    .getByRole('button', { name: 'Select Plasma pistol', exact: true })
+  // The grenade launcher gives the squad a second kind of model, so the sergeant's options are counted on the sergeant's card.
+  const mode = loadout.getByRole('button', { name: 'More Plasma pistol', exact: true })
+  const plasmaPistols = loadout.getByLabel('Plasma pistol count', { exact: true })
   await expect(mode).toBeVisible()
   const heading = loadout.getByRole('heading', { name: 'Attacker · Intercessor Squad' })
   await atWidths(page, widths, async (width) => {
@@ -681,7 +681,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
     await page.screenshot({ path: `test-results/simulator-loadout-updating-${width}.png`, fullPage: true })
   })
   await loadoutCalculation.release()
-  await expect(mode).toHaveAttribute('aria-pressed', 'true')
+  await expect(plasmaPistols).toHaveText('1')
   await loadout.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   await expect(shooting).toContainText('Plasma pistol')
@@ -701,7 +701,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await expect(shooting).toContainText('10× ➤ Bolt Rifle - Focused Fire')
   await atWidths(page, [1440, 390], async () => {
     await page.getByRole('region', { name: 'Defender', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
-    await expect(mode).toHaveAttribute('aria-pressed', 'true')
+    await expect(plasmaPistols).toHaveText('1')
     await loadout.getByRole('button', { name: 'Close', exact: true }).click()
   })
   for (let removed = 0; removed < 5; removed++) await page.getByRole('button', { name: 'Fewer attacker models' }).click()

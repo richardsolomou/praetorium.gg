@@ -1,10 +1,6 @@
 [
   {
-    "reason": "Per-model wargear now counts each model's share once per model, so these minimum-size squads no longer report a false shortfall of the per-model weapon they already carry.",
-    "entries": [
-      "tau-empire / Crisis Fireknife Battlesuits roster errors: needs at least 4, has 2",
-      "tau-empire / Crisis Starscythe Battlesuits roster errors: needs at least 4, has 2",
-      "leagues-of-votann / Cthonian Earthshakers roster errors: needs at least 4, has 2"
-    ]
+    "reason": "The Spectrus Kill Team now offers the las fusil, instigator bolt carbine and Deathwatch bolt carbine replacements its card allows, so its helix gauntlet model is a row of the shared Kill Team Infiltrator card beside them instead of a card of its own, and is still offered.",
+    "entries": ["deathwatch / Spectrus Kill Team roster models: Kill Team Infiltrator w/ helix gauntlet (0 rows, 4 fixed)"]
   }
 ]

@@ -5,6 +5,7 @@ import type { RosterPick } from '../../core/roster'
 import type { UnitSummary } from '../../contracts/catalogue'
 import type { RosterAudience, RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
 import type { RosterSort } from '../../core/rosterSort'
+import type { BattlesCursor } from '../../contracts/battles'
 import {
   collection,
   collectionCounts,
@@ -16,6 +17,7 @@ import {
   datasheet,
   datasheetOfferedBy,
   discoverRosters,
+  discoverPlayedArmies,
   factionDatasheets,
   homeRosters,
   loadoutDatasheets,
@@ -27,6 +29,7 @@ import {
   savedRosterLoadoutDatasheets,
   savedRosterSummaries,
   savedRosterPage,
+  unitLoadouts,
   units,
 } from '../functions'
 import { inFamilies, savedRosterFamilies } from '../productSignals'
@@ -45,7 +48,22 @@ import {
   rosterBootstrapKey,
   savedRosterPageKey,
   savedRosterSummariesKey,
+  unitLoadoutsKey,
 } from './queryKeys'
+
+/** The player's saved unit loadouts, which the builder offers to every roster of the same army. */
+export const unitLoadoutsQuery = () =>
+  queryOptions({ queryKey: unitLoadoutsKey(), queryFn: () => unitLoadouts(), staleTime: SSR_STALE_TIME })
+
+/** Never saved for offline reading: a battle whose player narrows its audience must leave the page on the next read. */
+export const playedArmiesQuery = (filter: RosterDiscoveryFilter) =>
+  infiniteQueryOptions({
+    queryKey: ['played-armies', filter],
+    queryFn: ({ pageParam }) => discoverPlayedArmies({ data: { ...filter, before: pageParam } }),
+    initialPageParam: null as BattlesCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: SSR_STALE_TIME,
+  })
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
 export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: RosterAudience, sort: RosterSort) =>

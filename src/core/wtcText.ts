@@ -64,7 +64,7 @@ export function toWtcText(roster: GwTextRoster) {
     fence,
     `+ LIST NAME: ${roster.name}`,
     `+ FACTION KEYWORD: ${roster.faction}`,
-    `+ DETACHMENT: ${roster.detachments.map((detachment) => detachment.name).join(' and ') || 'No detachment'}`,
+    `+ DETACHMENT: ${roster.detachments.map((detachment) => detachment.name).join(', ') || 'No detachment'}`,
     ...(roster.dispositions.length ? [`+ FORCE DISPOSITION: ${roster.dispositions.join(', ')}`] : []),
     `+ BATTLE SIZE: ${roster.size} (${roster.pointsBudget ?? roster.limit} point limit)`,
     `+ TOTAL ARMY POINTS: ${roster.points}pts`,

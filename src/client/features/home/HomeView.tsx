@@ -44,8 +44,7 @@ export type HomeData = {
   onDelete?: (battle: Battle) => void
 }
 
-/** How many finished games the page lists before pointing at the battles page. */
-const PLAYED = 10
+const PLAYED = 3
 
 /** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
 export function HomeView({

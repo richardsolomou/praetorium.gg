@@ -154,9 +154,13 @@ describe('battle rows', () => {
     expect(text(render({ mine: [battle('a', { status: 'finished', scores: [20, 50] })] }))).toMatch(/Games you have played 1 .*\bLost\b/)
   })
 
-  it('lists the ten most recent finished games', () => {
-    const finished = Array.from({ length: 12 }, (_, index) => battle(String(index), { status: 'finished' }))
-    expect(text(render({ mine: finished }))).toContain('Games you have played 10')
+  it.each(['mine', 'friends', 'open'] as const)('lists at most three games from %s in feed order', (feed) => {
+    const battles = Array.from({ length: 5 }, (_, index) => battle(String(index), { status: 'finished' }))
+    expect(render({ [feed]: battles }).match(/aria-label="(?:Open|Watch) Alex versus Opponent \d+"/g)).toEqual([
+      `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 0"`,
+      `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 1"`,
+      `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 2"`,
+    ])
   })
 
   it('shows no score before a game starts', () => {

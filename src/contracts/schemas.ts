@@ -6,6 +6,7 @@ import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS } from '../core/collection'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import { PUSH_PLATFORMS } from '../core/notificationConfig'
+import { unitLoadoutNameSchema, unitLoadoutSchema } from '../core/unitLoadouts'
 import { pushTokenSchema } from '../core/notifications'
 import {
   customPointsBudget,
@@ -36,6 +37,8 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_AUDIENCES, rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { isPlayerDefaults } from '../core/playerDefaults'
+import { recentMatchupSchema } from '../core/recentMatchups'
+import { simulatorPairing } from './simulatorState'
 import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
@@ -387,6 +390,11 @@ export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_V
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
 export const rosterArchiveSchema = z.object({ id, archived: z.boolean() })
 export const rosterLoanSchema = z.object({ id, borrowerId: id })
+export const playedArmiesSchema = rosterDiscoveryFilterSchema.extend({ before: battlesCursor.nullable().default(null) })
+export const playedArmySchema = z.object({ token, playerId: id })
+export const saveUnitLoadoutSchema = unitLoadoutSchema.extend({ id: z.uuid() })
+export const unitLoadoutIdSchema = z.object({ id: z.uuid() })
+export const renameUnitLoadoutSchema = unitLoadoutIdSchema.extend({ name: unitLoadoutNameSchema })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const collectionModelsSchema = z.object({ entryId: id, models: z.number().int().min(1).max(MAX_COLLECTION_MODELS) })
@@ -404,6 +412,8 @@ export const collectionImportSchema = z.object({
 })
 export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
 export const favouriteDatasheetSchema = z.object({ entryId: id, favourite: z.boolean() })
+export const rememberMatchupSchema = recentMatchupSchema.refine((entry) => simulatorPairing(entry.shared) !== null, 'choose both units')
+export const forgetMatchupSchema = recentMatchupSchema.pick({ shared: true })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({
   matchupIds: z.array(slug).min(1).max(2),

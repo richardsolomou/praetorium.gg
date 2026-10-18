@@ -35,7 +35,10 @@ import {
   opponentsKey,
   outdatedLeagueEntriesKey,
   playerDefaultsKey,
+  recentMatchupsKey,
 } from '../queries/queryKeys'
+import type { RecentMatchup } from '../../core/recentMatchups'
+import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentMatchups'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
 async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
@@ -59,6 +62,7 @@ export const fieldedDatasheets = () => cachedRead(fieldedDatasheetsKey(), () => 
 export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () => server.favouriteFactions())
 export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(), () => server.favouriteDetachments())
 export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
+export const recentMatchups = () => accountRead(recentMatchupsKey(), () => server.recentMatchups())
 export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
 export const battleAudience = () => accountRead(battleAudienceKey(), () => server.battleAudience())
 export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
@@ -259,6 +263,25 @@ export async function setFavouriteDatasheet(
     const entries = (current as typeof favourites | undefined) ?? favourites
     return args.data.favourite ? [...new Set([...entries, args.data.entryId])] : entries.filter((id) => id !== args.data.entryId)
   })
+  return null
+}
+export async function rememberMatchup(args: Parameters<typeof server.rememberMatchup>[0]): ReturnType<typeof server.rememberMatchup> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.rememberMatchup(args)
+  const input = offlineActionSchemas.rememberMatchup.parse(args.data)
+  const recent = (await localDocument<RecentMatchup[]>(queryResource(recentMatchupsKey()))) ?? (await recentMatchups())
+  await defer('rememberMatchup', input, queryResource(recentMatchupsKey()), undefined, {}, undefined, (current) =>
+    withRecentMatchup((current as RecentMatchup[] | undefined) ?? recent, input),
+  )
+  return null
+}
+export async function forgetMatchup(args: Parameters<typeof server.forgetMatchup>[0]): ReturnType<typeof server.forgetMatchup> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.forgetMatchup(args)
+  const recent = (await localDocument<RecentMatchup[]>(queryResource(recentMatchupsKey()))) ?? (await recentMatchups())
+  await defer('forgetMatchup', args.data, queryResource(recentMatchupsKey()), undefined, {}, undefined, (current) =>
+    withoutRecentMatchup((current as RecentMatchup[] | undefined) ?? recent, args.data.shared),
+  )
   return null
 }
 export async function setPlayerDefaults(args: Parameters<typeof server.setPlayerDefaults>[0]): ReturnType<typeof server.setPlayerDefaults> {

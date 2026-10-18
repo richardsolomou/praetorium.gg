@@ -42,9 +42,11 @@ import ClearCollectionPhotoDeletionsReducer from './clear_collection_photo_delet
 import DeletePushTokensReducer from './delete_push_tokens_reducer'
 import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
+import ForgetMatchupReducer from './forget_matchup_reducer'
 import KeepCollectionPhotoReducer from './keep_collection_photo_reducer'
 import RegisterPracticeOpponentReducer from './register_practice_opponent_reducer'
 import RegisterPushTokenReducer from './register_push_token_reducer'
+import RememberMatchupReducer from './remember_matchup_reducer'
 import RemoveCollectionPhotoReducer from './remove_collection_photo_reducer'
 import RemoveCollectionPhotoByIdReducer from './remove_collection_photo_by_id_reducer'
 import RemoveFavouriteDatasheetReducer from './remove_favourite_datasheet_reducer'
@@ -82,6 +84,7 @@ import * as CollectionWishesByUserProcedure from './collection_wishes_by_user_pr
 import * as CreateBattleProcedure from './create_battle_procedure'
 import * as DatasheetPhotosProcedure from './datasheet_photos_procedure'
 import * as DeleteBattleForOperatorProcedure from './delete_battle_for_operator_procedure'
+import * as DeleteUnitLoadoutProcedure from './delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from './discover_rosters_procedure'
 import * as EndRosterLoanProcedure from './end_roster_loan_procedure'
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
@@ -115,9 +118,11 @@ import * as PublicStandingsRevisionProcedure from './public_standings_revision_p
 import * as PushEnabledProcedure from './push_enabled_procedure'
 import * as PushTargetsProcedure from './push_targets_procedure'
 import * as RecentCollectionPhotosProcedure from './recent_collection_photos_procedure'
+import * as RecentMatchupsByUserProcedure from './recent_matchups_by_user_procedure'
 import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
+import * as RenameUnitLoadoutProcedure from './rename_unit_loadout_procedure'
 import * as ReplaceGuestInviteProcedure from './replace_guest_invite_procedure'
 import * as RequestFriendProcedure from './request_friend_procedure'
 import * as RosterByIdProcedure from './roster_by_id_procedure'
@@ -128,6 +133,7 @@ import * as RostersByIdsProcedure from './rosters_by_ids_procedure'
 import * as RostersByUserProcedure from './rosters_by_user_procedure'
 import * as RostersLentToProcedure from './rosters_lent_to_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
+import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
 import * as SetBattleAudienceProcedure from './set_battle_audience_procedure'
 import * as SetCollectionPublishedProcedure from './set_collection_published_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
@@ -140,6 +146,7 @@ import * as SubmitBattleProcedure from './submit_battle_procedure'
 import * as SyncProductProcedure from './sync_product_procedure'
 import * as SyncReceiptProcedure from './sync_receipt_procedure'
 import * as SyncRosterProcedure from './sync_roster_procedure'
+import * as UnitLoadoutsByUserProcedure from './unit_loadouts_by_user_procedure'
 import * as UpdateOnboardingProcedure from './update_onboarding_procedure'
 import * as UsableRosterProcedure from './usable_roster_procedure'
 
@@ -215,9 +222,11 @@ const reducersSchema = __reducers(
   __reducerSchema('delete_push_tokens', DeletePushTokensReducer),
   __reducerSchema('delete_roster', DeleteRosterReducer),
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
+  __reducerSchema('forget_matchup', ForgetMatchupReducer),
   __reducerSchema('keep_collection_photo', KeepCollectionPhotoReducer),
   __reducerSchema('register_practice_opponent', RegisterPracticeOpponentReducer),
   __reducerSchema('register_push_token', RegisterPushTokenReducer),
+  __reducerSchema('remember_matchup', RememberMatchupReducer),
   __reducerSchema('remove_collection_photo', RemoveCollectionPhotoReducer),
   __reducerSchema('remove_collection_photo_by_id', RemoveCollectionPhotoByIdReducer),
   __reducerSchema('remove_favourite_datasheet', RemoveFavouriteDatasheetReducer),
@@ -257,6 +266,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('create_battle', CreateBattleProcedure.params, CreateBattleProcedure.returnType),
   __procedureSchema('datasheet_photos', DatasheetPhotosProcedure.params, DatasheetPhotosProcedure.returnType),
   __procedureSchema('delete_battle_for_operator', DeleteBattleForOperatorProcedure.params, DeleteBattleForOperatorProcedure.returnType),
+  __procedureSchema('delete_unit_loadout', DeleteUnitLoadoutProcedure.params, DeleteUnitLoadoutProcedure.returnType),
   __procedureSchema('discover_rosters', DiscoverRostersProcedure.params, DiscoverRostersProcedure.returnType),
   __procedureSchema('end_roster_loan', EndRosterLoanProcedure.params, EndRosterLoanProcedure.returnType),
   __procedureSchema(
@@ -302,9 +312,11 @@ const proceduresSchema = __procedures(
   __procedureSchema('push_enabled', PushEnabledProcedure.params, PushEnabledProcedure.returnType),
   __procedureSchema('push_targets', PushTargetsProcedure.params, PushTargetsProcedure.returnType),
   __procedureSchema('recent_collection_photos', RecentCollectionPhotosProcedure.params, RecentCollectionPhotosProcedure.returnType),
+  __procedureSchema('recent_matchups_by_user', RecentMatchupsByUserProcedure.params, RecentMatchupsByUserProcedure.returnType),
   __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),
+  __procedureSchema('rename_unit_loadout', RenameUnitLoadoutProcedure.params, RenameUnitLoadoutProcedure.returnType),
   __procedureSchema('replace_guest_invite', ReplaceGuestInviteProcedure.params, ReplaceGuestInviteProcedure.returnType),
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
   __procedureSchema('roster_by_id', RosterByIdProcedure.params, RosterByIdProcedure.returnType),
@@ -315,6 +327,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('rosters_by_user', RostersByUserProcedure.params, RostersByUserProcedure.returnType),
   __procedureSchema('rosters_lent_to', RostersLentToProcedure.params, RostersLentToProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
+  __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
   __procedureSchema('set_battle_audience', SetBattleAudienceProcedure.params, SetBattleAudienceProcedure.returnType),
   __procedureSchema('set_collection_published', SetCollectionPublishedProcedure.params, SetCollectionPublishedProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
@@ -327,6 +340,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('sync_product', SyncProductProcedure.params, SyncProductProcedure.returnType),
   __procedureSchema('sync_receipt', SyncReceiptProcedure.params, SyncReceiptProcedure.returnType),
   __procedureSchema('sync_roster', SyncRosterProcedure.params, SyncRosterProcedure.returnType),
+  __procedureSchema('unit_loadouts_by_user', UnitLoadoutsByUserProcedure.params, UnitLoadoutsByUserProcedure.returnType),
   __procedureSchema('update_onboarding', UpdateOnboardingProcedure.params, UpdateOnboardingProcedure.returnType),
   __procedureSchema('usable_roster', UsableRosterProcedure.params, UsableRosterProcedure.returnType),
 )

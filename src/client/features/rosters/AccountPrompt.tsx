@@ -1,16 +1,17 @@
 import { Link } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { buttonClass } from '../../components/buttonClass'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { GUEST_PATH } from './guestDraft'
 
 /** What a visitor tried that needs an account, as the prompt's title and its telemetry name it. */
-export type AccountReason = 'another-roster' | 'variant' | 'share' | 'lock' | 'archive' | 'lend'
+export type AccountReason = 'another-roster' | 'variant' | 'loadout' | 'share' | 'lock' | 'archive' | 'lend'
 
 const TITLE: Record<AccountReason, string> = {
   'another-roster': 'Keep more than one roster',
   variant: 'Make variants with an account',
+  loadout: 'Save loadouts with an account',
   share: 'Share rosters with an account',
   lock: 'Lock rosters with an account',
   archive: 'Archive rosters with an account',
@@ -36,6 +37,7 @@ function AccountPrompt({ reason, onClose }: { reason: AccountReason | null; onCl
         <DialogBody>
           <ul className="list-disc space-y-1 pl-5 text-sm text-dim">
             <li>As many rosters as you like, with variants to compare builds</li>
+            <li>Saved unit loadouts to add again in any roster</li>
             <li>Links to share them, and lending to friends</li>
             <li>Locking and archiving to keep your library tidy</li>
             <li>Your rosters and battles on any device</li>
@@ -68,11 +70,12 @@ function AccountPrompt({ reason, onClose }: { reason: AccountReason | null; onCl
 /** Asks a visitor to sign up for something an account does, with the prompt to render beside whatever asked. */
 export function useAccountPrompt() {
   const [reason, setReason] = useState<AccountReason | null>(null)
+  const ask = useCallback((next: AccountReason) => {
+    posthog.capture('guest_roster_account_prompt_viewed', { reason: next })
+    setReason(next)
+  }, [])
   return {
-    ask: (next: AccountReason) => {
-      posthog.capture('guest_roster_account_prompt_viewed', { reason: next })
-      setReason(next)
-    },
+    ask,
     prompt: <AccountPrompt reason={reason} onClose={() => setReason(null)} />,
   }
 }

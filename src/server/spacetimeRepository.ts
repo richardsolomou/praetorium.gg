@@ -198,6 +198,18 @@ export class SpacetimeRepository {
     return this.product.acceptFriendInvite(...args)
   }
 
+  recentMatchupsByUser(...args: Parameters<SpacetimeOperator['recentMatchupsByUser']>) {
+    return this.product.recentMatchupsByUser(...args)
+  }
+
+  rememberMatchup(...args: Parameters<SpacetimeOperator['rememberMatchup']>) {
+    return this.product.rememberMatchup(...args)
+  }
+
+  forgetMatchup(...args: Parameters<SpacetimeOperator['forgetMatchup']>) {
+    return this.product.forgetMatchup(...args)
+  }
+
   pushEnabled(...args: Parameters<SpacetimeOperator['pushEnabled']>) {
     return this.product.pushEnabled(...args)
   }
@@ -699,6 +711,22 @@ export class SpacetimeRepository {
 
   setRosterVisibility(...args: Parameters<SpacetimeOperator['setRosterVisibility']>) {
     return this.product.setRosterVisibility(...args)
+  }
+
+  unitLoadoutsByUser(...args: Parameters<SpacetimeOperator['unitLoadoutsByUser']>) {
+    return this.product.unitLoadoutsByUser(...args)
+  }
+
+  saveUnitLoadout(...args: Parameters<SpacetimeOperator['saveUnitLoadout']>) {
+    return this.product.saveUnitLoadout(...args)
+  }
+
+  renameUnitLoadout(...args: Parameters<SpacetimeOperator['renameUnitLoadout']>) {
+    return this.product.renameUnitLoadout(...args)
+  }
+
+  deleteUnitLoadout(...args: Parameters<SpacetimeOperator['deleteUnitLoadout']>) {
+    return this.product.deleteUnitLoadout(...args)
   }
 
   setRosterLocked(...args: Parameters<SpacetimeOperator['setRosterLocked']>) {

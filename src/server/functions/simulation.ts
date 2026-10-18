@@ -1,9 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { rosterCombatantsSchema, combatRequestsSchema } from '../../contracts/combatCalculation'
+import { forgetMatchupSchema, rememberMatchupSchema } from '../../contracts/schemas'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import { app } from '../app'
-import { mutationRpc } from '../rpc'
+import { currentUserId, requireUser } from '../playerSession'
+import { productActions } from '../productActions'
+import { mutationRpc, rpc } from '../rpc'
 import { combatCalculationPool } from '../combatCalculationPool'
 
 export const combatantDatasheets = createServerFn({ method: 'POST' })
@@ -27,5 +30,31 @@ export const calculateCombatBatch = createServerFn({ method: 'POST' })
         controller.abort(error)
         throw error
       }
+    }),
+  )
+
+/** Empty for a guest, whose matchups stay on their device. */
+export const recentMatchups = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.recentMatchups(id) : []
+  }),
+)
+
+export const rememberMatchup = createServerFn({ method: 'POST' })
+  .validator(rememberMatchupSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      return productActions.rememberMatchup(player.id, data)
+    }),
+  )
+
+export const forgetMatchup = createServerFn({ method: 'POST' })
+  .validator(forgetMatchupSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      return productActions.forgetMatchup(player.id, data)
     }),
   )

@@ -14,9 +14,11 @@ import ClearCollectionPhotoDeletionsReducer from '../clear_collection_photo_dele
 import DeletePushTokensReducer from '../delete_push_tokens_reducer'
 import DeleteRosterReducer from '../delete_roster_reducer'
 import DeleteUserDataReducer from '../delete_user_data_reducer'
+import ForgetMatchupReducer from '../forget_matchup_reducer'
 import KeepCollectionPhotoReducer from '../keep_collection_photo_reducer'
 import RegisterPracticeOpponentReducer from '../register_practice_opponent_reducer'
 import RegisterPushTokenReducer from '../register_push_token_reducer'
+import RememberMatchupReducer from '../remember_matchup_reducer'
 import RemoveCollectionPhotoReducer from '../remove_collection_photo_reducer'
 import RemoveCollectionPhotoByIdReducer from '../remove_collection_photo_by_id_reducer'
 import RemoveFavouriteDatasheetReducer from '../remove_favourite_datasheet_reducer'
@@ -44,9 +46,11 @@ export type ClearCollectionPhotoDeletionsParams = __Infer<typeof ClearCollection
 export type DeletePushTokensParams = __Infer<typeof DeletePushTokensReducer>
 export type DeleteRosterParams = __Infer<typeof DeleteRosterReducer>
 export type DeleteUserDataParams = __Infer<typeof DeleteUserDataReducer>
+export type ForgetMatchupParams = __Infer<typeof ForgetMatchupReducer>
 export type KeepCollectionPhotoParams = __Infer<typeof KeepCollectionPhotoReducer>
 export type RegisterPracticeOpponentParams = __Infer<typeof RegisterPracticeOpponentReducer>
 export type RegisterPushTokenParams = __Infer<typeof RegisterPushTokenReducer>
+export type RememberMatchupParams = __Infer<typeof RememberMatchupReducer>
 export type RemoveCollectionPhotoParams = __Infer<typeof RemoveCollectionPhotoReducer>
 export type RemoveCollectionPhotoByIdParams = __Infer<typeof RemoveCollectionPhotoByIdReducer>
 export type RemoveFavouriteDatasheetParams = __Infer<typeof RemoveFavouriteDatasheetReducer>

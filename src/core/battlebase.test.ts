@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fromBattleBaseText } from './battlebase'
+import { warmindOfficial } from './rosterText.fixtures'
 
 const exportText = `CL 1K - Ammentar Destroyer Spearhead (990 Points)
 
@@ -49,6 +50,18 @@ Immortals (70 Points)
 Exported with BattleBase, Data Version: v20260812`
 
 describe('BattleBase text import', () => {
+  it("reads Warmind's official app layout, which gives each detachment a line", () => {
+    expect(fromBattleBaseText(warmindOfficial)).toMatchObject({
+      name: 'Sanitised list',
+      reportedPoints: 350,
+      faction: 'Drukhari',
+      detachment: 'Exhibition of Slaughter, Kabalite Cartel',
+      disposition: 'Reconnaissance',
+      limit: 2000,
+      sizeName: 'Strike Force',
+    })
+  })
+
   it('reads list setup and units', () => {
     expect(fromBattleBaseText(exportText)).toEqual({
       name: 'CL 1K - Ammentar Destroyer Spearhead',

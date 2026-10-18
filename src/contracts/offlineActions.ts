@@ -9,6 +9,8 @@ export const offlineActionSchemas = {
   setFavouriteFaction: schemas.favouriteFactionSchema,
   setFavouriteDetachment: schemas.favouriteDetachmentSchema,
   setFavouriteDatasheet: schemas.favouriteDatasheetSchema,
+  rememberMatchup: schemas.rememberMatchupSchema,
+  forgetMatchup: schemas.forgetMatchupSchema,
   setPlayerDefaults: schemas.playerDefaultsSchema,
   setBattleAudience: schemas.battleAudienceSchema,
   setPushNotifications: schemas.pushPreferenceSchema,

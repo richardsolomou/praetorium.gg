@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { localEngine } from './offline/localRuntime'
 
-export function useOptimisticFavourites<TEntry, TInput extends { favourite: boolean }>(
+/** Applies a list change to the cached query at once, unless the device queues it durably and projects it itself. */
+export function useOptimisticList<TEntry, TInput>(
   queryKey: readonly unknown[],
   mutationFn: (input: TInput) => Promise<unknown>,
   apply: (previous: TEntry[], input: TInput) => TEntry[],

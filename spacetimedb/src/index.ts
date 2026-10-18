@@ -14,6 +14,7 @@ import { commandSchema } from '../../src/core/commands'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, battleAudience, maySpectate, type BattleAudience } from '../../src/core/battleAudience'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
+import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
   alliedLeagueRosterLimit,
@@ -41,6 +42,7 @@ import { PROFILE_NAME_MAX_LENGTH } from '../../src/core/profileName'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
+import { UNIT_LOADOUTS_MAX, unitLoadoutNameSchema, unitLoadoutSchema } from '../../src/core/unitLoadouts'
 import { productSyncRefusal } from './syncOutcome'
 
 // Auth settings live in the module environment; the issuer, audience and operator columns stay
@@ -195,7 +197,17 @@ function requireOperator(ctx: Context) {
 
 const ROSTER_LOANS_PER_ROSTER = 100
 
-type ProductScope = 'rosters' | 'collection' | 'favourites' | 'friends' | 'invites' | 'onboarding' | 'settings' | 'leagues' | 'battles'
+type ProductScope =
+  | 'rosters'
+  | 'collection'
+  | 'favourites'
+  | 'friends'
+  | 'invites'
+  | 'onboarding'
+  | 'settings'
+  | 'leagues'
+  | 'battles'
+  | 'simulator'
 
 function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
   // Nobody signs in as a guest, so nobody would ever read its revisions or delete them with an account.
@@ -407,6 +419,8 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDatasheets.userId.filter(userId))) ctx.db.favouriteDatasheets.key.delete(row.key)
+  for (const row of Array.from(ctx.db.unitLoadouts.userId.filter(userId))) ctx.db.unitLoadouts.id.delete(row.id)
+  for (const row of Array.from(ctx.db.recentMatchups.userId.filter(userId))) ctx.db.recentMatchups.key.delete(row.key)
   if (ctx.db.practiceOpponents.userId.delete(userId)) {
     touchPublic(ctx, 'opponents')
     touchAdmin(ctx)
@@ -2035,6 +2049,24 @@ export const removeFavouriteDatasheet = spacetime.reducer({ userId: t.string(), 
   removeFavouriteDatasheetIn(ctx, [input.userId, input.entryId])
 })
 
+export const recentMatchupsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(recentMatchupsOf(tx, userId).map(({ shared, attacker, defender, at }) => ({ shared, attacker, defender, at })))
+  }),
+)
+
+export const rememberMatchup = spacetime.reducer(
+  { userId: t.string(), pairing: t.string(), shared: t.string(), attacker: t.string(), defender: t.string(), at: t.u64() },
+  (ctx, input) => {
+    rememberMatchupIn(ctx, [input.userId, input.pairing, input.shared, input.attacker, input.defender, input.at])
+  },
+)
+
+export const forgetMatchup = spacetime.reducer({ userId: t.string(), pairing: t.string() }, (ctx, input) => {
+  forgetMatchupIn(ctx, [input.userId, input.pairing])
+})
+
 export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string(), at: t.u64() }, (ctx, input) => {
   addFavouriteFactionIn(ctx, [input.userId, input.catalogueId, input.at])
 })
@@ -2042,6 +2074,66 @@ export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catal
 export const removeFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string() }, (ctx, input) => {
   removeFavouriteFactionIn(ctx, [input.userId, input.catalogueId])
 })
+
+export const unitLoadoutsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(
+      Array.from(tx.db.unitLoadouts.userId.filter(userId))
+        .toSorted((left, right) => Number(right.createdAt - left.createdAt) || left.id.localeCompare(right.id))
+        .map(({ id, name, catalogueId, pick, createdAt }) => ({ id, name, catalogueId, pick: JSON.parse(pick) as unknown, createdAt })),
+    )
+  }),
+)
+
+/** `saved` also answers a retried save; `full` and `refused` change nothing. */
+export const saveUnitLoadout = spacetime.procedure(
+  { id: t.string(), userId: t.string(), payload: t.string(), at: t.u64() },
+  t.string(),
+  (ctx, { id, userId, payload, at }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (!validId(id) || !validId(userId)) throw new SenderError('Invalid loadout')
+      const loadout = decodePayload(unitLoadoutSchema.strict(), payload, 'Invalid loadout')
+      const current = tx.db.unitLoadouts.id.find(id)
+      if (current) return current.userId === userId ? 'saved' : 'refused'
+      if (Array.from(tx.db.unitLoadouts.userId.filter(userId)).length >= UNIT_LOADOUTS_MAX) return 'full'
+      tx.db.unitLoadouts.insert({
+        id,
+        userId,
+        name: loadout.name,
+        catalogueId: loadout.catalogueId,
+        pick: JSON.stringify(loadout.pick),
+        createdAt: at,
+      })
+      touchProduct(tx, userId, 'rosters')
+      return 'saved'
+    }),
+)
+
+/** Only the name changes, so rosters and searches keep finding the same loadout. */
+export const renameUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string(), name: t.string() }, t.bool(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const name = unitLoadoutNameSchema.safeParse(input.name)
+    if (!name.success) throw new SenderError('Invalid loadout')
+    const current = tx.db.unitLoadouts.id.find(input.id)
+    if (current?.userId !== input.userId) return false
+    tx.db.unitLoadouts.id.update({ ...current, name: name.data })
+    touchProduct(tx, input.userId, 'rosters')
+    return true
+  }),
+)
+
+export const deleteUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (tx.db.unitLoadouts.id.find(id)?.userId !== userId) return false
+    tx.db.unitLoadouts.id.delete(id)
+    touchProduct(tx, userId, 'rosters')
+    return true
+  }),
+)
 
 export const favouriteDetachmentsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
@@ -2877,6 +2969,32 @@ function removeFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
   if (ctx.db.favouriteDatasheets.key.delete(JSON.stringify([userId, entryId]))) touchProduct(ctx, userId, 'favourites')
 }
 
+function recentMatchupsOf(ctx: Context, userId: string) {
+  return Array.from(ctx.db.recentMatchups.userId.filter(userId)).sort((a, b) => (a.at === b.at ? 0 : a.at > b.at ? -1 : 1))
+}
+
+function rememberMatchupIn(ctx: Context, args: unknown[]) {
+  const { shape } = recentMatchupSchema
+  const [userId, pairing, shared, attacker, defender, at] = z
+    .tuple([idInput, matchupPairingSchema, shape.shared, shape.attacker, shape.defender, timestampArg])
+    .parse(args)
+
+  requireOperator(ctx)
+  const key = JSON.stringify([userId, pairing])
+  const row = { key, userId, shared, attacker, defender, at }
+  if (ctx.db.recentMatchups.key.find(key)) ctx.db.recentMatchups.key.update(row)
+  else ctx.db.recentMatchups.insert(row)
+  for (const old of recentMatchupsOf(ctx, userId).slice(RECENT_MATCHUP_LIMIT)) ctx.db.recentMatchups.key.delete(old.key)
+  touchProduct(ctx, userId, 'simulator')
+}
+
+function forgetMatchupIn(ctx: Context, args: unknown[]) {
+  const [userId, pairing] = z.tuple([idInput, matchupPairingSchema]).parse(args)
+
+  requireOperator(ctx)
+  if (ctx.db.recentMatchups.key.delete(JSON.stringify([userId, pairing]))) touchProduct(ctx, userId, 'simulator')
+}
+
 function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, detachmentId, at] = z.tuple([textArg, textArg, textArg, timestampArg]).parse(args)
 
@@ -3546,6 +3664,8 @@ const syncProductActions = {
   remove_favourite_detachment: removeFavouriteDetachmentIn,
   add_favourite_datasheet: addFavouriteDatasheetIn,
   remove_favourite_datasheet: removeFavouriteDatasheetIn,
+  remember_matchup: rememberMatchupIn,
+  forget_matchup: forgetMatchupIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
   league_command: leagueCommandIn,

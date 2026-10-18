@@ -11,8 +11,10 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
+import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
+import { unitLoadoutPickSchema, type UnitLoadout } from '../core/unitLoadouts'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
 // reading after a newer module appends a column or result field.
@@ -59,6 +61,7 @@ const collectionRow = z.object({
   painted: z.number().int().default(0),
   photoIds: z.array(z.uuid()).optional(),
 })
+const recentMatchupRow = recentMatchupSchema.extend({ at: z.number().int() })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.object({
@@ -66,6 +69,13 @@ const favouriteDetachmentRow = z.object({
   catalogueId: z.string(),
   detachmentId: z.string(),
   at: z.number().int(),
+})
+const unitLoadoutRow = z.object({
+  id: z.string(),
+  name: z.string(),
+  catalogueId: z.string(),
+  pick: unitLoadoutPickSchema,
+  createdAt: z.number().int(),
 })
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
 const battleSnapshot = z.object({
@@ -770,6 +780,34 @@ export class SpacetimeOperator {
 
   async removeFavouriteDatasheet(userId: string, entryId: string) {
     await this.call('remove_favourite_datasheet', [userId, entryId])
+  }
+
+  async unitLoadoutsByUser(userId: string) {
+    return this.read('unit_loadouts_by_user', [userId], z.array(unitLoadoutRow))
+  }
+
+  async saveUnitLoadout(id: string, userId: string, loadout: UnitLoadout, now: number) {
+    return this.reply('save_unit_loadout', [id, userId, JSON.stringify(loadout), now], z.enum(['saved', 'full', 'refused']))
+  }
+
+  async renameUnitLoadout(id: string, userId: string, name: string) {
+    return this.reply('rename_unit_loadout', [id, userId, name], z.boolean())
+  }
+
+  async deleteUnitLoadout(id: string, userId: string) {
+    return this.reply('delete_unit_loadout', [id, userId], z.boolean())
+  }
+
+  async recentMatchupsByUser(userId: string) {
+    return this.read('recent_matchups_by_user', [userId], z.array(recentMatchupRow))
+  }
+
+  async rememberMatchup(input: RecentMatchup & { userId: string; pairing: string; now: number }) {
+    await this.call('remember_matchup', [input.userId, input.pairing, input.shared, input.attacker, input.defender, input.now])
+  }
+
+  async forgetMatchup(userId: string, pairing: string) {
+    await this.call('forget_matchup', [userId, pairing])
   }
 
   async pushEnabled(userId: string) {

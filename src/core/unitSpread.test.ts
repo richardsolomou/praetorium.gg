@@ -364,6 +364,157 @@ describe('a squad that both divides itself and arms a specialist', () => {
   })
 })
 
+describe('specialists in a squad of fixed size', () => {
+  // A Pathfinder Team is always nine Pathfinders: three may take special weapons and one
+  // a grenade launcher, and the carbines' minimum makes room for them.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'team',
+        name: 'Pathfinder Team',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'pathfinders',
+            name: 'Pathfinders',
+            constraints: [
+              { id: 'pathfinders-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'pathfinders-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'carbine',
+                name: 'Pathfinders w/ pulse carbine',
+                type: 'model',
+                constraints: [
+                  { id: 'carbine-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+                  { id: 'carbine-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                modifiers: [
+                  { type: 'decrement', field: 'carbine-min', value: 3 },
+                  {
+                    type: 'decrement',
+                    field: 'carbine-min',
+                    value: 1,
+                    conditions: [
+                      {
+                        type: 'greaterThan',
+                        value: 0,
+                        field: 'selections',
+                        scope: 'parent',
+                        childId: 'launcher',
+                        includeChildSelections: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: 'launcher',
+                name: 'Pathfinders w/ pulse carbine and grenade launcher',
+                type: 'model',
+                constraints: [{ id: 'launcher-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'specials',
+                name: 'Special Weapons (0-3)',
+                constraints: [{ id: 'specials-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'rail',
+                    name: 'Pathfinders w/ rail rifle',
+                    type: 'model',
+                    constraints: [{ id: 'rail-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+                    selectionEntries: [{ id: 'rail-rifle', name: 'Rail rifle', type: 'upgrade', constraints: mandatory('rail-rifle-min') }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('arms every special weapon asked for', () => {
+    const built = buildUnit('team', index, 9, undefined, { spreads: { 'pathfinders/specials': { rail: 3 } } })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Rail rifle', count: 3 })
+  })
+
+  it('offers the grenade launcher the carbines make room for', () => {
+    const launcher = buildUnit('team', index, 9)!
+      .choices.flatMap((choice) => choice.options)
+      .find((option) => option.id === 'launcher')
+    expect(launcher?.max).toBe(1)
+  })
+})
+
+describe('a specialist joining a squad whose default models are split', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'suits',
+        name: 'Stealth Battlesuits',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'shasui',
+            name: '4 Stealth Shas’ui',
+            defaultSelectionEntryId: 'burst',
+            constraints: [
+              { id: 'shasui-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'shasui-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'burst',
+                name: 'Stealth Shas’ui w/ burst cannon',
+                type: 'model',
+                constraints: [
+                  { id: 'burst-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                  { id: 'burst-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'burst-cannon', name: 'Burst cannon', type: 'upgrade', constraints: mandatory('burst-cannon-min') },
+                  { id: 'beacon', name: 'Homing beacon', type: 'upgrade' },
+                ],
+              },
+              {
+                id: 'fusion',
+                name: 'Stealth Shas’ui w/ fusion blaster',
+                type: 'model',
+                constraints: [{ id: 'fusion-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  { id: 'fusion-blaster', name: 'Fusion blaster', type: 'upgrade', constraints: mandatory('fusion-min') },
+                  { id: 'fusion-beacon', name: 'Homing beacon', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('takes its bodies from every copy of the default model', () => {
+    const built = buildUnit('suits', index, 4, undefined, { spreads: { shasui: { fusion: 2 }, 'shasui/burst/beacon': { beacon: 1 } } })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Burst cannon', count: 2 },
+      { name: 'Homing beacon', count: 1 },
+      { name: 'Fusion blaster', count: 2 },
+    ])
+  })
+
+  it('fields the specialists counted when their own upgrade is asked for none', () => {
+    const built = buildUnit('suits', index, 4, undefined, {
+      spreads: { shasui: { fusion: 2 }, 'shasui/fusion/fusion-beacon': { 'fusion-beacon': 0 } },
+    })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Fusion blaster', count: 2 })
+  })
+})
+
 /**
  * A catalogue with no unit profile on its models has only the entry names to say
  * which of them are the same kind of model — and it files one entry per weapon, so

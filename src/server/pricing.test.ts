@@ -17,6 +17,7 @@ import { deploymentRules } from '../shared/rosterDeployment'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
 import { descriptionKey } from './datacards'
 import { rosterUseProblem } from '../core/rosterLegality'
+import { loadoutPick } from '../core/rosterCopies'
 import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
@@ -1448,5 +1449,33 @@ describe('roster-aware picker limits', () => {
       rulesWithout,
     )
     expect(result?.unitLimits?.find((unit) => unit.id === 'beast')?.limit).toBe(expected)
+  })
+})
+
+describe('a saved loadout applied to another roster', () => {
+  const into = (
+    loaded: ReturnType<typeof bookOf>,
+    limit: number,
+    held: { entryId: string }[],
+    loadout: Parameters<typeof loadoutPick>[0],
+  ) =>
+    calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units: [...held, loadoutPick(loadout, 'cat')!] },
+      loaded,
+      rulesWithout,
+    )?.errors.map((error) => error.message)
+
+  it('reports a wargear choice the destination rules version no longer offers', () => {
+    const loaded = bookOf({ selectionEntries: [{ id: 'current', name: 'Current unit', type: 'model', costs: pointsCost(50) }] })
+    const loadout = { catalogueId: 'mfm-15~cat', pick: { entryId: 'current', choices: { old: 'weapon' } } }
+
+    expect(into(loaded, 2_000, [], loadout)).toEqual(['a saved choice is no longer available; reselect this unit’s options'])
+  })
+
+  it('reports a copy beyond the destination battle size limit', () => {
+    const loaded = bookOf({ selectionEntries: [cappedLord('lord', 'Warlord')] })
+    const loadout = { catalogueId: 'cat', pick: { entryId: 'lord' } }
+
+    expect(into(loaded, 1_000, [{ entryId: 'lord' }, { entryId: 'lord' }], loadout)).toEqual(['allows at most 2, has 3'])
   })
 })

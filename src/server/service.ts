@@ -26,7 +26,10 @@ import {
   type SubmitResult,
 } from '../core/battle'
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
+import { playedArmies } from '../core/playedArmies'
 import type { PlayerDefaults } from '../core/playerDefaults'
+import type { RecentMatchup } from '../core/recentMatchups'
+import { simulatorPairing } from '../contracts/simulatorState'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleClock, type BattleClock } from '../core/battleClock'
@@ -110,6 +113,7 @@ const SPECTATOR_ID = ''
 
 /** A page of a home-page feed. Small: every row on it costs a folded log. */
 const PUBLIC_BATTLES_PAGE = 10
+const PLAYED_ARMY_BATTLES = 12
 /** How long one public feed page serves repeated reads, such as a burst of tabs refetching after the same signal. */
 const PUBLIC_FEED_HOLD_MS = 5_000
 const PUBLIC_FEED_HELD_PAGES = 200
@@ -254,6 +258,32 @@ export class PraetoriumService {
     for (const [heldKey, entry] of this.publicFeedHeld)
       if (entry.until <= now || this.publicFeedHeld.size > PUBLIC_FEED_HELD_PAGES) this.publicFeedHeld.delete(heldKey)
     return pending
+  }
+
+  /**
+   * The armies finished battles in one page of the public feed fielded, read without the feed's
+   * hold so a battle whose player narrows their audience leaves on the next read. A page holds
+   * only finished battles, so it can come back short; its cursor still continues.
+   */
+  async playedArmies(viewerId: string | null, before?: BattlesCursor, factions: readonly BattleFaction[] = []) {
+    const { battles: histories, nextCursor } = await this.repository.publicBattles({ limit: PLAYED_ARMY_BATTLES, before, viewerId })
+    return { armies: histories.flatMap((history) => this.playedArmiesOf(history, factions)), nextCursor }
+  }
+
+  /** One army from a finished battle this reader may watch, or nothing. */
+  async playedArmy(token: string, playerId: string, viewerId: string | null) {
+    const history = await this.repository.battleHistoryByToken(token)
+    if (!history || !(await this.mayWatch(history, viewerId))) return null
+    return this.playedArmiesOf(history, []).find((army) => army.player.id === playerId) ?? null
+  }
+
+  private playedArmiesOf(history: BattleHistory, factions: readonly BattleFaction[]) {
+    const state = foldHistory(history)
+    return playedArmies(
+      history,
+      state,
+      battleSummary(history, state, null, null, new Map(factions.map((faction) => [faction.id, faction]))),
+    )
   }
 
   /** The battles this player's friends are in and they are not. */
@@ -414,6 +444,22 @@ export class PraetoriumService {
 
   setPlayerDefaults(userId: string, defaults: PlayerDefaults) {
     return this.repository.setPlayerDefaults(userId, defaults, this.clock())
+  }
+
+  /** The standalone simulator pairings this player reopened most recently, newest first. */
+  async recentMatchups(userId: string): Promise<RecentMatchup[]> {
+    return (await this.repository.recentMatchupsByUser(userId)).map(({ shared, attacker, defender }) => ({ shared, attacker, defender }))
+  }
+
+  rememberMatchup(userId: string, matchup: RecentMatchup) {
+    const pairing = simulatorPairing(matchup.shared)
+    if (!pairing) throw new Error('Choose both units before remembering a matchup.')
+    return this.repository.rememberMatchup({ userId, pairing, ...matchup, now: this.clock() })
+  }
+
+  async forgetMatchup(userId: string, shared: string) {
+    const pairing = simulatorPairing(shared)
+    if (pairing) await this.repository.forgetMatchup(userId, pairing)
   }
 
   registerPushDevice(userId: string, device: { token: string; platform: 'ios' | 'android' }) {

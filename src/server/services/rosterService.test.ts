@@ -281,3 +281,47 @@ describe('the roster a copy came from', () => {
     expect(await service.copySource('source', 'user-2')).toBeNull()
   })
 })
+
+describe('saved unit loadouts', () => {
+  const loadout = { id: '00000000-0000-4000-8000-000000000001', name: 'Plasma Captain', catalogueId: 'sm', pick: { entryId: 'captain' } }
+  const refusal = async (outcome: string) => {
+    const service = new RosterService({ saveUnitLoadout: vi.fn().mockResolvedValue(outcome) } as unknown as RepositoryPort, () => 0)
+    const error = await service.saveUnitLoadout('user-1', loadout).catch((caught: unknown) => caught)
+    return error instanceof Response && error.status
+  }
+
+  it('saves under the signed-in player only', async () => {
+    const saveUnitLoadout = vi.fn().mockResolvedValue('saved')
+    await new RosterService({ saveUnitLoadout } as unknown as RepositoryPort, () => 5).saveUnitLoadout('user-1', loadout)
+    expect(saveUnitLoadout).toHaveBeenCalledWith(
+      loadout.id,
+      'user-1',
+      { name: 'Plasma Captain', catalogueId: 'sm', pick: { entryId: 'captain' } },
+      5,
+    )
+  })
+
+  it('refuses a save once the library is full', async () => {
+    expect(await refusal('full')).toBe(409)
+  })
+
+  it('refuses a save over another player’s loadout', async () => {
+    expect(await refusal('refused')).toBe(403)
+  })
+
+  it('renames under the signed-in player only', async () => {
+    const renameUnitLoadout = vi.fn().mockResolvedValue(true)
+    await new RosterService({ renameUnitLoadout } as unknown as RepositoryPort, () => 0).renameUnitLoadout(
+      'user-1',
+      loadout.id,
+      'Melta Captain',
+    )
+    expect(renameUnitLoadout).toHaveBeenCalledWith(loadout.id, 'user-1', 'Melta Captain')
+  })
+
+  it('refuses a rename of a loadout the player does not keep', async () => {
+    const service = new RosterService({ renameUnitLoadout: vi.fn().mockResolvedValue(false) } as unknown as RepositoryPort, () => 0)
+    const error = await service.renameUnitLoadout('user-1', loadout.id, 'Melta Captain').catch((caught: unknown) => caught)
+    expect(error instanceof Response && error.status).toBe(404)
+  })
+})

@@ -11,12 +11,12 @@ import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/
 import { discoveryFilter, RosterDiscoveryPage, type RosterDiscoverySearch } from '../client/features/rosters/RosterDiscoveryPage'
 import { RULES_VERSION_STATUSES, type RulesVersionStatus } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
-import { discoveredRostersQuery, factionIndexQuery, meQuery } from '../client/queries'
+import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 import { searchText } from '../client/searchParams'
 
-const VIEWS = ['friends', 'public'] as const
+const VIEWS = ['friends', 'public', 'played'] as const
 type RosterView = (typeof VIEWS)[number]
 
 export const Route = createFileRoute('/rosters/')({
@@ -53,10 +53,13 @@ export const Route = createFileRoute('/rosters/')({
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-      await context.queryClient.infiniteQuery({
-        ...discoveredRostersQuery(discoveryFilter(search, index?.factions ?? []), me ? view : 'public', sort ?? 'updated-desc'),
-        staleTime: 'static',
-      })
+      const filter = discoveryFilter(search, index?.factions ?? [])
+      if (view === 'played') await context.queryClient.infiniteQuery({ ...playedArmiesQuery(filter), staleTime: 'static' })
+      else
+        await context.queryClient.infiniteQuery({
+          ...discoveredRostersQuery(filter, me ? view : 'public', sort ?? 'updated-desc'),
+          staleTime: 'static',
+        })
     }
     // Whether this browser holds a visitor's list, so the first frame holds its row or the claim it becomes.
     return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
@@ -64,19 +67,26 @@ export const Route = createFileRoute('/rosters/')({
   head: ({ match }) =>
     pageHead(
       match.context.origin,
-      match.search.view === 'public'
+      match.search.view === 'played'
         ? {
-            title: 'Public Warhammer 40,000 army lists',
+            title: 'Played Warhammer 40,000 army lists',
             description:
-              'Browse Warhammer 40,000 army lists other players published, filter them by faction, detachment and rules version, and duplicate one to edit.',
-            path: '/rosters?view=public',
+              'Browse Warhammer 40,000 armies from finished public battles, filter them by faction, detachment and rules version, and copy one to edit.',
+            path: '/rosters?view=played',
           }
-        : {
-            title: 'Warhammer 40,000 army builder',
-            description:
-              'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
-            path: '/rosters',
-          },
+        : match.search.view === 'public'
+          ? {
+              title: 'Public Warhammer 40,000 army lists',
+              description:
+                'Browse Warhammer 40,000 army lists other players published, filter them by faction, detachment and rules version, and duplicate one to edit.',
+              path: '/rosters?view=public',
+            }
+          : {
+              title: 'Warhammer 40,000 army builder',
+              description:
+                'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
+              path: '/rosters',
+            },
     ),
   component: RosterLibraryRoute,
 })

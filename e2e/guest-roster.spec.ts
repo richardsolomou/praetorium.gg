@@ -175,7 +175,7 @@ test("a visitor's roster is listed on the rosters page as a saved one is", async
   await expect(row).toContainText('Necrons')
   await expect(row).toContainText('1 unit')
   await expect(row.locator('.readout')).not.toHaveText(/^—\//)
-  await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link')).toHaveText(['Mine', 'Friends', 'Public'])
+  await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link')).toHaveText(['Mine', 'Friends', 'Public', 'Played'])
   await shot(page, 'round4-visitor-rosters')
   await row.getByRole('link').click()
   await expect(page).toHaveURL(builder)
@@ -210,6 +210,12 @@ test('a visitor keeping a roster is asked to sign up for a second one', async ({
 
 test("a visitor's account-only roster actions ask them to sign up", async ({ page }) => {
   await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await page.locator('[data-unit="Necron Warriors"]').getByRole('button', { name: 'Unit actions for Necron Warriors' }).click()
+  await page.getByRole('menuitem', { name: 'Save loadout' }).click()
+  await expect(page.getByRole('dialog', { name: 'Save loadouts with an account' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
   await page.goto('/rosters')
   await page.getByRole('button', { name: /^Actions for / }).click()
   await page.getByRole('menuitem', { name: 'Create variant' }).click()
