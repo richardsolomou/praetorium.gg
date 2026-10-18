@@ -1,6 +1,10 @@
 [
   {
-    "reason": "A default Forgefiend takes the Hades autocannons: the Munitorum prices each ectoplasma cannon at 5 points, which the cheapest default now sees on the weapons inside the option.",
-    "entries": ["chaos-space-marines / Forgefiend roster wargear: Ectoplasma cannon ×2"]
+    "reason": "Per-model wargear now counts each model's share once per model, so these minimum-size squads no longer report a false shortfall of the per-model weapon they already carry.",
+    "entries": [
+      "tau-empire / Crisis Fireknife Battlesuits roster errors: needs at least 4, has 2",
+      "tau-empire / Crisis Starscythe Battlesuits roster errors: needs at least 4, has 2",
+      "leagues-of-votann / Cthonian Earthshakers roster errors: needs at least 4, has 2"
+    ]
   }
 ]
