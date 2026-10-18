@@ -20,6 +20,7 @@ Custom events measure starts, attempts, completed actions, and bounded failures;
 
 - `account_signed_in` fires after two-factor checks, so a pending challenge is not a sign-in; a signup produces only `account_created`.
 - `roster_created` can be an empty row or a claimed guest draft; use `roster_unit_added` to measure building. Durable sync emits roster creation/deletion only on the transaction that applies the lifecycle change.
+- `battle_created`, `league_created`, and `league_battle_created` share capture properties between direct mutations and durable sync. Sync captures only when its database transaction reports a newly applied action; recovered receipts and concurrent retries do not count another creation.
 - `roster_imported` means parsed and `guest_roster_imported` means opened as a local draft; `roster_import_saved` and `guest_roster_saved` mean saved, and retries can repeat a guest completion, so count unique people.
 - `roster_priced` and `roster_datasheet_loaded` come from the server, or from the browser when the device answers the read from its download (`constructionReadEvents` in `src/client/offline/constructionReads.ts`); both build their properties with `src/shared/rosterTelemetry.ts`, and `duration_ms` is where the work ran.
 - Roster `unit_count` counts an attached character and bodyguard as one unit; request metrics and import `pick_count` count payload picks.

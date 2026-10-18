@@ -4,6 +4,7 @@ import { app } from '../app'
 import type { PraetoriumService } from '../service'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
 import { submittedBattleCommand } from '../battleSubmission'
+import { captureBattleCreated } from '../creationTelemetry'
 import { mutationRpc, rpc } from '../rpc'
 import {
   battlesPageSchema,
@@ -149,13 +150,7 @@ export const createBattle = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const result = await app().service.createBattle(player.id, data)
-      await app().telemetry.capture(player.id, 'battle_created', {
-        practice: result.practice,
-        limit: data.limit,
-        player_count: 1 + (data.allyId ? 1 : 0) + (data.opponentIds?.length ?? (data.opponentId ? 1 : 0)),
-        casual: data.casual,
-        manual: data.manual,
-      })
+      await captureBattleCreated(player.id, data, result)
       return result
     }),
   )

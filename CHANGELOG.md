@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.157.3
+
+### Patch Changes
+
+- feea201: Keep selectors working after browser translation and restore creation analytics for synced battles and leagues.
+
 ## 0.157.2
 
 ### Patch Changes

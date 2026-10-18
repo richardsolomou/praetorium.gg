@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { app } from './app'
 import { rosterForUse } from './rosterUsage'
+import { captureBattleCreated, captureLeagueCreated, captureLeagueBattleCreated } from './creationTelemetry'
 
 function action<S extends z.ZodType>(schema: S, work: (owner: string, data: z.output<S>) => Promise<unknown>) {
   return (owner: string, input: unknown) => work(owner, schema.parse(input))
@@ -39,7 +40,11 @@ export const offlineActions: Record<OfflineActionKind, (owner: string, input: un
   acceptFriendInvite: action(schemas.acceptFriendInvite, (owner, data) => service().socialService.acceptFriendInvite(owner, data.token)),
   createFriendInvite: action(schemas.createFriendInvite, (owner) => service().socialService.createFriendInvite(owner)),
   cancelFriendInvite: action(schemas.cancelFriendInvite, (owner) => service().socialService.cancelFriendInvite(owner)),
-  createLeague: action(schemas.createLeague, (owner, data) => service().leagueService.createLeague(owner, data)),
+  createLeague: action(schemas.createLeague, async (owner, data) => {
+    const result = await service().leagueService.createLeague(owner, data)
+    await captureLeagueCreated(owner, data)
+    return result
+  }),
   createLeagueEvent: action(schemas.createLeagueEvent, (owner, data) => {
     const { token, ...input } = data
     return service().leagueService.createLeagueEvent(token, owner, input)
@@ -84,9 +89,13 @@ export const offlineActions: Record<OfflineActionKind, (owner: string, input: un
   }),
   deleteLeague: action(schemas.deleteLeague, (owner, data) => service().leagueService.deleteLeague(data.token, owner)),
   deleteBattle: action(schemas.deleteBattle, (owner, data) => service().deleteBattle(data.token, owner)),
-  createBattle: action(schemas.createBattle, (owner, data) => service().createBattle(owner, data)),
-  createLeagueBattle: action(schemas.createLeagueBattle, (owner, data) =>
-    service().leagueService.createLeagueBattle(
+  createBattle: action(schemas.createBattle, async (owner, data) => {
+    const result = await service().createBattle(owner, data)
+    await captureBattleCreated(owner, data, result)
+    return result
+  }),
+  createLeagueBattle: action(schemas.createLeagueBattle, async (owner, data) => {
+    const result = await service().leagueService.createLeagueBattle(
       owner,
       data.token,
       data.opponentId,
@@ -94,6 +103,8 @@ export const offlineActions: Record<OfflineActionKind, (owner: string, input: un
       data.eventToken,
       data.allyId,
       data.secondOpponentId,
-    ),
-  ),
+    )
+    await captureLeagueBattleCreated(owner, result)
+    return result
+  }),
 }

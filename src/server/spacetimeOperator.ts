@@ -822,9 +822,12 @@ export class SpacetimeOperator {
           createdAt: context.createdAt,
           name: reducer,
           args: arguments_,
+          reportApplied: true,
         }),
       ])
-      return new Response(z.string().parse(await response.json()), { headers: { 'content-type': 'application/json' } })
+      const result = z.object({ result: z.string(), applied: z.boolean() }).parse(JSON.parse(z.string().parse(await response.json())))
+      context.applied = result.applied
+      return new Response(result.result, { headers: { 'content-type': 'application/json' } })
     }
     return callSpacetime(this.connection, reducer, arguments_)
   }
