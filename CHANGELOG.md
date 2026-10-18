@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.164.2
+
+### Patch Changes
+
+- 39dd32b: Offer Sanctifiers their simulacrum imperialis and two-hand-flamer Sanctifiers, each in place of a hand-flamer Sanctifier, so the squad stays at nine models and lists that include them import.
+
 ## 0.164.1
 
 ### Patch Changes
