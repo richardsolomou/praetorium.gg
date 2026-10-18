@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.164.1
+
+### Patch Changes
+
+- 81b6a09: Wrap profile, roster, battle and update tabs onto a second line on narrow phones and at larger text sizes instead of widening the page.
+
 ## 0.164.0
 
 ### Minor Changes
