@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.163.0
+
+### Minor Changes
+
+- 90b7fb4: The roster builder shows how many points are left, or how far over the limit the roster is, beside its points total.
+
+### Patch Changes
+
+- 90b7fb4: On a phone, the roster builder's points and buttons fit on one line before you sign in.
+
 ## 0.162.1
 
 ### Patch Changes
