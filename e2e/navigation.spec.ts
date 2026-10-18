@@ -35,7 +35,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader.getByRole('link', { name: 'Praetorium home' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
-  await expect(mobileHeader.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/kQneZ8Nae')
+  await expect(mobileHeader.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/kgDnqFSDV2')
   await expect(mobileHeader.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
     'href',
     'https://github.com/richardsolomou/praetorium.gg',
