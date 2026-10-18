@@ -8,8 +8,9 @@ vi.mock('./app', () => ({ app: vi.fn() }))
 
 it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league seal with frozen rules metadata', async (status) => {
   const { saved, catalogue, rules, edition } = leagueRosterFixture(status)
-  const submit = vi.fn()
+  const submit = vi.fn().mockResolvedValue({ format: '1v1', requiredLimit: 1000 })
   vi.mocked(app).mockReturnValue({
+    telemetry: { capture: vi.fn() },
     service: {
       rosterService: { usableRoster: async () => ({ roster: saved, lentBy: null }) },
       leagueService: { submitLeagueRoster: submit },

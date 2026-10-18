@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   rulesFor: vi.fn(),
   syncReceipt: vi.fn(),
   createAction: vi.fn(),
+  capture: vi.fn(),
 }))
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
@@ -103,6 +104,7 @@ vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (w
 vi.mock('../playerSession', () => ({ requireUser: async () => mocks.user }))
 vi.mock('../app', () => ({
   app: () => ({
+    telemetry: { capture: mocks.capture },
     service: { ...mocks, leagueService: { ownRoster: mocks.ownRoster } },
     catalogueFor: mocks.catalogueFor,
     catalogue: mocks.catalogue,
@@ -135,6 +137,25 @@ beforeEach(() => {
   mocks.battleWorkspace.mockResolvedValue({ workspace: { serverSeq: 2 } })
   mocks.catalogue.mockReturnValue({ index: { revision: 'rev' } })
   mocks.rulesFor.mockResolvedValue({})
+})
+
+it('captures a newly applied synced battle command and lifecycle without its contents', async () => {
+  mocks.submitWithWorkspace.mockResolvedValue({ result: { outcome: 'appended', seq: 2 }, applied: true })
+  await invoke({ data: { ...input(), command: { kind: 'begin-battle' } } })
+  expect(mocks.capture.mock.calls).toEqual([
+    [
+      'actor',
+      'battle_command_submitted',
+      { command: 'begin-battle', outcome: 'appended', delivery: 'sync', duration_ms: expect.any(Number) },
+    ],
+    ['actor', 'battle_started', { delivery: 'sync' }],
+  ])
+})
+
+it.each([false, undefined])('does not recapture a synced battle command without a new atomic application (%j)', async (applied) => {
+  mocks.submitWithWorkspace.mockResolvedValue({ result: { outcome: 'appended', seq: 2 }, applied })
+  await invoke({ data: { ...input(), command: { kind: 'begin-battle' } } })
+  expect(mocks.capture).not.toHaveBeenCalled()
 })
 
 it.each([403, 404])('retains an unavailable battle as a refusal (HTTP %s)', async (status) => {

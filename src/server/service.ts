@@ -135,7 +135,7 @@ const PROFILE_BATTLE_PAGE = 25
  * round trip later, a page acts on a view it has already changed — sending a seq
  * from before its own command, or naming the wrong command to undo.
  */
-type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen }
+type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen; applied?: boolean }
 type SubmitArgs = [
   token: string,
   userId: string,
@@ -751,15 +751,15 @@ export class PraetoriumService {
 
   async submit(...args: SubmitArgs): Promise<SubmitAnswer> {
     const [, userId, , , rules] = args
-    const { result, history } = await this.append(...args)
-    return { result, screen: this.seatedScreen(history, userId, rules) }
+    const { result, history, application } = await this.append(...args)
+    return { result, screen: this.seatedScreen(history, userId, rules), ...application }
   }
 
   /** The answer with the submitting device's copy of the history, so it is saved without a second download. */
   async submitWithWorkspace(...args: SubmitArgs): Promise<SubmitAnswer & { workspace?: BattleWorkspace }> {
     const [, userId, , , rules] = args
-    const { result, history } = await this.append(...args)
-    return { result, screen: this.seatedScreen(history, userId, rules), workspace: this.workspace(history, userId) }
+    const { result, history, application } = await this.append(...args)
+    return { result, screen: this.seatedScreen(history, userId, rules), workspace: this.workspace(history, userId), ...application }
   }
 
   private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {
@@ -770,7 +770,7 @@ export class PraetoriumService {
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.
-    const { result, log } = await this.repository.submit(
+    const { result, log, applied } = await this.repository.submit(
       {
         battleId: history.battle.id,
         userId,
@@ -829,7 +829,7 @@ export class PraetoriumService {
         return { ...submitted, secondaries }
       },
     )
-    return { result, history: { ...history, log } }
+    return { result, history: { ...history, log }, application: applied === undefined ? {} : { applied } }
   }
 
   /** Opening a battle stream is an authorization decision. */

@@ -29,21 +29,21 @@ const cases = [
     input: { opponentIds: ['private-opponent', 'private-second'], allyId: 'private-ally', limit: 2000, casual: true },
     result: { token: 'private-battle', practice: true },
     event: 'battle_created',
-    properties: { practice: true, limit: 2000, player_count: 4, casual: true, manual: false },
+    properties: { delivery: 'sync', practice: true, limit: 2000, player_count: 4, casual: true, manual: false },
   },
   {
     kind: 'createLeague' as const,
     input: { name: 'Private league', visibility: 'private', admission: 'approval', format: '2v2', rosterLimit: 2000, ownerPlays: true },
     result: { token: 'private-league', eventToken: 'private-event' },
     event: 'league_created',
-    properties: { visibility: 'private', admission: 'approval', format: '2v2', roster_limit: 2000, owner_plays: true },
+    properties: { delivery: 'sync', visibility: 'private', admission: 'approval', format: '2v2', roster_limit: 2000, owner_plays: true },
   },
   {
     kind: 'createLeagueBattle' as const,
     input: { token: 'private-league', opponentId: 'private-opponent' },
     result: { token: 'private-battle', format: '1v1', requiredLimit: 2000 },
     event: 'league_battle_created',
-    properties: { format: '1v1', required_limit: 2000 },
+    properties: { delivery: 'sync', format: '1v1', required_limit: 2000 },
   },
 ]
 

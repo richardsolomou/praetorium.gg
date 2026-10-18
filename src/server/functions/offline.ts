@@ -1,3 +1,4 @@
+import { captureBattleCommand } from '../battleTelemetry'
 import { SpacetimeRequestError } from 'ras-stack/spacetime'
 import { offlineActionSchema } from '../../contracts/offlineActions'
 import { offlineActions } from '../offlineActions'
@@ -145,6 +146,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
       const player = await requireOwner(data.owner)
       try {
         const instance = app()
+        const startedAt = performance.now()
         let command = data.command
         const replay = await instance.service.hasBattleOperation(data.token, player.id, data.operationId)
         const rules = await instance.rulesFor()
@@ -194,18 +196,17 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
           }
         }
         const fingerprint = hash('sha256', JSON.stringify(data))
-        const { result, workspace: appended } = await instance.service.submitWithWorkspace(
-          data.token,
-          player.id,
-          data.expectedSeq,
-          command,
-          rules,
-          {
-            operationId: data.operationId,
-            fingerprint,
-            recordedAt: data.recordedAt,
-          },
-        )
+        const {
+          result,
+          workspace: appended,
+          applied,
+        } = await instance.service.submitWithWorkspace(data.token, player.id, data.expectedSeq, command, rules, {
+          operationId: data.operationId,
+          fingerprint,
+          recordedAt: data.recordedAt,
+        })
+        if (result.outcome !== 'appended' || applied === true)
+          await captureBattleCommand(player.id, command, result, performance.now() - startedAt, 'sync')
         if (result.outcome === 'stale')
           return {
             outcome: 'conflict' as const,
