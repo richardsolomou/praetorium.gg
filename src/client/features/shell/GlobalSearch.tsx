@@ -198,8 +198,8 @@ export function GlobalSearch({ compact = false }: { compact?: boolean }) {
       size={compact ? 'icon' : 'sm'}
       className={
         compact
-          ? 'size-12 shrink-0 text-dim hover:bg-raised hover:text-info'
-          : 'ml-auto h-8 min-w-8 justify-start gap-2 border-edge bg-sunken px-2 text-dim hover:text-bone @min-[71.11rem]:w-44'
+          ? 'size-[44px] shrink-0 text-dim hover:bg-raised hover:text-info'
+          : 'h-8 min-w-8 justify-start gap-2 border-edge bg-sunken px-2 text-dim hover:text-bone @min-[71.11rem]:w-44'
       }
       aria-label="Search Praetorium"
       onClick={search.open}

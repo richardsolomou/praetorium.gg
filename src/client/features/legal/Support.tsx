@@ -2,11 +2,12 @@ import { MessageSquareWarning } from 'lucide-react'
 import { version } from '../../../../package.json'
 import { Button } from '@/components/ui/button'
 import { openFeedback } from '../feedback/FeedbackDialog'
+import { DISCORD } from '../../projectLinks'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Support() {
   return (
-    <LegalPage eyebrow="Help" title="Support" updated="15 October 2026">
+    <LegalPage eyebrow="Help" title="Support" updated="18 October 2026">
       <LegalSection title="Get help">
         <p>
           Send feedback from any page, through the account menu or the More tab. It opens over the page you are on and sends us that page,
@@ -15,6 +16,13 @@ export function Support() {
         <Button onClick={openFeedback}>
           <MessageSquareWarning /> Send feedback
         </Button>
+        <p>
+          For community help and feature ideas, join the{' '}
+          <a href={DISCORD} target="_blank" rel="noreferrer noopener" className="text-info hover:text-parchment">
+            Praetorium Discord
+          </a>
+          .
+        </p>
         <p>
           To report a problem in public instead, use the{' '}
           <a href="https://github.com/richardsolomou/praetorium.gg/issues/new" className="text-info hover:text-parchment">
