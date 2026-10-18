@@ -176,7 +176,11 @@ function collectUnitChoices(
     const key = path.join('/')
     const cached = visibility.get(key)
     if (cached !== undefined) return cached
-    const value = !hiddenByRulesAt(definition, selection, path, index, options)
+    // Offered as a fresh candidate, or once the unit's choices open it (Trygon Prime).
+    // The built unit alone cannot close an option: what hides it there, such as a
+    // squadmate's default bolt rifle, is the player's to change.
+    const value =
+      !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options)
     visibility.set(key, value)
     return value
   }

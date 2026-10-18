@@ -528,7 +528,7 @@ export function hiddenByRules(
 /**
  * Visibility for a definition inside the unit that offers it, so a condition on the
  * root entry counts what the unit already holds, such as the Character upgrade a
- * Trygon needs before it can take Trygon Prime.
+ * Trygon needs before it can take Trygon Prime. A path the unit cannot build reads as hidden.
  */
 export function hiddenByRulesAt(
   definition: Definition,
@@ -544,7 +544,7 @@ export function hiddenByRulesAt(
   const unit = build(withPath(selection, path, 1), root, index, census, counter)
   let node = unit
   for (const id of path) node = node?.children.find((child) => child.id === id) ?? null
-  if (!unit || !node) return hiddenByRules(definition, index, options)
+  if (!unit || !node) return true
   root.children.push(unit)
   return hiddenIn(Boolean(definition.hidden || node.target.hidden), node, root, index, census)
 }

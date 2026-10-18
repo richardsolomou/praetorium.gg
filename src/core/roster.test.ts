@@ -2193,6 +2193,129 @@ describe('an enhancement a unit upgrade opens', () => {
   })
 })
 
+describe('an option hidden by what squadmates hold', () => {
+  // Death Company Intercessors hide the alternate-pistol model while any model keeps its
+  // default bolt rifle, and Hernkyn Yaegirs hide each Theyn weapon while the squad holds
+  // the other one; the player can change both, so neither closes the option.
+  const hiddenWhile = (childId: string, scope: string) => [
+    {
+      type: 'set' as const,
+      field: 'hidden',
+      value: true,
+      conditions: [{ type: 'atLeast' as const, value: 1, field: 'selections', scope, childId, includeChildSelections: true }],
+    },
+  ]
+  const weapon = (id: string, name: string, modifiers: ReturnType<typeof hiddenWhile> = []) => ({
+    id,
+    name,
+    type: 'upgrade' as const,
+    constraints: [{ id: `${id}-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+    modifiers,
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'death-company',
+        name: 'Death Company Intercessors',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'intercessors',
+            name: 'Intercessors',
+            defaultSelectionEntryId: 'intercessor',
+            constraints: [
+              { id: 'intercessors-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'intercessors-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'intercessor',
+                name: 'Intercessor',
+                type: 'model',
+                constraints: [{ id: 'intercessor-max', type: 'max', value: 10, field: 'selections', scope: 'parent' }],
+                selectionEntryGroups: [
+                  {
+                    id: 'intercessor-weapon',
+                    name: 'Weapon',
+                    defaultSelectionEntryId: 'bolt-rifle',
+                    constraints: [
+                      ...mandatory('intercessor-weapon-min'),
+                      { id: 'intercessor-weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [weapon('bolt-rifle', 'Bolt rifle'), weapon('chainsword', 'Chainsword')],
+                  },
+                ],
+              },
+              {
+                id: 'alternate-pistol',
+                name: 'Intercessor w/ alternate pistol',
+                type: 'model',
+                constraints: [{ id: 'alternate-pistol-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                modifiers: hiddenWhile('bolt-rifle', 'parent'),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'yaegirs',
+        name: 'Hernkyn Yaegirs',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'theyn',
+            name: 'Yaegir Theyn',
+            type: 'model',
+            constraints: [...mandatory('theyn-min'), { id: 'theyn-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntryGroups: [
+              {
+                id: 'theyn-weapon',
+                name: 'Weapon',
+                defaultSelectionEntryId: 'theyn-shotgun',
+                constraints: [
+                  ...mandatory('theyn-weapon-min'),
+                  { id: 'theyn-weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  weapon('theyn-shotgun', 'Bolt shotgun', hiddenWhile('revolver-yaegir', 'yaegirs')),
+                  weapon('theyn-revolver', 'Bolt revolver and plasma knife', hiddenWhile('shotgun-yaegir', 'yaegirs')),
+                ],
+              },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'hernkyn',
+            name: 'Hernkyn Yaegirs',
+            defaultSelectionEntryId: 'shotgun-yaegir',
+            constraints: [
+              { id: 'hernkyn-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'hernkyn-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              { id: 'shotgun-yaegir', name: 'Hernkyn Yaegir w/ bolt shotgun', type: 'model' },
+              { id: 'revolver-yaegir', name: 'Hernkyn Yaegir w/ revolver and knife', type: 'model' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const optionsOf = (entryId: string, name: string) =>
+    buildUnit(entryId, index)!
+      .choices.filter((choice) => choice.name === name)
+      .flatMap((choice) => choice.options.map((option) => option.name))
+
+  it('offers the alternate-pistol model while squadmates keep their bolt rifles', () => {
+    expect(optionsOf('death-company', 'Intercessors')).toContain('Intercessor w/ alternate pistol')
+  })
+
+  it('offers the Theyn either weapon while the squad holds bolt shotguns', () => {
+    expect(optionsOf('yaegirs', 'Weapon')).toContain('Bolt revolver and plasma knife')
+  })
+})
+
 describe('options inside one model of a squad', () => {
   // "OFFICER model only" is written as a condition on the option's ancestors, and the
   // officer is the model carrying the option, not the unit around it.
