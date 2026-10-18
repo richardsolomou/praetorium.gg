@@ -268,8 +268,8 @@ export function CreateBattle() {
                             }}
                           />
                           <p className="text-xs text-dim">
-                            You play their side. The game counts in your record but not on the leaderboard, and their name shows to anyone
-                            who can watch it.
+                            You play their side, or share a link so they play it on their own device. The game counts in your record but not
+                            on the leaderboard unless they sign up and claim it, and their name shows to anyone who can watch it.
                           </p>
                         </div>
                       ) : null

@@ -1,7 +1,9 @@
 import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import type { z } from 'zod'
 import type { Command, SubmitResult } from '../../../core/battle'
+import type { saveRosterSchema } from '../../../contracts/schemas'
 import { isRosterNotUsable } from '../../../core/rosterUse'
 import { isSignedOut } from '../../../core/session'
 import { submit } from '../../functions'
@@ -11,12 +13,17 @@ import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 
-type SubmittedCommand = Command | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
+/** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
+export type RosterAttachment =
+  | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
+  | { kind: 'attach-draft-roster'; draft: RosterDraftInput }
+type SubmittedCommand = Command | RosterAttachment
 export type SendCommand = (
   command: Command,
   /** `blocking: false` leaves other controls enabled while it is in flight, for presses meant to be repeated. */
   options?: { background?: boolean; blocking?: boolean; complete?: (appended: boolean) => void },
 ) => void
+type RosterDraftInput = z.input<typeof saveRosterSchema>
 type QueuedCommand = { command: SubmittedCommand; basedOn: number; background?: boolean; complete?: (appended: boolean) => void }
 
 function explain(result: SubmitResult, setup: boolean) {
@@ -158,14 +165,10 @@ export function useCommand(token: string, seq: number) {
     [drain, seq],
   )
 
-  const attachSavedRoster = useCallback(
-    (rosterId: string, playerId?: string) =>
+  const attachRoster = useCallback(
+    (command: RosterAttachment) =>
       new Promise<boolean>((complete) => {
-        queued.current.push({
-          command: { kind: 'attach-saved-roster', rosterId, ...(playerId ? { playerId } : {}) },
-          basedOn: seq,
-          complete,
-        })
+        queued.current.push({ command, basedOn: seq, complete })
         setProblem(null)
         setPending(true)
         void drain()
@@ -173,5 +176,5 @@ export function useCommand(token: string, seq: number) {
     [drain, seq],
   )
 
-  return { send, attachSavedRoster, problem, pending }
+  return { send, attachRoster, problem, pending }
 }

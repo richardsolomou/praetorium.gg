@@ -33,6 +33,7 @@ import { saveFailureReason } from './saveFailure'
 import { RosterSetupDialog } from './RosterSetupDialog'
 import { importedSetup, RosterImport } from './RosterImport'
 import { countLabel } from '../../text'
+import { readGuestBattle } from '../battles/guestBattle'
 
 const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
@@ -93,6 +94,7 @@ export function GuestRoster({
   const { data: factionIndex } = useQuery(factionIndexQuery())
   const factionResult = useQuery({ ...factionQuery(guest?.draft.catalogueId ?? ''), enabled: Boolean(guest) })
   const faction = factionResult.data
+  const battle = useClientValue(readGuestBattle, null)
 
   // Nothing is built yet, so the setup is the page rather than a dialog over an empty one.
   if (!guest) {
@@ -173,6 +175,14 @@ export function GuestRoster({
         <p role="alert" className="border-b border-discarded/40 bg-discarded/5 px-3 py-2 text-xs text-discarded">
           This browser is not keeping the list. Allow browser storage to save it; reloading will lose it.
         </p>
+      ) : null}
+      {battle ? (
+        <div className="flex flex-wrap items-center gap-2 border-b border-primary/40 bg-primary/5 px-3 py-2 text-xs">
+          <p className="min-w-0 flex-1">This device keeps your list. Bring it to your battle when it is ready.</p>
+          <Link to="/battles/$token" params={{ token: battle }} className={buttonClass({ size: 'sm' })}>
+            Back to your battle
+          </Link>
+        </div>
       ) : null}
       {linkedCode ? (
         <div

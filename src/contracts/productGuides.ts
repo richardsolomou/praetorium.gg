@@ -315,7 +315,7 @@ export const PRODUCT_GUIDES = [
     steps: [
       {
         title: 'Sign in and choose who is playing',
-        text: 'Save your army lists, then open Battles and choose New battle. Pick 1v1, 2v1 or 2v2 and fill the player seats. Add friends before seating them, seat a guest by name for an opponent without an account, or choose a practice opponent to play on your own. Choose Start battle to open setup.',
+        text: 'Save your army lists, then open Battles and choose New battle. Pick 1v1, 2v1 or 2v2 and fill the player seats. Add friends before seating them, seat a guest by name for an opponent without an account and share their link so they can play on their own phone, or choose a practice opponent to play on your own. Choose Start battle to open setup.',
       },
       {
         title: 'Complete the shared setup',
@@ -327,14 +327,14 @@ export const PRODUCT_GUIDES = [
       },
       {
         title: 'Review the finished battle',
-        text: 'Open the finished game to read its report and replay turns. Public finished games contribute to player records and standings. A game against a guest counts in your record but not in standings; practice games count in neither. Share the battle link only with the audience allowed by the seated players’ visibility settings.',
+        text: 'Open the finished game to read its report and replay turns. Public finished games contribute to player records and standings. A game against a guest counts in your record but not in standings until the guest signs up and adds it to theirs; practice games count in neither. Share the battle link only with the audience allowed by the seated players’ visibility settings.',
       },
     ],
     questions: [
       {
         question: 'Do all players need an account?',
         answer:
-          'No. Seat an opponent without an account as a guest: you enter their name and record their side for them. A practice opponent lets one signed-in player run both sides alone. Visitors can watch public games without signing in.',
+          'No. Seat an opponent without an account as a guest: you enter their name, then either record their side for them or share a link so they choose their army and play on their own device. After the game they can sign up to keep it in their record. A practice opponent lets one signed-in player run both sides alone. Visitors can watch public games without signing in.',
       },
       {
         question: 'Who can watch my battle?',

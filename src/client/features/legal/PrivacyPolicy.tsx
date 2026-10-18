@@ -31,7 +31,8 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
-          cookie remembers the order you sort your rosters in on that device.
+          cookie remembers the order you sort your rosters in on that device. If you join a battle as a guest, a cookie holds the seat's
+          secret on that device for up to 30 days; we keep only a hash of it.
         </p>
         <p>
           If you connect an MCP app, we store that app’s authorization, access grants and refresh tokens. You can revoke its access from
@@ -91,7 +92,8 @@ export function PrivacyPolicy() {
           </li>
           <li>Public battles may appear on the home page. Your profile's battle record includes only games its reader can watch.</li>
           <li>
-            The leaderboard counts finished public games from the last 90 days. Games with a practice opponent or a guest do not count.
+            The leaderboard counts finished public games from the last 90 days. Games with a practice opponent, or with a guest who has not
+            claimed the game with an account, do not count.
           </li>
           <li>
             Sealing a league roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can read

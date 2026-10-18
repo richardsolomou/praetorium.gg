@@ -14,6 +14,15 @@ export async function rosterForUse(userId: string, rosterId: string, options: { 
     throw new Response(options.lent ? 'this roster is not yours or lent to you' : 'you do not own this roster', { status: 403 })
   }
   const { roster: saved, lentBy } = usable
+  return { saved, snapshot: { ...(await frozenRoster(saved)), ...(lentBy ? { lentBy } : {}) } }
+}
+
+type UsableRoster = Parameters<typeof rosterSnapshot>[0] &
+  Parameters<typeof savedRosterPriceInput>[0] &
+  Parameters<typeof rosterUseError>[1]
+
+/** A list priced, checked, and frozen the way a battle fields it, whoever holds it. */
+export async function frozenRoster(saved: UsableRoster) {
   const catalogue = await app().catalogueFor(saved.catalogueId)
   if (!catalogue) throw new Response('army data is not available', { status: 409 })
   const rules = await app().rulesFor(saved.catalogueId)
@@ -27,5 +36,5 @@ export async function rosterForUse(userId: string, rosterId: string, options: { 
     saved.catalogueId,
     saved.picks.map((pick) => pick.entryId),
   )
-  return { saved, snapshot: { ...rosterSnapshot(saved, priced, details), ...(lentBy ? { lentBy } : {}) } }
+  return rosterSnapshot(saved, priced, details)
 }

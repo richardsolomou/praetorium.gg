@@ -1,3 +1,4 @@
+import type { RosterAttachment } from '../useCommand'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -43,7 +44,7 @@ type Props = {
   /** Every side's matchup, so a side the table plays settles its cards from its own. */
   missions: { side: number; mission: SideMission | null }[]
   send: SendCommand
-  attachSavedRoster: (rosterId: string, playerId?: string) => Promise<boolean>
+  attachRoster: (command: RosterAttachment) => Promise<boolean>
   pending: boolean
   problem: string | null
 }
@@ -87,7 +88,7 @@ const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each sid
  * Every answer is folded from the battle log, so both devices read the same page and
  * the same list of what is left; where each device is scrolled is its own.
  */
-export function Setup({ view, mission, missions, send: sendCommand, attachSavedRoster, pending, problem }: Props) {
+export function Setup({ view, mission, missions, send: sendCommand, attachRoster, pending, problem }: Props) {
   const table = foldSides(view, missions)
   const manual = view.settings.manual === true
   const yours = table.find((side) => side.isViewer)
@@ -267,7 +268,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachSavedR
           }
           needed={Boolean(owed.length || sizeProblem)}
         >
-          <ArmiesStep view={view} sides={table} send={send} attachSavedRoster={attachSavedRoster} pending={busy} problem={problem} />
+          <ArmiesStep view={view} sides={table} send={send} attachRoster={attachRoster} pending={busy} problem={problem} />
           <div data-onboarding="battle-setup-size">
             {formatOpen ? (
               <SetupPanel className="grid gap-4 sm:grid-cols-2">

@@ -873,6 +873,34 @@ export class SpacetimeRepository {
     return this.product.deleteBattle(...args)
   }
 
+  guestInvite(...args: Parameters<SpacetimeOperator['guestInvite']>) {
+    return this.product.guestInvite(...args)
+  }
+
+  replaceGuestInvite(...args: Parameters<SpacetimeOperator['replaceGuestInvite']>) {
+    return this.product.replaceGuestInvite(...args)
+  }
+
+  /** The invitation with the name of the host who shared it, which is all its landing page shows. */
+  async guestSeatByInvite(invite: string) {
+    const seat = await this.product.guestSeatByInvite(invite)
+    if (!seat) return null
+    const host = seat.hostId ? (await this.accounts.profilesByIds([seat.hostId])).get(seat.hostId) : undefined
+    return { ...seat, hostName: host?.name ?? null }
+  }
+
+  joinGuestSeat(...args: Parameters<SpacetimeOperator['joinGuestSeat']>) {
+    return this.product.joinGuestSeat(...args)
+  }
+
+  guestDevice(...args: Parameters<SpacetimeOperator['guestDevice']>) {
+    return this.product.guestDevice(...args)
+  }
+
+  claimGuestSeat(...args: Parameters<SpacetimeOperator['claimGuestSeat']>) {
+    return this.product.claimGuestSeat(...args)
+  }
+
   async battleByToken(token: string) {
     const snapshot = await this.product.battleByToken(token)
     return snapshot ? this.battleSeats(snapshot) : undefined

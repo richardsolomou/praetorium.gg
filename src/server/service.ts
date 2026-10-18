@@ -1,4 +1,6 @@
-import { newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import { createHash, timingSafeEqual } from 'node:crypto'
+import { isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import { guestSessionCurrent } from '../core/guestSession'
 import { matchingLeagueBattles } from '../shared/leagueBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
 import { offlineIdentifier, offlineContext } from './offlineContext'
@@ -834,6 +836,58 @@ export class PraetoriumService {
     return { result, history: { ...history, log }, application: applied === undefined ? {} : { applied } }
   }
 
+  /**
+   * The link a seated account shares so a guest plays their own side. `replace` retires the old link and any device
+   * that joined through it, so the table plays the seat again until someone opens the new one.
+   */
+  async guestInvite(token: string, userId: string, seatId: string, replace = false) {
+    const seats = await this.mustSeat(token, userId)
+    if (isGuestSeat(userId)) throw new Response('only a signed-in player can invite a guest', { status: 403 })
+    const seat = seats.players.find((player) => player.id === seatId && isGuestSeat(player.id))
+    if (!seat) throw new Response('no such guest in this battle', { status: 404 })
+    const invite = await this.repository[replace ? 'replaceGuestInvite' : 'guestInvite'](seats.battle.id, seatId, randomToken())
+    return { invite, joined: !replace && !seat.automated }
+  }
+
+  async guestInvitation(invite: string) {
+    const seat = await this.repository.guestSeatByInvite(invite)
+    return seat && { token: seat.token, seatId: seat.seatId, guestName: seat.guestName, hostName: seat.hostName, joined: seat.joined }
+  }
+
+  /** Seats this device in the guest's chair and returns the secret it will prove that with; the server keeps only its hash. */
+  async joinGuest(invite: string, userId: string | null) {
+    const seat = await this.repository.guestSeatByInvite(invite)
+    if (!seat) throw new Response('this invite is no longer available', { status: 404 })
+    if (userId && (await this.repository.battleByToken(seat.token))?.players.some((player) => player.id === userId))
+      throw new Response('you already have a seat in this battle', { status: 400 })
+    const secret = randomToken()
+    const joined = await this.repository.joinGuestSeat(invite, guestDeviceHash(secret), this.clock())
+    if (joined === 'missing') throw new Response('this invite is no longer available', { status: 404 })
+    if (joined === 'taken') throw new Response(`${seat.guestName} already joined on another device`, { status: 409 })
+    return { token: joined.token, seatId: joined.seatId, secret }
+  }
+
+  /** The guest seat a device's secret holds in this battle, or null once the host replaced the link or the session lapsed. */
+  async guestSeat(token: string, held: { seat: string; secret: string }) {
+    const device = await this.repository.guestDevice(held.seat)
+    if (!device || device.token !== token || !guestSessionCurrent(device.joinedAt, this.clock())) return null
+    return sameHash(device.deviceHash, guestDeviceHash(held.secret)) ? held.seat : null
+  }
+
+  /** Moves the guest seat this device played onto the account that has just signed in, once the battle is over. */
+  async claimGuest(token: string, userId: string, held: { seat: string; secret: string }) {
+    const device = await this.repository.guestDevice(held.seat)
+    if (!device || device.token !== token) throw new Response('this device is not playing that seat', { status: 403 })
+    const outcome = await this.repository.claimGuestSeat({
+      battleId: device.battleId,
+      seatId: held.seat,
+      userId,
+      deviceHash: guestDeviceHash(held.secret),
+      now: this.clock(),
+    })
+    if (outcome !== 'claimed') throw new Response(outcome, { status: 409 })
+  }
+
   /** Opening a battle stream is an authorization decision. */
   async userBattleId(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
@@ -962,4 +1016,12 @@ function referencedPlays(
         : play.primary,
     }
   })
+}
+
+function guestDeviceHash(secret: string) {
+  return createHash('sha256').update(secret).digest('hex')
+}
+
+function sameHash(left: string, right: string) {
+  return left.length === right.length && timingSafeEqual(Buffer.from(left), Buffer.from(right))
 }

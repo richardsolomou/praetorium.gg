@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { Link } from '@tanstack/react-router'
@@ -39,6 +40,8 @@ type Props = {
   missions: { side: number; mission: SideMission | null }[]
   report?: readonly ReportEntry[]
   timeline?: readonly ReplayPoint[]
+  /** Shown under the scoreboard of a finished game, for what the seated player can do next. */
+  lead?: ReactNode
 }
 
 const ignoreCommand = (_command: Command) => {}
@@ -51,6 +54,7 @@ export function Spectator({
   missions: currentMissions,
   report: currentReport,
   timeline = emptyTimeline,
+  lead,
 }: Props) {
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null)
   const seq = selectedSeq ?? timeline.at(-1)?.seq ?? currentView.seq
@@ -150,6 +154,7 @@ export function Spectator({
         {currentView.status === 'finished' ? (
           <SpectatorInvite view={currentView} className="mx-auto max-w-7xl rounded-lg border border-primary/40 bg-panel p-3" />
         ) : null}
+        {currentView.status === 'finished' && lead ? <div className="mx-auto w-full max-w-7xl">{lead}</div> : null}
 
         <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
           {table.map((side) => (

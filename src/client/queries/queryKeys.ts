@@ -55,6 +55,8 @@ export const battlesKey = () => ['battles']
 export const publicBattlesKey = () => ['public-battles']
 export const friendBattlesKey = () => ['friend-battles']
 export const battleKey = (token: string) => ['battle', token]
+export const guestInviteKey = (token: string, playerId: string) => ['guest-invite', token, playerId]
+export const guestInvitationKey = (invite: string) => ['guest-invitation', invite]
 export const reportKey = (token: string) => ['report', token]
 /** Without a sequence, every replayed point of the battle. */
 export const battleReplayKey = (token: string, seq?: number) =>

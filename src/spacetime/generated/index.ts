@@ -72,6 +72,7 @@ import * as BattleByTokenProcedure from './battle_by_token_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
+import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
 import * as CollectionByUserProcedure from './collection_by_user_procedure'
 import * as CollectionPhotoProcedure from './collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from './collection_photo_deletions_procedure'
@@ -89,9 +90,13 @@ import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_
 import * as FriendInviteByInviterProcedure from './friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from './friend_invite_by_token_procedure'
 import * as FriendshipsByUserProcedure from './friendships_by_user_procedure'
+import * as GuestDeviceProcedure from './guest_device_procedure'
+import * as GuestInviteProcedure from './guest_invite_procedure'
+import * as GuestSeatByInviteProcedure from './guest_seat_by_invite_procedure'
 import * as HeldCollectionPhotosProcedure from './held_collection_photos_procedure'
 import * as HomeRostersByUserProcedure from './home_rosters_by_user_procedure'
 import * as ImportCollectionProcedure from './import_collection_procedure'
+import * as JoinGuestSeatProcedure from './join_guest_seat_procedure'
 import * as LeagueBattleCandidatesProcedure from './league_battle_candidates_procedure'
 import * as LeagueByTokenProcedure from './league_by_token_procedure'
 import * as LeagueCommandProcedure from './league_command_procedure'
@@ -113,6 +118,7 @@ import * as RecentCollectionPhotosProcedure from './recent_collection_photos_pro
 import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
+import * as ReplaceGuestInviteProcedure from './replace_guest_invite_procedure'
 import * as RequestFriendProcedure from './request_friend_procedure'
 import * as RosterByIdProcedure from './roster_by_id_procedure'
 import * as RosterGroupByUserProcedure from './roster_group_by_user_procedure'
@@ -241,6 +247,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
+  __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
   __procedureSchema('collection_by_user', CollectionByUserProcedure.params, CollectionByUserProcedure.returnType),
   __procedureSchema('collection_photo', CollectionPhotoProcedure.params, CollectionPhotoProcedure.returnType),
   __procedureSchema('collection_photo_deletions', CollectionPhotoDeletionsProcedure.params, CollectionPhotoDeletionsProcedure.returnType),
@@ -266,9 +273,13 @@ const proceduresSchema = __procedures(
   __procedureSchema('friend_invite_by_inviter', FriendInviteByInviterProcedure.params, FriendInviteByInviterProcedure.returnType),
   __procedureSchema('friend_invite_by_token', FriendInviteByTokenProcedure.params, FriendInviteByTokenProcedure.returnType),
   __procedureSchema('friendships_by_user', FriendshipsByUserProcedure.params, FriendshipsByUserProcedure.returnType),
+  __procedureSchema('guest_device', GuestDeviceProcedure.params, GuestDeviceProcedure.returnType),
+  __procedureSchema('guest_invite', GuestInviteProcedure.params, GuestInviteProcedure.returnType),
+  __procedureSchema('guest_seat_by_invite', GuestSeatByInviteProcedure.params, GuestSeatByInviteProcedure.returnType),
   __procedureSchema('held_collection_photos', HeldCollectionPhotosProcedure.params, HeldCollectionPhotosProcedure.returnType),
   __procedureSchema('home_rosters_by_user', HomeRostersByUserProcedure.params, HomeRostersByUserProcedure.returnType),
   __procedureSchema('import_collection', ImportCollectionProcedure.params, ImportCollectionProcedure.returnType),
+  __procedureSchema('join_guest_seat', JoinGuestSeatProcedure.params, JoinGuestSeatProcedure.returnType),
   __procedureSchema('league_battle_candidates', LeagueBattleCandidatesProcedure.params, LeagueBattleCandidatesProcedure.returnType),
   __procedureSchema('league_by_token', LeagueByTokenProcedure.params, LeagueByTokenProcedure.returnType),
   __procedureSchema('league_command', LeagueCommandProcedure.params, LeagueCommandProcedure.returnType),
@@ -294,6 +305,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),
+  __procedureSchema('replace_guest_invite', ReplaceGuestInviteProcedure.params, ReplaceGuestInviteProcedure.returnType),
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
   __procedureSchema('roster_by_id', RosterByIdProcedure.params, RosterByIdProcedure.returnType),
   __procedureSchema('roster_group_by_user', RosterGroupByUserProcedure.params, RosterGroupByUserProcedure.returnType),

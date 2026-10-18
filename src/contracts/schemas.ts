@@ -213,6 +213,9 @@ export const onboardingUpdateSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('welcome') }),
 ])
 export const friendInviteSchema = z.object({ token })
+/** A guest seat in a battle; `replace` retires its link and any device that joined through it. */
+export const guestInviteSchema = z.object({ token, playerId: id, replace: z.boolean().default(false) })
+export const guestInvitationSchema = z.object({ invite: token })
 
 /**
  * A player's profile, and what to narrow their record by.
@@ -253,13 +256,6 @@ export const adminUsersSchema = z.object({
  * `expectedSeq` is the client's claim about the history it has already seen.
  * Sending it is what makes a command conditional on nothing having happened since.
  */
-const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
-export const submitSchema = z.object({
-  token,
-  expectedSeq: z.number().int().min(0),
-  command: z.union([commandSchema, attachSavedRosterSchema]),
-})
-
 /**
  * The format restrictions this roster has switched off, by the ids `formatRules` names.
  *
@@ -350,6 +346,15 @@ export const saveRosterSchema = z
   })
   .superRefine(validatePointsBudget)
   .overwrite((value) => withStandardBudget(currentRosterIds(value)))
+
+const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
+/** A guest has no saved lists, so they field the one this device is building, priced and frozen by the server. */
+const attachDraftRosterSchema = z.object({ kind: z.literal('attach-draft-roster'), draft: saveRosterSchema }).strict()
+export const submitSchema = z.object({
+  token,
+  expectedSeq: z.number().int().min(0),
+  command: z.union([commandSchema, attachSavedRosterSchema, attachDraftRosterSchema]),
+})
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(200_000) })

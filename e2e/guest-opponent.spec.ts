@@ -39,7 +39,7 @@ test('a host records a real game against a guest without an account', async ({ p
   await createBattle(page, {
     guest: GUEST,
     beforeCreate: async (dialog) => {
-      await expect(dialog.getByText(/You play their side\. The game counts in your record but not on the leaderboard/)).toBeVisible()
+      await expect(dialog.getByText(/You play their side, or share a link so they play it on their own device\./)).toBeVisible()
       await page.screenshot({ path: test.info().outputPath('create-desktop.png') })
     },
   })

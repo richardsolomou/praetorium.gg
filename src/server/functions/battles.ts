@@ -4,7 +4,9 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
 import type { PraetoriumService } from '../service'
-import { currentUserId, requireUser, requireUserId } from '../playerSession'
+import { currentUserId, requireUser } from '../playerSession'
+import { battleViewerId, requireBattleActor } from '../guestSession'
+import { isGuestSeat } from '../../core/newBattle'
 import { submittedBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
 import {
@@ -111,7 +113,7 @@ export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const userId = await currentUserId()
+      const userId = await battleViewerId(data.token)
       return orNull(async () => app().service.screen(data.token, userId, await app().battleReadRulesFor()))
     }),
   )
@@ -119,13 +121,13 @@ export const openBattle = createServerFn({ method: 'GET' })
 export const replayBattleAt = createServerFn({ method: 'GET' })
   .validator(battleReplaySchema)
   .handler(({ data }) =>
-    rpc(async () => app().service.replayAt(data.token, await currentUserId(), data.seq, await app().battleReadRulesFor())),
+    rpc(async () => app().service.replayAt(data.token, await battleViewerId(data.token), data.seq, await app().battleReadRulesFor())),
   )
 
 export const replayBattleBatch = createServerFn({ method: 'GET' })
   .validator(battleReplayBatchSchema)
   .handler(({ data }) =>
-    rpc(async () => app().service.replayBatch(data.token, await currentUserId(), data.seqs, await app().battleReadRulesFor())),
+    rpc(async () => app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, await app().battleReadRulesFor())),
   )
 
 export const leagueBattleOptions = createServerFn({ method: 'GET' })
@@ -159,17 +161,20 @@ export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema.extend({ workspace: z.boolean().optional() }))
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
+      const actorId = await requireBattleActor(data.token)
       const startedAt = performance.now()
-      const command = await submittedBattleCommand(player.id, data.command)
+      const command = await submittedBattleCommand(actorId, data.command)
       const result: Awaited<ReturnType<PraetoriumService['submitWithWorkspace']>> = await app().service[
         data.workspace ? 'submitWithWorkspace' : 'submit'
-      ](data.token, player.id, data.expectedSeq, command, await app().rulesFor())
-      await captureBattleCommand(player.id, command, result.result, performance.now() - startedAt, 'direct')
+      ](data.token, actorId, data.expectedSeq, command, await app().rulesFor())
+      // A guest is nobody's person in analytics; their browser reports its own anonymous events.
+      if (!isGuestSeat(actorId)) await captureBattleCommand(actorId, command, result.result, performance.now() - startedAt, 'direct')
       return result
     }),
   )
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId(), await app().battleReadRulesFor())))
+  .handler(({ data }) =>
+    rpc(async () => app().service.report(data.token, await requireBattleActor(data.token), await app().battleReadRulesFor())),
+  )
