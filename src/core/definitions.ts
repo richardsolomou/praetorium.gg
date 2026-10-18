@@ -198,9 +198,9 @@ export function modelOwnerOf(trail: readonly string[], index: CatalogueIndex): {
   return null
 }
 
-/** A model on this path the squad may take more than one of, and where it stands. */
+/** A model on this path the squad may take more than one of, or must when it states no maximum, and where it stands. */
 export function repeatedModelOn(path: readonly string[], index: CatalogueIndex): { path: string[]; definition: Definition } | null {
-  return modelOnPath(path, index, (definition) => (maximumCount(definition, index) ?? 1) > 1)
+  return modelOnPath(path, index, (definition) => (maximumCount(definition, index) ?? requiredCount(definition, index)) > 1)
 }
 
 /** A model on this path the squad need not take at all, but may take a bounded number of. */

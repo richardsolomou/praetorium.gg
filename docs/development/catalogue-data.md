@@ -196,7 +196,7 @@ Collection photos live in the private bucket as `collection-photos/<uuid>`, up t
 
 ## Building units
 
-- Required models come from the datasheet; excess weapon counts cannot invent them. Collective counts go through `collective.ts`, never independent multiplication.
+- Required models come from the datasheet; excess weapon counts cannot invent them. A selection under an entry stores one model's share unless `collective.ts` says it stores the unit's total; pricing, per-model limits, wargear lists and imports all read counts through it, never independent multiplication. A spread giving models different options splits the model into separate selections rather than storing a squad total under one.
 - Defaults fill required group counts within caps, preferring declared defaults then cheapest choices; a subgroup without its own minimum reserves what its occupants require (Indomitor Kill Team). `refit` fills only required equipment after resizing.
 - The size control resizes a required group before a wider optional sibling (Wolf Guard Headtakers), and a specialist replaces a model of the kind its group is sized by (Cthonian Beserks).
 - A Warlord the player removes stays removed, so a doubles roster can leave it to its teammate.

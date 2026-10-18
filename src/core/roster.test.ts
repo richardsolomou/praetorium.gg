@@ -2187,7 +2187,7 @@ describe('a squad the data will not let hold two things at once', () => {
                   id: 'guns',
                   name: 'Weapons',
                   defaultSelectionEntryId: 'blaster',
-                  constraints: [{ id: 'guns-max', type: 'max', value: 5, field: 'selections', scope: 'parent' }],
+                  constraints: [{ id: 'guns-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
                   selectionEntries: [
                     { id: 'blaster', name: 'Gauss blaster', type: 'upgrade' },
                     { id: 'carbine', name: 'Tesla carbine', type: 'upgrade' },

@@ -9,7 +9,7 @@
  */
 
 import type { CatalogueIndex } from './catalogue'
-import { storesUnitTotal } from './collective'
+import { fieldedCount } from './collective'
 import { childrenOf, isRosterToggle, resolve } from './definitions'
 import type { Selection } from './evaluate'
 import { routeSlug } from './slug'
@@ -56,7 +56,7 @@ export function wargearOf(selection: Selection, index: CatalogueIndex, carriers 
       const definition = index.definitions.get(child.id)
       const kind = definition ? resolve(definition, index).type : undefined
       const own = child.count ?? 1
-      const count = definition && storesUnitTotal(definition, parent, index) ? own : carried * own
+      const count = fieldedCount(definition, parent, index, own, carried)
       const target = definition && resolve(definition, index)
       // Most upgrades with children are only headings, but a described weapon can
       // also hold another choice. The Overlord's weapon holds its resurrection-orb

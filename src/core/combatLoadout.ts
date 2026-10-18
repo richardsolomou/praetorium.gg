@@ -1,7 +1,7 @@
 import { groupBy } from './collections'
 import type { CatalogueIndex, Definition, Profile } from './catalogue'
 import type { StructuredDatasheetProfile } from './datasheet'
-import { isCollectiveGroup, storesUnitTotal } from './collective'
+import { fieldedCount, isCollectiveGroup } from './collective'
 import { resolve } from './definitions'
 import { datasheetProfileKind } from './datasheetStructure'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
@@ -53,7 +53,7 @@ function equippedWeapons(selection: Selection, index: CatalogueIndex, models: nu
     if (!definition || (node.count ?? 1) <= 0) return
     const target = resolve(definition, index)
     if (skipModels && target.type === 'model') return
-    const carried = parent && storesUnitTotal(definition, parent, index) ? (node.count ?? 1) : count * (node.count ?? 1)
+    const carried = fieldedCount(definition, parent, index, node.count ?? 1, count)
     found.push(...profileEquipment(weaponProfiles(definition, index), carried, target.name ?? node.id))
     node.selections?.forEach((child) => walk(child, carried, definition))
   }
