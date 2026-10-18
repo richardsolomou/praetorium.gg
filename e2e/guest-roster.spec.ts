@@ -1,20 +1,38 @@
 import { expect, type Page, test } from './test'
-import { signUp, uniqueName } from './account'
+import { retryUntilVisible, signUp, uniqueName, visitorSetup } from './account'
 import { add } from './builder.harness'
 
-/** A visitor starts a Necrons list on the builder, with no account behind them. */
+/** A visitor starts a Necrons list from the rosters page, with no account behind them, and opens it in the builder. */
 async function startGuestRoster(page: Page) {
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  const setup = page.getByRole('region', { name: 'Create roster' })
+  const setup = await visitorSetup(page)
   await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Start building' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.getByLabel('Add a unit')).toBeVisible()
 }
+
+const PHONE = { width: 390, height: 844 }
+
+/** Saves the page at desktop and phone widths, checking neither scrolls sideways. */
+async function shot(page: Page, name: string) {
+  const before = page.viewportSize()!
+  for (const [label, size] of [
+    ['desktop', { width: 1280, height: 900 }],
+    ['phone', PHONE],
+  ] as const) {
+    await page.setViewportSize(size)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(size.width)
+    await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`) })
+  }
+  await page.setViewportSize(before)
+}
+
+const DRAFT_KEY = 'praetorium.guest-draft'
+const storedDraft = (page: Page) => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)
 
 /** Every save a page sends, told apart from the price by the fields only a saved list carries. */
 function recordSaves(page: Page) {
@@ -44,23 +62,22 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
   expect(saves).toEqual([])
 })
 
-const DRAFT_KEY = 'praetorium.guest-draft'
-
 test("a visitor's list survives a reload and a new tab", async ({ page, context }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
   // Edits are kept once they settle, so the reload waits for the stored draft to hold the unit.
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
 
-  // The server cannot see the draft, only the cookie saying there is one, so its frame is the builder rather than the setup.
+  // The server cannot see the draft, only the cookie saying there is one, so its rosters page holds a row rather than saying there are none.
   const firstFrame = await (await page.request.get('/rosters')).text()
-  expect(firstFrame).toContain('data-roster-builder')
-  expect(firstFrame).not.toContain('aria-label="Create roster"')
+  expect(firstFrame).toContain('Loading your rosters')
+  expect(firstFrame).not.toContain('No rosters yet')
   await page.reload()
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
 
   const later = await context.newPage()
   await later.goto('/rosters')
+  await later.locator('[data-roster]').getByRole('link').click()
   await expect(later.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
 })
 
@@ -69,18 +86,16 @@ test("a visitor's list follows an edit made in another tab", async ({ page, cont
   await add(page, 'Necron Warriors')
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
   const other = await context.newPage()
-  await other.goto('/rosters')
+  await other.goto(page.url())
   await other.waitForLoadState('networkidle')
   await add(other, 'Immortals')
 
   await expect(page.locator('[data-unit="Immortals"]').first()).toBeVisible()
 })
 
-test('a guest builder stays in the mobile viewport when storage refuses the draft', async ({ page }) => {
+test('a visitor starting a list is told when storage refuses it, and stays on the setup', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  const setup = page.getByRole('region', { name: 'Create roster' })
+  const setup = await visitorSetup(page)
   await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
@@ -93,11 +108,10 @@ test('a guest builder stays in the mobile viewport when storage refuses the draf
       },
     })
   })
-  await setup.getByRole('button', { name: 'Start building' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
 
-  await expect(page.getByRole('alert')).toContainText('This browser is not keeping the list')
-  await expect(page.locator('[data-native-app-content]')).toHaveAttribute('data-immersive', 'true')
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expect(setup).toContainText('This browser is not keeping lists')
+  expect(new URL(page.url()).pathname).toBe('/rosters')
   await page.screenshot({ path: 'test-results/guest-roster-mobile-unkept.png' })
 })
 
@@ -149,8 +163,90 @@ test('a list left on the device can be discarded after signing in', async ({ pag
   await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
 })
 
+test("a visitor's roster is listed on the rosters page as a saved one is", async ({ page }) => {
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
+  const builder = page.url()
+
+  await page.goto('/rosters')
+  const row = page.locator('[data-roster]')
+  await expect(row).toHaveCount(1)
+  await expect(row).toContainText('Necrons')
+  await expect(row).toContainText('1 unit')
+  await expect(row.locator('.readout')).not.toHaveText(/^—\//)
+  await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link')).toHaveText(['Mine', 'Friends', 'Public'])
+  await shot(page, 'round4-visitor-rosters')
+  await row.getByRole('link').click()
+  await expect(page).toHaveURL(builder)
+})
+
+test('a visitor keeping a roster is asked to sign up for a second one', async ({ page }) => {
+  const saves = recordSaves(page)
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
+  const kept = await storedDraft(page)
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  const prompt = page.getByRole('dialog', { name: 'Keep more than one roster' })
+
+  await retryUntilVisible(prompt, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  await expect(prompt.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/sign-in?next=%2Frosters&join=true')
+  await shot(page, 'round4-second-roster')
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Import roster' }).click()
+  await expect(prompt).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: /^Actions for / }).click()
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click()
+  await expect(prompt).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.goto('/rosters?view=public')
+  await expect(page.getByRole('heading', { name: 'Public rosters' })).toBeVisible()
+
+  expect([await storedDraft(page), saves]).toEqual([kept, []])
+})
+
+test("a visitor's account-only roster actions ask them to sign up", async ({ page }) => {
+  await startGuestRoster(page)
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: /^Actions for / }).click()
+  await page.getByRole('menuitem', { name: 'Create variant' }).click()
+
+  await expect(page.getByRole('dialog', { name: 'Make variants with an account' })).toBeVisible()
+})
+
+test("a visitor's Friends tab offers an account rather than an empty list", async ({ page }) => {
+  await page.goto('/rosters?view=friends')
+
+  await expect(page.getByRole('heading', { name: 'See what your friends are building' })).toBeVisible()
+})
+
+test('signing up from the second-roster prompt moves the roster into the account', async ({ page }) => {
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
+  const id = new URL(page.url()).pathname.split('/').at(-1)
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  const prompt = page.getByRole('dialog', { name: 'Keep more than one roster' })
+  await retryUntilVisible(prompt, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  await prompt.getByRole('link', { name: 'Create an account' }).click()
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Your name').fill(uniqueName('Visitor'))
+  await page.getByLabel('Email').fill(`visitor-${crypto.randomUUID()}@example.test`)
+  await page.getByLabel('Password').fill('a-long-enough-password')
+  await page.getByRole('button', { name: 'Create account and save roster' }).click()
+
+  await page.waitForURL(new RegExp(`/rosters/${id}$`))
+  await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+  expect(await storedDraft(page)).toBe('')
+})
+
 test("a visitor's list for an army the data no longer holds can be started again", async ({ page }) => {
   await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
   await page.waitForLoadState('networkidle')
   await page.evaluate(
     (key) =>
@@ -164,25 +260,24 @@ test("a visitor's list for an army the data no longer holds can be started again
       ),
     DRAFT_KEY,
   )
-  await page.reload()
+  await page.goto('/rosters/guest-missing-army')
 
   await expect(page.getByRole('heading', { name: 'This army is not available' })).toBeVisible()
   await page.getByRole('button', { name: 'Start a new list' }).click()
-  await expect(page.getByRole('region', { name: 'Create roster' })).toBeVisible()
+  await page.waitForURL(/\/rosters$/)
+  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
 })
 
 for (const width of [1440, 390]) {
   test(`allied roster slots unlock and explain exhausted limits at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/rosters')
-    await page.waitForLoadState('networkidle')
-    const setup = page.getByRole('region', { name: 'Create roster' })
+    const setup = await visitorSetup(page)
     await setup.getByRole('combobox', { name: 'Faction' }).click()
     await page.getByPlaceholder('Search factions…').fill('Chaos Knights')
     await page.getByRole('option', { name: 'Chaos Knights', exact: true }).click()
     await setup.getByRole('button', { name: 'Select Infernal Lance' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets' }).click()
-    await setup.getByRole('button', { name: 'Start building' }).click()
+    await setup.getByRole('button', { name: 'Create roster' }).click()
     if (width < 1300) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
     await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
@@ -322,14 +417,15 @@ for (const width of [1440, 390]) {
 
 test('a visitor draft built on the retired Marine codex opens and prices on the current book', async ({ page }) => {
   const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
+  const id = crypto.randomUUID()
   await page.goto('/rosters')
   await page.evaluate(
-    ({ captain, intercessors }) => {
+    ({ draftId, captain, intercessors }) => {
       sessionStorage.setItem(
         'praetorium.workspace-state:/rosters:guest-draft',
         JSON.stringify({
           version: 1,
-          id: crypto.randomUUID(),
+          id: draftId,
           draft: {
             name: '',
             catalogueId: 'e0af-67df-9d63-8fb8',
@@ -347,9 +443,9 @@ test('a visitor draft built on the retired Marine codex opens and prices on the 
         }),
       )
     },
-    { captain: retired('024a-3fea-7765-4e82'), intercessors: retired('34c7-75dd-fcff-ec94') },
+    { draftId: id, captain: retired('024a-3fea-7765-4e82'), intercessors: retired('34c7-75dd-fcff-ec94') },
   )
-  await page.reload()
+  await page.goto(`/rosters/${id}`)
   await expect(page.locator('[data-unit="Captain"]')).toBeVisible()
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toContainText(/\d+ pts/)
   await expect(page.getByText(/This army is not available|Army book replaced|no longer available/)).toHaveCount(0)
@@ -358,9 +454,7 @@ test('a visitor draft built on the retired Marine codex opens and prices on the 
 for (const width of [390, 1280]) {
   test(`a detachment card selects from its name and opens its reference only from the reference icon at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/rosters')
-    await page.waitForLoadState('networkidle')
-    const setup = page.getByRole('region', { name: 'Create roster' })
+    const setup = await visitorSetup(page)
     await setup.getByRole('combobox', { name: 'Faction' }).click()
     await page.getByPlaceholder('Search factions…').fill('Necrons')
     await page.getByRole('option', { name: 'Necrons', exact: true }).click()

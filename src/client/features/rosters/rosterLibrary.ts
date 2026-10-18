@@ -21,6 +21,7 @@ import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
 import type { RosterSetupReview } from './rosterSetupReview'
+import { claimInput, clearGuestDraft, type GuestDraft, keepReviewedDraft } from './guestDraft'
 
 /** One saved list, as the library reads it back. */
 export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
@@ -32,16 +33,19 @@ export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof saved
  * the overflow button and from the right-click menu — and because sharing has a
  * rollback that has no business in a component.
  */
-export function useRosterActions(origin: string) {
+export function useRosterActions(origin: string, device?: DeviceRoster | null) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const refresh = () => invalidateSavedRosters(queryClient)
+  const onDevice = (roster: { id?: string }) => (device && device.guest.id === roster.id ? device : null)
 
   const [shareFeedback, setShareFeedback] = useState<{ id: string; result: 'copied' | 'shared' } | null>(null)
   const [shareProblem, setShareProblem] = useState<string | null>(null)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const load = async (roster: SavedRoster) => {
+    const kept = onDevice(roster)
+    if (kept) return claimInput(kept.guest)
     const complete = await sharedRoster({ data: { id: roster.id } })
     if (!complete) throw new Error('That roster could not be loaded.')
     return complete
@@ -59,7 +63,16 @@ export function useRosterActions(origin: string) {
   const duplicate = useMutation(copying(false))
   const variant = useMutation(copying(true))
 
-  const remove = useMutation({ mutationFn: (id: string) => deleteRoster({ data: { id } }), onSuccess: refresh })
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const kept = onDevice({ id })
+      if (!kept) return deleteRoster({ data: { id } })
+      clearGuestDraft()
+      kept.onRemoved()
+      return null
+    },
+    onSuccess: refresh,
+  })
 
   const access = useMutation({
     mutationFn: ({ id, visibility }: { id: string; visibility: RosterVisibility }) => setRosterVisibility({ data: { id, visibility } }),
@@ -99,16 +112,25 @@ export function useRosterActions(origin: string) {
   const exchange = useMutation({
     // Priced now rather than from the library row, which a restored cache can show out of date.
     mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
-      const [roster, [priced]] = await Promise.all([load(summary), savedRosterPage({ data: { ids: [summary.id] } })])
+      const kept = onDevice(summary)
+      const [roster, points] = await Promise.all([
+        load(summary),
+        kept ? kept.points : savedRosterPage({ data: { ids: [summary.id] } }).then(([priced]) => priced?.points ?? null),
+      ])
       const name = roster.name || title
-      return { name, code: await encodeRosterExchange({ ...roster, name, points: priced?.points ?? null }) }
+      return { name, code: await encodeRosterExchange({ ...roster, name, points }) }
     },
     onSuccess: (code) => setExchangeCode(code),
   })
 
   const update = useMutation({
-    mutationFn: async (review: RosterSetupReview) =>
-      saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave),
+    mutationFn: async (review: RosterSetupReview) => {
+      const kept = onDevice(review.candidate)
+      if (!kept) return saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave)
+      if (!keepReviewedDraft(kept.guest, review.candidate, review.source)) throw new Error('This browser could not keep the roster.')
+      kept.onChanged()
+      return null
+    },
     onSuccess: refresh,
   })
 
@@ -169,6 +191,12 @@ export function useRosterActions(origin: string) {
 }
 
 export type RosterActions = ReturnType<typeof useRosterActions>
+
+/**
+ * A visitor's list, which the library lists beside nothing else: its actions change browser storage rather than the
+ * server, and `points` is its row's price, since no saved page prices it.
+ */
+export type DeviceRoster = { guest: GuestDraft; points: number | null; onChanged: () => void; onRemoved: () => void }
 
 /** A reviewed conversion saved beside its original, which keeps its rules version. */
 export async function convertAsVariantOf(review: RosterSetupReview) {

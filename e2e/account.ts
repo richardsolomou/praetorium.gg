@@ -90,6 +90,15 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
   }).toPass({ timeout: 30_000 })
 }
 
+/** A visitor's roster setup, opened from the rosters page as a signed-in player opens theirs. */
+export async function visitorSetup(page: Page) {
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  return setup
+}
+
 /** Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before hydration opens nothing. */
 export async function chooseRosterAction(page: Page, item: string) {
   const choice = page.getByRole('menuitem', { name: item, exact: true })

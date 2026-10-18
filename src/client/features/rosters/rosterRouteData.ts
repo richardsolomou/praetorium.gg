@@ -12,6 +12,7 @@ import {
 } from '../../queries'
 import { fieldedRoster } from './fieldedRoster'
 import { normalisePicks } from './rosterPicks'
+import { peekGuestDraft } from './guestDraft'
 
 export async function loadRoster(queryClient: QueryClient, id: string, deps: { battle?: string; league?: string; event?: string }) {
   if (deps.league) {
@@ -26,6 +27,8 @@ export async function loadRoster(queryClient: QueryClient, id: string, deps: { b
     if (!roster) throw notFound()
     return { editable: false, snapshot: true }
   }
+  // A visitor's list lives in this browser under the id an account will save it with.
+  if (!import.meta.env.SSR && peekGuestDraft()?.id === id) return { editable: false, snapshot: false, guestDraft: true }
   const bootstrapOptions = rosterBootstrapQuery(id)
   // A cached refusal is asked again: access can arrive since, through a loan or a visibility change.
   const cachedBootstrap = queryClient.getQueryData(bootstrapOptions.queryKey) ?? undefined

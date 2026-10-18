@@ -116,6 +116,8 @@ import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
 import type { CombatRoster } from '../simulator/useCombatant'
 import { countLabel } from '../../text'
 import { Problem } from '../../components/Problem'
+import { useAccountPrompt } from './AccountPrompt'
+import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -474,28 +476,34 @@ export function ListBuilder({
     },
   })
 
-  // A saved list is copied on the server, which records where the copy came from; a fielded army is copied as shown.
+  const account = useAccountPrompt()
+  // A saved list is copied on the server, which records where the copy came from; a fielded army is copied as shown,
+  // and a visitor's copy becomes the one list their device keeps.
   const duplicateRoster = useMutation({
-    mutationFn: async () =>
-      savedId && !battle
-        ? copyRoster({ data: { id: savedId, variant: false } })
-        : saveRoster({
-            data: {
-              name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
-              catalogueId,
-              detachmentIds,
-              disposition,
-              limit,
-              pointsBudget,
-              picks: annotated,
-              prep: storedPrep,
-              waivedRules,
-              optionalRules,
-              borrowedDetachmentId,
-              visibility: (await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })).rosterVisibility,
-              source: initial.source,
-            },
-          }),
+    mutationFn: async () => {
+      if (savedId && !battle && me) return copyRoster({ data: { id: savedId, variant: false } })
+      const copy = {
+        name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
+        catalogueId,
+        detachmentIds,
+        disposition,
+        limit,
+        pointsBudget,
+        picks: annotated,
+        prep: storedPrep,
+        waivedRules,
+        optionalRules,
+        borrowedDetachmentId,
+        source: initial.source,
+      }
+      if (me)
+        return saveRoster({
+          data: { ...copy, visibility: (await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })).rosterVisibility },
+        })
+      const kept = guestDraftOf({ ...copy, visibility: 'private' })
+      if (!writeGuestDraft(kept)) throw new Error('This browser is not keeping lists.')
+      return { id: kept.id }
+    },
     onSuccess: async ({ id }) => {
       posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), shared: true })
       await invalidateSavedRosters(queryClient)
@@ -1217,6 +1225,19 @@ export function ListBuilder({
                         <HandHelping /> Lend to a friend
                       </DropdownMenuItem>
                     </>
+                  ) : guest ? (
+                    // Offered as an account offers them, so a visitor finds out what signing up adds.
+                    <>
+                      <DropdownMenuItem onClick={() => account.ask('variant')}>
+                        <GitBranchPlus /> Create variant
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => account.ask('lock')}>
+                        <Lock /> Lock roster
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => account.ask('lend')}>
+                        <HandHelping /> Lend to a friend
+                      </DropdownMenuItem>
+                    </>
                   ) : null}
                   <DropdownMenuSeparator />
                   {testTargets}
@@ -1294,8 +1315,11 @@ export function ListBuilder({
                       <Copy /> Duplicate to my rosters
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path }} />}>
-                      <Copy /> Sign in to duplicate
+                    <DropdownMenuItem
+                      disabled={duplicateRoster.isPending || !positioned.length}
+                      onClick={() => (peekGuestDraft() ? account.ask('another-roster') : duplicateRoster.mutate())}
+                    >
+                      <Copy /> Duplicate to this device
                     </DropdownMenuItem>
                   )}
                   {!frozen ? <DropdownMenuSeparator /> : null}
@@ -1732,6 +1756,7 @@ export function ListBuilder({
       />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
+      {account.prompt}
       {savedId && (editable || locked) && !guest ? (
         <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
       ) : null}

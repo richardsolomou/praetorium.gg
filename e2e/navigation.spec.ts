@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from './test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, followLink, retryUntilVisible, signUp } from './account'
+import { confirmRosterSetup, createRoster, followLink, retryUntilVisible, signUp, visitorSetup } from './account'
 import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -809,9 +809,9 @@ test('a matchup keeps each action in the column of the side whose mission asks f
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
   const reference = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Reference', exact: true })
-  // Signed out, the library is the builder a visitor can use without an account.
+  // Signed out, the library is the same page, holding the one roster a visitor keeps without an account.
   await page.goto('/rosters')
-  await expect(page.getByRole('heading', { name: 'Build a roster' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
 
   await signUp(page, 'Alice')
   await page.goto('/rosters')
@@ -1154,14 +1154,14 @@ test('the first sort choice orders saved rosters and persists on mobile', async 
 test('a guest roster stays within the native mobile builder viewport', async ({ page, context }) => {
   await context.addInitScript({ content: `window.ReactNativeWebView = { postMessage: () => {} };\n${NATIVE_BROWSER_BRIDGE_SCRIPT}` })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/rosters')
+  const setup = await visitorSetup(page)
   const search = page.getByPlaceholder('Search factions…')
-  await retryUntilVisible(search, () => page.getByRole('combobox', { name: 'Faction' }).click())
+  await retryUntilVisible(search, () => setup.getByRole('combobox', { name: 'Faction' }).click())
   await search.fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await page.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await page.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await page.getByRole('button', { name: 'Start building' }).click()
+  await page.getByRole('button', { name: 'Create roster' }).click()
 
   const content = page.locator('[data-native-app-content]')
   await expect(content).toHaveAttribute('data-immersive', 'true')

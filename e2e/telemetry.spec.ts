@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, signInAsPreview, signUp, uniqueName } from './account'
+import { retryUntilVisible, signInAsPreview, signUp, uniqueName, visitorSetup } from './account'
 import { add } from './builder.harness'
 import { chooseCombatUnit } from './combat'
 
@@ -259,16 +259,14 @@ test('a datasheet reader who starts a roster or the simulator is attributed to t
 
 for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) {
   test(`a guest save attempt reports ${units.length} fielded units from the current draft`, async ({ page }) => {
-    await page.goto('/rosters')
-    await page.waitForLoadState('networkidle')
-    const setup = page.getByRole('region', { name: 'Create roster' })
+    const setup = await visitorSetup(page)
     await setup.getByRole('combobox', { name: 'Faction' }).click()
     await page.getByPlaceholder('Search factions…').fill('Necrons')
     await page.getByRole('option', { name: 'Necrons', exact: true }).click()
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     const events = await recordEvents(page)
-    await setup.getByRole('button', { name: 'Start building' }).click()
+    await setup.getByRole('button', { name: 'Create roster' }).click()
     await expect(page.getByLabel('Add a unit')).toBeVisible()
     for (const unit of units) await add(page, unit)
     const save = page.getByRole('button', { name: 'Save roster', exact: true })

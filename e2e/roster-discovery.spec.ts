@@ -140,7 +140,7 @@ test('a faction page leads to its public armies, and a filter none match explain
 
 test('the old discovery address keeps its filters on the public rosters', async ({ page }) => {
   await page.goto('/rosters/discover?faction=necrons&rules=current')
-  await expect(page.getByRole('heading', { name: 'Public rosters', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Public rosters', level: 2 })).toBeVisible()
   const search = new URL(page.url()).searchParams
   expect([new URL(page.url()).pathname, search.get('view'), search.get('faction'), search.get('rules')]).toEqual([
     '/rosters',

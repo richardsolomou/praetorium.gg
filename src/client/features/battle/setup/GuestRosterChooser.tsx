@@ -7,7 +7,7 @@ import { Problem } from '../../../components/Problem'
 import { pointsBudgetOf, pointsLabel } from '../../../../core/battle'
 import { factionIndexQuery } from '../../../queries'
 import { useClientValue } from '../../../useClientValue'
-import { claimInput, GUEST_PATH, peekGuestDraft, type GuestDraft } from '../../rosters/guestDraft'
+import { claimInput, peekGuestDraft, type GuestDraft } from '../../rosters/guestDraft'
 import { countLabel } from '../../../text'
 
 /**
@@ -30,7 +30,7 @@ export function GuestRosterChooser({
   const guest = useClientValue(peekGuestDraft, null)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md">
+      <DialogContent size="md" fit>
         <DialogHeader>
           <DialogTitle className="text-2xl">Choose your roster</DialogTitle>
           <DialogDescription>
@@ -40,9 +40,15 @@ export function GuestRosterChooser({
         <DialogBody>
           {guest ? <DraftChoice guest={guest} pending={pending} onChoose={() => onChoose(claimInput(guest))} /> : null}
           <div className="flex flex-wrap gap-2">
-            <Link to={GUEST_PATH} className={buttonClass({ variant: guest ? 'outline' : 'default', size: 'sm' })}>
-              {guest ? 'Edit it in the builder' : 'Build or import a roster'}
-            </Link>
+            {guest ? (
+              <Link to="/rosters/$id" params={{ id: guest.id }} className={buttonClass({ variant: 'outline', size: 'sm' })}>
+                Edit it in the builder
+              </Link>
+            ) : (
+              <Link to="/rosters" className={buttonClass({ size: 'sm' })}>
+                Build or import a roster
+              </Link>
+            )}
           </div>
           {problem ? <Problem>{problem}</Problem> : null}
         </DialogBody>

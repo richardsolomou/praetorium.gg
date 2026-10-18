@@ -10,7 +10,7 @@ const VIEWS: readonly [RosterView, string][] = [
   ['public', 'Public'],
 ]
 
-/** A signed-in player's rosters page tabs; a visitor sees only public rosters and no tabs. */
+/** The rosters page tabs, the same for a visitor, whose Friends tab says what an account adds. */
 export function RosterViews({ view }: { view: RosterView }) {
   return (
     <nav aria-label="Rosters" className={pageLinkTabsClass}>

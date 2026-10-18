@@ -1,4 +1,7 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { ClaimGuestRoster, GuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
+import { meQuery } from '../client/queries'
 import { useEffect } from 'react'
 import { RosterPage } from '../client/features/rosters/RosterPage'
 import { pageHead, previewImage } from '../client/linkPreview'
@@ -24,7 +27,10 @@ export const Route = createFileRoute('/rosters/$id/')({
   head: ({ loaderData, match, params }) => {
     const preview = loaderData?.preview
     const exposure = loaderData?.exposure
-    if (!preview || !exposure) return loaderData?.snapshot || loaderData?.onDevice ? { meta: [{ name: 'robots', content: 'noindex' }] } : {}
+    if (!preview || !exposure)
+      return loaderData?.snapshot || loaderData?.onDevice || loaderData?.guestDraft
+        ? { meta: [{ name: 'robots', content: 'noindex' }] }
+        : {}
     const path = `/rosters/${params.id}`
     return pageHead(match.context.origin, {
       title: preview.title,
@@ -40,8 +46,9 @@ export const Route = createFileRoute('/rosters/$id/')({
 function RosterRoute() {
   const { id } = Route.useParams()
   const { battle, league, event, print, add } = Route.useSearch()
-  const { editable, snapshot, league: leagueSnapshot, onDevice } = Route.useLoaderData()
+  const { editable, snapshot, league: leagueSnapshot, onDevice, guestDraft } = Route.useLoaderData()
   const requested = useRequestedDatasheet(add)
+  if (guestDraft) return <GuestDraftRoster print={print} requested={requested} />
   if (onDevice) return <DeviceRoster />
   return (
     <RosterPage
@@ -64,4 +71,18 @@ function DeviceRoster() {
     void router.invalidate({ filter: (match) => match.routeId === Route.id })
   }, [router])
   return <RosterLoading />
+}
+
+/** A visitor's one list, built here; once they sign in, it is saved to the account under this same address. */
+function GuestDraftRoster({ print, requested }: { print?: boolean; requested?: ReturnType<typeof useRequestedDatasheet> }) {
+  const navigate = useNavigate()
+  const { data: me } = useQuery(meQuery())
+  const [{ guest, revision }, setGuest] = useGuestDraft(true)
+  // Discarded here or in another tab, the list is gone, so the rosters page is where the visitor goes.
+  useEffect(() => {
+    if (!guest) void navigate({ to: '/rosters', replace: true })
+  }, [guest, navigate])
+  if (!guest) return <RosterLoading />
+  if (me) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
+  return <GuestRoster key={revision} guest={guest} print={print} requested={requested} onDiscard={() => setGuest(null)} />
 }

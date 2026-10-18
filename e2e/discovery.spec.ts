@@ -36,8 +36,8 @@ test('Terms account requirements match public guest tools', async ({ page }, tes
   await tryBuilder.click()
   await expect(page).toHaveURL('/rosters')
   await atEachWidth(async () => {
-    await expect(page.getByRole('heading', { name: 'Build a roster', exact: true })).toBeVisible()
-    await expect(page.getByRole('combobox', { name: 'Faction', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'New roster', exact: true })).toBeVisible()
   })
 
   await page.goto('/simulator')

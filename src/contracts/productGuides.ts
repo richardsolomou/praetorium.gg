@@ -151,7 +151,7 @@ export const PRODUCT_GUIDES = [
     steps: [
       {
         title: 'Choose your army and game size',
-        text: 'Open Rosters, pick a faction and battle size, and choose your detachments. Select Start building to open the list. You can try the builder without an account.',
+        text: 'Open Rosters, select New roster, pick a faction and battle size, and choose your detachments. Select Create roster to open the list. You can try the builder without an account.',
       },
       {
         title: 'Add units and choose their equipment',
@@ -174,7 +174,7 @@ export const PRODUCT_GUIDES = [
       {
         question: 'Do I need an account to build an army?',
         answer:
-          'No. You can build a list as a visitor. The draft stays on this device across visits. An account is required to save it to your library, open it on another device or play a battle.',
+          'No. You can keep one list as a visitor. It stays on this device across visits. An account is required to keep more than one, open them on another device or play a battle.',
       },
       {
         question: 'Does validation cover every rule?',
@@ -185,7 +185,7 @@ export const PRODUCT_GUIDES = [
     example: {
       title: 'Try a five-model Immortals draft',
       steps: [
-        'Choose Necrons, Strike Force, Awakened Dynasty and Take and Hold, then select Start building.',
+        'Select New roster, choose Necrons, Strike Force, Awakened Dynasty and Take and Hold, then select Create roster.',
         'Search for Immortals and add one unit. Open its card: the initial squad has five models. Review its points and loadout before adding the rest of the army.',
         'Reload the page or reopen Rosters in another tab on the same device to check that the draft returns. This is a first unit, not a complete army: resolve the builder’s validation messages and use Save roster to keep it with your account.',
       ],

@@ -38,6 +38,10 @@ import { FilterField, RosterSortMenu } from './RosterFilters'
 import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle } from './RosterSummary'
 import { RosterViews } from './RosterViews'
+import { useAccountPrompt } from './AccountPrompt'
+import { peekGuestDraft } from './guestDraft'
+import { copyRosterToDevice, useNewRoster } from './newRoster'
+import { useClientValue } from '../../useClientValue'
 import { Problem } from '../../components/Problem'
 
 export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus; sort?: RosterSort }
@@ -114,15 +118,26 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
   const choose = (next: RosterDiscoverySearch) => void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next } })
   const active = [filter.faction, filter.detachment, filter.rules].filter(Boolean).length
 
-  const result = useInfiniteQuery({ ...discoveredRostersQuery(filter, view, sort), enabled: !search.faction || indexResult.isSuccess })
+  // A visitor has no friends to list, so their Friends tab says what an account adds instead of asking.
+  const signedOutFriends = !me && view === 'friends'
+  const result = useInfiniteQuery({
+    ...discoveredRostersQuery(filter, view, sort),
+    enabled: !signedOutFriends && (!search.faction || indexResult.isSuccess),
+  })
   const shown = result.data?.pages.flatMap((page) => page.rosters) ?? []
   const listed = view === 'friends' ? "friends' public rosters" : 'public rosters'
 
   const queryClient = useQueryClient()
+  const create = useNewRoster()
+  const draft = useClientValue(peekGuestDraft, null)
+  const account = useAccountPrompt()
+  // A visitor keeps one list; making another asks them to sign up first.
+  const another = !me && draft ? () => account.ask('another-roster') : undefined
   const duplicate = useMutation({
-    mutationFn: (entry: Discovered) => copyRoster({ data: { id: entry.roster.id, variant: false } }),
+    mutationFn: (entry: Discovered) =>
+      me ? copyRoster({ data: { id: entry.roster.id, variant: false } }) : copyRosterToDevice(entry.roster.id),
     onSuccess: async ({ id }, entry) => {
-      posthog.capture('roster_duplicated', { unit_count: entry.roster.unitCount, discovered: true })
+      posthog.capture('roster_duplicated', { unit_count: entry.roster.unitCount, discovered: true, guest: !me })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
     },
@@ -131,27 +146,17 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={me ? 'Your rosters' : 'Community'}
-        title={me ? 'Rosters' : 'Public rosters'}
-        description={
-          me
-            ? 'Build, import, organize, and share your armies, or find one your friends and other players made public.'
-            : 'Find armies other players published, open them, and duplicate one to make it your own.'
-        }
+        eyebrow="Your rosters"
+        title="Rosters"
+        description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
-          me ? (
-            <>
-              <RosterImport />
-              <CreateRoster factionOptions={factions} />
-            </>
-          ) : (
-            <Link to="/rosters" className={buttonClass()}>
-              Build a roster
-            </Link>
-          )
+          <>
+            <RosterImport onImport={me ? undefined : create.keepImported} blocked={another} />
+            <CreateRoster factionOptions={factions} blocked={another} />
+          </>
         }
       >
-        {me ? <RosterViews view={view} /> : null}
+        <RosterViews view={view} />
       </PageHeader>
       <PageContent className="space-y-6">
         <div className="flex flex-wrap items-center gap-2">
@@ -198,11 +203,30 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
           <RosterSortMenu value={sort} onChange={(chosen) => choose({ ...search, sort: chosen === 'updated-desc' ? undefined : chosen })} />
         </div>
         {duplicate.isError ? <Problem>Could not duplicate that roster: {errorMessage(duplicate.error)}</Problem> : null}
+        {create.saveError ? <Problem>{create.saveError}</Problem> : null}
 
         <section>
           <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>
           <div className="mt-2 space-y-3">
-            {result.isError && !shown.length ? (
+            {signedOutFriends ? (
+              <PageState
+                headingLevel={2}
+                eyebrow="Friends' rosters"
+                title="See what your friends are building"
+                explanation="With a free account, your friends' public rosters appear here, ready to open or duplicate."
+                icon={Users}
+                action={
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Link to="/sign-in" search={{ next: path, join: true }} className={buttonClass()}>
+                      Create an account
+                    </Link>
+                    <Link to="/sign-in" search={{ next: path }} className={buttonClass({ variant: 'ghost' })}>
+                      I already have an account
+                    </Link>
+                  </div>
+                }
+              />
+            ) : result.isError && !shown.length ? (
               <PageState
                 headingLevel={2}
                 eyebrow="Rosters"
@@ -227,10 +251,8 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
                     key={entry.roster.id}
                     entry={entry}
                     faction={factions.find((faction) => faction.id === entry.roster.catalogueId)}
-                    signedIn={Boolean(me)}
-                    signInPath={path}
                     duplicating={duplicate.isPending && duplicate.variables?.roster.id === entry.roster.id}
-                    onDuplicate={() => duplicate.mutate(entry)}
+                    onDuplicate={another ?? (() => duplicate.mutate(entry))}
                     disabled={duplicate.isPending}
                   />
                 ))}
@@ -278,6 +300,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
           </div>
         </section>
       </PageContent>
+      {account.prompt}
     </main>
   )
 }
@@ -285,16 +308,12 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
 function DiscoveredRoster({
   entry,
   faction,
-  signedIn,
-  signInPath,
   duplicating,
   disabled,
   onDuplicate,
 }: {
   entry: Discovered
   faction?: IndexedFactions[number]
-  signedIn: boolean
-  signInPath: string
   duplicating: boolean
   disabled: boolean
   onDuplicate: () => void
@@ -313,15 +332,9 @@ function DiscoveredRoster({
             {owner.name}
           </Link>
         </span>
-        {signedIn ? (
-          <Button variant="outline" size="sm" disabled={disabled} onClick={onDuplicate} aria-label={`Duplicate ${title}`}>
-            <Copy /> {duplicating ? 'Duplicating…' : 'Duplicate'}
-          </Button>
-        ) : (
-          <Link to="/sign-in" search={{ next: signInPath }} className={buttonClass({ variant: 'outline', size: 'sm' })}>
-            <Copy /> Sign in to duplicate
-          </Link>
-        )}
+        <Button variant="outline" size="sm" disabled={disabled} onClick={onDuplicate} aria-label={`Duplicate ${title}`}>
+          <Copy /> {duplicating ? 'Duplicating…' : 'Duplicate'}
+        </Button>
       </div>
     </article>
   )

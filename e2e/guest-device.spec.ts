@@ -1,9 +1,20 @@
 import { expect, test, type Page } from './test'
-import { advance, attachRoster, createBattle, createRoster, desktopContext, signUp, startBattle, takeTheTurn, uniqueName } from './account'
+import {
+  advance,
+  attachRoster,
+  createBattle,
+  createRoster,
+  desktopContext,
+  retryUntilVisible,
+  signUp,
+  startBattle,
+  takeTheTurn,
+  uniqueName,
+} from './account'
 import { add } from './builder.harness'
 import { productSql, withAuthSql } from './storage'
 
-const GUEST = 'Sam the Guest'
+const GUEST = uniqueName('Sam the Guest')
 const PHONE = { width: 390, height: 844 }
 const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 const phase = (page: Page) => page.locator('[data-scoreboard] h1')
@@ -33,6 +44,14 @@ async function playerId(name: string) {
   return row.id
 }
 
+/** A short panel on a phone sizes to what it holds rather than taking the whole screen. */
+async function expectFitsOnPhone(page: Page, panel: ReturnType<Page['getByRole']>) {
+  const before = page.viewportSize()!
+  await page.setViewportSize(PHONE)
+  expect((await panel.boundingBox())!.height).toBeLessThan(PHONE.height * 0.8)
+  await page.setViewportSize(before)
+}
+
 async function playTurn(page: Page) {
   for (let step = 0; step < 6; step += 1) await advance(page)
 }
@@ -50,16 +69,17 @@ async function shot(page: Page, name: string) {
   await page.setViewportSize(before)
 }
 
-/** The guest's own builder, which is the visitor's: one list kept on this device. */
+/** The guest's own rosters page and builder, which are a visitor's: one list kept on this device. */
 async function buildGuestRoster(page: Page) {
-  const setup = page.getByRole('region', { name: 'Create roster' })
+  const setup = page.getByRole('dialog', { name: 'Create roster' })
   await page.waitForLoadState('networkidle')
+  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
   await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Start building' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
   await add(page, 'Necron Warriors')
   await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"picks":[{')
 }
@@ -73,11 +93,15 @@ test('a guest joins from their own device, plays their side and keeps the game b
   const roster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host army' })
   await createBattle(host, { guest: GUEST })
   await attachRoster(host, roster)
+  // A side still waiting for its army has no secondaries to set up yet, which is not missing data.
+  await expect(host.getByText('Secondaries open once this side’s army is chosen.')).toBeVisible()
+  await expect(host.getByText('Mission and stratagem data is unavailable')).toHaveCount(0)
 
   // The host shares the seat; the guest opens it on another device, without an account.
   await host.getByRole('button', { name: `Invite ${GUEST} to play on their device` }).click()
   const invite = host.getByRole('dialog', { name: `Invite ${GUEST} to play` })
   await expect(invite.getByRole('img', { name: `QR code for ${GUEST}’s seat` })).toBeVisible()
+  await expectFitsOnPhone(host, invite)
   await shot(host, 'invite')
   const link = (await invite.locator('p.break-all').textContent())!
   await guest.goto(link)
@@ -104,6 +128,7 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await guest.getByRole('link', { name: 'Back to your battle' }).click()
   await guest.getByRole('button', { name: `Choose roster for ${GUEST}` }).click()
   const chooser = guest.getByRole('dialog', { name: 'Choose your roster' })
+  await expectFitsOnPhone(guest, chooser)
   await shot(guest, 'guest-chooser')
   await chooser.getByRole('button', { name: 'Bring this roster' }).click()
   await expect(chooser).toBeHidden()
@@ -131,8 +156,11 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await expect(host.locator('[data-stat="round"]')).toHaveText('2')
 
   const concede = guest.getByRole('menuitem', { name: 'Concede battle', exact: true })
+  // Whether a scoring prompt opens over the battle depends on the cards dealt, so one is set aside if it did.
+  const minimize = guest.getByRole('button', { name: 'Minimize dialog' })
   await expect(async () => {
     if (await concede.isVisible()) return
+    if (await minimize.isVisible()) await minimize.click({ timeout: 2_000 })
     await guest.getByRole('button', { name: 'Battle options' }).click({ timeout: 2_000 })
     await expect(concede).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
@@ -145,10 +173,10 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await expect(keep).toContainText(`${hostName} as a friend`)
   await shot(guest, 'keep')
   await keep.getByRole('link', { name: 'Create an account' }).click()
-  const guestName = uniqueName('Former guest')
   await guest.waitForLoadState('networkidle')
-  await guest.getByLabel('Your name').fill(guestName)
-  await guest.getByLabel('Email').fill(`${guestName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}@example.test`)
+  // The account starts with the name the guest played under, which they can still change.
+  await expect(guest.getByLabel('Your name')).toHaveValue(GUEST)
+  await guest.getByLabel('Email').fill(`${GUEST.toLowerCase().replace(/[^a-z0-9]+/g, '-')}@example.test`)
   await guest.getByLabel('Password').fill('a-long-enough-password')
   await guest.getByRole('button', { name: 'Create account', exact: true }).click()
   await guest.waitForURL(battleUrl)
@@ -161,17 +189,15 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await expect(claimed).toBeVisible()
   // Claiming records who the seat was; the log stays exactly as it was played.
   expect(await loggedCommands(id)).toEqual(written)
-  await expect(guest.getByText(`${GUEST} concedes`)).toHaveCount(0)
   await shot(guest, 'claimed')
   await claimed.getByRole('button', { name: `Add ${hostName} as a friend` }).click()
   await expect(claimed.getByRole('button', { name: 'Friend request sent' })).toBeVisible()
 
-  // The battle is now one between two accounts: both records hold it, and the guest name is gone.
-  await guest.goto(`/users/${await playerId(guestName)}`)
+  // The battle is now one between two accounts, both records hold it, and the account kept the name played under.
+  await guest.goto(`/users/${await playerId(GUEST)}`)
   await expect(guest.locator('[data-service-record] [data-record-battles]')).toHaveAttribute('data-record-battles', '1')
   await host.goto(battleUrl)
-  await expect(scoreboard(host)).toContainText(guestName)
-  await expect(scoreboard(host)).not.toContainText(GUEST)
+  await expect(scoreboard(host)).toContainText(GUEST)
   await host.goto('/friends')
-  await expect(host.getByText(guestName).first()).toBeVisible()
+  await expect(host.getByText(GUEST).first()).toBeVisible()
 })

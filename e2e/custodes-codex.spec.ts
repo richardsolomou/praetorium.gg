@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup } from './account'
+import { confirmRosterSetup, visitorSetup } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 
@@ -9,9 +9,7 @@ const phone = { width: 390, height: 900 }
 test('Custodes codex presentation', async ({ page, context }) => {
   test.setTimeout(240_000)
   await page.setViewportSize(desktop)
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  const setup = page.getByRole('region', { name: 'Create roster' })
+  const setup = await visitorSetup(page)
   await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Adeptus Custodes')
   await page.getByRole('option', { name: 'Adeptus Custodes', exact: true }).click()
@@ -26,7 +24,9 @@ test('Custodes codex presentation', async ({ page, context }) => {
     await page.screenshot({ path: `test-results/custodes-setup-${viewport.width}.png` })
   }
   await page.setViewportSize(desktop)
-  await setup.getByRole('button', { name: 'Start building' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  const builder = page.url()
   await add(page, 'Allarus Custodians')
   await page.getByRole('button', { name: 'Allarus Custodians', exact: true }).click()
   await expectLoadout(page)
@@ -62,6 +62,9 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await page.screenshot({ path: `test-results/custodes-loadout-${phone.width}.png` })
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
   await page.setViewportSize(desktop)
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('praetorium.guest-draft') ?? 'null')?.draft.picks[0]?.models))
+    .toBe(2)
 
   await page.reload()
   await expect(page.locator('[data-rules-version]')).toHaveCount(0)
@@ -93,7 +96,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await page.setViewportSize(desktop)
   await waitForOfflineApp(page)
   await context.setOffline(true)
-  await page.goto('/rosters')
+  await page.goto(builder)
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('2x Castellan Axe')
   await page.getByRole('button', { name: 'Allarus Custodians', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Allarus Custodians', exact: true }).click()
