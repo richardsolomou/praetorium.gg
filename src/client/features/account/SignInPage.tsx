@@ -3,8 +3,9 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
-import { readGuestDraft, GUEST_PATH, requestGuestSave } from '../rosters/guestDraft'
+import { useEffect, useRef, useState } from 'react'
+import { peekGuestDraft, GUEST_PATH, requestGuestSave } from '../rosters/guestDraft'
+import { attachedUnitCount } from '../../../core/attachedUnits'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,8 +28,6 @@ const socialAuthErrorMessage = (error?: string) => {
   }
 }
 
-const hasSavedGuestDraft = () => Boolean(readGuestDraft())
-
 /**
  * An account is who you are here: battles, saved lists and every command in a log
  * point at it, and there is no other way to be anyone.
@@ -38,8 +37,17 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
-  const hasGuestDraft = useClientValue(hasSavedGuestDraft, false)
-  const savingRoster = next === GUEST_PATH && hasGuestDraft
+  const guest = useClientValue(peekGuestDraft, null)
+  const savingRoster = next === GUEST_PATH && Boolean(guest)
+  const gateViewed = useRef(false)
+  useEffect(() => {
+    if (!savingRoster || gateViewed.current) return
+    gateViewed.current = true
+    posthog.capture('guest_roster_save_gate_viewed', {
+      action: join ? 'create' : 'sign_in',
+      unit_count: attachedUnitCount(guest!.draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+    })
+  }, [savingRoster, guest, join])
   const [joining, setJoining] = useState(Boolean(join))
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [resetSent, setResetSent] = useState(false)
@@ -62,6 +70,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
       method: 'email',
       action: joining ? 'create' : 'sign_in',
       redirected: Boolean(next),
+      ...(savingRoster ? { purpose: 'guest_roster' } : {}),
     })
     const result = await submit.run(() =>
       joining
@@ -124,7 +133,11 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
             </p>
           ) : null}
           {savingRoster ? (
-            <Link to="/rosters" className="mt-3 inline-block text-sm text-info underline underline-offset-2">
+            <Link
+              to="/rosters"
+              className="mt-3 inline-block text-sm text-info underline underline-offset-2"
+              onClick={() => posthog.capture('guest_roster_save_gate_interacted', { action: 'return_to_draft' })}
+            >
               Back to your roster
             </Link>
           ) : null}
@@ -146,6 +159,12 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
             <>
               <form
                 className="mt-8 space-y-4"
+                onInvalidCapture={(event) => {
+                  if (!savingRoster) return
+                  const field = (event.target as HTMLInputElement).id
+                  if (field === 'name' || field === 'email' || field === 'password')
+                    posthog.capture('guest_roster_save_validation_failed', { field, action: joining ? 'create' : 'sign_in' })
+                }}
                 onSubmit={(event) => {
                   event.preventDefault()
                   void authenticate()
@@ -224,6 +243,8 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                 variant="outline"
                 className="mt-4"
                 onClick={() => {
+                  if (savingRoster)
+                    posthog.capture('guest_roster_save_gate_interacted', { action: joining ? 'switch_to_sign_in' : 'switch_to_create' })
                   setJoining((current) => !current)
                   setResetSent(false)
                   submit.clearError()
@@ -245,6 +266,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                           method: provider,
                           action: joining ? 'create' : 'sign_in',
                           redirected: Boolean(next),
+                          ...(savingRoster ? { purpose: 'guest_roster' } : {}),
                         })
                         if (
                           await requestNativeAuth({

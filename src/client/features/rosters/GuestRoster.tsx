@@ -246,6 +246,7 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
   const queryClient = useQueryClient()
   const started = useRef(false)
   const [confirming, setConfirming] = useState(() => !guestSaveRequested(guest))
+  const returned = useRef(false)
   const claim = useMutation({
     onError: (error) => posthog.capture('guest_roster_save_failed', { reason: saveFailureReason(error) }),
     mutationFn: async (draft: GuestDraft) => {
@@ -260,6 +261,10 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
     },
   })
   useEffect(() => {
+    if (!returned.current) {
+      returned.current = true
+      posthog.capture('guest_roster_save_returned', { automatic: !confirming })
+    }
     if (confirming || started.current) return
     started.current = true
     claim.mutate(guest)

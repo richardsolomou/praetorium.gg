@@ -1,6 +1,7 @@
 import { expect, type Page, test } from './test'
 import { retryUntilVisible, signInAsPreview, signUp, uniqueName } from './account'
 import { add } from './builder.harness'
+import { chooseCombatUnit } from './combat'
 
 test.use({ serviceWorkers: 'block' })
 
@@ -277,8 +278,69 @@ for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) 
     await expect
       .poll(() => events.filter((event) => event.name === 'guest_roster_save_started'))
       .toEqual([{ name: 'guest_roster_save_started', properties: { unit_count: units.length } }])
+    await expect
+      .poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed'))
+      .toEqual([{ name: 'guest_roster_save_gate_viewed', properties: { unit_count: units.length, action: 'create' } }])
+    if (units.length === 1) {
+      await page.getByRole('button', { name: 'Create account and save roster', exact: true }).click()
+      await expect
+        .poll(() => events.filter((event) => event.name === 'guest_roster_save_validation_failed').map((event) => event.properties.field))
+        .toEqual(['name', 'email', 'password'])
+      expect(events.filter((event) => event.name === 'account_authentication_started')).toEqual([])
+      await page.getByRole('button', { name: 'I already have an account', exact: true }).click()
+      await expect.poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed').length).toBe(1)
+      await page.getByRole('link', { name: 'Back to your roster', exact: true }).click()
+      await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+      expect(events.filter((event) => event.name === 'guest_roster_save_gate_interacted').map((event) => event.properties.action)).toEqual([
+        'switch_to_sign_in',
+        'return_to_draft',
+      ])
+    }
   })
 }
+
+test('simulator setup checkpoints carry no unit contents', { tag: '@catalogue' }, async ({ page }) => {
+  await page.goto('/simulator')
+  await page.waitForLoadState('networkidle')
+  const events = await recordEvents(page)
+  await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
+  await expect
+    .poll(() => events.filter((event) => event.name === 'combat_simulator_setup_progressed'))
+    .toEqual([{ name: 'combat_simulator_setup_progressed', properties: { source: 'standalone', step: 'attacker_selected' } }])
+  await chooseCombatUnit(page, 'Defender', 'Necrons', 'Necron Warriors')
+  await expect
+    .poll(() => events.filter((event) => event.name === 'combat_simulator_setup_progressed'))
+    .toEqual([
+      { name: 'combat_simulator_setup_progressed', properties: { source: 'standalone', step: 'attacker_selected' } },
+      { name: 'combat_simulator_setup_progressed', properties: { source: 'standalone', step: 'defender_selected' } },
+      { name: 'combat_simulator_setup_progressed', properties: { source: 'standalone', step: 'ready' } },
+    ])
+  await page.getByRole('button', { name: 'More attacker models', exact: true }).click()
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
+  expect(events.filter((event) => event.name === 'combat_simulator_setup_progressed')).toHaveLength(3)
+  expect(JSON.stringify(events)).not.toMatch(/Intercessor|Warrior|catalogueId|entryId/)
+})
+
+test('example and recent matchup entry actions are attributed without their contents', { tag: '@catalogue' }, async ({ page }) => {
+  await page.goto('/simulator')
+  await page.waitForLoadState('networkidle')
+  const events = await recordEvents(page)
+  await page.getByRole('button', { name: 'Try an example', exact: true }).click()
+  const recent = page.getByRole('region', { name: 'Recent matchups', exact: true })
+  const link = recent.getByRole('link', { name: 'Intercessor Squad vs Necron Warriors', exact: true })
+  await expect(link).toBeVisible()
+  await link.click()
+  await page.getByRole('link', { name: 'Praetorium', exact: true }).click()
+  await link.click()
+  await expect
+    .poll(() => events.filter((event) => ['combat_simulator_example_started', 'combat_simulator_recent_opened'].includes(event.name)))
+    .toEqual([
+      { name: 'combat_simulator_example_started', properties: {} },
+      { name: 'combat_simulator_recent_opened', properties: { surface: 'simulator' } },
+      { name: 'combat_simulator_recent_opened', properties: { surface: 'home' } },
+    ])
+  expect(JSON.stringify(events)).not.toMatch(/Intercessor|Warrior|catalogueId|entryId/)
+})
 
 const SCREENSHOT = {
   name: 'screenshot.png',
