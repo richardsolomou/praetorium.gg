@@ -1,5 +1,24 @@
 # praetorium
 
+## 0.161.2
+
+### Patch Changes
+
+- 3d553fb: ListForge, Warmind and WTC-style exports separate detachments with commas so Warmind reads both, and ListForge exports mark enhancements so ListForge applies them.
+- 7d165b0: Importing a Warmind list no longer reports wargear the unit already holds under its datacard name: Drazhar's Executioner's demiklaives, Lady Malys's blade and razor fan, and the Hand of the Archon's "Splinter Pistol and 1 Razorflail".
+- 3d553fb: ListForge WTC lists that name their faction by keyword, such as Chaos Daemons, Chaos Space Marines and Space Marines lists, now import.
+- 3d553fb: ListForge lists with allied units import without reporting the allies heading as a line it could not read.
+- 3d553fb: An imported unit takes the model count its text names, so a Piranha carrying two carbines no longer imports as two Piranhas.
+- 2ccbfcc: A list that names every model in a squad imports exactly those models. Plague Marines with plague spewers and Chaos Bikers with meltaguns lost their specialists to the default models.
+- 2ccbfcc: ListForge imports give each model the wargear listed under it. A Hekatrix's blast pistol and power weapon, and a Stealth Shas'vre's burst cannon, were swapped for the squad's weapons.
+- 3d553fb: Lists Warmind exports in ListForge or official app layout import with both detachments, their battle size, disposition and wargear.
+- b2bc5cb: Upgrades a unit may take more than once outside any group can now be chosen: Incubi and Aspect Shrine Tokens, a Bastion's heavy bolters and Scarab Occult Terminators' Hellfyre missile racks. Imported lists with an Incubi Shrine Token keep it.
+- f797af1: A Piranha can carry both of its seeker missiles. Asking for two on one Piranha, or six across three, kept only one each.
+- f797af1: Stealth Shas'ui with fusion blasters can be added after a squadmate takes a homing beacon. The beacon left no body free, so the fusion blasters didn't appear.
+- 4f188ee: Specialists can join squads that never change size or whose minimum shrinks to make room: a Pathfinder Team's rail rifles and grenade launcher, and a five-model Intercessor Squad's grenade launcher. Choosing them did nothing, and imports reported them as missing.
+- aa3c02c: A squad grown past its minimum adds its default models, so a 10-model Terminator Assault Squad starts with lightning claws instead of five storm shields, and swapping in storm shields charges for each one. Its price had come out 25 points under the Munitorum Field Manual.
+- 7d819c9: A Trygon with its Character upgrade can take Trygon Prime in Subterranean Assault, in the builder and when importing a list. Options that the rest of the unit opens are now offered, such as the Slaanesh weapons of a Daemonic Charioteer with Daemon of Excess, the Desolation Sergeant's vengor launcher and the Hesyr's concussion gauntlet.
+
 ## 0.161.1
 
 ### Patch Changes
