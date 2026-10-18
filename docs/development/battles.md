@@ -30,7 +30,7 @@ Any seated player can operate either side's shared actions; preserve the actor a
 
 ## Seating and setup
 
-Creation seats the entire table in one transaction; reads never take seats and there is no join mutation. The creator holds the first seat on side 0; an ally there does not inherit deletion rights. Table shape is fixed at creation. Allies have separate rosters but share turns, CP, VP, missions, stratagems, and one Force Disposition (`sideDisposition`), unless a [league](leagues.md#team-force-disposition) lock sealed it.
+Creation seats the entire table in one transaction; reads never take seats and there is no join mutation. A battle started from a saved roster's menu then attaches that roster to the creator's seat; if the attach is refused, setup offers the choice as usual. The creator holds the first seat on side 0; an ally there does not inherit deletion rights. Table shape is fixed at creation. Allies have separate rosters but share turns, CP, VP, missions, stratagems, and one Force Disposition (`sideDisposition`), unless a [league](leagues.md#team-force-disposition) lock sealed it.
 
 Practice opponents are ordinary seats backed by credential-less accounts, using a seated player's roster without friendship; there is no automated opponent. Exclude practice battles from public/friends feeds, standings, and service records. Legacy one-seat logs still fold, but new one-seat battles cannot start.
 

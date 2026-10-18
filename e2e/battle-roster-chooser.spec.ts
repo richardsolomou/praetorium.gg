@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createBattle, retryUntilVisible, savedArmy, setupStep } from './account'
+import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep } from './account'
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
@@ -73,4 +73,27 @@ test('choosing a roster the library reports over its limit names the problem and
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
   await refusal.getByRole('link', { name: 'Edit roster' }).click()
   await expect(page).toHaveURL(new RegExp(`/rosters/${id}$`))
+})
+
+test('a battle started from a saved roster opens with that roster on the player’s seat', async ({ page }) => {
+  const name = 'Roster-first army'
+  const { id } = await savedArmy(page, 'Battle from roster', { name })
+  await page.goto(`/rosters/${id}`)
+  await page.waitForLoadState('networkidle')
+  const dialog = page.getByRole('dialog', { name: 'Start a battle' })
+  await retryUntilVisible(dialog, async () => {
+    await page.getByRole('button', { name: 'Roster actions' }).click()
+    await page.getByRole('menuitem', { name: 'Start a battle' }).click()
+  })
+  await dialog.getByRole('combobox', { name: 'Opponent' }).click()
+  await page.getByRole('option', { name: PRACTICE_OPPONENT, exact: true }).click()
+  await dialog.getByRole('button', { name: 'Start battle' }).click()
+  await page.waitForURL(/\/battles\/[^/]+$/)
+
+  await setupStep(page, 'Armies')
+  const seat = page
+    .getByRole('region', { name: 'Armies' })
+    .locator('article')
+    .filter({ has: page.getByRole('button', { name: /^Change roster/ }) })
+  await expect(seat.getByText(name, { exact: true })).toBeVisible()
 })

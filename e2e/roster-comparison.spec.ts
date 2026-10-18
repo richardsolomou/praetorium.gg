@@ -293,6 +293,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
     const menu = page.getByRole('menu')
     await expect(menu.getByRole('menuitem')).toHaveText([
+      'Start a battle',
       'Edit roster setup',
       'Convert rules version',
       'Create variant',
