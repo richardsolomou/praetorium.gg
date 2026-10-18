@@ -18,12 +18,16 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   const faction = setup[0] ?? ''
   const sizeLine = setup.find((line) => /\([\d,]+ Points?\)$/i.test(line))
   if (!/Exported with (?:BattleBase|Praetorium\.gg)/i.test(input) && (!titleMatch || !faction || !sizeLine || firstSection < 0)) return null
-  const pricedDetachment = setup.find((line) => /\(\d+ Detachment Points?\)$/i.test(line))
+  // Warmind gives each detachment a line of its own.
+  const pricedDetachments = setup.filter((line) => /\(\d+ Detachment Points?\)$/i.test(line))
   // New Recruit writes the disposition alone on the line after a priced detachment.
-  const unlabelled = setup.slice(1).filter((line) => line !== sizeLine && line !== pricedDetachment)
+  const unlabelled = setup.slice(1).filter((line) => line !== sizeLine && !pricedDetachments.includes(line))
   const dispositionLine =
-    setup.find((line) => /^Force Dispositions?:/i.test(line)) ?? (pricedDetachment && unlabelled.length === 1 ? unlabelled[0] : undefined)
-  const detachmentLine = pricedDetachment ?? setup.slice(1).find((line) => line !== sizeLine && line !== dispositionLine)
+    setup.find((line) => /^Force Dispositions?:/i.test(line)) ??
+    (pricedDetachments.length && unlabelled.length === 1 ? unlabelled[0] : undefined)
+  const detachmentLine = pricedDetachments.length
+    ? pricedDetachments.map((line) => line.replace(/\s+\(\d+ Detachment Points?\)$/i, '')).join(', ')
+    : setup.slice(1).find((line) => line !== sizeLine && line !== dispositionLine)
   const size = sizeLine?.match(/^(.*?)\s*\(([\d,]+) Points?\)$/i)
   const units: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null

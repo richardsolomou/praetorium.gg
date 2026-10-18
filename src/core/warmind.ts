@@ -99,7 +99,7 @@ export function fromWarmindText(input: string): TextRoster | null {
 export function toWarmindText(roster: GwTextRoster, version: string) {
   const divider = '─'.repeat(30)
   const budget = roster.pointsBudget ?? roster.limit
-  const detachments = roster.detachments.map((detachment) => detachment.name).join(' and ')
+  const detachments = roster.detachments.map((detachment) => detachment.name).join(', ')
   const lines = [
     roster.name,
     divider,

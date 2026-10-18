@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { readFile } from 'node:fs/promises'
+import { listForgeDetailed } from '../src/core/rosterText.fixtures'
 import {
   confirmRosterSetup,
   attachRoster,
@@ -158,6 +159,29 @@ Exported with BattleBase, Data Version: v20260812`)
   await attachRoster(page, "HLHOTD 2K - C'tan")
   await attachRoster(page, "HLHOTD 2K - C'tan", { forPlayer: PRACTICE_OPPONENT })
   await chooseBattlefield(page)
+})
+
+test("a ListForge export imports through review and leaves in ListForge's layout", async ({ page }) => {
+  await signUp(page, 'Switcher')
+  await page.goto('/rosters')
+  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(review.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  await review.getByLabel('Roster text').fill(listForgeDetailed)
+  await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await expect(review).toContainText('Sanitised list · 6 of 6 matched entries')
+  await expect(review).toContainText('Reported army: 510 points. Matched entries at selected rules: 510 points.')
+  await review.screenshot({ path: 'test-results/listforge-import-review.png' })
+  await review.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await expect(page.locator('[data-unit="Venom"]')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  const exported = page.getByRole('dialog', { name: 'Export roster' })
+  await exported.getByRole('button', { name: 'ListForge', exact: true }).click()
+  await expect(exported.locator('pre')).toContainText(
+    'Sanitised list - Drukhari - Reconnaissance - Exhibition of Slaughter, Kabalite Cartel (510 Points)\n',
+  )
+  await expect(exported.locator('pre')).toContainText('• E: Informant Network\n')
 })
 
 for (const count of [0, 1, 3]) {

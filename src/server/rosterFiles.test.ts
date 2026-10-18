@@ -3,7 +3,13 @@ import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
 import { descriptionKey } from './datacards'
-import { exportRosterFile, importRosterExchange, importRosterFile, importRosterCatalogueId } from '../shared/rosterFiles'
+import {
+  exportRosterFile,
+  importRosterExchange,
+  importRosterFile,
+  importRosterCatalogueId,
+  matchesImportFaction,
+} from '../shared/rosterFiles'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { calculateRosterPrice } from '../shared/pricing'
 
@@ -39,6 +45,35 @@ const faction: CatalogueFile = {
                 selectionEntries: [
                   { id: 'blaster', name: 'Twin gauss blaster', type: 'upgrade' },
                   { id: 'beamer', name: 'Particle beamer', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        // ListForge names this model after its unit, and each one carries two carbines.
+        id: 'piranhas',
+        name: 'Piranhas',
+        type: 'unit',
+        costs: [{ typeId: 'pts', name: 'pts', value: 65 }],
+        selectionEntries: [
+          {
+            id: 'piranha',
+            name: 'Piranhas',
+            type: 'model',
+            constraints: [
+              { id: 'piranha-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'piranha-max', type: 'max', value: 3, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'carbine',
+                name: 'Twin pulse carbine',
+                type: 'upgrade',
+                constraints: [
+                  { id: 'carbine-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                  { id: 'carbine-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
                 ],
               },
             ],
@@ -1828,7 +1863,7 @@ Created with newrecruit.eu v35.79`,
 describe('ListForge, Warmind, and WTC roster export', () => {
   const data = {
     catalogueId: 'necrons',
-    detachmentIds: ['pantheon'],
+    detachmentIds: ['pantheon', 'skyshroud'],
     disposition: 'disruption',
     limit: 2000,
     pointsBudget: 1500,
@@ -1854,9 +1889,19 @@ describe('ListForge, Warmind, and WTC roster export', () => {
     expect(importRosterFile({ file: exported[layout] }, loaded)).toEqual({ ...readable, ...dropped, source: 'roster-file', format })
   })
 
+  it('separates detachments with commas, as ListForge and Warmind write them', () => {
+    expect(
+      [exported.listForgeText, exported.warmindText, exported.wtcText].map((text) => text.includes('Pantheon of Woe, Skyshroud Spearhead')),
+    ).toEqual([true, true, true])
+  })
+
+  it('marks enhancements in ListForge text as ListForge does', () => {
+    expect(exported.listForgeText).toContain('    • E: Demanding Leader\n')
+  })
+
   it('compares against a readable import that keeps every field', () => {
     expect(readable).toMatchObject({
-      detachmentIds: ['pantheon'],
+      detachmentIds: ['pantheon', 'skyshroud'],
       disposition: 'disruption',
       limit: 2000,
       pointsBudget: 1500,
@@ -1884,5 +1929,23 @@ describe('ListForge, Warmind, and WTC roster export', () => {
     expect(importRosterCatalogueId(preview.warmindText)).toBe('codex~necrons')
     expect(importRosterCatalogueId(preview.listForgeText)).toBeNull()
     expect(importRosterCatalogueId(preview.wtcText)).toBeNull()
+  })
+})
+
+describe('text import sizing', () => {
+  it('counts the models a text names before the wargear they carry', () => {
+    const file =
+      'Scouts - Necrons - Pantheon of Woe (65 Points)\n\nVehicle:\nPiranhas (65 pts)\n  • Piranhas\n    • 2x Twin pulse carbine\n'
+    expect(importRosterFile({ file }, loaded).units[0]?.models).toBe(1)
+  })
+})
+
+describe('import faction names', () => {
+  it.each([
+    ['Adeptus Astartes', 'Imperium - Space Marines'],
+    ['Legiones Daemonica', 'Chaos - Chaos Daemons'],
+    ['Heretic Astartes', 'Chaos - Chaos Space Marines'],
+  ])('reads the faction keyword %s as %s', (keyword, catalogue) => {
+    expect(matchesImportFaction(keyword, catalogue)).toBe(true)
   })
 })

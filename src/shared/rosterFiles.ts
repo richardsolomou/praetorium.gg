@@ -19,7 +19,7 @@ import type { TextRoster, TextRosterUnit } from '../core/textRoster'
 import { toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import { allowsPointsBudget, customPointsBudget, GAME_SIZES, pointsBudgetError } from '../core/battle'
-import { factionDisplayName } from './factionNames'
+import { catalogueFactionName, factionDisplayName } from './factionNames'
 import {
   attachmentReason,
   normalized,
@@ -93,8 +93,10 @@ export function importRosterCatalogueId(file: string) {
   return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file.replaceAll('\r', ''))?.[1] ?? null
 }
 
+/** Whether a text's faction names this book, by its own name or a faction keyword such as "Heretic Astartes". */
 export function matchesImportFaction(stated: string, name: string) {
-  return [name, name.split(' - ').at(-1) ?? ''].some((candidate) => normalized(candidate) === normalized(stated))
+  const wanted = new Set([stated, catalogueFactionName(stated)].map(normalized))
+  return [name, name.split(' - ').at(-1) ?? ''].some((candidate) => wanted.has(normalized(candidate)))
 }
 
 export function importRosterFile(
@@ -414,7 +416,8 @@ function textRosterPick(
   }
   const models = modelNames(entryId, loaded.index)
   const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) ? count : 0), 0)
-  const requestedModels = unit.models ?? Math.max(1, statedModels, ...unit.selections.map((selection) => selection.count))
+  // Model lines size the unit; without them, its most numerous wargear stands in.
+  const requestedModels = unit.models ?? (statedModels || Math.max(1, ...unit.selections.map((selection) => selection.count)))
   const context = { primaryCatalogueId: catalogueId, roster }
   const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const selection = built?.selection ?? { id: entryId, count: 1 }
