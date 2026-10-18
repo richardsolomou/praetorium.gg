@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.162.0
+
+### Minor Changes
+
+- edf4557: Recent combat simulator matchups are saved to your account and follow you to other devices; they are no longer kept on a device for signed-out visitors.
+
+### Patch Changes
+
+- edf4557: Recent matchups show as a compact row of cards with each army’s mark and its attached leaders, and adding a leader updates a matchup’s card instead of adding another.
+
 ## 0.161.2
 
 ### Patch Changes
