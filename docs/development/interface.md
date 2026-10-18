@@ -59,7 +59,7 @@ Specs: `e2e/roster-discovery.spec.ts`, `e2e/played-armies.spec.ts`, `e2e/unit-lo
 
 ## Battles and leagues
 
-Setup is one page in rules order with no pinned bars: each section names its state beside its heading, and Start battle ends the page. Keep secondary choices, reserves, deployment units, and pre-battle units visible; only settled format and twist choices may fold. Render battle controls by side, not seat; allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts.
+Setup is one page in rules order with no pinned bars: each section names its state beside its heading, and Start battle ends the page. Keep secondary choices, reserves, deployment units, and pre-battle units visible; only settled format and twist choices may fold. Render battle controls by side, not seat; allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Live status badges use a filled green background with dark text on battle cards and the home hero.
 
 A mission choice opens by itself once when its moment arrives and stays recordable from its card while the moment lasts. Required prompts open one at a time. Minimize preserves local answers; battle-changing controls stay disabled until parked dialogs are resumed or closed. Undo preserves answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
 
@@ -69,7 +69,7 @@ League entrants and organizers share one event page, whose next-action card and 
 
 ## Other surfaces
 
-`Home` owns fetching and `HomeView` renders props. Many players only build lists, so nothing assumes battles. The home loader waits for the player's record only within `RECORD_BUDGET_MS`. Never leave a query pending in the SSR query cache: a streamed pending query holds the document, and hydration, open until it settles.
+`Home` owns fetching and `HomeView` renders props. The played, friends' and public game shelves each show at most three games, with links to their full lists. Many players only build lists, so nothing assumes battles. The home loader waits for the player's record only within `RECORD_BUDGET_MS`. Never leave a query pending in the SSR query cache: a streamed pending query holds the document, and hydration, open until it settles.
 
 `/search?q=…` and global autocomplete share `useGlobalSearch`: a current download answers on every keystroke, otherwise `globalSearchQuery` asks the service once typing settles. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. Before anything is typed, both list the last eight public results opened from search on this device (`searchHistory.ts`), each removable; the player's own rosters and battles are never remembered. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
 

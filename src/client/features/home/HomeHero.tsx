@@ -92,7 +92,7 @@ function HeroBattle({ battle }: { battle: Battle }) {
         <span className="flex-1 bg-side-b" />
       </span>
       <span className="flex items-center justify-between gap-3 px-5 pt-4">
-        <span className={`chip gap-1.5 ${stage.tint}`}>
+        <span data-battle-status={battle.status} className={`chip gap-1.5 ${stage.tint}`}>
           <Eye className="size-3.5" aria-hidden /> {stage.name}
         </span>
         <span className="truncate text-xs text-faint">

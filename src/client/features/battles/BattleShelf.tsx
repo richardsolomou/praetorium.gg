@@ -102,7 +102,9 @@ export function BattleShelf({
                   <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-3 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
                     <Side side={ours} viewerId={viewerId} className="order-2 sm:order-none" />
                     <span className="order-1 flex items-center justify-between gap-3 sm:order-none sm:flex-col sm:justify-center sm:gap-1.5">
-                      <span className={`chip ${stage.tint}`}>{stage.name}</span>
+                      <span data-battle-status={battle.status} className={`chip ${stage.tint}`}>
+                        {stage.name}
+                      </span>
                       {/* Stacked sides on a phone have nothing between them for "vs" to stand for. */}
                       <span className={`figure text-3xl leading-none font-bold ${scored ? '' : 'max-sm:hidden'}`}>
                         {scored ? (

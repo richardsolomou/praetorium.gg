@@ -824,6 +824,10 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 /** The bordered points chip that follows every datasheet name around. */
 @utility chip {
   @apply inline-flex items-center rounded-sm border border-edge-strong px-1.5 py-px text-2xs font-semibold tracking-label text-dim uppercase tabular-nums;
+
+  &[data-battle-status='playing'] {
+    @apply border-parchment bg-parchment text-parchment-ink;
+  }
 }
 
 @media (max-width: 1023px) {
