@@ -736,6 +736,9 @@ test('a composite heavy weapon keeps the model armed and can be put back', async
   const cyclone = 'Cyclone Missile Launcher & Storm Bolter'
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${heavy}`, exact: true }).click())
   await expect(loadout.getByLabel(`${heavy} count`, { exact: true })).toHaveText('1')
+  // The cyclone costs points, so a new heavy weapon starts on a free one.
+  await expect(loadout.getByLabel(`${cyclone} count`, { exact: true })).toHaveText('0')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${cyclone}`, exact: true }).click())
   await expect(loadout.getByLabel(`${cyclone} count`, { exact: true })).toHaveText('1')
   await expect(loadout.getByRole('button', { name: `Fewer ${cyclone}`, exact: true })).toBeDisabled()
   const firingProfiles = loadout.getByRole('region', { name: 'cyclone missile launcher profiles', exact: true }).first()
