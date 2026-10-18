@@ -96,6 +96,29 @@ const faction: CatalogueFile = {
         ],
       },
       {
+        // A squad may carry up to two tokens, written as an upgrade outside any group.
+        id: 'incubi',
+        name: 'Incubi',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'incubi-token',
+            name: 'Incubi Shrine Token',
+            type: 'upgrade',
+            constraints: [{ id: 'incubi-token-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+          },
+          {
+            id: 'incubus',
+            name: 'Incubi',
+            type: 'model',
+            constraints: [
+              { id: 'incubus-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'incubus-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+      },
+      {
         // Its enhancements stay hidden until the unit holds its Character upgrade.
         id: 'trygon',
         name: 'Trygon',
@@ -2276,6 +2299,11 @@ describe('text import wargear', () => {
   it('takes an enhancement that a stated upgrade opens', () => {
     const file =
       'Tunnels - Necrons - Pantheon of Woe (155 Points)\n\nMonster:\nTrygon (155 pts)\n  • Trygon Character upgrade\n  • E: Trygon Prime\n'
+    expect(importRosterFile({ file }, loaded).unplaced).toEqual([])
+  })
+
+  it('takes an upgrade a unit may hold more than once', () => {
+    const file = 'Shrine - Necrons - Pantheon of Woe (90 Points)\n\nInfantry:\nIncubi (90 pts)\n  • Incubi Shrine Token\n  • 5x Incubi\n'
     expect(importRosterFile({ file }, loaded).unplaced).toEqual([])
   })
 

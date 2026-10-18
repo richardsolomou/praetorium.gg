@@ -227,8 +227,9 @@ function collectUnitChoices(
       const single = inner.type === 'upgrade' && lower === 0 && upperBound === 1
       let upper: number | null = null
       if (single) upper = 1
-      else if (inner.type === 'upgrade' && lower > 0) upper = upperBound
-      const boundedUpgrade = single || (inner.type === 'upgrade' && lower > 0 && upper !== null && upper > lower)
+      else if (inner.type === 'upgrade') upper = upperBound
+      // An optional upgrade a unit may take more than once, such as two Incubi Shrine Tokens.
+      const boundedUpgrade = single || (inner.type === 'upgrade' && upper !== null && upper > Math.max(lower, 1))
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
