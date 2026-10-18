@@ -37,7 +37,7 @@ import {
   type Selection,
 } from './evaluate'
 import { allAt, at, countAt, withCounts, withSpread } from './selection'
-import { modelCountOf, sizeOf } from './unitSize'
+import { isResizable, modelCountOf, sizeOf } from './unitSize'
 
 /** A decision the data leaves to the player: one of these, in this slot. */
 export type UnitChoice = {
@@ -197,7 +197,8 @@ function collectUnitChoices(
     minima.set(definition, value)
     return value
   }
-  const resizingPath = sizeOf(selection, index).path
+  const unitSize = sizeOf(selection, index)
+  const resizingPath = unitSize.path
   const resizingGroup = resizingPath.slice(0, -1)
 
   // One deeper than the choices themselves: the catalogue writes the rule onto each
@@ -373,12 +374,15 @@ function collectUnitChoices(
         // models that size counts, so their bodies above their own minimum are room too.
         // A unit of fixed size makes room the same way when taking a specialist lowers a
         // required model's minimum, as a Pathfinder Team's grenade launcher does.
-        const sized = resizesUnit
+        const sizedBody = resizesUnit
           ? choosable.find((option) => option.id === resizingPath.at(-1) && !adjustable.includes(option))
-          : !resizingPath.length && capacity !== null && fixed
+          : undefined
+        const sized =
+          sizedBody ??
+          (!isResizable(unitSize) && capacity !== null && fixed
             ? choosable.find((option) => !adjustable.includes(option) && hasMutableMinimum(option.definition, index, options.modifierCache))
-            : undefined
-        const sizePath = resizesUnit || !sized ? resizingPath : [...here, sized.id]
+            : undefined)
+        const sizePath = sizedBody || !sized ? resizingPath : [...here, sized.id]
         const spare = !sized
           ? 0
           : hasMutableMinimum(sized.definition, index, options.modifierCache)
