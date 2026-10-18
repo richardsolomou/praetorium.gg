@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.160.0
+
+### Minor Changes
+
+- 9fa6e13: Open the Discord community and GitHub repository from icon links beside Search in the app header, or join Discord from Support.
+
+## 0.159.1
+
+### Patch Changes
+
+- a6b3cf6: Importing a list keeps a weapon that brings its own model, such as a Terminator Squad's cyclone missile launcher, and the import review now names any listed wargear the imported unit ended up without.
+- e2202b9: Wargear chosen for several models in a squad now costs points for every model holding it, so Deathwatch Terminators with storm shields price at 210 instead of 195.
+- e2202b9: Squads whose models each carry several weapons, such as XV9 Hazard Battlesuits, no longer show a false "needs at least" warning at larger sizes.
+
 ## 0.159.0
 
 ### Minor Changes

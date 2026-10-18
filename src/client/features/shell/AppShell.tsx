@@ -26,6 +26,7 @@ import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { FeedbackDialog, openFeedback } from '../feedback/FeedbackDialog'
 import { meQuery } from '../../queries'
+import { CommunityLinks } from './CommunityLinks'
 import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
 import { followTextSize } from '../../textSize'
 import { followTextSourceChoice } from '../../rulesText'
@@ -81,15 +82,15 @@ function PrimaryNavigation({ path }: { path: string }) {
   }, [open])
 
   const linkClass =
-    'eyebrow flex min-h-11 items-center gap-1.5 border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info @min-[46.75rem]:min-h-0 @min-[46.75rem]:border-0 @min-[46.75rem]:bg-transparent @min-[46.75rem]:px-0'
+    'eyebrow flex min-h-11 items-center gap-1.5 border-l-2 border-transparent px-3 hover:border-info hover:bg-raised hover:text-info @min-[50.55rem]:min-h-0 @min-[50.55rem]:border-0 @min-[50.55rem]:bg-transparent @min-[50.55rem]:px-0'
 
   return (
-    <div ref={root} className="@min-[46.75rem]:contents">
+    <div ref={root} className="@min-[50.55rem]:contents">
       <Button
         ref={trigger}
         variant="ghost"
         size="icon-sm"
-        className="text-dim hover:bg-raised hover:text-info @min-[46.75rem]:hidden"
+        className="text-dim hover:bg-raised hover:text-info @min-[50.55rem]:hidden"
         aria-label={open ? 'Close primary navigation' : 'Open primary navigation'}
         aria-controls="primary-navigation"
         aria-expanded={open}
@@ -99,7 +100,7 @@ function PrimaryNavigation({ path }: { path: string }) {
       </Button>
       <nav
         id="primary-navigation"
-        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg @min-[46.75rem]:static @min-[46.75rem]:flex @min-[46.75rem]:items-center @min-[46.75rem]:gap-3 @min-[55.55rem]:gap-4 @min-[46.75rem]:border-0 @min-[46.75rem]:bg-transparent @min-[46.75rem]:p-0 @min-[46.75rem]:shadow-none`}
+        className={`${open ? 'grid' : 'hidden'} absolute top-full right-0 left-0 gap-1 border-b border-edge bg-panel p-2 shadow-lg @min-[50.55rem]:static @min-[50.55rem]:flex @min-[50.55rem]:items-center @min-[50.55rem]:gap-3 @min-[55.55rem]:gap-4 @min-[50.55rem]:border-0 @min-[50.55rem]:bg-transparent @min-[50.55rem]:p-0 @min-[50.55rem]:shadow-none`}
         aria-label="Primary"
       >
         {PRIMARY_LINKS.map(({ to, label, Icon }) => (
@@ -108,7 +109,7 @@ function PrimaryNavigation({ path }: { path: string }) {
             to={to}
             search={to === '/leaderboard' ? { faction: undefined } : undefined}
             className={linkClass}
-            activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[46.75rem]:bg-transparent' }}
+            activeProps={{ className: 'border-parchment bg-raised text-parchment @min-[50.55rem]:bg-transparent' }}
           >
             <Icon aria-hidden className="size-4 shrink-0 text-info" />
             {label}
@@ -116,7 +117,7 @@ function PrimaryNavigation({ path }: { path: string }) {
         ))}
         {/* Only while the compact menu is open, so every server-rendered page does not carry them. */}
         {open ? (
-          <div className="@min-[46.75rem]:hidden">
+          <div className="@min-[50.55rem]:hidden">
             <p className="eyebrow border-t border-edge px-3 pt-3 pb-1 text-faint">Reference</p>
             {REFERENCE_LINKS.map(({ to, label, Icon }) => (
               <Link key={to} to={to} className={linkClass} activeProps={{ className: 'border-parchment bg-raised text-parchment' }}>
@@ -132,7 +133,7 @@ function PrimaryNavigation({ path }: { path: string }) {
               <button
                 type="button"
                 aria-label="Reference"
-                className={`eyebrow hidden items-center gap-1.5 hover:text-info @min-[46.75rem]:flex ${/^\/(?:factions|missions|force-dispositions|rules)(?:\/|$)/.test(path) ? 'text-parchment' : ''}`}
+                className={`eyebrow hidden items-center gap-1.5 hover:text-info @min-[50.55rem]:flex ${/^\/(?:factions|missions|force-dispositions|rules)(?:\/|$)/.test(path) ? 'text-parchment' : ''}`}
               />
             }
           >
@@ -188,17 +189,20 @@ export function AppShell() {
                */}
               <div data-native-app-frame className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
                 <header data-web-app-chrome className="@container sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-                  <div className="flex h-12 items-center gap-2 px-2 sm:px-4 @min-[46.75rem]:gap-3 @min-[55.55rem]:gap-5">
+                  <div className="flex h-12 items-center gap-2 px-2 sm:px-4 @min-[50.55rem]:gap-3 @min-[55.55rem]:gap-5">
                     <Link
                       to="/"
                       className="group flex shrink-0 items-center gap-1.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-info"
                     >
                       <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
-                      <span className="@min-[46.75rem]:hidden @min-[61.11rem]:inline">Praetorium</span>
+                      <span className="@min-[50.55rem]:hidden @min-[61.11rem]:inline">Praetorium</span>
                     </Link>
                     <PrimaryNavigation path={path} />
-                    <GlobalSearch />
-                    <Account />
+                    <div className="ml-auto flex shrink-0 items-center gap-1">
+                      <GlobalSearch />
+                      <CommunityLinks compact />
+                      <Account className="size-8" />
+                    </div>
                   </div>
                 </header>
                 {immersive ? null : (
@@ -219,10 +223,11 @@ export function AppShell() {
                       />
                       <span className="truncate">Praetorium</span>
                     </Link>
-                    <span className="ml-auto flex items-center">
+                    <div className="ml-auto flex shrink-0 items-center gap-1">
                       <GlobalSearch compact />
-                      <Account />
-                    </span>
+                      <CommunityLinks />
+                      <Account className="size-[44px]" />
+                    </div>
                   </header>
                 )}
                 {immersive ? null : <div data-mobile-app-header-spacer className="hidden h-12 shrink-0" />}

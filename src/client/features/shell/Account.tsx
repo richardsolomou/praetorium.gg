@@ -141,7 +141,7 @@ function AccountMenuItems() {
   )
 }
 
-export function Account({ native = false }: { native?: boolean }) {
+export function Account({ native = false, className = '' }: { native?: boolean; className?: string }) {
   const { me, onboarding } = useAccountControls()
   const [nativeOpen, setNativeOpen] = useState(false)
   const onboardingNew = Boolean(onboarding && !onboarding.welcomed && !onboardingComplete(onboarding))
@@ -170,7 +170,7 @@ export function Account({ native = false }: { native?: boolean }) {
           <Button
             variant="ghost"
             size={native ? 'icon' : 'icon-sm'}
-            className={`${native ? 'size-12' : ''} shrink-0 text-dim hover:bg-raised hover:text-info`}
+            className={`${native ? 'size-12' : ''} shrink-0 text-dim hover:bg-raised hover:text-info ${className}`}
             aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
           />
         }

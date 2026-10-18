@@ -182,13 +182,26 @@ function withModelOccupants(
           const count = (child.count ?? 1) - taken
           return count > 0 ? [{ ...child, count }] : []
         }),
-        ...occupants.flatMap((option) => {
-          const count = allocated.get(option.id) ?? 0
-          return count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
-        }),
+        ...occupants.flatMap((option) => standing(held.selections ?? [], option, allocated.get(option.id) ?? 0, index)),
       ],
     }
   })
+}
+
+/**
+ * An option's models at the count asked for, keeping each one already standing that
+ * still fits, so a heavy weapon chosen for its model survives a spread that counts it.
+ * Only whole selections are kept: one holding a unit total cannot be cut down.
+ */
+function standing(present: readonly Selection[], option: { id: string; definition: Definition }, count: number, index: CatalogueIndex) {
+  const kept: Selection[] = []
+  let left = count
+  for (const child of present) {
+    if (child.id !== option.id || (child.count ?? 1) > left) continue
+    kept.push(child)
+    left -= child.count ?? 1
+  }
+  return left > 0 ? [...kept, expand(option.id, option.definition, index, MAX_DEPTH, left, new Set(), 1)] : kept
 }
 
 function spreadRepeatedUpgrade(selection: Selection, path: readonly string[], requested: number, repeating: { path: string[] }) {

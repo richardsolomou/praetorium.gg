@@ -167,6 +167,51 @@ describe('costs', () => {
 
     expect({ cost: result.costs.Enhancements, unhandled: result.unhandled }).toEqual({ cost: 1, unhandled: [] })
   })
+
+  describe('of wargear held by several models', () => {
+    const armoury = (collective: boolean): Partial<Catalogue> => ({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'terminator',
+              name: 'Terminator',
+              type: 'model',
+              selectionEntryGroups: [
+                {
+                  id: 'weapons',
+                  name: 'Weapons',
+                  selectionEntries: [{ id: 'shield', name: 'Storm shield', type: 'upgrade', collective, costs: points(5) }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    it('are charged once for every model holding one', () => {
+      const result = evaluateOne(
+        { id: 'squad', selections: [{ id: 'terminator', count: 4, selections: [{ id: 'weapons', selections: [{ id: 'shield' }] }] }] },
+        armoury(false),
+      )
+      expect(result.points).toBe(20)
+    })
+
+    it('are charged as written when the count is already the unit total', () => {
+      const result = evaluateOne(
+        {
+          id: 'squad',
+          selections: [{ id: 'terminator', count: 4, selections: [{ id: 'weapons', selections: [{ id: 'shield', count: 4 }] }] }],
+        },
+        armoury(true),
+      )
+      expect(result.points).toBe(20)
+    })
+  })
 })
 
 describe('per-model parent constraints', () => {
@@ -202,22 +247,44 @@ describe('per-model parent constraints', () => {
     ],
   })
 
-  it('scales an unmarked group and its option across an aggregated model entry', () => {
+  it('holds an unmarked option to its limit on every model of an aggregated entry', () => {
     const result = evaluateOne(
       {
         id: 'squad',
-        selections: [
-          {
-            id: 'veteran',
-            count: 4,
-            selections: [{ id: 'pistol-option', selections: [{ id: 'pistol', count: 4 }] }],
-          },
-        ],
+        selections: [{ id: 'veteran', count: 4, selections: [{ id: 'pistol-option', selections: [{ id: 'pistol' }] }] }],
       },
       catalogue(),
     )
 
     expect(result.errors).toEqual([])
+  })
+
+  it('reads an unmarked option under an aggregated entry as what each model holds', () => {
+    const result = evaluateOne(
+      {
+        id: 'squad',
+        selections: [{ id: 'veteran', count: 4, selections: [{ id: 'pistol-option', selections: [{ id: 'pistol', count: 2 }] }] }],
+      },
+      catalogue(),
+    )
+
+    expect(result.errors.map((error) => error.message)).toEqual(['allows at most 1, has 2', 'allows at most 1, has 2'])
+  })
+
+  it('accepts a per-model minimum that every model of an aggregated entry meets', () => {
+    const data = catalogue()
+    data.sharedSelectionEntries![0]!.selectionEntries![0]!.selectionEntryGroups![0]!.constraints = [
+      { id: 'pistol-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+    ]
+    const result = evaluateOne(
+      {
+        id: 'squad',
+        selections: [{ id: 'veteran', count: 2, selections: [{ id: 'pistol-option', selections: [{ id: 'pistol', count: 2 }] }] }],
+      },
+      data,
+    )
+
+    expect(result.errors.filter((error) => error.entryId === 'pistol-option')).toEqual([])
   })
 
   it('counts an unmarked mandatory group and upgrade once for every aggregated model', () => {

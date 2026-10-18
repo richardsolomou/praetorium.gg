@@ -37,7 +37,7 @@ describe('a group a squad divides between options', () => {
                 id: 'guns',
                 name: 'Weapons',
                 defaultSelectionEntryId: 'blaster',
-                constraints: [{ id: 'guns-max', type: 'max' as const, value: 5, field: 'selections', scope: 'parent' }],
+                constraints: [{ id: 'guns-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
                 selectionEntries: [
                   { id: 'blaster', name: 'Gauss blaster', type: 'upgrade' as const },
                   { id: 'carbine', name: 'Tesla carbine', type: 'upgrade' as const },
@@ -79,8 +79,8 @@ describe('a group a squad divides between options', () => {
     expect(counts(chosen)).toEqual([['carbine', 1]])
   })
 
-  it('prices what the spread actually holds', () => {
-    const index = indexOf({
+  const twoGuns = () =>
+    indexOf({
       sharedSelectionEntries: [
         {
           id: 'squad',
@@ -108,8 +108,20 @@ describe('a group a squad divides between options', () => {
         },
       ],
     })
-    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'body/guns': { cheap: 1, dear: 1 } } })!
-    expect(evaluate([built.selection], index).points).toBe(25)
+  const spreadOverTwo = (index: ReturnType<typeof twoGuns>) =>
+    buildUnit('squad', index, undefined, undefined, { spreads: { 'body/guns': { cheap: 1, dear: 1 } } })!.selection
+
+  it('prices what the spread actually holds', () => {
+    const index = twoGuns()
+    expect(evaluate([spreadOverTwo(index)], index).points).toBe(25)
+  })
+
+  it('lists the same wargear it prices', () => {
+    const index = twoGuns()
+    expect(wargearOf(spreadOverTwo(index), index)).toEqual([
+      { name: 'Cheap gun', count: 1 },
+      { name: 'Dear gun', count: 1 },
+    ])
   })
 })
 
@@ -684,5 +696,70 @@ describe('a loadout with nested weapon choices', () => {
 
   it('does not restore a nested weapon explicitly removed from the chosen loadout', () => {
     expect(held({ 'leader/loadout': { pair: 1, axe: 0 }, 'leader/loadout/pair/gun': { pistol: 0, rifle: 0 } })).toEqual([['Blade', 1]])
+  })
+})
+
+describe('a specialist armed by a choice and counted by a spread', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Terminator Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Terminators',
+            defaultSelectionEntryId: 'fist',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'fist',
+                name: 'Terminator w/ Power Fist',
+                type: 'model',
+                constraints: [{ id: 'fist-max', type: 'max', value: 5, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'power-fist', name: 'Power fist', type: 'upgrade', constraints: mandatory('fist-min') }],
+              },
+              {
+                id: 'heavy',
+                name: 'Terminator w/ Heavy Weapon',
+                type: 'model',
+                constraints: [{ id: 'heavy-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntryGroups: [
+                  {
+                    id: 'heavy-weapon',
+                    name: 'Heavy weapon',
+                    constraints: [
+                      { id: 'heavy-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'heavy-weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'flamer', name: 'Heavy flamer', type: 'upgrade' },
+                      {
+                        id: 'cyclone',
+                        name: 'Cyclone missile launcher',
+                        type: 'upgrade',
+                        costs: [{ name: 'pts', typeId: PTS, value: 10 }],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('keeps the chosen weapon when the spread already counts its model', () => {
+    const built = buildUnit('squad', index, 5, { 'models/heavy/heavy-weapon': 'cyclone' }, { spreads: { models: { fist: 4, heavy: 1 } } })!
+    expect(wargearOf(built.selection, index)).toEqual([
+      { name: 'Power fist', count: 4 },
+      { name: 'Cyclone missile launcher', count: 1 },
+    ])
   })
 })

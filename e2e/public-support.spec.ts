@@ -26,6 +26,20 @@ test('support sends feedback in place and keeps the public issue tracker', async
       'href',
       'https://github.com/richardsolomou/praetorium.gg/issues/new',
     )
+    await expect(page.getByRole('main').getByRole('link', { name: 'Praetorium Discord' })).toHaveAttribute(
+      'href',
+      'https://discord.gg/kQneZ8Nae',
+    )
+    const header = page.locator(width === 1440 ? '[data-web-app-chrome]' : '[data-mobile-app-header]')
+    const community = header.getByRole('navigation', { name: 'Community' })
+    await expect(community.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/kQneZ8Nae')
+    await expect(community.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
+      'href',
+      'https://github.com/richardsolomou/praetorium.gg',
+    )
+    await community.getByRole('link', { name: 'Discord', exact: true }).press('Tab')
+    await expect(community.getByRole('link', { name: 'GitHub', exact: true })).toBeFocused()
+    await expect(page.getByRole('tooltip', { name: 'Browse the source on GitHub' })).toBeVisible()
     await page.getByRole('main').getByRole('button', { name: 'Send feedback' }).click()
     await expect(page.getByRole('dialog', { name: 'Send feedback' })).toBeVisible()
     await page.keyboard.press('Escape')

@@ -273,7 +273,7 @@ function collectUnitChoices(
         const repeating = repeatedCarrierOn(here, index)
         const scale = repeating
           ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
-          : scaleOf(child.definition, index, carriers)
+          : scaleOf(child.definition, definition, index, carriers)
         const capacity = maximumCountAt(selection, here, child.definition, index, options)
         const independent =
           capacity === null &&

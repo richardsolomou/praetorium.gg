@@ -137,6 +137,13 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   offline.on('pageerror', (error) => errors.push(error.message))
   await offline.goto('/rules/core-rules/moving')
   await expect(offline.getByRole('heading', { name: '03. Moving', exact: true })).toBeVisible()
+  await expect
+    .poll(() =>
+      offline
+        .locator('nav[aria-label="Community"] img')
+        .evaluateAll((icons) => icons.map((icon) => (icon as HTMLImageElement).complete && (icon as HTMLImageElement).naturalWidth > 0)),
+    )
+    .toEqual([true, true, true, true])
   await expect(offline.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
   await offline.locator('main details summary').first().click()
   await expect(offline.locator('main details').first()).toHaveAttribute('open', '')
