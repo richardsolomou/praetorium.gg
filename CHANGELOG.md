@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.161.1
+
+### Patch Changes
+
+- 14bec30: The homepage shows up to three played games, three friends' games, and three public games.
+
+  Live games stand out with filled green status badges and dark text.
+
 ## 0.161.0
 
 ### Minor Changes
