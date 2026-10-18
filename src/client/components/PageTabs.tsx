@@ -7,7 +7,7 @@ export function PageTabsList({
   ...props
 }: { tabs: readonly { value: string; label: string; count?: number }[] } & Omit<ComponentProps<typeof TabsList>, 'children'>) {
   return (
-    <TabsList variant="line" className="h-auto w-full justify-start gap-4 border-b border-edge p-0" {...props}>
+    <TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-x-4 gap-y-2 border-b border-edge p-0" {...props}>
       {/* The primitive's own active underline renders at no height in this setup, so it is stated here. */}
       {tabs.map(({ value, label, count }) => (
         <TabsTrigger
@@ -24,7 +24,7 @@ export function PageTabsList({
 }
 
 /** Tabs that are destinations: links in a nav, drawn like `PageTabsList`. */
-export const pageLinkTabsClass = 'flex gap-4 border-b border-edge'
+export const pageLinkTabsClass = 'flex flex-wrap gap-x-4 border-b border-edge'
 
 export const pageLinkTabClass = (current: boolean) =>
   `rubric relative -mb-px flex min-h-11 items-end border-b-2 pb-2 hover:text-bone ${current ? 'border-parchment text-parchment' : 'border-transparent'}`
