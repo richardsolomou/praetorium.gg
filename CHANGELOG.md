@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.157.5
+
+### Patch Changes
+
+- 6c492db: An option taken by several identical models shows its per-model price instead of a fraction of it.
+- 6c492db: Wargear options whose cost sits on the weapons they hold, such as Leman Russ sponson pairs, Knight Despoiler arms and Forgefiend cannons, are charged once instead of twice.
+
 ## 0.157.4
 
 ### Patch Changes
