@@ -100,7 +100,7 @@ const guides = [
   {
     slug: 'track-a-battle',
     title: 'How to track a Warhammer 40,000 battle',
-    fact: 'practice games do not.',
+    fact: 'practice games count in neither.',
     action: 'Open Battles',
     to: '/battles',
   },
