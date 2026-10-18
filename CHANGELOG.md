@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.160.1
+
+### Patch Changes
+
+- 036bf2b: The Discord community invite no longer expires.
+
 ## 0.160.0
 
 ### Minor Changes
