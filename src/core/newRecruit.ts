@@ -1,5 +1,5 @@
 import { plainQuotes } from './text'
-import type { TextRoster, TextRosterUnit } from './textRoster'
+import { type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 import { GAME_SIZES } from './battle'
 import type { GwTextRoster } from './gwText'
 
@@ -27,12 +27,34 @@ export function fromNewRecruitText(input: string): TextRoster | null {
       ? null
       : (GAME_SIZES.find((size) => size.limit >= total)?.limit ?? total)
   const warlord = metadata(lines, 'WARLORD')?.replace(/^Char\d+:\s*/i, '') ?? null
+  const units = newRecruitUnits(lines, native)
+
+  if (warlord) {
+    const unit = units.find((candidate) => normalized(candidate.name) === normalized(warlord))
+    if (unit) unit.warlord = true
+  }
+
+  const factionName = faction.split(' - ').at(-1)?.trim() || 'Imported roster'
+  return {
+    name: metadata(lines, 'ROSTER NAME') ?? (total === null ? `${factionName} roster` : `${factionName} ${total}pts`),
+    ...(total !== null ? { reportedPoints: total } : {}),
+    faction,
+    detachment: detachment === 'No detachment' ? null : detachment,
+    disposition,
+    limit,
+    ...(battleSize?.[2] ? { sizeName: battleSize[2] } : {}),
+    units,
+  }
+}
+
+/** The units of a New Recruit tournament layout: "2x Unit (90 pts): wargear", with its models as bullets beneath. */
+export function newRecruitUnits(lines: readonly string[], native = false) {
   const units: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (/^(Created with |Exported with |Ruleset:|Codex:)/i.test(trimmed)) {
+    if (/^(Created with |Exported with |Ruleset:|Codex:)/i.test(trimmed) || WTC_SECTION.test(trimmed)) {
       current = null
       continue
     }
@@ -90,23 +112,7 @@ export function fromNewRecruitText(input: string): TextRoster | null {
     if (nested) addDetails(current, nested[2]!, Number(nested[1]!))
     else if (trimmed) (current.unread ??= []).push(trimmed)
   }
-
-  if (warlord) {
-    const unit = units.find((candidate) => normalized(candidate.name) === normalized(warlord))
-    if (unit) unit.warlord = true
-  }
-
-  const factionName = faction.split(' - ').at(-1)?.trim() || 'Imported roster'
-  return {
-    name: metadata(lines, 'ROSTER NAME') ?? (total === null ? `${factionName} roster` : `${factionName} ${total}pts`),
-    ...(total !== null ? { reportedPoints: total } : {}),
-    faction,
-    detachment: detachment === 'No detachment' ? null : detachment,
-    disposition,
-    limit,
-    ...(battleSize?.[2] ? { sizeName: battleSize[2] } : {}),
-    units,
-  }
+  return units
 }
 
 function metadata(lines: readonly string[], name: string) {

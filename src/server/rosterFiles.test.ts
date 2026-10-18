@@ -1522,3 +1522,183 @@ describe('roster exchange import', () => {
     ])
   })
 })
+
+describe('ListForge, Warmind, and WTC roster import', () => {
+  it.each([
+    [
+      'listforge',
+      `Lord - Necrons - Disruption - Pantheon of Woe (150 Points)
+
+Attached Units:
+Lokhust Lord + Immortals (150 pts)
+  Lokhust Lord (80 pts)
+    • Warlord
+    • E: Demanding Leader
+  Immortals (70 pts)
+    • 5x Immortal
+      • 5x Tesla carbine
+`,
+    ],
+    [
+      'listforge-wtc',
+      `+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+List Name: Lord
+Factions Used: Necrons
+Army Points: 150
+Disposition: Disruption
+Detachment(s): Pantheon of Woe
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+ATTACHED UNITS:
+Lokhust Lord + Immortals (150 pts)
+  Lokhust Lord (80 pts)
+    • Warlord
+    • Enhancement: Demanding Leader
+  Immortals (70 pts)
+    • 5x Immortal
+      • 5x Tesla carbine
+`,
+    ],
+    [
+      'warmind',
+      `Lord
+──────────────────────────────
+Faction: Necrons
+Detachment: Pantheon of Woe
+Battle Size: Strike Force (2000 pts)
+Total: 150 / 2000 pts · 2/3 DP · ✓ Legal
+Disposition: Disruption
+
+BATTLELINE
+Lokhust Lord (80 pts) · Warlord
+   · Enhancement: Demanding Leader (+10 pts)
+   └ Leads: Immortals ×5 (70 pts)
+      · 5× Tesla carbine
+
+──────────────────────────────
+150 / 2000 pts · 2 units · Strike Force
+Built with Warmind · https://warmind.online`,
+    ],
+    [
+      'wtc',
+      `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ DETACHMENT: Pantheon of Woe
++ FORCE DISPOSITION: Disruption
++ TOTAL ARMY POINTS: 150pts
++ WARLORD: Char1: Lokhust Lord
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Attached Unit 1
+
+Lokhust Lord (80 pts)
+• Attached as: Leader (Character)
+• Warlord
+• Demanding Leader (+10 pts)
+
+Immortals (70 pts)
+• Attached as: Bodyguard
+• 5x Immortal
+• 5x Tesla carbine`,
+    ],
+  ])('imports %s text with its attachment, enhancement, and reported points', (format, file) => {
+    const imported = importRosterFile({ file }, loaded)
+
+    expect(imported).toMatchObject({
+      catalogueId: 'necrons',
+      detachmentIds: ['pantheon'],
+      disposition: 'disruption',
+      format,
+      source: 'roster-file',
+      reportedPoints: 150,
+      unknown: [],
+      sourceUnitCount: 2,
+    })
+    expect(imported.units.map((unit) => unit.entryId)).toEqual(['lord', 'immortals'])
+    expect(imported.units[0]?.attachedTo).toBe(1)
+  })
+
+  it('reads the official layout under a New Recruit WTC header as New Recruit', () => {
+    const imported = importRosterFile(
+      {
+        file: `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ TOTAL ARMY POINTS: 70pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+OTHER DATASHEETS
+
+Immortals (70 pts)
+• 5x Immortal
+• 5x Tesla carbine
+
+Created with newrecruit.eu v35.79`,
+      },
+      loaded,
+    )
+
+    expect(imported).toMatchObject({ format: 'newrecruit', source: 'newrecruit', sourceUnitCount: 1 })
+  })
+})
+
+describe('ListForge, Warmind, and WTC roster export', () => {
+  const data = {
+    catalogueId: 'necrons',
+    detachmentIds: ['pantheon'],
+    disposition: 'disruption',
+    limit: 2000,
+    pointsBudget: 1500,
+    name: 'Round trip',
+    units: [
+      { entryId: 'lord', choices: { enhancements: 'relic' }, attachedTo: 1 },
+      { entryId: 'immortals', models: 6 },
+      { entryId: 'tempestor', toggles: { 'scion-warlord': 1 } },
+      { entryId: 'tomb-blades', models: 4 },
+    ],
+  }
+  const priced = calculateRosterPrice(data, loaded, null)!
+  const exported = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, ['Disruption'])
+  const { source: _source, format: _format, ...readable } = importRosterFile({ file: exported.text }, loaded)
+  const withModels = (models: number) => readable.units.map((unit) => (unit.entryId === 'immortals' ? { ...unit, models } : unit))
+
+  it.each([
+    // ListForge states no battle size, and Immortals state no wargear to infer six models from.
+    ['listForgeText', 'listforge', { limit: null, pointsBudget: null, units: withModels(5) }],
+    ['warmindText', 'warmind', {}],
+    ['wtcText', 'wtc', { units: withModels(5) }],
+  ] as const)('reads %s back with only its documented losses', (layout, format, dropped) => {
+    expect(importRosterFile({ file: exported[layout] }, loaded)).toEqual({ ...readable, ...dropped, source: 'roster-file', format })
+  })
+
+  it('compares against a readable import that keeps every field', () => {
+    expect(readable).toMatchObject({
+      detachmentIds: ['pantheon'],
+      disposition: 'disruption',
+      limit: 2000,
+      pointsBudget: 1500,
+      unknown: [],
+      unplaced: [],
+      units: [
+        { entryId: 'lord', models: 1, choices: { enhancements: 'relic' }, attachedTo: 1 },
+        { entryId: 'immortals', models: 6 },
+        { entryId: 'tempestor', toggles: { 'scion-warlord': 1 } },
+        { entryId: 'tomb-blades', models: 4, spreads: { 'model/weapon': { blaster: 4, beamer: 0 } } },
+      ],
+    })
+  })
+
+  it('keeps the rules version only in Warmind text', () => {
+    const preview = exportRosterFile(
+      { ...data, catalogueId: 'codex~necrons' },
+      {
+        ...loaded,
+        edition: { id: 'codex', name: 'Necrons codex', status: 'preview', default: false, catalogueIds: ['necrons'], releases: [] },
+      },
+      { ...priced, disposition: priced.disposition ?? null },
+      ['Disruption'],
+    )
+    expect(importRosterCatalogueId(preview.warmindText)).toBe('codex~necrons')
+    expect(importRosterCatalogueId(preview.listForgeText)).toBeNull()
+    expect(importRosterCatalogueId(preview.wtcText)).toBeNull()
+  })
+})

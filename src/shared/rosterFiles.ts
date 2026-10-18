@@ -7,6 +7,10 @@ import { type Definition, nameOf } from '../core/catalogue'
 import { childrenOf, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText, toCompactText } from '../core/newRecruit'
+import { fromListForgeText, fromListForgeWtcText, toListForgeText } from '../core/listForge'
+import { fromWarmindText, toWarmindText } from '../core/warmind'
+import { fromWtcText, toWtcText } from '../core/wtcText'
+import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
 import { unitChoices, unitToggles } from '../core/unitChoices'
@@ -37,21 +41,47 @@ import type { LoadedRules } from './rules'
 import type { RosterExchange } from '../core/rosterExchange'
 import type { RosterPick } from '../core/roster'
 
-function parsedImport(file: string) {
+/** Which tool or layout wrote an imported text, as `roster_imported` and `roster_import_failed` report it. */
+export type RosterTextFormat =
+  | 'praetorium'
+  | 'newrecruit'
+  | 'battlebase'
+  | 'roster-file'
+  | 'listforge'
+  | 'listforge-wtc'
+  | 'warmind'
+  | 'wtc'
+
+function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
+  const praetorium = /Exported with Praetorium\.gg/i.test(file)
   const newRecruit = fromNewRecruitText(file)
-  if (newRecruit)
-    return { parsed: newRecruit, source: /Exported with Praetorium\.gg/i.test(file) ? ('praetorium' as const) : ('newrecruit' as const) }
+  if (newRecruit && (newRecruit.units.length || praetorium)) return { parsed: newRecruit, format: praetorium ? 'praetorium' : 'newrecruit' }
+  // New Recruit also writes the WTC header over the official app's unit layout.
+  const wtc = fromWtcText(file)
+  if (wtc) return { parsed: wtc, format: newRecruit ? 'newrecruit' : 'wtc' }
+  if (newRecruit) return { parsed: newRecruit, format: 'newrecruit' }
+  const warmind = fromWarmindText(file)
+  if (warmind) return { parsed: warmind, format: 'warmind' }
+  const listForge = fromListForgeText(file)
+  if (listForge) return { parsed: listForge, format: 'listforge' }
+  const listForgeWtc = fromListForgeWtcText(file)
+  if (listForgeWtc) return { parsed: listForgeWtc, format: 'listforge-wtc' }
   const battleBase = fromBattleBaseText(file)
   if (battleBase)
     return {
       parsed: battleBase,
-      source: /Exported with Praetorium\.gg/i.test(file)
-        ? ('praetorium' as const)
-        : /Exported with BattleBase/i.test(file)
-          ? ('battlebase' as const)
-          : ('roster-file' as const),
+      format: praetorium ? 'praetorium' : /Exported with BattleBase/i.test(file) ? 'battlebase' : 'roster-file',
     }
   return null
+}
+
+/** The roster origin a format saves as; formats without one of their own save as a roster file. */
+const savedSource = (format: RosterTextFormat): RosterSource =>
+  format === 'praetorium' || format === 'newrecruit' || format === 'battlebase' ? format : 'roster-file'
+
+/** The format of a pasted text, or `unrecognized` when no importer reads it. */
+export function importRosterFormat(file: string): RosterTextFormat | 'unrecognized' {
+  return parsedImport(file)?.format ?? 'unrecognized'
 }
 
 export function importRosterFaction(file: string) {
@@ -92,7 +122,8 @@ export function importRosterFile(
       : null
     return {
       ...result,
-      source: found.source,
+      source: savedSource(found.format),
+      format: found.format,
       reportedPoints: found.parsed.reportedPoints ?? null,
       currentPoints,
       sourceUnitCount: found.parsed.units.length,
@@ -107,6 +138,7 @@ export function importRosterFile(
     unknown: [{ name: 'the pasted text', reason: 'it is not a supported army-text export' }],
     unplaced: [],
     source: null,
+    format: null,
     reportedPoints: null,
     currentPoints: null,
     sourceUnitCount: 0,
@@ -167,6 +199,7 @@ export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCat
     unknown,
     unplaced,
     source: 'praetorium' as const,
+    format: 'praetorium' as const,
     reportedPoints: exchange.points,
     currentPoints: priced?.points ?? null,
     sourceUnitCount: exchange.picks.length,
@@ -640,6 +673,9 @@ export function exportRosterFile(
   return {
     text: toGwText(roster, version) + metadata,
     compactText: toCompactText(roster, version) + metadata,
+    listForgeText: toListForgeText(roster),
+    warmindText: toWarmindText(roster, version) + metadata,
+    wtcText: toWtcText(roster),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
   }
