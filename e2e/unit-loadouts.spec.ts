@@ -1,11 +1,12 @@
 import { expect, type Page, test } from './test'
 import { addUnit, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator } from './storage'
+import { productOperator, userIdFor } from './storage'
 
 const UNIT = 'Immortals'
 const LOADOUT = 'Six Immortals'
 const NOTE = 'Loadout note stays in its roster'
+const RETIRED = 'Retired guard'
 
 const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
 
@@ -27,7 +28,7 @@ for (const [width, label] of [
   test(`a saved loadout is added to another roster of its army without its note (${label})`, async ({ browser }) => {
     test.setTimeout(180_000)
     const page = await (await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } })).newPage()
-    await signUp(page, uniqueName('Loadout keeper'))
+    const account = await signUp(page, uniqueName('Loadout keeper'))
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Loadout source') })
     await addUnit(page, UNIT)
     await closePicker(page)
@@ -51,17 +52,43 @@ for (const [width, label] of [
     await expect(dialog).toBeHidden()
 
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Loadout destination') })
+    const operator = await productOperator()
+    const destinationRoster = await operator.roster(rosterId(page))
+    await operator.saveUnitLoadout(
+      crypto.randomUUID(),
+      await userIdFor(account.email),
+      { name: RETIRED, catalogueId: destinationRoster!.catalogueId, pick: { entryId: 'datasheet-this-rules-version-lacks' } },
+      Date.now(),
+    )
     await openPicker(page)
-    const saved = page.locator(`[data-saved-loadout="${LOADOUT}"]`)
-    await expect(saved).toContainText(UNIT)
+    const saved = page.locator(`[data-picker-unit="${UNIT}"] + [data-saved-loadout="${LOADOUT}"]`)
+    await expect(saved.locator('.chip')).toHaveText(/^\d+ pts$/)
+    const search = page.getByLabel('Add a unit')
+    await search.fill('six immortals')
+    await expect(page.locator(`[data-picker-unit="${UNIT}"]`)).toBeVisible()
+    await expect(page.locator('[data-picker-unit="Necron Warriors"]')).toHaveCount(0)
+    await search.fill(UNIT)
+    await expect(saved).toBeVisible()
+    await search.fill('')
+
+    const retired = page.locator(`[data-saved-loadout="${RETIRED}"]`)
+    await expect(retired).toContainText('This roster’s army does not include that unit.')
+    await expect(retired.getByRole('button', { name: `Add saved loadout ${RETIRED}` })).toBeDisabled()
     const picker = page.locator('div[data-onboarding="roster-picker"]')
     await expectNoHorizontalOverflow(picker)
+    await saved.scrollIntoViewIfNeeded()
     await shot(picker, `test-results/unit-loadout-picker-${label}.png`)
+    await retired.scrollIntoViewIfNeeded()
+    await shot(picker, `test-results/unit-loadout-unavailable-${label}.png`)
+    await retired.getByRole('button', { name: `Saved loadout actions for ${RETIRED}` }).click()
+    await page.getByRole('menuitem', { name: 'Delete loadout' }).click()
+    await page.getByRole('alertdialog', { name: 'Delete saved loadout?' }).getByRole('button', { name: 'Delete loadout' }).click()
+    await expect(retired).toHaveCount(0)
     await waitForRosterSave(page, () => saved.getByRole('button', { name: `Add saved loadout ${LOADOUT}` }).click())
     await closePicker(page)
     await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
     await expect(page.getByLabel(`${UNIT} models`)).toHaveText('6')
-    const destination = await (await productOperator()).roster(rosterId(page))
+    const destination = await operator.roster(rosterId(page))
     expect(destination?.picks).not.toContain(NOTE)
 
     await createRoster(page, { faction: 'Orks', detachment: /War Horde/, name: uniqueName('Other army') })

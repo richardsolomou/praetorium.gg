@@ -27,9 +27,14 @@ import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
-import { canAddCopy, unitLimitMessage } from './usePicks'
+import { canAddCopy, requestedUnit, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
-import { SavedLoadouts } from './SavedLoadouts'
+import { ConfirmDialog } from '../../../components/ConfirmDialog'
+import { loadoutPick } from '../../../../core/rosterCopies'
+import type { priceQuery } from '../../../queries'
+import { LoadoutRow } from './LoadoutRow'
+import { type PickerLoadout, pickerRows } from './pickerRows'
+import { useUnitLoadouts } from './useUnitLoadouts'
 
 type Props = {
   enabled: boolean
@@ -37,6 +42,8 @@ type Props = {
   detachmentIds: readonly string[]
   onAdd: (entryId: string) => void
   onApplyLoadout: (pick: RosterPick) => void
+  /** The roster's own price request for other units, so a saved loadout shows what it would cost here. */
+  priceLoadouts: (picks: readonly RosterPick[]) => ReturnType<typeof priceQuery>
   onPreview: (entryId: string, name: string) => void
   inRoster: Record<string, number>
   limits: ReadonlyMap<string, number | null>
@@ -82,6 +89,7 @@ export const Picker = memo(function Picker({
   detachmentIds,
   onAdd,
   onApplyLoadout,
+  priceLoadouts,
   onPreview,
   inRoster,
   limits,
@@ -107,18 +115,46 @@ export const Picker = memo(function Picker({
   const owned = collectionResult.data
   const { favourites, loading: favouritesLoading, toggleFavourite, pending: favouriting } = useFavouriteDatasheets(enabled && signedIn)
 
-  const collection = useMemo(() => new Set(owned ?? []), [owned])
-  const shown = useMemo(
+  const { loadouts: savedLoadouts, remove } = useUnitLoadouts(enabled && signedIn)
+  const [deleting, setDeleting] = useState<PickerLoadout | null>(null)
+  const offered = useMemo(() => new Set((unitsResult.data ?? []).map((unit) => unit.id)), [unitsResult.data])
+  const applicable = useMemo(
     () =>
-      (found ?? []).filter((unit) => {
-        if (active.has('fit') && room !== null && unit.points !== null && unit.points > room) return false
-        if (active.has('limit') && limits.has(unit.id) && !canAddCopy(unit.id, inRoster[unit.id] ?? 0, limits)) return false
-        if (active.has('owned') && collection.size && !collection.has(unit.id)) return false
-        if (active.has('favourite') && favourites.size && !favourites.has(unit.id)) return false
-        return true
+      (savedLoadouts.data ?? []).flatMap((loadout) => {
+        const pick = loadoutPick(loadout, catalogueId)
+        return pick ? [{ id: loadout.id, name: loadout.name, pick }] : []
       }),
-    [found, active, room, inRoster, collection, favourites, limits],
+    [savedLoadouts.data, catalogueId],
   )
+  const priceable = useMemo(() => applicable.filter((loadout) => offered.has(loadout.pick.entryId)), [applicable, offered])
+  const loadoutPrices = useQuery({ ...priceLoadouts(priceable.map((loadout) => loadout.pick)), enabled: enabled && priceable.length > 0 })
+  const loadouts = useMemo<PickerLoadout[]>(() => {
+    const points = new Map(priceable.map((loadout, key) => [loadout, loadoutPrices.data?.units.find((unit) => unit.key === key)?.points]))
+    return applicable.map((loadout) => ({
+      ...loadout,
+      points: !points.has(loadout) || loadoutPrices.isError ? null : loadoutPrices.data ? (points.get(loadout) ?? null) : undefined,
+    }))
+  }, [applicable, priceable, loadoutPrices.data, loadoutPrices.isError])
+
+  const collection = useMemo(() => new Set(owned ?? []), [owned])
+  const rows = useMemo(
+    () =>
+      pickerRows({
+        units: unitsResult.data ?? [],
+        found,
+        loadouts,
+        query,
+        keeps: (entryId, points) => {
+          if (active.has('fit') && room !== null && points != null && points > room) return false
+          if (active.has('limit') && limits.has(entryId) && !canAddCopy(entryId, inRoster[entryId] ?? 0, limits)) return false
+          if (active.has('owned') && collection.size && !collection.has(entryId)) return false
+          if (active.has('favourite') && favourites.size && !favourites.has(entryId)) return false
+          return true
+        },
+      }),
+    [unitsResult.data, found, loadouts, query, active, room, inRoster, collection, favourites, limits],
+  )
+  const shown = rows.units
   const rules = formatRules(battleSize, pointsBudget)
   const waived = rules.filter((rule) => !enforces(waivedRules, rule.id))
   const alliedFactions = useMemo(() => [...new Set(shown.flatMap((unit) => (unit.alliedFaction ? [unit.alliedFaction] : [])))], [shown])
@@ -206,57 +242,95 @@ export const Picker = memo(function Picker({
           <PickerSkeleton />
         ) : unitsResult.isError ? (
           <Problem className="py-3 text-xs">The book could not be loaded.</Problem>
-        ) : shown.length ? (
-          [
-            signedIn ? (
-              <SavedLoadouts
-                key="saved-loadouts"
-                catalogueId={catalogueId}
-                units={unitsResult.data}
-                inRoster={inRoster}
-                limits={limits}
-                query={query}
-                onApply={onApplyLoadout}
-              />
-            ) : null,
-            ...sections.map(({ id, plural, alliedFaction }) => {
-              const rows = shown
+        ) : shown.length || rows.unavailable.length ? (
+          <>
+            {savedLoadouts.isError ? <Problem className="py-2 text-xs">Your saved loadouts could not be loaded.</Problem> : null}
+            {sections.map(({ id, plural, alliedFaction }) => {
+              const group = shown
                 .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
                 .toSorted((left, right) => Number(favourites.has(right.id)) - Number(favourites.has(left.id)))
-              return rows.length ? (
+              return group.length ? (
                 <Fragment key={id}>
                   {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
-                  <Section title={plural} count={rows.length} defaultOpen={!alliedFaction}>
-                    {rows.map((unit) => {
+                  <Section title={plural} count={group.length} defaultOpen={!alliedFaction}>
+                    {group.map((unit) => {
                       const held = inRoster[unit.id] ?? 0
                       const full = !canAddCopy(unit.id, held, limits)
                       return (
-                        <PickerRow
-                          key={unit.id}
-                          unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
-                          unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
-                          held={held}
-                          full={full}
-                          favourite={favourites.has(unit.id)}
-                          favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
-                          query={query}
-                          onPreview={onPreview}
-                          onFavourite={signedIn ? toggleFavourite : undefined}
-                          onAdd={onAdd}
-                        />
+                        <Fragment key={unit.id}>
+                          <PickerRow
+                            unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
+                            unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
+                            held={held}
+                            full={full}
+                            favourite={favourites.has(unit.id)}
+                            favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
+                            query={query}
+                            onPreview={onPreview}
+                            onFavourite={signedIn ? toggleFavourite : undefined}
+                            onAdd={onAdd}
+                          />
+                          {rows.loadouts.get(unit.id)?.map((loadout) => (
+                            <LoadoutRow
+                              key={loadout.id}
+                              loadout={loadout}
+                              datasheet={unit.name}
+                              addable={!full}
+                              unavailableReason={null}
+                              onPreview={onPreview}
+                              onApply={onApplyLoadout}
+                              onDelete={setDeleting}
+                            />
+                          ))}
+                        </Fragment>
                       )
                     })}
                   </Section>
                 </Fragment>
               ) : null
-            }),
-          ]
+            })}
+            {rows.unavailable.length ? (
+              <Section title="Unavailable loadouts" count={rows.unavailable.length}>
+                {rows.unavailable.map((loadout) => {
+                  const outcome = requestedUnit(loadout.pick.entryId, inRoster[loadout.pick.entryId] ?? 0, limits)
+                  return (
+                    <LoadoutRow
+                      key={loadout.id}
+                      loadout={loadout}
+                      datasheet={null}
+                      addable={false}
+                      unavailableReason={outcome.kind === 'refused' ? outcome.message : null}
+                      onPreview={onPreview}
+                      onApply={onApplyLoadout}
+                      onDelete={setDeleting}
+                    />
+                  )
+                })}
+              </Section>
+            ) : null}
+          </>
         ) : (
           <p className="py-3 text-xs text-faint">
-            {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'No units available.'}
+            {found?.length || loadouts.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'No units available.'}
           </p>
         )}
       </ScrollArea>
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Delete saved loadout?"
+        description={`${deleting?.name ?? 'This loadout'} leaves your saved loadouts. Rosters that already use it keep their units.`}
+        cancel="Keep loadout"
+        confirm="Delete loadout"
+        pendingLabel="Deleting…"
+        destructive
+        pending={remove.isPending}
+        error={remove.error}
+        onClose={() => {
+          remove.reset()
+          setDeleting(null)
+        }}
+        onConfirm={() => deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+      />
     </div>
   )
 })

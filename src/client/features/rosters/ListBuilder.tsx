@@ -710,6 +710,11 @@ export function ListBuilder({
   }
   const add = (entryId: string, link?: AttachLink) => queueAdd(entryId, link ? { link } : {})
   const applyLoadout = (loadout: RosterPick) => queueAdd(loadout.entryId, { loadout })
+  const priceLoadouts = useCallback(
+    (loadouts: readonly RosterPick[]) =>
+      priceQuery(catalogueId, detachmentIds, disposition, limit, loadouts, waivedRules, borrowedDetachmentId, optionalRules),
+    [catalogueId, detachmentIds, disposition, limit, waivedRules, borrowedDetachmentId, optionalRules],
+  )
   useEffect(() => {
     const next = queuedAdds[0]
     if (!next) return
@@ -1054,6 +1059,7 @@ export function ListBuilder({
             detachmentIds={detachmentIds}
             onAdd={add}
             onApplyLoadout={applyLoadout}
+            priceLoadouts={priceLoadouts}
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
