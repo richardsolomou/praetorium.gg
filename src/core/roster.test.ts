@@ -2006,6 +2006,67 @@ describe('who the data lets a list nominate as its Warlord', () => {
   })
 })
 
+describe('a squad grown past its minimum', () => {
+  // The Terminator Assault Squad lists its storm-shield models before its default claws.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'assault',
+        name: 'Terminator Assault Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'terminators',
+            name: 'Assault Terminators',
+            defaultSelectionEntryId: 'claws',
+            constraints: [
+              { id: 'terminators-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'terminators-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'shields',
+                name: 'Assault Terminator w/ Thunder Hammer & Storm Shield',
+                type: 'model',
+                constraints: [{ id: 'shields-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'shield',
+                    name: 'Storm Shield',
+                    type: 'upgrade',
+                    costs: [{ typeId: PTS, name: 'pts', value: 5 }],
+                    constraints: mandatory('shield-min'),
+                  },
+                ],
+              },
+              {
+                id: 'claws',
+                name: 'Assault Terminator w/ Twin Lightning Claws',
+                type: 'model',
+                constraints: [{ id: 'claws-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'claw', name: 'Twin Lightning Claws', type: 'upgrade', constraints: mandatory('claw-min') }],
+              },
+              {
+                id: 'sergeant',
+                name: 'Assault Terminator Sergeant',
+                type: 'model',
+                constraints: [
+                  ...mandatory('sergeant-min'),
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('adds models of the kind the squad defaults to', () => {
+    expect(wargearOf(buildUnit('assault', index, 10)!.selection, index)).toEqual([{ name: 'Twin Lightning Claws', count: 9 }])
+  })
+})
+
 describe('an enhancement a unit upgrade opens', () => {
   // A Trygon takes Trygon Prime only once its Character upgrade makes it a character,
   // and the data hides the enhancements until the unit it roots holds that upgrade.

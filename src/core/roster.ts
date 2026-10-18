@@ -397,8 +397,13 @@ function withOptionalModels(selection: Selection, models: number, index: Catalog
   let remaining = models - modelCountOf(selection, index)
   if (remaining <= 0) return selection
 
+  // A squad grows by the model its group defaults to before it takes on another kind.
+  const defaultFirst = (slot: ModelSlot) => {
+    const parent = index.definitions.get(slot.path.at(-2) ?? '')
+    return parent && 'defaultSelectionEntryId' in parent && parent.defaultSelectionEntryId === slot.path.at(-1) ? 0 : 1
+  }
   let result = selection
-  for (const slot of optionalModelSlots(selection, index)) {
+  for (const slot of optionalModelSlots(selection, index).toSorted((one, other) => defaultFirst(one) - defaultFirst(other))) {
     if (!remaining) break
     const parentPath = slot.path.slice(0, -1)
     const parent = index.definitions.get(parentPath.at(-1) ?? '')
