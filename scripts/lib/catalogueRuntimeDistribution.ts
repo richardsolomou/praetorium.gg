@@ -9,7 +9,7 @@ import { replaceDirectory } from '../../src/server/replaceDirectory'
 import { publicAssetsR2Client } from '../../src/server/r2Client'
 
 const MAX_BYTES = 128 * 1024 * 1024
-const STORE_PATH = 'catalogue/runtime/by-key'
+const RUNTIME_STORE_PATH = 'catalogue/runtime/by-key'
 
 export function packCatalogueRuntime(directory: string, output: string, archive: string) {
   const manifest = runtimeManifestSchema.parse(JSON.parse(fs.readFileSync(path.join(output, 'manifest.json'), 'utf8')))
@@ -25,12 +25,14 @@ export function packCatalogueRuntime(directory: string, output: string, archive:
   return { fingerprint: manifest.fingerprint, archiveSha256: hash('sha256', bytes) }
 }
 
-/** Where compiled runtimes are shared by cache key; `off` keeps every build compiling for itself. */
-export function runtimeStoreUrl(environment: NodeJS.ProcessEnv = process.env) {
+/** Where build outputs under `storePath` are shared by cache key; `off` keeps every build compiling for itself. */
+export function storeUrl(storePath: string, environment: NodeJS.ProcessEnv = process.env) {
   const value = environment.CATALOGUE_RUNTIME_STORE?.trim()
   if (value === 'off') return null
-  return (value || `${DEFAULT_PUBLIC_ASSETS_BASE_URL}/${STORE_PATH}`).replace(/\/$/, '')
+  return `${(value || DEFAULT_PUBLIC_ASSETS_BASE_URL).replace(/\/$/, '')}/${storePath}`
 }
+
+export const runtimeStoreUrl = (environment: NodeJS.ProcessEnv = process.env) => storeUrl(RUNTIME_STORE_PATH, environment)
 
 /** Unpacks an archive into `output` only once every file verifies against its manifest and the snapshot. */
 export function installRuntimeArchive(directory: string, output: string, bytes: Uint8Array) {
@@ -62,7 +64,7 @@ export function installRuntimeArchive(directory: string, output: string, bytes: 
 }
 
 /** Whether the store already holds `key`; an unreachable store reads as holding it, so nothing retries uploads against it. */
-export async function storeHasRuntime(key: string, store = runtimeStoreUrl()) {
+export async function storeHasArchive(key: string, store = runtimeStoreUrl()) {
   if (!store) return true
   try {
     const response = await fetchWithRetry(`${store}/${key}.zip`, { method: 'HEAD', signal: AbortSignal.timeout(15_000) })
@@ -73,23 +75,35 @@ export async function storeHasRuntime(key: string, store = runtimeStoreUrl()) {
   }
 }
 
-/** A missing, unreachable or unverifiable object is a cache miss, never a failed build. */
-export async function downloadRuntime(directory: string, output: string, key: string, store = runtimeStoreUrl()) {
-  if (!store) return false
+/** A missing or unreachable object is a cache miss, never a failed build. */
+export async function downloadArchive(key: string, store: string | null) {
+  if (!store) return null
   try {
     const response = await fetchWithRetry(`${store}/${key}.zip`, { signal: AbortSignal.timeout(60_000) })
     if (!response.ok || !response.body) {
       await response.body?.cancel()
-      return false
+      return null
     }
     const chunks: Uint8Array[] = []
     let size = 0
     for await (const chunk of response.body) {
       size += chunk.length
-      if (size > MAX_BYTES) throw new Error('Catalogue runtime archive is too large')
+      if (size > MAX_BYTES) throw new Error('Archive is too large')
       chunks.push(chunk)
     }
-    installRuntimeArchive(directory, output, Buffer.concat(chunks))
+    return Buffer.concat(chunks)
+  } catch (error) {
+    console.error(`${key} not restored from the store:`, error instanceof Error ? error.message : String(error))
+    return null
+  }
+}
+
+/** An unverifiable runtime is a cache miss too. */
+export async function downloadRuntime(directory: string, output: string, key: string, store = runtimeStoreUrl()) {
+  const archive = await downloadArchive(key, store)
+  if (!archive) return false
+  try {
+    installRuntimeArchive(directory, output, archive)
     return true
   } catch (error) {
     console.error(`Catalogue runtime ${key} not restored from the store:`, error instanceof Error ? error.message : String(error))
@@ -104,23 +118,26 @@ function configuredUploader(): Uploader | null {
     const client = publicAssetsR2Client()
     return client ? { fetch: (url, init) => client.client.fetch(url, init), base: client.base } : null
   } catch (error) {
-    console.error('Catalogue runtime store is not writable here:', error instanceof Error ? error.message : String(error))
+    console.error('The build output store is not writable here:', error instanceof Error ? error.message : String(error))
     return null
   }
 }
 
 /** Keys name their inputs, so an object is written once and never replaced. */
-export async function uploadRuntime(key: string, archive: Uint8Array, uploader = configuredUploader()) {
+export async function uploadArchive(storePath: string, key: string, archive: Uint8Array, uploader = configuredUploader()) {
   if (!uploader) return 'skipped' as const
   const body = new Uint8Array(archive.byteLength)
   body.set(archive)
-  const response = await uploader.fetch(`${uploader.base}${STORE_PATH}/${key}.zip`, {
+  const response = await uploader.fetch(`${uploader.base}${storePath}/${key}.zip`, {
     method: 'PUT',
     body,
     headers: { 'content-type': 'application/zip', 'if-none-match': '*' },
     signal: AbortSignal.timeout(120_000),
   })
   if (response.status === 412) return 'exists' as const
-  if (!response.ok) throw new Error(`Catalogue runtime upload failed with HTTP ${response.status}`)
+  if (!response.ok) throw new Error(`${storePath} upload failed with HTTP ${response.status}`)
   return 'uploaded' as const
 }
+
+export const uploadRuntime = (key: string, archive: Uint8Array, uploader = configuredUploader()) =>
+  uploadArchive(RUNTIME_STORE_PATH, key, archive, uploader)

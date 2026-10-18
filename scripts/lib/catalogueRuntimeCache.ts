@@ -5,7 +5,7 @@ import path from 'node:path'
 import { catalogueRuntimeFingerprint, readCatalogueRuntime, runtimeManifestSchema } from '../../src/server/catalogueRuntime'
 import { writeCatalogueRuntime } from './catalogueRuntime'
 import { publishDirectory } from './publishDirectory'
-import { downloadRuntime, packCatalogueRuntime, storeHasRuntime, uploadRuntime } from './catalogueRuntimeDistribution'
+import { downloadRuntime, packCatalogueRuntime, storeHasArchive, uploadRuntime } from './catalogueRuntimeDistribution'
 
 type Compile = (directory: string, output: string) => Promise<void> | void
 export type RuntimeStore = {
@@ -14,7 +14,7 @@ export type RuntimeStore = {
   upload: (key: string, archive: Uint8Array) => Promise<unknown>
 }
 
-const sharedStore: RuntimeStore = { has: storeHasRuntime, download: downloadRuntime, upload: uploadRuntime }
+const sharedStore: RuntimeStore = { has: storeHasArchive, download: downloadRuntime, upload: uploadRuntime }
 const compilerSources = ['src/contracts', 'src/core', 'src/server', 'src/shared', 'scripts/lib', 'scripts/compileCatalogueRuntime.ts']
 
 function* sourceFiles(root: string, relative: string): Generator<string> {
