@@ -90,6 +90,9 @@ export function unplacedChoiceReason(
 
 export const WARLORD_REASON = 'this datasheet has no Warlord option'
 
+/** An option the datasheet offers that the imported unit still holds none of, such as a heavy weapon whose model is not in the squad. */
+export const DROPPED_REASON = 'no model in the imported unit carries it'
+
 export function squadSizeReason(size: UnitSize): string {
   if (size.options?.length) return `this datasheet fields ${size.options.join(' or ')} models`
   if (size.min === size.max) return `this datasheet fields ${size.min} model${size.min === 1 ? '' : 's'}`
