@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.165.0
+
+### Minor Changes
+
+- 9566d5e: Start a battle from a saved roster's menu, and the battle opens with that roster already on your side.
+
 ## 0.164.2
 
 ### Patch Changes
