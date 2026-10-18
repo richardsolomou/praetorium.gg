@@ -1,7 +1,7 @@
 /** Saved picks are rebuilt and repriced against the current catalogue. */
 
 import type { CatalogueIndex, Definition } from './catalogue'
-import { isCollective } from './collective'
+import { isCollective, storesUnitTotal } from './collective'
 import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
 import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
@@ -485,10 +485,10 @@ function refit(selection: Selection, index: CatalogueIndex, carriers: number, op
       const filled = need > 0 ? fill(child, need, named, groupOptions, index) : child
       return refit(filled, index, held, options)
     }
-    // A mandatory collective upgrade: one per model, as the data asks. Models are
-    // excluded for the same reason groups of them are — how many bodies a squad
-    // fields is the squad's size, and refitting it would overrule the size asked for.
-    if (childDefinition && isCollective(childDefinition, index) && inner?.type === 'upgrade') {
+    // A mandatory upgrade stored as the unit's total: one per model, as the data asks.
+    // Models are excluded for the same reason groups of them are — how many bodies a
+    // squad fields is the squad's size, and refitting it would overrule the size asked for.
+    if (childDefinition && definition && storesUnitTotal(childDefinition, definition, index) && inner?.type === 'upgrade') {
       const need = requiredCount(childDefinition, index) * held
       const maximum = maximumCount(childDefinition, index, options)
       const ceiling = maximum === null ? Number.POSITIVE_INFINITY : maximum * held

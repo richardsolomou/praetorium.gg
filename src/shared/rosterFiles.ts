@@ -30,6 +30,7 @@ import {
   type UnplacedChoice,
   unplacedChoiceReason,
   squadSizeReason,
+  DROPPED_REASON,
   WARLORD_REASON,
 } from './importMismatch'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -447,14 +448,21 @@ function textRosterPick(
     spreads: Object.fromEntries(
       choices
         .filter((choice) => choice.room > 1)
-        .map((choice) => {
+        .flatMap((choice) => {
           const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
           const explicit = counts.size > 0
+          // A model the list does not count keeps the body a choice gave it: the cyclone
+          // missile launcher brings its Terminator, and counting none would take it away.
+          if (choice.options.some((option) => isModel(option.id, loaded.index))) {
+            return explicit ? [[choice.key, Object.fromEntries([...counts].map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
+          }
           return [
-            choice.key,
-            Object.fromEntries(
-              choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
-            ),
+            [
+              choice.key,
+              Object.fromEntries(
+                choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
+              ),
+            ],
           ]
         }),
     ),
@@ -462,12 +470,17 @@ function textRosterPick(
     attachedTo: undefined as number | undefined,
   }
 
+  // Only the unit the pick builds says what was kept: an option the datasheet offers can
+  // still be left off it, as a heavy weapon is when its model is not in the squad.
+  const imported = buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
+  const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
   const unplaced = [...stated.keys()]
-    .filter((name) => !placed.has(name))
-    .map((name) => ({
-      name: labels.get(name) ?? name,
-      reason: unplacedChoiceReason(labels.get(name) ?? name, { loaded, catalogueId, detachmentIds }),
-    }))
+    .filter((name) => !carried.has(name) && !warlordNames.has(name) && name !== normalized(unit.name))
+    .map((name) => {
+      const label = labels.get(name) ?? name
+      const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds })
+      return { name: label, reason }
+    })
   for (const line of unit.unread ?? []) unplaced.push({ name: line, reason: 'this line is not understood by the text importer' })
   // A crown this datasheet cannot wear, and a squad size it does not field, are both
   // choices the list states and this build could not take. Only a stated size counts:
@@ -477,6 +490,30 @@ function textRosterPick(
     unplaced.push({ name: `${unit.models} models`, reason: squadSizeReason(built.size) })
   }
   return { pick, unplaced }
+}
+
+const isModel = (id: string, index: LoadedCatalogue['index']) => {
+  const definition = index.definitions.get(id)
+  return definition !== undefined && resolve(definition, index).type === 'model'
+}
+
+/** Every name a built unit holds something under, leaving out what it holds none of. */
+function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
+  const found = new Set<string>()
+  const walk = (node: Selection) => {
+    const definition = index.definitions.get(node.id)
+    if (!definition || (node.count ?? 1) <= 0) return
+    const target = resolve(definition, index)
+    const profile = target.type === 'model' ? modelProfileOf(definition, index) : undefined
+    for (const name of [nameOf(definition, index.definitions), target.name, profile]) {
+      if (!name) continue
+      found.add(normalized(name))
+      found.add(normalized(name.replace(/\s+w\/\s.+$/i, '').replace(/\s+\(Upgrade\)$/i, '')))
+    }
+    node.selections?.forEach(walk)
+  }
+  walk(selection)
+  return found
 }
 
 /**

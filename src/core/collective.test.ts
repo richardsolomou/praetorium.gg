@@ -16,7 +16,14 @@ describe('what a stored count means', () => {
         name: 'Squad',
         type: 'unit',
         selectionEntryGroups: [
-          { id: 'guns', name: 'Guns', entryLinks: [{ id: 'blaster-link', targetId: 'blaster', type: 'selectionEntry' }] },
+          {
+            id: 'guns',
+            name: 'Guns',
+            entryLinks: [
+              { id: 'blaster-link', targetId: 'blaster', type: 'selectionEntry' },
+              { id: 'gun-knife-link', targetId: 'knife', type: 'selectionEntry' },
+            ],
+          },
           { id: 'knives', name: 'Knives', entryLinks: [{ id: 'knife-link', targetId: 'knife', type: 'selectionEntry' }] },
         ],
       },
@@ -38,8 +45,14 @@ describe('what a stored count means', () => {
   })
 
   it('scales a per-model constraint by the carriers only for a unit total', () => {
-    expect([scaleOf(entry('blaster-link'), index, 10), scaleOf(entry('guns'), index, 10), scaleOf(entry('knife-link'), index, 10)]).toEqual(
-      [10, 10, 1],
-    )
+    expect([
+      scaleOf(entry('blaster-link'), entry('guns'), index, 10),
+      scaleOf(entry('guns'), entry('squad'), index, 10),
+      scaleOf(entry('knife-link'), entry('knives'), index, 10),
+    ]).toEqual([10, 10, 1])
+  })
+
+  it('scales an unmarked option by the carriers when its group stores the unit total', () => {
+    expect(scaleOf(entry('gun-knife-link'), entry('guns'), index, 10)).toBe(10)
   })
 })

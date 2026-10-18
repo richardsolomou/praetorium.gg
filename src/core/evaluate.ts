@@ -24,7 +24,7 @@ import type {
   ModifierGroup,
   Repeat,
 } from './catalogue'
-import { isCollective, isCollectiveGroup } from './collective'
+import { fieldedCount, scaleOf } from './collective'
 
 /** What the player picked: an entry, group or link id, how many, and what sits under it. */
 export type Selection = { id: string; count?: number; selections?: readonly Selection[] }
@@ -73,6 +73,8 @@ type Node = {
   link: EntryLink | null
   id: string
   count: number
+  /** How many of it the force fields, which is what its costs are paid for (`fieldedCount`). */
+  fielded: number
   parent: Node | null
   children: Node[]
 }
@@ -376,6 +378,7 @@ function rosterContext(
     link: null,
     id: 'roster',
     count: 1,
+    fielded: 1,
     parent: null,
     children: [],
   }
@@ -387,6 +390,7 @@ function rosterContext(
       link: null,
       id: `force-${forceIndex}`,
       count: 1,
+      fielded: 1,
       parent: root,
       children: [],
     }
@@ -473,7 +477,7 @@ export function evaluateForces(
 
   for (const node of descendants(root)) {
     for (const [typeId, value] of costsOf(node, root, index, census)) {
-      const amount = value * node.count
+      const amount = value * node.fielded
       totals.set(typeId, (totals.get(typeId) ?? 0) + amount)
       if (typeId === index.pointsTypeId) {
         let selection: Node | null = node
@@ -703,6 +707,7 @@ function candidateContext(
     link: null,
     id: 'roster',
     count: 1,
+    fielded: 1,
     parent: null,
     children: [],
   }
@@ -715,7 +720,7 @@ function candidateContext(
   for (const each of [...lineage, definition]) {
     const link = isLink(each) ? each : null
     const target = link ? (index.definitions.get(link.targetId) ?? each) : each
-    const child: Node = { target, order: counter.next++, link, id: each.id, count: 1, parent: node, children: [] }
+    const child: Node = { target, order: counter.next++, link, id: each.id, count: 1, fielded: 1, parent: node, children: [] }
     node.children = node === root ? [...root.children, child] : [child]
     node = child
   }
@@ -735,7 +740,9 @@ function build(selection: Selection, parent: Node, index: CatalogueIndex, census
     return null
   }
 
-  const node: Node = { target, order: counter.next++, link, id: selection.id, count: selection.count ?? 1, parent, children: [] }
+  const count = selection.count ?? 1
+  const fielded = fieldedCount(definition, index.definitions.get(parent.id), index, count, parent.fielded)
+  const node: Node = { target, order: counter.next++, link, id: selection.id, count, fielded, parent, children: [] }
   node.children = (selection.selections ?? [])
     .map((child) => build(child, node, index, census, counter))
     .filter((child): child is Node => child !== null)
@@ -1225,10 +1232,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
       census.note('constraint percentValue')
       return
     }
-    const raw = measure({ ...constraint, childId }, node, root, index, census)
-    // An unmarked mandatory child beneath an aggregated model is stored once as
-    // the model's template, while its minimum applies once to every model.
-    const measured = constraint.type === 'min' && raw === 1 ? raw * carriers(constraint, node, index) : raw
+    const measured = measure({ ...constraint, childId }, node, root, index, census)
     if (constraint.type === 'min' && measured < limit) {
       errors.push({ entryId, entryName, message: `needs at least ${limit}, has ${measured}` })
     }
@@ -1251,26 +1255,20 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
 }
 
 /**
- * How many times over a per-parent limit applies.
- *
- * A child of an aggregated model holds a total for all copies of that model, and its
- * `@parent` constraints are written per model — "each model may take one gauss
- * blaster" is `max=1`. So the limit for a squad of ten is ten. Most such entries are
- * explicitly `collective`, but some catalogue groups omit that marker while their
- * selection still holds the squad's total. Reading the one literally called every
- * such squad illegal.
+ * How many times over a per-parent limit applies: once for every model holding the
+ * child when its count is the unit's total, once otherwise. Groups hold no carrier
+ * count of their own, so the models holding it are the nearest entry above them.
  */
 function carriers(constraint: Constraint, node: Node, index: CatalogueIndex): number {
   if (constraint.scope !== 'parent') return 1
-  // Groups hold no carrier count of their own, so the models holding this are the
-  // nearest entry above them. An aggregated model scales every parent-scoped child:
-  // the catalogue can omit `collective` even though the selection stores one total
-  // for all copies of that model.
   let holder = node.parent
   while (holder && isGroup(holder)) holder = holder.parent
-  const aggregatedModel = holder?.target.type === 'model' && holder.count > 1
-  if (!isCollective(node.target, index) && !isCollectiveGroup(node.target, index) && !aggregatedModel) return 1
-  return Math.max(1, holder?.count ?? 1)
+  return scaleOf(
+    node.link ?? node.target,
+    node.parent ? index.definitions.get(node.parent.id) : undefined,
+    index,
+    Math.max(1, holder?.count ?? 1),
+  )
 }
 
 /** A constraint's limit after any modifier aimed at it by id — how points limits change per game size. */

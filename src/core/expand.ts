@@ -48,11 +48,11 @@ export function expand(
     // Reserve room for options with their own minimum before the declared default
     // consumes the group's allowance. Mixed squads commonly put the ordinary
     // model first and a required sergeant later in the catalogue.
-    const reserved = available.reduce((total, child) => total + insistedOn(child, index, depth - 1, carriers, options), 0)
+    const reserved = available.reduce((total, child) => total + insistedOn(child, definition, index, depth - 1, carriers, options), 0)
     let remaining = Math.max(0, count - reserved)
     for (const child of ordered(target, available, index)) {
-      const scale = scaleOf(child.definition, index, carriers)
-      const minimum = insistedOn(child, index, depth - 1, carriers, options)
+      const scale = scaleOf(child.definition, definition, index, carriers)
+      const minimum = insistedOn(child, definition, index, depth - 1, carriers, options)
       const cap = maximumCount(child.definition, index, options)
       const room = cap === null ? null : Math.max(0, cap * scale - minimum)
       const share = remaining > 0 ? (room === null ? remaining : Math.min(remaining, room)) : 0
@@ -80,7 +80,7 @@ export function expand(
   // requirement inside is counted against.
   const held = Math.max(1, count)
   for (const child of available) {
-    const required = requiredCount(child.definition, index, options) * scaleOf(child.definition, index, held)
+    const required = requiredCount(child.definition, index, options) * scaleOf(child.definition, definition, index, held)
     if (resolve(child.definition, index).type === undefined) {
       // Always look inside a group. One with no minimum of its own can still hold
       // entries that insist on themselves — which is how most squads are written —
@@ -101,13 +101,20 @@ export function expand(
  * A subgroup without a minimum of its own still fills what its occupants require,
  * as Squad Members does with "3 melta rifles" filed under a melta weapons group.
  */
-function insistedOn(option: Option, index: CatalogueIndex, depth: number, carriers: number, options: DefaultOptions): number {
-  const own = requiredCount(option.definition, index, options) * scaleOf(option.definition, index, carriers)
+function insistedOn(
+  option: Option,
+  holder: Definition,
+  index: CatalogueIndex,
+  depth: number,
+  carriers: number,
+  options: DefaultOptions,
+): number {
+  const own = requiredCount(option.definition, index, options) * scaleOf(option.definition, holder, index, carriers)
   const target = resolve(option.definition, index)
   if (own > 0 || target.type !== undefined || depth <= 0) return own
   return childrenOf(target, index)
     .filter((child) => !hiddenByRules(child.definition, index, options))
-    .reduce((total, child) => total + insistedOn(child, index, depth - 1, carriers, options), 0)
+    .reduce((total, child) => total + insistedOn(child, option.definition, index, depth - 1, carriers, options), 0)
 }
 
 /**

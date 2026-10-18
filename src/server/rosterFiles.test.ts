@@ -366,6 +366,190 @@ const loaded: LoadedCatalogue = {
   factionContents: new Map(),
 }
 
+/** A squad whose heavy weapon names its carrier, as the Terminator Squad's cyclone missile launcher does. */
+const terminators: LoadedCatalogue = {
+  ...loaded,
+  index: buildIndex(
+    [
+      system,
+      {
+        catalogue: {
+          id: 'terminators',
+          name: 'Imperium - Adeptus Astartes - Space Marines',
+          selectionEntries: [
+            {
+              id: 'terminator-squad',
+              name: 'Terminator Squad',
+              type: 'unit',
+              costs: [{ typeId: 'pts', name: 'pts', value: 190 }],
+              selectionEntryGroups: [
+                {
+                  id: 'models',
+                  name: 'Terminators',
+                  defaultSelectionEntryId: 'fist',
+                  constraints: [
+                    { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+                    { id: 'models-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+                  ],
+                  selectionEntries: [
+                    {
+                      id: 'sergeant',
+                      name: 'Terminator Sergeant',
+                      type: 'model',
+                      constraints: [
+                        { id: 'sergeant-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                        { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                      ],
+                      selectionEntries: [
+                        {
+                          id: 'sergeant-bolter',
+                          name: 'Storm bolter',
+                          type: 'upgrade',
+                          constraints: [{ id: 'sergeant-bolter-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                        },
+                        {
+                          id: 'sergeant-weapon',
+                          name: 'Power weapon',
+                          type: 'upgrade',
+                          constraints: [{ id: 'sergeant-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                        },
+                      ],
+                    },
+                    {
+                      id: 'fist',
+                      name: 'Terminator w/ Power Fist',
+                      type: 'model',
+                      constraints: [{ id: 'fist-max', type: 'max', value: 4, field: 'selections', scope: 'parent' }],
+                      selectionEntries: [
+                        {
+                          id: 'fist-weapon',
+                          name: 'Power fist',
+                          type: 'upgrade',
+                          constraints: [{ id: 'fist-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                        },
+                        {
+                          id: 'fist-bolter',
+                          name: 'Storm bolter',
+                          type: 'upgrade',
+                          constraints: [{ id: 'fist-bolter-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                        },
+                      ],
+                    },
+                    {
+                      id: 'heavy',
+                      name: 'Terminator w/ Heavy Weapon',
+                      type: 'model',
+                      constraints: [{ id: 'heavy-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                      selectionEntries: [
+                        {
+                          id: 'heavy-fist',
+                          name: 'Power fist',
+                          type: 'upgrade',
+                          constraints: [{ id: 'heavy-fist-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                        },
+                      ],
+                      selectionEntryGroups: [
+                        {
+                          id: 'heavy-weapon',
+                          name: 'Heavy weapon',
+                          constraints: [
+                            { id: 'heavy-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                            { id: 'heavy-weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                          ],
+                          selectionEntries: [
+                            { id: 'flamer', name: 'Heavy flamer', type: 'upgrade' },
+                            {
+                              id: 'cyclone',
+                              name: 'Cyclone Missile Launcher & Storm Bolter',
+                              type: 'upgrade',
+                              costs: [{ typeId: 'pts', name: 'pts', value: 10 }],
+                              selectionEntries: [
+                                {
+                                  id: 'cyclone-launcher',
+                                  name: 'Cyclone missile launcher',
+                                  type: 'upgrade',
+                                  constraints: [
+                                    { id: 'cyclone-launcher-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                                  ],
+                                },
+                                {
+                                  id: 'cyclone-bolter',
+                                  name: 'Storm bolter',
+                                  type: 'upgrade',
+                                  constraints: [{ id: 'cyclone-bolter-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+    'test-revision',
+  ),
+  factions: [{ id: 'terminators', name: 'Imperium - Adeptus Astartes - Space Marines', references: [] }],
+  detachments: new Map(),
+}
+
+describe('a specialist the text names only by its weapon', () => {
+  const list = (unit: string) => `Cyclone check (200 Points)
+
+Space Marines
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+${unit}
+
+Exported with New Recruit v36.49, Data Version: v2`
+
+  it('arms the model that carries it', () => {
+    const imported = importRosterFile(
+      {
+        file: list(`Terminator Squad (200 Points)
+  • 1x Terminator Sergeant
+     ◦ 1x Power weapon
+     ◦ 1x Storm bolter
+  • 4x Terminator
+     ◦ 1x Cyclone missile launcher
+     ◦ 3x Power fist
+     ◦ 1x Power fist
+     ◦ 4x Storm bolter`),
+      },
+      terminators,
+    )
+
+    expect(imported.currentPoints).toBe(200)
+  })
+
+  it('reports a weapon no model is left to carry', () => {
+    const imported = importRosterFile(
+      {
+        file: list(`Terminator Squad (200 Points)
+  • 1x Terminator Sergeant
+  • 4x Terminator
+     ◦ 1x Heavy flamer
+     ◦ 1x Cyclone missile launcher`),
+      },
+      terminators,
+    )
+
+    expect(imported.unplaced).toEqual([
+      {
+        unit: 'Terminator Squad',
+        choices: [{ name: 'Heavy flamer', reason: 'no model in the imported unit carries it' }],
+      },
+    ])
+  })
+})
+
 describe('roster export', () => {
   it('retains released base rules on import even after another codex becomes the default', () => {
     const exported = exportRosterFile(
