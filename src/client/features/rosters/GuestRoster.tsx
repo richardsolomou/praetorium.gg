@@ -32,6 +32,7 @@ import { RosterOutline } from './RosterPresentation'
 import { saveFailureReason } from './saveFailure'
 import { RosterSetupDialog } from './RosterSetupDialog'
 import { importedSetup, RosterImport } from './RosterImport'
+import { countLabel } from '../../text'
 
 const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
@@ -282,7 +283,7 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
         headingLevel={1}
         eyebrow="Roster builder"
         title="Save the roster you started?"
-        explanation={`${units ? `You built a roster with ${units} ${units === 1 ? 'unit' : 'units'}` : 'You started a roster'} on this device before signing in. Save it to your rosters, or discard it.`}
+        explanation={`${units ? `You built a roster with ${countLabel(units, 'unit')}` : 'You started a roster'} on this device before signing in. Save it to your rosters, or discard it.`}
         action={
           <div className="flex flex-wrap justify-center gap-2">
             <Button onClick={() => setConfirming(false)}>Save it</Button>

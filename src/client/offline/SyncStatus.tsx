@@ -3,16 +3,8 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/Dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { Problem } from '../components/Problem'
 import { meQuery } from '../queries/account'
 import { localEngine, localOwner, restoreLocalWork, syncLocalWork } from './localRuntime'
 import { LOCAL_STATE_EVENT } from './localStorage'
@@ -24,6 +16,9 @@ import { invalidateSyncedQueries } from '../productSignals'
 import { downloadFile } from '../downloadFile'
 import { errorMessage } from '../queryClient'
 import { localWorkKey } from '../queries/queryKeys'
+
+/** Opens the sync dialog; a `'sign-out'` detail asks before signing out with local changes. */
+export const OPEN_SYNC_EVENT = 'praetorium-open-sync'
 
 export function SyncStatus() {
   const client = useQueryClient()
@@ -97,7 +92,7 @@ export function SyncStatus() {
     window.addEventListener('offline', wake)
     window.addEventListener('storage', storage)
     window.addEventListener(LOCAL_STATE_EVENT, wake)
-    window.addEventListener('praetorium-open-sync', show)
+    window.addEventListener(OPEN_SYNC_EVENT, show)
     document.addEventListener('visibilitychange', wake)
     return () => {
       active = false
@@ -106,7 +101,7 @@ export function SyncStatus() {
       window.removeEventListener('offline', wake)
       window.removeEventListener('storage', storage)
       window.removeEventListener(LOCAL_STATE_EVENT, wake)
-      window.removeEventListener('praetorium-open-sync', show)
+      window.removeEventListener(OPEN_SYNC_EVENT, show)
       document.removeEventListener('visibilitychange', wake)
     }
   }, [client, me])
@@ -281,36 +276,29 @@ export function SyncStatus() {
           </DialogBody>
         </DialogContent>
       </Dialog>
-      <AlertDialog
+      <ConfirmDialog
         open={discard !== null}
-        onOpenChange={(nextOpen) => {
-          if (nextOpen || busy) return
+        title="Discard saved changes?"
+        description={
+          <>
+            This removes {discard === '*' ? 'all unsynced edits and actions' : 'the unsynced edits and actions for this item'} from this
+            device and loads the server’s version. Export your changes first if you want to keep them.
+          </>
+        }
+        cancel="Keep changes"
+        confirm="Discard changes"
+        destructive
+        pending={busy}
+        disabled={!online}
+        onClose={() => {
           setDiscard(null)
           setDiscardProblem(null)
         }}
+        onConfirm={() => void discardResource()}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard saved changes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes {discard === '*' ? 'all unsynced edits and actions' : 'the unsynced edits and actions for this item'} from this
-              device and loads the server’s version. Export your changes first if you want to keep them.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {discardProblem ? (
-            <p role="alert" className="text-sm text-destructive">
-              {discardProblem}
-            </p>
-          ) : null}
-          {online ? null : <p className="text-sm text-dim">Reconnect to discard: the server’s version has to load first.</p>}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Keep changes</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={busy || !online} onClick={() => void discardResource()}>
-              Discard changes
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {discardProblem ? <Problem>{discardProblem}</Problem> : null}
+        {online ? null : <p className="text-sm text-dim">Reconnect to discard: the server’s version has to load first.</p>}
+      </ConfirmDialog>
     </>
   )
 }

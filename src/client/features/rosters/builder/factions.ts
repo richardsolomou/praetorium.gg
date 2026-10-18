@@ -1,4 +1,5 @@
 import { catalogueLeafName } from '../../../../shared/factionNames'
+import { groupBy } from '../../../../core/collections'
 import type { FactionPresentation } from '../../../components/FactionMark'
 /**
  * How a book is named on screen.
@@ -17,14 +18,7 @@ export type FactionShelf<T> = { lineage: string; factions: T[] }
 
 /** The books grouped under their lineage, each keeping the order it arrived in. */
 function shelve<T extends { name: string }>(factions: readonly T[]): FactionShelf<T>[] {
-  const shelves: FactionShelf<T>[] = []
-  for (const faction of factions) {
-    const lineage = lineageOf(faction.name)
-    const shelf = shelves.find((each) => each.lineage === lineage)
-    if (shelf) shelf.factions.push(faction)
-    else shelves.push({ lineage, factions: [faction] })
-  }
-  return shelves
+  return [...groupBy(factions, (faction) => lineageOf(faction.name))].map(([lineage, shelf]) => ({ lineage, factions: shelf }))
 }
 
 export function factionSelectGroups<

@@ -3,7 +3,8 @@ import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { normalizeRuleReference } from '../core/ruleReference'
 import { readSharedJson } from './sharedJson'
-import { joinKey, titleCase } from '../shared/rulesSource'
+import { joinKey } from '../core/text'
+import { titleCase } from '../shared/rulesSource'
 import {
   type RuleCard,
   type SectionProse,

@@ -28,12 +28,7 @@ it('gives a cold catalogue six minutes to become ready without disabling health 
   expect(saved).toEqual({
     applicationId: 'web-id',
     healthCheckSwarm: {
-      Test: [
-        'CMD',
-        'node',
-        '-e',
-        "fetch('http://127.0.0.1:3000/api/health',{signal:AbortSignal.timeout(5000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-      ],
+      Test: ['CMD', 'node', '/app/scripts/healthcheck.ts'],
       Interval: 10_000_000_000,
       Timeout: 10_000_000_000,
       StartPeriod: 360_000_000_000,

@@ -1,6 +1,6 @@
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { diceExpression, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
-import { compileCombatRule } from './combatRuleCompiler'
+import { combatTextKey, compileCombatRule, normalizeCombatText } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, datasheetProfileKind } from './datasheetStructure'
 import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
 
@@ -106,29 +106,15 @@ export function combatRuleSelections(rules: readonly CombatRule[], selections: R
 }
 
 const both: Phase[] = ['ranged', 'melee']
-const plain = (value: string) =>
-  value
-    .replaceAll(/<[^>]*>|\*|_|\^/g, '')
-    .replaceAll(/[’‘]/g, "'")
-    .replaceAll(/[“”]/g, '"')
-    .replaceAll(/\breroll\b/gi, 're-roll')
-    .replaceAll('▪', '■')
-    .replaceAll(/\p{Pd}/gu, '-')
-    .replaceAll(/\s+/g, ' ')
-    .trim()
-const key = (value: string) =>
-  plain(value)
-    .replace(/^faction:\s*/i, '')
-    .toLowerCase()
-const weaponKey = (value: string) => key(value).replace(/^the /, '')
+const weaponKey = (value: string) => combatTextKey(value).replace(/^the /, '')
 
 /** False only when the source's explicit keyword restriction rules the unit out. */
 export function combatRuleEligible(description: string, keywords: readonly string[], recipient?: string) {
   description = description.replaceAll('^', '')
   const target = recipient ?? /\*\*Target:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? combatRuleRecipient(description)
   if (!target) return true
-  const known = keywords.map(key)
-  const matches = (phrase: string) => combatKeywordPhraseMatches(key(phrase), known)
+  const known = keywords.map(combatTextKey)
+  const matches = (phrase: string) => combatKeywordPhraseMatches(combatTextKey(phrase), known)
   const terms = (value: string) => {
     const bold = [...value.matchAll(/\*\*([^*]+)\*\*/g)].map((match) => match[1]!)
     return bold.length ? bold : [...value.matchAll(/\b[A-Z][A-Z0-9'’-]+(?:[ -][A-Z][A-Z0-9'’-]+)*\b/g)].map((match) => match[0])
@@ -161,7 +147,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
           : []
       }),
     }))
-  const written = plain(/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(rule.description)?.[1] ?? rule.description)
+  const written = normalizeCombatText(/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(rule.description)?.[1] ?? rule.description)
   const aura = /^While a friendly (.+?) unit(?: \(excluding .+?\))? is within (\d+)" of (?:this model|the bearer), (.+)$/i.exec(written)
   const selectedAlly =
     /^Each time this model destroys an enemy unit, select one other friendly .+? unit within (\d+)" of (?:this model|it)\. Until the end of the phase, (.+)$/i.exec(
@@ -194,7 +180,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
       text,
     )
   if (conditionalGrant && supportedKeyword(conditionalGrant[2]!)) {
-    const hasKeyword = rule.keywords?.some((keyword) => key(keyword) === key(conditionalGrant[1]!))
+    const hasKeyword = rule.keywords?.some((keyword) => combatTextKey(keyword) === combatTextKey(conditionalGrant[1]!))
     return [
       {
         label: [range, hasKeyword ? '' : 'Closest eligible target'].filter(Boolean).join(' · ') || 'Active',
@@ -246,7 +232,9 @@ export function combatRuleRecipient(description: string) {
 }
 
 export function combatRuleRoles(description: string): CombatRuleEffect['role'][] {
-  const text = plain((/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? description).split(/\*{0,3}Example:/i)[0]!)
+  const text = normalizeCombatText(
+    (/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? description).split(/\*{0,3}Example:/i)[0]!,
+  )
   const offensiveTarget = /select [^.]*enemy|enemy unit hit by|that targets (?:a|an|the closest|your .+? target)/i.test(text)
   const attackingText = text.replace(/(?:until|after|just after) (?:an enemy|the attacking) unit [^.]*?(?:attacks|fought|shot), /gi, '')
   const attacking =
@@ -288,7 +276,7 @@ export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): Comb
   return combatRuleIsRelevant(judged) && eligible ? judged : null
 }
 
-export function combatRuleIsRelevant(rule: CombatRule) {
+function combatRuleIsRelevant(rule: CombatRule) {
   const compiled = compileCombatRule(rule)
   return compiled ? compiled.choices.some((choice) => choice.effects.length) : combatRuleRoles(rule.description).length > 0
 }
@@ -314,7 +302,7 @@ export function combatRuleDefault(rule: CombatRule) {
   const compiled = compileCombatRule(rule)
   if (compiled) return compiled.defaultChoice
   if (!combatRuleChoices(rule).length) return 0
-  const text = plain(rule.description)
+  const text = normalizeCombatText(rule.description)
   return (rule.scope === 'attached' && /^While this model is leading a unit, /i.test(text)) ||
     (rule.scope === 'unit' &&
       (/^Each time (?:an attack is allocated to this model|a model in this unit makes (?:an|a ranged|a melee) attack), /i.test(text) ||
@@ -374,7 +362,7 @@ export function combatRuleProfiles(
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
             const held = existing?.value.split(/[,;]/).map((value) => value.trim()) ?? []
             const numbered = combatKeyword(keyword)
-            if (held.some((value) => key(value) === key(keyword))) continue
+            if (held.some((value) => combatTextKey(value) === combatTextKey(keyword))) continue
             if (numbered?.amount !== undefined && !numbered.target) {
               const bounds = (amount: NonNullable<typeof numbered.amount>) =>
                 typeof amount === 'number' ? [amount, amount] : [amount.dice + amount.bonus, amount.dice * amount.sides + amount.bonus]
@@ -476,7 +464,7 @@ export function combatRuleDefences(
   attackRules: readonly ActiveCombatRule[] = [],
 ): CombatInput['target'] {
   const effects = rules.flatMap((rule) => rule.effects).filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
-  const attacks = [...new Map(attackRules.map((rule) => [key(rule.name), rule])).values()]
+  const attacks = [...new Map(attackRules.map((rule) => [combatTextKey(rule.name), rule])).values()]
     .flatMap((rule) => rule.effects)
     .filter((effect) => effect.role === 'attacker' && effect.phases.includes(phase))
   return {
@@ -530,8 +518,8 @@ export function combatRuleDefences(
 }
 
 function matchesEffectTarget(effect: CombatRuleEffect, keywords: readonly string[]) {
-  const held = keywords.map(key)
-  const matches = (phrase: string) => combatKeywordPhraseMatches(key(phrase), held)
+  const held = keywords.map(combatTextKey)
+  const matches = (phrase: string) => combatKeywordPhraseMatches(combatTextKey(phrase), held)
   return (!effect.targetKeywords || effect.targetKeywords.some(matches)) && !effect.excludedTargetKeywords?.some(matches)
 }
 

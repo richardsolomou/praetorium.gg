@@ -7,6 +7,7 @@ import { normalisePicks } from '../rosters/rosterPicks'
 import { DatasheetPanel } from '../rosters/builder/DatasheetPanel'
 import { UnitPhoto } from '../rosters/builder/UnitPhoto'
 import { useDetachmentRules } from '../rosters/builder/useDetachmentRules'
+import { Problem } from '../../components/Problem'
 
 export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
   const built = army.roster!.built!
@@ -26,9 +27,7 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
   return (
     <div data-army-loadout className="min-w-0 bg-sunken">
       {isError || (!isPending && (!priced || !matches)) ? (
-        <p role="alert" className="p-3 text-xs text-destructive">
-          This loadout could not be loaded. Try again shortly.
-        </p>
+        <Problem className="p-3 text-xs">This loadout could not be loaded. Try again shortly.</Problem>
       ) : (
         <div className="min-w-0">
           <Loadout

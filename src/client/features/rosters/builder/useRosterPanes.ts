@@ -2,7 +2,7 @@ import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyedPick } from '../rosterPicks'
 
-export type RosterPaneHistory =
+type RosterPaneHistory =
   | { workspace: string; pane: 'picker' }
   | ({ workspace: string; pane: 'loadout'; returnToPicker?: boolean } & (
       | { selectedKey: number }

@@ -1,11 +1,12 @@
 import fs from 'node:fs'
-import { createHash, randomUUID } from 'node:crypto'
+import { hash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
 import { type BattlemasterSource } from './catalogueSources'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { fetchWithRetry } from './fetch'
 import { battlemasterObjectiveHosts } from './battlemasterObjectives'
+import { replaceDirectory } from './replaceDirectory'
 
 export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; detail: string | null }
 
@@ -34,8 +35,7 @@ export async function syncFactionIcons(directory: string, report: (message: stri
     if (!/<svg[\s>]/.test(svg) || /<script[\s>]/i.test(svg)) throw new Error(`${faction.id} icon is not a safe SVG`)
     fs.writeFileSync(path.join(staging, `${faction.id}.svg`), bytes)
   }
-  fs.rmSync(target, { recursive: true, force: true })
-  fs.renameSync(staging, target)
+  replaceDirectory(staging, target)
 }
 
 type BattlemasterCatalog = {
@@ -68,6 +68,19 @@ type BattlemasterDetail = {
 const MAX_BATTLEMASTER_FILE_BYTES = 5 * 1024 * 1024
 const MAX_BATTLEMASTER_TOTAL_BYTES = 64 * 1024 * 1024
 
+/** The live layout catalogue for `source` and the revision that pins it. */
+export async function battlemasterCatalogue(source: BattlemasterSource) {
+  const url = new URL('/v1.1/public/tts/layouts', source.baseUrl)
+  url.searchParams.set('owner', source.owner)
+  url.searchParams.set('missionPack', source.missionPack)
+  url.searchParams.set('text', '0')
+  const response = await fetchWithRetry(url)
+  if (!response.ok) throw new Error(`catalog answered ${response.status}`)
+  const catalog = (await response.json()) as BattlemasterCatalog
+  if (!catalog.catalogKey || !catalog.layouts?.length) throw new Error('catalog is empty')
+  return { catalog, revision: hash('sha256', catalog.catalogKey) }
+}
+
 /**
  * Battlemaster layouts for the pinned catalogue. With `cacheRoot`, layouts kept from an earlier
  * download of the same catalogue revision are reused when they still match the live catalogue's
@@ -78,15 +91,7 @@ export async function fetchBattlemasterInto(
   target: string,
   cacheRoot = process.env.CATALOGUE_BATTLEMASTER_CACHE?.trim() || null,
 ) {
-  const catalogUrl = new URL('/v1.1/public/tts/layouts', source.baseUrl)
-  catalogUrl.searchParams.set('owner', source.owner)
-  catalogUrl.searchParams.set('missionPack', source.missionPack)
-  catalogUrl.searchParams.set('text', '0')
-  const response = await fetchWithRetry(catalogUrl)
-  if (!response.ok) throw new Error(`catalog answered ${response.status}`)
-  const catalog = (await response.json()) as BattlemasterCatalog
-  if (!catalog.catalogKey || !catalog.layouts?.length) throw new Error('catalog is empty')
-  const revision = createHash('sha256').update(catalog.catalogKey).digest('hex')
+  const { catalog, revision } = await battlemasterCatalogue(source)
   if (revision !== source.revision) throw new Error('catalog does not match the pinned revision')
 
   const cache = cacheRoot ? path.join(cacheRoot, source.revision) : null
@@ -114,11 +119,9 @@ export async function fetchBattlemasterInto(
   if (cache && downloaded) {
     const incoming = `${cache}.incoming-${randomUUID()}`
     fs.cpSync(staging, incoming, { recursive: true })
-    fs.rmSync(cache, { recursive: true, force: true })
-    fs.renameSync(incoming, cache)
+    replaceDirectory(incoming, cache)
   }
-  fs.rmSync(target, { recursive: true, force: true })
-  fs.renameSync(staging, target)
+  replaceDirectory(staging, target)
 }
 
 type BattlemasterLayout = { detail: Uint8Array; lite: Uint8Array }
@@ -216,6 +219,5 @@ export function extractSourceArchive(compressed: Uint8Array, repository: string,
 
   if (!extracted) throw new Error(`${repository} archive contains no files under ${sourcePath ?? 'its root'}`)
 
-  fs.rmSync(target, { recursive: true, force: true })
-  fs.renameSync(staging, target)
+  replaceDirectory(staging, target)
 }

@@ -12,10 +12,8 @@ import { dispositionTone } from '../../../components/rosterSetup'
  * The parts every setup step is built from.
  *
  * Setup is a rail of screens the table walks through together, and it should read as
- * one screen changing rather than a pile that were each drawn separately. Each step used to
- * bring its own surface, its own way of marking a choice and its own way of saying
- * something in passing, so moving between them moved the furniture. These are that
- * vocabulary, written once.
+ * one screen changing rather than a pile that were each drawn separately, so every step
+ * shares one surface, one way of marking a choice and one way of saying something in passing.
  */
 
 /** The surface a step's content sits on. One radius, one border, one padding. */

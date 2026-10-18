@@ -2,7 +2,7 @@ import path from 'node:path'
 
 const root = path.join(import.meta.dirname, '..', '..')
 
-export function canonicalCatalogueInputDirectory() {
+export function catalogueDataDirectory() {
   return process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
 }
 

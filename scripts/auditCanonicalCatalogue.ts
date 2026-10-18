@@ -1,5 +1,5 @@
 import { readCanonicalCatalogue } from '../src/server/canonicalCatalogue'
-import { canonicalCatalogueOutputFile } from './lib/canonicalCatalogueFiles'
+import { canonicalCatalogueOutputFile } from './lib/catalogueFiles'
 
 process.stdout.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EPIPE') process.exit(0)

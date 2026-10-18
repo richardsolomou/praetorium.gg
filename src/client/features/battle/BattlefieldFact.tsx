@@ -10,6 +10,7 @@ import { Fact } from '../../components/Fact'
 import { deploymentObjectiveMarkers, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
 import { TerrainBoard } from '../reference/missions/TerrainBoard'
 import { battlefieldLayout } from './battlefieldLayout'
+import { countLabel } from '../../text'
 
 export function BattlefieldFact({
   view,
@@ -36,7 +37,7 @@ export function BattlefieldFact({
     : view.settings.terrainLayoutId
       ? null
       : deployment.objectives.length
-  const value = objectives && count !== null ? `${deployment.name} · ${count} ${count === 1 ? 'objective' : 'objectives'}` : deployment.name
+  const value = objectives && count !== null ? `${deployment.name} · ${countLabel(count, 'objective')}` : deployment.name
   return (
     <div className="min-w-0">
       <dt className="eyebrow">Battlefield</dt>

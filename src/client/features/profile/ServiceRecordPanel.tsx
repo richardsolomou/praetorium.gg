@@ -21,7 +21,7 @@ import {
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
-import { percentLabel } from '../../text'
+import { percentLabel, countLabel } from '../../text'
 
 /** Which dimension a control narrows, and how the address carries it. */
 type Dimension = { key: keyof PlayerProfileFilter; label: string; facet: keyof RecordFacets }
@@ -221,9 +221,7 @@ function Results({ record }: { record: ServiceRecord }) {
       className="grid border border-edge bg-panel md:grid-cols-[1.4fr_1fr_1fr] md:divide-x md:divide-edge"
     >
       <div className="p-4">
-        <p className="eyebrow text-faint">
-          Results · {record.battles} {record.battles === 1 ? 'battle' : 'battles'}
-        </p>
+        <p className="eyebrow text-faint">Results · {countLabel(record.battles, 'battle')}</p>
         <p className="figure mt-2 text-4xl leading-none font-bold">
           <span className="text-achieved">{record.won}</span>
           <span className="px-1 text-2xl text-faint">–</span>

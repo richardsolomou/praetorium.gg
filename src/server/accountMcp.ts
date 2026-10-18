@@ -55,7 +55,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       inputSchema: {},
       annotations: READ,
     },
-    () => resultOf(async () => ({ rosters: await app().service.savedRosterSummaries(owner()) })),
+    () => resultOf(async () => ({ rosters: await app().service.rosterService.savedRosterSummaries(owner()) })),
   )
   server.registerTool(
     'get_my_roster',
@@ -67,7 +67,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     },
     ({ id }) =>
       resultOf(async () => {
-        const roster = await app().service.ownRoster(owner(), id)
+        const roster = await app().service.leagueService.ownRoster(owner(), id)
         if (!roster) throw new Response('Roster not found.', { status: 404 })
         return { roster }
       }),
@@ -127,7 +127,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     },
     ({ id, visibility }) =>
       resultOf(async () => {
-        await app().service.setRosterVisibility(owner(), id, visibility)
+        await app().service.rosterService.setRosterVisibility(owner(), id, visibility)
         return { id, visibility }
       }),
   )

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -12,7 +12,7 @@ import {
 import { fetchBattlemasterInto, fetchInto } from '../../src/server/sync'
 import { applyPatches } from './cataloguePatches'
 import type { CatalogueComposition } from '../../src/server/catalogueComposition'
-import { replaceDirectory } from './replaceDirectory'
+import { replaceDirectory } from '../../src/server/replaceDirectory'
 import { composeCatalogue, validateCatalogueImports } from './catalogueComposition'
 
 const root = path.resolve(import.meta.dirname, '..', '..')
@@ -71,11 +71,7 @@ export async function materializeCatalogue(directory: string, sources = catalogu
         if (name === 'icons') selectIcons(staged, sources.icons)
       }
       const corrections = !options.composition ? applyPatches(staged, path.join(patches, name), name) : null
-      revisions[name] = corrections
-        ? createHash('sha256')
-            .update(JSON.stringify({ base: source.revision, corrections }))
-            .digest('hex')
-        : source.revision
+      revisions[name] = corrections ? hash('sha256', JSON.stringify({ base: source.revision, corrections })) : source.revision
       options.report?.(`${name}: ${source.revision}`)
     }
     fs.writeFileSync(path.join(staged, 'revision.json'), `${JSON.stringify(revisions, null, 2)}\n`)

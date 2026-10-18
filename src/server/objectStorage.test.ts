@@ -16,7 +16,7 @@ describe('configuredObjectStore', () => {
     expect(configuredObjectStore()).toBeNull()
   })
 
-  it('signs a Node avatar upload to the public assets bucket', async () => {
+  it('signs the existence check and upload of an avatar to the public assets bucket', async () => {
     process.env.R2_ACCOUNT_ID = 'a'.repeat(32)
     process.env.ASSETS_R2_ACCESS_KEY_ID = 'key'
     process.env.ASSETS_R2_SECRET_ACCESS_KEY = 'secret'
@@ -33,7 +33,7 @@ describe('configuredObjectStore', () => {
     ])
   })
 
-  it('rejects incomplete Node object storage credentials', () => {
+  it('rejects incomplete object storage credentials', () => {
     process.env.R2_ACCOUNT_ID = 'a'.repeat(32)
     expect(() => configuredObjectStore()).toThrow('Incomplete R2 object storage configuration')
   })

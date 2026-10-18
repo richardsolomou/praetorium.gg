@@ -13,7 +13,7 @@ export const Route = createFileRoute('/api/previews/rosters/$id')({
           if (!rosterIdSchema.safeParse(params).success) return null
           const instance = app()
           // No reader and no battle: only an unlisted or public list answers a stranger.
-          const access = await instance.service.rosterAccess(params.id, null, null)
+          const access = await instance.service.rosterService.rosterAccess(params.id, null, null)
           if (!access) return null
           const { roster } = access
           const faction = (await instance.factionIndexFor())?.factions.find((one) => one.id === roster.catalogueId) ?? null

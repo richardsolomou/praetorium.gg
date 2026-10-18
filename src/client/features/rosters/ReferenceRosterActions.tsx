@@ -15,6 +15,7 @@ import { RosterSetupDialog, type RosterSetupFaction } from './RosterSetupDialog'
 import { rosterTitle } from './RosterSummary'
 import { sortRosters } from '../../../core/rosterSort'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
+import { Problem } from '../../components/Problem'
 
 const NO_DETACHMENTS: string[] = []
 
@@ -153,7 +154,7 @@ export function AddToRoster({
           </DialogHeader>
           <DialogBody className="gap-1" aria-busy={loading}>
             {failed ? (
-              <p role="alert" className="text-xs text-destructive">
+              <Problem className="text-xs">
                 Your rosters could not be loaded.{' '}
                 <Button
                   variant="link"
@@ -163,7 +164,7 @@ export function AddToRoster({
                 >
                   Try again
                 </Button>
-              </p>
+              </Problem>
             ) : loading ? (
               <>
                 <Skeleton className="h-11 w-full" />

@@ -1,16 +1,15 @@
-import path from 'node:path'
 import { baselineShortfall } from './lib/baselines'
 import { nameOf } from '../src/core/catalogue'
 import { isNonMatchedPlayName } from '../src/core/name'
-import { isReferenceDatasheet, loadCatalogue } from '../src/server/catalogueIndex'
+import { isReferenceDatasheet } from '../src/server/catalogueIndex'
 import { isMatchedPlayDatasheet } from '../src/shared/cataloguePicker'
 import { datacardJoinReport } from '../src/shared/datasheetJoin'
-import { hasDetachmentSemantics, loadRules } from '../src/server/rules'
+import { hasDetachmentSemantics } from '../src/server/rules'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 /** Every datasheet name the catalogue and Game Datacards do not agree on. Add `--details` to list them. */
-const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
-const loaded = loadCatalogue(directory)
-if (!loaded) throw new Error('catalogue data is unavailable')
+const { catalogue: loaded, rules } = loadSnapshotWithRules(catalogueDataDirectory())
 
 const report = datacardJoinReport(loaded, (catalogueId, entryId) => {
   const entry = loaded.index.definitions.get(entryId)
@@ -25,14 +24,6 @@ console.log(`cards without a catalogue datasheet in their book: ${report.datacar
 console.log(`non-matched-play datasheets without a card: ${report.nonMatchedPlayCatalogueOnly.length}`)
 console.log(`faction files without an army-rule card: ${report.factionsWithoutArmyRules.length}`)
 console.log(`datasheet joins by name: ${report.nameJoins.length}`)
-const rules = loadRules(
-  directory,
-  path.join(directory, 'battlemaster'),
-  path.join(directory, 'faction-icons'),
-  path.join(directory, 'datacards', '11th', 'gdc'),
-  loaded.datacards,
-)
-if (!rules) throw new Error('rules data is unavailable')
 const datacardsOnlyDetachments = new Set(
   [...loaded.datacards.constructionDetachments.values()].flatMap((candidates) =>
     candidates.flatMap((candidate) => (hasDetachmentSemantics(rules, candidate) ? [] : [`${candidate.faction} | ${candidate.name}`])),

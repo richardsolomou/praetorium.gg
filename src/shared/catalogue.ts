@@ -1,4 +1,4 @@
-import { uniqueBy } from '../core/collections'
+import { cachedIn, uniqueBy } from '../core/collections'
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { withoutText } from './sourceText'
 import { attachmentOf } from '../core/attach'
@@ -16,7 +16,7 @@ import { isUnitCompositionChoice, unitChoices } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
-import { ruleReferenceMatches, splitWeaponKeywords as weaponKeywordsOf } from '../core/ruleReference'
+import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import { matchesKeywordSelector, normalizeKeywordSelector } from '../core/keywords'
 import {
@@ -36,9 +36,6 @@ import { relationshipFor, relationshipsFor } from './catalogueRelationships'
 import { deploymentAbilities, parseAbilityGrants, parsedAbilityGrants, titleCaseAbility } from './catalogueAbilityGrants'
 import { weaponGrantsIn } from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
-
-export type { Datasheet, DatasheetRelationship } from '../contracts/catalogue'
-export { rulesNamed, rulesReferencedIn } from './catalogueRules'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
   const values = profiles
@@ -96,8 +93,6 @@ export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entry
   )
 }
 
-export { splitWeaponKeywords as weaponKeywordsOf } from '../core/ruleReference'
-
 type DatasheetContext = {
   selections: readonly Selection[]
   unitSelectionIndex?: number
@@ -119,15 +114,6 @@ type Walked = NonNullable<ReturnType<typeof walk>>
 
 const walkCache = new WeakMap<LoadedCatalogue, Map<string, Walked | null>>()
 const sheetCache = new WeakMap<LoadedCatalogue, Map<string, Datasheet | null>>()
-
-function cachedIn<T>(store: WeakMap<LoadedCatalogue, Map<string, T>>, loaded: LoadedCatalogue, key: string, compute: () => T): T {
-  const cache = store.get(loaded) ?? new Map<string, T>()
-  if (!store.has(loaded)) store.set(loaded, cache)
-  if (cache.has(key)) return cache.get(key)!
-  const value = compute()
-  cache.set(key, value)
-  return value
-}
 
 /**
  * What a datasheet is on its own, read once per snapshot.
@@ -229,7 +215,7 @@ export function datasheetSearchFieldsIn(
     weapons: dedupeWeapons(weapons.map((weapon) => weapon.name)),
     weaponKeywords: [
       ...new Set(
-        weapons.flatMap((weapon) => weapon.values.flatMap((value) => (value.name === 'Keywords' ? weaponKeywordsOf(value.value) : []))),
+        weapons.flatMap((weapon) => weapon.values.flatMap((value) => (value.name === 'Keywords' ? splitWeaponKeywords(value.value) : []))),
       ),
     ],
     wargear: [...new Set(walked.choices.flatMap((choice) => [choice.name, ...choice.options.map((option) => option.name)]))],
@@ -624,15 +610,9 @@ export function keywordsIn(
   if (context) {
     return keywordsOf(loaded, catalogueId, root, context.selection, context.roster)
   }
-  const key = `${catalogueId}:${entryId}`
-  const cached = keywordCache.get(loaded)?.get(key)
-  if (cached) return cached
-  const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
-  const found = keywordsOf(loaded, catalogueId, root, selection, undefined)
-  const entries = keywordCache.get(loaded) ?? new Map<string, string[]>()
-  entries.set(key, found)
-  keywordCache.set(loaded, entries)
-  return found
+  return cachedIn(keywordCache, loaded, `${catalogueId}:${entryId}`, () =>
+    keywordsOf(loaded, catalogueId, root, defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }), undefined),
+  )
 }
 
 function keywordsOf(
@@ -1063,12 +1043,12 @@ function addGrantedWeaponAbilities(
       },
     ]
   }
-  const printed = new Set(weaponKeywordsOf(keywords.value).map((keyword) => keyword.toLowerCase()))
+  const printed = new Set(splitWeaponKeywords(keywords.value).map((keyword) => keyword.toLowerCase()))
   const additions = granted.filter((ability) => !printed.has(ability.keyword.toLowerCase()))
   if (!additions.length) return values
   const changed = {
     ...keywords,
-    value: [...weaponKeywordsOf(keywords.value), ...additions.map((ability) => ability.keyword)].join(', '),
+    value: [...splitWeaponKeywords(keywords.value), ...additions.map((ability) => ability.keyword)].join(', '),
     baseValue: keywords.baseValue ?? keywords.value,
     modifiers: [...new Set([...(keywords.modifiers ?? []), ...additions.map((ability) => ability.source)])],
   }

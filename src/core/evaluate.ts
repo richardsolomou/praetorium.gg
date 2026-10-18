@@ -29,7 +29,13 @@ import { isCollective, isCollectiveGroup } from './collective'
 /** What the player picked: an entry, group or link id, how many, and what sits under it. */
 export type Selection = { id: string; count?: number; selections?: readonly Selection[] }
 
-export type EvaluationError = { entryId: string; entryName: string; message: string }
+export type EvaluationError = {
+  entryId: string
+  entryName: string
+  message: string
+  /** The broken maximum, when the error is one. */
+  limit?: { max: number; measured: number }
+}
 
 type Evaluation = {
   /** Totals per cost type name, so `pts` reads the way the data names it. */
@@ -1227,7 +1233,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
       errors.push({ entryId, entryName, message: `needs at least ${limit}, has ${measured}` })
     }
     if (constraint.type === 'max' && measured > limit) {
-      errors.push({ entryId, entryName, message: `allows at most ${limit}, has ${measured}` })
+      errors.push({ entryId, entryName, message: `allows at most ${limit}, has ${measured}`, limit: { max: limit, measured } })
     }
   }
   // A non-shared entry constraint identifies its link rather than every link to the target.

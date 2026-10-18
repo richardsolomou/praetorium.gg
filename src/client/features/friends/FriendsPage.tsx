@@ -12,10 +12,8 @@ import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearc
 import { useSettled } from '../../useSettled'
 import { acceptFriend, rejectFriend, removeFriend, requestFriend } from '../../functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../../core/playerSearch'
-import { errorMessage } from '../../queryClient'
 import type { OnboardingTarget } from '../onboarding/onboarding'
-import { useNativeShare } from '../../nativeBridge'
-import { InviteQr, SHARED_LABEL, useFriendInvite } from './friendInvite'
+import { InviteQr, SHARED_LABEL, useFriendInvite, useInviteShareLabel } from './friendInvite'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 
@@ -34,7 +32,7 @@ export function FriendsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: playerSearchKey }),
+      queryClient.invalidateQueries({ queryKey: playerSearchKey() }),
     ])
   }
   const request = useMutation({ mutationFn: (userId: string) => requestFriend({ data: { userId } }), onSuccess: refresh })
@@ -60,9 +58,10 @@ export function FriendsPage() {
       <PageHeader eyebrow="Your account" title="Friends" description="Add the people you play with." />
       <PageContent className="space-y-6">
         {request.error || accept.error || reject.error || remove.error ? (
-          <p role="alert" className="border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-            {errorMessage(request.error ?? accept.error ?? reject.error ?? remove.error)}
-          </p>
+          <Problem
+            error={request.error ?? accept.error ?? reject.error ?? remove.error}
+            className="border border-destructive/50 bg-destructive/10 p-3"
+          />
         ) : null}
 
         <section>
@@ -156,7 +155,7 @@ export function FriendsPage() {
 
 function InviteFriend() {
   const invite = useFriendInvite()
-  const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
+  const shareLabel = useInviteShareLabel()
 
   return (
     <section>

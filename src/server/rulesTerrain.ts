@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, hash } from 'node:crypto'
 import type { Point, TerrainGeometry } from '../contracts/terrain'
 import { battlemasterObjectiveHosts } from './battlemasterObjectives'
 
@@ -59,7 +59,7 @@ function labelCorrection(directory: string, id: string, raw: Layout): LabelCorre
   if (
     document.format !== 'praetorium.terrain-label-corrections.v1' ||
     !catalog.catalogKey ||
-    document.battlemasterRevision !== createHash('sha256').update(catalog.catalogKey).digest('hex') ||
+    document.battlemasterRevision !== hash('sha256', catalog.catalogKey) ||
     !Array.isArray(document.corrections)
   )
     throw new Error('terrain label corrections do not match the Battlemaster source')

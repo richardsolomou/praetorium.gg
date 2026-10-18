@@ -4,10 +4,11 @@ import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
 import { productionRosterSnapshotSchema } from './lib/productionRosters'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 // Prices every roster in a production snapshot the way the roster editor does, then reports timings or writes every result.
 const [snapshotFile = 'data-dev/production-rosters.json', output] = process.argv.slice(2)
-const directory = process.env.CATALOGUE_DIR ?? new URL('../catalogue-data', import.meta.url).pathname
+const directory = catalogueDataDirectory()
 const { catalogue: base, rules: baseRules } = loadSnapshot(directory)
 const editions = catalogueEditionLoaders(
   directory,

@@ -97,7 +97,7 @@ export function unitLimitMessage(entryId: string, held: number, limits: Readonly
 /** The roster unit a newly added unit joins, or the one that joins it. */
 export type AttachLink = { joins: number } | { joinedBy: number }
 
-export type RequestedUnit = { kind: 'pending' } | { kind: 'add' } | { kind: 'refused'; reason: 'limit' | 'not_offered'; message: string }
+type RequestedUnit = { kind: 'pending' } | { kind: 'add' } | { kind: 'refused'; reason: 'limit' | 'not_offered'; message: string }
 
 /** A unit asked for from outside the builder waits for the roster's own limits, then gets the picker's answer. */
 export function requestedUnit(entryId: string, held: number, limits: ReadonlyMap<string, number | null> | null): RequestedUnit {

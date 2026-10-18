@@ -68,7 +68,7 @@ export function referencesIn(texts: readonly (string | null)[], facts?: TextFact
   })
 }
 
-export function unconditionalWeaponAbilityGrants(description: string): WeaponAbilityGrant[] {
+function unconditionalWeaponAbilityGrants(description: string): WeaponAbilityGrant[] {
   const grants: WeaponAbilityGrant[] = []
   const pattern =
     /(?:^|[.!?]\s+)(?:[-■]\s*)?(?:In addition,\s+)?(?:(ranged|melee)\s+)?weapons equipped by (.+?) models(?: \((?:excluding|except) (.+?) models\))? from your army have the \[([^\]]+)\] ability(?=[.,]|$)/giu
@@ -93,21 +93,21 @@ const normalizedRuleText = (description: string) =>
     .replaceAll(/\s+/g, ' ')
     .trim()
 
-export function strategicReserveExemptionSelectors(description: string): string[] {
+function strategicReserveExemptionSelectors(description: string): string[] {
   const matches = normalizedRuleText(description).matchAll(
     /friendly (.+?) units do not count towards the combined points value of your strategic reserves units/giu,
   )
   return [...matches].flatMap((match) => (match[1] ? [match[1]] : []))
 }
 
-export function grantsStrategicReserveExemption(description: string): boolean {
+function grantsStrategicReserveExemption(description: string): boolean {
   return /points value does not count towards the combined points (?:value|limit).+strategic reserves?/iu.test(
     normalizedRuleText(description),
   )
 }
 
 /** The rule names a text marks out: in bold, between carets, or in brackets. */
-export function referencedRuleNames(text: string): string[] {
+function referencedRuleNames(text: string): string[] {
   return [
     ...[...text.matchAll(/\*\*(.*?)\*\*|\^\^(.*?)\^\^/g)].flatMap((match) => {
       const name = (match[1] ?? match[2] ?? '').replaceAll(/\*\*|\^\^/g, '')

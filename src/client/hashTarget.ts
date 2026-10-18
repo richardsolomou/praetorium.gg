@@ -27,18 +27,20 @@ export function hashTarget<T extends Element<T>>(hash: string, byId: (id: string
 }
 
 /**
- * Opens the rows the address's fragment points into and brings its target into view, when the
- * page loads and whenever the fragment changes. A browser may or may not open a closed
- * `<details>` for a fragment by itself, so this does it either way.
+ * Opens every closed `<details>` a fragment points into and brings its target into view. A browser may or may not
+ * open a closed `<details>` for a fragment by itself, so this does it either way.
  */
+export function revealHashTarget(hash: string) {
+  const found = hashTarget<HTMLElement>(hash, (id) => document.getElementById(id))
+  if (!found) return
+  for (const details of found.closed) if (details instanceof HTMLDetailsElement) details.open = true
+  found.target.scrollIntoView({ block: 'start' })
+}
+
+/** Reveals the address's fragment when the page loads and whenever the fragment changes. */
 export function useOpenHashTarget() {
   useEffect(() => {
-    const reveal = () => {
-      const found = hashTarget<HTMLElement>(window.location.hash, (id) => document.getElementById(id))
-      if (!found) return
-      for (const details of found.closed) if (details instanceof HTMLDetailsElement) details.open = true
-      found.target.scrollIntoView({ block: 'start' })
-    }
+    const reveal = () => revealHashTarget(window.location.hash)
     reveal()
     window.addEventListener('hashchange', reveal)
     return () => window.removeEventListener('hashchange', reveal)

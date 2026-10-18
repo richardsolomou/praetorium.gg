@@ -1,3 +1,4 @@
+import { jsonByteLength } from '../../core/json'
 import { MAX_LOCAL_OPERATIONS, MAX_LOCAL_STATE_BYTES, type LocalOperation, type LocalState } from '../../contracts/localState'
 
 export interface LocalStateStorage {
@@ -100,8 +101,7 @@ export class SyncEngine {
         if (updated !== undefined) documents[resource] = { data: updated, serverVersion: documents[resource]?.serverVersion ?? null }
       }
       const next = { ...current, operations: [...operations, operation], documents }
-      if (new TextEncoder().encode(JSON.stringify(next)).byteLength > MAX_LOCAL_STATE_BYTES)
-        throw new Error('This device has no room for more saved changes.')
+      if (jsonByteLength(next) > MAX_LOCAL_STATE_BYTES) throw new Error('This device has no room for more saved changes.')
       return next
     })
     this.changed(state)

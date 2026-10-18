@@ -1,9 +1,11 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { hash, randomUUID } from 'node:crypto'
 import { link, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+// scripts/nodeServer.ts runs this module under plain Node, which needs the extension.
+import { isSafeRelativePath } from './relativePath.ts'
 
 function objectPath(root: string, key: string) {
-  if (!path.isAbsolute(root) || !key || key.split('/').some((segment) => !segment || segment === '.' || segment === '..')) {
+  if (!path.isAbsolute(root) || !isSafeRelativePath(key)) {
     throw new Error('Invalid local object key')
   }
   const file = path.resolve(root, key)
@@ -16,7 +18,7 @@ function objectPath(root: string, key: string) {
 async function object(root: string, key: string) {
   try {
     const bytes = await readFile(objectPath(root, key))
-    return { bytes, httpEtag: `"${createHash('sha256').update(bytes).digest('hex')}"` }
+    return { bytes, httpEtag: `"${hash('sha256', bytes)}"` }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw error

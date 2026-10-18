@@ -1,3 +1,4 @@
+import { plainQuotes } from './text'
 import { wargearKey } from './wargear'
 import { uniqueBy } from './collections'
 
@@ -235,10 +236,7 @@ function indexed(value: string) {
 }
 
 const normalize = (value: string) =>
-  value
-    .normalize('NFKD')
-    .replaceAll(/\p{M}/gu, '')
-    .replaceAll(/[‘’ʼ]/g, "'")
+  plainQuotes(value.normalize('NFKD').replaceAll(/\p{M}/gu, ''))
     .toLocaleLowerCase()
     .replaceAll(/\b(\d+)\s*(?:cp|command points?)\b/g, '$1 cp')
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')

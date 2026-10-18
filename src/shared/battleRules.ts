@@ -1,3 +1,4 @@
+import { refuse } from '../core/battlePrimitives'
 import {
   type BattleState,
   type Command,
@@ -14,7 +15,6 @@ import {
   pointsRound,
   FIXED_SECONDARIES,
   isKotcLimit,
-  refuse,
 } from '../core/battle'
 import { KOTC_MATCHUP_ID } from '../contracts/terrain'
 import type { MissionAward } from '../core/scoring'

@@ -15,6 +15,7 @@ import { discoveredRostersQuery, factionIndexQuery, meQuery } from '../client/qu
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
+import { searchText } from '../client/searchParams'
 
 const VIEWS = ['friends', 'public'] as const
 type RosterView = (typeof VIEWS)[number]
@@ -23,10 +24,10 @@ export const Route = createFileRoute('/rosters/')({
   pendingComponent: RosterLoading,
   validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; add?: string } => {
     const limit = Number(search.limit)
-    const faction = typeof search.faction === 'string' && search.faction && search.faction.length <= 128 ? search.faction : undefined
+    const faction = searchText(search.faction, 128)
     const view = VIEWS.find((known) => known === search.view)
     if (view) {
-      const detachment = faction && typeof search.detachment === 'string' && search.detachment.length <= 128 ? search.detachment : undefined
+      const detachment = faction && searchText(search.detachment, 128)
       const rules = RULES_VERSION_STATUSES.find((status): status is RulesVersionStatus => status === search.rules)
       const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
       return {

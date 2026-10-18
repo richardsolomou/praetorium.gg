@@ -122,11 +122,7 @@ function ProfileForm({
         }
       />
       <PageContent className="space-y-6">
-        {callbackError ? (
-          <p role="alert" className="border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-            {callbackError}
-          </p>
-        ) : null}
+        {callbackError ? <Problem className="border border-destructive/40 bg-destructive/10 p-3">{callbackError}</Problem> : null}
         {verified && !callbackError ? (
           <output className="block border border-achieved/40 bg-achieved/10 p-3 text-sm text-achieved">Email address verified.</output>
         ) : null}

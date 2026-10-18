@@ -1,3 +1,4 @@
+import { cachedIn } from '../core/collections'
 import { attachmentOf } from '../core/attach'
 import { nameOf } from '../core/catalogue'
 import { sameText } from '../core/text'
@@ -33,11 +34,10 @@ export function relationshipFor(
 }
 
 export function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {
-  const key = `${catalogueId}:${entryId}`
-  const cache = relationshipCache.get(loaded)
-  const cached = cache?.get(key)
-  if (cached) return cached
+  return cachedIn(relationshipCache, loaded, `${catalogueId}:${entryId}`, () => relationshipsOf(loaded, catalogueId, entryId, name))
+}
 
+function relationshipsOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, name: string) {
   const leaders = new Map<string, RelatedDatasheet>()
   const supporters = new Map<string, RelatedDatasheet>()
   for (const candidateId of datasheetsOf(loaded.index, catalogueId)) {
@@ -49,9 +49,5 @@ export function relationshipsFor(loaded: LoadedCatalogue, catalogueId: string, e
     const found = attachment.kind === 'leader' ? leaders : supporters
     found.set(candidateId, { entryId: candidateId, name: nameOf(candidate, loaded.index.definitions) })
   }
-  const relationships = { leaders: [...leaders.values()], supporters: [...supporters.values()] }
-  const entries = cache ?? new Map<string, { leaders: RelatedDatasheet[]; supporters: RelatedDatasheet[] }>()
-  entries.set(key, relationships)
-  if (!cache) relationshipCache.set(loaded, entries)
-  return relationships
+  return { leaders: [...leaders.values()], supporters: [...supporters.values()] }
 }

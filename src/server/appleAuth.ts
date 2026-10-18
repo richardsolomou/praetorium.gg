@@ -77,7 +77,7 @@ export async function revokeAppleToken(
   if (!response.ok) throw new Error(`Apple token revocation failed with HTTP ${response.status}`)
 }
 
-export function appleNotificationAudiences(environment: AppleEnvironment = process.env) {
+function appleNotificationAudiences(environment: AppleEnvironment = process.env) {
   return [...new Set([IOS_BUNDLE_ID, environment.APPLE_CLIENT_ID?.trim()].filter((value): value is string => Boolean(value)))]
 }
 

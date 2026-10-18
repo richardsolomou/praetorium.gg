@@ -7,11 +7,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Choice } from '../../components/Choice'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { feedbackScreenshotPath } from '../../../contracts/feedback'
+import { feedbackScreenshotPath, FEEDBACK_KINDS, type FeedbackKind } from '../../../contracts/feedback'
 import { uploadFeedbackScreenshot } from '../../functions'
 import { SOURCE } from '../../projectLinks'
 import { meQuery } from '../../queries'
-import { FEEDBACK_KINDS, type FeedbackKind } from '../../../contracts/feedback'
 import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackSurveyEvent } from './feedback'
 import { prepareFeedbackScreenshot } from './screenshot'
 import { sendFeedback } from './sendFeedback'
@@ -211,13 +210,13 @@ export function FeedbackDialog() {
                 {screenshotError ? <Problem>{screenshotError}</Problem> : null}
               </div>
               {result === 'unavailable' ? (
-                <p role="alert" className="text-sm text-destructive">
+                <Problem>
                   Feedback could not be sent from this browser, which may be blocking analytics. Your message is still here; you can{' '}
                   <a href={`${SOURCE}/issues/new`} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
                     report it on GitHub
                   </a>{' '}
                   instead.
-                </p>
+                </Problem>
               ) : null}
             </DialogBody>
             <DialogFooter>

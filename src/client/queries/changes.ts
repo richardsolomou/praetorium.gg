@@ -4,6 +4,7 @@ import { armyUpdates, catalogueChangeLog, referenceChanges, rosterChanges, saved
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
+import { armyUpdatesKey, catalogueChangesKey, rosterChangesKey, savedRosterChangedIdsKey } from './queryKeys'
 
 /**
  * One page of data updates, every faction's or the one a slug names, from the newest or from
@@ -11,7 +12,7 @@ import { anySignal } from '../abortSignals'
  */
 export const catalogueChangeLogQuery = (before?: string, faction?: string) =>
   queryOptions({
-    queryKey: ['catalogue-changes', faction ?? null, before ?? null],
+    queryKey: catalogueChangesKey(faction, before),
     queryFn: () => catalogueChangeLog({ data: { ...(before ? { before } : {}), ...(faction ? { faction } : {}) } }),
     staleTime: SSR_STALE_TIME,
   })
@@ -19,7 +20,7 @@ export const catalogueChangeLogQuery = (before?: string, faction?: string) =>
 /** The newest data update that reached each of these factions, by slug. */
 export const armyUpdatesQuery = (factions: readonly string[]) =>
   queryOptions({
-    queryKey: ['army-updates', factions],
+    queryKey: armyUpdatesKey(factions),
     queryFn: () => armyUpdates({ data: { factions: [...factions] } }),
     staleTime: SSR_STALE_TIME,
   })
@@ -53,7 +54,7 @@ export const historySearch = (search: Record<string, unknown>): { before?: strin
 
 /** The data updates since a saved list was last saved that reached something in it. */
 export const rosterChangesQuery = (id: string) =>
-  queryOptions({ queryKey: ['roster-changes', id], queryFn: () => rosterChanges({ data: { id } }), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: rosterChangesKey(id), queryFn: () => rosterChanges({ data: { id } }), staleTime: SSR_STALE_TIME })
 
 export const savedRosterChangedIdsQuery = () =>
-  queryOptions({ queryKey: ['saved-roster-changed-ids'], queryFn: () => savedRosterChangedIds(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: savedRosterChangedIdsKey(), queryFn: () => savedRosterChangedIds(), staleTime: SSR_STALE_TIME })

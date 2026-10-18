@@ -96,7 +96,7 @@ const SAME = 1e-9
 const OUTCOME_PRIORITIES = ['wipe', 'meanKills', 'meanDamage'] as const
 export type OutcomePriority = (typeof OUTCOME_PRIORITIES)[number]
 
-export function outcomePriority(left: CombatResult, right: CombatResult): OutcomePriority | undefined {
+function outcomePriority(left: CombatResult, right: CombatResult): OutcomePriority | undefined {
   for (const field of OUTCOME_PRIORITIES) {
     if (Math.abs(left[field] - right[field]) > SAME) return field
   }

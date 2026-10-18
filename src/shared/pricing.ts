@@ -1,4 +1,4 @@
-import { groupBy, uniqueBy } from '../core/collections'
+import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
 import { attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
@@ -19,7 +19,8 @@ import { unavailableRosterSelections } from '../core/rosterSelections'
 import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
-import { contextualAbilityNamesIn, datasheetIn, rulesReferencedIn, toughnessOf } from './catalogue'
+import { rulesReferencedIn } from './catalogueRules'
+import { contextualAbilityNamesIn, datasheetIn, toughnessOf } from './catalogue'
 import { matchesKeywordSelector } from '../core/keywords'
 import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
@@ -38,35 +39,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import type { PriceInput } from '../contracts/schemas'
 
-export { rosterDetachments }
-export { heldWargear } from './heldWargear'
-export { deploymentRules } from './rosterDeployment'
-export { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
-
-/** Evicts the least recently used entry once it holds more than its limit. */
-class RecentlyUsed<K, V> extends Map<K, V> {
-  constructor(private readonly limit: number) {
-    super()
-  }
-  override get(key: K) {
-    if (!super.has(key)) return undefined
-    const value = super.get(key) as V
-    super.delete(key)
-    super.set(key, value)
-    return value
-  }
-  override set(key: K, value: V) {
-    super.delete(key)
-    super.set(key, value)
-    if (this.size > this.limit) this.delete(this.keys().next().value as K)
-    return this
-  }
-}
-
-/**
- * A built unit depends only on its pick, the battle size and the detachments, so every price on one catalogue shares
- * it. An editor reprices the whole list after each change, and rebuilding every unchanged unit was most of that work.
- */
+/** A built unit depends only on its pick, the battle size and the detachments, so every price on one catalogue shares it. */
 const sharedBuiltUnits = new WeakMap<LoadedCatalogue, Map<string, BuiltUnit | null>>()
 function sharedBuiltUnitsFor(loaded: LoadedCatalogue) {
   let units = sharedBuiltUnits.get(loaded)
@@ -83,11 +56,8 @@ const builtAttachments = new WeakMap<BuiltUnit, ReturnType<typeof attachmentOf>>
 
 /**
  * A list as the catalogue reads it: every pick expanded, grouped by the book it
- * came from.
- *
- * Pulled out because the whole price and the points alone both start here, and a
- * library row and the editor showing different totals for one list would be the
- * plainest possible version of the same question answered twice.
+ * came from. The whole price and the points alone both start here, so a library row
+ * and the editor cannot disagree on a total.
  */
 function rosterForces(
   loaded: LoadedCatalogue,
@@ -590,7 +560,7 @@ function calculateRoster(
       : []
   /** Ignore limits broken inside a unit with no player choices; never suppress a limit on the unit itself or on a player-selected upgrade. */
   const composedByCatalogue = new Map<string, string>()
-  if (whole.errors.some((error) => error.message.startsWith('allows at most '))) {
+  if (whole.errors.some((error) => error.limit)) {
     for (const unit of picked) {
       if (modelKindsFor(unit).length) continue
       const composed = buildUnit(unit.entryId, loaded.index, unit.size.models, undefined, {

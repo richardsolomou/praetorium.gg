@@ -1,3 +1,4 @@
+import { plainQuotes } from './text'
 import type { TextRoster, TextRosterUnit } from './textRoster'
 import { GAME_SIZES } from './battle'
 import type { GwTextRoster } from './gwText'
@@ -143,11 +144,7 @@ function addSelection(unit: TextRosterUnit, name: string, count: number) {
   else unit.selections.push({ name: clean, count })
 }
 
-const normalized = (value: string) =>
-  value
-    .trim()
-    .toLocaleLowerCase()
-    .replaceAll(/[’‘]/g, "'")
+const normalized = (value: string) => plainQuotes(value.trim().toLocaleLowerCase())
 
 export function toCompactText(roster: GwTextRoster, version: string) {
   const lines = [

@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, hash } from 'node:crypto'
 import { z } from 'zod'
 import { CANONICAL_CATALOGUE_COMPILER_VERSION } from './canonicalCatalogue'
 import { parseSharedJson } from './sharedJson'
@@ -41,12 +41,12 @@ export type CatalogueRuntime = {
 }
 
 export function catalogueRuntimeFingerprint(directory: string) {
-  const hash = createHash('sha256').update(`runtime-v4:canonical-${CANONICAL_CATALOGUE_COMPILER_VERSION}`)
+  const fingerprint = createHash('sha256').update(`runtime-v4:canonical-${CANONICAL_CATALOGUE_COMPILER_VERSION}`)
   for (const file of ['revision.json', 'composition.json', 'reference-policy.json']) {
     const target = path.join(directory, file)
-    hash.update(file).update(fs.existsSync(target) ? fs.readFileSync(target) : 'absent')
+    fingerprint.update(file).update(fs.existsSync(target) ? fs.readFileSync(target) : 'absent')
   }
-  return hash.digest('hex')
+  return fingerprint.digest('hex')
 }
 
 export function readCatalogueRuntime(directory: string, output: string): CatalogueRuntime {
@@ -62,7 +62,7 @@ export function readCatalogueRuntime(directory: string, output: string): Catalog
     const target = path.join(output, `${key}.json`)
     if (fs.statSync(target).size !== entry.bytes) throw new Error(`Catalogue runtime verification failed for ${key}`)
     const content = fs.readFileSync(target)
-    if (content.length !== entry.bytes || createHash('sha256').update(content).digest('hex') !== entry.sha256)
+    if (content.length !== entry.bytes || hash('sha256', content) !== entry.sha256)
       throw new Error(`Catalogue runtime verification failed for ${key}`)
     const parsed = parseSharedJson(content.toString('utf8'))
     if (key === 'startup') return (startup = parsed as RuntimeStartup)

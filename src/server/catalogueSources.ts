@@ -1,17 +1,12 @@
 import { z } from 'zod'
 import rawSources from '../../catalogue/sources.json' with { type: 'json' }
+import { isSafeRelativePath } from './relativePath'
 
 export const repositorySourceSchema = z.object({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
   branch: z.string().min(1),
   revision: z.string().regex(/^[0-9a-f]{40}$/, 'expected a full Git commit SHA'),
-  path: z
-    .string()
-    .refine(
-      (value) => !value.startsWith('/') && !value.split('/').some((part) => part === '..' || !part),
-      'expected a relative source path',
-    )
-    .optional(),
+  path: z.string().refine(isSafeRelativePath, 'expected a relative source path').optional(),
   license: z.string().min(1).nullable(),
   licenseUrl: z.url().optional(),
   attribution: z.string().optional(),
@@ -41,7 +36,7 @@ export const catalogueSourcesSchema = z.object({
   battlemaster: battlemasterSourceSchema,
 })
 
-export const SOURCE_NAMES = ['definitions', 'points', 'datacards'] as const
+const SOURCE_NAMES = ['definitions', 'points', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
 export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster', 'icons'] as const
 /** Sources earlier published snapshots carry; they are read as history and never materialized again. */

@@ -10,6 +10,7 @@ import { FactionLabel, type FactionPresentation } from '../../components/Faction
 import { WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
+import { countLabel } from '../../text'
 
 type PresentedFaction = FactionPresentation & {
   edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
@@ -21,7 +22,7 @@ type PresentedFaction = FactionPresentation & {
   }[]
 }
 
-export type PresentedDetachment = {
+type PresentedDetachment = {
   id?: string
   name: string
   points?: number | null
@@ -171,9 +172,7 @@ export function RosterHeader({
             {unitCount === undefined ? null : (
               <span className="contents">
                 <span aria-hidden>·</span>
-                <span className="shrink-0">
-                  {unitCount} {unitCount === 1 ? 'unit' : 'units'}
-                </span>
+                <span className="shrink-0">{countLabel(unitCount, 'unit')}</span>
               </span>
             )}
             {detachments.map((detachment) => {

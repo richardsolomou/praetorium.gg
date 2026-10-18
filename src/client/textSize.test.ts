@@ -6,13 +6,13 @@ let dataset: Record<string, string>
 
 let TEXT_SIZE_SCRIPT: string
 let chooseTextSize: typeof import('./textSize').chooseTextSize
-let restoreTextSize: typeof import('./textSize').restoreTextSize
+let followTextSize: typeof import('./textSize').followTextSize
 let savedTextSize: typeof import('./textSize').savedTextSize
 
 beforeEach(async () => {
   // Writes this page made outlive a test in the stored-value module, so each test starts from a fresh page.
   vi.resetModules()
-  ;({ TEXT_SIZE_SCRIPT, chooseTextSize, restoreTextSize, savedTextSize } = await import('./textSize'))
+  ;({ TEXT_SIZE_SCRIPT, chooseTextSize, followTextSize, savedTextSize } = await import('./textSize'))
   stored = new Map()
   dataset = {}
   vi.stubGlobal('localStorage', {
@@ -21,7 +21,7 @@ beforeEach(async () => {
     removeItem: (key: string) => stored.delete(key),
   })
   vi.stubGlobal('document', { documentElement: { dataset } })
-  vi.stubGlobal('window', { dispatchEvent: vi.fn() })
+  vi.stubGlobal('window', new EventTarget())
 })
 
 afterEach(() => {
@@ -70,6 +70,13 @@ it('forgets the choice when the standard size is chosen again', () => {
 
 it('restores the saved size in a document the head script never ran in', () => {
   stored.set('praetorium-text-size', 'large')
-  restoreTextSize()
+  followTextSize()
   expect(dataset.textSize).toBe('large')
+})
+
+it('applies a size another tab chose', () => {
+  followTextSize()
+  stored.set('praetorium-text-size', 'larger')
+  window.dispatchEvent(Object.assign(new Event('storage'), { key: 'praetorium-text-size' }))
+  expect(dataset.textSize).toBe('larger')
 })

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, signUp, uniqueName } from './account'
+import { retryUntilVisible, signInAsPreview, signUp, uniqueName } from './account'
 import { add } from './builder.harness'
 
 test.use({ serviceWorkers: 'block' })
@@ -292,13 +292,7 @@ test('feedback is sent as a survey response from the page the player is on', asy
 })
 
 test('an administrator sends feedback without an email field and opens its screenshot', async ({ page }) => {
-  await page.goto('/sign-in')
-  // Filling before hydration submits the form natively and never signs in.
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Email').fill('preview@praetorium.gg')
-  await page.getByLabel('Password').fill('preview-preview-preview')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.waitForURL('/')
+  await signInAsPreview(page)
   await page.goto('/factions')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)

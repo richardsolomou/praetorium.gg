@@ -19,6 +19,7 @@ import { type Army, type Side } from '../../../sides'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections, reserveUnitLabel } from './reservesModel'
 import { asSentence } from '../useCommand'
+import { Problem } from '../../../components/Problem'
 
 type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>
 type Props = {
@@ -215,11 +216,7 @@ function UnitFormationRow({
         ))}
       </div>
       {canTransport(host) ? <TransportBoarding army={army} transport={host} units={units} row={row} moves={moves} /> : null}
-      {refused ? (
-        <p role="alert" className="mt-1 px-0.5 text-xs text-destructive">
-          {refused}
-        </p>
-      ) : null}
+      {refused ? <Problem className="mt-1 px-0.5 text-xs">{refused}</Problem> : null}
     </div>
   )
 }

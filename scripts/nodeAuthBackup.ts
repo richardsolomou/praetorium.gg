@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -9,10 +9,6 @@ import { isEntryPoint } from './lib/entryPoint.ts'
 
 const archiveKey = /^backups\/auth\/production\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/
 const maxArchiveBytes = 128 * 1024 * 1024
-
-function digest(bytes: Uint8Array) {
-  return createHash('sha256').update(bytes).digest('hex')
-}
 
 function configuredR2() {
   const r2 = privateR2Client()
@@ -39,7 +35,7 @@ export async function restoreAuthArchive(bytes: Uint8Array, target: string) {
   const manifest = JSON.parse(new TextDecoder().decode(files['manifest.json'])) as { format?: string; sha256?: string }
   const database = files['auth.sqlite']!
   const secret = files['auth-secret']!
-  if (manifest.format !== 'praetorium.auth-backup.v1' || manifest.sha256 !== digest(database) || secret.byteLength < 32)
+  if (manifest.format !== 'praetorium.auth-backup.v1' || manifest.sha256 !== hash('sha256', database) || secret.byteLength < 32)
     throw new Error('Auth archive failed verification')
   await mkdir(target, { mode: 0o700 })
   try {
@@ -67,7 +63,7 @@ export async function backupAuthToR2(source: string) {
         'auth.sqlite': database,
         'auth-secret': new TextEncoder().encode(secret),
         'manifest.json': new TextEncoder().encode(
-          JSON.stringify({ format: 'praetorium.auth-backup.v1', sha256: digest(database), counts }),
+          JSON.stringify({ format: 'praetorium.auth-backup.v1', sha256: hash('sha256', database), counts }),
         ),
       },
       { level: 1 },
@@ -86,7 +82,7 @@ export async function backupAuthToR2(source: string) {
     const downloaded = await r2.client.fetch(url, { signal: AbortSignal.timeout(60_000) })
     if (!downloaded.ok) throw new Error(`R2 auth backup readback failed with HTTP ${downloaded.status}`)
     const readback = new Uint8Array(await downloaded.arrayBuffer())
-    if (digest(readback) !== digest(archive)) throw new Error('R2 auth backup readback did not match')
+    if (hash('sha256', readback) !== hash('sha256', archive)) throw new Error('R2 auth backup readback did not match')
     await restoreAuthArchive(readback, path.join(work, 'restored'))
     return { key, counts }
   } finally {

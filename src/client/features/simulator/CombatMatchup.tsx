@@ -32,6 +32,8 @@ import { useLoadoutOdds } from './useLoadoutOdds'
 import type { MatchupSettings } from '../../../contracts/simulatorState'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import { groupBy } from '../../../core/collections'
+import { Problem } from '../../components/Problem'
+import { countLabel } from '../../text'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
   return [
@@ -553,11 +555,7 @@ export function CombatMatchup({
               Choose the attacker's surviving models and weapons to calculate attacks.
             </p>
           ) : null}
-          {target?.error ? (
-            <p role="alert" className="mb-3 text-sm text-discarded">
-              {target.error}
-            </p>
-          ) : null}
+          {target?.error ? <Problem className="mb-3">{target.error}</Problem> : null}
           <div className="grid gap-x-3 gap-y-6 @xl:grid-cols-2">
             {phases.map(([phase, title]) => {
               const plan = plans[phase]
@@ -585,12 +583,12 @@ export function CombatMatchup({
                     </p>
                   ))}
                   {error ? (
-                    <div role="alert" className="mt-2 text-xs text-discarded">
+                    <Problem className="mt-2 text-xs">
                       {error}{' '}
                       <Button size="sm" variant="outline" onClick={() => setRetry((value) => value + 1)}>
                         Retry
                       </Button>
-                    </div>
+                    </Problem>
                   ) : null}
                   <div className="space-y-2">
                     {plan?.choices.map((choice) => (
@@ -937,12 +935,12 @@ export function CombatMatchup({
           </section>
         </div>
         {outcome?.key === requestKey && outcome.answer.combined?.error ? (
-          <div role="alert" className="mt-3 text-sm text-discarded">
+          <Problem className="mt-3">
             Combined estimate: {outcome.answer.combined.error}
             <Button className="ml-2" size="sm" variant="outline" onClick={() => setRetry((value) => value + 1)}>
               Retry
             </Button>
-          </div>
+          </Problem>
         ) : null}
       </div>
       <CombatResults
@@ -964,11 +962,7 @@ function CombatantHeading({ side, unit }: { side: string; unit: CombatantSnapsho
     <div className="min-w-0 p-3 sm:p-4">
       <h2 className="rubric">{side}</h2>
       <p className="mt-2 text-sm">{unit?.sheet.name ?? 'Select a unit'}</p>
-      {unit ? (
-        <p className="mt-1 text-xs text-dim">
-          {unit.models} {unit.models === 1 ? 'model' : 'models'}
-        </p>
-      ) : null}
+      {unit ? <p className="mt-1 text-xs text-dim">{countLabel(unit.models, 'model')}</p> : null}
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { FEEDBACK_SCREENSHOT_ID, FEEDBACK_SCREENSHOT_MAX_BYTES } from '../contracts/feedback'
-import { notFound, privateImageResponse, privateObjects, storePrivateImage } from './privateImages'
+import { notFound } from './notFound'
+import { privateImageResponse, privateObjects, storePrivateImage } from './privateImages'
 
 const PREFIX = 'feedback/'
 

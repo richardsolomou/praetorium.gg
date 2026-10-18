@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -46,9 +46,7 @@ fs.writeFileSync(path.join(output, '..', 'reference-policy.json'), JSON.stringif
       path.join(staged, 'revision.json'),
       JSON.stringify({
         ...revisions,
-        definitions: createHash('sha256')
-          .update(JSON.stringify({ source: revisions.definitions, compiler: recipe.compiler }))
-          .digest('hex'),
+        definitions: hash('sha256', JSON.stringify({ source: revisions.definitions, compiler: recipe.compiler })),
         icons: recipe.icons.revision,
       }),
     )

@@ -104,7 +104,7 @@ export function factionHistory(history: readonly CatalogueHistoryEntry[], canoni
 }
 
 /** The page a reference link opens. */
-export const referencePath = (link: ReferenceLink) => `/factions/${link.faction}/${link.kind}s/${link.slug}`
+const referencePath = (link: ReferenceLink) => `/factions/${link.faction}/${link.kind}s/${link.slug}`
 
 /** How many of its own changes a reference page lists before pointing at its faction's updates. */
 const REFERENCE_CHANGES = 10

@@ -38,6 +38,7 @@ import { FilterField, RosterSortMenu } from './RosterFilters'
 import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle } from './RosterSummary'
 import { RosterViews } from './RosterViews'
+import { Problem } from '../../components/Problem'
 
 export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus; sort?: RosterSort }
 
@@ -196,11 +197,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
           </Dialog>
           <RosterSortMenu value={sort} onChange={(chosen) => choose({ ...search, sort: chosen === 'updated-desc' ? undefined : chosen })} />
         </div>
-        {duplicate.isError ? (
-          <p role="alert" className="text-sm text-destructive">
-            Could not duplicate that roster: {errorMessage(duplicate.error)}
-          </p>
-        ) : null}
+        {duplicate.isError ? <Problem>Could not duplicate that roster: {errorMessage(duplicate.error)}</Problem> : null}
 
         <section>
           <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>

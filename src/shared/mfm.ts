@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../core/text'
 import { routeSlug } from '../core/slug'
 import { normalizedNameVariants } from '../core/name'
 import { factionDisplayName } from './factionNames'
@@ -41,8 +41,12 @@ export function mfmAttribution(index: MfmIndex | null | undefined): string | nul
   for (const faction of factions) if (faction.attribution) attributions.add(faction.attribution)
   return [...attributions].join('. ') || null
 }
-export function mfmDetachment(index: MfmIndex | null | undefined, faction: string, name: string, marineChapter = false) {
-  const slugs = [faction, ...(marineChapter && faction !== 'space-marines' ? ['space-marines'] : [])]
+/** The MFM factions a book's points may be filed under, in order: its own, any aliases, then Space Marines for a chapter. */
+export function mfmSlugs(catalogueName: string, ...aliases: string[]) {
+  const marineChapter = catalogueName.includes('Adeptus Astartes') ? ['space-marines'] : []
+  return [...new Set([routeSlug(factionDisplayName(catalogueName)), ...aliases, ...marineChapter])]
+}
+function mfmDetachment(index: MfmIndex | null | undefined, slugs: readonly string[], name: string) {
   for (const slug of slugs) {
     const matched = index?.get(slug)?.detachments?.filter((detachment) => joinKey(detachment.name) === joinKey(name)) ?? []
     if (matched.length) return matched.length === 1 ? matched[0]! : null
@@ -77,9 +81,7 @@ export function mfmWargearOptionPoints(
 }
 export function mfmDetachmentFor(loaded: LoadedCatalogue, catalogueId: string, name: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
-  return faction
-    ? mfmDetachment(loaded.mfm, routeSlug(factionDisplayName(faction.name)), name, faction.name.includes('Adeptus Astartes'))
-    : null
+  return faction ? mfmDetachment(loaded.mfm, mfmSlugs(faction.name), name) : null
 }
 function copyBounds(range: string) {
   const match = /^\[(\d+),(\d*)\)$|^\[(\d+),(\d+)\]$/.exec(range)

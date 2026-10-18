@@ -1,7 +1,8 @@
+import { uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../core/text'
 import type { SourceTexts, TextTransform } from './sourceText'
 import type { TextFactsByKey } from './textFacts'
 import { type PrintedTransport, printedTransport } from '../core/transport'
@@ -571,7 +572,7 @@ export function enhancementEligibility(
       }
     }
   }
-  const shared = [...new Map(alternatives.map((candidate) => [JSON.stringify(candidate), candidate])).values()]
+  const shared = uniqueBy(alternatives, (candidate) => JSON.stringify(candidate))
   const anyOf = included.includes('/')
     ? phrases.every(exact)
       ? phrases.map(requirement)

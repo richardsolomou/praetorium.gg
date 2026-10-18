@@ -29,7 +29,7 @@ import type { RosterSort } from '../../../core/rosterSort'
 export type RosterUpdateFilter = 'older' | 'changed'
 export const ROSTER_UPDATE_FILTERS: readonly RosterUpdateFilter[] = ['older', 'changed']
 
-export type RosterFilterState = {
+type RosterFilterState = {
   limit?: number
   faction?: string
   visibility?: RosterVisibility

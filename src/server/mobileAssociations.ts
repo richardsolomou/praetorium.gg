@@ -1,3 +1,5 @@
+import { notFound } from './notFound'
+
 const IOS_BUNDLE_ID = 'gg.praetorium'
 const ANDROID_PACKAGE = 'gg.praetorium'
 
@@ -26,6 +28,6 @@ export function androidAssetLinks(fingerprints: string | undefined) {
 }
 
 export function mobileAssociationResponse(value: unknown) {
-  if (!value) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } })
+  if (!value) return notFound()
   return Response.json(value, { headers: { 'Cache-Control': 'public, max-age=3600' } })
 }

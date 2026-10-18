@@ -15,11 +15,11 @@ import { battleOutcome } from '../../battleOutcome'
 import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
-import { deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
+import { battleReplayKey, deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
 import { sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
-import { Report, type ReportPlayer } from './Report'
+import { Report, reportPlayers } from './Report'
 import { TeamsBattlePoints } from './TeamsBattlePoints'
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
@@ -60,7 +60,7 @@ export function Spectator({
   )
   const queryClient = useQueryClient()
   const replay = useQuery(replayAtQuery(currentView.token, seq, seq < currentView.seq))
-  useEffect(() => () => queryClient.removeQueries({ queryKey: ['battle-replay', currentView.token] }), [currentView.token, queryClient])
+  useEffect(() => () => queryClient.removeQueries({ queryKey: battleReplayKey(currentView.token) }), [currentView.token, queryClient])
   useEffect(() => {
     let active = true
     void (async () => {
@@ -103,11 +103,6 @@ export function Spectator({
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const referenceFor = (key: string) => cardsByKey.get(key)
   const captured = useRef(false)
-  const reportPlayers: ReportPlayer[] = view.players.map((player) => ({
-    id: player.id,
-    name: player.name,
-    className: player.side === 0 ? 'text-side-a' : 'text-side-b',
-  }))
 
   useEffect(() => {
     if (captured.current || view.players.some((player) => player.isViewer)) return
@@ -197,7 +192,7 @@ export function Spectator({
             ) : null}
             <div className="border-t border-edge pt-3">
               <p className="eyebrow">Battle events</p>
-              <Report token={view.token} open players={reportPlayers} entries={report} />
+              <Report token={view.token} open players={reportPlayers(view.players)} entries={report} />
             </div>
           </section>
         </div>

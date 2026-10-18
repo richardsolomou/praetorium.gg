@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ServiceRecord } from '../../../core/serviceRecord'
+import { countLabel } from '../../text'
 
 /** The player's record as their profile counts it, and their overall leaderboard place if they have one. */
 export type HomeRecordData = {
@@ -51,7 +52,7 @@ export function HomeRecord({ userId, data }: { userId: string; data: HomeRecordD
         </Stat>
       </Link>
       <Link {...profile}>
-        <Stat label="Streak">{record.currentStreak ? `${record.currentStreak} ${record.currentStreak === 1 ? 'win' : 'wins'}` : '—'}</Stat>
+        <Stat label="Streak">{record.currentStreak ? countLabel(record.currentStreak, 'win') : '—'}</Stat>
       </Link>
       <Link to="/leaderboard" search={{ faction: undefined }} className={TILE}>
         <Stat label="Leaderboard">

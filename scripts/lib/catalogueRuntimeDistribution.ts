@@ -1,11 +1,11 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { unzipSync, zipSync } from 'fflate'
 import { readCatalogueRuntime, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
 import { fetchWithRetry } from '../../src/server/fetch'
 import { DEFAULT_PUBLIC_ASSETS_BASE_URL } from '../../src/server/objectStorage'
-import { replaceDirectory } from './replaceDirectory'
+import { replaceDirectory } from '../../src/server/replaceDirectory'
 import { publicAssetsR2Client } from '../../src/server/r2Client'
 
 const MAX_BYTES = 128 * 1024 * 1024
@@ -22,7 +22,7 @@ export function packCatalogueRuntime(directory: string, output: string, archive:
   const bytes = zipSync(files, { level: 9, mtime: new Date('2000-01-01T00:00:00Z') })
   if (bytes.length > MAX_BYTES) throw new Error('Catalogue runtime archive is too large')
   fs.writeFileSync(archive, bytes)
-  return { fingerprint: manifest.fingerprint, archiveSha256: createHash('sha256').update(bytes).digest('hex') }
+  return { fingerprint: manifest.fingerprint, archiveSha256: hash('sha256', bytes) }
 }
 
 /** Where compiled runtimes are shared by cache key; `off` keeps every build compiling for itself. */

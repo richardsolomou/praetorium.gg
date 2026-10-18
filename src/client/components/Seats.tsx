@@ -5,7 +5,7 @@ import { PlayerAvatar } from './PlayerAvatar'
 import { SearchableSelect, type SearchableGroup, type SearchableOption } from './SearchableSelect'
 
 /** A player who may fill a seat. */
-export type SeatCandidate = { id: string; name: string; image: string | null }
+type SeatCandidate = { id: string; name: string; image: string | null }
 
 /** A candidate as a row in a seat's list: their disambiguated name and their picture. */
 export function seatOption(candidate: SeatCandidate, labels: ReadonlyMap<string, string>): SearchableOption {

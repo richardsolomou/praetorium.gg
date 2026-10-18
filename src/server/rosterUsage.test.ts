@@ -9,7 +9,7 @@ vi.mock('./app', () => ({ app: vi.fn() }))
 it.each(['preview', 'released', 'retired'] as const)('snapshots a %s league roster with its rules identity', async (status) => {
   const { saved, catalogue, rules, edition } = leagueRosterFixture(status)
   vi.mocked(app).mockReturnValue({
-    service: { usableRoster: async () => ({ roster: saved, lentBy: null }) },
+    service: { rosterService: { usableRoster: async () => ({ roster: saved, lentBy: null }) } },
     catalogueFor: async () => catalogue,
     rulesFor: async () => rules,
   } as never)
@@ -69,19 +69,21 @@ it('rejects rosters without a valid force disposition', () => {
 it('rejects a saved roster with an obsolete detachment when it is used', async () => {
   vi.mocked(app).mockReturnValue({
     service: {
-      usableRoster: vi.fn().mockResolvedValue({
-        roster: {
-          id: 'roster',
-          name: 'Old list',
-          catalogueId: 'cat',
-          detachmentIds: ['old-detachment'],
-          disposition: null,
-          limit: 2_000,
-          picks: [],
-          waivedRules: [],
-        },
-        lentBy: null,
-      }),
+      rosterService: {
+        usableRoster: vi.fn().mockResolvedValue({
+          roster: {
+            id: 'roster',
+            name: 'Old list',
+            catalogueId: 'cat',
+            detachmentIds: ['old-detachment'],
+            disposition: null,
+            limit: 2_000,
+            picks: [],
+            waivedRules: [],
+          },
+          lentBy: null,
+        }),
+      },
     },
     catalogueFor: async () => bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] }),
     rulesFor: async () => ({
@@ -103,9 +105,7 @@ it('rejects a saved roster with an obsolete detachment when it is used', async (
 
 it('does not snapshot a roster when the rules source is unavailable', async () => {
   vi.mocked(app).mockReturnValue({
-    service: {
-      usableRoster: vi.fn().mockResolvedValue({ roster: { id: 'roster' }, lentBy: null }),
-    },
+    service: { rosterService: { usableRoster: vi.fn().mockResolvedValue({ roster: { id: 'roster' }, lentBy: null }) } },
     catalogueFor: async () => ({}),
     rulesFor: async () => null,
   } as never)
@@ -125,7 +125,7 @@ it('snapshots an over-points saved roster when its points limit is waived', asyn
     waivedRules: ['points-limit'],
   }
   vi.mocked(app).mockReturnValue({
-    service: { usableRoster: vi.fn().mockResolvedValue({ roster: saved, lentBy: null }) },
+    service: { rosterService: { usableRoster: vi.fn().mockResolvedValue({ roster: saved, lentBy: null }) } },
     catalogueFor: async () => bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'model', costs: points(1_080) }] }),
     rulesFor: async () => ({
       factionKeys: new Map(),
@@ -165,7 +165,7 @@ const lentRoster = {
 
 function lentFrom(lentBy: { id: string; name: string } | null) {
   vi.mocked(app).mockReturnValue({
-    service: { usableRoster: vi.fn().mockResolvedValue({ roster: lentRoster, lentBy }) },
+    service: { rosterService: { usableRoster: vi.fn().mockResolvedValue({ roster: lentRoster, lentBy }) } },
     catalogueFor: async () => bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'model', costs: points(100) }] }),
     rulesFor: async () => ({
       factionKeys: new Map(),
@@ -195,6 +195,6 @@ it('refuses a lent roster where only owned rosters may be used', async () => {
 })
 
 it('refuses a roster that is neither owned nor lent', async () => {
-  vi.mocked(app).mockReturnValue({ service: { usableRoster: vi.fn().mockResolvedValue(null) } } as never)
+  vi.mocked(app).mockReturnValue({ service: { rosterService: { usableRoster: vi.fn().mockResolvedValue(null) } } } as never)
   await expect(rosterForUse('stranger', 'roster', { lent: true })).rejects.toMatchObject({ status: 403 })
 })

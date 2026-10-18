@@ -9,6 +9,7 @@ import { RuleMarkup } from '../../../components/RuleMarkup'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { useRuleText } from '../../../rulesText'
 import { RulesTextNotice } from './RulesTextNotice'
+import { revealHashTarget } from '../../../hashTarget'
 
 /**
  * One section of one rules document, which is as much as anybody reads at a time.
@@ -29,10 +30,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
   // a reader's own toggle must survive every later render. Loaded text replaces the
   // outline's elements, so it runs again once that text lands.
   useEffect(() => {
-    if (!shown) return
-    const target = hash ? document.getElementById(hash) : null
-    if (target instanceof HTMLDetailsElement) target.open = true
-    target?.scrollIntoView()
+    if (shown) revealHashTarget(hash)
   }, [hash, shown])
   if (!data || !index || !shown) return null
 

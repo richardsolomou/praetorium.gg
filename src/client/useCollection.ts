@@ -10,6 +10,7 @@ import {
   uploadCollectionPhoto,
 } from './functions'
 import { collectionCountsQuery, collectionPhotosQuery, collectionProgressQuery, collectionQuery, collectionWishesQuery } from './queries'
+import { collectionProfileKey, datasheetPhotosKey } from './queries/queryKeys'
 import { localEngine } from './offline/localRuntime'
 
 export function useCollectionMutation() {
@@ -128,8 +129,8 @@ function useInvalidatePhotos() {
       queryClient.invalidateQueries({ queryKey: collectionPhotosQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: collectionCountsQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['datasheet-photos'] }),
-      queryClient.invalidateQueries({ queryKey: ['collection-profile'] }),
+      queryClient.invalidateQueries({ queryKey: datasheetPhotosKey() }),
+      queryClient.invalidateQueries({ queryKey: collectionProfileKey() }),
     ])
 }
 

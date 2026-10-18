@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
@@ -7,18 +7,16 @@ import { type SourceTexts, TEXT_HASH_LENGTH, type TextSource, type TextSourceFil
 
 export type { SourceTexts }
 
-const sha256 = (value: string) => createHash('sha256').update(value).digest('hex')
-
 /**
  * A token names a file by a hash of where it lives upstream: rules versions copy most files
  * unchanged, and one upstream file must give one token wherever a snapshot holds a copy.
  */
-export const textFileId = (upstream: string) => sha256(upstream).slice(0, 8)
+export const textFileId = (upstream: string) => hash('sha256', upstream).slice(0, 8)
 
 /** Tokens for the strings of one file, named by its upstream address, or by its snapshot path where it has none. */
 export function sourceTexts(upstream: string): SourceTexts {
   const file = textFileId(upstream)
-  return (raw, transform) => textToken({ file, transform, hash: sha256(raw).slice(0, TEXT_HASH_LENGTH) })
+  return (raw, transform) => textToken({ file, transform, hash: hash('sha256', raw).slice(0, TEXT_HASH_LENGTH) })
 }
 
 const SNAPSHOT_FILE = /(?:^|\/)((?:editions\/[^/]+\/)?(?:definitions|points|datacards)\/.+)$/

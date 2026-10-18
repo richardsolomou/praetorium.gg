@@ -27,6 +27,7 @@ import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
 import { canAddCopy, unitLimitMessage } from './usePicks'
+import { Problem } from '../../../components/Problem'
 
 type Props = {
   enabled: boolean
@@ -200,7 +201,7 @@ export const Picker = memo(function Picker({
         {unitsResult.isPending || (signedIn && (collectionResult.isPending || favouritesLoading)) ? (
           <PickerSkeleton />
         ) : unitsResult.isError ? (
-          <p className="py-3 text-xs text-destructive">The book could not be loaded.</p>
+          <Problem className="py-3 text-xs">The book could not be loaded.</Problem>
         ) : shown.length ? (
           sections.map(({ id, plural, alliedFaction }) => {
             const rows = shown

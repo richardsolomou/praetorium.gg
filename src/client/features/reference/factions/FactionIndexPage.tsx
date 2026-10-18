@@ -16,6 +16,7 @@ import { SearchField } from '../../../components/SearchField'
 import { FullPageState, PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
+import { countLabel } from '../../../text'
 
 export function FactionIndexPage() {
   const { data } = useQuery(factionIndexQuery())
@@ -146,9 +147,7 @@ function FactionShelf({
                       {entry.displayName}
                     </FactionReferenceLink>
                     <div className="flex flex-wrap items-center gap-x-2 text-xs text-dim">
-                      <span>
-                        {entry.references[0]?.detachments ?? 0} {entry.references[0]?.detachments === 1 ? 'detachment' : 'detachments'}
-                      </span>
+                      <span>{countLabel(entry.references[0]?.detachments ?? 0, 'detachment')}</span>
                       {editions.length > 1 ? (
                         <>
                           <span aria-hidden>·</span>

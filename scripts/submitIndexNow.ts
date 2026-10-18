@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { INDEXNOW_BATCH, INDEXNOW_KEY_PATH, indexNowKey, sitemapChanges } from '../src/server/indexNow.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { setTimeout as delay } from 'node:timers/promises'
 
 const ENDPOINT = 'https://api.indexnow.org/indexnow'
 
@@ -35,7 +36,7 @@ async function settled(origin: string, revision: string, request: typeof fetch, 
  * Submits the pages a deploy added or re-dated in the sitemap. A missing key, or no earlier
  * sitemap to compare with, submits nothing rather than every page on the site.
  */
-export async function submitIndexNow({ key: configured, revision, origin, before, request = fetch, sleep = defaultSleep }: Options) {
+export async function submitIndexNow({ key: configured, revision, origin, before, request = fetch, sleep = delay }: Options) {
   const key = indexNowKey(configured)
   if (!key) return console.log('IndexNow is not configured; nothing submitted')
   if (!before.includes('<urlset')) return console.log('No earlier sitemap to compare with; nothing submitted')
@@ -63,8 +64,6 @@ export async function submitIndexNow({ key: configured, revision, origin, before
   }
   console.log(`Submitted ${urls.length} changed ${urls.length === 1 ? 'page' : 'pages'} to IndexNow`)
 }
-
-const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 if (isEntryPoint(import.meta.url)) {
   const [beforeFile, origin] = process.argv.slice(2)

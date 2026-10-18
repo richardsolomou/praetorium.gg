@@ -22,6 +22,7 @@ import {
 import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadChoice } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
 import type { ReminderControls } from '../ReminderButton'
+import { Problem } from '../../../components/Problem'
 
 type Props = {
   catalogueId: string
@@ -130,9 +131,7 @@ export function Loadout({
   }
   if (!sheet || !availableSheet) {
     return isError || !isPending ? (
-      <p role="alert" className="p-3 text-xs text-destructive">
-        This loadout could not be loaded. Try again shortly.
-      </p>
+      <Problem className="p-3 text-xs">This loadout could not be loaded. Try again shortly.</Problem>
     ) : (
       <LoadoutLoading />
     )

@@ -103,7 +103,7 @@ describe('Expo push sender', () => {
 
     await push.send([message(0)])
 
-    expect(log.mock.calls).toEqual([['push ticket failed', { error: 'InvalidCredentials' }]])
+    expect(log.mock.calls).toEqual([['push_ticket_failed', { error: 'InvalidCredentials' }]])
   })
 
   it('forgets a device whose later receipt reports it is no longer registered', async () => {
@@ -135,7 +135,7 @@ describe('Expo push sender', () => {
 
     deferred.forEach((work) => work())
 
-    await vi.waitFor(() => expect(log).toHaveBeenCalledWith('push receipt failed', { error: 'InvalidCredentials' }))
+    await vi.waitFor(() => expect(log).toHaveBeenCalledWith('push_receipt_failed', { error: 'InvalidCredentials' }))
   })
 
   it('skips receipt timers when no durable scheduler is available', async () => {

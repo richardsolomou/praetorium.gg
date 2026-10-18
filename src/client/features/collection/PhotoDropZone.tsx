@@ -6,6 +6,7 @@ import { MAX_DATASHEET_PHOTOS } from '../../../core/collectionPhotos'
 import { collectionPhotosQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useCollectionPhotoUpload } from '../../useCollection'
+import { Problem } from '../../components/Problem'
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
 
@@ -86,11 +87,7 @@ export function PhotoDropZone({ entryId, name, className = '' }: { entryId: stri
           </span>
         )}
       </label>
-      {problem ? (
-        <p role="alert" className="text-xs text-destructive">
-          {problem}
-        </p>
-      ) : null}
+      {problem ? <Problem className="text-xs">{problem}</Problem> : null}
     </div>
   )
 }

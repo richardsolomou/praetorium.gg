@@ -10,7 +10,10 @@ it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league
   const { saved, catalogue, rules, edition } = leagueRosterFixture(status)
   const submit = vi.fn()
   vi.mocked(app).mockReturnValue({
-    service: { usableRoster: async () => ({ roster: saved, lentBy: null }), submitLeagueRoster: submit },
+    service: {
+      rosterService: { usableRoster: async () => ({ roster: saved, lentBy: null }) },
+      leagueService: { submitLeagueRoster: submit },
+    },
     catalogueFor: async () => catalogue,
     rulesFor: async () => rules,
   } as never)

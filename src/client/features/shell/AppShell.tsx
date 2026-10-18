@@ -27,7 +27,7 @@ import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { FeedbackDialog, openFeedback } from '../feedback/FeedbackDialog'
 import { meQuery } from '../../queries'
 import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
-import { restoreTextSize } from '../../textSize'
+import { followTextSize } from '../../textSize'
 import { followTextSourceChoice } from '../../rulesText'
 import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
 // A local dev server shares the production project token, so gate the browser
@@ -166,7 +166,7 @@ export function AppShell() {
   const { data: me } = useQuery(meQuery())
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
-  useLayoutEffect(restoreTextSize, [])
+  useLayoutEffect(followTextSize, [])
   useLayoutEffect(followTextSourceChoice, [])
   // Browser tests wait for this before interacting: a click before hydration does nothing.
   useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])

@@ -298,7 +298,7 @@ function soleOption(options: { value: string }[]) {
   return options.length === 1 ? options[0]!.value : null
 }
 
-export type DoublesEntrant = {
+type DoublesEntrant = {
   userId: string
   name: string
   image: string | null

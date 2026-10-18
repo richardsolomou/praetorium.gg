@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { catalogueEditionId, editionCatalogueId, editionLabel, rulesVersionLabel } from '../core/catalogueEdition'
 import { loadCatalogue, loadCatalogueSteps, type LoadedCatalogue } from './catalogueIndex'
 import { readCatalogueComposition } from './catalogueComposition'
@@ -95,9 +95,7 @@ export function catalogueEditionLoaders(
         factionsFor(catalogue, rules, new Set(edition.catalogueIds.map((id) => editionCatalogueId(edition.id, id)))).factions,
     )
     factions = {
-      revision: createHash('sha256')
-        .update(JSON.stringify([original.revision, composition]))
-        .digest('hex'),
+      revision: hash('sha256', JSON.stringify([original.revision, composition])),
       factions: [
         ...original.factions
           .filter((faction) => !baseEditions.has(faction.id))

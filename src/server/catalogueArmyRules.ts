@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { CatalogueFile } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type FactionContent, type LoadedDatacards } from './datacards'
-import { joinKey } from '../shared/rulesSource'
+import { joinKey } from '../core/text'
 import { readSharedJson } from './sharedJson'
 import type { Steps } from '../shared/steps'
 

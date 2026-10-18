@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { hash, randomBytes, randomUUID } from 'node:crypto'
 import { expect, test } from './test'
 import { nativeAuthCompletionScript, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../mobile/src/nativeAuth'
 import { signUp, uniqueName } from './account'
@@ -21,7 +21,7 @@ test('a native proof signs the WebView in and survives its final reload', async 
   )
 
   const verifier = randomBytes(32).toString('base64url')
-  const challenge = createHash('sha256').update(verifier).digest('base64url')
+  const challenge = hash('sha256', verifier, 'base64url')
   const exchange = await systemPage.evaluate(
     async (body) => {
       const response = await fetch('/api/auth/native-auth-token/generate', {

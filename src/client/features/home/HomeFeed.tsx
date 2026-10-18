@@ -5,7 +5,7 @@ import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 
 /** How much of a friends' or finished shelf is a reminder rather than an archive. */
-export const RECENT = 5
+const RECENT = 5
 
 /**
  * Friends' and public games with each battle named once.

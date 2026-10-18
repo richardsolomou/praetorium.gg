@@ -1,3 +1,4 @@
+import { countBy } from '../core/collections'
 import { version } from '../../package.json'
 import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
@@ -392,12 +393,10 @@ function textRosterPick(
   for (const piece of wargearOf(selection, loaded.index))
     held.set(normalized(piece.name), (held.get(normalized(piece.name)) ?? 0) + piece.count)
   const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated, held)]))
-  const offeredBy = new Map<string, number>()
-  for (const choice of aliases) {
-    for (const name of new Set([...choice.values()].flatMap((names) => [...names.keys()]))) {
-      offeredBy.set(name, (offeredBy.get(name) ?? 0) + 1)
-    }
-  }
+  const offeredBy = countBy(
+    aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
+    (name) => name,
+  )
   const placed = new Set([...placeableNames(selection, aliases, models, unit.name, loaded), ...warlordNames])
   const pick = {
     entryId,
@@ -563,8 +562,10 @@ function countsForChoice(
   stated: ReadonlyMap<string, number>,
   held: ReadonlyMap<string, number>,
 ) {
-  const owners = new Map<string, number>()
-  for (const names of aliases.values()) for (const name of names.keys()) owners.set(name, (owners.get(name) ?? 0) + 1)
+  const owners = countBy(
+    [...aliases.values()].flatMap((names) => [...names.keys()]),
+    (name) => name,
+  )
 
   // The fewest any distinctive name allows: a lasgun the sergeant also carries is
   // stated for more models than took the option that brings one. What the rest of the

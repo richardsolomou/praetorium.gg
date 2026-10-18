@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
 import type { Command, Roster } from '../src/core/battle'
@@ -8,17 +8,18 @@ import { account as authAccount, user } from '../src/db/authSchema'
 import { createSqliteAuth } from '../src/server/sqliteAuth'
 import { SqliteAccountRepository } from '../src/server/accountRepository'
 import { localAuthDatabase } from '../src/server/localAuthDatabase'
+import { rosterRow } from '../src/server/rosterPersistence'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
 import { unitBattleDetailsIn } from '../src/shared/catalogue'
 import { catalogueBaseUrl, fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
-import { catalogueDirectory, loadCatalogue } from '../src/server/catalogueIndex'
+import { catalogueDirectory } from '../src/server/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
-import { loadRules } from '../src/server/rules'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 export const PREVIEW_EMAIL = 'preview@praetorium.gg'
-const PREVIEW_PASSWORD = 'preview-preview-preview'
+export const PREVIEW_PASSWORD = 'preview-preview-preview'
 export const PREVIEW_OPPONENT_EMAIL = 'opponent@praetorium.gg'
 const PREVIEW_OPPONENT_PASSWORD = 'opponent-opponent-opponent'
 export const PREVIEW_ALLY_EMAIL = 'ally@praetorium.gg'
@@ -293,7 +294,7 @@ const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.roster
 export type PreviewSnapshots = ReadonlyMap<string, Roster>
 
 export function previewAccountId(database: string, email: string) {
-  return createHash('sha256').update(`${database}\0${email}`).digest('hex').slice(0, 32)
+  return hash('sha256', `${database}\0${email}`).slice(0, 32)
 }
 
 export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
@@ -371,9 +372,7 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
 async function verifiedSnapshots(): Promise<PreviewSnapshots> {
   const directory = process.env.CATALOGUE_DIR ? path.resolve(process.env.CATALOGUE_DIR) : catalogueDirectory()
   if (!installedSnapshot(directory)) await fetchCurrentSnapshot(directory, catalogueBaseUrl(), (message) => console.log(message))
-  const catalogue = loadCatalogue(directory)
-  const rules = loadRules(directory)
-  if (!catalogue || !rules) throw new Error('the verified catalogue snapshot is incomplete')
+  const { catalogue, rules } = loadSnapshotWithRules(directory)
 
   return new Map(
     PREVIEW_ALL_ROSTERS.map((saved) => {
@@ -729,17 +728,8 @@ async function seedInto(
   async function saveRoster(roster: PreviewRoster, userId: string) {
     if (await repository.roster(roster.id)) return
     await repository.saveRoster({
-      id: roster.id,
-      name: roster.name,
-      catalogueId: roster.catalogueId,
-      disposition: roster.disposition,
-      limit: roster.limit,
-      waivedRules: '[]',
+      ...rosterRow({ ...roster, prep: null }),
       userId,
-      detachmentId: JSON.stringify(roster.detachmentIds),
-      picks: JSON.stringify(roster.picks),
-      prep: null,
-      tags: '[]',
       visibility: 'private',
       source: 'editable',
       now: now(),

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { type FormatRule, waivedFormatRules } from '../../core/battle'
+import { countLabel } from '../text'
 
 /**
  * How a list says it is not playing all of its format.
@@ -21,7 +22,7 @@ export function rosterWaivers(
 }
 
 /** The waived restrictions as one readable list, for a sentence that names them. */
-export const waiverLabels = (rules: readonly FormatRule[]) => rules.map((rule) => rule.label).join(', ')
+const waiverLabels = (rules: readonly FormatRule[]) => rules.map((rule) => rule.label).join(', ')
 
 /**
  * A mark beside a list's identity, which says what it is on hover.
@@ -34,7 +35,7 @@ export const waiverLabels = (rules: readonly FormatRule[]) => rules.map((rule) =
  */
 export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
   if (!rules.length) return null
-  const summary = `${rules.length} format ${rules.length === 1 ? 'restriction' : 'restrictions'} switched off: ${waiverLabels(rules)}`
+  const summary = `${countLabel(rules.length, 'format restriction')} switched off: ${waiverLabels(rules)}`
   return (
     <Tooltip>
       <TooltipTrigger render={<span className={cn('relative inline-flex shrink-0 items-center text-discarded', className)} />}>

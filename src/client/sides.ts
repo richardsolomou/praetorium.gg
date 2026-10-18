@@ -207,7 +207,7 @@ export function missionCardsReady(
 }
 
 function toArmy(player: ViewPlayer): Army {
-  // The frozen points travel on the player's units; the view no longer repeats them under `built`.
+  // The frozen points travel on the player's units, not under `built`.
   const units = player.roster?.built ? player.units : undefined
   return {
     playerId: player.id,

@@ -12,7 +12,7 @@ const { ownRoster, submit, userBattleId, screen } = vi.hoisted(() => ({
 vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
 vi.mock('./app', () => ({
   app: () => ({
-    service: { ownRoster, submit, userBattleId, screen },
+    service: { submit, userBattleId, screen, leagueService: { ownRoster } },
     rulesFor: async () => null,
     battleReadRulesFor: async () => null,
   }),

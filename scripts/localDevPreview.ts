@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { hash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
@@ -22,7 +22,7 @@ export const localDevPreviewSchema = z.object({
 export type LocalDevPreview = z.infer<typeof localDevPreviewSchema>
 
 export function localControlPort(worktree: string) {
-  return 20_000 + (createHash('sha256').update(worktree).digest().readUInt16BE(0) % 20_000)
+  return 20_000 + (hash('sha256', worktree, 'buffer').readUInt16BE(0) % 20_000)
 }
 
 export function readLocalDevPreview(file: string): LocalDevPreview | undefined {

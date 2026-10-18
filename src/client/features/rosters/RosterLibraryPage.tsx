@@ -50,6 +50,7 @@ import { variantCards, variantGroups } from '../../../core/rosterVariants'
 import { useRosterPages } from './rosterPages'
 import { errorMessage } from '../../queryClient'
 import { Problem } from '../../components/Problem'
+import { countLabel } from '../../text'
 
 export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility; updates?: RosterUpdateFilter }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
@@ -243,13 +244,9 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
               void navigate({ to: '/rosters', search: filters })
           }}
         />
-        {actions.shareProblem ? <p className="text-sm text-destructive">Could not copy the link: {actions.shareProblem}</p> : null}
+        {actions.shareProblem ? <Problem>Could not copy the link: {actions.shareProblem}</Problem> : null}
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
-        {actions.exchange.isError ? (
-          <p role="alert" className="text-sm text-destructive">
-            Could not make an exchange code: {errorMessage(actions.exchange.error)}
-          </p>
-        ) : null}
+        {actions.exchange.isError ? <Problem>Could not make an exchange code: {errorMessage(actions.exchange.error)}</Problem> : null}
 
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
@@ -269,7 +266,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
                 search={{ updates: 'changed' }}
                 className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone"
               >
-                {changedLists} {changedLists === 1 ? 'roster' : 'rosters'} changed by a data update
+                {countLabel(changedLists, 'roster')} changed by a data update
               </Link>
             ) : null}
             {libraryPending ? (

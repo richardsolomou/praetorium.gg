@@ -1,3 +1,4 @@
+import { jsonByteLength } from '../core/json'
 import type { RuntimeData } from './runtimeData'
 
 const REFERENCE = '$praetoriumBase'
@@ -27,7 +28,7 @@ export function restoreRuntimeData(value: RuntimeData, base: RuntimeData, budget
       if (!parent || typeof parent !== 'object' || !Object.hasOwn(parent, key)) throw new Error('Missing shared runtime data')
       return childOf(parent, key)
     }, base)
-    budget.remaining -= new TextEncoder().encode(JSON.stringify(restored)).byteLength
+    budget.remaining -= jsonByteLength(restored)
     if (budget.remaining < 0) throw new Error('Shared runtime data exceeds its size limit')
     return restored
   }

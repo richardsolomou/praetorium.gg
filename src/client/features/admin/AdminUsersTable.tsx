@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchField } from '../../components/SearchField'
 import { useDateFormatting } from '../../dates'
+import { countLabel } from '../../text'
 
 type AdminTableMeta = { currentUserId: string; openedUserId?: string }
 const features = tableFeatures({
@@ -285,7 +286,7 @@ export function AdminUsersTable({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-sm text-dim">
-        <p className="readout">{pending ? ' ' : `${total} ${total === 1 ? 'player' : 'players'}`}</p>
+        <p className="readout">{pending ? ' ' : countLabel(total, 'player')}</p>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-center gap-2">
             <span id="admin-users-page-size">Rows per page</span>

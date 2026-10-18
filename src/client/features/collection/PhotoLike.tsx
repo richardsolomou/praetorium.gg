@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { type datasheetPhotos, likeCollectionPhoto } from '../../functions'
 import { datasheetPhotosQuery, meQuery } from '../../queries'
+import { countLabel } from '../../text'
 
 type Gallery = Awaited<ReturnType<typeof datasheetPhotos>>
 
@@ -31,7 +32,7 @@ export function PhotoLike({ entryId, photoId, name }: { entryId: string; photoId
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   })
   if (!photo) return null
-  const label = `${photo.likes} ${photo.likes === 1 ? 'like' : 'likes'}`
+  const label = countLabel(photo.likes, 'like')
   const count = (
     <>
       <Heart className={photo.liked ? 'fill-rust text-rust' : undefined} /> {photo.likes}

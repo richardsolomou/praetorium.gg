@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { catalogueRuntimeFingerprint, readCatalogueRuntime, runtimeManifestSchema } from '../../src/server/catalogueRuntime'
 import { writeCatalogueRuntime } from './catalogueRuntime'
+import { publishDirectory } from './publishDirectory'
 import { downloadRuntime, packCatalogueRuntime, storeHasRuntime, uploadRuntime } from './catalogueRuntimeDistribution'
 
 type Compile = (directory: string, output: string) => Promise<void> | void
@@ -114,13 +115,7 @@ function storeRuntime(output: string, cached: string) {
   const staging = `${cached}.incoming-${randomUUID()}`
   try {
     fs.cpSync(output, staging, { recursive: true })
-    fs.rmSync(cached, { recursive: true, force: true })
-    try {
-      fs.renameSync(staging, cached)
-    } catch (error) {
-      // Another build may have stored the same runtime while this one was copying.
-      if (!['EEXIST', 'ENOTEMPTY'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
-    }
+    publishDirectory(staging, cached)
   } finally {
     fs.rmSync(staging, { recursive: true, force: true })
   }

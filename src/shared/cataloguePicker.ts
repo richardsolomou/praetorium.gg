@@ -1,3 +1,4 @@
+import { cachedIn } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import { battleSizeSelection, type ModifierCache, rosterLimit, type Selection } from '../core/evaluate'
@@ -13,8 +14,7 @@ import { rosterDetachments } from './rosterDetachments'
 import { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
 import { type Steps, type Stepwise, stepwise } from './steps'
 
-export type { UnitSummary } from '../contracts/catalogue'
-export { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
+export { isMatchedPlayDatasheet } from './catalogueUnit'
 
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
 const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, Stepwise<UnitSummary[]>>>()
@@ -109,21 +109,13 @@ export function unitSummaries(
   // A faction page lists what its cards list, where it has cards at all.
   const book = loaded.index.catalogues.get(catalogueId)
   const included = Boolean(factionCards && book && factionContentOf(loaded, book.name))
-  // Faction reference pages use one canonical name set, and a restriction set is
-  // one stable value per rules snapshot. Cache the complete, priced list so each
-  // search filters in memory instead of rebuilding every datasheet in the faction.
-  // A waived rule changes which datasheets the book offers and how many of each, so
-  // it belongs in the key: sharing one entry across waiver sets served a filtered book
-  // to a roster that had turned the filter off.
+  // The complete, priced list is cached so each search filters in memory. Waived rules
+  // change which datasheets the book offers and how many of each, so they belong in the key.
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
   const cacheKey = `${JSON.stringify(detachments.chosen.map((option) => option.id))}:${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}`
-  const cached = unitSummaryCache.get(loaded)?.get(cacheKey)
-  if (cached) return cached
-  const work = stepwise(() => summarizeUnits(loaded, catalogueId, { restrictions, included, battleSize, waivedRules, detachments }))
-  const entries = unitSummaryCache.get(loaded) ?? new Map<string, Stepwise<UnitSummary[]>>()
-  entries.set(cacheKey, work)
-  unitSummaryCache.set(loaded, entries)
-  return work
+  return cachedIn(unitSummaryCache, loaded, cacheKey, () =>
+    stepwise(() => summarizeUnits(loaded, catalogueId, { restrictions, included, battleSize, waivedRules, detachments })),
+  )
 }
 
 function* summarizeUnits(

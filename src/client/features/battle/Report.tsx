@@ -8,8 +8,13 @@ import type { ReportEntry } from '../../../core/battleReport'
 import { useDateFormatting } from '../../dates'
 import { reportQuery } from '../../queries'
 import { formatDuration } from './turnTime'
+import { tint } from './battleTints'
 
-export type ReportPlayer = { id: string; name: string; className: string }
+type ReportPlayer = { id: string; name: string; className: string }
+
+/** Names in the report take their side's tint; seats are ordered by side, so every device agrees on each player's colour. */
+export const reportPlayers = (players: readonly { id: string; name: string; side: number }[]): ReportPlayer[] =>
+  players.map((player) => ({ id: player.id, name: player.name, className: tint(player.side).text }))
 
 /** Short enough for the gutter, and still distinct from every other phase. */
 const PHASE_LABELS: Record<string, string> = {

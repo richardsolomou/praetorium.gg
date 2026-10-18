@@ -8,6 +8,7 @@ import { ModelCounter } from '../../components/ModelCounter'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { collectionWishesQuery, combatUnitsQuery } from '../../queries'
 import { useCollectionWantedMutation } from '../../useCollection'
+import { countLabel } from '../../text'
 
 type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
@@ -31,7 +32,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
           <Star className="size-4 text-info" aria-hidden /> Wishlist
         </span>
         <span className="text-xs text-dim normal-case">
-          {total ? `${total} ${total === 1 ? 'model' : 'models'} to buy, apart from those you own` : 'Models you plan to buy'}
+          {total ? `${countLabel(total, 'model')} to buy, apart from those you own` : 'Models you plan to buy'}
         </span>
       </h2>
       <SearchableSelect

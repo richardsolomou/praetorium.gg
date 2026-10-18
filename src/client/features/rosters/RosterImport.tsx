@@ -8,19 +8,19 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { importRoster, saveRoster } from '../../functions'
-import { errorMessage } from '../../queryClient'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
 import { battleSizeLabel } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
 import { sendFeedback } from '../feedback/sendFeedback'
+import { Problem } from '../../components/Problem'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 type Matched<T> = T extends { catalogueId: string | null; source: string | null }
   ? T & { catalogueId: string; source: NonNullable<T['source']> }
   : never
 /** A list whose faction was recognised, which is the only thing an import cannot do without. */
-export type MatchedImport = Matched<Imported>
+type MatchedImport = Matched<Imported>
 const matched = (imported: Imported): imported is MatchedImport => Boolean(imported.catalogueId && imported.source)
 
 /** The roster setup an import carries; text exports leave out rule waivers and allied detachments. */
@@ -290,11 +290,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
               </div>
             )}
 
-            {failure ? (
-              <p role="alert" className="whitespace-pre-line text-sm text-destructive">
-                {errorMessage(failure)}
-              </p>
-            ) : null}
+            {failure ? <Problem error={failure} className="whitespace-pre-line" /> : null}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" disabled={working} onClick={() => setOpen(false)}>

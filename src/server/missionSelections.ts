@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import type { MissionSelectionKind } from '../core/missionSelections'
 import { english } from './missionPacks'
 
@@ -53,5 +53,5 @@ export function missionSelectionKind(packId: unknown, raw: Record<string, unknow
   const selection = typeof raw.id === 'string' ? selections[raw.id] : undefined
   const text = wording(raw)
   if (packId !== chapterApproved || !selection || !text) return undefined
-  return createHash('sha256').update(text).digest('hex') === selection.wording ? selection.kind : undefined
+  return hash('sha256', text) === selection.wording ? selection.kind : undefined
 }

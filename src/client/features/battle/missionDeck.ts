@@ -1,5 +1,6 @@
 import type { gameReferences } from '../../functions'
 import { routeSlug } from '../../../core/slug'
+import { uniqueBy } from '../../../core/collections'
 
 type GameReferences = Awaited<ReturnType<typeof gameReferences>> | undefined
 
@@ -13,11 +14,8 @@ export const secondaryCards = (references: GameReferences) => references?.second
  * pack, so they are collected by key rather than concatenated.
  */
 export function primaryCards(references: GameReferences) {
-  const found = new Map<string, NonNullable<NonNullable<GameReferences>['packs'][number]['missions'][number]['card']>>()
-  for (const pack of references?.packs ?? []) {
-    for (const mission of pack.missions) if (mission.card && !found.has(mission.card.key)) found.set(mission.card.key, mission.card)
-  }
-  return [...found.values()]
+  const cards = (references?.packs ?? []).flatMap((pack) => pack.missions.flatMap((mission) => (mission.card ? [mission.card] : [])))
+  return uniqueBy(cards, (card) => card.key)
 }
 
 export function missionCardsByKey(references: GameReferences) {

@@ -34,9 +34,9 @@ export function ResetPasswordPage({ token, tokenError, next }: { token?: string;
           <h1 className="mt-1 text-3xl">Reset password</h1>
           {invalid ? (
             <>
-              <p role="alert" className="mt-6 border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <Problem className="mt-6 border border-destructive/40 bg-destructive/10 p-3">
                 This password reset link is invalid or has expired.
-              </p>
+              </Problem>
               <Link
                 to="/sign-in"
                 search={{ next, error: undefined, reset: undefined }}

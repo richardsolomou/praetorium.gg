@@ -42,6 +42,7 @@ import {
   type OnboardingPlacement,
   type OnboardingStepId,
 } from './onboarding'
+import { Problem } from '../../components/Problem'
 
 /** How long a step waits for its control to appear before the guide offers the page instead. */
 const TARGET_WAIT = 1_500
@@ -371,11 +372,7 @@ function GuidePrompt({
           <Check /> Finish tour
         </Button>
       ) : null}
-      {problem && (
-        <p role="alert" className="mt-2 text-xs text-danger">
-          {problem}
-        </p>
-      )}
+      {problem && <Problem className="mt-2 text-xs">{problem}</Problem>}
     </section>
   )
 }

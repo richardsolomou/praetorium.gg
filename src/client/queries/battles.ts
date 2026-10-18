@@ -13,7 +13,6 @@ import {
   publicBattles,
   replayBattleAt,
   searchPlayers,
-  sharedBattles,
   standings,
 } from '../functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
@@ -21,17 +20,43 @@ import type { BattlesCursor } from '../../contracts/battles'
 import { SSR_STALE_TIME } from './shared'
 import { liveProductRefresh } from '../liveProductRefresh'
 import { uniqueBy } from '../../core/collections'
+import {
+  battleAudienceKey,
+  battleKey,
+  battleReplayKey,
+  battlesKey,
+  friendBattlesKey,
+  friendshipsKey,
+  opponentsKey,
+  playerProfileKey,
+  playerRankingsKey,
+  playerRostersKey,
+  playerSearchKey,
+  publicBattlesKey,
+  reportKey,
+  standingsKey,
+} from './queryKeys'
 
 export type { BattlesCursor } from '../../contracts/battles'
 
-export const battlesQuery = () =>
-  infiniteQueryOptions({
-    queryKey: ['battles'],
-    queryFn: ({ pageParam }) => myBattles({ data: { before: pageParam } }).then(requireBattlePage),
+/** A battle list read a page at a time, older pages before the cursor the previous page gave. */
+export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null }>(
+  queryKey: unknown[],
+  read: (before: BattlesCursor | null) => Promise<Page | null | undefined>,
+  refetchInterval?: number | (() => number | false),
+) {
+  return infiniteQueryOptions({
+    queryKey,
+    queryFn: ({ pageParam }) => read(pageParam).then(requireBattlePage),
     initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page?.nextCursor ?? undefined,
+    // A cached feed can hold a missing page.
+    getNextPageParam: (page) => (page as Page | undefined)?.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
+    ...(refetchInterval === undefined ? {} : { refetchInterval }),
   })
+}
+
+export const battlesQuery = () => battleFeedQuery(battlesKey(), (before) => myBattles({ data: { before } }))
 
 export function battlesFrom(data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) {
   return uniqueBy(
@@ -49,25 +74,9 @@ const FEED_POLL_MS = 20_000
 /** A page without realtime refresh polls its feeds; with it, signals refresh them. */
 const feedPoll = () => (liveProductRefresh() ? false : FEED_POLL_MS)
 
-export const publicBattlesQuery = () =>
-  infiniteQueryOptions({
-    queryKey: ['public-battles'],
-    queryFn: ({ pageParam }) => publicBattles({ data: { before: pageParam } }).then(requireBattlePage),
-    initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page?.nextCursor ?? undefined,
-    staleTime: SSR_STALE_TIME,
-    refetchInterval: feedPoll,
-  })
+export const publicBattlesQuery = () => battleFeedQuery(publicBattlesKey(), (before) => publicBattles({ data: { before } }), feedPoll)
 
-export const friendBattlesQuery = () =>
-  infiniteQueryOptions({
-    queryKey: ['friend-battles'],
-    queryFn: ({ pageParam }) => friendBattles({ data: { before: pageParam } }).then(requireBattlePage),
-    initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page?.nextCursor ?? undefined,
-    staleTime: SSR_STALE_TIME,
-    refetchInterval: feedPoll,
-  })
+export const friendBattlesQuery = () => battleFeedQuery(friendBattlesKey(), (before) => friendBattles({ data: { before } }), feedPoll)
 
 export type PlayerProfileFilter = {
   faction?: string
@@ -80,30 +89,26 @@ export type PlayerProfileFilter = {
 }
 
 export const playerProfileQuery = (userId: string, filter: PlayerProfileFilter = {}) =>
-  queryOptions({ queryKey: ['player-profile', userId, filter], queryFn: () => playerProfile({ data: { userId, ...filter } }) })
+  queryOptions({ queryKey: playerProfileKey(userId, filter), queryFn: () => playerProfile({ data: { userId, ...filter } }) })
 
 export const playerRostersQuery = (userId: string) =>
-  queryOptions({ queryKey: ['player-rosters', userId], queryFn: () => playerRosters({ data: { userId } }) })
+  queryOptions({ queryKey: playerRostersKey(userId), queryFn: () => playerRosters({ data: { userId } }) })
 
 export const playerRankingsQuery = (userId: string) =>
-  queryOptions({ queryKey: ['player-rankings', userId], queryFn: () => playerRankings({ data: { userId } }), staleTime: 60_000 })
+  queryOptions({ queryKey: playerRankingsKey(userId), queryFn: () => playerRankings({ data: { userId } }), staleTime: 60_000 })
 
-export const standingsQuery = () => queryOptions({ queryKey: ['standings'], queryFn: () => standings(), staleTime: 60_000 })
+export const standingsQuery = () => queryOptions({ queryKey: standingsKey(), queryFn: () => standings(), staleTime: 60_000 })
 
 export const battleAudienceQuery = () =>
-  queryOptions({ queryKey: ['battle-audience'], queryFn: () => battleAudience(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: battleAudienceKey(), queryFn: () => battleAudience(), staleTime: SSR_STALE_TIME })
 
-export const sharedBattlesQuery = (userId: string) =>
-  queryOptions({ queryKey: ['shared-battles', userId], queryFn: () => sharedBattles({ data: { userId } }), staleTime: SSR_STALE_TIME })
+export const opponentsQuery = () => queryOptions({ queryKey: opponentsKey(), queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
+export const friendshipsQuery = () => queryOptions({ queryKey: friendshipsKey(), queryFn: () => friendships(), staleTime: SSR_STALE_TIME })
 
-export const opponentsQuery = () => queryOptions({ queryKey: ['opponents'], queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
-export const friendshipsQuery = () => queryOptions({ queryKey: ['friendships'], queryFn: () => friendships(), staleTime: SSR_STALE_TIME })
-
-export const playerSearchKey = ['player-search']
 /** Players a typed name could mean. A name too short to narrow anything is not worth asking about. */
 export const playerSearchQuery = (query: string) =>
   queryOptions({
-    queryKey: [...playerSearchKey, query],
+    queryKey: playerSearchKey(query),
     queryFn: () => searchPlayers({ data: { query } }),
     enabled: query.trim().length >= PLAYER_SEARCH_MIN_LENGTH && query.trim().length <= PLAYER_SEARCH_MAX_LENGTH,
     staleTime: 30_000,
@@ -111,7 +116,7 @@ export const playerSearchQuery = (query: string) =>
 
 export const battleQuery = (token: string) =>
   queryOptions({
-    queryKey: ['battle', token],
+    queryKey: battleKey(token),
     queryFn: () => openBattle({ data: { token } }),
     staleTime: SSR_STALE_TIME,
     structuralSharing: newestBattleScreen,
@@ -135,7 +140,7 @@ export const battleArrivalQuery = (token: string) =>
 
 export const replayAtQuery = (token: string, seq: number, enabled: boolean) =>
   queryOptions({
-    queryKey: ['battle-replay', token, seq],
+    queryKey: battleReplayKey(token, seq),
     queryFn: () => replayBattleAt({ data: { token, seq } }),
     enabled,
     placeholderData: keepPreviousData,
@@ -157,4 +162,4 @@ function battleSequence(value: unknown): number | null {
 }
 
 export const reportQuery = (token: string, enabled: boolean) =>
-  queryOptions({ queryKey: ['report', token], queryFn: () => battleReport({ data: { token } }), enabled, staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: reportKey(token), queryFn: () => battleReport({ data: { token } }), enabled, staleTime: SSR_STALE_TIME })

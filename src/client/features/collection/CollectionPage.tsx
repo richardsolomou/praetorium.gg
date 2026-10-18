@@ -27,6 +27,7 @@ import { CollectionPhoto } from './CollectionPhoto'
 import { CollectionWishlist } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
 import { groupBy } from '../../../core/collections'
+import { countLabel } from '../../text'
 
 type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
@@ -99,9 +100,7 @@ export function CollectionPage() {
             {sheet.presentation ? <Mark faction={sheet.presentation} /> : null}
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-bone uppercase">{sheet.name}</span>
-              <span className="block text-xs text-dim">
-                {sheet.battles} {sheet.battles === 1 ? 'battle' : 'battles'}
-              </span>
+              <span className="block text-xs text-dim">{countLabel(sheet.battles, 'battle')}</span>
             </span>
             <Button size="sm" variant="outline" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
               <Plus /> Add

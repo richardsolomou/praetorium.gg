@@ -2,7 +2,7 @@ import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type Adm
 import type { BattlesCursor } from '../contracts/battles'
 import { parseRosterSnapshot } from '../core/commands'
 import { leagueArmy, leagueTeams, requiredLeagueRosterLimit, type LeagueAdmission, type LeagueVisibility } from '../core/league'
-import type { TableShape } from '../core/tableShape'
+import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
 import { SqliteAccountRepository } from './accountRepository'
@@ -531,11 +531,11 @@ export class SpacetimeRepository {
       z.union([
         z.object({
           outcome: z.literal('sealed'),
-          format: z.enum(['1v1', '2v1', '2v2']).nullable(),
+          format: z.enum(TABLE_SHAPES).nullable(),
           requiredLimit: z.number().nullable(),
         }),
         z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit']) }),
-        z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(['1v1', '2v1', '2v2']).nullable() }),
+        z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(TABLE_SHAPES).nullable() }),
         z.object({ outcome: z.literal('disposition-dropped'), disposition: z.string() }),
       ]),
     )
@@ -554,7 +554,7 @@ export class SpacetimeRepository {
       z.union([
         z.object({ outcome: z.literal('revealed'), entrantIds: z.array(z.string()) }),
         z.object({ outcome: z.literal('not-ready') }),
-        z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(['1v1', '2v1', '2v2']) }),
+        z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(TABLE_SHAPES) }),
       ]),
     )
   }

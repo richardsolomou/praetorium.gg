@@ -1,4 +1,4 @@
-import { rulesReferencedIn } from './catalogue'
+import { rulesReferencedIn } from './catalogueRules'
 import { routeSlug } from '../core/slug'
 import { describedEnhancements, mergeDetachmentRules } from './catalogueDescriptions'
 import { DATACARDS_ATTRIBUTION, descriptionKey } from './datacards'
@@ -7,7 +7,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
 import { mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints } from './mfm'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../core/text'
 import { factionContentOf } from './factionNames'
 
 const withoutUpgrade = (name: string) => name.replace(/\s*\(upgrade\)\s*$/i, '')

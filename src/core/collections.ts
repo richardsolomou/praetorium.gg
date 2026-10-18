@@ -15,6 +15,16 @@ export function groupBy<T, K>(entries: Iterable<T>, keyOf: (entry: T) => K): Map
   return groups
 }
 
+/** How many entries share each key, in the order the keys first appear. */
+export function countBy<T, K>(entries: Iterable<T>, keyOf: (entry: T) => K): Map<K, number> {
+  const counts = new Map<K, number>()
+  for (const entry of entries) {
+    const key = keyOf(entry)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return counts
+}
+
 /** The first value for each key, in order. */
 export function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => unknown): T[] {
   const seen = new Set<unknown>()
@@ -24,4 +34,37 @@ export function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => unknown):
     seen.add(key)
     return true
   })
+}
+
+/** `compute()` once per owner and key, kept for as long as the owner lives; undefined and null results are cached too. */
+export function cachedIn<O extends WeakKey, T>(store: WeakMap<O, Map<string, T>>, owner: O, key: string, compute: () => T): T {
+  let cache = store.get(owner)
+  if (!cache) {
+    cache = new Map<string, T>()
+    store.set(owner, cache)
+  }
+  if (cache.has(key)) return cache.get(key)!
+  const value = compute()
+  cache.set(key, value)
+  return value
+}
+
+/** Evicts the least recently used entry once it holds more than its limit. */
+export class RecentlyUsed<K, V> extends Map<K, V> {
+  constructor(private readonly limit: number) {
+    super()
+  }
+  override get(key: K) {
+    if (!super.has(key)) return undefined
+    const value = super.get(key) as V
+    super.delete(key)
+    super.set(key, value)
+    return value
+  }
+  override set(key: K, value: V) {
+    super.delete(key)
+    super.set(key, value)
+    if (this.size > this.limit) this.delete(this.keys().next().value as K)
+    return this
+  }
 }

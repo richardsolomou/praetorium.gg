@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
+import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
@@ -18,34 +18,19 @@ import {
 } from './lib/productionRosters'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { requiredEnv } from './lib/requiredEnv'
+import { replaceFile } from '../src/server/replaceFile'
 
 const defaultSnapshot = 'data-dev/production-rosters.json'
 
 async function writePrivateJson(file: string, value: unknown) {
   await mkdir(path.dirname(file), { recursive: true })
-  const temporary = `${file}.${process.pid}.tmp`
-  try {
-    const handle = await open(temporary, 'wx', 0o600)
-    try {
-      await handle.writeFile(JSON.stringify(value, null, 2) + '\n')
-    } finally {
-      await handle.close()
-    }
-    await rename(temporary, file)
-  } finally {
-    await rm(temporary, { force: true })
-  }
+  await replaceFile(file, (temporary) => writeFile(temporary, JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o600 }))
 }
 
 async function readSnapshot(file: string) {
   if ((await stat(file)).size > MAX_ROSTER_SNAPSHOT_BYTES) throw new Error('Roster snapshot exceeds 64 MiB')
   return productionRosterSnapshotSchema.parse(JSON.parse(await readFile(file, 'utf8')))
-}
-
-const required = (name: string) => {
-  const value = process.env[name]
-  if (!value) throw new Error(`Missing ${name}`)
-  return value
 }
 
 function loadEditions(directory: string) {
@@ -68,11 +53,11 @@ export async function productionRostersMain(args: string[]) {
   }
   if (command === 'fetch') {
     const snapshot = process.env.PRODUCTION_SSH_HOST
-      ? await fetchProductionRostersOverSsh(required('PRODUCTION_SSH_HOST'), required('PRODUCTION_WEB_SERVICE'))
+      ? await fetchProductionRostersOverSsh(requiredEnv('PRODUCTION_SSH_HOST'), requiredEnv('PRODUCTION_WEB_SERVICE'))
       : await fetchProductionRosters({
-          url: required('PRODUCTION_SPACETIME_URL'),
-          database: required('PRODUCTION_SPACETIME_DATABASE'),
-          ownerToken: required('PRODUCTION_SPACETIME_OWNER_TOKEN'),
+          url: requiredEnv('PRODUCTION_SPACETIME_URL'),
+          database: requiredEnv('PRODUCTION_SPACETIME_DATABASE'),
+          ownerToken: requiredEnv('PRODUCTION_SPACETIME_OWNER_TOKEN'),
           accessClientId: process.env.PRODUCTION_SPACETIME_ACCESS_CLIENT_ID,
           accessClientSecret: process.env.PRODUCTION_SPACETIME_ACCESS_CLIENT_SECRET,
         })
@@ -159,8 +144,8 @@ async function normalise(
   const revision = z.record(z.string(), z.string()).parse(JSON.parse(await readFile(path.join(directory, 'revision.json'), 'utf8')))
   try {
     await writeNormalisedRostersOverSsh(
-      required('PRODUCTION_SSH_HOST'),
-      required('PRODUCTION_WEB_SERVICE'),
+      requiredEnv('PRODUCTION_SSH_HOST'),
+      requiredEnv('PRODUCTION_WEB_SERVICE'),
       revision,
       writes,
       (outcome) => {

@@ -4,6 +4,7 @@ import type { SavedRoster } from '../rosters/rosterLibrary'
 import { pointsBudgetOf } from '../../../core/battle'
 import { FactionMark } from '../../components/FactionMark'
 import { PROBLEM_LABEL, type RosterProblem, type RosterSummaryFaction, rosterTitle } from '../rosters/RosterSummary'
+import { countLabel } from '../../text'
 
 /** One saved list as the home page shows it, already joined to its faction, totals and status. */
 export type HomeRoster = {
@@ -64,7 +65,7 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
         </Link>
         {changed ? (
           <Link to="/rosters" search={{ updates: 'changed' }} className="text-xs font-semibold text-discarded hover:text-bone">
-            {changed} {changed === 1 ? 'list' : 'lists'} changed by a data update
+            {countLabel(changed, 'list')} changed by a data update
           </Link>
         ) : null}
       </p>

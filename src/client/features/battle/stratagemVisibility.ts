@@ -1,6 +1,6 @@
 import type { Phase } from '../../../core/battle'
 
-export type StratagemTiming = {
+type StratagemTiming = {
   phases?: Phase[]
   turn?: string
 }

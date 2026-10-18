@@ -11,6 +11,7 @@ import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceC
 import { CARD } from './battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
+import { countLabel } from '../../text'
 
 export type { WhenDrawn } from './drawOffer'
 
@@ -176,7 +177,7 @@ export function DrawDialog({
             {selecting && needsDraw ? (
               <>
                 <p className="eyebrow">
-                  Select {owed} mission{owed === 1 ? '' : 's'} · {selected.length}/{owed}
+                  Select {countLabel(owed, 'mission')} · {selected.length}/{owed}
                 </p>
                 <ul className="space-y-1.5">
                   {side.remainingSecondaries.map((card) => {

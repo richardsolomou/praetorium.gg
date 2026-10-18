@@ -33,7 +33,7 @@ export function pushNotifier(repository: PushRepository, sender: PushSender): No
 
   return {
     notify(notices) {
-      void deliver(notices).catch((error: unknown) => console.warn('push notice failed', { error }))
+      void deliver(notices).catch((error: unknown) => console.warn({ event: 'push_notice_failed', error }))
     },
   }
 }

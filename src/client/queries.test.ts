@@ -6,7 +6,6 @@ import {
   gameReferencesRefreshInterval,
   loadoutDatasheetsQuery,
   newestBattleScreen,
-  playerSearchKey,
   playerSearchQuery,
   terrainReferencesQuery,
 } from './queries'
@@ -66,7 +65,7 @@ describe('player search queries', () => {
   })
 
   it('keys each name separately so one search cannot answer another', () => {
-    expect(playerSearchQuery('alice').queryKey).toEqual([...playerSearchKey, 'alice'])
+    expect(playerSearchQuery('alice').queryKey).toEqual(['player-search', 'alice'])
   })
 })
 

@@ -10,6 +10,7 @@ import { savedRosterSummariesQuery } from '../../queries'
 import { RosterChoices } from '../rosters/RosterChoices'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { Problem } from '../../components/Problem'
+import { pointsSize } from '../../../core/battle'
 
 export function RosterChooser({
   open,
@@ -46,7 +47,7 @@ export function RosterChooser({
           <DialogDescription>
             {requiredLimit === null
               ? 'Hidden until the reveal. You can swap it until then.'
-              : `Your ${requiredLimit.toLocaleString('en')}-point rosters. Hidden until the reveal; you can swap it until then.`}
+              : `Your ${pointsSize(requiredLimit)} rosters. Hidden until the reveal; you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -67,10 +68,10 @@ export function RosterChooser({
           ) : (
             <div className="space-y-3">
               <p className="py-2 text-sm text-dim">
-                {requiredLimit === null ? 'No rosters to seal yet.' : `No ${requiredLimit.toLocaleString('en')}-point rosters to seal yet.`}
+                {requiredLimit === null ? 'No rosters to seal yet.' : `No ${pointsSize(requiredLimit)} rosters to seal yet.`}
               </p>
               <Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} className={buttonClass()}>
-                {requiredLimit === null ? 'Go to rosters' : `Build a ${requiredLimit.toLocaleString('en')}-point roster`}
+                {requiredLimit === null ? 'Go to rosters' : `Build a ${pointsSize(requiredLimit)} roster`}
               </Link>
             </div>
           )}

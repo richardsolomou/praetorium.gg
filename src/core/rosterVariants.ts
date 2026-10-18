@@ -1,3 +1,4 @@
+import { groupBy } from './collections'
 import { ROSTER_NAME_MAX_LENGTH } from './battle'
 
 /** The first `<base> · <n>` no list in the group holds, counting the base as the first. */
@@ -26,14 +27,7 @@ export function orderVariantGroup<T extends { id: string; createdAt: number | bi
  * is headed by its oldest remaining member instead.
  */
 export function variantGroups<T extends { id: string; baseRosterId: string | null; createdAt: number }>(sorted: readonly T[]) {
-  const groups = new Map<string, T[]>()
-  for (const roster of sorted) {
-    const key = roster.baseRosterId ?? roster.id
-    const group = groups.get(key)
-    if (group) group.push(roster)
-    else groups.set(key, [roster])
-  }
-  return [...groups].flatMap(([key, members]) => {
+  return [...groupBy(sorted, (roster) => roster.baseRosterId ?? roster.id)].flatMap(([key, members]) => {
     const head = orderVariantGroup(members, key)[0]!
     return [{ roster: head, variant: false }, ...members.filter((roster) => roster !== head).map((roster) => ({ roster, variant: true }))]
   })

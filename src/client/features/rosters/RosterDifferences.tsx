@@ -3,6 +3,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { type NamedRosterDifferences, sameRoster } from '../../../core/rosterDifferences'
 import { dispositionTone } from '../../components/rosterSetup'
+import { countLabel } from '../../text'
 
 type UnitChange = NamedRosterDifferences['added'][number]
 
@@ -79,7 +80,7 @@ function UnitCount({ sign, changes }: { sign: '+' | '−'; changes: readonly Uni
   return (
     <Tooltip>
       <TooltipTrigger render={<Chip sign={sign} />}>
-        {`${units} ${units === 1 ? 'unit' : 'units'}`}
+        {countLabel(units, 'unit')}
         <span className="sr-only">: {changes.map(counted).join(', ')}</span>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="block">
@@ -112,9 +113,7 @@ export function RosterDifferenceChips({ differences, setup }: { differences: Nam
     changed.has('rules') ? <Chip key="rules">Rules changed</Chip> : null,
     differences.added.length ? <UnitCount key="+" sign="+" changes={differences.added} /> : null,
     differences.removed.length ? <UnitCount key="−" sign="−" changes={differences.removed} /> : null,
-    differences.loadouts ? (
-      <Chip key="loadouts">{`${differences.loadouts} ${differences.loadouts === 1 ? 'loadout' : 'loadouts'}`}</Chip>
-    ) : null,
+    differences.loadouts ? <Chip key="loadouts">{countLabel(differences.loadouts, 'loadout')}</Chip> : null,
   ].filter(Boolean)
   return (
     <span data-slot="roster-differences" className="flex min-w-0 flex-wrap items-center gap-1">

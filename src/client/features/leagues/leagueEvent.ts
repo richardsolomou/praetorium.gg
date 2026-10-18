@@ -9,7 +9,7 @@ import {
 import { pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import type { openLeague } from '../../functions'
-import { leaguesQuery } from '../../queries'
+import { leagueReadsKey, leaguesKey, outdatedLeagueEntriesKey } from '../../queries'
 import { formatList } from '../../text'
 import { groupBy } from '../../../core/collections'
 
@@ -19,9 +19,9 @@ export function useLeagueRefresh(token: string) {
   const queryClient = useQueryClient()
   return async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['league', token] }),
-      queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['outdated-league-entries'] }),
+      queryClient.invalidateQueries({ queryKey: leagueReadsKey(token) }),
+      queryClient.invalidateQueries({ queryKey: leaguesKey() }),
+      queryClient.invalidateQueries({ queryKey: outdatedLeagueEntriesKey() }),
     ])
   }
 }

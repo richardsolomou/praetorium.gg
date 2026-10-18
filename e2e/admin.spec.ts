@@ -1,11 +1,10 @@
 import { createHmac } from 'node:crypto'
-import { expect, test, type Page } from './test'
-import { befriend, signUp, uniqueName } from './account'
+import { expect, test } from './test'
+import { PREVIEW_EMAIL } from '../scripts/seedPreview'
+import { befriend, signIn, signInAsPreview, signUp, uniqueName } from './account'
 
 // The seeded administrator is shared by every attempt, so these tests never change its
 // security settings and give each player they create a name of its own.
-const ADMIN_EMAIL = 'preview@praetorium.gg'
-const ADMIN_PASSWORD = 'preview-preview-preview'
 
 function decodeBase32(value: string) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -24,18 +23,6 @@ function currentTotp(uri: string) {
   const digest = createHmac('sha1', decodeBase32(secret)).update(counter).digest()
   const offset = digest.at(-1)! & 0x0f
   return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0')
-}
-
-async function signIn(page: Page, twoFactor = false, email = ADMIN_EMAIL, password = ADMIN_PASSWORD) {
-  await page.goto('/sign-in')
-  // Filling before hydration submits the form natively and never signs in.
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  if (!twoFactor) {
-    await page.waitForURL('/')
-  }
 }
 
 test('a player secures an account with an authenticator app', async ({ page, request }) => {
@@ -72,7 +59,7 @@ test('a player secures an account with an authenticator app', async ({ page, req
   await page.getByRole('button', { name: `Account menu for ${name}` }).click()
   await page.getByRole('menuitem', { name: 'Sign out' }).click()
   await page.waitForURL('/')
-  await signIn(page, true, email, password)
+  await signIn(page, email, password)
   await expect(page.getByLabel('Authenticator code')).toBeVisible()
   await page.getByLabel('Authenticator code').fill(currentTotp(uri))
   await page.getByRole('button', { name: 'Verify and sign in' }).click()
@@ -99,13 +86,13 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
   })
   expect(signedIn.ok()).toBe(true)
 
-  await signIn(page)
+  await signInAsPreview(page)
   await expect(page.getByRole('button', { name: 'Account menu for Preview Player' })).toBeVisible()
   const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const serverPage = await serverContext.newPage()
   await serverPage.goto('/admin')
   await expect(serverPage.locator('[data-slot="skeleton"]').first()).toBeVisible()
-  await expect(serverPage.getByText(ADMIN_EMAIL, { exact: true })).toHaveCount(0)
+  await expect(serverPage.getByText(PREVIEW_EMAIL, { exact: true })).toHaveCount(0)
   await serverContext.close()
 
   await page.goto('/admin')
@@ -143,7 +130,7 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
   await expect(playerButton).toBeVisible()
   await expect(page.getByText('1 player', { exact: true })).toBeVisible()
   await page.getByLabel('Search users').fill('')
-  await expect(table.getByText(ADMIN_EMAIL, { exact: true })).toBeVisible()
+  await expect(table.getByText(PREVIEW_EMAIL, { exact: true })).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(table.getByRole('columnheader', { name: 'Name', exact: true })).toBeVisible()
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390)

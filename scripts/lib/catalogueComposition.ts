@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -14,7 +14,7 @@ import { fetchInto } from '../../src/server/sync'
 import { catalogueBaseUrl, fetchSnapshot } from '../../src/server/catalogueSnapshot'
 import { applyPatches } from './cataloguePatches'
 
-const revisionOf = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
+const revisionOf = (value: unknown) => hash('sha256', JSON.stringify(value))
 
 export async function composeCatalogue(
   directory: string,

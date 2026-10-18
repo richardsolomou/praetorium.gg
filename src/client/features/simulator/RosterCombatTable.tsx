@@ -4,6 +4,7 @@ import { Choice } from './CombatControls'
 import { CombatValue, formatCombatValue, type CombatMetric } from './CombatValue'
 import type { RosterCombatSummary, RosterCombatUnit } from './rosterCombat'
 import { combatUnitTarget } from '../../../core/combatUnit'
+import { countLabel } from '../../text'
 
 type Metric = CombatMetric
 const metrics = [
@@ -21,7 +22,7 @@ const phases = [
 function modelCount(unit: RosterCombatUnit) {
   if (!unit.snapshot) return '— models'
   const models = [unit.snapshot, ...(unit.snapshot.companions ?? [])].reduce((sum, member) => sum + member.models, 0)
-  const count = `${models} ${models === 1 ? 'model' : 'models'}`
+  const count = countLabel(models, 'model')
   const target = unit.live ? combatUnitTarget(unit.snapshot).target : null
   if (!target) return count
   const wounds =

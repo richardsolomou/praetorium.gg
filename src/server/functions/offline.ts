@@ -8,7 +8,7 @@ import { rosterUseError } from '../../core/rosterLegality'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { createServerFn } from '@tanstack/react-start'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { z } from 'zod'
 import { app } from '../app'
 import { requireUser } from '../playerSession'
@@ -28,6 +28,13 @@ async function syncRefusal(error: unknown) {
   throw error
 }
 
+/** The signed-in player, refused unless they queued the work themselves rather than while impersonated. */
+async function requireOwner(owner: string) {
+  const player = await requireUser()
+  if (player.id !== owner || player.impersonatedBy) throw new Response('Sign in to the account that saved these changes', { status: 401 })
+  return player
+}
+
 export const syncRoster = createServerFn({ method: 'POST' })
   .validator(
     z.object({
@@ -44,9 +51,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
   )
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      if (player.id !== data.owner || player.impersonatedBy)
-        throw new Response('Sign in to the account that saved these changes', { status: 401 })
+      const player = await requireOwner(data.owner)
       const instance = app()
       const automaticName = !data.roster.name
       const totals =
@@ -69,9 +74,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
         operationId: data.operationId,
         expectedVersion: data.expectedVersion,
         deleted: data.deleted,
-        fingerprint: createHash('sha256')
-          .update(JSON.stringify({ roster: data.roster, deleted: data.deleted }))
-          .digest('hex'),
+        fingerprint: hash('sha256', JSON.stringify({ roster: data.roster, deleted: data.deleted })),
       })
       if (result.outcome === 'applied') {
         if (result.lifecycle === 'created')
@@ -97,12 +100,8 @@ export const syncAction = createServerFn({ method: 'POST' })
   .validator(offlineActionSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      if (player.id !== data.owner || player.impersonatedBy)
-        throw new Response('Sign in to the account that saved these changes', { status: 401 })
-      const fingerprint = createHash('sha256')
-        .update(JSON.stringify({ kind: data.kind, input: data.input, identifiers: data.identifiers }))
-        .digest('hex')
+      const player = await requireOwner(data.owner)
+      const fingerprint = hash('sha256', JSON.stringify({ kind: data.kind, input: data.input, identifiers: data.identifiers }))
       try {
         let saved = await app().service.syncReceipt(data.operationId, player.id, fingerprint)
         if (!saved) {
@@ -143,9 +142,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
   )
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      if (player.id !== data.owner || player.impersonatedBy)
-        throw new Response('Sign in to the account that saved these changes', { status: 401 })
+      const player = await requireOwner(data.owner)
       try {
         const instance = app()
         let command = data.command
@@ -163,7 +160,8 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
         }
         if (!replay && command.kind === 'attach-roster' && command.roster.built) {
           const captured = data.capturedRoster
-          const owned = captured && captured.id === command.roster.id ? await instance.service.ownRoster(player.id, captured.id) : null
+          const owned =
+            captured && captured.id === command.roster.id ? await instance.service.leagueService.ownRoster(player.id, captured.id) : null
           if (!captured || !owned) return { outcome: 'refused' as const, message: 'You do not own the captured roster.' }
           // A device that predates custom budgets captured none; the saved roster's own budget applies.
           const draft = { ...captured, pointsBudget: captured.pointsBudget === undefined ? owned.pointsBudget : captured.pointsBudget }
@@ -195,7 +193,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
             ),
           }
         }
-        const fingerprint = createHash('sha256').update(JSON.stringify(data)).digest('hex')
+        const fingerprint = hash('sha256', JSON.stringify(data))
         const { result, workspace: appended } = await instance.service.submitWithWorkspace(
           data.token,
           player.id,

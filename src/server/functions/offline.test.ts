@@ -103,7 +103,7 @@ vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (w
 vi.mock('../playerSession', () => ({ requireUser: async () => mocks.user }))
 vi.mock('../app', () => ({
   app: () => ({
-    service: mocks,
+    service: { ...mocks, leagueService: { ownRoster: mocks.ownRoster } },
     catalogueFor: mocks.catalogueFor,
     catalogue: mocks.catalogue,
     rulesFor: mocks.rulesFor,

@@ -82,9 +82,7 @@ function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
   if (existing) return existing
 
   const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
-  // Keyed once: a price asks for every enhancement of every chosen detachment, and
-  // slugging every upgrade in the index each time made the answer slow enough for the
-  // builder's next press to race it.
+  // Keyed once: a price asks for every enhancement of every chosen detachment.
   const byCardName = groupBy(
     upgrades.filter((entry) => entry.name),
     (entry) => cardName(entry.name!),
@@ -148,7 +146,7 @@ function enhancementDescription(entry: SelectionEntry, loaded: LoadedCatalogue) 
   return `${description}\n\n**${weapon.name}** — ${values.join(' · ')}`
 }
 
-export function linkedEnhancementWeapon(entry: SelectionEntry, definitions: ReadonlyMap<string, Definition>) {
+function linkedEnhancementWeapon(entry: SelectionEntry, definitions: ReadonlyMap<string, Definition>) {
   if (!/following weapon:\s*$/i.test(descriptionOf(entry) ?? '')) return null
   const linked = (entry.entryLinks ?? []).flatMap((link) =>
     (definitions.get(link.targetId)?.profiles ?? [])

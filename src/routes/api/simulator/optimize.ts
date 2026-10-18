@@ -3,12 +3,15 @@ import { app } from '../../../server/app'
 import { combatLoadoutCandidates } from '../../../shared/combatLoadouts'
 import { requireMutationOrigin } from '../../../server/mutationOrigin'
 import { combatLoadoutSchema } from '../../../contracts/schemas'
+import { boundedText } from '../../../server/boundedBody'
 
 /**
  * Searches this instance runs at once. Each holds up to its retained-key limit in memory and shares the event loop
  * with every other request; devices with the download search for themselves.
  */
 const MAX_SEARCHES = 2
+/** The most a saved roster's picks may hold, which bounds a loadout drawn from one. */
+const MAX_BODY_BYTES = 1_000_000
 let searches = 0
 
 export const Route = createFileRoute('/api/simulator/optimize')({
@@ -16,7 +19,10 @@ export const Route = createFileRoute('/api/simulator/optimize')({
     handlers: {
       POST: async ({ request }) => {
         requireMutationOrigin(request)
-        const parsed = combatLoadoutSchema.safeParse(await request.json().catch(() => null))
+        const body = await boundedText(request, MAX_BODY_BYTES)
+          .then((text) => (text === null ? null : (JSON.parse(text) as unknown)))
+          .catch(() => null)
+        const parsed = combatLoadoutSchema.safeParse(body)
         if (!parsed.success) return new Response('Invalid loadout', { status: 400 })
         const loaded = await app().catalogueFor(parsed.data.catalogueId)
         if (!loaded) return new Response('The loadout could not be loaded.', { status: 503 })

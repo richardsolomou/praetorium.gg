@@ -20,9 +20,10 @@ import { canCompileCanonicalCatalogue } from '../src/server/canonicalCatalogueSo
 import { disabledCatalogueSources } from '../src/server/catalogueSources'
 import releaseLock from '../catalogue.json' with { type: 'json' }
 import { catalogueTree } from './lib/catalogueTree'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 const root = path.join(import.meta.dirname, '..')
-const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
+const directory = catalogueDataDirectory()
 const archive = process.env.CATALOGUE_SNAPSHOT_FILE ?? path.join(root, 'catalogue-snapshot.zip')
 const pointer = process.env.CATALOGUE_SNAPSHOT_POINTER_FILE ?? path.join(root, 'catalogue-current.json')
 const lock = path.join(root, 'catalogue.json')

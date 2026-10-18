@@ -1,12 +1,13 @@
 import { z } from 'zod'
 import { COLLECTION_PHOTO_MAX_BYTES, collectionPhotoPath } from '../contracts/collection'
-import { notFound, privateImageResponse, type PrivateObjects, storePrivateImage } from './privateImages'
+import { notFound } from './notFound'
+import { privateImageResponse, type PrivateObjects, storePrivateImage } from './privateImages'
 import type { SpacetimeRepository } from './spacetimeRepository'
 
 const PREFIX = 'collection-photos/'
 const DELETION_BATCH = 100
 const DELETION_BATCHES_PER_DRAIN = 20
-export const DATASHEET_GALLERY_SIZE = 12
+const DATASHEET_GALLERY_SIZE = 12
 const HELD_LIST_SIZE = 100
 const RECENT_LIST_SIZE = 24
 

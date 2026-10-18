@@ -8,6 +8,7 @@ import display700Extended from '@fontsource/sofia-sans-semi-condensed/files/sofi
 import wordmark700 from '@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff?inline'
 import logo from '../../public/logo.svg?raw'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
+import { notFound } from './notFound'
 
 /** Renders at once, and renders waiting behind them, before a request is turned away. */
 const RENDERS_AT_ONCE = 2
@@ -107,7 +108,7 @@ export async function previewResponse(load: () => Promise<{ card: PreviewCard; m
   if (!(await slot())) return new Response('Busy', { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '5' } })
   try {
     const found = await load()
-    if (!found) return new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } })
+    if (!found) return notFound()
     const png = await renderPreview(found.card)
     return new Response(png, {
       headers: {

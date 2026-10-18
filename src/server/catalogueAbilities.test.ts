@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { abilityNamesIn, datasheetIn, rulesReferencedIn } from '../shared/catalogue'
+import { rulesReferencedIn } from '../shared/catalogueRules'
+import { abilityNamesIn, datasheetIn } from '../shared/catalogue'
 import { describeDatasheetAbilities, describeDatasheetAbilitiesWithContributions } from '../shared/datasheetDescriptions'
 import { ability, bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'

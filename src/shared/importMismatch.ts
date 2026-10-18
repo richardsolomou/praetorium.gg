@@ -9,6 +9,8 @@
  * worth a sentence of its own.
  */
 
+import { plainQuotes } from '../core/text'
+import { cachedIn } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf } from '../core/catalogue'
 import { childrenOf, resolve } from '../core/definitions'
 import type { UnitSize } from '../core/unitSize'
@@ -23,12 +25,13 @@ export type UnmatchedName = { name: string; reason: string }
 export type UnplacedChoice = { name: string; reason: string }
 
 export const normalized = (value: string) =>
-  value
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/\s+/g, ' ')
-    .replace(/\[\d+\]$/, '')
-    .replaceAll(/[’‘]/g, "'")
+  plainQuotes(
+    value
+      .trim()
+      .toLocaleLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/\[\d+\]$/, ''),
+  )
 
 export function unmatchedFactionReason(stated: string, availableNames: readonly string[]): string {
   const near = closestName(
@@ -126,12 +129,10 @@ const factionNameCache = new WeakMap<CatalogueIndex, Map<string, Set<string>>>()
  * a book reaches most of its range through a library it imports.
  */
 function factionNames(loaded: LoadedCatalogue, catalogueId: string): ReadonlySet<string> {
-  const { index } = loaded
-  const cached = factionNameCache.get(index) ?? new Map<string, Set<string>>()
-  if (!factionNameCache.has(index)) factionNameCache.set(index, cached)
-  const existing = cached.get(catalogueId)
-  if (existing) return existing
+  return cachedIn(factionNameCache, loaded.index, catalogueId, () => namesIn(loaded.index, catalogueId))
+}
 
+function namesIn(index: CatalogueIndex, catalogueId: string) {
   const names = new Set<string>()
   const seen = new Set<string>()
   const walk = (definition: Definition) => {
@@ -145,7 +146,6 @@ function factionNames(loaded: LoadedCatalogue, catalogueId: string): ReadonlySet
     const definition = index.definitions.get(id)
     if (definition) walk(definition)
   }
-  cached.set(catalogueId, names)
   return names
 }
 

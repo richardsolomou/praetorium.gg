@@ -8,10 +8,10 @@ import { Route as detachmentImage } from '../routes/api/previews/detachments.$ca
 const { service } = vi.hoisted(() => ({
   service: {
     screen: vi.fn(),
-    rosterAccess: vi.fn(),
     userProfile: vi.fn(),
     playerProfile: vi.fn(),
     playerRankings: vi.fn(),
+    rosterService: { rosterAccess: vi.fn() },
   },
 }))
 
@@ -71,13 +71,13 @@ describe('crawler preview access', () => {
   })
 
   it('reads a roster as an unauthenticated visitor', async () => {
-    service.rosterAccess.mockResolvedValue(null)
+    service.rosterService.rosterAccess.mockResolvedValue(null)
     await fetchImage(rosterImage, { id: 'public-roster' })
-    expect(service.rosterAccess).toHaveBeenCalledWith('public-roster', null, null)
+    expect(service.rosterService.rosterAccess).toHaveBeenCalledWith('public-roster', null, null)
   })
 
   it('does not reveal a roster without visitor access', async () => {
-    service.rosterAccess.mockResolvedValue(null)
+    service.rosterService.rosterAccess.mockResolvedValue(null)
     expect((await fetchImage(rosterImage, { id: 'private-roster' })).status).toBe(404)
   })
 

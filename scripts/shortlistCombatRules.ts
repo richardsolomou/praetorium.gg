@@ -1,5 +1,6 @@
-import { createHash } from 'node:crypto'
-import { appendFile, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { hash } from 'node:crypto'
+import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { replaceFile } from '../src/server/replaceFile'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { TypeSafeClient } from '@typesafe-ai/sdk'
@@ -56,7 +57,7 @@ if (values.help) {
   const report = {
     generatedAt: new Date().toISOString(),
     revision: inventory.revision,
-    inventorySha256: createHash('sha256').update(bytes).digest('hex'),
+    inventorySha256: hash('sha256', bytes),
     elapsedMs: Date.now() - started,
     ...result,
   }
@@ -67,8 +68,7 @@ if (values.help) {
     ['shortlist.md', markdown],
   ] as const) {
     const file = path.join(values.output, name)
-    await writeFile(`${file}.${process.pid}.tmp`, content)
-    await rename(`${file}.${process.pid}.tmp`, file)
+    await replaceFile(file, (temporary) => writeFile(temporary, content))
   }
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown)
   console.log(JSON.stringify({ complete: result.complete, ...result.summary, output: path.resolve(values.output) }, null, 2))

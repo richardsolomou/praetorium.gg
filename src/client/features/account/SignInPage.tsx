@@ -128,11 +128,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
               Back to your roster
             </Link>
           ) : null}
-          {callbackError ? (
-            <p role="alert" className="mt-6 border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {callbackError}
-            </p>
-          ) : null}
+          {callbackError ? <Problem className="mt-6 border border-destructive/40 bg-destructive/10 p-3">{callbackError}</Problem> : null}
           {reset ? (
             <output className="mt-6 block border border-achieved/40 bg-achieved/10 p-3 text-sm text-achieved">
               Sign in with your new password.

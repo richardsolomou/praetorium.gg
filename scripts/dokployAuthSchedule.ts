@@ -1,21 +1,16 @@
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { requiredEnv } from './lib/requiredEnv.ts'
 
 const name = 'production auth backup to R2'
 const command = 'node /app/scripts/nodeAuthBackup.ts backup /data/auth.sqlite production'
 const cronExpression = '17 * * * *'
 
-function required(environment: NodeJS.ProcessEnv, key: string) {
-  const value = environment[key]
-  if (!value) throw new Error(`${key} is required`)
-  return value
-}
-
 export async function verifyProductionAuthBackup(environment: NodeJS.ProcessEnv, request: typeof fetch = fetch) {
-  const origin = new URL(required(environment, 'DOKPLOY_URL'))
+  const origin = new URL(requiredEnv('DOKPLOY_URL', environment))
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid Dokploy URL')
-  const applicationId = required(environment, 'DOKPLOY_APPLICATION_ID')
-  const environmentId = required(environment, 'DOKPLOY_ENVIRONMENT_ID')
-  const apiKey = required(environment, 'DOKPLOY_API_KEY')
+  const applicationId = requiredEnv('DOKPLOY_APPLICATION_ID', environment)
+  const environmentId = requiredEnv('DOKPLOY_ENVIRONMENT_ID', environment)
+  const apiKey = requiredEnv('DOKPLOY_API_KEY', environment)
   const api = async <T>(procedure: string, body?: Record<string, unknown>, query?: Record<string, string>): Promise<T> => {
     const url = new URL(`/api/${procedure}`, origin)
     for (const [key, value] of Object.entries(query ?? {})) url.searchParams.set(key, value)

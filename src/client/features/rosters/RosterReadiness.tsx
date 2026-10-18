@@ -7,6 +7,7 @@ import { rosterReadiness, type RosterReadiness as Readiness } from '../../../cor
 import { collectionCountsQuery, collectionProgressQuery, collectionWishesQuery } from '../../queries'
 import { useCollectionWantedMutation } from '../../useCollection'
 import { useHydrated } from '../../useClientValue'
+import { countLabel } from '../../text'
 
 /** The reader's own collection against this roster, closed until asked for; it never changes points or legality. */
 export function RosterReadiness({ units }: { units: readonly { entryId: string; name: string; models: number }[] }) {
@@ -54,7 +55,7 @@ export function RosterReadiness({ units }: { units: readonly { entryId: string; 
 }
 
 function summary(readiness: Readiness) {
-  if (readiness.short) return `${readiness.short} ${readiness.short === 1 ? 'model' : 'models'} short`
+  if (readiness.short) return `${countLabel(readiness.short, 'model')} short`
   if (readiness.toBuild) return `${readiness.toBuild} to build`
   if (readiness.toPaint) return `${readiness.toPaint} to paint`
   return 'Ready to field'

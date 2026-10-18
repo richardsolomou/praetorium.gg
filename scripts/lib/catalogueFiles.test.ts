@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { canonicalCatalogueInputDirectory, canonicalCatalogueOutputFile } from './canonicalCatalogueFiles'
+import { catalogueDataDirectory, canonicalCatalogueOutputFile } from './catalogueFiles'
 
 const originalDirectory = process.env.CATALOGUE_DIR
 const originalFile = process.env.CATALOGUE_CANONICAL_FILE
@@ -12,13 +12,13 @@ afterEach(() => {
   else process.env.CATALOGUE_CANONICAL_FILE = originalFile
 })
 
-describe('canonical catalogue files', () => {
-  it('defaults outside the activated catalogue snapshot', () => {
+describe('catalogue files', () => {
+  it('defaults to the repository catalogue and an output outside it', () => {
     delete process.env.CATALOGUE_DIR
     delete process.env.CATALOGUE_CANONICAL_FILE
     const root = path.join(import.meta.dirname, '..', '..')
 
-    expect([canonicalCatalogueInputDirectory(), canonicalCatalogueOutputFile()]).toEqual([
+    expect([catalogueDataDirectory(), canonicalCatalogueOutputFile()]).toEqual([
       path.join(root, 'catalogue-data'),
       path.join(root, '.output', 'canonical-catalogue.json'),
     ])
@@ -28,9 +28,6 @@ describe('canonical catalogue files', () => {
     process.env.CATALOGUE_DIR = '/tmp/praetorium-input'
     process.env.CATALOGUE_CANONICAL_FILE = '/tmp/praetorium-output.json'
 
-    expect([canonicalCatalogueInputDirectory(), canonicalCatalogueOutputFile()]).toEqual([
-      '/tmp/praetorium-input',
-      '/tmp/praetorium-output.json',
-    ])
+    expect([catalogueDataDirectory(), canonicalCatalogueOutputFile()]).toEqual(['/tmp/praetorium-input', '/tmp/praetorium-output.json'])
   })
 })

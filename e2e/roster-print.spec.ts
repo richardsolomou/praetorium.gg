@@ -5,6 +5,7 @@ import {
   createRoster,
   PRACTICE_OPPONENT,
   retryUntilVisible,
+  signInAsPreview,
   signUp,
   startBattle,
   uniqueName,
@@ -14,11 +15,7 @@ import { add, attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
 
 test('a full saved army prints selected equipment, both detachments and every page', async ({ page }, testInfo) => {
-  await page.goto('/sign-in')
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Email').fill('preview@praetorium.gg')
-  await page.getByLabel('Password').fill('preview-preview-preview')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await signInAsPreview(page)
   await expect(page.getByRole('button', { name: 'Account menu for Preview Player', includeHidden: true }).first()).toBeAttached()
   await page.goto('/rosters/preview-necrons-cursed-skyshroud')
   await expect(page.locator('[data-unit]')).toHaveCount(13)

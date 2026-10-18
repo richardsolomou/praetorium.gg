@@ -10,6 +10,7 @@
  */
 
 import { type AdvanceTime, advanceTimes } from './battleClock'
+import { sameSide } from './battlePrimitives'
 import {
   type BattleMoment,
   type BattleState,
@@ -21,7 +22,7 @@ import {
   type PlayerState,
   replay,
   mayNameCard,
-  sameSide,
+  pointsSize,
   transportLabel,
 } from './battle'
 
@@ -118,7 +119,7 @@ function describe(
       // The twist is named by its pack's own id, which this file has no way to read
       // back into a name — `src/core` holds no game data. The log records that one is
       // in play; the battle facts name it from the pack.
-      return `${who} ${command.limit === null ? 'sets up a battle sized by its rosters' : `sets a ${command.limit.toLocaleString('en')}-point battle`}${command.twistId ? ' with a mission twist' : ''}${command.manual ? ', tracked manually' : ''}`
+      return `${who} ${command.limit === null ? 'sets up a battle sized by its rosters' : `sets a ${pointsSize(command.limit)} battle`}${command.twistId ? ' with a mission twist' : ''}${command.manual ? ', tracked manually' : ''}`
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'set-setup-step':

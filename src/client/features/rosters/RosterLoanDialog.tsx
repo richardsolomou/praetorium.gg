@@ -51,9 +51,7 @@ export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string
               ))}
             </ul>
           ) : friends.isError || loans.isError ? (
-            <p role="alert" className="text-sm text-destructive">
-              Could not load your friends. Try again.
-            </p>
+            <Problem>Could not load your friends. Try again.</Problem>
           ) : listed.length === 0 ? (
             <p className="text-sm text-dim">
               You can lend a roster only to a friend.{' '}

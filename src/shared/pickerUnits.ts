@@ -1,3 +1,4 @@
+import { cachedIn } from '../core/collections'
 import { attachmentOf, attachmentLimitsOf, attachmentCategoriesOf } from '../core/attach'
 import { defaultSelection } from '../core/expand'
 import { routeSlug } from '../core/slug'
@@ -15,24 +16,18 @@ const attachmentCache = new WeakMap<
 >()
 
 function pickerAttachments(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
-  const key = `${catalogueId}:${entryId}`
-  const cached = attachmentCache.get(loaded)
-  const existing = cached?.get(key)
-  if (existing) return existing
-  const definition = loaded.index.definitions.get(entryId)!
-  const facts = {
-    attachment: attachmentOf(
-      definition,
-      loaded.index,
-      defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }) ?? undefined,
-    ),
-    attachmentLimits: attachmentLimitsOf(definition, loaded.index),
-    attachmentCategories: attachmentCategoriesOf(definition, loaded.index),
-  }
-  const entries = cached ?? new Map()
-  entries.set(key, facts)
-  if (!cached) attachmentCache.set(loaded, entries)
-  return facts
+  return cachedIn(attachmentCache, loaded, `${catalogueId}:${entryId}`, () => {
+    const definition = loaded.index.definitions.get(entryId)!
+    return {
+      attachment: attachmentOf(
+        definition,
+        loaded.index,
+        defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }) ?? undefined,
+      ),
+      attachmentLimits: attachmentLimitsOf(definition, loaded.index),
+      attachmentCategories: attachmentCategoriesOf(definition, loaded.index),
+    }
+  })
 }
 
 function pickerRestrictions(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string) {

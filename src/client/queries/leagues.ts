@@ -1,18 +1,19 @@
-import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
+import { queryOptions } from '@tanstack/react-query'
 import { leagueResults, listLeagueBattles, listLeagues, openLeague, openLeagueRoster, outdatedLeagueEntriesForRoster } from '../functions'
-import { type BattlesCursor, requireBattlePage } from './battles'
+import { battleFeedQuery } from './battles'
 import { SSR_STALE_TIME } from './shared'
+import { leagueBattlesKey, leagueKey, leagueResultsKey, leagueRosterKey, leaguesKey, outdatedLeagueEntriesKey } from './queryKeys'
 
-export const leaguesQuery = () => queryOptions({ queryKey: ['leagues'], queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
+export const leaguesQuery = () => queryOptions({ queryKey: leaguesKey(), queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
 export const outdatedLeagueEntriesQuery = (rosterId: string) =>
   queryOptions({
-    queryKey: ['outdated-league-entries', rosterId],
+    queryKey: outdatedLeagueEntriesKey(rosterId),
     queryFn: () => outdatedLeagueEntriesForRoster({ data: { rosterId } }),
     staleTime: SSR_STALE_TIME,
   })
 export const leagueQuery = (token: string, eventToken?: string) =>
   queryOptions({
-    queryKey: ['league', token, eventToken ?? 'current'],
+    queryKey: leagueKey(token, eventToken),
     queryFn: () => openLeague({ data: { token, eventToken } }),
     staleTime: SSR_STALE_TIME,
     refetchInterval: ({ state }) => (state.data?.revealedAt ? false : 5_000),
@@ -20,30 +21,20 @@ export const leagueQuery = (token: string, eventToken?: string) =>
 
 export const leagueRosterQuery = (token: string, eventToken: string | undefined, userId: string) =>
   queryOptions({
-    queryKey: ['league-roster', token, eventToken, userId],
+    queryKey: leagueRosterKey(token, eventToken, userId),
     queryFn: () => openLeagueRoster({ data: { token, eventToken, userId } }),
     enabled: Boolean(token && userId),
     staleTime: Infinity,
   })
 
 export const leagueBattlesQuery = (token: string, eventToken: string) =>
-  infiniteQueryOptions({
-    queryKey: ['league-battles', token, eventToken],
-    queryFn: ({ pageParam }) => listLeagueBattles({ data: { token, eventToken, before: pageParam } }).then(requireBattlePage),
-    initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page?.nextCursor ?? undefined,
-    staleTime: SSR_STALE_TIME,
-    refetchInterval: 5_000,
-  })
+  battleFeedQuery(leagueBattlesKey(token, eventToken), (before) => listLeagueBattles({ data: { token, eventToken, before } }), 5_000)
 
 /** Under the league's key, so every league refresh also refreshes its table; battles finish less often than the list polls. */
 export const leagueResultsQuery = (token: string, eventToken: string) =>
   queryOptions({
-    queryKey: ['league', token, 'results', eventToken],
+    queryKey: leagueResultsKey(token, eventToken),
     queryFn: () => leagueResults({ data: { token, eventToken } }),
     staleTime: SSR_STALE_TIME,
     refetchInterval: 30_000,
   })
-
-export const leagueBattlesFrom = (data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) =>
-  (data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof listLeagueBattles>>['battles']

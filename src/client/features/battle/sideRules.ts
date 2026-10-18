@@ -1,6 +1,7 @@
 import type { Stratagem } from '../../../core/battle'
 import type { RosterView } from '../../../core/battleView'
 import { STRATAGEMS_MAX } from '../../../core/battle'
+import { uniqueBy } from '../../../core/collections'
 
 /**
  * What an army's rules are looked up by: the catalogue it was built from, and every
@@ -32,13 +33,11 @@ export function sideStratagems(
   perArmy: readonly { detachments: readonly string[]; stratagems: readonly Stratagem[] }[],
   core: readonly Stratagem[],
 ): Stratagem[] {
-  const found = new Map<string, Stratagem>()
-  for (const army of perArmy) {
+  const detachmentCards = perArmy.flatMap((army) => {
     // One name for the detachment a card came from, so the pool can group by it. An
     // army fielding several names them together rather than guessing between them.
     const detachment = army.detachments.join(' · ') || undefined
-    for (const stratagem of army.stratagems) if (!found.has(stratagem.key)) found.set(stratagem.key, { ...stratagem, detachment })
-  }
-  for (const stratagem of core) if (!found.has(stratagem.key)) found.set(stratagem.key, stratagem)
-  return [...found.values()].slice(0, STRATAGEMS_MAX)
+    return army.stratagems.map((stratagem) => ({ ...stratagem, detachment }))
+  })
+  return uniqueBy([...detachmentCards, ...core], (stratagem) => stratagem.key).slice(0, STRATAGEMS_MAX)
 }

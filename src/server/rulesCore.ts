@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { RuleDocument, RuleEntry, RuleIndex, RuleReference } from '../contracts/rules'
@@ -39,7 +39,7 @@ export function loadRuleDocuments(datacardsDirectory: string, origin: TextOrigin
       const file = path.join(directory, name)
       const text = {
         url: `https://raw.githubusercontent.com/${origin.repository}/${origin.revision}/${[origin.path, 'core', name].filter(Boolean).join('/')}`,
-        sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+        sha256: hash('sha256', fs.readFileSync(file)),
       }
       const document = ruleDocumentFrom(readSharedJson(file), text)
       return document ? [ruleOutline(document)] : []

@@ -1,13 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { editionCatalogueId } from '../../src/core/catalogueEdition'
 import { catalogueRuntimeFingerprint, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
 import { loadSnapshot } from './catalogueSnapshotLoad'
-import { replaceDirectory } from './replaceDirectory'
+import { replaceDirectory } from '../../src/server/replaceDirectory'
 
 export function writeCatalogueRuntime(directory: string, output: string) {
   const { catalogue, rules } = loadSnapshot(directory)
@@ -41,7 +41,7 @@ export function writeCatalogueRuntime(directory: string, output: string) {
     const content = JSON.stringify(value)
     const bytes = Buffer.byteLength(content)
     if (bytes > MAX_RUNTIME_FILE_BYTES) throw new Error(`Runtime catalogue ${key} is too large`)
-    files[key] = { sha256: createHash('sha256').update(content).digest('hex'), bytes }
+    files[key] = { sha256: hash('sha256', content), bytes }
     fs.writeFileSync(path.join(staging, `${key}.json`), content)
   }
   try {

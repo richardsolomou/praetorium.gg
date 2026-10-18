@@ -2,13 +2,13 @@ import { createFileRoute } from '@tanstack/react-router'
 import { localRedirectPath } from 'ras-stack/auth/client'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 import { NativeAuthPage, type NativeAuthSearch } from '../client/features/account/NativeAuthPage'
-import { searchFlag } from '../client/searchParams'
+import { searchFlag, searchText } from '../client/searchParams'
 
 export const Route = createFileRoute('/native-auth')({
   validateSearch: (search: Record<string, unknown>): NativeAuthSearch => ({
     action: search.action === 'link' || search.action === 'sign-in' ? search.action : undefined,
     complete: searchFlag(search.complete) || undefined,
-    error: typeof search.error === 'string' && search.error ? search.error : undefined,
+    error: searchText(search.error),
     next: localRedirectPath(search.next),
     provider: SOCIAL_PROVIDERS.find((provider) => provider === search.provider),
     requestSignUp: searchFlag(search.requestSignUp) || undefined,

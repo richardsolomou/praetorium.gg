@@ -1,10 +1,9 @@
-import path from 'node:path'
-import { loadCatalogue } from '../src/server/catalogueIndex'
 import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { evaluateReference } from '../src/server/referenceEvaluation'
-import { loadRules } from '../src/server/rules'
 import { referenceEvaluationCases } from './lib/referenceEvaluationCases'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 const BASELINE = {
   top1DocumentRecall: 0.875,
@@ -16,16 +15,8 @@ const BASELINE = {
   maxWarmLatencyMs: 250,
 }
 
-const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
-const catalogue = loadCatalogue(directory)
-if (!catalogue) throw new Error('reference evaluation requires an installed catalogue snapshot')
-const rules = loadRules(
-  directory,
-  path.join(directory, 'battlemaster'),
-  path.join(directory, 'faction-icons'),
-  path.join(directory, 'datacards', '11th', 'gdc'),
-  catalogue.datacards,
-)
+const directory = catalogueDataDirectory()
+const { catalogue, rules } = loadSnapshotWithRules(directory)
 const canonical = loadCanonicalCatalogue(directory) ?? compileCanonicalCatalogueFromSnapshot(catalogue, rules, directory)
 const corpus = referenceCorpusFor({ canonicalCatalogue: () => canonical, catalogue: () => catalogue, rules: () => rules })
 if (!corpus) throw new Error('reference evaluation could not build the active corpus')

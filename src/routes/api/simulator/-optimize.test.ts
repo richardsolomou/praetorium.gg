@@ -49,6 +49,11 @@ it('streams candidates using the selected codex rules', async () => {
 
 const loadout = { catalogueId: 'cat', detachmentIds: [], picks: [{ entryId: 'guard' }], pickIndex: 0 }
 
+it('refuses an oversized body before loading the catalogue', async () => {
+  expect((await optimize('https://praetorium.gg', { ...loadout, padding: 'x'.repeat(1_000_000) })).status).toBe(400)
+  expect(catalogueFor).not.toHaveBeenCalled()
+})
+
 it('refuses a search beyond the ones the instance runs at once', async () => {
   catalogueFor.mockResolvedValue({})
   candidates.mockImplementation(async function* () {

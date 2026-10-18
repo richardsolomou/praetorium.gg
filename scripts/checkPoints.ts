@@ -19,8 +19,9 @@ import { evaluate, type Selection } from '../src/core/evaluate'
 import { buildUnit } from '../src/core/roster'
 import { routeSlug } from '../src/core/slug'
 import { isResizable } from '../src/core/unitSize'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
+const dataDirectory = catalogueDataDirectory()
 const definitionsDirectory = path.join(dataDirectory, 'definitions')
 const pointsDirectory = path.join(dataDirectory, 'points', 'data')
 

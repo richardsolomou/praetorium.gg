@@ -1,17 +1,21 @@
-import { spawn, type ChildProcess } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
+import { hash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createHttpsServer, request as httpsRequest, type Server as HttpsServer } from 'node:https'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { promisify } from 'node:util'
 import { localControlPort } from '../scripts/localDevPreview'
 import { localTestEnvironment, reserveLocalPort } from '../scripts/lib/localStack'
 import { userIdFor, withAuthSql } from './storage'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { parseAppSnapshot } from '../src/contracts/appSnapshot'
 import { parseSavedReference } from '../mobile/src/offlineReference'
+import { catalogueDataDirectory } from '../scripts/lib/catalogueFiles'
 
 const root = path.join(import.meta.dirname, '..')
+const execute = promisify(execFile)
 const stackEnvironment = await localTestEnvironment('native-auth-ios', { PLAYWRIGHT_PORT: process.env.NATIVE_AUTH_BACKEND_PORT })
 const backendPort = Number(stackEnvironment.PLAYWRIGHT_PORT)
 const publicReservation = await reserveLocalPort(Number(process.env.NATIVE_AUTH_PUBLIC_PORT ?? 0))
@@ -60,19 +64,8 @@ function run(command: string, args: string[], options: { cwd?: string; env?: Nod
   })
 }
 
-function output(command: string, args: string[]) {
-  return new Promise<string>((resolve, reject) => {
-    let stdout = ''
-    const child = spawn(command, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'inherit'] })
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString()
-    })
-    child.once('exit', (code, signal) => {
-      if (code === 0) resolve(stdout)
-      else reject(new Error(`${command} exited with ${code ?? signal}.`))
-    })
-    child.once('error', reject)
-  })
+async function output(command: string, args: string[]) {
+  return (await execute(command, args, { cwd: root })).stdout
 }
 
 async function ensureTlsCertificate() {
@@ -230,7 +223,7 @@ async function waitForHealth(stack: ChildProcess) {
   for (let attempt = 0; attempt < 240; attempt += 1) {
     if (stack.exitCode !== null || stack.signalCode !== null) throw new Error('The native test stack stopped before becoming healthy')
     if ((await fetch(readyUrl).catch(() => null))?.ok) return
-    await new Promise((resolve) => setTimeout(resolve, 1_000))
+    await delay(1_000)
   }
   throw new Error('The native authentication test stack did not become healthy.')
 }
@@ -251,15 +244,7 @@ async function createFixture() {
     (database) =>
       database
         .prepare('INSERT INTO account (id, accountId, issuer, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(
-          randomUUID(),
-          createHash('sha256').update(fixtureEmail).digest('hex'),
-          'https://accounts.google.com',
-          'google',
-          fixtureUserId,
-          Date.now(),
-          Date.now(),
-        ),
+        .run(randomUUID(), hash('sha256', fixtureEmail), 'https://accounts.google.com', 'google', fixtureUserId, Date.now(), Date.now()),
     dataDirectory,
   )
   if (process.env.NATIVE_OFFLINE_VERIFY === '1') await seedSavedApp()
@@ -334,7 +319,7 @@ async function waitForSavedApp(udid: string) {
     } catch {
       /* The first background save is still in progress. */
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await delay(1_000)
   }
   throw new Error('The application bundle and account data were not saved automatically')
 }
@@ -409,7 +394,7 @@ async function main() {
     cwd: root,
     env: {
       ...process.env,
-      CATALOGUE_DIR: process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data'),
+      CATALOGUE_DIR: catalogueDataDirectory(),
       GOOGLE_CLIENT_ID: 'native-auth-simulator',
       GOOGLE_CLIENT_SECRET: 'native-auth-simulator-secret',
       LOCAL_PUBLIC_URL: publicUrl,
@@ -489,7 +474,7 @@ async function main() {
       },
     },
   )
-  await new Promise((resolve) => setTimeout(resolve, 1_000))
+  await delay(1_000)
   assertFlow()
   console.log(`Native authentication refreshed without an app restart: ${events.join(' -> ')}`)
   if (guestDraftJourney) {

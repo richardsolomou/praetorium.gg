@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { idSchema } from '../core/commands'
+import { jsonByteLength } from '../core/json'
 import { migrateSavedLeague } from './savedLeagues'
 import { migrateSavedRoster } from '../core/savedRosterMigrations'
 
@@ -17,10 +19,10 @@ export const localOperationSchema = z.object({
 })
 export type LocalOperation = z.infer<typeof localOperationSchema>
 
-export const localStateSchema = z.object({
+const localStateSchema = z.object({
   version: z.literal(1),
   owner: z.string().min(1).max(128),
-  epoch: z.string().min(1).max(64),
+  epoch: idSchema,
   revision: z.number().int().nonnegative(),
   syncLease: z.object({ holder: z.uuid(), expiresAt: z.number().int().nonnegative() }).optional(),
   operations: z.array(localOperationSchema).max(MAX_LOCAL_OPERATIONS),
@@ -39,7 +41,7 @@ export function parseLocalState(value: unknown): LocalState | null {
     if (resource.startsWith('league:')) document.data = migrateSavedLeague(document.data)
     if (resource.startsWith('roster:')) document.data = migrateSavedRoster(document.data)
   }
-  if (new TextEncoder().encode(JSON.stringify(parsed.data)).byteLength > MAX_LOCAL_STATE_BYTES) return null
+  if (jsonByteLength(parsed.data) > MAX_LOCAL_STATE_BYTES) return null
   if (new Set(parsed.data.operations.map((operation) => operation.id)).size !== parsed.data.operations.length) return null
   return parsed.data
 }

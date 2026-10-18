@@ -1,6 +1,7 @@
 import { catalogueEditionId, editionCatalogueFiles } from '../../core/catalogueEdition'
 import { datacardExclusions } from '../../core/catalogueReferencePolicy'
 import { buildIndex } from '../../core/catalogue'
+import { jsonByteLength } from '../../core/json'
 import { unpackRuntimeData } from '../../contracts/runtimeData'
 import { catalogueFromIndex, type LoadedCatalogue } from '../../shared/catalogueIndex'
 import type { LoadedRules } from '../../shared/rules'
@@ -37,7 +38,7 @@ export function constructionSource(source: OfflineConstructionData | undefined, 
     const { editions: _editions, texts: _texts, shared: _shared, ...base } = source
     if ('base' in selected) complete = { ...base, edition: selected.edition, revision: selected.revision }
     else if (edition && source.shared) {
-      const budget = { remaining: MAX_OFFLINE_BYTES - new TextEncoder().encode(JSON.stringify(selected)).byteLength }
+      const budget = { remaining: MAX_OFFLINE_BYTES - jsonByteLength(selected) }
       if (budget.remaining < 0) throw new Error('Construction source exceeds its size limit')
       complete = {
         ...selected,

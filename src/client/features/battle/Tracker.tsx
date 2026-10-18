@@ -52,7 +52,7 @@ import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/Bat
 import { SidePanel } from './SidePanel'
 import { TurnControl } from './TurnControl'
 import { TwistName } from './MissionTwist'
-import { Report, type ReportPlayer } from './Report'
+import { Report, reportPlayers } from './Report'
 import { BattleMinimizeContext } from './BattlePromptDialog'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT, storedOnboardingFocus, type OnboardingFocus } from '../onboarding/onboarding'
 import { Fact } from '../../components/Fact'
@@ -324,16 +324,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       new Map(table.map((side) => [side.index, new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))])),
     [table, rulesFor],
   )
-  // Seats are ordered by side, so both devices agree on which player is which colour.
-  const reportPlayers: ReportPlayer[] = useMemo(
-    () =>
-      view.players.map((player) => ({
-        id: player.id,
-        name: player.name,
-        className: player.side === 0 ? 'text-side-a' : 'text-side-b',
-      })),
-    [view.players],
-  )
+  const reportedPlayers = useMemo(() => reportPlayers(view.players), [view.players])
   const attemptedPrepRepairs = useRef(new Map<string, number>())
   const repairSide = table.find(
     (side) =>
@@ -717,7 +708,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <div className="mt-3">
                   <BattleNote pending={pending || promptMinimized} send={sendAction} />
                 </div>
-                <Report token={view.token} open players={reportPlayers} />
+                <Report token={view.token} open players={reportedPlayers} />
               </div>
 
               {problem ? <Problem>{problem}</Problem> : null}

@@ -40,7 +40,7 @@ export function LeagueCombatDialog({
     },
   }))
   return (
-    <CombatDialog onClose={onClose} title="Combat simulator" wide>
+    <CombatDialog onClose={onClose} wide>
       <RosterCombatComparison
         sources={sources}
         initialAttacker={viewerId}

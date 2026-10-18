@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
-import { GAME_SIZES } from '../../../core/battle'
+import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
   leagueRegistrationFull,
   leagueRevealChecklist,
@@ -27,7 +27,7 @@ import {
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
-import { battlesQuery, gameReferencesQuery, leagueBattlesFrom, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
+import { battlesFrom, battlesQuery, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
@@ -143,7 +143,7 @@ export function LeagueEventView({
     setChoosingBattle(false)
   }
 
-  const eventBattles = leagueBattlesFrom(battleHistory.data)
+  const eventBattles = battlesFrom(battleHistory.data)
   const ownEntry = viewerId ? league.entries.find((entry) => entry.userId === viewerId) : undefined
   const entryStatusNow = ownEntry?.status
   // A duel needs nothing from the organizer before a roster, so a new entrant's next step opens straight away.
@@ -542,7 +542,7 @@ function entryStatus({
       steps: steps('assign'),
     }
   }
-  const size = ownEntry.requiredLimit ? `${ownEntry.requiredLimit.toLocaleString('en')}-point ` : ''
+  const size = ownEntry.requiredLimit ? `${pointsSize(ownEntry.requiredLimit)} ` : ''
   if (!ownEntry.submitted)
     return {
       title: revealed ? 'Seal another roster' : `Seal your ${size}roster`,

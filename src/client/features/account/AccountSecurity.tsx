@@ -1,8 +1,7 @@
-import { Fragment, useEffect, useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import QRCode from 'qrcode'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +28,7 @@ import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
 import { Problem } from '../../components/Problem'
 import { useCopyText } from '../../useCopyText'
+import { useQrCode } from '../../components/useQrCode'
 
 type AccountIdentity = {
   email: string
@@ -196,11 +196,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                 {provider === 'github' ? <GithubSupporter /> : null}
               </Fragment>
             ))}
-            {linkError ? (
-              <p role="alert" className="text-sm text-destructive">
-                Secure provider linking could not start. Try again.
-              </p>
-            ) : null}
+            {linkError ? <Problem>Secure provider linking could not start. Try again.</Problem> : null}
           </div>
         ) : null}
       </section>
@@ -300,11 +296,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
             </Button>
           </div>
         ))}
-        {connectionError ? (
-          <p role="alert" className="mt-3 text-sm text-destructive">
-            Could not revoke access. Try again.
-          </p>
-        ) : null}
+        {connectionError ? <Problem className="mt-3">Could not revoke access. Try again.</Problem> : null}
       </section>
 
       <section className="border border-destructive/40 bg-panel p-5 md:p-7 lg:col-span-2">
@@ -667,16 +659,12 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [totpURI, setTotpURI] = useState('')
-  const [qrCode, setQrCode] = useState('')
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [verified, setVerified] = useState(false)
   const { copy, copied, problem: copyProblem } = useCopyText()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (totpURI) void QRCode.toDataURL(totpURI, { width: 240, margin: 1 }).then(setQrCode)
-  }, [totpURI])
+  const { image: qrCode } = useQrCode(totpURI || null, 240, 'M', 1)
 
   if (verified) {
     return (

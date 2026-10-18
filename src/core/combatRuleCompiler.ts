@@ -1,4 +1,4 @@
-import { escapeRegExp } from './text'
+import { escapeRegExp, plainQuotes } from './text'
 import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
@@ -19,18 +19,18 @@ type Context = {
   instead?: boolean
   attackSubject?: string
 }
-const normalize = (text: string) =>
-  text
-    .replaceAll(/<[^>]*>|\*|\^|_/g, '')
-    .replaceAll(/[’‘]/g, "'")
+/** Rule wording without markup, typographic variants or the source's known misspellings. */
+export const normalizeCombatText = (text: string) =>
+  plainQuotes(text.replaceAll(/<[^>]*>|\*|\^|_/g, ''))
     .replaceAll(/[“”]/g, '"')
     .replaceAll(/\p{Pd}/gu, '-')
     .replaceAll(/\bunmodifed\b/gi, 'unmodified')
     .replaceAll(/\breroll\b/gi, 're-roll')
+    .replaceAll('▪', '■')
     .replaceAll(/\s+/g, ' ')
     .trim()
-const key = (text: string) =>
-  normalize(text)
+export const combatTextKey = (text: string) =>
+  normalizeCombatText(text)
     .replace(/^faction:\s*/i, '')
     .toLowerCase()
 const stripEnd = (text: string) => text.replace(/[.;, ]+$/, '').trim()
@@ -75,7 +75,7 @@ function namedSections(description: string) {
         .slice(heading.index + heading[0].length, headings[index + 1]?.index)
         .trim()
         .split('\n')
-      if (key(lines[0] ?? '') === key(name)) lines.shift()
+      if (combatTextKey(lines[0] ?? '') === combatTextKey(name)) lines.shift()
       return { name, description: lines.join('\n') }
     }),
   }
@@ -89,7 +89,7 @@ export function compileCombatRule(rule: CombatRule): { choices: CombatRuleChoice
 function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoice[]; defaultChoice: number } | null {
   if (rule.description.length > 12_000) return null
   const named = namedSections(rule.description)
-  const intro = normalize(named.intro)
+  const intro = normalizeCombatText(named.intro)
   const vows =
     /^If your Army Faction is .+?, at the start of the first battle round, select one of the following Vows to be active for .+? units from your army\. While a Vow is active for (?:your army|a unit from your army), that unit has the associated ability (?:shown )?below\.$/i.test(
       intro,
@@ -105,9 +105,15 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     if (status) {
       const range = sections[0],
         afflicted = sections[1]
-      if (!range || !afflicted || key(range.name) !== key(status[1]!) || key(afflicted.name) !== key(status[2]!)) return null
+      if (
+        !range ||
+        !afflicted ||
+        combatTextKey(range.name) !== combatTextKey(status[1]!) ||
+        combatTextKey(afflicted.name) !== combatTextKey(status[2]!)
+      )
+        return null
       const rangeName = escapeRegExp(status[1]!)
-      const rangeText = normalize(range.description).replace(
+      const rangeText = normalizeCombatText(range.description).replace(
         new RegExp(
           `^(?:1st Battle Round: ${rangeName} = \\d+" 2nd Battle Round: ${rangeName} = \\d+" 3rd Battle Round Onwards: ${rangeName} = \\d+"|${rangeName} changes over the course of the battle:) ?`,
           'i',
@@ -117,9 +123,9 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       if (!new RegExp(`^${rangeName} cannot be greater than \\d+" after modifiers\\.$`, 'i').test(rangeText)) return null
       const selection =
         /^During the Declare Battle Formations step, select one of the Plagues below\. Until the end of the battle, while an enemy unit is (\w+), (.+?), and that unit has the effect of your chosen Plague\.$/i.exec(
-          normalize(afflicted.description),
+          normalizeCombatText(afflicted.description),
         )
-      if (!selection || key(selection[1]!) !== key(status[2]!)) return null
+      if (!selection || combatTextKey(selection[1]!) !== combatTextKey(status[2]!)) return null
       common = `${selection[2]}.\n`
       prefix = `Opponent ${status[2]!.toLowerCase()} · `
       sections = sections.slice(2)
@@ -175,7 +181,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     return { choices, defaultChoice: 0 }
   }
   const effectSection = /\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(rule.description)?.[1] ?? rule.description
-  let text = normalize(effectSection.replaceAll(/(?:^|\n)\s*- /g, ' ■ ')).replace(
+  let text = normalizeCombatText(effectSection.replaceAll(/(?:^|\n)\s*- /g, ' ■ ')).replace(
     /^.+? (?:model|unit) only(?: \(excluding [^)]+\))?\.\s*/i,
     '',
   )
@@ -250,10 +256,10 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
   const hasKeywords = (phrase: string): boolean | null => {
     if (/^(?:friendly )?(?:unit|model)$/i.test(phrase.trim())) return true
     if (!rule.keywords) return null
-    const known = rule.keywords.map(key)
+    const known = rule.keywords.map(combatTextKey)
     const matches = (part: string) =>
       combatKeywordPhraseMatches(
-        key(part)
+        combatTextKey(part)
           .replace(/^(?:friendly|a|an) /, '')
           .replace(/ (?:models?|units?)$/, ''),
         known,
@@ -826,7 +832,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     }
     const fixedStat = /^that attack has a (Attacks|Strength|Damage) characteristic of ([1-9]\d?)(?: and (.+))?$/i.exec(written)
     if (fixedStat) {
-      const first = effect(context, { characteristic: { kind: characteristic[key(fixedStat[1]!)]!, set: Number(fixedStat[2]) } })
+      const first = effect(context, { characteristic: { kind: characteristic[combatTextKey(fixedStat[1]!)]!, set: Number(fixedStat[2]) } })
       const rest = fixedStat[3] ? again(`that attack has ${fixedStat[3]}`) : []
       return first && rest ? [...first, ...rest] : null
     }
@@ -885,9 +891,10 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     if (stat) {
       const names = stat[3]!.split(/,\s*(?:and )?|\s+and\s+/i)
       const amount = Number(stat[2] ?? stat[5])
-      if (!amount || names.some((name) => !characteristic[key(name)] && !nonCombatStat.test(name))) return null
+      if (!amount || names.some((name) => !characteristic[combatTextKey(name)] && !nonCombatStat.test(name))) return null
       if (names.every((name) => nonCombatStat.test(name))) return []
-      if (nonCumulative && (context.condition || names.some((name) => characteristic[key(name)] !== 'armour-penetration'))) return null
+      if (nonCumulative && (context.condition || names.some((name) => characteristic[combatTextKey(name)] !== 'armour-penetration')))
+        return null
       const weapon = /^(ranged |melee )?weapons equipped by (.+)$/i.exec(stat[4]!)
       const scoped = weapon
         ? recipient(weapon[2]!, context)
@@ -899,11 +906,11 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       if (!scoped) return scoped === false ? [] : null
       if (
         context.condition &&
-        (context.condition !== 'critical-wound' || names.some((name) => characteristic[key(name)] !== 'armour-penetration'))
+        (context.condition !== 'critical-wound' || names.some((name) => characteristic[combatTextKey(name)] !== 'armour-penetration'))
       )
         return null
       return names.flatMap((name) => {
-        const kind = characteristic[key(name)]
+        const kind = characteristic[combatTextKey(name)]
         if (!kind) return []
         const negative = kind === 'armour-penetration' || kind === 'ballistic-skill' || kind === 'weapon-skill'
         const subtract = /^(?:subtract|worsen)/i.test(written)
@@ -938,7 +945,12 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     if (namedStat)
       return effect(
         { ...context, weapon: namedStat[1] },
-        { characteristic: { kind: characteristic[key(namedStat[3]!)]!, add: Number(namedStat[2]) * (namedStat[3] === 'AP' ? -1 : 1) } },
+        {
+          characteristic: {
+            kind: characteristic[combatTextKey(namedStat[3]!)]!,
+            add: Number(namedStat[2]) * (namedStat[3] === 'AP' ? -1 : 1),
+          },
+        },
       )
     const namedWeapon = /^(?:its|the bearer's|this model's) (.+?)(?: weapon)? has (.+)$/i.exec(written)
     if (namedWeapon) {
@@ -964,7 +976,10 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
             /rolls/.test(field)
               ? { options: { [/hit/.test(field) ? 'hitModifier' : 'woundModifier']: Number(simple[3]) } }
               : {
-                  characteristic: { kind: characteristic[key(field)]!, add: Number(simple[3]) * (/^(?:AP|WS|BS)$/i.test(field) ? -1 : 1) },
+                  characteristic: {
+                    kind: characteristic[combatTextKey(field)]!,
+                    add: Number(simple[3]) * (/^(?:AP|WS|BS)$/i.test(field) ? -1 : 1),
+                  },
                 },
           ) ?? [],
       )

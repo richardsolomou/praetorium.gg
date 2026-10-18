@@ -6,6 +6,7 @@ import type { savedRosterSummaries, myBattles, factionIndex } from '../functions
 type FactionIndex = NonNullable<Awaited<ReturnType<typeof factionIndex>>>
 import type { UnitSummary } from '../../contracts/catalogue'
 import { decompressReference, type CompressedReference } from './compressedReference'
+import { battlesKey, factionDatasheetsKey, factionIndexKey, meKey, savedRosterSummariesKey } from '../queries/queryKeys'
 
 declare global {
   interface Window {
@@ -106,12 +107,12 @@ type OwnLists = {
 
 export function offlineSearch(query: string, client?: QueryClient) {
   if (!referenceData()) return null
-  const read = <T>(key: string): T | undefined =>
-    client?.getQueryData([key]) ?? (window.PraetoriumAppSnapshot?.queries.find((entry) => entry.key[0] === key)?.data as T | undefined)
-  return searchDownload(query, read<FactionIndex>('faction-index'), {
-    owner: read('me'),
-    rosters: read('saved-roster-summaries'),
-    battles: read('battles'),
+  const read = <T>(key: readonly unknown[]): T | undefined =>
+    client?.getQueryData(key) ?? (window.PraetoriumAppSnapshot?.queries.find((entry) => entry.key[0] === key[0])?.data as T | undefined)
+  return searchDownload(query, read<FactionIndex>(factionIndexKey()), {
+    owner: read(meKey()),
+    rosters: read(savedRosterSummariesKey()),
+    battles: read(battlesKey()),
   })
 }
 
@@ -119,7 +120,7 @@ export function offlineSearch(query: string, client?: QueryClient) {
 export function searchDownload(query: string, factionIndex: FactionIndex | undefined, own: OwnLists) {
   const saved = referenceData()
   if (!saved) return null
-  const factions = factionIndex ?? savedQuery<FactionIndex>(saved, ['faction-index'])
+  const factions = factionIndex ?? savedQuery<FactionIndex>(saved, factionIndexKey())
   const lists = own.owner
     ? ownSearchLists(own.rosters ?? [], own.battles?.pages.flatMap((page) => page?.battles ?? []) ?? [], factions?.factions ?? [])
     : null
@@ -143,7 +144,7 @@ const datasheetFields = new WeakMap<OfflineReferenceData, Map<string, OfflineRef
 export function offlineDatasheets(catalogueId: string, query: string) {
   const saved = referenceData()
   if (!saved) return null
-  const units = savedQuery<UnitSummary[]>(saved, ['faction-datasheets', catalogueId, ''])
+  const units = savedQuery<UnitSummary[]>(saved, factionDatasheetsKey(catalogueId, ''))
   let fields = datasheetFields.get(saved)
   if (!fields) {
     fields = new Map(saved.search.datasheets.map((entry) => [entry.result.id, entry.fields]))

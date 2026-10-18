@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { referenceCatalogue } from '../src/server/canonicalCatalogue'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { packRuntimeData } from '../src/contracts/runtimeData'
@@ -24,9 +24,7 @@ function digest(stage: string, value: unknown) {
     JSON.stringify({
       mode,
       projection: stage,
-      sha256: createHash('sha256')
-        .update(JSON.stringify(packRuntimeData(value)))
-        .digest('hex'),
+      sha256: hash('sha256', JSON.stringify(packRuntimeData(value))),
     }),
   )
 }

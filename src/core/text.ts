@@ -8,6 +8,26 @@ export function compareText(left: string, right: string) {
   return 0
 }
 
+/** JSON with every object's keys sorted, so equal values serialise alike. */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, field: unknown) =>
+    field && typeof field === 'object' && !Array.isArray(field)
+      ? Object.fromEntries(Object.entries(field).sort(([left], [right]) => compareText(left, right)))
+      : field,
+  )
+}
+
+/** Typographic and modifier-letter apostrophes as a plain one. */
+export const plainQuotes = (text: string) => text.replaceAll(/[‘’ʼ]/g, "'")
+
+/** Letters and digits only, lower case and without diacritics: the key two spellings of one name share. */
+export const joinKey = (nameOrSlug: string) =>
+  nameOrSlug
+    .normalize('NFD')
+    .replaceAll(/\p{M}+/gu, '')
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '')
+
 export const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const list = new Intl.ListFormat('en-GB', { type: 'conjunction' })

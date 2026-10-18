@@ -31,6 +31,8 @@ import { UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 import { PROFILE_NAME_MAX_LENGTH } from './profileName'
 
 const id = z.string().min(1).max(64)
+const rosterLimit = z.number().int().min(0).max(POINTS_BUDGET_MAX)
+export { id as idSchema, rosterLimit as rosterLimitSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
 export const rosterPickSchema = z.object({
   entryId: id,
@@ -126,7 +128,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('configure-battle'),
-    limit: z.number().int().min(0).max(10_000).nullable(),
+    limit: rosterLimit.nullable(),
     missionPackId: id.nullable(),
     terrainLayoutId: id.nullable(),
     twistId: id.nullable(),
@@ -167,7 +169,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           catalogueId: id,
           edition: catalogueEditionSummarySchema.optional(),
           revision: id,
-          limit: z.number().int().min(0).max(10_000),
+          limit: rosterLimit,
           pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).optional(),
           strategicReserveLimit: z.number().int().min(0).max(5_000).optional(),
           detachment: z.string().max(ROSTER_NAME_MAX_LENGTH).nullable(),

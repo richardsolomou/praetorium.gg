@@ -5,7 +5,7 @@ import type { Command, SubmitResult } from '../../../core/battle'
 import { isRosterNotUsable } from '../../../core/rosterUse'
 import { isSignedOut } from '../../../core/session'
 import { submit } from '../../functions'
-import { battleQuery, meQuery } from '../../queries'
+import { battleQuery, meQuery, reportKey } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
@@ -86,7 +86,7 @@ async function drainCommands({
         if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
         // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.
         item.complete?.(result.outcome === 'appended')
-        void queryClient.invalidateQueries({ queryKey: ['report', token] })
+        void queryClient.invalidateQueries({ queryKey: reportKey(token) })
         await writeAppSnapshot(captureAppSnapshot(queryClient)).catch(() => {})
         if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
         if (result.outcome !== 'appended') {

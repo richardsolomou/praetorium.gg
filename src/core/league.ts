@@ -1,4 +1,4 @@
-import { groupBy } from './collections'
+import { countBy, groupBy } from './collections'
 import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
 import type { TableShape } from './tableShape'
@@ -35,8 +35,10 @@ export function alliedLeagueRosterLimit(rosterLimit: number) {
  * whatever density it has room for.
  */
 export function leagueRosterSplit(format: TableShape, rosterLimit: number) {
-  if (format === '2v1') return `${rosterLimit.toLocaleString()} solo / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString()} allied`
-  if (format === '2v2') return `${rosterLimit.toLocaleString()} per force / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString()} each`
+  if (format === '2v1')
+    return `${rosterLimit.toLocaleString('en')} solo / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString('en')} allied`
+  if (format === '2v2')
+    return `${rosterLimit.toLocaleString('en')} per force / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString('en')} each`
   return null
 }
 
@@ -134,8 +136,10 @@ export function leagueRevealChecklist(
   if (event.format === '2v2') {
     const pending = entries.filter((entry) => entry.status === 'pending').map((entry) => entry.userId)
     checks.push({ step: 'requests', done: pending.length === 0, waiting: pending })
-    const teamSizes = new Map<string, number>()
-    for (const entry of accepted) if (entry.teamId) teamSizes.set(entry.teamId, (teamSizes.get(entry.teamId) ?? 0) + 1)
+    const teamSizes = countBy(
+      accepted.flatMap((entry) => (entry.teamId ? [entry.teamId] : [])),
+      (teamId) => teamId,
+    )
     const unpaired = accepted.filter((entry) => !entry.teamId || teamSizes.get(entry.teamId) !== 2).map((entry) => entry.userId)
     checks.push({ step: 'teams', done: accepted.length >= 4 && unpaired.length === 0, waiting: unpaired })
   }
