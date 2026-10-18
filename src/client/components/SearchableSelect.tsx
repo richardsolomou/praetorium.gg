@@ -123,7 +123,7 @@ export function SearchableSelect({
       >
         {trigger ?? (
           <span className="min-w-0 flex-1 truncate text-left">
-            <ComboboxValue placeholder={placeholder}>
+            <ComboboxValue placeholder={<span>{placeholder}</span>}>
               {selected ? selectedFaction ? <FactionLabel faction={selectedFaction} /> : <OptionLabel option={selected} /> : null}
             </ComboboxValue>
           </span>
@@ -281,7 +281,7 @@ function OptionContent({ option }: { option: SearchableOption }) {
 function OptionLabel({ option }: { option: SearchableOption }) {
   if (option.content) return option.content
   if (option.faction) return <FactionLabel faction={option.faction} />
-  if (!option.icon) return option.label
+  if (!option.icon) return <span>{option.label}</span>
   return (
     <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
       {option.icon}

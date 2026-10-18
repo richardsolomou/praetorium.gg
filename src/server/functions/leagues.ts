@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { captureLeagueCreated, captureLeagueBattleCreated } from '../creationTelemetry'
 import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
@@ -77,13 +78,7 @@ export const createLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const result = await app().service.createLeague(player.id, data)
-      await app().telemetry.capture(player.id, 'league_created', {
-        visibility: data.visibility,
-        admission: data.admission,
-        format: data.format,
-        roster_limit: data.rosterLimit,
-        owner_plays: data.ownerPlays,
-      })
+      await captureLeagueCreated(player.id, data)
       return result
     }),
   )
@@ -284,10 +279,7 @@ export const createLeagueBattle = createServerFn({ method: 'POST' })
         data.allyId,
         data.secondOpponentId,
       )
-      await app().telemetry.capture(player.id, 'league_battle_created', {
-        format: result.format,
-        required_limit: result.requiredLimit,
-      })
+      await captureLeagueBattleCreated(player.id, result)
       return { token: result.token }
     }),
   )

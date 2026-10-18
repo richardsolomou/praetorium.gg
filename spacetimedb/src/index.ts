@@ -3463,6 +3463,7 @@ const syncProductInput = z.object({
   createdAt: z.number().int().nonnegative(),
   name: z.string(),
   args: z.array(z.unknown()).max(8),
+  reportApplied: z.boolean().optional(),
 })
 const SYNC_RETENTION_MS = 90 * 24 * 60 * 60 * 1_000
 
@@ -3484,7 +3485,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
     const prior = tx.db.syncReceipts.id.find(input.id)
     if (prior) {
       if (prior.owner !== input.owner || prior.fingerprint !== input.fingerprint) throw new SenderError('Operation ID reused')
-      return prior.result
+      return input.reportApplied ? productJson({ result: prior.result, applied: false }) : prior.result
     }
     const now = safeNumber(tx.timestamp.microsSinceUnixEpoch / 1_000n)
     if (input.createdAt < now - SYNC_RETENTION_MS || input.createdAt > now + 5 * 60_000)
@@ -3507,6 +3508,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
       outcome: refusal ? 'refused' : 'applied',
       message: refusal ?? '',
     })
-    return productJson(result ?? null)
+    const encoded = productJson(result ?? null)
+    return input.reportApplied ? productJson({ result: encoded, applied: !refusal }) : encoded
   }),
 )
