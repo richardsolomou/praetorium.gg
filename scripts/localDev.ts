@@ -1,7 +1,8 @@
 import { execFile, type ChildProcess } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { replaceFile } from '../src/server/replaceFile.ts'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -110,13 +111,7 @@ async function waitFor(url: string, ready: (response: Response) => boolean, time
 
 async function writePreview() {
   if (testMode) return
-  const temporary = `${previewFile}.${process.pid}.tmp`
-  try {
-    await writeFile(temporary, JSON.stringify(preview), { mode: 0o600 })
-    await rename(temporary, previewFile)
-  } finally {
-    await rm(temporary, { force: true })
-  }
+  await replaceFile(previewFile, (temporary) => writeFile(temporary, JSON.stringify(preview), { mode: 0o600 }))
 }
 
 async function identity(): Promise<Identity> {

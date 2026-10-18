@@ -1,4 +1,4 @@
-import { compareText } from './text'
+import { canonicalJson } from './text'
 import { detachmentIds } from './savedRoster'
 
 export const LOCKED_ROSTER_MESSAGE = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
@@ -64,7 +64,7 @@ export function lockedRosterRefusal(current: (RosterContent & { locked?: boolean
 
 function comparable(content: RosterContent) {
   const prep = content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
-  return canonical({
+  return canonicalJson({
     name: content.automaticName ? '' : content.name,
     automaticName: content.automaticName,
     catalogueId: content.catalogueId,
@@ -84,12 +84,4 @@ function comparable(content: RosterContent) {
     optionalRules: content.optionalRules ?? [],
     borrowedDetachmentId: content.borrowedDetachmentId ?? null,
   })
-}
-
-function canonical(value: unknown): string {
-  return JSON.stringify(value, (_key, field: unknown) =>
-    field && typeof field === 'object' && !Array.isArray(field)
-      ? Object.fromEntries(Object.entries(field).sort(([left], [right]) => compareText(left, right)))
-      : field,
-  )
 }

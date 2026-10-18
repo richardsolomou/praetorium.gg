@@ -113,23 +113,6 @@ export const playerRankings = createServerFn({ method: 'GET' })
   .validator(userSchema)
   .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await battleFactions())))
 
-/** The most recently active battles the viewer shares with one other player. */
-export const sharedBattles = createServerFn({ method: 'GET' })
-  .validator(userSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const id = await currentUserId()
-      if (!id) return []
-      const { battles } = await app().service.battles(
-        id,
-        await app().battleMissionRulesFor(),
-        { limit: BATTLES_PAGE, withUserId: data.userId },
-        await battleFactions(),
-      )
-      return battles
-    }),
-  )
-
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>

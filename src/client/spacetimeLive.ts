@@ -16,7 +16,7 @@ import { setLiveProductRefresh } from './liveProductRefresh'
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 import { anySignal } from './abortSignals'
-import { meKey, realtimeModeKey } from './queries/queryKeys'
+import { meKey, realtimeModeKey, reportKey } from './queries/queryKeys'
 
 export function useRealtimeConfig() {
   const { data, error } = useQuery({
@@ -93,7 +93,7 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
       }
       void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
       void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      void queryClient.invalidateQueries({ queryKey: ['report', token] })
+      void queryClient.invalidateQueries({ queryKey: reportKey(token) })
     },
     [queryClient, token],
   )

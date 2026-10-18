@@ -27,11 +27,12 @@ import {
   playerRostersQuery,
   userProfileQuery,
 } from '../../queries'
+import { Problem } from '../../components/Problem'
 
 const TABS = ['record', 'battles', 'rosters', 'collection'] as const
 type ProfileTab = (typeof TABS)[number]
 
-export type ProfileSearch = PlayerProfileFilter & { tab?: ProfileTab }
+type ProfileSearch = PlayerProfileFilter & { tab?: ProfileTab }
 
 /**
  * The address carries both the tab and the record's narrowing.
@@ -185,12 +186,12 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 yourself={yourself}
               />
             ) : collection.isError ? (
-              <p role="alert" className="text-sm text-destructive">
+              <Problem>
                 Could not load the collection.{' '}
                 <button type="button" className="text-info underline" onClick={() => void collection.refetch()}>
                   Retry
                 </button>
-              </p>
+              </Problem>
             ) : (
               <div className="grid gap-4 lg:grid-cols-2" aria-label="Loading collection">
                 <Skeleton className="h-40" />

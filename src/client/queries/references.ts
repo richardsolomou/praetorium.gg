@@ -6,7 +6,6 @@ import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { referenceFactionId } from '../../core/factionReferenceRoute'
 import { SEARCH_MIN_LENGTH } from '../../core/referenceSearch'
 import {
-  catalogueStatus,
   datasheetBySlug,
   deployments,
   detachmentDetail,
@@ -24,10 +23,10 @@ import {
   terrainReferences,
 } from '../functions'
 import { referenceQuery, referenceStaleTime, SSR_STALE_TIME } from './shared'
-import { favouriteDatasheetsKey, favouriteDetachmentsKey, favouriteFactionsKey } from './queryKeys'
+import { factionIndexKey, factionKey, favouriteDatasheetsKey, favouriteDetachmentsKey, favouriteFactionsKey } from './queryKeys'
 
-export const factionQuery = (catalogueId: string) => referenceQuery(['faction', catalogueId], () => faction({ data: { catalogueId } }))
-export const factionIndexQuery = () => referenceQuery(['faction-index'], () => factionIndex())
+export const factionQuery = (catalogueId: string) => referenceQuery(factionKey(catalogueId), () => faction({ data: { catalogueId } }))
+export const factionIndexQuery = () => referenceQuery(factionIndexKey(), () => factionIndex())
 
 export async function loadReferenceFaction(client: QueryClient, catalogueId: string, rules?: string) {
   const index = await client.query({ ...factionIndexQuery(), staleTime: 'static' })
@@ -120,10 +119,4 @@ export const ruleSectionQuery = (documentId: string, sectionId: string) =>
   queryOptions({
     ...referenceQuery(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
     enabled: Boolean(documentId && sectionId),
-  })
-export const catalogueStatusQuery = () =>
-  queryOptions({
-    queryKey: ['catalogue-status'],
-    queryFn: () => catalogueStatus(),
-    refetchInterval: (query) => (query.state.data?.status === 'working' ? 3000 : false),
   })

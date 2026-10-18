@@ -100,7 +100,7 @@ export function WeaponProfiles({
 /** Something to say under a weapon profile, such as its odds in a combat simulation; most screens say nothing. */
 export const WeaponProfileNote = createContext<((weapon: Profile) => ReactNode) | null>(null)
 
-export function WeaponProfile({
+function WeaponProfile({
   weapon,
   rules,
   label,

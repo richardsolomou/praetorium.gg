@@ -9,50 +9,50 @@ function action<S extends z.ZodType>(schema: S, work: (owner: string, data: z.ou
 }
 const service = () => app().service
 export const offlineActions: Record<OfflineActionKind, (owner: string, input: unknown) => Promise<unknown>> = {
-  setOwned: action(schemas.setOwned, (owner, data) => service().setOwned(owner, data.entryId, data.owned)),
+  setOwned: action(schemas.setOwned, (owner, data) => service().rosterService.setOwned(owner, data.entryId, data.owned)),
   setCollectionModels: action(schemas.setCollectionModels, (owner, data) =>
-    service().setCollectionModels(owner, data.entryId, data.models),
+    service().rosterService.setCollectionModels(owner, data.entryId, data.models),
   ),
   setCollectionProgress: action(schemas.setCollectionProgress, (owner, data) =>
-    service().setCollectionProgress(owner, data.entryId, { built: data.built, painted: data.painted }),
+    service().rosterService.setCollectionProgress(owner, data.entryId, { built: data.built, painted: data.painted }),
   ),
   setCollectionWanted: action(schemas.setCollectionWanted, (owner, data) =>
-    service().setCollectionWanted(owner, data.entryId, data.wanted),
+    service().rosterService.setCollectionWanted(owner, data.entryId, data.wanted),
   ),
   setFavouriteFaction: action(schemas.setFavouriteFaction, (owner, data) =>
-    service().setFavouriteFaction(owner, data.catalogueId, data.favourite),
+    service().rosterService.setFavouriteFaction(owner, data.catalogueId, data.favourite),
   ),
   setFavouriteDetachment: action(schemas.setFavouriteDetachment, (owner, data) =>
-    service().setFavouriteDetachment(owner, data.catalogueId, data.detachmentId, data.favourite),
+    service().rosterService.setFavouriteDetachment(owner, data.catalogueId, data.detachmentId, data.favourite),
   ),
   setFavouriteDatasheet: action(schemas.setFavouriteDatasheet, (owner, data) =>
-    service().setFavouriteDatasheet(owner, data.entryId, data.favourite),
+    service().rosterService.setFavouriteDatasheet(owner, data.entryId, data.favourite),
   ),
   setPlayerDefaults: action(schemas.setPlayerDefaults, (owner, data) => service().setPlayerDefaults(owner, data)),
   setBattleAudience: action(schemas.setBattleAudience, (owner, data) => service().setBattleAudience(owner, data.audience)),
   setPushNotifications: action(schemas.setPushNotifications, (owner, data) => service().setPushEnabled(owner, data.enabled)),
   updateOnboardingProgress: action(schemas.updateOnboardingProgress, (owner, data) => service().updateOnboardingProgress(owner, data)),
-  requestFriend: action(schemas.requestFriend, (owner, data) => service().requestFriend(owner, data.userId)),
-  acceptFriend: action(schemas.acceptFriend, (owner, data) => service().acceptFriend(owner, data.userId)),
-  rejectFriend: action(schemas.rejectFriend, (owner, data) => service().rejectFriend(owner, data.userId)),
-  removeFriend: action(schemas.removeFriend, (owner, data) => service().removeFriend(owner, data.userId)),
-  acceptFriendInvite: action(schemas.acceptFriendInvite, (owner, data) => service().acceptFriendInvite(owner, data.token)),
-  createFriendInvite: action(schemas.createFriendInvite, (owner) => service().createFriendInvite(owner)),
-  cancelFriendInvite: action(schemas.cancelFriendInvite, (owner) => service().cancelFriendInvite(owner)),
-  createLeague: action(schemas.createLeague, (owner, data) => service().createLeague(owner, data)),
+  requestFriend: action(schemas.requestFriend, (owner, data) => service().socialService.requestFriend(owner, data.userId)),
+  acceptFriend: action(schemas.acceptFriend, (owner, data) => service().socialService.acceptFriend(owner, data.userId)),
+  rejectFriend: action(schemas.rejectFriend, (owner, data) => service().socialService.rejectFriend(owner, data.userId)),
+  removeFriend: action(schemas.removeFriend, (owner, data) => service().socialService.removeFriend(owner, data.userId)),
+  acceptFriendInvite: action(schemas.acceptFriendInvite, (owner, data) => service().socialService.acceptFriendInvite(owner, data.token)),
+  createFriendInvite: action(schemas.createFriendInvite, (owner) => service().socialService.createFriendInvite(owner)),
+  cancelFriendInvite: action(schemas.cancelFriendInvite, (owner) => service().socialService.cancelFriendInvite(owner)),
+  createLeague: action(schemas.createLeague, (owner, data) => service().leagueService.createLeague(owner, data)),
   createLeagueEvent: action(schemas.createLeagueEvent, (owner, data) => {
     const { token, ...input } = data
-    return service().createLeagueEvent(token, owner, input)
+    return service().leagueService.createLeagueEvent(token, owner, input)
   }),
-  joinLeague: action(schemas.joinLeague, (owner, data) => service().joinLeague(data.token, owner, data.eventToken)),
+  joinLeague: action(schemas.joinLeague, (owner, data) => service().leagueService.joinLeague(data.token, owner, data.eventToken)),
   addLeagueEntrants: action(schemas.addLeagueEntrants, (owner, data) =>
-    service().addLeagueEntrants(data.token, owner, data.userIds, data.eventToken),
+    service().leagueService.addLeagueEntrants(data.token, owner, data.userIds, data.eventToken),
   ),
   admitLeagueEntries: action(schemas.admitLeagueEntries, (owner, data) =>
-    service().admitLeagueEntries(data.token, owner, data.userIds, data.eventToken),
+    service().leagueService.admitLeagueEntries(data.token, owner, data.userIds, data.eventToken),
   ),
   moderateLeagueEntry: action(schemas.moderateLeagueEntry, (owner, data) =>
-    service().moderateLeagueEntry(data.token, owner, data.userId, data.status, data.eventToken),
+    service().leagueService.moderateLeagueEntry(data.token, owner, data.userId, data.status, data.eventToken),
   ),
   submitLeagueRoster: action(schemas.submitLeagueRoster, async (owner, data) => {
     const { saved, snapshot } = await rosterForUse(owner, data.rosterId)
@@ -63,30 +63,30 @@ export const offlineActions: Record<OfflineActionKind, (owner: string, input: un
       throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {
         status: 409,
       })
-    return service().submitLeagueRoster(data.token, owner, saved, snapshot, data.eventToken)
+    return service().leagueService.submitLeagueRoster(data.token, owner, saved, snapshot, data.eventToken)
   }),
   setLeagueTeamDisposition: action(schemas.setLeagueTeamDisposition, (owner, data) =>
-    service().setLeagueTeamDisposition(data.token, owner, data.disposition, data.eventToken),
+    service().leagueService.setLeagueTeamDisposition(data.token, owner, data.disposition, data.eventToken),
   ),
-  revealLeague: action(schemas.revealLeague, (owner, data) => service().revealLeague(data.token, owner, data.eventToken)),
+  revealLeague: action(schemas.revealLeague, (owner, data) => service().leagueService.revealLeague(data.token, owner, data.eventToken)),
   unsealLeagueRoster: action(schemas.unsealLeagueRoster, (owner, data) =>
-    service().unsealLeagueRoster(data.token, owner, data.userId, data.eventToken),
+    service().leagueService.unsealLeagueRoster(data.token, owner, data.userId, data.eventToken),
   ),
   assignLeagueRosterRequirement: action(schemas.assignLeagueRosterRequirement, (owner, data) =>
-    service().assignLeagueRosterRequirement(data.token, owner, data.userId, data.requiredLimit, data.eventToken),
+    service().leagueService.assignLeagueRosterRequirement(data.token, owner, data.userId, data.requiredLimit, data.eventToken),
   ),
   assignLeagueTeam: action(schemas.assignLeagueTeam, (owner, data) =>
-    service().assignLeagueTeam(data.token, owner, data.userIds, data.eventToken),
+    service().leagueService.assignLeagueTeam(data.token, owner, data.userIds, data.eventToken),
   ),
   updateLeague: action(schemas.updateLeague, (owner, data) => {
     const { token, ...input } = data
-    return service().updateLeague(token, owner, input)
+    return service().leagueService.updateLeague(token, owner, input)
   }),
-  deleteLeague: action(schemas.deleteLeague, (owner, data) => service().deleteLeague(data.token, owner)),
+  deleteLeague: action(schemas.deleteLeague, (owner, data) => service().leagueService.deleteLeague(data.token, owner)),
   deleteBattle: action(schemas.deleteBattle, (owner, data) => service().deleteBattle(data.token, owner)),
   createBattle: action(schemas.createBattle, (owner, data) => service().createBattle(owner, data)),
   createLeagueBattle: action(schemas.createLeagueBattle, (owner, data) =>
-    service().createLeagueBattle(
+    service().leagueService.createLeagueBattle(
       owner,
       data.token,
       data.opponentId,

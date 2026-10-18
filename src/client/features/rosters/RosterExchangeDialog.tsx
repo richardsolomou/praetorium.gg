@@ -45,9 +45,7 @@ export function RosterExchangeDialog({ exchange, onClose }: { exchange: RosterEx
               This roster is too long for a reliable QR code. Copy the code and send it instead.
             </output>
           ) : failed ? (
-            <p role="alert" className="text-sm text-destructive">
-              Could not make a QR code. Copy the code and send it instead.
-            </p>
+            <Problem>Could not make a QR code. Copy the code and send it instead.</Problem>
           ) : image ? (
             <img src={image} alt={`Exchange QR code for ${exchange?.name}`} className="mx-auto aspect-square w-full max-w-80 bg-white" />
           ) : (

@@ -1,14 +1,14 @@
 import { z } from 'zod'
 import { fromBase64Url, toBase64Url } from '../core/base64'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
-import { rosterPickSchema } from '../core/commands'
+import { idSchema, rosterPickSchema } from '../core/commands'
 
 const key = z.string().max(400)
 const weaponPreferencesSchema = z.record(key, z.string().max(200))
 const phaseWeapons = z.array(z.string().max(200)).max(60)
 
 /** The matchup's own choices: modifiers, weapon modes, excluded weapons, and allocation order. */
-export const matchupSettingsSchema = z.object({
+const matchupSettingsSchema = z.object({
   adjustments: combatAdjustmentsSchema,
   preferences: weaponPreferencesSchema,
   excluded: z.object({ ranged: phaseWeapons, melee: phaseWeapons }),
@@ -17,7 +17,7 @@ export const matchupSettingsSchema = z.object({
 export type MatchupSettings = z.infer<typeof matchupSettingsSchema>
 
 const sideSchema = z.object({
-  catalogueId: z.string().min(1).max(64),
+  catalogueId: idSchema,
   pick: rosterPickSchema.omit({ attachedTo: true }),
   rules: z.record(key, z.int().min(0).max(20)),
   preferences: weaponPreferencesSchema.optional(),

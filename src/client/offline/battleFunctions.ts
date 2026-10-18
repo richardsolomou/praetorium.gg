@@ -44,7 +44,7 @@ import {
 import { constructionData, localConstruction } from './construction'
 import { cachedRead, cachedPage } from './reads'
 import { isFetchNetworkFailure } from '../networkErrors'
-import { meKey } from '../queries/queryKeys'
+import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
 
 export function workspaceScreen(
   workspace: BattleWorkspace,
@@ -101,7 +101,7 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
   if (workspace === null && (await hasLocalChanges(resource))) return { kind: 'unavailable' }
   if (workspace && owner && (!navigator.onLine || (await hasSyncableChanges(resource)))) return workspaceScreen(workspace, owner.id)
   try {
-    const result = await cachedRead(['battle', args.data.token], async () => {
+    const result = await cachedRead(battleKey(args.data.token), async () => {
       // A battle saved on this device is one this account sits in, so its history downloads alongside the screen.
       const download = workspace && localEngine() ? battleWorkspace(args) : undefined
       download?.catch(() => {})
@@ -267,7 +267,7 @@ export async function battleReport(args: Parameters<typeof server.battleReport>[
         workspace.players.map((player) => player.side),
         localConstruction()?.rules,
       )
-    : cachedRead(['report', args.data.token], () => server.battleReport(args))
+    : cachedRead(reportKey(args.data.token), () => server.battleReport(args))
 }
 export async function replayBattleAt(args: Parameters<typeof server.replayBattleAt>[0]): ReturnType<typeof server.replayBattleAt> {
   const workspace = await unsyncedWorkspace(args.data.token)
@@ -312,7 +312,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
     const matches = await leagueBattleOptions({ data: input })
     if (matches.length) throw new Error('Start this matchup from its saved league, or choose a casual battle.')
   }
-  const opponents = await cachedRead(['opponents'], () => server.opponents())
+  const opponents = await cachedRead(opponentsKey(), () => server.opponents())
   const opponentIds = input.opponentIds ?? (input.opponentId ? [input.opponentId] : [])
   const allyIds = input.allyId ? [input.allyId] : []
   const invited = [...allyIds, ...opponentIds]
@@ -363,21 +363,21 @@ export function projectBattles(state: LocalState) {
     if (navigator.onLine && !hasSyncableWork(state, resource)) continue
     if (!constructionData()) return
     if (!document.data) {
-      client.setQueryData(['battle', resource.slice(7)], { kind: 'unavailable' })
+      client.setQueryData(battleKey(resource.slice(7)), { kind: 'unavailable' })
       continue
     }
     const workspace = document.data as BattleWorkspace
-    const visible = client.getQueryData<Awaited<ReturnType<typeof server.openBattle>>>(['battle', workspace.battle.token])
+    const visible = client.getQueryData<Awaited<ReturnType<typeof server.openBattle>>>(battleKey(workspace.battle.token))
     if (visible?.kind === 'battle' && visible.view.seq > (workspace.log.at(-1)?.seq ?? 0)) continue
     const key = `${state.owner}:${resource}`
     const stamp = JSON.stringify(document.data)
-    if (projectedBattles.get(key) === stamp && client.getQueryData(['battle', workspace.battle.token])) continue
+    if (projectedBattles.get(key) === stamp && client.getQueryData(battleKey(workspace.battle.token))) continue
     projectedBattles.set(key, stamp)
-    client.setQueryData(['battle', workspace.battle.token], workspaceScreen(workspace, state.owner))
+    client.setQueryData(battleKey(workspace.battle.token), workspaceScreen(workspace, state.owner))
   }
-  const feed = client.getQueryData<{ pages: Awaited<ReturnType<typeof server.myBattles>>[]; pageParams: unknown[] }>(['battles'])
+  const feed = client.getQueryData<{ pages: Awaited<ReturnType<typeof server.myBattles>>[]; pageParams: unknown[] }>(battlesKey())
   if (feed)
-    client.setQueryData(['battles'], { ...feed, pages: feed.pages.map((page, index) => overlayBattlePage(page, state, index === 0)) })
+    client.setQueryData(battlesKey(), { ...feed, pages: feed.pages.map((page, index) => overlayBattlePage(page, state, index === 0)) })
 }
 
 export async function createLeagueBattle(
@@ -439,7 +439,7 @@ export async function createLeagueBattle(
 }
 
 export async function myBattles(args: Parameters<typeof server.myBattles>[0]): ReturnType<typeof server.myBattles> {
-  const page = await cachedPage(['battles'], args.data.before, () => server.myBattles(args))
+  const page = await cachedPage(battlesKey(), args.data.before, () => server.myBattles(args))
   const state = await localEngine()?.storage.read()
   return overlayBattlePage(page, state, args.data.before == null)
 }

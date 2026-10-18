@@ -3,6 +3,7 @@ import { loadedWords } from '../../sourceText'
 import type { BattleView } from '../../../core/battleView'
 import { clockMs, runsIn, type BattleClock } from '../../../core/battleClock'
 import type { RosterReminder } from '../../../core/reminders'
+import { jsonByteLength } from '../../../core/json'
 import { appliesInMode, conditionLabel, payoutJoin, roundLabel, timingLabel } from '../../missionText'
 import { sides, sideName, type SideMission } from '../../sides'
 import type { ReferenceCard } from './MissionCards'
@@ -10,12 +11,11 @@ import type { ReminderDismissalContext } from './reminderDismissals'
 
 export type WatchReminderPrompt = { reminders: RosterReminder[]; moment: string; context: ReminderDismissalContext }
 const clip = (text: string, length: number) => {
-  const encoder = new TextEncoder()
-  if (encoder.encode(JSON.stringify(text)).length <= length + 2) return text
+  if (jsonByteLength(text) <= length + 2) return text
   let clipped = ''
   let size = 0
   for (const character of text) {
-    const cost = encoder.encode(JSON.stringify(character)).length - 2
+    const cost = jsonByteLength(character) - 2
     if (size + cost > length - 3) break
     clipped += character
     size += cost

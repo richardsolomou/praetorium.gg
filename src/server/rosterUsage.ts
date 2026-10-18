@@ -9,7 +9,7 @@ import { rosterUseError } from '../core/rosterLegality'
 
 /** A battle may field a roster a friend lent; a league entry is sealed from the entrant's own rosters. */
 export async function rosterForUse(userId: string, rosterId: string, options: { lent?: boolean } = {}) {
-  const usable = await app().service.usableRoster(userId, rosterId)
+  const usable = await app().service.rosterService.usableRoster(userId, rosterId)
   if (!usable || (usable.lentBy && !options.lent)) {
     throw new Response(options.lent ? 'this roster is not yours or lent to you' : 'you do not own this roster', { status: 403 })
   }

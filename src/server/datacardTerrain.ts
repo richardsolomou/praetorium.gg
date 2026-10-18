@@ -5,7 +5,7 @@ import { compareText } from '../core/text'
 import type { Deployment, Point, TerrainLayout } from '../contracts/terrain'
 import { english, type MissionPack } from './missionPacks'
 import { battlemasterGeometry } from './rulesTerrain'
-import { joinKey } from '../shared/rulesSource'
+import { joinKey } from '../core/text'
 
 type BattlemasterCatalog = { layouts?: { id?: string }[] }
 type BattlemasterSlot = { archetypeA?: string; archetypeB?: string; slotIndex?: number }

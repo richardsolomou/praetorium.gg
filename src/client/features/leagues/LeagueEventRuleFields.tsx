@@ -5,7 +5,7 @@ import { leagueRosterSplit, LEAGUE_DEFAULT_ROSTER_LIMIT, LEAGUE_TEAM_ROSTER_LIMI
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
 
-export type LeagueEventRuleValue = { format: TableShape; rosterLimit: number }
+type LeagueEventRuleValue = { format: TableShape; rosterLimit: number }
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. */
 export const ROSTER_RULE: Partial<Record<TableShape, string>> = {

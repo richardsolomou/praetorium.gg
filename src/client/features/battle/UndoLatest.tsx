@@ -2,7 +2,7 @@ import { Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Command } from '../../../core/battle'
-import { DrawUndoAlert } from './DrawUndoAlert'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 type Options = {
   undoable: number | null
@@ -63,10 +63,15 @@ export function UndoLatestButton({
 
 export function UndoLatestConfirmation({ pending, control }: { pending: boolean; control: ReturnType<typeof useUndoLatest> }) {
   return (
-    <DrawUndoAlert
+    <ConfirmDialog
       open={control.confirming !== null}
+      title="Undo mission draw?"
+      description="This returns those secondary missions to the deck. You can draw replacements at random or select them yourself."
+      cancel="Keep missions"
+      confirm="Undo draw"
+      destructive
       pending={pending}
-      onOpenChange={(open) => !open && control.close()}
+      onClose={control.close}
       onConfirm={control.confirm}
     />
   )

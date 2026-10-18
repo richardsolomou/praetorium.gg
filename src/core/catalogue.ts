@@ -1,3 +1,5 @@
+import { countBy } from './collections'
+
 /** Model the BattleScribe fields used for pricing, legality, and attachments; display-only fields stay outside core. */
 
 type CostType = { id: string; name: string; defaultCostLimit?: number; hidden?: boolean }
@@ -492,10 +494,10 @@ function datasheetsIn(
     const imports = importsOf(book, books, definitions)
     const importedSources = new Map(imports.map((source, order) => [source.id, { name: source.name, order }]))
     const fallbackAllies = new Set(imports.slice(1).map((source) => source.id))
-    const factionCounts = new Map<string, number>()
-    for (const entry of rootEntriesOf(book, definitions)) {
-      for (const faction of factionCategories(entry, definitions)) factionCounts.set(faction, (factionCounts.get(faction) ?? 0) + 1)
-    }
+    const factionCounts = countBy(
+      rootEntriesOf(book, definitions).flatMap((entry) => [...factionCategories(entry, definitions)]),
+      (faction) => faction,
+    )
     const most = Math.max(0, ...factionCounts.values())
     const namedFactions = [...factionCounts.keys()].filter((faction) => book.name.toLowerCase().includes(faction))
     const primaryFactions = new Set(

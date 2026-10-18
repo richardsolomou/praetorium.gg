@@ -10,9 +10,13 @@ import { errorMessage } from '../../queryClient'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import { useOrigin } from '../../useOrigin'
 import { useQrCode } from '../../components/useQrCode'
+import { Problem } from '../../components/Problem'
 
 /** What a share button reads once the link has gone out. */
 export const SHARED_LABEL = { copied: 'Link copied', shared: 'Invite shared' } as const
+
+/** What a share button reads before the invite goes out. */
+export const useInviteShareLabel = () => (useNativeShare() ? 'Share invite' : 'Copy invite link')
 
 /** The player's one-time friend invite: its link, and sharing, replacing or cancelling it. */
 export function useFriendInvite() {
@@ -67,7 +71,7 @@ export function InviteQr({
 }: { url: string; disabled: boolean } & Pick<ComponentProps<typeof Button>, 'variant' | 'size'>) {
   const [open, setOpen] = useState(false)
   const { image, failed } = useQrCode(open ? url : null, 256)
-  const nativeShare = useNativeShare()
+  const shareLabel = useInviteShareLabel()
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" {...trigger} disabled={disabled} />}>
@@ -82,9 +86,7 @@ export function InviteQr({
         </DialogHeader>
         <DialogBody>
           {failed ? (
-            <p role="alert" className="text-sm text-destructive">
-              Could not make a QR code. Close this window and use {nativeShare ? 'Share invite' : 'Copy invite link'}.
-            </p>
+            <Problem>Could not make a QR code. Close this window and use {shareLabel}.</Problem>
           ) : image ? (
             <img src={image} alt="Friend invite QR code" className="mx-auto size-64 bg-white" />
           ) : (

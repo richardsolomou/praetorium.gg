@@ -18,7 +18,7 @@ type PushSenderOptions = {
   fetch?: typeof fetch
   /** Runs the receipt check later; receipts are ready within minutes and kept for a day. */
   later?: (work: () => void, milliseconds: number) => void
-  log?: (message: string, detail: Record<string, unknown>) => void
+  log?: (event: string, detail: Record<string, unknown>) => void
 }
 
 const SEND_URL = 'https://exp.host/--/api/v2/push/send'
@@ -56,7 +56,7 @@ export function pushSenderFromEnvironment(
 export function expoPushSender(options: PushSenderOptions): PushSender {
   const request = options.fetch ?? fetch
   const later = options.later ?? ((work, milliseconds) => setTimeout(work, milliseconds).unref())
-  const log = options.log ?? ((message, detail) => console.warn(message, detail))
+  const log = options.log ?? ((event, detail) => console.warn({ event, ...detail }))
 
   /** The parsed body of a successful response, or null once retrying stops helping. */
   async function post(url: string, body: unknown): Promise<unknown> {
@@ -72,10 +72,10 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
           })
           if (response.ok) return (await response.json()) as unknown
         } catch (error) {
-          log('push request failed', { error, attempt })
+          log('push_request_failed', { error, attempt })
           throw error
         }
-        log('push request refused', { status: response.status, attempt })
+        log('push_request_refused', { status: response.status, attempt })
         throw new RefusedRequest(response.status === 429 || response.status >= 500)
       },
       {
@@ -92,7 +92,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
     try {
       await options.onUnregistered(tokens)
     } catch (error) {
-      log('push token cleanup failed', { error })
+      log('push_token_cleanup_failed', { error })
     }
   }
 
@@ -106,7 +106,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
       for (const [id, receipt] of Object.entries(answer?.data ?? {})) {
         const token = tickets.get(id)
         if (token && receipt.status === 'error' && receipt.details?.error === 'DeviceNotRegistered') gone.push(token)
-        else if (token && receipt.status === 'error') log('push receipt failed', { error: errorCode(receipt) })
+        else if (token && receipt.status === 'error') log('push_receipt_failed', { error: errorCode(receipt) })
       }
     }
     await forget(gone)
@@ -135,7 +135,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
           if (!token) return
           if (ticket.status === 'ok' && typeof ticket.id === 'string') tickets.set(ticket.id, token)
           else if (ticket.details?.error === 'DeviceNotRegistered') gone.push(token)
-          else if (ticket.status === 'error') log('push ticket failed', { error: errorCode(ticket) })
+          else if (ticket.status === 'error') log('push_ticket_failed', { error: errorCode(ticket) })
         })
       }
       await forget(gone)

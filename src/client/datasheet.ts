@@ -3,6 +3,7 @@ import { splitWeaponKeywords as splitKeywords } from '../core/ruleReference'
 import { datasheetCharacteristicKindOf, datasheetProfileKindOf } from '../core/datasheetStructure'
 import type { Datasheet } from '../contracts/catalogue'
 import { normalizedName, normalizedNameVariants } from '../core/name'
+import { groupBy } from '../core/collections'
 
 type AbilityKind = Datasheet['abilities'][number]['kind']
 
@@ -89,11 +90,10 @@ export function profileTableValue(profile: Profile, column: ProfileTableColumn) 
 }
 
 export function ruleProfileSections(profiles: readonly Profile[]) {
-  const sections = new Map<string, Profile[]>()
-  for (const profile of profiles) {
-    if (!['rule', 'other'].includes(datasheetProfileKindOf(profile))) continue
-    sections.set(profile.type, [...(sections.get(profile.type) ?? []), profile])
-  }
+  const sections = groupBy(
+    profiles.filter((profile) => ['rule', 'other'].includes(datasheetProfileKindOf(profile))),
+    (profile) => profile.type,
+  )
   return [...sections].map(([title, sectionProfiles]) => ({ title, profiles: sectionProfiles }))
 }
 
@@ -136,20 +136,16 @@ export function attachmentGroups(sheet: AttachmentSheet) {
 }
 
 export function weaponProfileGroups(weapons: readonly Profile[]) {
-  const groups = new Map<string, Profile[]>()
   const identified = new Set(
     weapons
       .filter((weapon) => weapon.equipmentName && sameWargear(weapon.equipmentName, weapon.name))
       .map((weapon) => `${weapon.type}/${wargearBaseName(weapon.equipmentName!)}`),
   )
-  for (const weapon of weapons) {
+  const groups = groupBy(weapons, (weapon) => {
     const owner = weapon.equipmentName ? wargearBaseName(weapon.equipmentName) : ''
     const base = owner && identified.has(`${weapon.type}/${owner}`) ? owner : wargearBaseName(weapon.name)
-    const key = `${weapon.type}/${weapon.count ?? 1}/${owner}/${base}`
-    const group = groups.get(key)
-    if (group) group.push(weapon)
-    else groups.set(key, [weapon])
-  }
+    return `${weapon.type}/${weapon.count ?? 1}/${owner}/${base}`
+  })
   return [...groups.values()]
 }
 

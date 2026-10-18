@@ -1,3 +1,4 @@
+import { uniqueBy } from './collections'
 import type { DatasheetSearchFields, DatasheetSearchReason } from './datasheetSearch'
 import type { CatalogueEdition } from './catalogueEdition'
 import { rosterLabel } from './rosterLabel'
@@ -187,7 +188,6 @@ export function ownSearchLists<B extends OwnSearchData['battles'][number]>(
   battles: readonly B[],
   factions: readonly SearchedFaction[],
 ): OwnSearchData {
-  const seen = new Set<string>()
   return {
     rosters: rosters.map((roster) => {
       const faction = factions.find((entry) => entry.id === roster.catalogueId)
@@ -204,7 +204,7 @@ export function ownSearchLists<B extends OwnSearchData['battles'][number]>(
           : '',
       }
     }),
-    battles: battles.filter((battle) => !seen.has(battle.token) && seen.add(battle.token)).slice(0, OWN_SEARCH_BATTLES),
+    battles: uniqueBy(battles, (battle) => battle.token).slice(0, OWN_SEARCH_BATTLES),
   }
 }
 
@@ -219,7 +219,7 @@ export type OwnSearchData = {
   battles: { token: string; status: string; players: string[]; armies: (string | null)[]; mission: { name: string } | null }[]
 }
 
-export function searchOwn(query: string, mine: OwnSearchData | null): GlobalSearchResult[] {
+function searchOwn(query: string, mine: OwnSearchData | null): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
   const matches = (...text: (string | null | undefined)[]) => text.filter(Boolean).join(' ').toLowerCase().includes(wanted)
   if (!mine) return []

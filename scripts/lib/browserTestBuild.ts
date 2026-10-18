@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
-import { access, cp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { createHash, hash, randomUUID } from 'node:crypto'
+import { access, cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { publishDirectory } from './publishDirectory.ts'
 
 const execute = promisify(execFile)
 const inputs = [
@@ -36,8 +37,7 @@ export function browserTestBuildEnvironment(environment: NodeJS.ProcessEnv) {
 export async function browserTestBuildFingerprint(worktree: string, catalogue: string, environment: NodeJS.ProcessEnv) {
   const snapshot = JSON.parse(await readFile(path.join(catalogue, '.snapshot.json'), 'utf8')) as { id?: string }
   const manifest = await readFile(path.join(catalogue, '.snapshot-manifest.json'))
-  if (snapshot.id !== createHash('sha256').update(manifest).digest('hex'))
-    throw new Error('Browser tests require a verified catalogue snapshot manifest')
+  if (snapshot.id !== hash('sha256', manifest)) throw new Error('Browser tests require a verified catalogue snapshot manifest')
   const { stdout } = await execute('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...inputs], {
     cwd: worktree,
     maxBuffer: 8_000_000,
@@ -45,7 +45,7 @@ export async function browserTestBuildFingerprint(worktree: string, catalogue: s
   const files = [...new Set([...stdout.split('\0').filter(Boolean), ...environmentFiles])]
     .filter((file) => !/\.(?:integration\.)?test\.[^.]+$/.test(file))
     .sort()
-  const hash = createHash('sha256').update(
+  const hasher = createHash('sha256').update(
     JSON.stringify([
       process.version,
       process.platform,
@@ -57,17 +57,17 @@ export async function browserTestBuildFingerprint(worktree: string, catalogue: s
     ]),
   )
   for (const file of files) {
-    hash.update(file).update('\0')
+    hasher.update(file).update('\0')
     try {
       const content = await readFile(path.join(worktree, file))
-      hash.update(String(content.length)).update('\0').update(content)
+      hasher.update(String(content.length)).update('\0').update(content)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-      hash.update('missing')
+      hasher.update('missing')
     }
-    hash.update('\0')
+    hasher.update('\0')
   }
-  return hash.digest('hex')
+  return hasher.digest('hex')
 }
 
 export async function restoreBrowserTestBuild(cache: string, fingerprint: string, output: string) {
@@ -104,13 +104,7 @@ export async function saveBrowserTestBuild(cache: string, fingerprint: string, o
     for (const directory of ['server', 'public'])
       await cp(path.join(output, directory), path.join(temporary, directory), { recursive: true })
     await writeFile(path.join(temporary, 'fingerprint'), fingerprint)
-    await rm(cache, { recursive: true, force: true })
-    try {
-      await rename(temporary, cache)
-    } catch (error) {
-      // Another completed build may have published its cache while this one was copying.
-      if (!['EEXIST', 'ENOTEMPTY'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
-    }
+    publishDirectory(temporary, cache)
   } finally {
     await rm(temporary, { recursive: true, force: true })
   }

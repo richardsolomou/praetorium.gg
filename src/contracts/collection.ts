@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { idSchema } from '../core/commands'
 import { MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../core/collection'
 import { MAX_DATASHEET_PHOTOS } from '../core/collectionPhotos'
 
@@ -29,7 +30,7 @@ export const COLLECTION_PHOTO_MAX_BYTES = 600_000
 /** Base64 grows bytes by a third; the prefix is at most `data:image/jpeg;base64,`. */
 const COLLECTION_PHOTO_MAX_LENGTH = Math.ceil(COLLECTION_PHOTO_MAX_BYTES / 3) * 4 + 32
 
-export const collectionPhotoSchema = z.object({ entryId: z.string().min(1).max(64), image: z.string().max(COLLECTION_PHOTO_MAX_LENGTH) })
+export const collectionPhotoSchema = z.object({ entryId: idSchema, image: z.string().max(COLLECTION_PHOTO_MAX_LENGTH) })
 
 export const collectionPhotoIdSchema = z.object({ photoId: z.uuid() })
 

@@ -12,7 +12,9 @@ const { configuredObjectStore, putIfAbsent, publicAssetsBaseUrl } = vi.hoisted((
 
 vi.mock('./objectStorage', () => ({ configuredObjectStore, putIfAbsent, publicAssetsBaseUrl }))
 
-const STORE = { bucket: 'praetorium', publicBaseUrl: PUBLIC_BASE_URL, client: {} as never }
+const STORE = { publicBaseUrl: PUBLIC_BASE_URL, head: vi.fn(), put: vi.fn() }
+const WEBP_BYTES = Buffer.from('RIFF\0\0\0\0WEBP')
+const WEBP = `data:image/webp;base64,${WEBP_BYTES.toString('base64')}`
 
 afterEach(() => vi.clearAllMocks())
 
@@ -20,6 +22,12 @@ describe('storeProfileImage', () => {
   it('rejects a format outside the allowed raster types', async () => {
     configuredObjectStore.mockReturnValue(STORE)
     await expect(storeProfileImage('data:image/svg+xml;base64,PHN2Zy8+')).rejects.toThrow('Choose a JPEG, PNG or WebP profile picture.')
+    expect(putIfAbsent).not.toHaveBeenCalled()
+  })
+
+  it('rejects bytes that do not match the declared format', async () => {
+    configuredObjectStore.mockReturnValue(STORE)
+    await expect(storeProfileImage('data:image/webp;base64,YXZhdGFy')).rejects.toThrow('Choose a JPEG, PNG or WebP profile picture.')
     expect(putIfAbsent).not.toHaveBeenCalled()
   })
 
@@ -33,20 +41,20 @@ describe('storeProfileImage', () => {
 
   it('fails clearly when the instance has no object storage configured', async () => {
     configuredObjectStore.mockReturnValue(null)
-    await expect(storeProfileImage('data:image/webp;base64,YXZhdGFy')).rejects.toThrow('Profile picture uploads are not available.')
+    await expect(storeProfileImage(WEBP)).rejects.toThrow('Profile picture uploads are not available.')
   })
 
   it('uploads under a content-addressed key and returns its public URL', async () => {
     configuredObjectStore.mockReturnValue(STORE)
-    const url = await storeProfileImage('data:image/webp;base64,YXZhdGFy')
+    const url = await storeProfileImage(WEBP)
     expect(url).toMatch(/^https:\/\/s3\.praetorium\.gg\/avatars\/[0-9a-f]{64}\.webp$/)
-    expect(putIfAbsent).toHaveBeenCalledWith(STORE, expect.stringContaining('avatars/'), Buffer.from('YXZhdGFy', 'base64'), 'image/webp')
+    expect(putIfAbsent).toHaveBeenCalledWith(STORE, expect.stringContaining('avatars/'), WEBP_BYTES, 'image/webp')
   })
 
   it('gives identical bytes the same key every time', async () => {
     configuredObjectStore.mockReturnValue(STORE)
-    const first = await storeProfileImage('data:image/webp;base64,YXZhdGFy')
-    const second = await storeProfileImage('data:image/webp;base64,YXZhdGFy')
+    const first = await storeProfileImage(WEBP)
+    const second = await storeProfileImage(WEBP)
     expect(first).toBe(second)
   })
 })

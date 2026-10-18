@@ -26,6 +26,7 @@ import { meQuery, onboardingQuery } from '../../queries'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { openFeedback } from '../feedback/FeedbackDialog'
 import { errorMessage } from '../../queryClient'
+import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
@@ -36,7 +37,7 @@ function useAccountControls() {
   const signOut = () => {
     void (async () => {
       if (await hasLocalChanges()) {
-        window.dispatchEvent(new CustomEvent('praetorium-open-sync', { detail: 'sign-out' }))
+        window.dispatchEvent(new CustomEvent(OPEN_SYNC_EVENT, { detail: 'sign-out' }))
         return
       }
       const owner = me?.id

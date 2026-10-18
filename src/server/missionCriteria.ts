@@ -15,7 +15,7 @@ export function loadMissionCriteria(directory: string): Map<string, Payout[]> {
 }
 
 /** The same reading, for a caller that has already parsed the packs. */
-export function criteriaIn(packs: readonly MissionPack[]): Map<string, Payout[]> {
+function criteriaIn(packs: readonly MissionPack[]): Map<string, Payout[]> {
   const found = new Map<string, Payout[]>()
   // A name in two packs is two cards until proven otherwise, so neither is used.
   const contested = new Set<string>()

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { catalogueChanges, type ChangeSource } from '../../src/core/catalogueChanges'
 import { appendHistory, type CatalogueHistoryEntry } from '../../src/core/catalogueHistory'
 import { compareText } from '../../src/core/text'
@@ -127,7 +127,7 @@ export function dailyCheckpoints(
  */
 export function upstreamId(day: string, revisions: Readonly<Record<string, string>>) {
   const sorted = Object.entries(revisions).toSorted(([left], [right]) => compareText(left, right))
-  return `upstream:${day}:${createHash('sha256').update(JSON.stringify(sorted)).digest('hex').slice(0, 12)}`
+  return `upstream:${day}:${hash('sha256', JSON.stringify(sorted)).slice(0, 12)}`
 }
 
 /** A point in time the history is told from: its id, the revisions it holds, and its time. */

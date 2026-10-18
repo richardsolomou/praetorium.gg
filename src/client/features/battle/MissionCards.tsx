@@ -15,6 +15,7 @@ import type { MissionSelectionKind } from '../../../core/missionSelections'
 
 import type { MissionAction } from '../../../contracts/missions'
 import type { MissionAward as Award } from '../../missionText'
+import { countLabel } from '../../text'
 
 export type { MissionAward as Award } from '../../missionText'
 
@@ -208,9 +209,7 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
       })}
       {resolved.length ? (
         <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowResolved(!showingResolved)}>
-          {showingResolved
-            ? 'Hide resolved missions'
-            : `Show ${resolved.length} resolved ${resolved.length === 1 ? 'mission' : 'missions'}`}
+          {showingResolved ? 'Hide resolved missions' : `Show ${countLabel(resolved.length, 'resolved mission')}`}
         </Button>
       ) : null}
       {side.secondaryMode === 'tactical' && side.remainingSecondaries.length > 0 ? (

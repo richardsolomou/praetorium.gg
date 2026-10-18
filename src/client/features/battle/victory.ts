@@ -1,3 +1,5 @@
+import { readSessionValue, writeSessionValue } from '../../storedValue'
+
 const CELEBRATED_KEY = 'praetorium.celebrated-battles'
 
 /** Fallbacks for a canvas that has to paint before the stylesheet has been read. */
@@ -12,13 +14,13 @@ function tintColours(side: number) {
 
 function celebrated(token: string) {
   try {
-    const seen = new Set(JSON.parse(sessionStorage.getItem(CELEBRATED_KEY) ?? '[]') as string[])
+    const seen = new Set(JSON.parse(readSessionValue(CELEBRATED_KEY) ?? '[]') as string[])
     if (seen.has(token)) return true
     seen.add(token)
-    sessionStorage.setItem(CELEBRATED_KEY, JSON.stringify([...seen]))
+    writeSessionValue(CELEBRATED_KEY, JSON.stringify([...seen]))
     return false
   } catch {
-    // A blocked store only risks celebrating the same win twice, which is not a failure.
+    // An unreadable entry only risks celebrating the same win twice, which is not a failure.
     return false
   }
 }

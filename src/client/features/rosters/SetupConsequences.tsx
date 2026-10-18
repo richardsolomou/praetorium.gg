@@ -11,6 +11,7 @@ import {
   pointsBudgetOf,
   waivedFormatRules,
 } from '../../../core/battle'
+import { countLabel } from '../../text'
 
 export function SetupConsequences({ review, guest }: { review: Review; guest: boolean }) {
   const { source, candidate, before, after } = review
@@ -97,8 +98,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
           <p className="text-bone">
             {unit ? (
               <>
-                {unit.name} · {savedUnit?.size.models ?? unit.size.models}{' '}
-                {(savedUnit?.size.models ?? unit.size.models) === 1 ? 'model' : 'models'} ·{' '}
+                {unit.name} · {countLabel(savedUnit?.size.models ?? unit.size.models, 'model')} ·{' '}
                 <span className="readout">
                   {savedUnit && savedUnit.points !== unit.points ? `${unit.points} → ${savedUnit.points}` : unit.points} pts
                 </span>
@@ -202,7 +202,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
       {unchangedUnits.length ? (
         <details className="border-t border-edge pt-2">
           <summary className="min-h-11 cursor-pointer content-center text-dim hover:text-bone">
-            {unchangedUnits.length} unchanged {unchangedUnits.length === 1 ? 'unit' : 'units'}
+            {countLabel(unchangedUnits.length, 'unchanged unit')}
           </summary>
           <ul className="mt-2 space-y-3">{unchangedUnits.map((unit) => unit.row)}</ul>
         </details>

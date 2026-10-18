@@ -1,3 +1,5 @@
+import { notFound } from './notFound.ts'
+
 /**
  * IndexNow tells Bing and the engines that share its submissions which pages changed, so a
  * points update is recrawled when it ships rather than whenever a crawler next passes.
@@ -19,7 +21,7 @@ export function indexNowKeyResponse() {
   const key = indexNowKey(process.env.INDEXNOW_KEY)
   return key
     ? new Response(key, { headers: { 'Cache-Control': 'public, max-age=86400', 'Content-Type': 'text/plain; charset=utf-8' } })
-    : new Response('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } })
+    : notFound()
 }
 
 /** Each page a sitemap lists, with its last modification where it states one. */

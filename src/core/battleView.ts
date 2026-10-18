@@ -1,3 +1,4 @@
+import { sameSide, playsSide } from './battlePrimitives'
 import {
   BATTLE_ROUNDS,
   type BattleEndReason,
@@ -13,8 +14,6 @@ import {
   SECONDARY_GUIDE,
   TACTICAL_HAND_SIZE,
   type TurnScope,
-  sameSide,
-  playsSide,
   scoringDue,
   secretSettlementActionPlayerId,
   type Secondary,

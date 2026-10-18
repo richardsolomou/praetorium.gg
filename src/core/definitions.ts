@@ -28,8 +28,6 @@ import {
   type Selection,
 } from './evaluate'
 
-export { isCollective, isCollectiveGroup, scaleOf } from './collective'
-
 /**
  * How many catalogue containers deep a walk goes before it stops.
  *

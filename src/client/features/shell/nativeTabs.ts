@@ -1,4 +1,4 @@
-import { writeSessionValue } from '../../storedValue'
+import { readSessionValue, writeSessionValue } from '../../storedValue'
 import { nativeNavigation, type NativeSection } from './nativeNavigation'
 
 const TAB_PREFIX = 'praetorium.native-tab:'
@@ -26,9 +26,8 @@ export function tabLocation(href: string): { section: NativeSection; href: strin
 }
 
 function stored(section: NativeSection): NativeTabMemory | null {
-  if (typeof window === 'undefined') return null
   try {
-    const value = sessionStorage.getItem(`${TAB_PREFIX}${section}`)
+    const value = readSessionValue(`${TAB_PREFIX}${section}`)
     if (!value) return null
     if (!value.startsWith('{')) return { href: value, scrollY: 0, regions: {} }
     const parsed = JSON.parse(value) as Partial<NativeTabMemory>

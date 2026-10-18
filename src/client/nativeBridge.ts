@@ -45,70 +45,78 @@ function send(capability: NativeCapability, message: Record<string, unknown>) {
   return true
 }
 
+type NativeAnswer = Record<string, unknown>
+
+/**
+ * Posts a request carrying a fresh id and waits for the shell to dispatch `event` with an answer that has the same
+ * id and that `read` accepts, giving up after `timeoutMs`; `'unsent'` when this shell cannot take the request.
+ */
+function askNative<T>(
+  capability: NativeCapability,
+  event: string,
+  message: Record<string, unknown>,
+  timeoutMs: number,
+  read: (answer: NativeAnswer) => T | null,
+): Promise<T | 'timeout' | 'unsent'> {
+  const id = crypto.randomUUID()
+  return new Promise((resolve) => {
+    const finish = (result: T | 'timeout' | 'unsent') => {
+      clearTimeout(timer)
+      window.removeEventListener(event, listen)
+      resolve(result)
+    }
+    const listen = (incoming: Event) => {
+      const detail = (incoming as CustomEvent<unknown>).detail
+      if (!detail || typeof detail !== 'object' || (detail as NativeAnswer).id !== id) return
+      const answer = read(detail as NativeAnswer)
+      if (answer !== null) finish(answer)
+    }
+    const timer = setTimeout(() => finish('timeout'), timeoutMs)
+    window.addEventListener(event, listen)
+    if (!send(capability, { ...message, id })) finish('unsent')
+  })
+}
+
 export type NativeLocalState = { epoch: string; state: import('../contracts/localState').LocalState | null; saved: boolean }
 export function supportsNativeLocalState() {
   return supports('local-state')
 }
 
-export function requestNativeLocalState(
+export async function requestNativeLocalState(
   owner: string,
   write?: { state: import('../contracts/localState').LocalState | null; epoch: string; expectedRevision: number },
 ): Promise<NativeLocalState> {
-  const id = crypto.randomUUID()
-  return new Promise((resolve, reject) => {
-    const finish = () => {
-      clearTimeout(timer)
-      window.removeEventListener('praetorium-native-local-state', listen)
-    }
-    const listen = (event: Event) => {
-      const answer = (event as CustomEvent<NativeLocalState & { id?: string; error?: string }>).detail
-      if (!answer || answer.id !== id) return
-      finish()
-      if (
-        answer.error ||
-        typeof answer.epoch !== 'string' ||
-        (answer.state !== null && (!parseLocalState(answer.state) || answer.state.owner !== owner))
-      )
-        reject(new Error(answer.error ?? 'Changes could not be saved on this device.'))
-      else resolve(answer)
-    }
-    const timer = setTimeout(() => {
-      finish()
-      reject(new Error('This device did not confirm saving your changes.'))
-    }, 10_000)
-    window.addEventListener('praetorium-native-local-state', listen)
-    if (!send('local-state', { type: 'native-local-state', owner, id, ...write })) {
-      finish()
-      reject(new Error('Device storage is unavailable.'))
-    }
-  })
+  const answer = await askNative(
+    'local-state',
+    'praetorium-native-local-state',
+    { type: 'native-local-state', owner, ...write },
+    10_000,
+    (detail) => detail as NativeLocalState & { error?: string },
+  )
+  if (answer === 'timeout') throw new Error('This device did not confirm saving your changes.')
+  if (answer === 'unsent') throw new Error('Device storage is unavailable.')
+  if (
+    answer.error ||
+    typeof answer.epoch !== 'string' ||
+    (answer.state !== null && (!parseLocalState(answer.state) || answer.state.owner !== owner))
+  )
+    throw new Error(answer.error ?? 'Changes could not be saved on this device.')
+  return answer
 }
 
-export function exportNativeWork(state: import('../contracts/localState').LocalState): Promise<boolean> {
-  if (!supportsNativeLocalState()) return Promise.resolve(false)
-  const id = crypto.randomUUID()
-  return new Promise((resolve, reject) => {
-    const finish = () => {
-      clearTimeout(timer)
-      window.removeEventListener('praetorium-native-export-work', listen)
-    }
-    const listen = (event: Event) => {
-      const answer = (event as CustomEvent<{ id: string; error?: string }>).detail
-      if (!answer || answer.id !== id) return
-      finish()
-      if (answer.error) reject(new Error(answer.error))
-      else resolve(true)
-    }
-    const timer = setTimeout(() => {
-      finish()
-      reject(new Error('The export did not finish. Try again.'))
-    }, 120_000)
-    window.addEventListener('praetorium-native-export-work', listen)
-    if (!send('local-state', { type: 'native-export-work', id, state })) {
-      finish()
-      resolve(false)
-    }
-  })
+export async function exportNativeWork(state: import('../contracts/localState').LocalState): Promise<boolean> {
+  if (!supportsNativeLocalState()) return false
+  const answer = await askNative(
+    'local-state',
+    'praetorium-native-export-work',
+    { type: 'native-export-work', state },
+    120_000,
+    (detail) => detail as { error?: string },
+  )
+  if (answer === 'timeout') throw new Error('The export did not finish. Try again.')
+  if (answer === 'unsent') return false
+  if (answer.error) throw new Error(answer.error)
+  return true
 }
 
 export function setNativeBattleActive(active: boolean) {
@@ -156,10 +164,7 @@ export function supportsNativePush() {
   return supports('notifications')
 }
 
-function nativePushAnswer(value: unknown, id: string): NativePushAnswer | null {
-  if (!value || typeof value !== 'object') return null
-  const answer = value as Record<string, unknown>
-  if (answer.id !== id) return null
+function nativePushAnswer(answer: NativeAnswer): NativePushAnswer | null {
   if (answer.status === 'granted' && typeof answer.token === 'string' && (answer.platform === 'ios' || answer.platform === 'android'))
     return { status: 'granted', token: answer.token, platform: answer.platform }
   if (answer.status === 'denied' || answer.status === 'undetermined' || answer.status === 'unavailable') return { status: answer.status }
@@ -172,23 +177,10 @@ function nativePushAnswer(value: unknown, id: string): NativePushAnswer | null {
  * Null when the shell cannot answer, or does not within the time given: a prompt
  * waits on a person, a silent check only on the operating system.
  */
-export function requestNativePush(prompt: boolean, timeoutMs = prompt ? 120_000 : 10_000): Promise<NativePushAnswer | null> {
-  if (!supportsNativePush()) return Promise.resolve(null)
-  const id = crypto.randomUUID()
-  return new Promise((resolve) => {
-    const finish = (answer: NativePushAnswer | null) => {
-      clearTimeout(timer)
-      window.removeEventListener(NATIVE_PUSH_EVENT, listen)
-      resolve(answer)
-    }
-    const listen = (event: Event) => {
-      const answer = nativePushAnswer((event as CustomEvent<unknown>).detail, id)
-      if (answer) finish(answer)
-    }
-    const timer = setTimeout(() => finish(null), timeoutMs)
-    window.addEventListener(NATIVE_PUSH_EVENT, listen)
-    if (!send('notifications', { type: 'native-push', id, prompt })) finish(null)
-  })
+export async function requestNativePush(prompt: boolean, timeoutMs = prompt ? 120_000 : 10_000): Promise<NativePushAnswer | null> {
+  if (!supportsNativePush()) return null
+  const answer = await askNative('notifications', NATIVE_PUSH_EVENT, { type: 'native-push', prompt }, timeoutMs, nativePushAnswer)
+  return typeof answer === 'string' ? null : answer
 }
 
 export async function shareLink(url: string, title?: string): Promise<'copied' | 'shared'> {
@@ -205,42 +197,22 @@ export function supportsNativeAppSnapshot() {
   return supports('app-snapshot')
 }
 
-export function requestNativeAppSnapshot(snapshot: import('../contracts/appSnapshot').AppSnapshot | null): Promise<boolean> {
-  if (!supportsNativeAppSnapshot()) return Promise.resolve(false)
-  const id = crypto.randomUUID()
-  return new Promise((resolve) => {
-    const finish = (saved: boolean) => {
-      clearTimeout(timer)
-      window.removeEventListener('praetorium-native-app-snapshot', listen)
-      resolve(saved)
-    }
-    const listen = (event: Event) => {
-      const answer = (event as CustomEvent<{ id?: string; saved?: boolean }>).detail
-      if (answer?.id === id) finish(answer.saved === true)
-    }
-    const timer = setTimeout(() => finish(false), 15_000)
-    window.addEventListener('praetorium-native-app-snapshot', listen)
-    if (!send('app-snapshot', { type: 'native-app-snapshot', id, snapshot })) finish(false)
-  })
+const savedAnswer = (answer: NativeAnswer) => answer.saved === true
+
+export async function requestNativeAppSnapshot(snapshot: import('../contracts/appSnapshot').AppSnapshot | null): Promise<boolean> {
+  if (!supportsNativeAppSnapshot()) return false
+  return (
+    (await askNative('app-snapshot', 'praetorium-native-app-snapshot', { type: 'native-app-snapshot', snapshot }, 15_000, savedAnswer)) ===
+    true
+  )
 }
 
-export function requestNativeOfflineSave(doc: { html: string; savedAt: number }): Promise<boolean> {
-  if (!supportsNativeOffline()) return Promise.resolve(false)
-  const id = crypto.randomUUID()
-  return new Promise((resolve) => {
-    const finish = (saved: boolean) => {
-      clearTimeout(timer)
-      window.removeEventListener('praetorium-native-offline', listen)
-      resolve(saved)
-    }
-    const listen = (event: Event) => {
-      const answer = (event as CustomEvent<{ id?: string; saved?: boolean }>).detail
-      if (answer?.id === id) finish(answer.saved === true)
-    }
-    const timer = setTimeout(() => finish(false), 60_000)
-    window.addEventListener('praetorium-native-offline', listen)
-    if (!send('offline-reference', { type: 'native-offline-save', id, ...doc })) finish(false)
-  })
+export async function requestNativeOfflineSave(doc: { html: string; savedAt: number }): Promise<boolean> {
+  if (!supportsNativeOffline()) return false
+  return (
+    (await askNative('offline-reference', 'praetorium-native-offline', { type: 'native-offline-save', ...doc }, 60_000, savedAnswer)) ===
+    true
+  )
 }
 
 export function setNativeWatchBattle(snapshot: import('../contracts/watchBattle').WatchBattle | null) {

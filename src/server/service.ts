@@ -146,9 +146,9 @@ type SubmitArgs = [
 ]
 
 export class PraetoriumService {
-  private readonly leagueService: LeagueService
-  private readonly rosterService: RosterService
-  private readonly socialService: SocialService
+  readonly leagueService: LeagueService
+  readonly rosterService: RosterService
+  readonly socialService: SocialService
 
   constructor(
     private readonly repository: RepositoryPort,
@@ -170,288 +170,12 @@ export class PraetoriumService {
     return this.repository.updateOnboardingProgress(userId, operation)
   }
 
-  createLeague(...args: Parameters<LeagueService['createLeague']>) {
-    return this.leagueService.createLeague(...args)
-  }
-
-  createLeagueEvent(...args: Parameters<LeagueService['createLeagueEvent']>) {
-    return this.leagueService.createLeagueEvent(...args)
-  }
-
-  updateLeague(...args: Parameters<LeagueService['updateLeague']>) {
-    return this.leagueService.updateLeague(...args)
-  }
-
-  deleteLeague(...args: Parameters<LeagueService['deleteLeague']>) {
-    return this.leagueService.deleteLeague(...args)
-  }
-
-  setLeagueAdmins(...args: Parameters<LeagueService['setLeagueAdmins']>) {
-    return this.leagueService.setLeagueAdmins(...args)
-  }
-
-  leagues(...args: Parameters<LeagueService['leagues']>) {
-    return this.leagueService.leagues(...args)
-  }
-
-  outdatedLeagueEntriesForRoster(...args: Parameters<LeagueService['outdatedLeagueEntriesForRoster']>) {
-    return this.leagueService.outdatedLeagueEntriesForRoster(...args)
-  }
-
-  league(...args: Parameters<LeagueService['league']>) {
-    return this.leagueService.league(...args)
-  }
-
-  joinLeague(...args: Parameters<LeagueService['joinLeague']>) {
-    return this.leagueService.joinLeague(...args)
-  }
-
-  admitLeagueEntries(...args: Parameters<LeagueService['admitLeagueEntries']>) {
-    return this.leagueService.admitLeagueEntries(...args)
-  }
-
-  moderateLeagueEntry(...args: Parameters<LeagueService['moderateLeagueEntry']>) {
-    return this.leagueService.moderateLeagueEntry(...args)
-  }
-
-  assignLeagueRosterRequirement(...args: Parameters<LeagueService['assignLeagueRosterRequirement']>) {
-    return this.leagueService.assignLeagueRosterRequirement(...args)
-  }
-
-  assignLeagueTeam(...args: Parameters<LeagueService['assignLeagueTeam']>) {
-    return this.leagueService.assignLeagueTeam(...args)
-  }
-
-  ownRoster(...args: Parameters<LeagueService['ownRoster']>) {
-    return this.leagueService.ownRoster(...args)
-  }
-
-  submitLeagueRoster(...args: Parameters<LeagueService['submitLeagueRoster']>) {
-    return this.leagueService.submitLeagueRoster(...args)
-  }
-
-  setLeagueTeamDisposition(...args: Parameters<LeagueService['setLeagueTeamDisposition']>) {
-    return this.leagueService.setLeagueTeamDisposition(...args)
-  }
-
-  revealLeague(...args: Parameters<LeagueService['revealLeague']>) {
-    return this.leagueService.revealLeague(...args)
-  }
-
-  unsealLeagueRoster(...args: Parameters<LeagueService['unsealLeagueRoster']>) {
-    return this.leagueService.unsealLeagueRoster(...args)
-  }
-
-  leagueRoster(...args: Parameters<LeagueService['leagueRoster']>) {
-    return this.leagueService.leagueRoster(...args)
-  }
-
-  addLeagueEntrants(...args: Parameters<LeagueService['addLeagueEntrants']>) {
-    return this.leagueService.addLeagueEntrants(...args)
-  }
-
-  createLeagueBattle(...args: Parameters<LeagueService['createLeagueBattle']>) {
-    return this.leagueService.createLeagueBattle(...args)
-  }
-
-  saveRoster(...args: Parameters<RosterService['saveRoster']>) {
-    return this.rosterService.saveRoster(...args)
-  }
-
-  savedRosters(...args: Parameters<RosterService['savedRosters']>) {
-    return this.rosterService.savedRosters(...args)
-  }
-
-  savedRostersByIds(...args: Parameters<RosterService['savedRostersByIds']>) {
-    return this.rosterService.savedRostersByIds(...args)
-  }
-
-  rosterGroup(...args: Parameters<RosterService['rosterGroup']>) {
-    return this.rosterService.rosterGroup(...args)
-  }
-
-  savedRosterSummaries(...args: Parameters<RosterService['savedRosterSummaries']>) {
-    return this.rosterService.savedRosterSummaries(...args)
-  }
-
-  homeRosters(...args: Parameters<RosterService['homeRosters']>) {
-    return this.rosterService.homeRosters(...args)
-  }
-
-  publicRosters(...args: Parameters<RosterService['publicRosters']>) {
-    return this.rosterService.publicRosters(...args)
-  }
-
-  discoverRosters(...args: Parameters<RosterService['discoverRosters']>) {
-    return this.rosterService.discoverRosters(...args)
-  }
-
-  rosterAccess(...args: Parameters<RosterService['rosterAccess']>) {
-    return this.rosterService.rosterAccess(...args)
-  }
-
-  copySource(...args: Parameters<RosterService['copySource']>) {
-    return this.rosterService.copySource(...args)
-  }
-
-  sharedRoster(...args: Parameters<RosterService['sharedRoster']>) {
-    return this.rosterService.sharedRoster(...args)
-  }
-
-  setRosterVisibility(...args: Parameters<RosterService['setRosterVisibility']>) {
-    return this.rosterService.setRosterVisibility(...args)
-  }
-
-  setRosterLocked(...args: Parameters<RosterService['setRosterLocked']>) {
-    return this.rosterService.setRosterLocked(...args)
-  }
-
-  setRosterArchived(...args: Parameters<RosterService['setRosterArchived']>) {
-    return this.rosterService.setRosterArchived(...args)
-  }
-
-  deleteRoster(...args: Parameters<RosterService['deleteRoster']>) {
-    return this.rosterService.deleteRoster(...args)
-  }
-
-  usableRoster(...args: Parameters<RosterService['usableRoster']>) {
-    return this.rosterService.usableRoster(...args)
-  }
-
-  lendRoster(...args: Parameters<RosterService['lendRoster']>) {
-    return this.rosterService.lendRoster(...args)
-  }
-
-  endRosterLoan(...args: Parameters<RosterService['endRosterLoan']>) {
-    return this.rosterService.endRosterLoan(...args)
-  }
-
-  rosterLoans(...args: Parameters<RosterService['rosterLoans']>) {
-    return this.rosterService.rosterLoans(...args)
-  }
-
-  rostersLentTo(...args: Parameters<RosterService['rostersLentTo']>) {
-    return this.rosterService.rostersLentTo(...args)
-  }
-
   collectionProfile(userId: string, viewerId: string | null) {
     return this.repository.collectionProfile(userId, viewerId)
   }
 
   setCollectionPublished(userId: string, published: boolean) {
     return this.repository.setCollectionPublished(userId, published)
-  }
-
-  collection(...args: Parameters<RosterService['collection']>) {
-    return this.rosterService.collection(...args)
-  }
-
-  setOwned(...args: Parameters<RosterService['setOwned']>) {
-    return this.rosterService.setOwned(...args)
-  }
-
-  collectionCounts(...args: Parameters<RosterService['collectionCounts']>) {
-    return this.rosterService.collectionCounts(...args)
-  }
-
-  collectionPhotos(...args: Parameters<RosterService['collectionPhotos']>) {
-    return this.rosterService.collectionPhotos(...args)
-  }
-
-  setCollectionModels(...args: Parameters<RosterService['setCollectionModels']>) {
-    return this.rosterService.setCollectionModels(...args)
-  }
-
-  collectionProgress(...args: Parameters<RosterService['collectionProgress']>) {
-    return this.rosterService.collectionProgress(...args)
-  }
-
-  setCollectionProgress(...args: Parameters<RosterService['setCollectionProgress']>) {
-    return this.rosterService.setCollectionProgress(...args)
-  }
-
-  collectionWishes(...args: Parameters<RosterService['collectionWishes']>) {
-    return this.rosterService.collectionWishes(...args)
-  }
-
-  setCollectionWanted(...args: Parameters<RosterService['setCollectionWanted']>) {
-    return this.rosterService.setCollectionWanted(...args)
-  }
-
-  importCollection(...args: Parameters<RosterService['importCollection']>) {
-    return this.rosterService.importCollection(...args)
-  }
-
-  favouriteFactions(...args: Parameters<RosterService['favouriteFactions']>) {
-    return this.rosterService.favouriteFactions(...args)
-  }
-
-  setFavouriteFaction(...args: Parameters<RosterService['setFavouriteFaction']>) {
-    return this.rosterService.setFavouriteFaction(...args)
-  }
-
-  favouriteDatasheets(...args: Parameters<RosterService['favouriteDatasheets']>) {
-    return this.rosterService.favouriteDatasheets(...args)
-  }
-
-  setFavouriteDatasheet(...args: Parameters<RosterService['setFavouriteDatasheet']>) {
-    return this.rosterService.setFavouriteDatasheet(...args)
-  }
-
-  favouriteDetachments(...args: Parameters<RosterService['favouriteDetachments']>) {
-    return this.rosterService.favouriteDetachments(...args)
-  }
-
-  setFavouriteDetachment(...args: Parameters<RosterService['setFavouriteDetachment']>) {
-    return this.rosterService.setFavouriteDetachment(...args)
-  }
-
-  opponents(...args: Parameters<SocialService['opponents']>) {
-    return this.socialService.opponents(...args)
-  }
-
-  friendships(...args: Parameters<SocialService['friendships']>) {
-    return this.socialService.friendships(...args)
-  }
-
-  searchPlayers(...args: Parameters<SocialService['searchPlayers']>) {
-    return this.socialService.searchPlayers(...args)
-  }
-
-  requestFriend(...args: Parameters<SocialService['requestFriend']>) {
-    return this.socialService.requestFriend(...args)
-  }
-
-  acceptFriend(...args: Parameters<SocialService['acceptFriend']>) {
-    return this.socialService.acceptFriend(...args)
-  }
-
-  rejectFriend(...args: Parameters<SocialService['rejectFriend']>) {
-    return this.socialService.rejectFriend(...args)
-  }
-
-  removeFriend(...args: Parameters<SocialService['removeFriend']>) {
-    return this.socialService.removeFriend(...args)
-  }
-
-  activeFriendInvite(...args: Parameters<SocialService['activeFriendInvite']>) {
-    return this.socialService.activeFriendInvite(...args)
-  }
-
-  friendInvite(...args: Parameters<SocialService['friendInvite']>) {
-    return this.socialService.friendInvite(...args)
-  }
-
-  createFriendInvite(...args: Parameters<SocialService['createFriendInvite']>) {
-    return this.socialService.createFriendInvite(...args)
-  }
-
-  cancelFriendInvite(...args: Parameters<SocialService['cancelFriendInvite']>) {
-    return this.socialService.cancelFriendInvite(...args)
-  }
-
-  acceptFriendInvite(...args: Parameters<SocialService['acceptFriendInvite']>) {
-    return this.socialService.acceptFriendInvite(...args)
   }
 
   /** The last standings folded, and when they stop being offered. See `standings`. */
@@ -748,7 +472,7 @@ export class PraetoriumService {
     factions?: readonly BattleFaction[],
     viewerId: string | null = null,
   ) {
-    const league = await this.league(leagueToken, viewerId, eventToken)
+    const league = await this.leagueService.league(leagueToken, viewerId, eventToken)
     if (!league?.revealedAt) return null
     const { battles, nextCursor } = await this.leagueBattles(
       leagueToken,
@@ -822,7 +546,7 @@ export class PraetoriumService {
     const { allyIds, opponentIds, invited } = newBattleSeats(input)
     // One query for everyone named rather than one apiece, and both reads at once:
     // who exists and who may be invited are independent questions.
-    const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.opponents(userId)])
+    const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.socialService.opponents(userId)])
     if (new Set(invited).size !== invited.length || invited.some((id) => id === userId || !known.has(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }

@@ -18,7 +18,7 @@ export type AdminUser = {
 }
 
 /** Orders that need counts from the product database rather than an account column. */
-export const ADMIN_USER_COUNT_SORTS = ['rosters', 'battles', 'friends', 'leagues'] as const
+const ADMIN_USER_COUNT_SORTS = ['rosters', 'battles', 'friends', 'leagues'] as const
 export type AdminUserCountSort = (typeof ADMIN_USER_COUNT_SORTS)[number]
 export const ADMIN_USER_SORTS = ['name', 'email', 'joined', 'seen', ...ADMIN_USER_COUNT_SORTS] as const
 export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number]

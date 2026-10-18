@@ -1,5 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { hash } from 'node:crypto'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { replaceFile } from '../../src/server/replaceFile'
 import path from 'node:path'
 import { APIError, noul, TypeSafeClient } from '@typesafe-ai/sdk'
 import { z } from 'zod'
@@ -76,9 +77,7 @@ const stateFor = (rule: InventoryRule) => ({
   scopes: [...rule.scopes].sort(),
 })
 export function combatRuleCacheKey(rule: InventoryRule, model = COMBAT_RULE_MODEL) {
-  return createHash('sha256')
-    .update(JSON.stringify({ model, questions: combatRuleQuestions, state: stateFor(rule) }))
-    .digest('hex')
+  return hash('sha256', JSON.stringify({ model, questions: combatRuleQuestions, state: stateFor(rule) }))
 }
 
 type Judgment = {
@@ -175,9 +174,7 @@ export async function classifyCombatRules(
           stopped.abort()
           continue
         }
-        const temporary = `${cacheFile}.${randomUUID()}.tmp`
-        await writeFile(temporary, JSON.stringify({ key, result }))
-        await rename(temporary, cacheFile)
+        await replaceFile(cacheFile, (temporary) => writeFile(temporary, JSON.stringify({ key, result })))
       }
       const probabilities = { attacker: result.answers.attacker.noul, defender: result.answers.defender.noul }
       const relevantRoles = roles.filter((role) => probabilities[role] >= 0.8)

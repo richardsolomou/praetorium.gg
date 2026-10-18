@@ -7,12 +7,12 @@ import { browserAgentToolCatalog, callBrowserAgentTool, prepareBrowserAgentTool 
 import { meQuery } from '../../queries'
 import { isFetchNetworkFailure } from '../../networkErrors'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
-import { writeAppSnapshot } from '../../offline/appStorage'
-import { APP_ACCOUNT_EVENT } from '../../offline/appStorage'
+import { writeAppSnapshot, APP_ACCOUNT_EVENT } from '../../offline/appStorage'
 import type { AgentToolDescriptor } from '../../../contracts/agentTools'
 import { browserModelContext, installWebMcp, type ToolResult } from './registerWebMcp'
 import { WriteApproval, type WriteProposal } from './WriteApproval'
 import { anySignal } from '../../abortSignals'
+import { Problem } from '../../components/Problem'
 
 export function WebMcp() {
   const client = useQueryClient()
@@ -129,9 +129,7 @@ export function WebMcp() {
             </dl>
           </details>
           {proposal.error ? (
-            <p role="alert" className="text-danger">
-              {proposal.error} Check the saved roster or battle before asking your assistant to try again.
-            </p>
+            <Problem>{proposal.error} Check the saved roster or battle before asking your assistant to try again.</Problem>
           ) : null}
         </DialogBody>
         <DialogFooter>

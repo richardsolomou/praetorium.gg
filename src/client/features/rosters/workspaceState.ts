@@ -1,16 +1,9 @@
-import { writeSessionValue } from '../../storedValue'
+import { readSessionValue, writeSessionValue } from '../../storedValue'
 
 const STATE_PREFIX = 'praetorium.workspace-state:'
 
 /** The stored text, unparsed, for rendering through `useSyncExternalStore`, which needs a value that compares equal. */
-export function readStoredWorkspaceState(path: string, name: string): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return sessionStorage.getItem(`${STATE_PREFIX}${path}:${name}`)
-  } catch {
-    return null
-  }
-}
+export const readStoredWorkspaceState = (path: string, name: string) => readSessionValue(`${STATE_PREFIX}${path}:${name}`)
 
 export function parseWorkspaceState<T>(stored: string | null): T | null {
   try {

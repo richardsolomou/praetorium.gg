@@ -38,7 +38,7 @@ export function ruleMarkdown(text: string) {
 /** A table, and the prose either side of it. Markdown has no table this source's rows fit. */
 const TABLE = /<table>[^]*?(?:<\/table>|$)/g
 
-export type RuleSegment = { kind: 'markdown' | 'table'; text: string }
+type RuleSegment = { kind: 'markdown' | 'table'; text: string }
 
 /**
  * The prose a page draws as Markdown, and the tables it cannot.

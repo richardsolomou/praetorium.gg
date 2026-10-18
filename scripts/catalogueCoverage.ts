@@ -7,7 +7,6 @@
  * the earlier snapshot had that this one does not.
  */
 import fs from 'node:fs'
-import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn } from '../src/shared/catalogue'
 import { datasheetsOf, isReferenceDatasheet } from '../src/server/catalogueIndex'
@@ -18,8 +17,9 @@ import { calculateRosterPrice } from '../src/shared/pricing'
 import { routeSlug } from '../src/core/slug'
 import { compareCatalogueCoverage, readAcceptedLosses } from './lib/catalogueCoverageComparison'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-process.env.CATALOGUE_DIR ??= path.join(import.meta.dirname, '..', 'catalogue-data')
+process.env.CATALOGUE_DIR = catalogueDataDirectory()
 
 const {
   positionals: [output],

@@ -62,7 +62,7 @@ export const modelRowPieces = (row: ModelRow, rows: readonly ModelRow[]) =>
       ),
   )
 
-export function optionPieces(
+function optionPieces(
   optionId: string,
   index: CatalogueIndex,
   options: ChoiceOptions = {},

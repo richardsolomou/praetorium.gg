@@ -2,7 +2,7 @@ import { LOCKED_ROSTER_MESSAGE } from '../../../core/rosterLock'
 import { SIGN_IN_REQUIRED } from '../../../core/session'
 import { isFetchNetworkFailure } from '../../networkErrors'
 
-export type SaveFailureReason = 'locked' | 'deleted' | 'account' | 'storage' | 'network' | 'invalid' | 'other'
+type SaveFailureReason = 'locked' | 'deleted' | 'account' | 'storage' | 'network' | 'invalid' | 'other'
 
 // Messages thrown by saveRoster on the server (src/server/services/rosterService.ts) and on the device (src/client/functions.ts, src/client/offline).
 const DELETED = new Set(['This roster was deleted. Save it as a new roster.', 'the saved roster is no longer available'])

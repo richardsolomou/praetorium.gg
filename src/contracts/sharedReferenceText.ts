@@ -1,3 +1,5 @@
+import { jsonByteLength } from '../core/json'
+
 const REFERENCE = '$praetoriumText'
 const MAX_TEXTS = 100_000
 const MAX_BYTES = 100_000_000
@@ -32,7 +34,7 @@ export function shareReferenceText(value: unknown) {
 
 export function restoreReferenceText(value: unknown, texts: unknown) {
   if (!isReferenceTexts(texts)) throw new Error('Invalid reference texts')
-  let remaining = MAX_BYTES - new TextEncoder().encode(JSON.stringify({ value, texts })).byteLength
+  let remaining = MAX_BYTES - jsonByteLength({ value, texts })
   const restore = (item: unknown, depth = 0): unknown => {
     if (depth > 64) throw new Error('Reference data is too deeply nested')
     if (!item || typeof item !== 'object') return item
@@ -41,7 +43,7 @@ export function restoreReferenceText(value: unknown, texts: unknown) {
       if (Object.keys(item).length !== 1 || typeof index !== 'number' || !Number.isSafeInteger(index) || index < 0 || index >= texts.length)
         throw new Error('Invalid reference text')
       const text: string = texts[index]!
-      remaining -= new TextEncoder().encode(JSON.stringify(text)).byteLength
+      remaining -= jsonByteLength(text)
       if (remaining < 0) throw new Error('Reference texts exceed the size limit')
       return text
     }

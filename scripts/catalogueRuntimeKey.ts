@@ -1,4 +1,4 @@
-import path from 'node:path'
 import { runtimeCacheKey } from './lib/catalogueRuntimeCache'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-console.log(runtimeCacheKey(process.env.CATALOGUE_DIR ?? path.resolve('catalogue-data')))
+console.log(runtimeCacheKey(catalogueDataDirectory()))

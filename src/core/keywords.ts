@@ -1,8 +1,6 @@
+import { plainQuotes } from './text'
 export const normalizeKeywordSelector = (value: string) =>
-  value
-    .replaceAll(/\^\^|\*\*/g, '')
-    .replaceAll(/[‐‑‒–—]/g, '-')
-    .replaceAll(/[‘’]/g, "'")
+  plainQuotes(value.replaceAll(/\^\^|\*\*/g, '').replaceAll(/[‐‑‒–—]/g, '-'))
     .replaceAll(/[^\p{L}\p{N}+'-]+/gu, ' ')
     .trim()
     .toLowerCase()

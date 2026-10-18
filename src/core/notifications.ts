@@ -1,5 +1,4 @@
 import { z } from 'zod'
-export { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from './notificationConfig'
 
 /**
  * Something a player who is not looking may want to act on.

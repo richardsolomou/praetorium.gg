@@ -2,6 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { verifyWebAssetRoute } from './publishWebAssets.ts'
 import { webAssetRouting } from './lib/webAssetRouting.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { requiredEnv } from './lib/requiredEnv.ts'
 
 type Application = {
   applicationId: string
@@ -13,30 +14,23 @@ type Application = {
   dockerImage: string | null
 }
 
-function required(environment: NodeJS.ProcessEnv, name: string) {
-  const value = environment[name]
-  if (!value) throw new Error(`${name} is required`)
-  if (/[\r\n]/.test(value)) throw new Error(`${name} must be one line`)
-  return value
-}
-
 export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging' | 'production') {
   const url = target === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg'
   const database = `praetorium-${target}`
-  const internalHost = required(environment, 'SPACETIME_INTERNAL_HOST')
+  const internalHost = requiredEnv('SPACETIME_INTERNAL_HOST', environment)
   if (!/^[a-z][a-z0-9-]{1,63}$/.test(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
   const entries: Record<string, string> = {
     APP_URL: url,
-    AUTH_SECRET: required(environment, 'AUTH_SECRET'),
+    AUTH_SECRET: requiredEnv('AUTH_SECRET', environment),
     AUTH_SQLITE_PATH: '/data/auth.sqlite',
     SPACETIME_URL: `http://${internalHost}:3000/`,
     SPACETIME_INTERNAL_HOST: internalHost,
     SPACETIME_DATABASE: database,
     SPACETIME_AUDIENCE: database,
-    SPACETIME_OPERATOR_TOKEN: required(environment, 'SPACETIME_OPERATOR_TOKEN'),
-    R2_ACCOUNT_ID: required(environment, 'R2_ACCOUNT_ID'),
-    ASSETS_R2_ACCESS_KEY_ID: required(environment, 'ASSETS_R2_ACCESS_KEY_ID'),
-    ASSETS_R2_SECRET_ACCESS_KEY: required(environment, 'ASSETS_R2_SECRET_ACCESS_KEY'),
+    SPACETIME_OPERATOR_TOKEN: requiredEnv('SPACETIME_OPERATOR_TOKEN', environment),
+    R2_ACCOUNT_ID: requiredEnv('R2_ACCOUNT_ID', environment),
+    ASSETS_R2_ACCESS_KEY_ID: requiredEnv('ASSETS_R2_ACCESS_KEY_ID', environment),
+    ASSETS_R2_SECRET_ACCESS_KEY: requiredEnv('ASSETS_R2_SECRET_ACCESS_KEY', environment),
     PUBLIC_ASSETS_BASE_URL: 'https://s3.praetorium.gg',
   }
   for (const name of [
@@ -57,24 +51,24 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     'VITE_POSTHOG_HOST',
     'VITE_POSTHOG_PROJECT_TOKEN',
   ]) {
-    if (environment[name]) entries[name] = required(environment, name)
+    if (environment[name]) entries[name] = requiredEnv(name, environment)
   }
   if (target === 'production') {
-    entries.R2_ACCESS_KEY_ID = required(environment, 'R2_ACCESS_KEY_ID')
-    entries.R2_SECRET_ACCESS_KEY = required(environment, 'R2_SECRET_ACCESS_KEY')
-    entries.APPLE_CLIENT_ID = required(environment, 'APPLE_CLIENT_ID')
-    entries.APPLE_TEAM_ID = required(environment, 'APPLE_TEAM_ID')
-    entries.APPLE_KEY_ID = required(environment, 'APPLE_KEY_ID')
+    entries.R2_ACCESS_KEY_ID = requiredEnv('R2_ACCESS_KEY_ID', environment)
+    entries.R2_SECRET_ACCESS_KEY = requiredEnv('R2_SECRET_ACCESS_KEY', environment)
+    entries.APPLE_CLIENT_ID = requiredEnv('APPLE_CLIENT_ID', environment)
+    entries.APPLE_TEAM_ID = requiredEnv('APPLE_TEAM_ID', environment)
+    entries.APPLE_KEY_ID = requiredEnv('APPLE_KEY_ID', environment)
     entries.APPLE_PRIVATE_KEY_BASE64 = Buffer.from(environment.APPLE_PRIVATE_KEY ?? '', 'utf8').toString('base64')
     if (!entries.APPLE_PRIVATE_KEY_BASE64) throw new Error('APPLE_PRIVATE_KEY is required')
     // A GitHub OAuth app answers one callback URL, which is production's.
     for (const name of ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_SPONSORS_TOKEN']) {
-      if (environment[name]) entries[name] = required(environment, name)
+      if (environment[name]) entries[name] = requiredEnv(name, environment)
     }
     // Only production's pages belong in search results.
-    if (environment.INDEXNOW_KEY) entries.INDEXNOW_KEY = required(environment, 'INDEXNOW_KEY')
+    if (environment.INDEXNOW_KEY) entries.INDEXNOW_KEY = requiredEnv('INDEXNOW_KEY', environment)
     // Only real uploads are worth screening.
-    if (environment.TYPESAFE_API_KEY) entries.TYPESAFE_API_KEY = required(environment, 'TYPESAFE_API_KEY')
+    if (environment.TYPESAFE_API_KEY) entries.TYPESAFE_API_KEY = requiredEnv('TYPESAFE_API_KEY', environment)
   }
   return Object.entries(entries)
     .map(([name, value]) => `${name}=${value}`)
@@ -95,12 +89,7 @@ type Domain = {
 
 export async function ensureWebHealthCheck(origin: URL, headers: Record<string, string>, applicationId: string, request = fetch) {
   const healthCheckSwarm = {
-    Test: [
-      'CMD',
-      'node',
-      '-e',
-      "fetch('http://127.0.0.1:3000/api/health',{signal:AbortSignal.timeout(5000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-    ],
+    Test: ['CMD', 'node', '/app/scripts/healthcheck.ts'],
     Interval: 10_000_000_000,
     Timeout: 10_000_000_000,
     StartPeriod: 360_000_000_000,
@@ -219,11 +208,11 @@ async function run() {
   if (!['configure', 'domain', 'image', 'assets'].includes(command ?? '') || (target !== 'staging' && target !== 'production')) {
     throw new Error('Usage: configureDokployNode.ts configure|domain|image|assets staging|production')
   }
-  const origin = new URL(required(process.env, 'DOKPLOY_URL'))
+  const origin = new URL(requiredEnv('DOKPLOY_URL'))
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid Dokploy URL')
-  const applicationId = required(process.env, 'DOKPLOY_APPLICATION_ID')
-  const environmentId = required(process.env, 'DOKPLOY_ENVIRONMENT_ID')
-  const headers = { 'x-api-key': required(process.env, 'DOKPLOY_API_KEY') }
+  const applicationId = requiredEnv('DOKPLOY_APPLICATION_ID')
+  const environmentId = requiredEnv('DOKPLOY_ENVIRONMENT_ID')
+  const headers = { 'x-api-key': requiredEnv('DOKPLOY_API_KEY') }
   const inspect = async (): Promise<Application> => {
     const url = new URL('/api/application.one', origin)
     url.searchParams.set('applicationId', applicationId)

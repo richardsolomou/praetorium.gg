@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -15,13 +14,13 @@ import {
   fetchSnapshot,
   remoteRevocations,
 } from '../src/server/catalogueSnapshot'
-import { syncFactionIcons } from '../src/server/sync'
+import { battlemasterCatalogue, syncFactionIcons } from '../src/server/sync'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueCacheRoot } from './lib/catalogueCache'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 const root = path.join(import.meta.dirname, '..')
-const dataDirectory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
-const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
+const dataDirectory = catalogueDataDirectory()
 
 const head = (repository: string, branch: string) =>
   execFileSync('gh', ['api', `repos/${repository}/commits/${branch}`, '--jq', '.sha'], { encoding: 'utf8' }).trim()
@@ -36,12 +35,6 @@ const withRetries = <T>(download: () => Promise<T>) =>
     },
   })
 
-async function responseBytes(url: string) {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-  return new Uint8Array(await response.arrayBuffer())
-}
-
 async function resolve(config: CatalogueSourceConfig): Promise<CatalogueSourceConfig> {
   const repositories = Object.fromEntries(
     SNAPSHOT_SOURCE_NAMES.filter((name) => name !== 'battlemaster').map((name) => [
@@ -49,18 +42,8 @@ async function resolve(config: CatalogueSourceConfig): Promise<CatalogueSourceCo
       { ...config[name], revision: head(config[name].repository, config[name].branch) },
     ]),
   )
-  const catalogUrl = new URL('/v1.1/public/tts/layouts', config.battlemaster.baseUrl)
-  catalogUrl.searchParams.set('owner', config.battlemaster.owner)
-  catalogUrl.searchParams.set('missionPack', config.battlemaster.missionPack)
-  catalogUrl.searchParams.set('text', '0')
-  const catalog = JSON.parse(new TextDecoder().decode(await responseBytes(catalogUrl.toString()))) as { catalogKey?: unknown }
-  if (typeof catalog.catalogKey !== 'string') throw new Error('Battlemaster catalog has no catalog key')
-
-  return {
-    ...config,
-    ...repositories,
-    battlemaster: { ...config.battlemaster, revision: hash(catalog.catalogKey) },
-  }
+  const { revision } = await battlemasterCatalogue(config.battlemaster)
+  return { ...config, ...repositories, battlemaster: { ...config.battlemaster, revision } }
 }
 
 const argument = process.argv[2]

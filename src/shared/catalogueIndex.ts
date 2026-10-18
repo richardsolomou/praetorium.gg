@@ -1,3 +1,4 @@
+import { cachedIn, countBy } from '../core/collections'
 import { type Catalogue, type CatalogueFile, type CatalogueIndex, type Definition, importsOf, nameOf, targetOf } from '../core/catalogue'
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
@@ -162,17 +163,11 @@ type DatasheetSlugs = { byEntry: Map<string, string>; entryBySlug: Map<string, s
 const datasheetSlugCache = new WeakMap<LoadedCatalogue, Map<string, DatasheetSlugs>>()
 /** Slugs for a whole book at once: collision detection is per book, not per entry. */
 function datasheetSlugsFor(loaded: LoadedCatalogue, catalogueId: string): DatasheetSlugs {
-  const perBook = datasheetSlugCache.get(loaded) ?? new Map<string, DatasheetSlugs>()
-  if (!datasheetSlugCache.has(loaded)) datasheetSlugCache.set(loaded, perBook)
-  const cached = perBook.get(catalogueId)
-  if (cached) return cached
-
+  return cachedIn(datasheetSlugCache, loaded, catalogueId, () => datasheetSlugsOf(loaded, catalogueId))
+}
+function datasheetSlugsOf(loaded: LoadedCatalogue, catalogueId: string): DatasheetSlugs {
   const ids = [...datasheetsOf(loaded.index, catalogueId)]
-  const nameSlugCounts = new Map<string, number>()
-  for (const id of ids) {
-    const slug = routeSlug(nameOf(loaded.index.definitions.get(id) ?? { id }, loaded.index.definitions))
-    nameSlugCounts.set(slug, (nameSlugCounts.get(slug) ?? 0) + 1)
-  }
+  const nameSlugCounts = countBy(ids, (id) => routeSlug(nameOf(loaded.index.definitions.get(id) ?? { id }, loaded.index.definitions)))
   const byEntry = new Map<string, string>()
   const entryBySlug = new Map<string, string>()
   for (const id of ids) {
@@ -183,9 +178,7 @@ function datasheetSlugsFor(loaded: LoadedCatalogue, catalogueId: string): Datash
     if (!entryBySlug.has(id)) entryBySlug.set(id, id)
     if (!entryBySlug.has(slug)) entryBySlug.set(slug, id)
   }
-  const slugs = { byEntry, entryBySlug }
-  perBook.set(catalogueId, slugs)
-  return slugs
+  return { byEntry, entryBySlug }
 }
 export function datasheetSlug(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   return datasheetSlugsFor(loaded, catalogueId).byEntry.get(entryId) ?? routeSlug(loaded.index.definitions.get(entryId)?.name ?? entryId)
@@ -203,8 +196,9 @@ export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, p
       slug: datasheetSlug(loaded, preferred.catalogueId, preferred.entryId),
     }
   }
-  const cache = referenceDatasheetRouteCache.get(loaded)
-  if (cache?.has(name)) return cache.get(name) ?? null
+  return cachedIn(referenceDatasheetRouteCache, loaded, name, () => namedDatasheetRoute(loaded, name))
+}
+function namedDatasheetRoute(loaded: LoadedCatalogue, name: string) {
   const matches = loaded.factions.flatMap((faction) =>
     [...datasheetsOf(loaded.index, faction.id)].flatMap((entryId) => {
       const entry = loaded.index.definitions.get(entryId)
@@ -219,10 +213,6 @@ export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, p
         : []
     }),
   )
-  const route = matches.length === 1 ? matches[0]! : null
-  const entries = cache ?? new Map<string, { catalogueId: string; slug: string } | null>()
-  entries.set(name, route)
-  if (!cache) referenceDatasheetRouteCache.set(loaded, entries)
-  return route
+  return matches.length === 1 ? matches[0]! : null
 }
 const referenceDatasheetRouteCache = new WeakMap<LoadedCatalogue, Map<string, { catalogueId: string; slug: string } | null>>()

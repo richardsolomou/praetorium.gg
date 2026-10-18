@@ -8,6 +8,7 @@ import {
   type AppSnapshot,
 } from '../../contracts/appSnapshot'
 import { meKey } from '../queries/queryKeys'
+import { jsonByteLength } from '../../core/json'
 
 declare global {
   interface Window {
@@ -34,7 +35,7 @@ export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
     .sort((a, b) => Number(b.queryKey[0] === 'me') - Number(a.queryKey[0] === 'me') || b.state.dataUpdatedAt - a.state.dataUpdatedAt)
   for (const query of candidates) {
     const entry = { key: [...query.queryKey], data: query.state.data, updatedAt: query.state.dataUpdatedAt }
-    const size = new TextEncoder().encode(JSON.stringify(entry)).byteLength
+    const size = jsonByteLength(entry)
     if (bytes + size > MAX_APP_SNAPSHOT_BYTES - 1024 || queries.length === MAX_APP_SNAPSHOT_QUERIES) continue
     bytes += size
     queries.push(entry)

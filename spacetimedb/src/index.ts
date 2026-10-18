@@ -33,6 +33,8 @@ import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection, authConfiguration } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
 import { boundedProgress, DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
+import { groupBy } from '../../src/core/collections'
+import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -129,13 +131,33 @@ export default spacetime
 type Context = ReducerCtx<InferSchema<typeof spacetime>>
 
 const MAX_TOKEN_SECONDS = 600n
+const MAX_ID_LENGTH = 128
+
+const idInput = z.string().min(1).max(MAX_ID_LENGTH)
+
+function validId(value: string) {
+  return value.length > 0 && value.length <= MAX_ID_LENGTH
+}
+
+/** Parses caller JSON against `inputSchema`, refusing malformed or invalid input with `message`. */
+function decodePayload<S extends z.ZodType>(inputSchema: S, text: string, message: string): z.output<S> {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    throw new SenderError(message)
+  }
+  const parsed = inputSchema.safeParse(value)
+  if (!parsed.success) throw new SenderError(message)
+  return parsed.data
+}
 
 function nowSeconds(ctx: Context) {
   return ctx.timestamp.microsSinceUnixEpoch / 1_000_000n
 }
 
 function revoke(ctx: Context, subject: string) {
-  if (subject.length === 0 || subject.length > 128) throw new SenderError('Invalid session')
+  if (!validId(subject)) throw new SenderError('Invalid session')
   if (ctx.db.revokedSession.subject.find(subject)) return
   ctx.db.revokedSession.insert({ subject })
   ctx.db.sessionAccess.subject.delete(subject)
@@ -314,7 +336,7 @@ export const revokeSession = spacetime.reducer({ subject: t.string() }, (ctx, { 
 
 export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { userId }) => {
   requireOperator(ctx)
-  if (!userId || userId.length > 128) throw new SenderError('Invalid user ID')
+  if (!validId(userId)) throw new SenderError('Invalid user ID')
   for (const row of Array.from(ctx.db.sessionAccess.userId.filter(userId))) revoke(ctx, row.subject)
   for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) deleteBattle(ctx, row.battleId)
   for (const row of Array.from(ctx.db.leagues.ownerId.filter(userId))) deleteLeague(ctx, row.id)
@@ -490,8 +512,9 @@ function battleData(ctx: Context, battleId: string) {
   const log = Array.from(ctx.db.commands.battleId.filter(battleId))
     .sort((left, right) => left.seq - right.seq)
     .flatMap((row): LoggedCommand[] => {
-      const command = commandSchema.safeParse(JSON.parse(row.body))
-      const metadata = (JSON.parse(row.body) as { $sync?: { operationId?: string } }).$sync
+      const body: unknown = JSON.parse(row.body)
+      const command = commandSchema.safeParse(body)
+      const metadata = (body as { $sync?: { operationId?: string } }).$sync
       return command.success
         ? [
             {
@@ -523,11 +546,11 @@ export const battleForOperator = spacetime.procedure({ battleId: t.string() }, t
 )
 
 const newBattle = z.strictObject({
-  id: z.string().min(1).max(128),
-  token: z.string().min(1).max(128),
-  userId: z.string().min(1).max(128),
-  allyIds: z.array(z.string().min(1).max(128)).max(3),
-  opponentIds: z.array(z.string().min(1).max(128)).min(1).max(3),
+  id: idInput,
+  token: idInput,
+  userId: idInput,
+  allyIds: z.array(idInput).max(3),
+  opponentIds: z.array(idInput).min(1).max(3),
   initialCommands: z.array(commandSchema).max(1_000),
   now: z.number().int().nonnegative(),
 })
@@ -546,13 +569,13 @@ export const battleByToken = spacetime.procedure({ token: t.string() }, t.string
 
 const battleFeedQuery = z.strictObject({
   scope: z.enum(['user', 'league', 'public', 'friends', 'watchable', 'profile']),
-  userId: z.string().max(128).nullable(),
-  viewerId: z.string().max(128).nullable(),
-  withUserId: z.string().max(128).nullable(),
-  leagueToken: z.string().max(128).nullable(),
-  eventToken: z.string().max(128).nullable(),
+  userId: z.string().max(MAX_ID_LENGTH).nullable(),
+  viewerId: z.string().max(MAX_ID_LENGTH).nullable(),
+  withUserId: z.string().max(MAX_ID_LENGTH).nullable(),
+  leagueToken: z.string().max(MAX_ID_LENGTH).nullable(),
+  eventToken: z.string().max(MAX_ID_LENGTH).nullable(),
   since: z.number().int().nonnegative().nullable(),
-  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(128) }).nullable(),
+  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
   limit: z.number().int().min(1).max(500),
 })
 
@@ -560,9 +583,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (payload.length > 2_000) throw new SenderError('Invalid battle feed')
-    const parsed = battleFeedQuery.safeParse(JSON.parse(payload))
-    if (!parsed.success) throw new SenderError('Invalid battle feed')
-    const input = parsed.data
+    const input = decodePayload(battleFeedQuery, payload, 'Invalid battle feed')
     if (
       ((input.scope === 'user' || input.scope === 'friends' || input.scope === 'profile') && !input.userId) ||
       (input.scope === 'league' && (!input.leagueToken || !input.eventToken)) ||
@@ -672,11 +693,14 @@ export const submitBattle = spacetime.procedure(
     ctx.withTx((tx) => {
       requireOperator(tx)
       if (input.body.length > 1_000_000) throw new SenderError('Battle command is too large')
-      const raw = JSON.parse(input.body) as Record<string, unknown>
-      const sync = z
-        .object({ operationId: z.uuid(), fingerprint: z.string().length(64), at: z.number().int().nonnegative() })
-        .optional()
-        .parse(raw.$sync)
+      const raw = decodePayload(
+        z.looseObject({
+          $sync: z.object({ operationId: z.uuid(), fingerprint: z.string().length(64), at: z.number().int().nonnegative() }).optional(),
+        }),
+        input.body,
+        'Invalid battle command',
+      )
+      const sync = raw.$sync
       const parsed = commandSchema.safeParse(raw)
       if (!parsed.success) throw new SenderError('Invalid battle command')
       const { seats, log } = battleData(tx, input.battleId)
@@ -732,7 +756,7 @@ export const submitBattle = spacetime.procedure(
 )
 
 function friendshipKey(requesterId: string, addresseeId: string) {
-  if (!requesterId || !addresseeId || requesterId === addresseeId || requesterId.length > 128 || addresseeId.length > 128) {
+  if (!validId(requesterId) || !validId(addresseeId) || requesterId === addresseeId) {
     throw new SenderError('Invalid friendship')
   }
   return JSON.stringify([requesterId, addresseeId])
@@ -752,7 +776,7 @@ function friendshipBetween(ctx: Context, leftId: string, rightId: string) {
 export const friendshipsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (!userId || userId.length > 128) throw new SenderError('Invalid user ID')
+    if (!validId(userId)) throw new SenderError('Invalid user ID')
     const rows = [...Array.from(tx.db.friendships.requesterId.filter(userId)), ...Array.from(tx.db.friendships.addresseeId.filter(userId))]
     if (rows.length > 1_000) throw new SenderError('Too many friendships')
     return productJson(
@@ -764,7 +788,7 @@ export const friendshipsByUser = spacetime.procedure({ userId: t.string() }, t.s
 export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (userIds.length > 100 || userIds.some((id) => !id || id.length > 128)) throw new SenderError('Invalid product stats query')
+    if (userIds.length > 100 || userIds.some((id) => !validId(id))) throw new SenderError('Invalid product stats query')
     return productJson(
       [...new Set(userIds)].map((userId) => ({
         userId,
@@ -791,7 +815,7 @@ export const practiceOpponentIds = spacetime.procedure({}, t.string(), (ctx) =>
 
 export const registerPracticeOpponent = spacetime.reducer({ userId: t.string() }, (ctx, { userId }) => {
   requireOperator(ctx)
-  if (!userId || userId.length > 128) throw new SenderError('Invalid user ID')
+  if (!validId(userId)) throw new SenderError('Invalid user ID')
   if (ctx.db.practiceOpponents.userId.find(userId)) return
   if (Array.from(ctx.db.practiceOpponents.iter()).length >= 100) throw new SenderError('Too many practice opponents')
   ctx.db.practiceOpponents.insert({ userId })
@@ -876,7 +900,7 @@ export const shareBattle = spacetime.procedure({ userId: t.string(), otherId: t.
 )
 
 function onboardingData(ctx: Context, userId: string) {
-  if (!userId || userId.length > 128) throw new SenderError('Invalid user ID')
+  if (!validId(userId)) throw new SenderError('Invalid user ID')
   const tasks = Array.from(ctx.db.userOnboardingTasks.userId.filter(userId)).map(({ task, state }) => ({ task, state }))
   if (tasks.length > 100) throw new SenderError('Too many onboarding tasks')
   const roster = Array.from(ctx.db.rosters.userId.filter(userId)).some((row) => row.picks !== '[]')
@@ -948,69 +972,55 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
   }),
 )
 
+const rosterInput = z
+  .object({
+    id: idInput,
+    userId: idInput,
+    name: z.string().max(80),
+    automaticName: z
+      .unknown()
+      .optional()
+      .transform((value) => value === true),
+    catalogueId: idInput,
+    detachmentId: z.string().max(1_000).nullable(),
+    disposition: z.string().max(MAX_ID_LENGTH).nullable(),
+    limit: z.number().int().min(0).max(10_000),
+    pointsBudget: z.number().nullish(),
+    picks: z.string().max(1_000_000),
+    prep: z.string().max(100_000).nullable(),
+    tags: z.string().max(10_000),
+    waivedRules: z.string().max(10_000),
+    optionalRules: z.string().max(10_000),
+    borrowedDetachmentId: z.string().max(MAX_ID_LENGTH).nullable(),
+    baseRosterId: z
+      .string()
+      .max(MAX_ID_LENGTH)
+      .nullish()
+      .transform((value) => value ?? null),
+    copiedFromRosterId: z
+      .string()
+      .max(MAX_ID_LENGTH)
+      .nullish()
+      .transform((value) => value ?? null),
+    visibility: z.enum(ROSTER_VISIBILITIES),
+    source: z.enum(ROSTER_SOURCES),
+    now: z.number().int().nonnegative(),
+  })
+  .refine(({ limit, pointsBudget }) => !pointsBudgetError(limit, pointsBudget))
+
 function parseRoster(payload: string) {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(payload)
-  } catch {
-    throw new SenderError('Invalid roster')
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new SenderError('Invalid roster')
-  const row = parsed as Record<string, unknown>
-  const string = (name: string, max: number, min = 0) => {
-    const value = row[name]
-    if (typeof value !== 'string' || value.length < min || value.length > max) throw new SenderError('Invalid roster')
-    return value
-  }
-  const nullable = (name: string, max: number) => (row[name] === null ? null : string(name, max))
-  const limit = row.limit
-  const pointsBudget = row.pointsBudget
-  const now = row.now
-  const visibility = string('visibility', 8)
-  const source = string('source', 16)
-  if (
-    typeof limit !== 'number' ||
-    !Number.isInteger(limit) ||
-    limit < 0 ||
-    limit > 10_000 ||
-    (pointsBudget !== undefined && pointsBudget !== null && (typeof pointsBudget !== 'number' || pointsBudgetError(limit, pointsBudget))) ||
-    typeof now !== 'number' ||
-    !Number.isSafeInteger(now) ||
-    now < 0 ||
-    !(ROSTER_VISIBILITIES as readonly string[]).includes(visibility) ||
-    !(ROSTER_SOURCES as readonly string[]).includes(source)
-  ) {
-    throw new SenderError('Invalid roster')
-  }
+  const row = decodePayload(rosterInput, payload, 'Invalid roster')
   return migrateStoredRoster({
-    id: string('id', 128, 1),
-    userId: string('userId', 128, 1),
-    name: string('name', 80),
-    automaticName: row.automaticName === true,
-    catalogueId: string('catalogueId', 128, 1),
-    detachmentId: nullable('detachmentId', 1_000),
-    disposition: nullable('disposition', 128),
-    limit,
+    ...row,
     /** Undefined when the client predates custom budgets, so its save keeps the stored one. */
-    pointsBudget: pointsBudget === undefined ? undefined : customPointsBudget(limit, pointsBudget),
-    picks: string('picks', 1_000_000),
-    prep: nullable('prep', 100_000),
-    tags: string('tags', 10_000),
-    waivedRules: string('waivedRules', 10_000),
-    optionalRules: string('optionalRules', 10_000),
-    borrowedDetachmentId: nullable('borrowedDetachmentId', 128),
-    baseRosterId: row.baseRosterId === undefined ? null : nullable('baseRosterId', 128),
-    copiedFromRosterId: row.copiedFromRosterId === undefined ? null : nullable('copiedFromRosterId', 128),
-    visibility,
-    source,
-    now,
+    pointsBudget: row.pointsBudget === undefined ? undefined : customPointsBudget(row.limit, row.pointsBudget),
   })
 }
 
 export const rosterById = spacetime.procedure({ id: t.string() }, t.string(), (ctx, { id }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (!id || id.length > 128) throw new SenderError('Invalid roster ID')
+    if (!validId(id)) throw new SenderError('Invalid roster ID')
     return productJson(tx.db.rosters.id.find(id) ?? null)
   }),
 )
@@ -1021,7 +1031,7 @@ export const rostersByUser = spacetime.procedure(
   (ctx, { userId, publicOnly, limit }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      if (!userId || userId.length > 128 || limit < 1 || limit > 1_000) throw new SenderError('Invalid roster query')
+      if (!validId(userId) || limit < 1 || limit > 1_000) throw new SenderError('Invalid roster query')
       const rows = Array.from(tx.db.rosters.userId.filter(userId))
         .filter((row) => !publicOnly || row.visibility === 'public')
         .sort((left, right) => (right.createdAt > left.createdAt ? 1 : right.createdAt < left.createdAt ? -1 : 0))
@@ -1034,15 +1044,14 @@ export const discoverRosters = spacetime.procedure({ payload: t.string() }, t.st
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (payload.length > 200_000) throw new SenderError('Invalid roster discovery')
-    const parsed = rosterDiscoveryQuerySchema.safeParse(JSON.parse(payload))
-    if (!parsed.success) throw new SenderError('Invalid roster discovery')
-    const { audience, viewerId } = parsed.data
+    const query = decodePayload(rosterDiscoveryQuerySchema, payload, 'Invalid roster discovery')
+    const { audience, viewerId } = query
     if (audience === 'friends' && !viewerId) throw new SenderError('Invalid roster discovery')
     const rows = function* () {
       for (const row of tx.db.rosters.visibility.filter('public'))
         yield { ...row, createdAt: safeNumber(row.createdAt), updatedAt: safeNumber(row.updatedAt) }
     }
-    return productJson(discoveryPage(rows(), parsed.data, audience === 'friends' ? acceptedFriendIds(tx, viewerId!) : undefined))
+    return productJson(discoveryPage(rows(), query, audience === 'friends' ? acceptedFriendIds(tx, viewerId!) : undefined))
   }),
 )
 
@@ -1074,7 +1083,7 @@ function rosterSummary(row: StoredRoster) {
 export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (!userId || userId.length > 128) throw new SenderError('Invalid roster query')
+    if (!validId(userId)) throw new SenderError('Invalid roster query')
     const rows = Array.from(tx.db.rosters.userId.filter(userId))
     if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
     rows.sort((left, right) => (right.createdAt > left.createdAt ? 1 : right.createdAt < left.createdAt ? -1 : 0))
@@ -1088,7 +1097,7 @@ export const rosterGroupByUser = spacetime.procedure(
   (ctx, { userId, baseRosterId }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      if (!userId || userId.length > 128 || !baseRosterId || baseRosterId.length > 128) throw new SenderError('Invalid roster query')
+      if (!validId(userId) || !validId(baseRosterId)) throw new SenderError('Invalid roster query')
       const rows = Array.from(tx.db.rosters.userId.filter(userId))
       if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
       return productJson(
@@ -1104,12 +1113,11 @@ export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.arr
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (
-      !userId ||
-      userId.length > 128 ||
+      !validId(userId) ||
       !ids.length ||
       ids.length > ROSTER_LIBRARY_BATCH_SIZE ||
       new Set(ids).size !== ids.length ||
-      ids.some((id) => !id || id.length > 128)
+      ids.some((id) => !validId(id))
     )
       throw new SenderError('Invalid roster query')
     return productJson(
@@ -1124,7 +1132,7 @@ export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.arr
 export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (!userId || userId.length > 128) throw new SenderError('Invalid roster query')
+    if (!validId(userId)) throw new SenderError('Invalid roster query')
     const rows: NonNullable<ReturnType<typeof tx.db.rosters.id.find>>[] = []
     let scanned = 0
     let count = 0
@@ -1231,15 +1239,17 @@ export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(
 
 export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) => {
   if (payload.length > 1_250_000) throw new SenderError('Roster is too large')
-  const parsed = z
-    .object({
+  const parsed = decodePayload(
+    z.object({
       row: z.string().max(1_200_000),
       operationId: z.uuid(),
       fingerprint: z.string().length(64),
       expectedVersion: z.number().int().nonnegative().nullable(),
       deleted: z.boolean(),
-    })
-    .parse(JSON.parse(payload))
+    }),
+    payload,
+    'Invalid roster',
+  )
   const input = parseRoster(parsed.row)
   return ctx.withTx((tx) => {
     requireOperator(tx)
@@ -1354,7 +1364,7 @@ export const lendRoster = spacetime.procedure(
     ctx.withTx((tx) => {
       requireOperator(tx)
       if (tx.db.rosters.id.find(rosterId)?.userId !== ownerId) return 'forbidden'
-      if (!borrowerId || borrowerId === ownerId || borrowerId.length > 128) return 'not-friends'
+      if (!validId(borrowerId) || borrowerId === ownerId) return 'not-friends'
       if (friendshipBetween(tx, ownerId, borrowerId)?.acceptedAt === undefined) return 'not-friends'
       const key = JSON.stringify([rosterId, borrowerId])
       if (tx.db.rosterLoans.key.find(key)) return 'lent'
@@ -1406,7 +1416,7 @@ export const usableRoster = spacetime.procedure({ id: t.string(), userId: t.stri
 export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (!userId || userId.length > 128) throw new SenderError('Invalid roster query')
+    if (!validId(userId)) throw new SenderError('Invalid roster query')
     const loans = Array.from(tx.db.rosterLoans.borrowerId.filter(userId))
     if (loans.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
     return productJson(
@@ -1477,7 +1487,7 @@ export const collectionProfile = spacetime.procedure(
 export const setCollectionPublished = spacetime.procedure({ userId: t.string(), published: t.bool() }, t.bool(), (ctx, input) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (!input.userId || input.userId.length > 128) throw new SenderError('Invalid user ID')
+    if (!validId(input.userId)) throw new SenderError('Invalid user ID')
     if (tx.db.collectionSharing.userId.find(input.userId)) tx.db.collectionSharing.userId.update(input)
     else tx.db.collectionSharing.insert(input)
     touchProduct(tx, input.userId, 'collection')
@@ -1539,12 +1549,9 @@ export const importCollection = spacetime.procedure(
   (ctx, input) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      if (!input.userId || input.userId.length > 128) throw new SenderError('Invalid user ID')
-      const rows = z
-        .array(importedCollectionRow)
-        .max(MAX_COLLECTION_DATASHEETS)
-        .refine((items) => new Set(items.map((row) => row.entryId)).size === items.length, 'Each datasheet can appear once')
-        .parse(JSON.parse(input.rows))
+      if (!validId(input.userId)) throw new SenderError('Invalid user ID')
+      const rows = decodePayload(z.array(importedCollectionRow).max(MAX_COLLECTION_DATASHEETS), input.rows, 'Invalid collection import')
+      if (new Set(rows.map((row) => row.entryId)).size !== rows.length) throw new SenderError('Each datasheet can appear once')
       moveHeartsToFavourites(tx, input.userId)
       let owned = Array.from(tx.db.collection.userId.filter(input.userId)).length
       const result = { added: 0, replaced: 0, kept: 0 }
@@ -1592,7 +1599,7 @@ export const setCollectionPhoto = spacetime.reducer(
   (ctx, input) => {
     requireOperator(ctx)
     const { userId, entryId, photoId } = z
-      .object({ userId: z.string().min(1).max(128), entryId: z.string().min(1).max(2_000_000), photoId: z.uuid() })
+      .object({ userId: idInput, entryId: z.string().min(1).max(2_000_000), photoId: z.uuid() })
       .parse(input)
     addToCollectionIn(ctx, [userId, entryId, input.at])
     const key = JSON.stringify([userId, entryId])
@@ -1901,8 +1908,7 @@ export const registerPushToken = spacetime.reducer(
   (ctx, input) => {
     requireOperator(ctx)
     if (
-      !input.userId ||
-      input.userId.length > 128 ||
+      !validId(input.userId) ||
       !input.token ||
       input.token.length > 256 ||
       !(PUSH_PLATFORMS as readonly string[]).includes(input.platform)
@@ -2020,7 +2026,7 @@ function leagueRecord(ctx: Context, token: string, eventToken: string | null) {
 export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), (ctx, { token, eventToken }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (token.length > 128 || eventToken.length > 128) throw new SenderError('Invalid league token')
+    if (token.length > MAX_ID_LENGTH || eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid league token')
     return productJson(leagueRecord(tx, token, eventToken || null))
   }),
 )
@@ -2028,7 +2034,7 @@ export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken
 export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    if (userId.length > 128 || limit < 1 || limit > 100) throw new SenderError('Invalid league list')
+    if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid league list')
     const personal = new Set<string>()
     if (userId) {
       for (const row of tx.db.leagues.ownerId.filter(userId)) personal.add(row.id)
@@ -2073,7 +2079,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
   (ctx, { userId, rosterId }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      if (!userId || userId.length > 128 || !rosterId || rosterId.length > 128) throw new SenderError('Invalid roster lookup')
+      if (!validId(userId) || !validId(rosterId)) throw new SenderError('Invalid roster lookup')
       const saved = tx.db.rosters.id.find(rosterId)
       if (!saved || saved.userId !== userId) return productJson([])
       const prep = saved.prep ? (JSON.parse(saved.prep) as { reminders?: unknown; remindersEnabled?: boolean }) : null
@@ -2122,8 +2128,7 @@ export const leagueBattleCandidates = spacetime.procedure(
     ctx.withTx((tx) => {
       requireOperator(tx)
       if (
-        !userId ||
-        userId.length > 128 ||
+        !validId(userId) ||
         participantIds.length < 2 ||
         participantIds.length > 4 ||
         new Set(participantIds).size !== participantIds.length
@@ -2219,10 +2224,8 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
   return parsed.data
 }
 
-const leagueTokenInput = z.string().min(1).max(128)
-const leagueIdInput = z.string().min(1).max(128)
 const leagueTimeInput = z.number().int().nonnegative()
-const leagueFormatInput = z.enum(['1v1', '2v1', '2v2'])
+const leagueFormatInput = z.enum(TABLE_SHAPES)
 const leagueRuleInput = z.object({ format: leagueFormatInput, rosterLimit: z.number().int().positive().max(10_000) })
 const leagueDetailsInput = z.object({
   name: z.string().min(1).max(100),
@@ -2237,7 +2240,7 @@ function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, acto
   const all = leagueEntriesFor(tx, event.id)
   const entries = all.filter((entry) => entry.status === 'accepted')
   const checks = leagueRevealChecklist(
-    { format: (event.format ?? null) as '1v1' | '2v1' | '2v2' | null, rosterLimit: event.rosterLimit ?? null },
+    { format: (event.format ?? null) as TableShape | null, rosterLimit: event.rosterLimit ?? null },
     leagueRevealEntries(tx, event.id, all),
   )
   if (!checks.every((check) => check.done)) return { outcome: 'not-ready' as const }
@@ -2259,11 +2262,10 @@ function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, acto
   )
     return { outcome: 'invalid-warlords' as const, format: event.format }
   if (event.format === '2v2') {
-    const teams = new Map<string, Roster[]>()
-    entries.forEach((entry, index) => teams.set(entry.teamId!, [...(teams.get(entry.teamId!) ?? []), snapshots[index]!]))
+    const teams = groupBy(entries.keys(), (index) => entries[index]!.teamId)
     if (
       [...teams.values()].some((team) => {
-        const selected = leagueWarlords(team)
+        const selected = leagueWarlords(team.map((index) => snapshots[index]!))
         return !selected.eligible || selected.count !== 1
       })
     )
@@ -2273,7 +2275,7 @@ function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, acto
     event.format !== undefined &&
     entries.some((entry, index) => {
       const required = requiredLeagueRosterLimit(
-        event.format as '1v1' | '2v1' | '2v2',
+        event.format as TableShape,
         event.rosterLimit ?? null,
         entry.requiredLimit ?? null,
         entry.teamId ?? null,
@@ -2340,15 +2342,18 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
   ctx.withTx((tx) => leagueCommandIn(tx, [payload])),
 )
 
+/** Saved actions replay through the same functions as live calls, so arguments arrive untyped. */
+const textArg = z.string().max(2_000_000)
+const timestampArg = z.preprocess(
+  (value) => (typeof value === 'bigint' ? safeNumber(value) : value),
+  z.number().int().nonnegative().transform(BigInt),
+)
+
 function createBattleIn(tx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000)]).parse(args)
-  const { payload } = { payload: values[0] }
+  const [payload] = z.tuple([textArg]).parse(args)
 
   requireOperator(tx)
-  if (payload.length > 2_000_000) throw new SenderError('Battle is too large')
-  const input = newBattle.safeParse(JSON.parse(payload))
-  if (!input.success) throw new SenderError('Invalid battle')
-  const { id, token, userId, allyIds, opponentIds, initialCommands, now } = input.data
+  const { id, token, userId, allyIds, opponentIds, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
   const seats = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
@@ -2385,117 +2390,87 @@ function createBattleIn(tx: Context, args: unknown[]) {
 }
 
 function removeBattleIn(tx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { battleId: values[0], userId: values[1] }
+  const [battleId, userId] = z.tuple([textArg, textArg]).parse(args)
 
   requireOperator(tx)
-  const opener = Array.from(tx.db.battleUsers.battleId.filter(input.battleId))
+  const opener = Array.from(tx.db.battleUsers.battleId.filter(battleId))
     .filter((seat) => seat.side === 0)
     .sort((left, right) => (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0))[0]
-  if (!opener || opener.userId !== input.userId) return false
-  deleteBattle(tx, input.battleId)
+  if (!opener || opener.userId !== userId) return false
+  deleteBattle(tx, battleId)
   return true
 }
 
 function requestFriendIn(tx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { requesterId: values[0], addresseeId: values[1], now: values[2] }
+  const [requesterId, addresseeId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(tx)
-  const key = friendshipKey(input.requesterId, input.addresseeId)
-  if (friendshipBetween(tx, input.requesterId, input.addresseeId)) return false
+  const key = friendshipKey(requesterId, addresseeId)
+  if (friendshipBetween(tx, requesterId, addresseeId)) return false
   tx.db.friendships.insert({
     key,
-    requesterId: input.requesterId,
-    addresseeId: input.addresseeId,
-    requestedAt: input.now,
+    requesterId,
+    addresseeId,
+    requestedAt: now,
     acceptedAt: undefined,
   })
-  touchFriends(tx, input.requesterId, input.addresseeId)
+  touchFriends(tx, requesterId, addresseeId)
   return true
 }
 
 function acceptFriendIn(tx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { requesterId: values[0], addresseeId: values[1], now: values[2] }
+  const [requesterId, addresseeId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(tx)
-  const current = tx.db.friendships.key.find(friendshipKey(input.requesterId, input.addresseeId))
+  const current = tx.db.friendships.key.find(friendshipKey(requesterId, addresseeId))
   if (!current || current.acceptedAt !== undefined) return false
-  tx.db.friendships.key.update({ ...current, acceptedAt: input.now })
-  touchFriends(tx, input.requesterId, input.addresseeId)
+  tx.db.friendships.key.update({ ...current, acceptedAt: now })
+  touchFriends(tx, requesterId, addresseeId)
   return true
 }
 
 function rejectFriendIn(tx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { requesterId: values[0], addresseeId: values[1] }
+  const [requesterId, addresseeId] = z.tuple([textArg, textArg]).parse(args)
 
   requireOperator(tx)
-  const current = tx.db.friendships.key.find(friendshipKey(input.requesterId, input.addresseeId))
-  if (
-    !current ||
-    current.requesterId !== input.requesterId ||
-    current.addresseeId !== input.addresseeId ||
-    current.acceptedAt !== undefined
-  )
+  const current = tx.db.friendships.key.find(friendshipKey(requesterId, addresseeId))
+  if (!current || current.requesterId !== requesterId || current.addresseeId !== addresseeId || current.acceptedAt !== undefined)
     return false
   const deleted = tx.db.friendships.key.delete(current.key)
-  if (deleted) touchFriends(tx, input.requesterId, input.addresseeId)
+  if (deleted) touchFriends(tx, requesterId, addresseeId)
   return deleted
 }
 
 function removeFriendIn(tx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { leftId: values[0], rightId: values[1] }
+  const [leftId, rightId] = z.tuple([textArg, textArg]).parse(args)
 
   requireOperator(tx)
-  const current = friendshipBetween(tx, input.leftId, input.rightId)
+  const current = friendshipBetween(tx, leftId, rightId)
   if (!current) return false
   const deleted = tx.db.friendships.key.delete(current.key)
   if (deleted) touchFriends(tx, current.requesterId, current.addresseeId)
   for (const [ownerId, borrowerId] of [
-    [input.leftId, input.rightId],
-    [input.rightId, input.leftId],
+    [leftId, rightId],
+    [rightId, leftId],
   ] as const)
     for (const loan of Array.from(tx.db.rosterLoans.borrowerId.filter(borrowerId))) if (loan.ownerId === ownerId) endLoan(tx, loan)
   return deleted
 }
 
 function replaceFriendInviteIn(ctx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { inviterId: values[0], token: values[1], now: values[2] }
+  const [inviterId, token, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(ctx)
-  if (!input.inviterId || input.inviterId.length > 128 || !input.token || input.token.length > 128) throw new SenderError('Invalid invite')
-  const current = ctx.db.friendInvites.inviterId.find(input.inviterId)
+  if (!validId(inviterId) || !validId(token)) throw new SenderError('Invalid invite')
+  const current = ctx.db.friendInvites.inviterId.find(inviterId)
   if (current) ctx.db.friendInvites.token.delete(current.token)
-  ctx.db.friendInvites.insert({ inviterId: input.inviterId, token: input.token, createdAt: input.now })
-  touchProduct(ctx, input.inviterId, 'invites')
+  ctx.db.friendInvites.insert({ inviterId, token, createdAt: now })
+  touchProduct(ctx, inviterId, 'invites')
   touchPublic(ctx, 'invites')
 }
 
 function cancelFriendInviteIn(tx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000)]).parse(args)
-  const { inviterId } = { inviterId: values[0] }
+  const [inviterId] = z.tuple([textArg]).parse(args)
 
   requireOperator(tx)
   const current = tx.db.friendInvites.inviterId.find(inviterId)
@@ -2509,89 +2484,74 @@ function cancelFriendInviteIn(tx: Context, args: unknown[]) {
 }
 
 function acceptFriendInviteIn(tx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { token: values[0], recipientId: values[1], now: values[2] }
+  const [token, recipientId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(tx)
-  const invite = tx.db.friendInvites.token.find(input.token)
+  const invite = tx.db.friendInvites.token.find(token)
   if (!invite) return productJson('missing')
-  if (invite.inviterId === input.recipientId) return productJson('self')
-  const relationship = friendshipBetween(tx, invite.inviterId, input.recipientId)
+  if (invite.inviterId === recipientId) return productJson('self')
+  const relationship = friendshipBetween(tx, invite.inviterId, recipientId)
   if (relationship?.acceptedAt !== undefined) return productJson('already-friends')
-  if (relationship) tx.db.friendships.key.update({ ...relationship, acceptedAt: input.now })
+  if (relationship) tx.db.friendships.key.update({ ...relationship, acceptedAt: now })
   else {
     tx.db.friendships.insert({
-      key: friendshipKey(invite.inviterId, input.recipientId),
+      key: friendshipKey(invite.inviterId, recipientId),
       requesterId: invite.inviterId,
-      addresseeId: input.recipientId,
-      requestedAt: input.now,
-      acceptedAt: input.now,
+      addresseeId: recipientId,
+      requestedAt: now,
+      acceptedAt: now,
     })
   }
-  tx.db.friendInvites.token.delete(input.token)
-  touchFriends(tx, invite.inviterId, input.recipientId)
+  tx.db.friendInvites.token.delete(token)
+  touchFriends(tx, invite.inviterId, recipientId)
   touchProduct(tx, invite.inviterId, 'invites')
   touchPublic(tx, 'invites')
   return productJson({ inviterId: invite.inviterId })
 }
 
 function setBattleAudienceIn(tx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { userId: values[0], audience: values[1], now: values[2] }
+  const [userId, audience, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(tx)
-  if (!input.userId || input.userId.length > 128 || !(BATTLE_AUDIENCES as readonly string[]).includes(input.audience)) {
+  if (!validId(userId) || !(BATTLE_AUDIENCES as readonly string[]).includes(audience)) {
     throw new SenderError('Invalid battle audience')
   }
-  const current = tx.db.battleSharing.userId.find(input.userId)
-  const row = { userId: input.userId, audience: input.audience, at: input.now }
+  const current = tx.db.battleSharing.userId.find(userId)
+  const row = { userId, audience, at: now }
   if (current) tx.db.battleSharing.userId.update(row)
   else tx.db.battleSharing.insert(row)
-  touchProduct(tx, input.userId, 'settings', 'battles')
+  touchProduct(tx, userId, 'settings', 'battles')
   touchPublic(tx, 'battles')
   touchPublic(tx, 'standings')
-  return input.audience
+  return audience
 }
 
 function updateOnboardingIn(tx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { userId: values[0], operation: values[1], task: values[2] }
+  const [userId, operation, task] = z.tuple([textArg, textArg, textArg]).parse(args)
 
   requireOperator(tx)
-  if (!input.userId || input.userId.length > 128) throw new SenderError('Invalid user ID')
-  if (input.operation === 'welcome') {
-    const current = tx.db.userOnboarding.userId.find(input.userId)
+  if (!validId(userId)) throw new SenderError('Invalid user ID')
+  if (operation === 'welcome') {
+    const current = tx.db.userOnboarding.userId.find(userId)
     if (current) tx.db.userOnboarding.userId.update({ ...current, welcomed: true })
-    else tx.db.userOnboarding.insert({ userId: input.userId, welcomed: true })
+    else tx.db.userOnboarding.insert({ userId, welcomed: true })
   } else {
-    if (!(onboardingTaskIds as readonly string[]).includes(input.task)) throw new SenderError('Invalid onboarding task')
-    if (input.operation === 'complete' && !(tourTaskIds as readonly string[]).includes(input.task)) {
+    if (!(onboardingTaskIds as readonly string[]).includes(task)) throw new SenderError('Invalid onboarding task')
+    if (operation === 'complete' && !(tourTaskIds as readonly string[]).includes(task)) {
       throw new SenderError('Invalid onboarding completion')
     }
-    const key = JSON.stringify([input.userId, input.task])
+    const key = JSON.stringify([userId, task])
     const current = tx.db.userOnboardingTasks.key.find(key)
-    if (input.operation === 'restore') {
+    if (operation === 'restore') {
       if (current?.state === 'skipped') tx.db.userOnboardingTasks.key.delete(key)
-    } else if (input.operation === 'skip' || input.operation === 'complete') {
-      const row = { key, userId: input.userId, task: input.task, state: input.operation === 'skip' ? 'skipped' : 'completed' }
+    } else if (operation === 'skip' || operation === 'complete') {
+      const row = { key, userId, task, state: operation === 'skip' ? 'skipped' : 'completed' }
       if (current) tx.db.userOnboardingTasks.key.update(row)
       else tx.db.userOnboardingTasks.insert(row)
     } else throw new SenderError('Invalid onboarding operation')
   }
-  touchProduct(tx, input.userId, 'onboarding')
-  return productJson(onboardingData(tx, input.userId))
+  touchProduct(tx, userId, 'onboarding')
+  return productJson(onboardingData(tx, userId))
 }
 
 function migrateCollectionHeart(ctx: Context, row: { key: string; userId: string; entryId: string; at: bigint; models?: number }) {
@@ -2610,43 +2570,30 @@ function moveHeartsToFavourites(ctx: Context, userId: string) {
 }
 
 function addToCollectionIn(ctx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { userId: values[0], entryId: values[1], at: values[2] }
+  const [userId, entryId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(ctx)
-  moveHeartsToFavourites(ctx, input.userId)
-  const key = JSON.stringify([input.userId, input.entryId])
+  moveHeartsToFavourites(ctx, userId)
+  const key = JSON.stringify([userId, entryId])
   if (!ctx.db.collection.key.find(key)) {
-    ctx.db.collection.insert({ key, ...input, models: 1, built: undefined, painted: undefined })
-    touchCollection(ctx, input.userId)
+    ctx.db.collection.insert({ key, userId, entryId, at, models: 1, built: undefined, painted: undefined })
+    touchCollection(ctx, userId)
   }
 }
 
 function removeFromCollectionIn(ctx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { userId: values[0], entryId: values[1] }
+  const [userId, entryId] = z.tuple([textArg, textArg]).parse(args)
 
   requireOperator(ctx)
-  moveHeartsToFavourites(ctx, input.userId)
-  const key = JSON.stringify([input.userId, input.entryId])
+  moveHeartsToFavourites(ctx, userId)
+  const key = JSON.stringify([userId, entryId])
   dropCollectionRowPhotos(ctx, key)
-  if (ctx.db.collection.key.delete(key)) touchCollection(ctx, input.userId)
+  if (ctx.db.collection.key.delete(key)) touchCollection(ctx, userId)
 }
 
 function setCollectionModelsIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, models, at] = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.number().int().min(1).max(MAX_COLLECTION_MODELS),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
+    .tuple([textArg, textArg, z.number().int().min(1).max(MAX_COLLECTION_MODELS), timestampArg])
     .parse(args)
 
   requireOperator(ctx)
@@ -2666,12 +2613,7 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
 /** Counts above what is owned are lowered rather than refused, because another device may have lowered the owned count first. */
 function setCollectionProgressIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, built, painted] = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.number().int().min(0).max(MAX_COLLECTION_MODELS),
-      z.number().int().min(0).max(MAX_COLLECTION_MODELS),
-    ])
+    .tuple([textArg, textArg, z.number().int().min(0).max(MAX_COLLECTION_MODELS), z.number().int().min(0).max(MAX_COLLECTION_MODELS)])
     .parse(args)
 
   requireOperator(ctx)
@@ -2684,12 +2626,7 @@ function setCollectionProgressIn(ctx: Context, args: unknown[]) {
 
 function setCollectionWantedIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, wanted, at] = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.number().int().min(0).max(MAX_COLLECTION_MODELS),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
+    .tuple([textArg, textArg, z.number().int().min(0).max(MAX_COLLECTION_MODELS), timestampArg])
     .parse(args)
 
   requireOperator(ctx)
@@ -2703,147 +2640,101 @@ function setCollectionWantedIn(ctx: Context, args: unknown[]) {
 }
 
 function addFavouriteFactionIn(ctx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { userId: values[0], catalogueId: values[1], at: values[2] }
+  const [userId, catalogueId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(ctx)
-  const key = JSON.stringify([input.userId, input.catalogueId])
+  const key = JSON.stringify([userId, catalogueId])
   if (!ctx.db.favouriteFactions.key.find(key)) {
-    ctx.db.favouriteFactions.insert({ key, ...input })
-    touchProduct(ctx, input.userId, 'favourites')
+    ctx.db.favouriteFactions.insert({ key, userId, catalogueId, at })
+    touchProduct(ctx, userId, 'favourites')
   }
 }
 
 function removeFavouriteFactionIn(ctx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { userId: values[0], catalogueId: values[1] }
+  const [userId, catalogueId] = z.tuple([textArg, textArg]).parse(args)
 
   requireOperator(ctx)
-  if (ctx.db.favouriteFactions.key.delete(JSON.stringify([input.userId, input.catalogueId]))) touchProduct(ctx, input.userId, 'favourites')
+  if (ctx.db.favouriteFactions.key.delete(JSON.stringify([userId, catalogueId]))) touchProduct(ctx, userId, 'favourites')
 }
 
 function addFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { userId: values[0], entryId: values[1], at: values[2] }
+  const [userId, entryId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(ctx)
-  const key = JSON.stringify([input.userId, input.entryId])
+  const key = JSON.stringify([userId, entryId])
   if (!ctx.db.favouriteDatasheets.key.find(key)) {
-    ctx.db.favouriteDatasheets.insert({ key, ...input })
-    touchProduct(ctx, input.userId, 'favourites')
+    ctx.db.favouriteDatasheets.insert({ key, userId, entryId, at })
+    touchProduct(ctx, userId, 'favourites')
   }
 }
 
 function removeFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { userId: values[0], entryId: values[1] }
+  const [userId, entryId] = z.tuple([textArg, textArg]).parse(args)
 
   requireOperator(ctx)
-  if (ctx.db.favouriteDatasheets.key.delete(JSON.stringify([input.userId, input.entryId]))) touchProduct(ctx, input.userId, 'favourites')
+  if (ctx.db.favouriteDatasheets.key.delete(JSON.stringify([userId, entryId]))) touchProduct(ctx, userId, 'favourites')
 }
 
 function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { userId: values[0], catalogueId: values[1], detachmentId: values[2], at: values[3] }
+  const [userId, catalogueId, detachmentId, at] = z.tuple([textArg, textArg, textArg, timestampArg]).parse(args)
 
   requireOperator(ctx)
-  const key = JSON.stringify([input.userId, input.catalogueId, input.detachmentId])
+  const key = JSON.stringify([userId, catalogueId, detachmentId])
   if (!ctx.db.favouriteDetachments.key.find(key)) {
-    ctx.db.favouriteDetachments.insert({ key, ...input })
-    touchProduct(ctx, input.userId, 'favourites')
+    ctx.db.favouriteDetachments.insert({ key, userId, catalogueId, detachmentId, at })
+    touchProduct(ctx, userId, 'favourites')
   }
 }
 
 function removeFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000), z.string().max(2_000_000), z.string().max(2_000_000)]).parse(args)
-  const input = { userId: values[0], catalogueId: values[1], detachmentId: values[2] }
+  const [userId, catalogueId, detachmentId] = z.tuple([textArg, textArg, textArg]).parse(args)
 
   requireOperator(ctx)
-  if (ctx.db.favouriteDetachments.key.delete(JSON.stringify([input.userId, input.catalogueId, input.detachmentId])))
-    touchProduct(ctx, input.userId, 'favourites')
+  if (ctx.db.favouriteDetachments.key.delete(JSON.stringify([userId, catalogueId, detachmentId]))) touchProduct(ctx, userId, 'favourites')
 }
 
 function setPushEnabledIn(tx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.boolean(),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
-    .parse(args)
-  const input = { userId: values[0], enabled: values[1], now: values[2] }
+  const [userId, enabled, now] = z.tuple([textArg, z.boolean(), timestampArg]).parse(args)
 
   requireOperator(tx)
-  if (!input.userId || input.userId.length > 128) throw new SenderError('Invalid user ID')
-  const current = tx.db.pushPreferences.userId.find(input.userId)
-  const row = { userId: input.userId, enabled: input.enabled, at: input.now }
+  if (!validId(userId)) throw new SenderError('Invalid user ID')
+  const current = tx.db.pushPreferences.userId.find(userId)
+  const row = { userId, enabled, at: now }
   if (current) tx.db.pushPreferences.userId.update(row)
   else tx.db.pushPreferences.insert(row)
-  touchProduct(tx, input.userId, 'settings')
-  return input.enabled
+  touchProduct(tx, userId, 'settings')
+  return enabled
 }
 
 function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
-  const values = z
-    .tuple([
-      z.string().max(2_000_000),
-      z.string().max(2_000_000),
-      z.number().int().nonnegative().max(4_294_967_295),
-      z.preprocess((value) => (typeof value === 'bigint' ? safeNumber(value) : value), z.number().int().nonnegative().transform(BigInt)),
-    ])
+  const [userId, rosterVisibility, battleSize, now] = z
+    .tuple([textArg, textArg, z.number().int().nonnegative().max(4_294_967_295), timestampArg])
     .parse(args)
-  const input = { userId: values[0], rosterVisibility: values[1], battleSize: values[2], now: values[3] }
 
   requireOperator(tx)
-  if (!input.userId || input.userId.length > 128 || !isPlayerDefaults(input)) throw new SenderError('Invalid player defaults')
-  const row = { userId: input.userId, rosterVisibility: input.rosterVisibility, battleSize: input.battleSize, at: input.now }
-  if (tx.db.playerDefaults.userId.find(input.userId)) tx.db.playerDefaults.userId.update(row)
+  if (!validId(userId) || !isPlayerDefaults({ rosterVisibility, battleSize })) throw new SenderError('Invalid player defaults')
+  const row = { userId, rosterVisibility, battleSize, at: now }
+  if (tx.db.playerDefaults.userId.find(userId)) tx.db.playerDefaults.userId.update(row)
   else tx.db.playerDefaults.insert(row)
-  touchProduct(tx, input.userId, 'settings')
+  touchProduct(tx, userId, 'settings')
   return productJson({ rosterVisibility: row.rosterVisibility, battleSize: row.battleSize })
 }
 
 function leagueCommandIn(tx: Context, args: unknown[]) {
-  const values = z.tuple([z.string().max(2_000_000)]).parse(args)
-  const { payload } = { payload: values[0] }
+  const [payload] = z.tuple([textArg]).parse(args)
 
   requireOperator(tx)
-  if (payload.length > 2_000_000) throw new SenderError('League command is too large')
-  let value: unknown
-  try {
-    value = JSON.parse(payload)
-  } catch {
-    throw new SenderError('Invalid league command')
-  }
+  const value = decodePayload(z.unknown(), payload, 'Invalid league command')
   const operation = leagueCommandInput(z.object({ op: z.string() }), value).op
   if (operation === 'create') {
     const input = leagueCommandInput(
       leagueDetailsInput.extend({
         op: z.literal('create'),
-        id: leagueIdInput,
-        token: leagueTokenInput,
-        eventId: leagueIdInput,
-        eventToken: leagueTokenInput,
-        ownerId: leagueIdInput,
+        id: idInput,
+        token: idInput,
+        eventId: idInput,
+        eventToken: idInput,
+        ownerId: idInput,
         recurring: z.boolean(),
         format: leagueFormatInput.nullable(),
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
@@ -2881,15 +2772,15 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     touchPublic(tx, 'leagues')
     return 'null'
   }
-  const base = leagueCommandInput(z.object({ token: leagueTokenInput }), value)
+  const base = leagueCommandInput(z.object({ token: idInput }), value)
   const league = tx.db.leagues.token.find(base.token)
   if (operation === 'join') {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('join'),
-        token: leagueTokenInput,
-        eventToken: z.string().max(128),
-        userId: leagueIdInput,
+        token: idInput,
+        eventToken: z.string().max(MAX_ID_LENGTH),
+        userId: idInput,
         now: leagueTimeInput,
         memberLimit: z.number().int().min(2).max(128),
         noticeResults: z.boolean().optional(),
@@ -2923,7 +2814,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   }
   if (!league) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
   // `ownerId` names whoever acts: the owner, an admin, or for sealing, revealing and battles, an entrant.
-  const ownerId = leagueCommandInput(z.object({ ownerId: leagueIdInput }), value).ownerId
+  const ownerId = leagueCommandInput(z.object({ ownerId: idInput }), value).ownerId
   const organizer = isLeagueOrganizer(league, leagueAdminIds(tx, league.id), ownerId)
   const ownerOnly = operation === 'delete' || operation === 'set-admins'
   if (
@@ -2935,7 +2826,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
 
   if (operation === 'set-admins') {
     const input = leagueCommandInput(
-      z.object({ op: z.literal('set-admins'), userIds: z.array(leagueIdInput).max(LEAGUE_ADMIN_MAX), now: leagueTimeInput }),
+      z.object({ op: z.literal('set-admins'), userIds: z.array(idInput).max(LEAGUE_ADMIN_MAX), now: leagueTimeInput }),
       value,
     )
     const userIds = [...new Set(input.userIds)]
@@ -2956,8 +2847,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(
       leagueDetailsInput.extend({
         op: z.literal('create-event'),
-        id: leagueIdInput,
-        eventToken: leagueTokenInput,
+        id: idInput,
+        eventToken: idInput,
         format: leagueFormatInput.nullable(),
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
         ownerPlays: z.boolean().default(false),
@@ -3006,7 +2897,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       if (current.revealedAt !== undefined) return productJson('closed')
       if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
     }
-    const format = (rule?.format ?? current.format ?? null) as '1v1' | '2v1' | '2v2' | null
+    const format = (rule?.format ?? current.format ?? null) as TableShape | null
     if ((rule || input.playerLimit !== (league.playerLimit ?? null)) && current.revealedAt === undefined) {
       if (!leaguePlacesSeat(format, input.playerLimit)) return productJson('team-minimum')
       if (input.playerLimit !== null && input.playerLimit < accepted) return productJson('below-accepted')
@@ -3035,11 +2926,11 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     deleteLeague(tx, league.id)
     return productJson('deleted')
   }
-  const eventToken = leagueCommandInput(z.object({ eventToken: z.string().max(128) }), value).eventToken
+  const eventToken = leagueCommandInput(z.object({ eventToken: z.string().max(MAX_ID_LENGTH) }), value).eventToken
   const event = leagueEventFor(tx, league.id, eventToken || null)
   if (!event) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
   if (operation === 'admit') {
-    const input = leagueCommandInput(z.object({ op: z.literal('admit'), userIds: z.array(leagueIdInput).max(128) }), value)
+    const input = leagueCommandInput(z.object({ op: z.literal('admit'), userIds: z.array(idInput).max(128) }), value)
     if (event.revealedAt !== undefined) return productJson('closed')
     const chosen = new Set(input.userIds)
     const admitted = admitWaiting(tx, leagueEntriesFor(tx, event.id), league.playerLimit ?? null, (entry) => chosen.has(entry.userId))
@@ -3050,7 +2941,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('add'),
-        userIds: z.array(leagueIdInput).min(1).max(128),
+        userIds: z.array(idInput).min(1).max(128),
         memberLimit: z.number().int().min(2).max(128),
         now: leagueTimeInput,
       }),
@@ -3079,7 +2970,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('moderate'),
-        userId: leagueIdInput,
+        userId: idInput,
         status: z.enum(['accepted', 'rejected']),
         memberLimit: z.number().int().min(2).max(128),
         noticeResults: z.boolean().optional(),
@@ -3136,7 +3027,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('assign-limit'),
-        userId: leagueIdInput,
+        userId: idInput,
         requiredLimit: z.number().int().positive().max(10_000),
         noticeResults: z.boolean().optional(),
       }),
@@ -3173,8 +3064,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('assign-team'),
-        userIds: z.array(leagueIdInput).min(1).max(2),
-        teamId: leagueIdInput,
+        userIds: z.array(idInput).min(1).max(2),
+        teamId: idInput,
         noticeResults: z.boolean().optional(),
       }),
       value,
@@ -3239,8 +3130,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('submit'),
-        userId: leagueIdInput,
-        rosterId: leagueIdInput,
+        userId: idInput,
+        rosterId: idInput,
         rosterName: z.string().max(100),
         rosterLimit: z.number().int().nonnegative().max(10_000).nullable(),
         rosterUpdatedAt: leagueTimeInput,
@@ -3253,7 +3144,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (!entry || entry.status !== 'accepted' || (event.revealedAt !== undefined && entry.rosterSnapshot !== undefined))
       return productJson({ outcome: 'missing' })
     const requiredLimit = requiredLeagueRosterLimit(
-      (event.format ?? null) as '1v1' | '2v1' | '2v2' | null,
+      (event.format ?? null) as TableShape | null,
       event.rosterLimit ?? null,
       entry.requiredLimit ?? null,
       entry.teamId ?? null,
@@ -3341,7 +3232,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     return productJson(revealed)
   }
   if (operation === 'unseal') {
-    const input = leagueCommandInput(z.object({ op: z.literal('unseal'), userId: leagueIdInput }), value)
+    const input = leagueCommandInput(z.object({ op: z.literal('unseal'), userId: idInput }), value)
     if (event.revealedAt === undefined) return productJson('not-revealed')
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return productJson('missing')
@@ -3353,15 +3244,15 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('create-battle'),
-        id: leagueIdInput,
-        battleToken: leagueTokenInput,
-        userId: leagueIdInput,
-        allyIds: z.array(leagueIdInput).max(3),
-        opponentIds: z.array(leagueIdInput).min(1).max(3),
+        id: idInput,
+        battleToken: idInput,
+        userId: idInput,
+        allyIds: z.array(idInput).max(3),
+        opponentIds: z.array(idInput).min(1).max(3),
         initialCommands: z.array(commandSchema).max(1_000),
         now: leagueTimeInput,
         expectedLatest: z.boolean(),
-        expectedEntries: z.array(z.object({ userId: leagueIdInput, snapshot: z.string().max(1_000_000) })).max(128),
+        expectedEntries: z.array(z.object({ userId: idInput, snapshot: z.string().max(1_000_000) })).max(128),
       }),
       value,
     )
@@ -3458,7 +3349,7 @@ const syncProductActions = {
 
 const syncProductInput = z.object({
   id: z.uuid(),
-  owner: z.string().min(1).max(128),
+  owner: idInput,
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   createdAt: z.number().int().nonnegative(),
   name: z.string(),
@@ -3480,7 +3371,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (payload.length > 2_100_000) throw new SenderError('Saved action is too large')
-    const input = syncProductInput.parse(JSON.parse(payload))
+    const input = decodePayload(syncProductInput, payload, 'Invalid saved action')
     const prior = tx.db.syncReceipts.id.find(input.id)
     if (prior) {
       if (prior.owner !== input.owner || prior.fingerprint !== input.fingerprint) throw new SenderError('Operation ID reused')

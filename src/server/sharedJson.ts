@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 
 /** Values parsed from each file content that something still holds, keyed by that content's hash. */
 const parsedFiles = new Map<string, WeakRef<object>>()
@@ -19,7 +19,7 @@ export function readSharedJson(file: string, strings = new Map<string, string>()
 }
 
 export function parseSharedJson(content: string, strings = new Map<string, string>()): unknown {
-  const key = createHash('sha256').update(content).digest('base64')
+  const key = hash('sha256', content, 'base64')
   const kept = parsedFiles.get(key)?.deref()
   if (kept) return kept
   const value = shareStrings(JSON.parse(content), strings)

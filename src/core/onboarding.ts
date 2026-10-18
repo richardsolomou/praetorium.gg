@@ -12,7 +12,7 @@ const factTaskIds = ['roster', 'friend', 'battle', 'league'] as const
 /** What the rest of the database already says the player has done. */
 export type OnboardingFacts = Record<(typeof factTaskIds)[number], boolean>
 
-export const onboardingPrerequisites: Record<OnboardingTaskId, readonly OnboardingTaskId[]> = {
+const onboardingPrerequisites: Record<OnboardingTaskId, readonly OnboardingTaskId[]> = {
   roster: [],
   friend: [],
   battle: ['roster'],

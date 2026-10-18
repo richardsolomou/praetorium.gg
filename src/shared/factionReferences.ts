@@ -6,10 +6,10 @@ import { detachmentCatalogueDetail } from './catalogueDescriptions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../core/text'
 import { detachmentPoints } from './detachmentPoints'
 import { exclusiveDetachments } from './rosterDetachments'
-import { mfmDetachmentFor, mfmVersions } from './mfm'
+import { mfmDetachmentFor, mfmSlugs, mfmVersions } from './mfm'
 import { catalogueEditionId } from '../core/catalogueEdition'
 
 export function isReferenceDetachment(
@@ -76,10 +76,9 @@ function referenceDetachmentRoute(
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
   const slugId = routeSlug(displayName)
-  const points =
-    loaded.mfm?.get(routeSlug(factionDisplayName(faction.name))) ??
-    loaded.mfm?.get(slugId) ??
-    (faction.name.includes('Adeptus Astartes') ? loaded.mfm?.get('space-marines') : null)
+  const points = mfmSlugs(faction.name, slugId)
+    .map((slug) => loaded.mfm?.get(slug))
+    .find(Boolean)
   const versions = mfmVersions(loaded.mfm)
   const version = points?.attribution ? null : (points?.version ?? (versions.size === 1 ? versions.values().next().value : null))
   const content = loaded.factionContents.get(slugId)

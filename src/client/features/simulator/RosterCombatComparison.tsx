@@ -19,6 +19,7 @@ import type { RosterCombatSummary, RosterCombatUnit } from './rosterCombat'
 import { RosterCombatTable } from './RosterCombatTable'
 import { BenchmarkTargets } from './BenchmarkTargets'
 import { benchmarkRosters, defaultBenchmarkTargets, parseBenchmarkTargets, type BenchmarkTarget } from './benchmarks'
+import { Problem } from '../../components/Problem'
 
 export type RosterCombatSource = {
   id: string
@@ -321,11 +322,7 @@ export function RosterCombatComparison({
           </Button>
         </div>
       </div>
-      {storageProblem ? (
-        <p role="alert" className="text-xs text-discarded">
-          {storageProblem}
-        </p>
-      ) : null}
+      {storageProblem ? <Problem className="text-xs">{storageProblem}</Problem> : null}
       {!sources && !currentRoster && !me.isPending && !me.data ? (
         <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
       ) : null}
@@ -333,7 +330,7 @@ export function RosterCombatComparison({
         <p className="text-sm text-dim">Save or import two rosters to start comparing targets.</p>
       ) : null}
       {readError ? (
-        <p role="alert" className="text-sm text-discarded">
+        <Problem>
           {errorMessage(readError)}{' '}
           <Button
             variant="outline"
@@ -342,7 +339,7 @@ export function RosterCombatComparison({
           >
             Retry
           </Button>
-        </p>
+        </Problem>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <Button disabled={running || !attackerId || !defenderId || (usingBenchmarks && (!catalogue.data || !targetsLoaded))} onClick={run}>
@@ -361,11 +358,7 @@ export function RosterCombatComparison({
               : ''}
         </output>
       </div>
-      {problem ? (
-        <p role="alert" className="text-sm text-discarded">
-          {problem}
-        </p>
-      ) : null}
+      {problem ? <Problem>{problem}</Problem> : null}
       <p className="text-xs text-dim">
         {liveKey === undefined ? 'Full health' : 'Live models and wounds'} · Default conditions
         <span className="hidden sm:inline">. Supported passive rules apply; cover, range bonuses and conditional buffs stay off.</span>

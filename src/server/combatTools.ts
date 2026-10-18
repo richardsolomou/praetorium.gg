@@ -25,7 +25,7 @@ import { rosterCombatant } from '../shared/rosterCombatRules'
  * Estimates run synchronously on the shared server, so this is 400 times below the browser worker's bound, about
  * 150 ms of calculation; full-size infantry matchups need a tenth of it.
  */
-export const COMBAT_TOOL_MAX_WORK = 5_000_000
+const COMBAT_TOOL_MAX_WORK = 5_000_000
 const MAX_ATTACHED = 2
 
 type Phase = 'ranged' | 'melee'
@@ -56,7 +56,7 @@ const sideSchema = z.object({
     .optional()
     .describe('Rule choices by rule id from a previous result: 0 turns a rule off and n selects its nth option.'),
 })
-export const simulateCombatInputSchema = z.object({
+const simulateCombatInputSchema = z.object({
   attacker: sideSchema,
   defender: sideSchema,
   modifiers: combatAdjustmentsSchema

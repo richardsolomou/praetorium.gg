@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PAINTED_ARMY_POINTS, pointsBudgetOf, pointsLabel, type Command } from '../../../../core/battle'
+import { PAINTED_ARMY_POINTS, pointsBudgetOf, pointsLabel, pointsSize, type Command } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
 import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../../queries'
@@ -87,8 +87,8 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
     <div data-onboarding="battle-setup-armies" className="space-y-4">
       {perArmy !== null && perArmy !== view.settings.limit ? (
         <SetupNote>
-          The allied side splits {view.settings.limit?.toLocaleString('en')} points evenly, so each ally brings a{' '}
-          {perArmy.toLocaleString('en')}-point army.
+          The allied side splits {view.settings.limit?.toLocaleString('en')} points evenly, so each ally brings a {pointsSize(perArmy)}{' '}
+          army.
         </SetupNote>
       ) : null}
       <div className="grid items-start gap-6 lg:grid-cols-2">

@@ -246,9 +246,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
 /**
  * The cards a fixed hand may hold, laid out whole.
  *
- * There are four of them, so nothing is windowed and nothing scrolls: this used to
- * be the entire deck behind a fixed-height scroller, which at four rows was a tall
- * box mostly full of nothing.
+ * There are four of them, so nothing is windowed and nothing scrolls.
  *
  * The name opens the card and the toggle takes it — two controls rather than one, so
  * reading what a mission asks for is never a press that commits you to playing it.

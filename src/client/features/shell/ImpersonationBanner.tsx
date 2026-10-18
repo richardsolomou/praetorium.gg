@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { authClient } from '../../authClient'
+import { Problem } from '../../components/Problem'
 
 export function ImpersonationBanner({ name, email }: { name: string; email: string }) {
   const [busy, setBusy] = useState(false)
@@ -14,7 +15,7 @@ export function ImpersonationBanner({ name, email }: { name: string; email: stri
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-bone">Viewing as {name}</p>
           <p className="truncate text-xs text-dim">{email}</p>
-          {error ? <p className="mt-1 text-xs text-destructive">{error}</p> : null}
+          {error ? <Problem className="mt-1 text-xs">{error}</Problem> : null}
         </div>
         <Button
           type="button"

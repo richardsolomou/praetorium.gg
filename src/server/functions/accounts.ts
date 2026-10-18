@@ -182,32 +182,32 @@ export const userProfile = createServerFn({ method: 'GET' })
 export const opponents = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.opponents(id) : []
+    return id ? app().service.socialService.opponents(id) : []
   }),
 )
 
 export const friendships = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.friendships(id) : { friends: [], incoming: [], outgoing: [] }
+    return id ? app().service.socialService.friendships(id) : { friends: [], incoming: [], outgoing: [] }
   }),
 )
 
 export const activeFriendInvite = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.activeFriendInvite(id) : null
+    return id ? app().service.socialService.activeFriendInvite(id) : null
   }),
 )
 
 export const friendInvite = createServerFn({ method: 'GET' })
   .validator(friendInviteSchema)
-  .handler(({ data }) => rpc(() => app().service.friendInvite(data.token)))
+  .handler(({ data }) => rpc(() => app().service.socialService.friendInvite(data.token)))
 
 export const createFriendInvite = createServerFn({ method: 'POST' }).handler(() =>
   mutationRpc(async () => {
     const userId = await requireUserId()
-    const invite = await app().service.createFriendInvite(userId)
+    const invite = await app().service.socialService.createFriendInvite(userId)
     await app().telemetry.capture(userId, 'friend_invite_created')
     return invite
   }),
@@ -216,7 +216,7 @@ export const createFriendInvite = createServerFn({ method: 'POST' }).handler(() 
 export const cancelFriendInvite = createServerFn({ method: 'POST' }).handler(() =>
   mutationRpc(async () => {
     const userId = await requireUserId()
-    await app().service.cancelFriendInvite(userId)
+    await app().service.socialService.cancelFriendInvite(userId)
     await app().telemetry.capture(userId, 'friend_invite_cancelled')
     return null
   }),
@@ -227,7 +227,7 @@ export const acceptFriendInvite = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      await app().service.acceptFriendInvite(userId, data.token)
+      await app().service.socialService.acceptFriendInvite(userId, data.token)
       await app().telemetry.capture(userId, 'friend_invite_accepted')
       return null
     }),
@@ -236,14 +236,14 @@ export const acceptFriendInvite = createServerFn({ method: 'POST' })
 /** The players a name could mean, for someone with a friend to add. */
 export const searchPlayers = createServerFn({ method: 'GET' })
   .validator(playerSearchSchema)
-  .handler(({ data }) => rpc(async () => app().service.searchPlayers(await requireUserId(), data.query)))
+  .handler(({ data }) => rpc(async () => app().service.socialService.searchPlayers(await requireUserId(), data.query)))
 
 export const requestFriend = createServerFn({ method: 'POST' })
   .validator(friendSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const result = await app().service.requestFriend(userId, data.userId)
+      const result = await app().service.socialService.requestFriend(userId, data.userId)
       await app().telemetry.capture(userId, 'friend_request_sent')
       return result
     }),
@@ -254,7 +254,7 @@ export const acceptFriend = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const result = await app().service.acceptFriend(userId, data.userId)
+      const result = await app().service.socialService.acceptFriend(userId, data.userId)
       await app().telemetry.capture(userId, 'friend_request_accepted')
       return result
     }),
@@ -265,7 +265,7 @@ export const rejectFriend = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const result = await app().service.rejectFriend(userId, data.userId)
+      const result = await app().service.socialService.rejectFriend(userId, data.userId)
       await app().telemetry.capture(userId, 'friend_request_rejected')
       return result
     }),
@@ -276,7 +276,7 @@ export const removeFriend = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const result = await app().service.removeFriend(userId, data.userId)
+      const result = await app().service.socialService.removeFriend(userId, data.userId)
       await app().telemetry.capture(userId, 'friendship_removed')
       return result
     }),
@@ -285,7 +285,7 @@ export const removeFriend = createServerFn({ method: 'POST' })
 export const collection = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.collection(id) : []
+    return id ? app().service.rosterService.collection(id) : []
   }),
 )
 
@@ -294,7 +294,7 @@ export const setOwned = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.setOwned(player.id, data.entryId, data.owned)
+      const result = await app().service.rosterService.setOwned(player.id, data.entryId, data.owned)
       await app().telemetry.capture(player.id, 'player_collection_updated', { owned: data.owned })
       return result
     }),
@@ -303,7 +303,7 @@ export const setOwned = createServerFn({ method: 'POST' })
 export const collectionCounts = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    const counts: Record<string, number> = id ? await app().service.collectionCounts(id) : {}
+    const counts: Record<string, number> = id ? await app().service.rosterService.collectionCounts(id) : {}
     return counts
   }),
 )
@@ -320,7 +320,7 @@ export const setCollectionModels = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.setCollectionModels(player.id, data.entryId, data.models)
+      await app().service.rosterService.setCollectionModels(player.id, data.entryId, data.models)
       await app().telemetry.capture(player.id, 'player_collection_counted', { models: data.models })
     }),
   )
@@ -328,7 +328,7 @@ export const setCollectionModels = createServerFn({ method: 'POST' })
 export const collectionProgress = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    const progress: Record<string, { built: number; painted: number }> = id ? await app().service.collectionProgress(id) : {}
+    const progress: Record<string, { built: number; painted: number }> = id ? await app().service.rosterService.collectionProgress(id) : {}
     return progress
   }),
 )
@@ -338,7 +338,7 @@ export const setCollectionProgress = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.setCollectionProgress(player.id, data.entryId, { built: data.built, painted: data.painted })
+      await app().service.rosterService.setCollectionProgress(player.id, data.entryId, { built: data.built, painted: data.painted })
       await app().telemetry.capture(player.id, 'player_collection_progressed', { built: data.built, painted: data.painted })
     }),
   )
@@ -346,7 +346,7 @@ export const setCollectionProgress = createServerFn({ method: 'POST' })
 export const collectionWishes = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    const wishes: Record<string, number> = id ? await app().service.collectionWishes(id) : {}
+    const wishes: Record<string, number> = id ? await app().service.rosterService.collectionWishes(id) : {}
     return wishes
   }),
 )
@@ -356,7 +356,7 @@ export const setCollectionWanted = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.setCollectionWanted(player.id, data.entryId, data.wanted)
+      await app().service.rosterService.setCollectionWanted(player.id, data.entryId, data.wanted)
       await app().telemetry.capture(player.id, 'player_collection_wished', { wanted: data.wanted })
     }),
   )
@@ -366,7 +366,7 @@ export const importCollection = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.importCollection(player.id, data.rows, data.replace)
+      const result = await app().service.rosterService.importCollection(player.id, data.rows, data.replace)
       await app().telemetry.capture(player.id, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
       return result
     }),
@@ -375,7 +375,7 @@ export const importCollection = createServerFn({ method: 'POST' })
 export const collectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    const photos: Record<string, string[]> = id ? await app().service.collectionPhotos(id) : {}
+    const photos: Record<string, string[]> = id ? await app().service.rosterService.collectionPhotos(id) : {}
     return photos
   }),
 )
@@ -451,7 +451,7 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
 export const favouriteFactions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.favouriteFactions(id) : []
+    return id ? app().service.rosterService.favouriteFactions(id) : []
   }),
 )
 
@@ -460,7 +460,7 @@ export const setFavouriteFaction = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
+      await app().service.rosterService.setFavouriteFaction(player.id, data.catalogueId, data.favourite)
       await app().telemetry.capture(player.id, 'favourite_faction_updated', { favourite: data.favourite })
       return null
     }),
@@ -469,7 +469,7 @@ export const setFavouriteFaction = createServerFn({ method: 'POST' })
 export const favouriteDatasheets = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.favouriteDatasheets(id) : []
+    return id ? app().service.rosterService.favouriteDatasheets(id) : []
   }),
 )
 
@@ -478,7 +478,7 @@ export const setFavouriteDatasheet = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.setFavouriteDatasheet(player.id, data.entryId, data.favourite)
+      await app().service.rosterService.setFavouriteDatasheet(player.id, data.entryId, data.favourite)
       await app().telemetry.capture(player.id, 'favourite_datasheet_updated', { favourite: data.favourite })
       return null
     }),
@@ -487,7 +487,7 @@ export const setFavouriteDatasheet = createServerFn({ method: 'POST' })
 export const favouriteDetachments = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.favouriteDetachments(id) : []
+    return id ? app().service.rosterService.favouriteDetachments(id) : []
   }),
 )
 
@@ -496,7 +496,7 @@ export const setFavouriteDetachment = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.setFavouriteDetachment(player.id, data.catalogueId, data.detachmentId, data.favourite)
+      await app().service.rosterService.setFavouriteDetachment(player.id, data.catalogueId, data.detachmentId, data.favourite)
       await app().telemetry.capture(player.id, 'favourite_detachment_updated', { favourite: data.favourite })
       return null
     }),

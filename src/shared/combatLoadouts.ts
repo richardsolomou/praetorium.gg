@@ -1,3 +1,4 @@
+import { canonicalJson } from '../core/text'
 import { combatCarriers } from '../core/combatLoadout'
 import { toBase64 } from '../core/base64'
 import { isWeaponProfile, type LoadoutBatch, type LoadoutCandidate, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
@@ -11,6 +12,7 @@ import { rosterDetachments } from './rosterDetachments'
 import { attachedUnit } from '../core/attach'
 import { rosterCombatant } from './rosterCombatRules'
 import type { LoadedRules } from './rules'
+import { nextTask } from './nextTask'
 
 type LoadoutRequest = { catalogueId: string; detachmentIds: string[]; picks: RosterPick[]; pickIndex: number }
 
@@ -266,7 +268,7 @@ export async function* combatLoadoutCandidates(
   }
   await enqueue(picks, units)
   yield { candidates: [], built: 0, scheduled: 1, estimated, done: false }
-  await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  await nextTask()
   while (head < queue.length) {
     if (signal.aborted) return
     if (performance.now() - started > SEARCH_LIMITS.ms) throw incomplete()
@@ -279,7 +281,7 @@ export async function* combatLoadoutCandidates(
     }
     if (due()) {
       yield takeBatch()
-      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      await nextTask()
       slice = performance.now()
       if (signal.aborted) return
     }
@@ -292,7 +294,7 @@ export async function* combatLoadoutCandidates(
         if (requested.has(key)) continue
         if (due()) {
           yield takeBatch()
-          await new Promise<void>((resolve) => setTimeout(resolve, 0))
+          await nextTask()
           slice = performance.now()
           if (signal.aborted) return
         }
@@ -343,13 +345,8 @@ async function digest(value: string) {
   return toBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))))
 }
 
-function loadoutRequestKey(pick: RosterPick): string {
-  return JSON.stringify({
-    choices: Object.entries(pick.choices ?? {}).toSorted(([left], [right]) => left.localeCompare(right)),
-    spreads: Object.entries(pick.spreads ?? {})
-      .toSorted(([left], [right]) => left.localeCompare(right))
-      .map(([group, counts]) => [group, Object.entries(counts).toSorted(([left], [right]) => left.localeCompare(right))]),
-  })
+function loadoutRequestKey(pick: RosterPick) {
+  return canonicalJson({ choices: pick.choices ?? {}, spreads: pick.spreads ?? {} })
 }
 
 function* loadoutEdits(resolved: RosterPick, availableChoices: UnitChoice[], models: number): Generator<RosterPick> {

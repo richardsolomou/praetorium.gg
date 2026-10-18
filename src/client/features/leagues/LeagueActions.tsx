@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { deleteLeague } from '../../functions'
-import { leaguesQuery } from '../../queries'
-import { shareLink, useNativeShare } from '../../nativeBridge'
+import { shareLink } from '../../nativeBridge'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
+import { useLeagueRefresh } from './leagueEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { useInviteShareLabel } from '../friends/friendInvite'
 
-export type ManageableLeague = { token: string; name: string }
+type ManageableLeague = { token: string; name: string }
 
 /** One frame for every league card, so a card with organizer actions looks like one without. */
 export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:border-info hover:bg-raised'
@@ -104,7 +105,7 @@ function LeagueActionItems({
   showShare: boolean
   canDelete: boolean
 }) {
-  const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
+  const shareLabel = useInviteShareLabel()
   return (
     <>
       {showView ? (
@@ -165,7 +166,7 @@ function LeagueActionFeedback({ feedback }: { feedback: InviteFeedback }) {
   )
 }
 
-export type InviteFeedback = 'copied' | 'error' | 'shared' | null
+type InviteFeedback = 'copied' | 'error' | 'shared' | null
 
 export function inviteFeedbackText(feedback: Exclude<InviteFeedback, null>) {
   return feedback === 'shared' ? 'Invite shared.' : feedback === 'copied' ? 'Invite link copied.' : 'Could not share the invite. Try again.'
@@ -199,20 +200,16 @@ function leagueInviteUrl(token: string) {
   return `${window.location.origin}/leagues/${token}`
 }
 
-export type LeagueActionsController = ReturnType<typeof useLeagueActions>
+type LeagueActionsController = ReturnType<typeof useLeagueActions>
 
 export function useLeagueActions(league: ManageableLeague, onDeleted?: () => void | Promise<void>) {
-  const queryClient = useQueryClient()
+  const refreshLeague = useLeagueRefresh(league.token)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const invite = useInviteShare(league)
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: league.token } }),
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['league', league.token] }),
-        queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey }),
-      ]),
+    onSettled: refreshLeague,
     onSuccess: async () => {
       await onDeleted?.()
       setDeleting(false)

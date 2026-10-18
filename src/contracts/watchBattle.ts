@@ -4,7 +4,7 @@ import { PHASES } from '../core/battle'
 export const MAX_WATCH_MESSAGE_BYTES = 48_000
 
 const shortText = z.string().max(160)
-export const watchBattleSchema = z.object({
+const watchBattleSchema = z.object({
   version: z.literal(1),
   battleId: shortText,
   viewerId: shortText,

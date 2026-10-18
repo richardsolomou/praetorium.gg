@@ -1,7 +1,8 @@
 /** Saved picks are rebuilt and repriced against the current catalogue. */
 
 import type { CatalogueIndex, Definition } from './catalogue'
-import { childrenOf, isCollective, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
+import { isCollective } from './collective'
+import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
 import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
 import { at as selectionAt, countAt, updateSelection, withCounts } from './selection'
@@ -60,7 +61,7 @@ export function buildUnit(
   if (!first) return null
   const closed = new Set(
     evaluate([first.selection], index, context)
-      .errors.filter((error) => error.message.startsWith('allows at most 0'))
+      .errors.filter((error) => error.limit?.max === 0)
       .map((error) => error.entryId),
   )
   if (!closed.size) return first

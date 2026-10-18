@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { transformed } from '../shared/datacards'
@@ -9,7 +9,7 @@ export function wordsFrom(source: string) {
   const strings = new Map<string, string>()
   const read = (file: string) => {
     for (const value of sourceStrings(JSON.parse(fs.readFileSync(file, 'utf8'))))
-      strings.set(createHash('sha256').update(value).digest('hex').slice(0, TEXT_HASH_LENGTH), value)
+      strings.set(hash('sha256', value).slice(0, TEXT_HASH_LENGTH), value)
   }
   const visit = (directory: string) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -23,8 +23,8 @@ export function wordsFrom(source: string) {
   return (text: string) =>
     resolvedText(
       text,
-      ({ transform, hash }) => {
-        const raw = strings.get(hash)
+      ({ transform, hash: key }) => {
+        const raw = strings.get(key)
         return raw === undefined ? null : transformed(raw, transform)
       },
       () => '⟨missing⟩',

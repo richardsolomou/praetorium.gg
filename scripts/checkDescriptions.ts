@@ -1,16 +1,11 @@
-import path from 'node:path'
 import { baselineShortfall } from './lib/baselines'
 import { detachmentCatalogueDetail } from '../src/shared/catalogueDescriptions'
-import { loadCatalogue } from '../src/server/catalogueIndex'
 import { routeSlug } from '../src/core/slug'
-import { loadRules } from '../src/server/rules'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 /** Add `--details` to print every missing item as faction | detachment | name. */
-const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
-const rules = loadRules(directory)
-if (!rules) throw new Error('rules data is unavailable')
-const catalogue = loadCatalogue(directory)
-if (!catalogue) throw new Error('catalogue data is unavailable')
+const { catalogue, rules } = loadSnapshotWithRules(catalogueDataDirectory())
 
 const detachments = Array.from(rules.detachmentDetails, ([faction, details]) =>
   Array.from(details.values(), (detail) => {

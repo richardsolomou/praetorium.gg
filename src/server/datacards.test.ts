@@ -16,7 +16,7 @@ import {
   type SectionProse,
   transformed,
 } from './datacards'
-import { joinKey } from '../shared/rulesSource'
+import { joinKey } from '../core/text'
 import { weaponGrantsIn } from '../shared/textFacts'
 import { wordsFrom } from './sourceTexts.fixtures'
 

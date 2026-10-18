@@ -66,10 +66,10 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
             notes, preparation, rule waivers and optional rules are omitted. Check the event's submission requirements before sending.
           </p>
           {exported?.omittedUnitCount ? (
-            <p role="alert" className="mb-3 text-sm text-destructive">
+            <Problem className="mb-3">
               {exported.omittedUnitCount} unresolved {exported.omittedUnitCount === 1 ? 'entry is' : 'entries are'} omitted. Resolve them in
               the builder before submitting this roster.
-            </p>
+            </Problem>
           ) : null}
           <pre className="whitespace-pre-wrap wrap-anywhere border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
           {problem ? <Problem className="mt-3">{problem}</Problem> : null}

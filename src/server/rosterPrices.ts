@@ -1,3 +1,4 @@
+import { RecentlyUsed } from '../core/collections'
 import { app } from './app'
 import type { BuiltUnit } from '../core/roster'
 import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
@@ -8,8 +9,7 @@ import { type RosterVerdict, rosterVerdict } from './rosterStatus'
  * does, and both are in the key: `updatedAt` moves with every save and the revision
  * with every snapshot. A stale entry can therefore never be served, only evicted.
  */
-const rosterTotalsCache = new Map<string, ReturnType<typeof calculateRosterTotals>>()
-const ROSTER_TOTALS_CACHE_LIMIT = 10_000
+const rosterTotalsCache = new RecentlyUsed<string, ReturnType<typeof calculateRosterTotals>>(10_000)
 
 const revisionKey = (roster: { id: string; updatedAt: Date | number }, revision: string) =>
   `${roster.id}:${new Date(roster.updatedAt).getTime()}:${revision}`
@@ -65,18 +65,13 @@ export async function cachedRosterTotalsFor(rosters: readonly TotalsRoster[]) {
         roster.name,
       )
       values[index] = totals
-      if (rosterTotalsCache.size >= ROSTER_TOTALS_CACHE_LIMIT) {
-        const oldest = rosterTotalsCache.keys().next().value
-        if (oldest !== undefined) rosterTotalsCache.delete(oldest)
-      }
       rosterTotalsCache.set(revisionKey(roster, revision), totals)
     }
   }
   return values
 }
 
-const rosterPriceCache = new Map<string, ReturnType<typeof calculateRosterPrice>>()
-const ROSTER_PRICE_CACHE_LIMIT = 500
+const rosterPriceCache = new RecentlyUsed<string, ReturnType<typeof calculateRosterPrice>>(500)
 
 export async function cachedRosterPrice(
   roster: {
@@ -99,18 +94,13 @@ export async function cachedRosterPrice(
   if (cached !== undefined || rosterPriceCache.has(key)) return cached ?? null
   const [catalogue, rules] = await Promise.all([app().catalogueFor(roster.catalogueId), app().rulesFor(roster.catalogueId)])
   const price = calculateRosterPrice({ ...savedRosterPriceInput(roster), includeUnitLimits }, catalogue, rules)
-  if (rosterPriceCache.size >= ROSTER_PRICE_CACHE_LIMIT) {
-    const oldest = rosterPriceCache.keys().next().value
-    if (oldest !== undefined) rosterPriceCache.delete(oldest)
-  }
   rosterPriceCache.set(key, price)
   return price
 }
 
 /** Library assessments keep points and verdicts without retaining unit projections. */
 type RosterAssessment = { verdict: RosterVerdict; points: number | null }
-const rosterVerdictCache = new Map<string, RosterAssessment>()
-const ROSTER_VERDICT_CACHE_LIMIT = 10_000
+const rosterVerdictCache = new RecentlyUsed<string, RosterAssessment>(10_000)
 
 export async function cachedRosterAssessmentsFor(rosters: readonly Parameters<typeof cachedRosterPrice>[0][]) {
   if (!rosters.length) return []
@@ -143,10 +133,6 @@ export async function cachedRosterAssessmentsFor(rosters: readonly Parameters<ty
         : null
       const assessment = { verdict: rosterVerdict(roster, priced), points: priced?.points ?? null }
       values[index] = assessment
-      if (rosterVerdictCache.size >= ROSTER_VERDICT_CACHE_LIMIT) {
-        const oldest = rosterVerdictCache.keys().next().value
-        if (oldest !== undefined) rosterVerdictCache.delete(oldest)
-      }
       rosterVerdictCache.set(key, assessment)
     }
   }

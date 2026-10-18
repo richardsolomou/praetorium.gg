@@ -6,6 +6,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createGunzip } from 'node:zlib'
 import { byteLimit } from './boundedBody'
+import { isSafeRelativePath } from './relativePath'
 
 export function hashCatalogueFile(file: string) {
   const hash = createHash('sha256')
@@ -48,7 +49,7 @@ export function extractCatalogueArchive(archive: string, directory: string) {
     if (name !== 'manifest.json' && !/^objects\/[a-f0-9]{64}$/.test(name) && !name.startsWith('catalogue/')) {
       throw new Error(`catalogue snapshot contains an unexpected entry ${name}`)
     }
-    if (name.includes('\\') || name.split('/').some((part) => !part || part === '.' || part === '..')) {
+    if (!isSafeRelativePath(name)) {
       throw new Error(`unsafe catalogue snapshot path ${name}`)
     }
     const file = path.join(directory, name)

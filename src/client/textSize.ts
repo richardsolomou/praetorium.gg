@@ -1,5 +1,4 @@
-import { useEffect } from 'react'
-import { readStoredValue, useStoredValue, writeStoredValue } from './storedValue'
+import { readStoredValue, subscribeStoredValues, useStoredValue, writeStoredValue } from './storedValue'
 
 /** Reading sizes for this device, as the root font size every rem-sized measure follows. */
 export const TEXT_SIZES = ['standard', 'large', 'larger'] as const
@@ -20,9 +19,11 @@ function applyTextSize(size: TextSize) {
   else document.documentElement.dataset.textSize = size
 }
 
-/** For documents the head script never ran in, such as the native shell's saved application. */
-export function restoreTextSize() {
-  applyTextSize(savedTextSize())
+/** Keeps the document on the saved size as it changes in any tab, and sets it where the head script never ran, such as the native shell's saved application. */
+export function followTextSize() {
+  const apply = () => applyTextSize(savedTextSize())
+  apply()
+  return subscribeStoredValues(apply)
 }
 
 /** Storage can refuse the write; the size still applies until the page reloads. */
@@ -31,14 +32,5 @@ export function chooseTextSize(size: TextSize) {
   writeStoredValue(KEY, size === 'standard' ? null : size)
 }
 
-/** The size chosen on this device, following another tab's choice; the server and the first frame render the standard size. */
-export function useTextSize() {
-  useEffect(() => {
-    const fromOtherTab = (event: StorageEvent) => {
-      if (event.key === KEY) applyTextSize(parsed(event.newValue))
-    }
-    window.addEventListener('storage', fromOtherTab)
-    return () => window.removeEventListener('storage', fromOtherTab)
-  }, [])
-  return parsed(useStoredValue(KEY))
-}
+/** The size chosen on this device; the server and the first frame render the standard size. */
+export const useTextSize = () => parsed(useStoredValue(KEY))

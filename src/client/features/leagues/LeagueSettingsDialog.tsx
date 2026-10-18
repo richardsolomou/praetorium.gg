@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { leagueMinimumPlaces, leaguePlacesSeat, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { createLeague, createLeagueEvent, setLeagueAdmins, updateLeague } from '../../functions'
-import { leagueQuery, leaguesQuery, meQuery } from '../../queries'
+import { leagueQuery, leagueReadsKey, leaguesQuery, meQuery } from '../../queries'
 import { leagueFormValid, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 import type { League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
@@ -15,7 +15,7 @@ import { Problem } from '../../components/Problem'
  * `create` opens a league with its first event, `edit` changes the league and its current event, and
  * `next` starts the event after a revealed one. All three are the same form, so every setting lives in one place.
  */
-export type LeagueSettingsMode = { kind: 'create' } | { kind: 'edit'; token: string } | { kind: 'next'; token: string }
+type LeagueSettingsMode = { kind: 'create' } | { kind: 'edit'; token: string } | { kind: 'next'; token: string }
 
 const SAVE = ['league-settings']
 
@@ -121,7 +121,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: leaguesQuery().queryKey }),
-        league ? queryClient.invalidateQueries({ queryKey: ['league', league.token] }) : null,
+        league ? queryClient.invalidateQueries({ queryKey: leagueReadsKey(league.token) }) : null,
       ]),
     onSuccess: async (created) => {
       onClose()

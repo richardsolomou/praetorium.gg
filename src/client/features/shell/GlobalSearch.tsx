@@ -4,7 +4,6 @@ import { posthog } from 'posthog-js'
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CommandDialog } from '@/components/ui/command'
-import { DialogClose } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../functions'
 import { useClientValue } from '../../useClientValue'
@@ -15,6 +14,7 @@ import { rememberSearch } from './searchHistory'
 import { SearchResults } from './SearchResults'
 import { useGlobalSearch } from './useGlobalSearch'
 import { SEARCH_MIN_LENGTH } from '../../../core/referenceSearch'
+import { DialogClose } from '../../components/Dialog'
 
 type GlobalSearchContextValue = {
   open: () => void

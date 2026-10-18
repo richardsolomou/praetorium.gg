@@ -12,12 +12,13 @@ import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
+import { countLabel } from '../../text'
 
 /**
  * What a roster card reads of a list. A saved list carries all of it; a frozen copy, such as a
  * sealed league list, has no visibility or lock of its own to show.
  */
-export type RosterCardFacts = Pick<
+type RosterCardFacts = Pick<
   SavedRoster,
   'name' | 'detachmentIds' | 'disposition' | 'limit' | 'pointsBudget' | 'unitCount' | 'updatedAt' | 'waivedRules'
 > &
@@ -123,8 +124,8 @@ export function RosterSummary({
         <RosterUpdateChips updates={updates} />
       </span>
       <span className="col-span-2 block text-xs text-dim sm:col-span-1">
-        11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {roster.unitCount} {roster.unitCount === 1 ? 'unit' : 'units'}{' '}
-        · {showLegality || !roster.visibility ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}
+        11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {countLabel(roster.unitCount, 'unit')} ·{' '}
+        {showLegality || !roster.visibility ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}
         {dateLabel} {date(roster.updatedAt)}
       </span>
       {differences ? (
@@ -152,7 +153,7 @@ function RosterUpdateChips({ updates }: { updates?: RosterUpdates }) {
   )
 }
 
-export function LockedChip() {
+function LockedChip() {
   return (
     <span className="chip shrink-0 gap-1">
       <Lock className="size-3" aria-hidden />

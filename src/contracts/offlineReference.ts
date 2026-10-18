@@ -1,3 +1,4 @@
+import { jsonByteLength } from '../core/json'
 import { PUBLIC_REFERENCE_QUERIES } from './appSnapshot'
 import type { GlobalSearchIndex } from './referenceSearch'
 import type { RuntimeData } from './runtimeData'
@@ -83,7 +84,7 @@ export function decodeReferenceBundle(value: unknown): unknown {
   if (!expanded.construction) return expanded
   if (version === 3) return { ...expanded, construction: { ...expanded.construction, shared: true } }
   const base = expanded.construction
-  const budget = { remaining: MAX_OFFLINE_BYTES - new TextEncoder().encode(JSON.stringify(value)).byteLength }
+  const budget = { remaining: MAX_OFFLINE_BYTES - jsonByteLength(value) }
   if (budget.remaining < 0) throw new Error('Shared reference bundle exceeds its size limit')
   return {
     ...expanded,

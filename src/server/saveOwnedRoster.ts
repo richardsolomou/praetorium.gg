@@ -21,7 +21,7 @@ export async function saveOwnedRoster(
         await instance.rosterLabelRulesFor(data.catalogueId),
       )
     : null
-  return instance.service.saveRoster(userId, {
+  return instance.service.rosterService.saveRoster(userId, {
     ...data,
     name: data.name || totals?.label || '',
     automaticName,
@@ -39,7 +39,7 @@ export async function saveOwnedRoster(
  */
 export async function copySavedRoster(userId: string, id: string, variant: boolean, setup?: z.infer<typeof saveRosterSchema>) {
   const instance = app()
-  const access = await instance.service.rosterAccess(id, userId)
+  const access = await instance.service.rosterService.rosterAccess(id, userId)
   if (!access || (variant && !access.editable)) return null
   const { roster } = access
   const { rosterVisibility } = await instance.service.playerDefaults(userId)
@@ -67,7 +67,7 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
 }
 
 async function variantNameFor(userId: string, roster: { id: string; name: string; automaticName: boolean; baseRosterId: string | null }) {
-  const group = await app().service.rosterGroup(userId, roster)
+  const group = await app().service.rosterService.rosterGroup(userId, roster)
   const base = group.find((saved) => saved.id === (roster.baseRosterId ?? roster.id)) ?? roster
   return base.automaticName
     ? ''

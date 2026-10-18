@@ -91,7 +91,7 @@ export function readGuestDraft(): GuestDraft | null {
     // Storage the browser refuses to read holds no draft; the tab's copy below may still.
   }
   const tab = validDraft(readWorkspaceState<GuestDraft>(GUEST_PATH, NAME))
-  if (tab && writeGuestDraft(tab)) forget(() => writeWorkspaceState(GUEST_PATH, NAME, null))
+  if (tab && writeGuestDraft(tab)) writeWorkspaceState(GUEST_PATH, NAME, null)
   return tab
 }
 
@@ -168,7 +168,7 @@ function forget(remove: () => void) {
 export function clearGuestDraft() {
   forget(() => localStorage.removeItem(KEY))
   lastWritten = null
-  for (const name of [NAME, 'roster-setup', 'waivers-dismissed']) forget(() => writeWorkspaceState(GUEST_PATH, name, null))
+  for (const name of [NAME, 'roster-setup', 'waivers-dismissed']) writeWorkspaceState(GUEST_PATH, name, null)
   markGuestDraft(false)
   setGuestDraftOpen(false)
 }

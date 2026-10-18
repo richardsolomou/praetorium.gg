@@ -1,3 +1,4 @@
+import { canonicalJson } from './text'
 import type { RosterPick } from './roster'
 
 type Compared = {
@@ -28,16 +29,6 @@ export type RosterDifferences = {
 const sameSet = (left: readonly string[] = [], right: readonly string[] = []) =>
   left.length === right.length && left.every((value) => right.includes(value))
 
-/** Object keys in a fixed order, so two equal choices serialise alike. */
-const canonical = (value: unknown): unknown =>
-  value && typeof value === 'object' && !Array.isArray(value)
-    ? Object.fromEntries(
-        Object.entries(value)
-          .toSorted(([left], [right]) => left.localeCompare(right))
-          .map(([key, field]) => [key, canonical(field)]),
-      )
-    : value
-
 /** Units grouped by datasheet, each keyed by everything a player chose for it. */
 function unitsOf(picks: readonly RosterPick[]) {
   const datasheets = new Map<string, { unit: RosterUnitChange; keys: string[] }>()
@@ -45,7 +36,7 @@ function unitsOf(picks: readonly RosterPick[]) {
     const identity = `${pick.catalogueId ?? ''}:${pick.entryId}`
     // A position shifts whenever an earlier unit is added or removed, so a joined unit is compared by what it joins.
     const joins = attachedTo === undefined ? null : (picks[attachedTo]?.entryId ?? null)
-    const key = JSON.stringify(canonical({ ...pick, joins }))
+    const key = canonicalJson({ ...pick, joins })
     const group = datasheets.get(identity)
     if (group) group.keys.push(key)
     else datasheets.set(identity, { unit: { entryId: pick.entryId, catalogueId: pick.catalogueId, count: 0 }, keys: [key] })

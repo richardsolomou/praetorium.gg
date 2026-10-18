@@ -17,7 +17,7 @@ const targetSchema = z.object({
 const targetsSchema = z.array(targetSchema).max(50)
 export type BenchmarkTarget = z.infer<typeof targetSchema>
 
-export const DEFAULT_BENCHMARKS = [
+const DEFAULT_BENCHMARKS = [
   ['Astra Militarum', 'Cadian Shock Troops'],
   ['Necrons', 'Necron Warriors'],
   ['Space Marines', 'Intercessor Squad'],

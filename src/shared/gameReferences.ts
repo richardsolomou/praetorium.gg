@@ -16,11 +16,7 @@ function buildGameReferences(rules: BattleReadRules) {
     ).values(),
   ]
   const primaryByKey = new Map(rules.primaries.map((card) => [card.key, card]))
-  const matchupsByMission = new Map<string, string[]>()
-  for (const [pair, mission] of matchupEntries) {
-    const missionKey = `${mission.packId ?? 'legacy'}:${mission.id}`
-    matchupsByMission.set(missionKey, [...(matchupsByMission.get(missionKey) ?? []), pair])
-  }
+  const matchupsByMission = groupBy(matchupEntries, ([, mission]) => `${mission.packId ?? 'legacy'}:${mission.id}`)
   const missionsByPack = groupBy(
     missions.filter((mission) => mission.source),
     (mission) => mission.source!,
@@ -34,7 +30,7 @@ function buildGameReferences(rules: BattleReadRules) {
     missions: packMissions.map((mission) => ({
       ...mission,
       card: primaryByKey.get(mission.id) ?? null,
-      matchups: (matchupsByMission.get(`${mission.packId ?? 'legacy'}:${mission.id}`) ?? []).map((pair) =>
+      matchups: (matchupsByMission.get(`${mission.packId ?? 'legacy'}:${mission.id}`) ?? []).map(([pair]) =>
         pair.split('|').map((id) => ({ id, name: rules.dispositions?.get(id) ?? id })),
       ),
     })),

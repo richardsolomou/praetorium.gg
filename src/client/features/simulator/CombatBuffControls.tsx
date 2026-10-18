@@ -4,6 +4,7 @@ import { combatEffectAppliesTo, combatRuleAppliesTo, combatRuleChoices, combatRu
 import { CombatRuleLabel } from './CombatRuleLabel'
 import { Choice, Toggle } from './CombatControls'
 import type { Combatant } from './useCombatant'
+import { Problem } from '../../components/Problem'
 
 export function CombatBuffControls({ side, combatant, opponent }: { side: string; combatant: Combatant; opponent: Combatant }) {
   const role = side === 'Attacker' ? 'attacker' : 'defender'
@@ -114,12 +115,12 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
           )
         })}
         {combatant.sheets.isError ? (
-          <p role="alert" className="text-sm text-discarded">
+          <Problem>
             Buffs could not load.{' '}
             <Button variant="outline" size="sm" onClick={() => void combatant.sheets.refetch()}>
               Retry
             </Button>
-          </p>
+          </Problem>
         ) : !rules.length && !enhancements.length ? (
           <p className="text-xs text-faint">{combatant.unit ? 'No combat buffs available.' : 'Choose a unit to see its buffs.'}</p>
         ) : null}

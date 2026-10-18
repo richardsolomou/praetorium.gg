@@ -12,7 +12,8 @@ export const Route = createFileRoute('/factions/$catalogueId')({
       .min(1)
       .max(80)
       .regex(/^[a-z0-9-]+$/)
-      .optional(),
+      .optional()
+      .catch(undefined),
   }),
   loaderDeps: ({ search }) => ({ rules: search.rules }),
   loader: async ({ context, location, params, deps }) => {

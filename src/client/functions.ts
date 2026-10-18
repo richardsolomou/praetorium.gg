@@ -1,3 +1,4 @@
+import { partialMatchKey } from '@tanstack/react-query'
 import { requireReviewedRoster, type ReviewedServerSave } from './offline/reviewedRoster'
 import { projectBattles } from './offline/battleFunctions'
 import { accountChanged, cachedRead, cachedPage } from './offline/reads'
@@ -6,10 +7,11 @@ import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { convertedSetup } from '../core/rosterSetup'
 import { datasheetSchema, saveRosterSchema } from '../contracts/schemas'
+import type { RosterPick } from '../core/roster'
 import * as server from '../server/functions'
 import { syncRoster } from '../server/functions/offline'
 import { constructionRead, constructionData, localConstruction } from './offline/construction'
-import { prepareDeviceConstruction } from './offline/constructionWorker'
+import { deviceLoadoutSearch, prepareDeviceConstruction } from './offline/constructionWorker'
 import type { ConstructionReadData, ConstructionReadName } from './offline/constructionReads'
 import {
   localClient,
@@ -36,13 +38,30 @@ import { calculationRead } from './offline/calculationRead'
 import { anySignal } from './abortSignals'
 import { rosterPriceKey } from './queries/rosterPriceKey'
 import {
+  armyUpdatesKey,
+  catalogueChangesKey,
+  combatUnitsKey,
+  factionIndexKey,
+  factionKey,
+  friendBattlesKey,
   homeRostersKey,
+  leagueBattlesKey,
+  leagueKey,
   meKey,
+  playerProfileKey,
+  playerRankingsKey,
+  playerRostersKey,
+  playerSearchKey,
+  publicBattlesKey,
   rosterAccessKey,
   rosterBootstrapKey,
+  rosterChangesKey,
+  savedRosterChangedIdsKey,
   savedRosterPageKey,
   savedRosterSummariesKey,
   sharedRosterKey,
+  standingsKey,
+  userProfileKey,
 } from './queries/queryKeys'
 
 export * from '../server/functions'
@@ -54,7 +73,21 @@ const read =
   (args: { data: ConstructionReadData<K> & { catalogueId?: string }; signal?: AbortSignal }) =>
     constructionRead(name, args.data, (signal) => online({ ...args, signal }), args.data.catalogueId, args.signal)
 
-export { deviceLoadoutSearch, retireDeviceConstruction } from './offline/constructionWorker'
+export { retireDeviceConstruction } from './offline/constructionWorker'
+
+/** A unit's loadouts as a stream of candidate batches, searched on this device when it has the data, otherwise by the server. */
+export const loadoutSearch = async (
+  input: { catalogueId: string; detachmentIds: readonly string[]; picks: readonly RosterPick[]; pickIndex: number },
+  signal: AbortSignal,
+) =>
+  deviceLoadoutSearch(input, signal) ??
+  fetch('/api/simulator/optimize', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    signal,
+    body: JSON.stringify(input),
+  })
+
 /** Prepares a faction's units on the device ahead of the roster that will list them. */
 export const prepareFactionUnits = (catalogueId: string) => prepareDeviceConstruction(catalogueId, true)
 
@@ -78,13 +111,12 @@ export const datasheet = read('datasheet', (args) => server.datasheet(args))
 export const loadoutDatasheets = read('loadoutDatasheets', (args) => server.loadoutDatasheets(args))
 export const combatantDatasheet = read('combatantDatasheet', (args) => server.combatantDatasheet(args))
 export const combatantDatasheets = read('combatantDatasheets', (args) => server.combatantDatasheets(args))
-export const calculateCombatBatch = (args: Parameters<typeof server.calculateCombatBatch>[0]) => server.calculateCombatBatch(args)
 export const combatLoadouts = read('combatLoadouts', (args) => server.combatLoadouts(args))
 export const unitWounds = read('unitWounds', (args) => server.unitWounds(args))
 export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
 export const exportRoster = read('exportRoster', (args) => server.exportRoster(args))
 export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
-  const factions = savedQuery<Awaited<ReturnType<typeof server.factionIndex>>>(referenceData(), ['faction-index'])?.factions
+  const factions = savedQuery<Awaited<ReturnType<typeof server.factionIndex>>>(referenceData(), factionIndexKey())?.factions
   if (isRosterExchangeCode(args.data.file)) {
     const exchange = await decodeRosterExchange(args.data.file)
     if (!factions) return server.importRoster(args)
@@ -124,7 +156,7 @@ function savedFaction(id: string, factions: { id: string; name: string }[]) {
 }
 
 function factionFor(id: string) {
-  return savedQuery<NonNullable<Awaited<ReturnType<typeof server.rosterBootstrap>>>['faction']>(referenceData(), ['faction', id])
+  return savedQuery<NonNullable<Awaited<ReturnType<typeof server.rosterBootstrap>>>['faction']>(referenceData(), factionKey(id))
 }
 
 function accessFor(roster: LocalRoster, state?: LocalState) {
@@ -414,15 +446,8 @@ export function projectLocalState(state: LocalState) {
     if (resource.startsWith('league:')) {
       if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
       const league = document.data as Awaited<ReturnType<typeof server.openLeague>>
-      client.setQueriesData(
-        {
-          predicate: (query) =>
-            query.queryKey[0] === 'league' &&
-            query.queryKey[1] === resource.slice(7) &&
-            (query.queryKey[2] === 'current' || query.queryKey[2] === league?.eventToken),
-        },
-        league,
-      )
+      const keys = [leagueKey(resource.slice(7)), leagueKey(resource.slice(7), league?.eventToken)]
+      client.setQueriesData({ predicate: (query) => keys.some((key) => partialMatchKey(query.queryKey, key)) }, league)
       continue
     }
     if (!resource.startsWith('roster:')) continue
@@ -797,37 +822,35 @@ export async function rosterChanges(args: Parameters<typeof server.rosterChanges
     state.operations.some((operation) => operation.resource === `roster:${args.data.id}` && operation.kind === 'saveRoster')
   )
     return []
-  return cachedRead(['roster-changes', args.data.id], () => server.rosterChanges(args))
+  return cachedRead(rosterChangesKey(args.data.id), () => server.rosterChanges(args))
 }
-export const savedRosterChangedIds = () => cachedRead(['saved-roster-changed-ids'], () => server.savedRosterChangedIds())
+export const savedRosterChangedIds = () => cachedRead(savedRosterChangedIdsKey(), () => server.savedRosterChangedIds())
 
 export const combatUnits = () => {
-  const saved = savedQuery<Awaited<ReturnType<typeof server.combatUnits>>>(referenceData(), ['combat-units'])
+  const saved = savedQuery<Awaited<ReturnType<typeof server.combatUnits>>>(referenceData(), combatUnitsKey())
   return saved ? Promise.resolve(saved) : server.combatUnits()
 }
 
 export const publicBattles = (args: Parameters<typeof server.publicBattles>[0]) =>
-  cachedPage(['public-battles'], args.data.before, () => server.publicBattles(args))
+  cachedPage(publicBattlesKey(), args.data.before, () => server.publicBattles(args))
 export const friendBattles = (args: Parameters<typeof server.friendBattles>[0]) =>
-  cachedPage(['friend-battles'], args.data.before, () => server.friendBattles(args))
+  cachedPage(friendBattlesKey(), args.data.before, () => server.friendBattles(args))
 export const listLeagueBattles = (args: Parameters<typeof server.listLeagueBattles>[0]) =>
-  cachedPage(['league-battles', args.data.token, args.data.eventToken], args.data.before, () => server.listLeagueBattles(args))
-export const standings = () => cachedRead(['standings'], () => server.standings())
+  cachedPage(leagueBattlesKey(args.data.token, args.data.eventToken), args.data.before, () => server.listLeagueBattles(args))
+export const standings = () => cachedRead(standingsKey(), () => server.standings())
 export const playerRosters = (args: Parameters<typeof server.playerRosters>[0]) =>
-  cachedRead(['player-rosters', args.data.userId], () => server.playerRosters(args))
+  cachedRead(playerRostersKey(args.data.userId), () => server.playerRosters(args))
 export const playerRankings = (args: Parameters<typeof server.playerRankings>[0]) =>
-  cachedRead(['player-rankings', args.data.userId], () => server.playerRankings(args))
+  cachedRead(playerRankingsKey(args.data.userId), () => server.playerRankings(args))
 export const userProfile = (args: Parameters<typeof server.userProfile>[0]) =>
-  cachedRead(['user-profile', args.data.userId], () => server.userProfile(args))
-export const sharedBattles = (args: Parameters<typeof server.sharedBattles>[0]) =>
-  cachedRead(['shared-battles', args.data.userId], () => server.sharedBattles(args))
+  cachedRead(userProfileKey(args.data.userId), () => server.userProfile(args))
 export const playerProfile = (args: Parameters<typeof server.playerProfile>[0]) => {
   const { userId, ...filter } = args.data
-  return cachedRead(['player-profile', userId, filter], () => server.playerProfile(args))
+  return cachedRead(playerProfileKey(userId, filter), () => server.playerProfile(args))
 }
 export const searchPlayers = (args: Parameters<typeof server.searchPlayers>[0]) =>
-  cachedRead(['player-search', args.data.query], () => server.searchPlayers(args))
+  cachedRead(playerSearchKey(args.data.query), () => server.searchPlayers(args))
 export const catalogueChangeLog = (args: Parameters<typeof server.catalogueChangeLog>[0]) =>
-  cachedRead(['catalogue-changes', args.data.faction ?? null, args.data.before ?? null], () => server.catalogueChangeLog(args))
+  cachedRead(catalogueChangesKey(args.data.faction, args.data.before), () => server.catalogueChangeLog(args))
 export const armyUpdates = (args: Parameters<typeof server.armyUpdates>[0]) =>
-  cachedRead(['army-updates', args.data.factions], () => server.armyUpdates(args))
+  cachedRead(armyUpdatesKey(args.data.factions), () => server.armyUpdates(args))

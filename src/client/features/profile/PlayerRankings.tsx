@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { Standing, StandingFaction } from '../../../core/standings'
 import { winRate } from '../../../core/standings'
 import { FactionMark } from '../../components/FactionMark'
-import { percentLabel } from '../../text'
+import { percentLabel, countLabel } from '../../text'
 
 type Ranking<T> = { faction: T; place: number; of: number; standing: Standing }
 
@@ -52,8 +52,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
                 <span className="truncate text-sm font-bold uppercase">{faction?.displayName ?? 'Everyone'}</span>
               </span>
               <span className="readout mt-0.5 block truncate text-xs text-dim">
-                {standing.rating} rating · {percentLabel(winRate(standing))} · {standing.battles}{' '}
-                {standing.battles === 1 ? 'battle' : 'battles'}
+                {standing.rating} rating · {percentLabel(winRate(standing))} · {countLabel(standing.battles, 'battle')}
               </span>
             </span>
           </Link>

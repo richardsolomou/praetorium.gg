@@ -14,7 +14,7 @@ import {
   type RosterCombatUnit,
 } from './rosterCombat'
 
-export const MAX_ROSTER_MATCHUPS = 2500
+const MAX_ROSTER_MATCHUPS = 2500
 export const ROSTER_COMBAT_TIMEOUT = 300_000
 const CONCURRENT_MATCHUPS = 4
 

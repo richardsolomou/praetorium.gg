@@ -22,6 +22,7 @@ export function ConfirmDialog({
   pendingLabel,
   destructive = false,
   pending = false,
+  disabled = false,
   error = null,
   onClose,
   onConfirm,
@@ -35,6 +36,8 @@ export function ConfirmDialog({
   pendingLabel?: string
   destructive?: boolean
   pending?: boolean
+  /** Refuses the action without the pending state, for a precondition the dialog explains. */
+  disabled?: boolean
   error?: Error | null
   onClose: () => void
   onConfirm: () => void
@@ -50,7 +53,7 @@ export function ConfirmDialog({
         {error ? <Problem error={error} /> : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>{cancel}</AlertDialogCancel>
-          <AlertDialogAction variant={destructive ? 'destructive' : 'default'} disabled={pending} onClick={onConfirm}>
+          <AlertDialogAction variant={destructive ? 'destructive' : 'default'} disabled={pending || disabled} onClick={onConfirm}>
             {pending ? (pendingLabel ?? confirm) : confirm}
           </AlertDialogAction>
         </AlertDialogFooter>

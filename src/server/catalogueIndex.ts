@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { publishedTexts } from './sourceTexts'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -57,9 +57,7 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   }
 }
 export function catalogueRevision(revisions: Record<string, string>) {
-  return createHash('sha256')
-    .update(JSON.stringify(Object.entries(revisions).sort(([left], [right]) => left.localeCompare(right))))
-    .digest('hex')
+  return hash('sha256', JSON.stringify(Object.entries(revisions).sort(([left], [right]) => left.localeCompare(right))))
 }
 
 /**

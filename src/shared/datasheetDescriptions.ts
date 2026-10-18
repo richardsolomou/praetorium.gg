@@ -1,9 +1,10 @@
 import { routeSlug } from '../core/slug'
-import { ruleReferenceMatches } from '../core/ruleReference'
-import { datasheetIn, detachmentAbilitiesIn, rulesNamed, rulesReferencedIn, weaponKeywordsOf } from './catalogue'
+import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
+import { rulesNamed, rulesReferencedIn } from './catalogueRules'
+import { datasheetIn, detachmentAbilitiesIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
-import { joinKey } from './rulesSource'
+import { joinKey } from '../core/text'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
 
@@ -147,7 +148,7 @@ export function describeDatasheetAbilitiesWithContributions(
  * to the characteristic rather than announcing what it added, so the whole line is read.
  */
 const weaponKeywords = (profiles: NonNullable<ReturnType<typeof datasheetIn>>['profiles']) =>
-  profiles.flatMap((profile) => profile.values.flatMap((value) => (value.name === 'Keywords' ? weaponKeywordsOf(value.value) : [])))
+  profiles.flatMap((profile) => profile.values.flatMap((value) => (value.name === 'Keywords' ? splitWeaponKeywords(value.value) : [])))
 
 function mergeKeywordRules<T extends { name: string }>(preferred: readonly T[], fallback: readonly T[]) {
   return [...new Map([...fallback, ...preferred].map((rule) => [rule.name.toLowerCase(), rule])).values()]

@@ -23,7 +23,7 @@ it('does not recommend a zero-damage target', () => {
   expect(bestRosterMatches([answer(0, 0, 0), { error: 'Unsupported' }], 'meanDamage')).toEqual([])
 })
 
-it('shows every attacking unit beyond the former ten-row page', () => {
+it('shows every attacking unit without paging', () => {
   const units = Array.from({ length: 12 }, (_, pickIndex) => ({
     rosterIndex: 0,
     pickIndex,

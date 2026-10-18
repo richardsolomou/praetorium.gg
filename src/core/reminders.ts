@@ -1,13 +1,14 @@
+import { plainQuotes } from './text'
 import { z } from 'zod'
 import { type Phase, TURN_SCOPES, type TurnScope } from './battle'
 import { routeSlug } from './slug'
 
-export const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
+const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
 export const REMINDER_PHASES = ['command', 'movement', 'shooting', 'charge', 'fight'] as const
 export const ROSTER_REMINDERS_MAX = 100
 export const REMINDER_TIMINGS_MAX = 10
-export const REMINDER_ABILITY_MAX_LENGTH = 80
-export const REMINDER_DESCRIPTION_MAX_LENGTH = 10_000
+const REMINDER_ABILITY_MAX_LENGTH = 80
+const REMINDER_DESCRIPTION_MAX_LENGTH = 10_000
 
 export type ReminderMoment = (typeof REMINDER_MOMENTS)[number]
 export type ReminderPhase = (typeof REMINDER_PHASES)[number] | 'any'
@@ -80,7 +81,7 @@ type Candidate = { index: number; timing: ReminderTiming }
 const phaseAt = (value: string): ReminderPhase | null => REMINDER_PHASES.find((phase) => phase === value.toLocaleLowerCase()) ?? null
 
 const turnAt = (value: string | undefined): TurnScope => {
-  const owner = value?.toLocaleLowerCase().replaceAll('’', "'").trim() ?? ''
+  const owner = plainQuotes(value?.toLocaleLowerCase() ?? '').trim()
   if (owner.includes('opponent')) return 'opponent-turn'
   if (owner.startsWith('your')) return 'your-turn'
   return 'either'
@@ -194,9 +195,11 @@ function reminderTimingLabelWithoutRestriction(timing: ReminderTiming): string {
     const boundary = timing.moment === 'phase-start' ? 'Start' : 'End'
     return `${boundary} of any phase${timing.turn === 'either' ? '' : ` on ${owner} turn`}`
   }
-  const phase = `${timing.phase[0]?.toLocaleUpperCase()}${timing.phase.slice(1)}`
-  return `${timing.moment === 'phase-start' ? 'Start' : 'End'} of ${owner} ${phase} phase`
+  return `${timing.moment === 'phase-start' ? 'Start' : 'End'} of ${owner} ${phaseName(timing.phase)} phase`
 }
+
+/** "Shooting" for `shooting`. */
+export const phaseName = (phase: string) => `${phase.charAt(0).toLocaleUpperCase()}${phase.slice(1)}`
 
 export function remindersAfterUnitRemoved(reminders: readonly RosterReminder[], removedIndex: number): RosterReminder[] {
   return reminders.flatMap((reminder) => {

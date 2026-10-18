@@ -7,6 +7,7 @@
  */
 
 import type { CatalogueIndex, Definition } from './catalogue'
+import { scaleOf } from './collective'
 import {
   childrenOf,
   exclusiveSets,
@@ -24,7 +25,6 @@ import {
   repeatedModelOn,
   requiredCount,
   resolve,
-  scaleOf,
   UNBOUNDED,
 } from './definitions'
 import { evaluationErrorsFor, type EvaluateOptions, hiddenByRules, selectionCountBoundsAt, type Selection } from './evaluate'
@@ -469,7 +469,7 @@ function effectiveCount(
       primaryCatalogueId: context.primaryCatalogueId,
       modifierCache: context.modifierCache,
     })
-    if (errors.some((error) => error.message.startsWith('allows at most'))) {
+    if (errors.some((error) => error.limit)) {
       return Math.max(existing, count - 1)
     }
   }

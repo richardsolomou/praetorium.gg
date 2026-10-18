@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { hash, timingSafeEqual } from 'node:crypto'
 import type { AuthContext } from 'better-auth'
 import { createAuthEndpoint, getAuthoritativeSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
@@ -42,12 +42,12 @@ const exchangeRecordSchema = generateBody.extend({ sessionToken: z.string().min(
 type ExchangeRecord = z.infer<typeof exchangeRecordSchema>
 
 function exchangeIdentifier(id: string, token: string) {
-  const digest = createHash('sha256').update(token).digest('base64url')
+  const digest = hash('sha256', token, 'base64url')
   return `native-auth:${id}:${digest}`
 }
 
 function hasChallenge(record: ExchangeRecord, verifier: string) {
-  const actual = Buffer.from(createHash('sha256').update(verifier).digest('base64url'))
+  const actual = Buffer.from(hash('sha256', verifier, 'base64url'))
   const expected = Buffer.from(record.challenge)
   return actual.length === expected.length && timingSafeEqual(actual, expected)
 }

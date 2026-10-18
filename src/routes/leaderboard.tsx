@@ -2,10 +2,11 @@ import { createFileRoute } from '@tanstack/react-router'
 import { LeaderboardPage } from '../client/features/leaderboard/LeaderboardPage'
 import { pageHead } from '../client/linkPreview'
 import { standingsQuery } from '../client/queries'
+import { searchText } from '../client/searchParams'
 
 export const Route = createFileRoute('/leaderboard')({
   validateSearch: (search: Record<string, unknown>) => ({
-    faction: typeof search.faction === 'string' && search.faction ? search.faction : undefined,
+    faction: searchText(search.faction),
   }),
   loader: ({ context }) => context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }),
   head: ({ match }) =>

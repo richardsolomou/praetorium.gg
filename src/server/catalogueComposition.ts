@@ -4,19 +4,10 @@ import { z } from 'zod'
 import { catalogueEditionSchema } from '../core/catalogueEdition'
 import { catalogueSourcesSchema, repositorySourceSchema } from './catalogueSources'
 import { loadMfm, mfmVersions } from './mfm'
+import { isSafeRelativePath } from './relativePath'
 
 const sourceNames = ['definitions', 'points', 'datacards'] as const
-const relativeFile = z
-  .string()
-  .max(240)
-  .refine(
-    (value) =>
-      Boolean(value) &&
-      !value.startsWith('/') &&
-      !value.includes('\\') &&
-      !value.split('/').some((part) => !part || part === '..' || part === '.'),
-    'expected a relative file path',
-  )
+const relativeFile = z.string().max(240).refine(isSafeRelativePath, 'expected a relative file path')
 const overlaySchema = z
   .object({
     source: z.enum(sourceNames),

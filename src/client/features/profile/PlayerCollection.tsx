@@ -5,6 +5,7 @@ import type { CollectionGroup } from '../../../contracts/collection'
 import { FactionMark, factionColour } from '../../components/FactionMark'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { collectionPhotoPath } from '../../../contracts/collection'
+import { countLabel } from '../../text'
 
 export function PlayerCollection({
   groups,
@@ -23,7 +24,7 @@ export function PlayerCollection({
     <section data-player-collection className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-dim">
-          <span className="figure text-xl text-bone">{models}</span> models · {datasheets} {datasheets === 1 ? 'datasheet' : 'datasheets'}
+          <span className="figure text-xl text-bone">{models}</span> models · {countLabel(datasheets, 'datasheet')}
         </p>
         {yourself ? (
           <Link to="/collection" className="text-sm text-info hover:underline">

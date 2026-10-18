@@ -1,7 +1,7 @@
 import type { Roster } from './battle'
 
 /** Every Force Disposition an army's detachments offered, or its chosen card where a snapshot predates the offered list. */
-export function offeredDispositions(roster: Roster | null | undefined): string[] {
+function offeredDispositions(roster: Roster | null | undefined): string[] {
   const built = roster?.built
   if (!built) return []
   return built.dispositions ?? (built.disposition ? [built.disposition] : [])

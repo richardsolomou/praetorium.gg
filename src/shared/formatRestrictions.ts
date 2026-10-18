@@ -1,3 +1,4 @@
+import type { EvaluationError } from '../core/evaluate'
 import { groupBy } from '../core/collections'
 import { enforces, formatDatasheetLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import { type FactionRestrictions, restrictedBy } from './datacards'
@@ -35,9 +36,14 @@ export function factionRestrictionViolations(restrictions: FactionRestrictions |
  * agreed with their table not to play.
  */
 export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600, waived: readonly string[] = []) {
-  const errors: { entryId: string; entryName: string; message: string }[] = []
-  const add = (message: string, unit?: KotcUnit) =>
-    errors.push({ entryId: unit?.entryId ?? 'kotc', entryName: unit?.name ?? 'King of the Colosseum', message })
+  const errors: EvaluationError[] = []
+  const add = (message: string, unit?: KotcUnit, broken?: EvaluationError['limit']) =>
+    errors.push({
+      entryId: unit?.entryId ?? 'kotc',
+      entryName: unit?.name ?? 'King of the Colosseum',
+      message,
+      ...(broken && { limit: broken }),
+    })
   if (enforces(waived, 'detachments') && detachments !== 1) add(`needs exactly 1 detachment, has ${detachments}`)
   if (enforces(waived, 'kotc-infantry') && units.filter((unit) => hasKeyword(unit, 'infantry')).length < 2)
     add('needs at least 2 Infantry units')
@@ -63,7 +69,8 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
       add(`is at the Toughness cap and cannot be verified once its ${unit.enhanced ? 'enhancement' : 'attached leader'} is applied`, unit)
   }
   const toughnessNine = units.filter((unit) => unit.toughness === 9)
-  if (enforces(waived, 'kotc-toughness') && toughnessNine.length > 1) add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`)
+  if (enforces(waived, 'kotc-toughness') && toughnessNine.length > 1)
+    add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`, undefined, { max: 1, measured: toughnessNine.length })
   for (const copies of groupBy(units, (unit) => unit.entryId).values()) {
     const allowance = formatDatasheetLimit(
       limit,
@@ -71,7 +78,7 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
       waived,
     )
     if (allowance !== null && copies.length > allowance)
-      add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0])
+      add(`allows at most ${allowance} of this datasheet, has ${copies.length}`, copies[0], { max: allowance, measured: copies.length })
   }
   return errors
 }
@@ -82,10 +89,10 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
  * a limit being exceeded: anything else is still the player's to answer for.
  */
 export function isCatalogueSelfContradiction(
-  error: { entryId: string; message: string },
+  error: Pick<EvaluationError, 'entryId' | 'limit'>,
   composedByCatalogue: ReadonlyMap<string, string>,
 ) {
-  return composedByCatalogue.has(error.entryId) && error.message.startsWith('allows at most ')
+  return composedByCatalogue.has(error.entryId) && error.limit !== undefined
 }
 
 const hasKeyword = (unit: KotcUnit, keyword: string) => unit.keywords.some((candidate) => candidate.trim().toLocaleLowerCase() === keyword)

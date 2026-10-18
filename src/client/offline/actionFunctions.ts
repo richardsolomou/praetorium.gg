@@ -14,7 +14,28 @@ import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalRoster } from './localRuntime'
 import { accountChanged, cachedRead } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
-import { favouriteDatasheetsKey, favouriteDetachmentsKey, favouriteFactionsKey, meKey, onboardingKey } from '../queries/queryKeys'
+import {
+  battleAudienceKey,
+  collectionCountsKey,
+  collectionKey,
+  collectionProgressKey,
+  collectionWishesKey,
+  favouriteDatasheetsKey,
+  favouriteDetachmentsKey,
+  favouriteFactionsKey,
+  fieldedDatasheetsKey,
+  friendInviteKey,
+  friendshipsKey,
+  leagueKey,
+  leagueRosterKey,
+  leaguesKey,
+  meKey,
+  notificationSettingsKey,
+  onboardingKey,
+  opponentsKey,
+  outdatedLeagueEntriesKey,
+  playerDefaultsKey,
+} from '../queries/queryKeys'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
 async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
@@ -30,22 +51,22 @@ async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>)
   return retained
 }
 
-export const collection = () => accountRead(['collection'], () => server.collection())
-export const collectionCounts = () => accountRead(['collection-counts'], () => server.collectionCounts())
-export const collectionProgress = () => accountRead(['collection-progress'], () => server.collectionProgress())
-export const collectionWishes = () => accountRead(['collection-wishes'], () => server.collectionWishes())
-export const fieldedDatasheets = () => cachedRead(['fielded-datasheets'], () => server.fieldedDatasheets())
+export const collection = () => accountRead(collectionKey(), () => server.collection())
+export const collectionCounts = () => accountRead(collectionCountsKey(), () => server.collectionCounts())
+export const collectionProgress = () => accountRead(collectionProgressKey(), () => server.collectionProgress())
+export const collectionWishes = () => accountRead(collectionWishesKey(), () => server.collectionWishes())
+export const fieldedDatasheets = () => cachedRead(fieldedDatasheetsKey(), () => server.fieldedDatasheets())
 export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () => server.favouriteFactions())
 export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(), () => server.favouriteDetachments())
 export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
-export const playerDefaults = () => accountRead(['player-defaults'], () => server.playerDefaults())
-export const battleAudience = () => accountRead(['battle-audience'], () => server.battleAudience())
+export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
+export const battleAudience = () => accountRead(battleAudienceKey(), () => server.battleAudience())
 export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
-export const notificationSettings = () => cachedRead(['notification-settings'], () => server.notificationSettings())
-export const friendships = () => cachedRead(['friendships'], () => server.friendships())
-export const opponents = () => cachedRead(['opponents'], () => server.opponents())
+export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
+export const friendships = () => cachedRead(friendshipsKey(), () => server.friendships())
+export const opponents = () => cachedRead(opponentsKey(), () => server.opponents())
 export const listLeagues = async (): ReturnType<typeof server.listLeagues> => {
-  const leagues = await cachedRead(['leagues'], () => server.listLeagues())
+  const leagues = await cachedRead(leaguesKey(), () => server.listLeagues())
   const state = await localEngine()?.storage.read()
   const byToken = new Map(leagues.map((league) => [league.token, league]))
   for (const operation of state?.operations ?? []) {
@@ -67,13 +88,13 @@ export const listLeagues = async (): ReturnType<typeof server.listLeagues> => {
   }
   return [...byToken.values()].sort((a, b) => b.createdAt - a.createdAt)
 }
-export const activeFriendInvite = () => accountRead(['friend-invite', 'active'], () => server.activeFriendInvite())
+export const activeFriendInvite = () => accountRead(friendInviteKey('active'), () => server.activeFriendInvite())
 export const friendInvite = (args: Parameters<typeof server.friendInvite>[0]) =>
-  cachedRead(['friend-invite', args.data.token], () => server.friendInvite(args))
+  cachedRead(friendInviteKey(args.data.token), () => server.friendInvite(args))
 export const openLeagueRoster = (args: Parameters<typeof server.openLeagueRoster>[0]) =>
-  cachedRead(['league-roster', args.data.token, args.data.eventToken, args.data.userId], () => server.openLeagueRoster(args))
+  cachedRead(leagueRosterKey(args.data.token, args.data.eventToken, args.data.userId), () => server.openLeagueRoster(args))
 export const outdatedLeagueEntriesForRoster = (args: Parameters<typeof server.outdatedLeagueEntriesForRoster>[0]) =>
-  cachedRead(['outdated-league-entries', args.data.rosterId], () => server.outdatedLeagueEntriesForRoster(args))
+  cachedRead(outdatedLeagueEntriesKey(args.data.rosterId), () => server.outdatedLeagueEntriesForRoster(args))
 export const openLeague = async (args: Parameters<typeof server.openLeague>[0]): ReturnType<typeof server.openLeague> => {
   const resource = `league:${args.data.token}`
   const draft = await localDocument<Awaited<ReturnType<typeof server.openLeague>>>(resource)
@@ -84,7 +105,7 @@ export const openLeague = async (args: Parameters<typeof server.openLeague>[0]):
   )
     return null
   if (draft && (!args.data.eventToken || args.data.eventToken === draft.eventToken) && (await hasLocalChanges(resource))) return draft
-  return cachedRead(['league', args.data.token, args.data.eventToken ?? 'current'], () => server.openLeague(args))
+  return cachedRead(leagueKey(args.data.token, args.data.eventToken), () => server.openLeague(args))
 }
 
 async function deferred(
@@ -124,7 +145,7 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
   const owner = localOwner()?.id
   if (!localEngine()) return server.setOwned(args)
   const input = offlineActionSchemas.setOwned.parse(args.data)
-  const resource = queryResource(['collection'])
+  const resource = queryResource(collectionKey())
   const owned = (await localDocument<string[]>(resource)) ?? (await collection())
   await queueLocal(
     'setOwned',
@@ -141,8 +162,8 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
     input.owned
       ? undefined
       : {
-          [queryResource(['collection-counts'])]: (current) => withoutEntry(current, input.entryId),
-          [queryResource(['collection-progress'])]: (current) => withoutEntry(current, input.entryId),
+          [queryResource(collectionCountsKey())]: (current) => withoutEntry(current, input.entryId),
+          [queryResource(collectionProgressKey())]: (current) => withoutEntry(current, input.entryId),
         },
   )
   return undefined
@@ -158,7 +179,7 @@ export async function setCollectionModels(
   const owner = localOwner()?.id
   if (!localEngine()) return server.setCollectionModels(args)
   const input = offlineActionSchemas.setCollectionModels.parse(args.data)
-  const resource = queryResource(['collection-counts'])
+  const resource = queryResource(collectionCountsKey())
   const counts = (await localDocument<Record<string, number>>(resource)) ?? (await collectionCounts())
   await queueLocal(
     'setCollectionModels',
@@ -170,7 +191,7 @@ export async function setCollectionModels(
     owner,
     (current) => ({ ...(current ?? counts), [input.entryId]: input.models }),
     {
-      [queryResource(['collection-progress'])]: (current) => {
+      [queryResource(collectionProgressKey())]: (current) => {
         const saved = current as Record<string, CollectionProgress> | undefined
         const progress = saved?.[input.entryId]
         return progress ? { ...saved, [input.entryId]: boundedProgress(input.models, progress) } : current
@@ -184,9 +205,9 @@ export async function setCollectionProgress(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setCollectionProgress(args)
   const progress =
-    (await localDocument<Record<string, CollectionProgress>>(queryResource(['collection-progress']))) ?? (await collectionProgress())
+    (await localDocument<Record<string, CollectionProgress>>(queryResource(collectionProgressKey()))) ?? (await collectionProgress())
   const { entryId, built, painted } = args.data
-  await defer('setCollectionProgress', args.data, queryResource(['collection-progress']), undefined, {}, undefined, (current) =>
+  await defer('setCollectionProgress', args.data, queryResource(collectionProgressKey()), undefined, {}, undefined, (current) =>
     built ? { ...(current ?? progress), [entryId]: { built, painted } } : withoutEntry(current ?? progress, entryId),
   )
 }
@@ -195,9 +216,9 @@ export async function setCollectionWanted(
 ): ReturnType<typeof server.setCollectionWanted> {
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setCollectionWanted(args)
-  const wishes = (await localDocument<Record<string, number>>(queryResource(['collection-wishes']))) ?? (await collectionWishes())
+  const wishes = (await localDocument<Record<string, number>>(queryResource(collectionWishesKey()))) ?? (await collectionWishes())
   const { entryId, wanted } = args.data
-  await defer('setCollectionWanted', args.data, queryResource(['collection-wishes']), undefined, {}, undefined, (current) =>
+  await defer('setCollectionWanted', args.data, queryResource(collectionWishesKey()), undefined, {}, undefined, (current) =>
     wanted ? { ...(current ?? wishes), [entryId]: wanted } : withoutEntry(current ?? wishes, entryId),
   )
 }
@@ -244,13 +265,13 @@ export async function setPlayerDefaults(args: Parameters<typeof server.setPlayer
   const defer = deferredForAccount()
   if (!localEngine()) return server.setPlayerDefaults(args)
   const next = offlineActionSchemas.setPlayerDefaults.parse(args.data)
-  await defer('setPlayerDefaults', next, queryResource(['player-defaults']), next)
+  await defer('setPlayerDefaults', next, queryResource(playerDefaultsKey()), next)
   return next
 }
 export async function setBattleAudience(args: Parameters<typeof server.setBattleAudience>[0]): ReturnType<typeof server.setBattleAudience> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.setBattleAudience(args)
-  await defer('setBattleAudience', args.data, queryResource(['battle-audience']), args.data.audience)
+  await defer('setBattleAudience', args.data, queryResource(battleAudienceKey()), args.data.audience)
   return args.data.audience
 }
 export async function setPushNotifications(
@@ -266,13 +287,13 @@ export async function createFriendInvite(): ReturnType<typeof server.createFrien
   const defer = deferredForAccount()
   if (!localEngine()) return server.createFriendInvite()
   const token = crypto.randomUUID()
-  await defer('createFriendInvite', {}, queryResource(['friend-invite', 'active']), token, { inviteToken: token })
+  await defer('createFriendInvite', {}, queryResource(friendInviteKey('active')), token, { inviteToken: token })
   return { token }
 }
 export async function cancelFriendInvite(): ReturnType<typeof server.cancelFriendInvite> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.cancelFriendInvite()
-  await defer('cancelFriendInvite', {}, queryResource(['friend-invite', 'active']), null)
+  await defer('cancelFriendInvite', {}, queryResource(friendInviteKey('active')), null)
   return null
 }
 

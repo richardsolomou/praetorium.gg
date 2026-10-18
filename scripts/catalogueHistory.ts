@@ -10,7 +10,7 @@
 
 import { fork } from 'node:child_process'
 import fs from 'node:fs'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { CATALOGUE_HISTORY_FORMAT } from '../src/core/catalogueHistory'
@@ -31,9 +31,9 @@ import { compiledChangeSource } from './lib/catalogueHistoryCompile'
 import type { WorkerResult } from './catalogueHistoryWorker'
 import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
 import { editionMfmVersions, readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-const root = path.join(import.meta.dirname, '..')
-const directory = process.env.CATALOGUE_DIR ?? path.join(root, 'catalogue-data')
+const directory = catalogueDataDirectory()
 const base = catalogueBaseUrl()
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-history-'))
 const repairLast = process.argv.includes('--repair-last')
@@ -151,7 +151,7 @@ try {
       {
         format: 'praetorium.catalogue-pointer.v1',
         id: latest.from,
-        archiveSha256: createHash('sha256').update(bytes).digest('hex'),
+        archiveSha256: hash('sha256', bytes),
       },
       null,
     )

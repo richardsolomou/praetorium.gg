@@ -1,4 +1,5 @@
-import { mayNameCard, sameSide, playsSide, reduceBattle, commandArmy, validate, type Command, type LoggedCommand } from './battle'
+import { sameSide, playsSide } from './battlePrimitives'
+import { mayNameCard, reduceBattle, commandArmy, validate, type Command, type LoggedCommand } from './battle'
 import { battleView } from './battleView'
 import { rosterWithoutUnitNotes } from './unitNotes'
 

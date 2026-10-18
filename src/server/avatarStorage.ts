@@ -1,9 +1,8 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { PROFILE_IMAGE_MAX_LENGTH } from '../authConfig'
 import { configuredObjectStore, type ObjectStore, publicAssetsBaseUrl, putIfAbsent } from './objectStorage'
+import { parseImageDataUrl } from './privateImages'
 
-const DATA_URL = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/
-const EXTENSION: Record<string, string> = { jpeg: 'jpg', png: 'png', webp: 'webp' }
 const CONTENT_TYPE_EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 const FETCHED_IMAGE_MAX_BYTES = 5_000_000
 
@@ -28,12 +27,11 @@ export function isStoredProfileImageUrl(url: string): boolean {
  */
 export async function storeProfileImage(dataUrl: string): Promise<string> {
   if (dataUrl.length > PROFILE_IMAGE_MAX_LENGTH) throw new Error('Choose a JPEG, PNG or WebP profile picture.')
-  const match = DATA_URL.exec(dataUrl)
-  if (!match) throw new Error('Choose a JPEG, PNG or WebP profile picture.')
-  const [, format, base64] = match as unknown as [string, string, string]
+  const image = parseImageDataUrl(dataUrl)
+  if (!image) throw new Error('Choose a JPEG, PNG or WebP profile picture.')
   const store = configuredObjectStore()
   if (!store) throw new Error('Profile picture uploads are not available.')
-  return storeAvatarBytes(store, Buffer.from(base64, 'base64'), EXTENSION[format] as string, `image/${format}`)
+  return storeAvatarBytes(store, image.bytes, CONTENT_TYPE_EXTENSION[image.contentType] as string, image.contentType)
 }
 
 /**
@@ -60,7 +58,7 @@ export async function storeProfileImageFromUrl(url: string): Promise<string | nu
 }
 
 async function storeAvatarBytes(store: ObjectStore, bytes: Buffer, extension: string, contentType: string): Promise<string> {
-  const key = `avatars/${createHash('sha256').update(bytes).digest('hex')}.${extension}`
+  const key = `avatars/${hash('sha256', bytes)}.${extension}`
   await putIfAbsent(store, key, bytes, contentType)
   return `${store.publicBaseUrl}/${key}`
 }

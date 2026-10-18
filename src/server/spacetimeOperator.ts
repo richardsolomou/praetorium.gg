@@ -12,6 +12,7 @@ import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type Roste
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
+import { TABLE_SHAPES } from '../core/tableShape'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
 // reading after a newer module appends a column or result field.
@@ -126,7 +127,7 @@ const leagueEvent = z.object({
   token: z.string(),
   leagueId: z.string(),
   number: z.number().int(),
-  format: z.enum(['1v1', '2v1', '2v2']).nullable(),
+  format: z.enum(TABLE_SHAPES).nullable(),
   rosterLimit: z.number().int().nullable(),
   createdAt: z.number().int(),
   revealedAt: z.number().int().nullable(),
@@ -229,8 +230,7 @@ export class SpacetimeOperator {
   }
 
   async health() {
-    const response = await this.call('operator_health', [])
-    return z.literal(true).parse(await response.json())
+    return this.reply('operator_health', [], z.literal(true))
   }
 
   async deleteUserData(userId: string) {
@@ -239,15 +239,11 @@ export class SpacetimeOperator {
   }
 
   async battleForOperator(battleId: string) {
-    return battleSnapshot.parse(await this.read('battle_for_operator', [battleId]))
+    return this.read('battle_for_operator', [battleId], battleSnapshot)
   }
 
   async publicStandingsRevision() {
-    const response = await this.call('public_standings_revision', [])
-    return z
-      .string()
-      .regex(/^[0-9]+$/)
-      .parse(await response.json())
+    return this.reply('public_standings_revision', [], z.string().regex(/^[0-9]+$/))
   }
 
   async createBattle(input: {
@@ -260,8 +256,9 @@ export class SpacetimeOperator {
     initialCommands?: Command[]
     now: number
   }) {
-    return battleSnapshot.parse(
-      await this.read('create_battle', [
+    return this.read(
+      'create_battle',
+      [
         JSON.stringify({
           id: input.id,
           token: input.token,
@@ -271,12 +268,13 @@ export class SpacetimeOperator {
           initialCommands: input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : []),
           now: input.now,
         }),
-      ]),
+      ],
+      battleSnapshot,
     )
   }
 
   async battleByToken(token: string) {
-    return battleSnapshot.nullable().parse(await this.read('battle_by_token', [token])) ?? undefined
+    return (await this.read('battle_by_token', [token], battleSnapshot.nullable())) ?? undefined
   }
 
   async battleFeed(input: {
@@ -290,8 +288,9 @@ export class SpacetimeOperator {
     before?: { at: number; id: string } | null
     limit: number
   }) {
-    return battleFeedResult.parse(
-      await this.read('battle_feed', [
+    return this.read(
+      'battle_feed',
+      [
         JSON.stringify({
           scope: input.scope,
           userId: input.userId ?? null,
@@ -303,19 +302,18 @@ export class SpacetimeOperator {
           before: input.before ?? null,
           limit: input.limit,
         }),
-      ]),
+      ],
+      battleFeedResult,
     )
   }
 
   async deleteBattle(battleId: string, userId: string) {
-    const response = await this.call('remove_battle', [battleId, userId])
-    return z.boolean().parse(await response.json())
+    return this.reply('remove_battle', [battleId, userId], z.boolean())
   }
 
   /** Any battle, whoever opened it; the creator check in `deleteBattle` is the player's rule, not an administrator's. */
   async deleteBattleForOperator(battleId: string) {
-    const response = await this.call('delete_battle_for_operator', [battleId])
-    return z.boolean().parse(await response.json())
+    return this.reply('delete_battle_for_operator', [battleId], z.boolean())
   }
 
   async log(battleId: string) {
@@ -349,18 +347,21 @@ export class SpacetimeOperator {
     const state = fold(snapshot.log)
     const command = state.seq === input.expectedSeq ? commandSchema.parse(resolveCommand(state, input.command)) : input.command
     const externalRefusal = state.seq === input.expectedSeq ? (validateState?.(state) ?? null) : null
-    const response = await this.call('submit_battle', [
-      input.battleId,
-      input.userId,
-      input.expectedSeq,
-      JSON.stringify({
-        ...command,
-        ...(input.operationId ? { $sync: { operationId: input.operationId, fingerprint: input.fingerprint, at: input.recordedAt } } : {}),
-      }),
-      input.now,
-      externalRefusal?.message ?? '',
-    ])
-    const { result, log } = submission.parse(JSON.parse(z.string().parse(await response.json())))
+    const { result, log } = await this.read(
+      'submit_battle',
+      [
+        input.battleId,
+        input.userId,
+        input.expectedSeq,
+        JSON.stringify({
+          ...command,
+          ...(input.operationId ? { $sync: { operationId: input.operationId, fingerprint: input.fingerprint, at: input.recordedAt } } : {}),
+        }),
+        input.now,
+        externalRefusal?.message ?? '',
+      ],
+      submission,
+    )
     if (result.outcome !== 'refused') return { result, log }
     // The product database answers with a message only, so the code is read from the
     // same rules over the log it refused against, before the resolver touched any state.
@@ -369,17 +370,17 @@ export class SpacetimeOperator {
   }
 
   async friendshipsByUser(userId: string) {
-    return z.array(friendship).parse(await this.read('friendships_by_user', [userId]))
+    return this.read('friendships_by_user', [userId], z.array(friendship))
   }
 
   async productStats(userIds: readonly string[]) {
     if (!userIds.length) return new Map<string, z.infer<typeof productStat>>()
-    const rows = z.array(productStat).parse(await this.read('product_stats', [[...new Set(userIds)]]))
+    const rows = await this.read('product_stats', [[...new Set(userIds)]], z.array(productStat))
     return new Map(rows.map((row) => [row.userId, row]))
   }
 
   async practiceOpponentIds() {
-    return z.array(z.string()).parse(await this.read('practice_opponent_ids', []))
+    return this.read('practice_opponent_ids', [], z.array(z.string()))
   }
 
   async registerPracticeOpponent(userId: string) {
@@ -387,34 +388,27 @@ export class SpacetimeOperator {
   }
 
   async requestFriend(requesterId: string, addresseeId: string, now: number) {
-    const response = await this.call('request_friend', [requesterId, addresseeId, now])
-    return z.boolean().parse(await response.json())
+    return this.reply('request_friend', [requesterId, addresseeId, now], z.boolean())
   }
 
   async acceptFriend(requesterId: string, addresseeId: string, now: number) {
-    const response = await this.call('accept_friend', [requesterId, addresseeId, now])
-    return z.boolean().parse(await response.json())
+    return this.reply('accept_friend', [requesterId, addresseeId, now], z.boolean())
   }
 
   async rejectFriend(requesterId: string, addresseeId: string) {
-    const response = await this.call('reject_friend', [requesterId, addresseeId])
-    return z.boolean().parse(await response.json())
+    return this.reply('reject_friend', [requesterId, addresseeId], z.boolean())
   }
 
   async removeFriend(leftId: string, rightId: string) {
-    const response = await this.call('remove_friend', [leftId, rightId])
-    return z.boolean().parse(await response.json())
+    return this.reply('remove_friend', [leftId, rightId], z.boolean())
   }
 
   async friendInviteByInviter(inviterId: string) {
-    return z
-      .string()
-      .nullable()
-      .parse(await this.read('friend_invite_by_inviter', [inviterId]))
+    return this.read('friend_invite_by_inviter', [inviterId], z.string().nullable())
   }
 
   async friendInviteByToken(token: string) {
-    return invite.nullable().parse(await this.read('friend_invite_by_token', [token]))
+    return this.read('friend_invite_by_token', [token], invite.nullable())
   }
 
   async replaceFriendInvite(inviterId: string, token: string, now: number) {
@@ -422,19 +416,20 @@ export class SpacetimeOperator {
   }
 
   async cancelFriendInvite(inviterId: string) {
-    const response = await this.call('cancel_friend_invite', [inviterId])
-    return z.boolean().parse(await response.json())
+    return this.reply('cancel_friend_invite', [inviterId], z.boolean())
   }
 
   async acceptFriendInvite(token: string, recipientId: string, now: number) {
-    return acceptedInvite.parse(await this.read('accept_friend_invite', [token, recipientId, now]))
+    return this.read('accept_friend_invite', [token, recipientId, now], acceptedInvite)
   }
 
   async battleAudiences(userIds: readonly string[]) {
     if (!userIds.length) return new Map<string, BattleAudience>()
-    const rows = z
-      .array(z.object({ userId: z.string(), audience: z.enum(BATTLE_AUDIENCES) }))
-      .parse(await this.read('battle_audiences', [[...new Set(userIds)]]))
+    const rows = await this.read(
+      'battle_audiences',
+      [[...new Set(userIds)]],
+      z.array(z.object({ userId: z.string(), audience: z.enum(BATTLE_AUDIENCES) })),
+    )
     return new Map(rows.map((row) => [row.userId, row.audience]))
   }
 
@@ -443,29 +438,29 @@ export class SpacetimeOperator {
   }
 
   async setBattleAudience(userId: string, audience: BattleAudience, now: number) {
-    const response = await this.call('set_battle_audience', [userId, audience, now])
-    return z.enum(BATTLE_AUDIENCES).parse(await response.json())
+    return this.reply('set_battle_audience', [userId, audience, now], z.enum(BATTLE_AUDIENCES))
   }
 
   async shareBattle(userId: string, otherId: string) {
-    const response = await this.call('share_battle', [userId, otherId])
-    return z.boolean().parse(await response.json())
+    return this.reply('share_battle', [userId, otherId], z.boolean())
   }
 
   async onboardingProgress(userId: string) {
-    const stored = onboarding.parse(await this.read('onboarding_by_user', [userId]))
+    const stored = await this.read('onboarding_by_user', [userId], onboarding)
     return foldOnboardingProgress(stored, stored.facts)
   }
 
   async updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation) {
-    const stored = onboarding.parse(
-      await this.read('update_onboarding', [userId, operation.operation, 'task' in operation ? operation.task : '']),
+    const stored = await this.read(
+      'update_onboarding',
+      [userId, operation.operation, 'task' in operation ? operation.task : ''],
+      onboarding,
     )
     return foldOnboardingProgress(stored, stored.facts)
   }
 
   async roster(id: string) {
-    return rosterRow.nullable().parse(await this.read('roster_by_id', [id])) ?? undefined
+    return (await this.read('roster_by_id', [id], rosterRow.nullable())) ?? undefined
   }
 
   async rostersByUser(userId: string) {
@@ -473,16 +468,11 @@ export class SpacetimeOperator {
   }
 
   async rostersByIds(userId: string, ids: string[]) {
-    return z
-      .array(rosterRow)
-      .max(ROSTER_LIBRARY_BATCH_SIZE)
-      .parse(await this.read('rosters_by_ids', [userId, ids]))
+    return this.read('rosters_by_ids', [userId, ids], z.array(rosterRow).max(ROSTER_LIBRARY_BATCH_SIZE))
   }
 
   async homeRostersByUser(userId: string) {
-    return z
-      .object({ count: z.number().int().nonnegative(), rows: z.array(rosterRow).max(5) })
-      .parse(await this.read('home_rosters_by_user', [userId]))
+    return this.read('home_rosters_by_user', [userId], z.object({ count: z.number().int().nonnegative(), rows: z.array(rosterRow).max(5) }))
   }
 
   async publicRostersByUser(userId: string, limit: number) {
@@ -490,33 +480,35 @@ export class SpacetimeOperator {
   }
 
   async discoverRosters(query: RosterDiscoveryQuery) {
-    return z
-      .object({ rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE), nextCursor: rosterDiscoveryCursorSchema.nullable() })
-      .parse(await this.read('discover_rosters', [JSON.stringify(query)]))
+    return this.read(
+      'discover_rosters',
+      [JSON.stringify(query)],
+      z.object({ rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE), nextCursor: rosterDiscoveryCursorSchema.nullable() }),
+    )
   }
 
   /** The base first, then its variants in the order they were made. */
   async rosterGroupByUser(userId: string, baseRosterId: string) {
-    return z
-      .array(z.object({ id: z.string(), name: z.string(), automaticName: z.boolean().nullable() }))
-      .max(1_000)
-      .parse(await this.read('roster_group_by_user', [userId, baseRosterId]))
+    return this.read(
+      'roster_group_by_user',
+      [userId, baseRosterId],
+      z.array(z.object({ id: z.string(), name: z.string(), automaticName: z.boolean().nullable() })).max(1_000),
+    )
   }
 
   async rosterSummariesByUser(userId: string) {
-    return z
-      .array(rosterSummaryRow)
-      .max(1_000)
-      .parse(await this.read('roster_summaries_by_user', [userId]))
+    return this.read('roster_summaries_by_user', [userId], z.array(rosterSummaryRow).max(1_000))
   }
 
   private async readRosters(userId: string, publicOnly: boolean, limit: number) {
-    return z.array(rosterRow).parse(await this.read('rosters_by_user', [userId, publicOnly, limit]))
+    return this.read('rosters_by_user', [userId, publicOnly, limit], z.array(rosterRow))
   }
 
   async syncRoster(input: { row: string; operationId: string; fingerprint: string; expectedVersion: number | null; deleted: boolean }) {
-    return z
-      .discriminatedUnion('outcome', [
+    return this.read(
+      'sync_roster',
+      [JSON.stringify(input)],
+      z.discriminatedUnion('outcome', [
         z.object({
           outcome: z.literal('applied'),
           version: z.number().int().nonnegative(),
@@ -524,35 +516,35 @@ export class SpacetimeOperator {
           lifecycle: z.enum(['created', 'deleted']).nullable().default(null),
         }),
         z.object({ outcome: z.enum(['conflict', 'refused']), message: z.string() }),
-      ])
-      .parse(await this.read('sync_roster', [JSON.stringify(input)]))
+      ]),
+    )
   }
 
   async saveRoster(input: SaveRosterInput) {
-    const response = await this.call('save_roster', [
-      JSON.stringify({
-        ...input,
-        optionalRules: input.optionalRules ?? '[]',
-        borrowedDetachmentId: input.borrowedDetachmentId ?? null,
-      }),
-    ])
-    const outcome = z.enum(['inserted', 'updated', 'forbidden', 'locked']).parse(await response.json())
+    const outcome = await this.reply(
+      'save_roster',
+      [
+        JSON.stringify({
+          ...input,
+          optionalRules: input.optionalRules ?? '[]',
+          borrowedDetachmentId: input.borrowedDetachmentId ?? null,
+        }),
+      ],
+      z.enum(['inserted', 'updated', 'forbidden', 'locked']),
+    )
     return outcome === 'forbidden' ? null : outcome
   }
 
   async setRosterVisibility(id: string, userId: string, visibility: RosterVisibility, now: number) {
-    const response = await this.call('set_roster_visibility', [id, userId, visibility, now])
-    return z.boolean().parse(await response.json())
+    return this.reply('set_roster_visibility', [id, userId, visibility, now], z.boolean())
   }
 
   async setRosterLocked(id: string, userId: string, locked: boolean, now: number) {
-    const response = await this.call('set_roster_locked', [id, userId, locked, now])
-    return z.boolean().parse(await response.json())
+    return this.reply('set_roster_locked', [id, userId, locked, now], z.boolean())
   }
 
   async setRosterArchived(id: string, userId: string, archived: boolean, now: number) {
-    const response = await this.call('set_roster_archived', [id, userId, archived, now])
-    return z.boolean().parse(await response.json())
+    return this.reply('set_roster_archived', [id, userId, archived, now], z.boolean())
   }
 
   async deleteRoster(id: string, userId: string) {
@@ -560,48 +552,35 @@ export class SpacetimeOperator {
   }
 
   async lendRoster(rosterId: string, ownerId: string, borrowerId: string, now: number) {
-    const response = await this.call('lend_roster', [rosterId, ownerId, borrowerId, now])
-    return z.enum(['lent', 'forbidden', 'not-friends', 'too-many']).parse(await response.json())
+    return this.reply('lend_roster', [rosterId, ownerId, borrowerId, now], z.enum(['lent', 'forbidden', 'not-friends', 'too-many']))
   }
 
   async endRosterLoan(rosterId: string, userId: string, borrowerId: string) {
-    const response = await this.call('end_roster_loan', [rosterId, userId, borrowerId])
-    return z.boolean().parse(await response.json())
+    return this.reply('end_roster_loan', [rosterId, userId, borrowerId], z.boolean())
   }
 
   async rosterLoansByRoster(rosterId: string, ownerId: string) {
-    return z
-      .array(z.object({ borrowerId: z.string(), lentAt: z.number().int() }))
-      .parse(await this.read('roster_loans_by_roster', [rosterId, ownerId]))
+    return this.read('roster_loans_by_roster', [rosterId, ownerId], z.array(z.object({ borrowerId: z.string(), lentAt: z.number().int() })))
   }
 
   async usableRoster(id: string, userId: string) {
-    return z
-      .object({ roster: rosterRow, lentBy: z.string().nullable() })
-      .nullable()
-      .parse(await this.read('usable_roster', [id, userId]))
+    return this.read('usable_roster', [id, userId], z.object({ roster: rosterRow, lentBy: z.string().nullable() }).nullable())
   }
 
   async rostersLentTo(userId: string) {
-    return z
-      .array(lentRosterRow)
-      .max(1_000)
-      .parse(await this.read('rosters_lent_to', [userId]))
+    return this.read('rosters_lent_to', [userId], z.array(lentRosterRow).max(1_000))
   }
 
   async collectionProfile(userId: string, viewerId: string | null) {
-    return collectionProfileSchema.parse(
-      await this.read('collection_profile', [userId, viewerId === null ? { none: [] } : { some: viewerId }]),
-    )
+    return this.read('collection_profile', [userId, viewerId === null ? { none: [] } : { some: viewerId }], collectionProfileSchema)
   }
 
   async setCollectionPublished(userId: string, published: boolean) {
-    const response = await this.call('set_collection_published', [userId, published])
-    return z.boolean().parse(await response.json())
+    return this.reply('set_collection_published', [userId, published], z.boolean())
   }
 
   async collectionByUser(userId: string) {
-    return z.array(collectionRow).parse(await this.read('collection_by_user', [userId]))
+    return this.read('collection_by_user', [userId], z.array(collectionRow))
   }
 
   async addToCollection(input: { userId: string; entryId: string; now: number }) {
@@ -621,9 +600,7 @@ export class SpacetimeOperator {
   }
 
   async collectionWishesByUser(userId: string) {
-    return z
-      .array(z.object({ entryId: z.string(), wanted: z.number().int().positive() }))
-      .parse(await this.read('collection_wishes_by_user', [userId]))
+    return this.read('collection_wishes_by_user', [userId], z.array(z.object({ entryId: z.string(), wanted: z.number().int().positive() })))
   }
 
   async setCollectionWanted(input: { userId: string; entryId: string; wanted: number; now: number }) {
@@ -631,9 +608,11 @@ export class SpacetimeOperator {
   }
 
   async importCollection(input: { userId: string; rows: CollectionImportRow[]; replace: boolean; now: number }) {
-    return z
-      .object({ added: z.number().int(), replaced: z.number().int(), kept: z.number().int() })
-      .parse(await this.read('import_collection', [input.userId, JSON.stringify(input.rows), input.replace, input.now]))
+    return this.read(
+      'import_collection',
+      [input.userId, JSON.stringify(input.rows), input.replace, input.now],
+      z.object({ added: z.number().int(), replaced: z.number().int(), kept: z.number().int() }),
+    )
   }
 
   async setCollectionPhoto(input: { userId: string; entryId: string; photoId: string; now: number }) {
@@ -645,25 +624,29 @@ export class SpacetimeOperator {
   }
 
   async collectionPhoto(photoId: string, viewerId: string | null) {
-    return z
-      .object({ userId: z.string(), entryId: z.string() })
-      .nullable()
-      .parse(await this.read('collection_photo', [photoId, viewerId === null ? { none: [] } : { some: viewerId }]))
+    return this.read(
+      'collection_photo',
+      [photoId, viewerId === null ? { none: [] } : { some: viewerId }],
+      z.object({ userId: z.string(), entryId: z.string() }).nullable(),
+    )
   }
 
   async datasheetPhotos(entryId: string, viewerId: string | null, limit: number) {
-    return z
-      .array(
-        z.object({
-          photoId: z.uuid(),
-          userId: z.string(),
-          at: z.number().int(),
-          likes: z.number().int().nonnegative(),
-          liked: z.boolean(),
-        }),
-      )
-      .max(100)
-      .parse(await this.read('datasheet_photos', [entryId, viewerId === null ? { none: [] } : { some: viewerId }, limit]))
+    return this.read(
+      'datasheet_photos',
+      [entryId, viewerId === null ? { none: [] } : { some: viewerId }, limit],
+      z
+        .array(
+          z.object({
+            photoId: z.uuid(),
+            userId: z.string(),
+            at: z.number().int(),
+            likes: z.number().int().nonnegative(),
+            liked: z.boolean(),
+          }),
+        )
+        .max(100),
+    )
   }
 
   async setCollectionPhotoLike(input: { userId: string; photoId: string; liked: boolean; now: number }) {
@@ -675,10 +658,7 @@ export class SpacetimeOperator {
   }
 
   async collectionPhotoForAdmin(photoId: string) {
-    return z
-      .object({ userId: z.string(), entryId: z.string() })
-      .nullable()
-      .parse(await this.read('collection_photo_for_admin', [photoId]))
+    return this.read('collection_photo_for_admin', [photoId], z.object({ userId: z.string(), entryId: z.string() }).nullable())
   }
 
   async reportCollectionPhoto(input: { userId: string; photoId: string }) {
@@ -690,24 +670,23 @@ export class SpacetimeOperator {
   }
 
   async heldCollectionPhotos(limit: number) {
-    return z
-      .array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int(), shown: z.boolean() }))
-      .max(100)
-      .parse(await this.read('held_collection_photos', [limit]))
+    return this.read(
+      'held_collection_photos',
+      [limit],
+      z.array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int(), shown: z.boolean() })).max(100),
+    )
   }
 
   async recentCollectionPhotos(limit: number) {
-    return z
-      .array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int() }))
-      .max(100)
-      .parse(await this.read('recent_collection_photos', [limit]))
+    return this.read(
+      'recent_collection_photos',
+      [limit],
+      z.array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int() })).max(100),
+    )
   }
 
   async collectionPhotoDeletions(limit: number) {
-    return z
-      .array(z.string())
-      .max(1_000)
-      .parse(await this.read('collection_photo_deletions', [limit]))
+    return this.read('collection_photo_deletions', [limit], z.array(z.string()).max(1_000))
   }
 
   async clearCollectionPhotoDeletions(photoIds: readonly string[]) {
@@ -715,7 +694,7 @@ export class SpacetimeOperator {
   }
 
   async favouriteFactionsByUser(userId: string) {
-    return z.array(favouriteFactionRow).parse(await this.read('favourite_factions_by_user', [userId]))
+    return this.read('favourite_factions_by_user', [userId], z.array(favouriteFactionRow))
   }
 
   async addFavouriteFaction(input: { userId: string; catalogueId: string; now: number }) {
@@ -727,7 +706,7 @@ export class SpacetimeOperator {
   }
 
   async favouriteDetachmentsByUser(userId: string) {
-    return z.array(favouriteDetachmentRow).parse(await this.read('favourite_detachments_by_user', [userId]))
+    return this.read('favourite_detachments_by_user', [userId], z.array(favouriteDetachmentRow))
   }
 
   async addFavouriteDetachment(input: { userId: string; catalogueId: string; detachmentId: string; now: number }) {
@@ -739,7 +718,7 @@ export class SpacetimeOperator {
   }
 
   async favouriteDatasheetsByUser(userId: string) {
-    return z.array(favouriteDatasheetRow).parse(await this.read('favourite_datasheets_by_user', [userId]))
+    return this.read('favourite_datasheets_by_user', [userId], z.array(favouriteDatasheetRow))
   }
 
   async addFavouriteDatasheet(input: { userId: string; entryId: string; now: number }) {
@@ -751,21 +730,19 @@ export class SpacetimeOperator {
   }
 
   async pushEnabled(userId: string) {
-    const response = await this.call('push_enabled', [userId])
-    return z.boolean().parse(await response.json())
+    return this.reply('push_enabled', [userId], z.boolean())
   }
 
   async setPushEnabled(userId: string, enabled: boolean, now: number) {
-    const response = await this.call('set_push_enabled', [userId, enabled, now])
-    return z.boolean().parse(await response.json())
+    return this.reply('set_push_enabled', [userId, enabled, now], z.boolean())
   }
 
   async playerDefaults(userId: string) {
-    return playerDefaultsSchema.parse(await this.read('player_defaults', [userId]))
+    return this.read('player_defaults', [userId], playerDefaultsSchema)
   }
 
   async setPlayerDefaults(userId: string, defaults: PlayerDefaults, now: number) {
-    return playerDefaultsSchema.parse(await this.read('set_player_defaults', [userId, defaults.rosterVisibility, defaults.battleSize, now]))
+    return this.read('set_player_defaults', [userId, defaults.rosterVisibility, defaults.battleSize, now], playerDefaultsSchema)
   }
 
   async registerPushToken(input: { userId: string; token: string; platform: 'ios' | 'android'; now: number }) {
@@ -782,49 +759,54 @@ export class SpacetimeOperator {
 
   async pushTargets(userIds: readonly string[]) {
     if (!userIds.length) return []
-    return z.array(pushTarget).parse(await this.read('push_targets', [[...new Set(userIds)]]))
+    return this.read('push_targets', [[...new Set(userIds)]], z.array(pushTarget))
   }
 
   async leagueNames(tokens: readonly string[]) {
     if (!tokens.length) return new Map<string, string>()
-    const pairs = z.array(z.tuple([z.string(), z.string()])).parse(await this.read('league_names', [[...new Set(tokens)]]))
+    const pairs = await this.read('league_names', [[...new Set(tokens)]], z.array(z.tuple([z.string(), z.string()])))
     return new Map(pairs)
   }
 
   async leagueByToken(token: string, eventToken?: string) {
-    return leagueRecord.nullable().parse(await this.read('league_by_token', [token, eventToken ?? '']))
+    return this.read('league_by_token', [token, eventToken ?? ''], leagueRecord.nullable())
   }
 
   async leaguesVisibleTo(userId: string | null, limit: number) {
-    return z.array(visibleLeague).parse(await this.read('leagues_visible_to', [userId ?? '', limit]))
+    return this.read('leagues_visible_to', [userId ?? '', limit], z.array(visibleLeague))
   }
 
   async outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
-    return z.array(outdatedLeagueEntry).parse(await this.read('outdated_league_entries_for_roster', [userId, rosterId]))
+    return this.read('outdated_league_entries_for_roster', [userId, rosterId], z.array(outdatedLeagueEntry))
   }
 
   async leagueBattleCandidates(userId: string, participantIds: readonly string[]) {
-    return z.array(leagueCandidate).parse(await this.read('league_battle_candidates', [userId, [...participantIds]]))
+    return this.read('league_battle_candidates', [userId, [...participantIds]], z.array(leagueCandidate))
   }
 
   async leagueRosters(token: string, userId: string, eventToken?: string, readerId?: string | null) {
-    return z.array(leagueRoster).parse(await this.read('league_rosters', [token, userId, eventToken ?? '', readerId ?? '']))
+    return this.read('league_rosters', [token, userId, eventToken ?? '', readerId ?? ''], z.array(leagueRoster))
   }
 
   async leagueCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
-    return result.parse(await this.read('league_command', [JSON.stringify(command)]))
+    return this.read('league_command', [JSON.stringify(command)], result)
   }
 
-  private async read(name: string, arguments_: unknown[]) {
-    const response = await this.call(name, arguments_)
-    return JSON.parse(z.string().parse(await response.json())) as unknown
+  /** A procedure returns its result as a JSON string. */
+  private async read<S extends z.ZodType>(name: string, arguments_: unknown[], schema: S): Promise<z.output<S>> {
+    return schema.parse(JSON.parse(await this.reply(name, arguments_, z.string())))
+  }
+
+  private async reply<S extends z.ZodType>(reducer: string, arguments_: unknown[], schema: S): Promise<z.output<S>> {
+    return schema.parse(await (await this.call(reducer, arguments_)).json())
   }
 
   async syncReceipt(id: string, owner: string, fingerprint: string) {
-    return z
-      .object({ outcome: z.enum(['applied', 'refused']), message: z.string() })
-      .nullable()
-      .parse(await this.read('sync_receipt', [id, owner, fingerprint]))
+    return this.read(
+      'sync_receipt',
+      [id, owner, fingerprint],
+      z.object({ outcome: z.enum(['applied', 'refused']), message: z.string() }).nullable(),
+    )
   }
 
   private async call(reducer: string, arguments_: unknown[]): Promise<Response> {

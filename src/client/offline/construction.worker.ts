@@ -7,6 +7,7 @@ import { pickerConstruction } from '../../shared/pickerUnits'
 import { combatLoadoutCandidates } from '../../shared/combatLoadouts'
 import { combatLoadoutSchema } from '../../contracts/schemas'
 import type { LoadoutBatch } from '../../core/combatLoadouts'
+import { nextTask } from '../../shared/nextTask'
 
 /** Where the worker loads construction data from: the page's packed copy when it holds one, else the download. */
 export type ConstructionWorkerSource = { url: string; packed?: string }
@@ -71,7 +72,7 @@ async function prepare({ catalogueId, units, keys }: Extract<ConstructionWorkerR
       let slice = performance.now()
       while (!steps.next().done) {
         if (performance.now() - slice < PREPARATION_SLICE_MS) continue
-        await new Promise((resolve) => setTimeout(resolve))
+        await nextTask()
         slice = performance.now()
       }
     }

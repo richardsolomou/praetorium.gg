@@ -8,6 +8,7 @@ import { DokployClient, dokployPreviewFromEnvironment, loadPreviewAppSecrets, pu
 import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { requiredEnv } from './lib/requiredEnv.ts'
 
 const execFile = promisify(execFileCallback)
 const allowedSecrets = [
@@ -17,12 +18,6 @@ const allowedSecrets = [
   'SPACETIME_ACCESS_CLIENT_SECRET',
   'SPACETIME_INTERNAL_HOST',
 ]
-
-function required(name: string) {
-  const value = process.env[name]?.trim()
-  if (!value) throw new Error(`${name} is required`)
-  return value
-}
 
 export function previewDatabase(number: string) {
   return `praetorium-pr-${pullRequestNumber(number)}`
@@ -35,7 +30,7 @@ export function previewImageRevision(image: string, number: string) {
 }
 
 function spacetimeOrigin() {
-  const origin = new URL(required('SPACETIME_URL'))
+  const origin = new URL(requiredEnv('SPACETIME_URL'))
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash || origin.username || origin.password) {
     throw new Error('SPACETIME_URL must be an HTTPS origin')
   }
@@ -43,7 +38,7 @@ function spacetimeOrigin() {
 }
 
 function internalSpacetimeHost() {
-  const host = required('SPACETIME_INTERNAL_HOST')
+  const host = requiredEnv('SPACETIME_INTERNAL_HOST')
   if (!/^[a-z][a-z0-9-]{1,63}$/.test(host)) throw new Error('Invalid SpacetimeDB internal host')
   return host
 }
@@ -61,8 +56,8 @@ async function createIdentity() {
 
 function accessHeaders() {
   return {
-    'CF-Access-Client-Id': required('SPACETIME_ACCESS_CLIENT_ID'),
-    'CF-Access-Client-Secret': required('SPACETIME_ACCESS_CLIENT_SECRET'),
+    'CF-Access-Client-Id': requiredEnv('SPACETIME_ACCESS_CLIENT_ID'),
+    'CF-Access-Client-Secret': requiredEnv('SPACETIME_ACCESS_CLIENT_SECRET'),
   }
 }
 
@@ -71,7 +66,7 @@ function spacetimeConnection(database: string, token: string): SpacetimeConnecti
 }
 
 async function removeDatabase(number: string) {
-  await deleteSpacetimeDatabase(spacetimeConnection(previewDatabase(number), required('SPACETIME_ADMIN_TOKEN')))
+  await deleteSpacetimeDatabase(spacetimeConnection(previewDatabase(number), requiredEnv('SPACETIME_ADMIN_TOKEN')))
 }
 
 async function productModule(image: string) {
@@ -81,7 +76,7 @@ async function productModule(image: string) {
     // Absent until the deploying workflow passes them; a public package still pulls without them.
     const password = process.env.PREVIEW_REGISTRY_PASSWORD?.trim()
     if (password) {
-      const login = execFile('docker', ['login', 'ghcr.io', '--username', required('PREVIEW_REGISTRY_USERNAME'), '--password-stdin'], {
+      const login = execFile('docker', ['login', 'ghcr.io', '--username', requiredEnv('PREVIEW_REGISTRY_USERNAME'), '--password-stdin'], {
         timeout: 30_000,
       })
       login.child.stdin?.end(password)
@@ -102,15 +97,15 @@ async function productModule(image: string) {
 }
 
 async function deploy() {
-  const number = pullRequestNumber(required('PR_NUMBER'))
-  const image = required('PREVIEW_IMAGE')
+  const number = pullRequestNumber(requiredEnv('PR_NUMBER'))
+  const image = requiredEnv('PREVIEW_IMAGE')
   const revision = previewImageRevision(image, number)
   const { config } = dokployPreviewFromEnvironment()
   if (!config.domain) throw new Error('Preview requires a protected HTTPS domain')
   const module = await productModule(image)
   const name = previewDatabase(number)
   const previewUrl = `https://${config.subdomainPrefix}-${number}.${config.domain}`
-  const admin = required('SPACETIME_ADMIN_TOKEN')
+  const admin = requiredEnv('SPACETIME_ADMIN_TOKEN')
   const internalHost = internalSpacetimeHost()
   await removeDatabase(number)
   const identity = await createIdentity()
@@ -147,7 +142,7 @@ async function run() {
   const command = process.argv[2]
   if (command === 'deploy') return deploy()
   if (command === 'delete') {
-    const number = pullRequestNumber(required('PR_NUMBER'))
+    const number = pullRequestNumber(requiredEnv('PR_NUMBER'))
     await removeDatabase(number)
     await execFile('pnpm', ['exec', 'ras', 'preview', 'dokploy', 'delete'], { env: process.env, timeout: 120_000 })
     return

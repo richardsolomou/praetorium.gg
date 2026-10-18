@@ -1,17 +1,8 @@
 /** Build the smallest selection the catalogue allows, including required models and wargear. */
 
 import type { CatalogueIndex, Definition } from './catalogue'
-import {
-  childrenOf,
-  hasDynamicSelectionLimit,
-  MAX_DEPTH,
-  maximumCount,
-  type Option,
-  pointsOf,
-  requiredCount,
-  resolve,
-  scaleOf,
-} from './definitions'
+import { scaleOf } from './collective'
+import { childrenOf, hasDynamicSelectionLimit, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
 import { evaluate, type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
 import { updateSelection, withCounts, withPlaceFor } from './selection'
 
@@ -138,7 +129,7 @@ function withinOwnLimit(
   if (inside.length < 2 || !hasDynamicSelectionLimit(target, index)) return inside
   const overfull = (candidate: readonly Selection[]) =>
     evaluate([{ id, count: 1, selections: [...candidate] }], index, options).errors.some(
-      (error) => error.entryId === target.id && error.message.startsWith('allows at most '),
+      (error) => error.entryId === target.id && error.limit,
     )
   let kept = inside
   while (kept.length > 1 && overfull(kept)) kept = kept.slice(0, -1)

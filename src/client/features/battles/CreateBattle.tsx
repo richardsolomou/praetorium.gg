@@ -292,7 +292,7 @@ function InviteOpponent() {
           {invite.url ? <InviteQr url={invite.url} disabled={invite.busy} size="sm" /> : null}
         </div>
       </div>
-      {invite.problem ? <p className="text-xs text-destructive">{invite.problem}</p> : null}
+      {invite.problem ? <Problem className="text-xs">{invite.problem}</Problem> : null}
     </div>
   )
 }

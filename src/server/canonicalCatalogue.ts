@@ -231,7 +231,7 @@ const ruleDocumentSchema = z.object({
   provenance: z.object({ datacards: z.object({ revision: z.string() }) }),
 })
 
-export const canonicalCatalogueSchema = z.object({
+const canonicalCatalogueSchema = z.object({
   format: z.literal(CANONICAL_CATALOGUE_FORMAT),
   compilerVersion: z.union([
     z.literal(1),

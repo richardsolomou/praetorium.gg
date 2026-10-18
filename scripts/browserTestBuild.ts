@@ -4,10 +4,11 @@ import { mkdir, realpath, rm, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 const execute = promisify(execFile)
 const worktree = await realpath(process.cwd())
-const catalogue = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
+const catalogue = path.resolve(catalogueDataDirectory())
 // The build resolves modules from beside its output, as a test stack's does from its own root.
 const root = path.join('/tmp', `praetorium-e2e-build-${randomUUID()}`)
 const output = path.join(root, 'build')

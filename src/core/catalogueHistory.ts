@@ -109,13 +109,13 @@ export function historySince(history: readonly CatalogueHistoryEntry[], after: n
 }
 
 /** An update with at most this many changes is shown open on the index; a larger one starts closed. */
-export const INLINE_UPDATE_CHANGES = 5
+const INLINE_UPDATE_CHANGES = 5
 
 /** How many of an update's factions its row names before counting the rest. */
 export const INDEX_FACTIONS = 6
 
 /** Every change an update records, the ones past the change set's bound included. */
-export const changeCount = (changes: CatalogueChangeSet) =>
+const changeCount = (changes: CatalogueChangeSet) =>
   changes.factions.reduce((total, faction) => total + faction.changes.length, 0) + changes.omitted
 
 /**

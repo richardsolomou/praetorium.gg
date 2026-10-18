@@ -281,7 +281,7 @@ function groups(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<stri
 }
 
 /** Whether the side's pool holds more than one ally's detachment. */
-export function pooledDetachments(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<string>) {
+function pooledDetachments(stratagems: readonly ViewStratagem[], coreKeys: ReadonlySet<string>) {
   return new Set(stratagems.flatMap((stratagem) => (!coreKeys.has(stratagem.key) && stratagem.detachment ? [stratagem.detachment] : [])))
     .size
 }

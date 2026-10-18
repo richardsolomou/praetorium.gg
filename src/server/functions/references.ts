@@ -39,9 +39,6 @@ import {
   unitWoundsSchema,
 } from '../../contracts/schemas'
 
-/** How the community data is doing, so a fresh instance can say so rather than look broken. */
-export const catalogueStatus = createServerFn({ method: 'GET' }).handler(() => rpc(() => app().sync()))
-
 export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     cacheUntilSnapshotChanges()
@@ -73,7 +70,7 @@ export const globalSearch = createServerFn({ method: 'GET' })
           if (!userId) return null
           const rules = await app().rulesFor()
           const [rosters, page] = await Promise.all([
-            app().service.savedRosterSummaries(userId),
+            app().service.rosterService.savedRosterSummaries(userId),
             app().service.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
           ])
           return ownSearchLists(rosters, page.battles, (await app().factionsFor())?.factions ?? [])
@@ -204,7 +201,7 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
     rpc(async () => {
       const startedAt = performance.now()
       const userId = await currentUserId()
-      const roster = await app().service.sharedRoster(data.id, userId, data.battle ?? null)
+      const roster = await app().service.rosterService.sharedRoster(data.id, userId, data.battle ?? null)
       const pick = roster?.picks[data.pickIndex]
       const loaded = await app().catalogueFor(roster?.catalogueId ?? '')
       if (!roster || !pick || !loaded) return null

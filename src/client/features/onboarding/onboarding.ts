@@ -1,3 +1,4 @@
+import { readSessionValue } from '../../storedValue'
 import { onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
 import type { OnboardingTarget } from '../../onboardingTargets'
 export { onboardingTargets, type OnboardingTarget } from '../../onboardingTargets'
@@ -55,9 +56,8 @@ export function onboardingFocusStorageKey(userId: string) {
 }
 
 export function storedOnboardingFocus(userId: string): OnboardingFocus | undefined {
-  if (typeof window === 'undefined') return undefined
   try {
-    const stored = JSON.parse(sessionStorage.getItem(onboardingFocusStorageKey(userId)) ?? 'null') as Partial<OnboardingFocus> | null
+    const stored = JSON.parse(readSessionValue(onboardingFocusStorageKey(userId)) ?? 'null') as Partial<OnboardingFocus> | null
     const task = onboardingTaskIds.find((candidate) => candidate === stored?.task)
     const step = onboardingStepIds.find((candidate) => candidate === stored?.step)
     return task && step && ONBOARDING_UI[step].task === task ? { task, step } : undefined

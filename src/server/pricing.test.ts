@@ -7,16 +7,14 @@ import {
   calculateRosterPrice,
   calculateRosterTotals,
   choiceOptionsForPricing,
-  deploymentRules,
-  heldWargear,
-  isCatalogueSelfContradiction,
-  factionRestrictionViolations,
   findEnhancementDescription,
-  kotcViolations,
   savedRosterPriceInput,
   resolveDisposition,
   uniqueNames,
 } from '../shared/pricing'
+import { heldWargear } from '../shared/heldWargear'
+import { deploymentRules } from '../shared/rosterDeployment'
+import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
 import { descriptionKey } from './datacards'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
@@ -1087,15 +1085,15 @@ describe('a limit the catalogue breaks itself', () => {
   const composed = new Map([['exchange-rifle', 'Decimus Kill Team']])
 
   it('is not the player’s to answer for when the catalogue built the unit', () => {
-    expect(isCatalogueSelfContradiction({ entryId: 'exchange-rifle', message: 'allows at most 1, has 2' }, composed)).toBe(true)
+    expect(isCatalogueSelfContradiction({ entryId: 'exchange-rifle', limit: { max: 1, measured: 2 } }, composed)).toBe(true)
   })
 
   it('still counts against a unit the player composed', () => {
-    expect(isCatalogueSelfContradiction({ entryId: 'sternguard-rifle', message: 'allows at most 9, has 10' }, composed)).toBe(false)
+    expect(isCatalogueSelfContradiction({ entryId: 'sternguard-rifle', limit: { max: 9, measured: 10 } }, composed)).toBe(false)
   })
 
   it('leaves every other kind of complaint alone', () => {
-    expect(isCatalogueSelfContradiction({ entryId: 'exchange-rifle', message: 'needs at least 1, has 0' }, composed)).toBe(false)
+    expect(isCatalogueSelfContradiction({ entryId: 'exchange-rifle' }, composed)).toBe(false)
   })
 
   /**
@@ -1104,7 +1102,7 @@ describe('a limit the catalogue breaks itself', () => {
    * characters is theirs to answer for, so it must never be in the map to begin with.
    */
   it('still counts against an enhancement the player chose', () => {
-    expect(isCatalogueSelfContradiction({ entryId: 'destroyer-ankh', message: 'allows at most 1, has 2' }, composed)).toBe(false)
+    expect(isCatalogueSelfContradiction({ entryId: 'destroyer-ankh', limit: { max: 1, measured: 2 } }, composed)).toBe(false)
   })
 })
 

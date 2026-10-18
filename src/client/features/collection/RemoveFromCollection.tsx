@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { collectionCountsQuery, collectionPhotosQuery, collectionProgressQuery } from '../../queries'
 import { useCollectionMutation } from '../../useCollection'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { countLabel } from '../../text'
 
 /** Removing a datasheet deletes its count and photos, so it is confirmed by naming what will be lost. */
 export function RemoveFromCollection({ datasheet, onClose }: { datasheet: { id: string; name: string } | null; onClose: () => void }) {
@@ -18,7 +19,7 @@ export function RemoveFromCollection({ datasheet, onClose }: { datasheet: { id: 
       title={`Remove ${datasheet?.name}?`}
       description={
         <>
-          Your count of {models} {models === 1 ? 'model' : 'models'}
+          Your count of {countLabel(models, 'model')}
           {built ? ` (${built.built} built, ${built.painted} painted)` : ''}
           {photoCount ? ` and your ${photoCount === 1 ? 'photo' : `${photoCount} photos`}` : ''} will be lost.
         </>

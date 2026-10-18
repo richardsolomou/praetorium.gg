@@ -14,6 +14,7 @@ import { RuleText } from '../../../components/RuleText'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
 import type { ReminderSubject } from '../../../../core/reminders'
+import { Problem } from '../../../components/Problem'
 
 type Props = {
   catalogueId: string
@@ -79,9 +80,7 @@ export function DatasheetPanel({
   if (!sheet) {
     return isError && providedSheet === undefined ? (
       <div className="flex h-full items-center justify-center p-6">
-        <p role="alert" className="max-w-52 text-center text-xs text-destructive">
-          This datasheet could not be loaded. Try again shortly.
-        </p>
+        <Problem className="max-w-52 text-center text-xs">This datasheet could not be loaded. Try again shortly.</Problem>
       </div>
     ) : (
       <DatasheetLoading />
@@ -198,7 +197,7 @@ function DatasheetLoading() {
   )
 }
 
-export function AbilitySummary({
+function AbilitySummary({
   abilities,
   rules,
   unitName,

@@ -1,6 +1,15 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Locator, type Page } from './test'
-import { attachRoster, createBattle, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  attachRoster,
+  createBattle,
+  createRoster,
+  retryUntilVisible,
+  signInAsPreview,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 import { productOperator } from './storage'
 import type { LocalState } from '../src/contracts/localState'
@@ -363,13 +372,7 @@ test('a reported photo is hidden from everyone but its owner until an administra
 
   const adminContext = await browser.newContext()
   const admin = await adminContext.newPage()
-  await admin.goto('/sign-in')
-  // Filling before hydration submits the form natively and never signs in.
-  await admin.waitForLoadState('networkidle')
-  await admin.getByLabel('Email').fill('preview@praetorium.gg')
-  await admin.getByLabel('Password').fill('preview-preview-preview')
-  await admin.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await admin.waitForURL('/')
+  await signInAsPreview(admin)
   await admin.goto('/admin')
   await admin.getByRole('tab', { name: /^Photos/ }).click()
   await expect(admin).toHaveURL(/\/admin\?tab=photos$/)

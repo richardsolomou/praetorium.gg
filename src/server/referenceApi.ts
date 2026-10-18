@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { withTextPointers, withoutText } from '../shared/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
@@ -281,9 +281,7 @@ async function referenceResponse(request: Request, revision: string, key: string
   const asMarkdown =
     new URL(request.url).searchParams.get('format') === 'markdown' ||
     (request.headers.get('accept')?.toLocaleLowerCase().includes('text/markdown') ?? false)
-  const etag = `"${createHash('sha256')
-    .update(`${revision}\0${key}\0${asMarkdown ? 'markdown' : 'json'}`)
-    .digest('hex')}"`
+  const etag = `"${hash('sha256', `${revision}\0${key}\0${asMarkdown ? 'markdown' : 'json'}`)}"`
   const headers = {
     'Cache-Control': 'public, max-age=3600',
     ETag: etag,

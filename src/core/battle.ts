@@ -9,9 +9,9 @@
  * No IO and no framework imports belong in this file.
  */
 
+import { groupBy } from './collections'
 import { attachedUnits } from './attachedUnits'
 import { refuse, sameSide } from './battlePrimitives'
-export { playsSide, refuse, sameSide } from './battlePrimitives'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
@@ -187,14 +187,7 @@ type ReserveUnit = Pick<
 /** Deep Strike changes an ingress move; the unit still starts in Strategic Reserves. */
 export function strategicReservePoints(units: readonly ReserveUnit[]): number {
   const byKey = new Map(units.map((unit) => [unit.key, unit]))
-  const groups = new Map<string, ReserveUnit[]>()
-  for (const unit of units) {
-    const group = unit.attachedTo ?? unit.key
-    const attached = groups.get(group)
-    if (attached) attached.push(unit)
-    else groups.set(group, [unit])
-  }
-  return [...groups.values()].reduce((total, attached) => {
+  return [...groupBy(units, (unit) => unit.attachedTo ?? unit.key).values()].reduce((total, attached) => {
     const reserved = attached.filter(
       (unit) =>
         startsInStrategicReserves(unit.formation) ||
@@ -594,6 +587,9 @@ export const pointsBudgetOf = (roster: { limit: number; pointsBudget?: number | 
 
 export const pointsLabel = (points: number): string => `${points.toLocaleString('en')} points`
 
+/** "2,000-point", as in a 2,000-point army. */
+export const pointsSize = (points: number): string => `${points.toLocaleString('en')}-point`
+
 export const battleSizeName = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? pointsLabel(limit)
 
 export const battleSizeOptionLabel = (size: { name: string; limit: number }): string => `${size.name} · ${pointsLabel(size.limit)}`
@@ -602,7 +598,7 @@ export const battleSizeOptionLabel = (size: { name: string; limit: number }): st
 export const battleSizeLabel = (limit: number, pointsBudget?: number | null): string =>
   pointsBudget === null || pointsBudget === undefined
     ? battleSizeName(limit)
-    : `${battleSizeName(limit)} · ${pointsBudget.toLocaleString('en')}-point budget`
+    : `${battleSizeName(limit)} · ${pointsSize(pointsBudget)} budget`
 
 /** Name every waivable format restriction here so legality and picker filtering read the same roster waiver. */
 export const FORMAT_RULE_IDS = [
@@ -2445,8 +2441,7 @@ export function missedMoments(state: BattleState): BattleMoment[] {
   const second = state.players.find((player) => !sameSide(state, player.id, state.firstPlayerId ?? ''))?.id
   const turns = [state.firstPlayerId, ...(second ? [second] : [])]
   const latest = momentOrder(state, now)
-  return [Math.max(1, state.round - 1), state.round]
-    .filter((round, index, rounds) => rounds.indexOf(round) === index)
+  return [...new Set([Math.max(1, state.round - 1), state.round])]
     .flatMap((round) => turns.flatMap((turn) => PHASES.map((phase) => ({ round, phase, turn }))))
     .filter((moment) => momentOrder(state, moment) < latest)
 }

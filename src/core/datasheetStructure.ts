@@ -1,13 +1,8 @@
+import { joinKey } from './text'
 import type { Datasheet, DatasheetCharacteristicKind, DatasheetProfileKind, StructuredDatasheetProfile } from './datasheet'
 
-const normalized = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '')
-
 export function datasheetProfileKind(type: string): DatasheetProfileKind {
-  switch (normalized(type)) {
+  switch (joinKey(type)) {
     case 'unit':
       return 'unit'
     case 'rangedweapons':
@@ -59,7 +54,7 @@ const characteristicKinds: Readonly<Record<string, DatasheetCharacteristicKind>>
 }
 
 export function datasheetCharacteristicKind(name: string): DatasheetCharacteristicKind {
-  return characteristicKinds[normalized(name)] ?? 'other'
+  return characteristicKinds[joinKey(name)] ?? 'other'
 }
 
 type DatasheetCharacteristic = Datasheet['profiles'][number]['values'][number] & { kind?: DatasheetCharacteristicKind }

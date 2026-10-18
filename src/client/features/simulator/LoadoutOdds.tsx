@@ -7,6 +7,7 @@ import type { OptionNote } from '../rosters/builder/LoadoutControls'
 import type { LoadoutOdds } from './useLoadoutOdds'
 import type { CombatRequest } from '../../../core/combatMatchup'
 import { Button } from '@/components/ui/button'
+import { countLabel } from '../../text'
 
 type Phase = 'ranged' | 'melee'
 const titles: Record<Phase, string> = { ranged: 'Shooting', melee: 'Melee' }
@@ -153,8 +154,8 @@ export function useProfileNote(prefix = ''): ((weapon: { id: string; name: strin
           result={alone.result}
           best={alone.best}
           bestBy={alone.bestBy}
-          prefix={`${alone.models} ${alone.models === 1 ? 'model' : 'models'}`}
-          subject={`${alone.models} ${alone.models === 1 ? 'model' : 'models'} with this weapon`}
+          prefix={countLabel(alone.models, 'model')}
+          subject={`${countLabel(alone.models, 'model')} with this weapon`}
           muted={Boolean(updating || odds.error)}
         />
       </span>

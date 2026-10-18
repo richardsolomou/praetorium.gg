@@ -10,7 +10,7 @@ import {
   pointsBudgetError,
   ROSTER_NAME_MAX_LENGTH,
 } from './battle'
-import { detachmentIdSchema, rosterPickSchema } from './commands'
+import { detachmentIdSchema, idSchema as id, rosterLimitSchema, rosterPickSchema } from './commands'
 import { currentRosterIds } from './retiredCatalogueIds'
 import type { RosterPick } from './roster'
 import { withoutUnitNotes } from './unitNotes'
@@ -28,14 +28,13 @@ const PREFIX = 'PR'
 const CODE = /^(?:https?:\/\/[^\s#]+#code=)?PR(\d{1,4})\.(\S*)$/
 const BASE64URL = /^[A-Za-z0-9_-]+$/
 
-const id = z.string().min(1).max(64)
 const payloadSchema = z.object({
   name: z.string().max(ROSTER_NAME_MAX_LENGTH),
   catalogueId: id,
   detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX),
   disposition: id.nullable(),
   borrowedDetachmentId: detachmentIdSchema.nullable(),
-  limit: z.number().int().min(0).max(10_000),
+  limit: rosterLimitSchema,
   pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).optional(),
   /** What the sender's copy priced at, shown beside today's price rather than trusted. */
   points: z.number().int().min(0).max(100_000).nullable(),

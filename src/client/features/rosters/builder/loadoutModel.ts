@@ -1,5 +1,5 @@
 import { escapeRegExp } from '../../../../core/text'
-import { uniqueBy } from '../../../../core/collections'
+import { groupBy, uniqueBy } from '../../../../core/collections'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
 import { modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
@@ -114,7 +114,7 @@ export function loadoutInstructions(
   return [...new Set(candidates.filter((candidate) => candidate.matches === best).map((candidate) => candidate.instruction))]
 }
 
-export type LoadoutRowSource = { choice: LoadoutChoice; option: LoadoutOption }
+type LoadoutRowSource = { choice: LoadoutChoice; option: LoadoutOption }
 
 export function loadoutRowSources(row: ModelRow, choices: readonly LoadoutChoice[]): LoadoutRowSource[] {
   return modelRowSources(row).flatMap((source) => {
@@ -130,7 +130,7 @@ export const loadoutRowCount = (row: ModelRow, choices: readonly LoadoutChoice[]
     return choice?.options.find((candidate) => candidate.id === optionId)?.count ?? 0
   })
 
-export function loadoutRowBand(row: ModelRow, profiles: readonly WeaponProfileData[]) {
+function loadoutRowBand(row: ModelRow, profiles: readonly WeaponProfileData[]) {
   const matched = weaponProfilesFor(row, profiles)
   if (matched.some((profile) => profile.type === 'Ranged Weapons')) return 'ranged'
   if (matched.some((profile) => profile.type === 'Melee Weapons')) return 'melee'
@@ -315,15 +315,9 @@ export function ordered<T extends { name: string }>(
   weapons: readonly WeaponProfileData[],
   clusterOf: (entry: T) => string,
 ) {
-  const clusters = new Map<string, { at: number; melee: boolean; entries: T[] }>()
-  entries.forEach((entry, at) => {
-    const key = clusterOf(entry)
-    const cluster = clusters.get(key)
-    if (cluster) cluster.entries.push(entry)
-    else clusters.set(key, { at, melee: isMelee(entry.name, weapons), entries: [entry] })
-  })
-  return [...clusters.values()]
-    .toSorted((one, other) => Number(one.melee) - Number(other.melee) || one.at - other.at)
+  return [...groupBy(entries, clusterOf).values()]
+    .map((cluster) => ({ melee: isMelee(cluster[0]!.name, weapons), entries: cluster }))
+    .toSorted((one, other) => Number(one.melee) - Number(other.melee))
     .flatMap((cluster) => cluster.entries)
 }
 
@@ -602,8 +596,7 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
    *
    * Arming an absent carrier, or adding a specialist filed in a group nested under the
    * squad, puts a model in the squad that its group never counted; the build makes room
-   * by dropping a default model. Saving only the weapon left the stored squad one body
-   * over, so a later press folded against counts the build no longer showed.
+   * by dropping a default model.
    */
   const withSquadBodies = (wanted: Map<string, SpreadCounts>, from: readonly Entry[], to: readonly Entry[]) => {
     const countIn = (group: LoadoutChoice, option: LoadoutOption) => wanted.get(group.key)?.[option.id] ?? option.count

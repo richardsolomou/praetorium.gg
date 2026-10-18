@@ -1,6 +1,7 @@
-import type { QueryClient } from '@tanstack/react-query'
+import { partialMatchKey, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { MAX_LOCAL_OPERATIONS, type LocalOperation } from '../contracts/localState'
 import type { OfflineActionKind } from '../contracts/offlineActions'
+import { battleKey, reportKey } from './queries/queryKeys'
 
 const queryFamilies = {
   rosters: [
@@ -30,19 +31,19 @@ const queryFamilies = {
     'datasheet-photos',
   ],
   favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets'],
-  friends: ['friendships', 'friend-battles', 'shared-battles', 'opponents', 'player-profile', 'player-search'],
+  friends: ['friendships', 'friend-battles', 'opponents', 'player-profile', 'player-search'],
   invites: ['friend-invite'],
   onboarding: ['onboarding'],
   settings: ['battle-audience', 'notification-settings', 'player-defaults', 'public-battles', 'friend-battles'],
   leagues: ['leagues', 'league', 'league-roster', 'league-battles', 'opponents'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
-  battles: ['battles', 'public-battles', 'friend-battles', 'shared-battles', 'player-profile', 'league-battles'],
+  battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'league-battles'],
 } as const
 
 const publicQueryFamilies = {
   collection: ['collection-profile', 'datasheet-photos'],
   // An open battle follows its own signal, or polls while it has none, so every command elsewhere does not refetch it.
-  battles: ['public-battles', 'friend-battles', 'shared-battles', 'player-profile', 'league-battles'],
+  battles: ['public-battles', 'friend-battles', 'player-profile', 'league-battles'],
   standings: ['standings', 'player-rankings'],
   rosters: ['player-rosters', 'shared-roster', 'roster-access', 'discovered-rosters'],
   leagues: ['leagues', 'league', 'league-roster', 'league-battles'],
@@ -97,6 +98,12 @@ const operationScopes = {
   createLeagueBattle: ['battles', 'leagues'],
 } as const satisfies Record<OfflineActionKind | 'saveRoster' | 'deleteRoster' | 'battleCommand', readonly ProductScope[]>
 
+/** Matches a query whose key starts with one of these families. */
+export const inFamilies =
+  (families: ReadonlySet<string>) =>
+  ({ queryKey }: { queryKey: QueryKey }) =>
+    families.has(queryKey[0] as string)
+
 const synced = new Set<string>()
 
 /**
@@ -117,22 +124,19 @@ export function invalidateSyncedQueries(queryClient: QueryClient, operations: re
     const scopes: readonly ProductScope[] =
       kind in operationScopes ? operationScopes[kind as keyof typeof operationScopes] : (Object.keys(queryFamilies) as ProductScope[])
     for (const scope of scopes) for (const key of queryFamilies[scope]) families.add(key)
-    if (resource.startsWith('battle:')) exact.push(['battle', resource.slice(7)], ['report', resource.slice(7)])
+    if (resource.startsWith('battle:')) exact.push(battleKey(resource.slice(7)), reportKey(resource.slice(7)))
     if (resource.startsWith('query:')) exact.push(JSON.parse(resource.slice(6)) as unknown[])
   }
+  const inFamily = inFamilies(families)
   return queryClient.invalidateQueries(
-    {
-      predicate: ({ queryKey }) =>
-        families.has(queryKey[0] as string) || exact.some((key) => JSON.stringify(queryKey.slice(0, key.length)) === JSON.stringify(key)),
-    },
+    { predicate: (query) => inFamily(query) || exact.some((key) => partialMatchKey(query.queryKey, key)) },
     { cancelRefetch: false },
   )
 }
 
 export function invalidateProductQueries(queryClient: QueryClient, scope?: string) {
   const families = scope && scope in queryFamilies ? queryFamilies[scope as ProductScope] : Object.values(queryFamilies).flat()
-  const keys = new Set<string>(families)
-  return queryClient.invalidateQueries({ predicate: (query) => keys.has(query.queryKey[0] as string) })
+  return queryClient.invalidateQueries({ predicate: inFamilies(new Set(families)) })
 }
 
 export function invalidatePublicProductQueries(queryClient: QueryClient, scope?: string) {
@@ -140,8 +144,7 @@ export function invalidatePublicProductQueries(queryClient: QueryClient, scope?:
     scope && scope in publicQueryFamilies
       ? publicQueryFamilies[scope as keyof typeof publicQueryFamilies]
       : Object.values(publicQueryFamilies).flat()
-  const keys = new Set<string>(families)
-  return queryClient.invalidateQueries({ predicate: (query) => keys.has(query.queryKey[0] as string) })
+  return queryClient.invalidateQueries({ predicate: inFamilies(new Set(families)) })
 }
 
 /**
@@ -152,7 +155,7 @@ export function invalidatePublicProductQueries(queryClient: QueryClient, scope?:
  */
 export function invalidateEveryProductQuery(queryClient: QueryClient, signedIn: boolean) {
   const keys = new Set<string>([...Object.values(publicQueryFamilies).flat(), ...(signedIn ? Object.values(queryFamilies).flat() : [])])
-  return queryClient.invalidateQueries({ predicate: (query) => keys.has(query.queryKey[0] as string) })
+  return queryClient.invalidateQueries({ predicate: inFamilies(keys) })
 }
 
 export function invalidateAdminProductQueries(queryClient: QueryClient, scope?: string) {

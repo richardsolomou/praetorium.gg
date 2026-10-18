@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { hash, randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -20,7 +20,9 @@ import { readCatalogueComposition } from './catalogueComposition'
 import { extractCatalogueArchive, hashCatalogueFile, downloadCatalogueObject } from './catalogueArchive'
 import { PRIVATE_CATALOGUE_BASE, fetchCatalogueObject } from './catalogueStore'
 import { byteLimit } from './boundedBody'
+import { replaceDirectory } from './replaceDirectory'
 import { replaceFile, replaceFileSync } from './replaceFile'
+import { isSafeRelativePath } from './relativePath'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
@@ -68,7 +70,7 @@ type InstalledSnapshot = {
   sources: SnapshotSourceName[]
 }
 
-const sha256 = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
+const sha256 = (bytes: Uint8Array | string) => hash('sha256', bytes)
 const encoded = (value: unknown) => new TextEncoder().encode(`${JSON.stringify(value, null, 2)}\n`)
 
 function filesUnder(directory: string, relative = ''): string[] {
@@ -116,7 +118,7 @@ function revisionsOf(value: unknown, historical = false): Record<string, string>
   return revisions
 }
 
-export function parseCatalogueLock(value: unknown): CatalogueLock {
+function parseCatalogueLock(value: unknown): CatalogueLock {
   if (!value || typeof value !== 'object') throw new Error('catalogue lock is invalid')
   const candidate = value as Partial<CatalogueLock>
   if (candidate.format !== LOCK_FORMAT) throw new Error('catalogue lock format is unsupported')
@@ -144,7 +146,7 @@ function parseRevocations(value: unknown): CatalogueRevocations {
 }
 
 export const catalogueLock = parseCatalogueLock(rawLock)
-export const catalogueRevocations = parseRevocations(rawRevocations)
+const catalogueRevocations = parseRevocations(rawRevocations)
 
 export function catalogueBaseUrl(value = process.env.CATALOGUE_BASE_URL) {
   return (value?.trim() || PRIVATE_CATALOGUE_BASE).replace(/\/$/, '')
@@ -349,32 +351,27 @@ function installManifestFiles(
     const sharedFiles = new Map<string, string>()
     let size = 0
     fs.mkdirSync(staging, { recursive: true })
-    for (const [name, hash] of Object.entries(manifest.files)) {
-      if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error('catalogue snapshot has an invalid file hash')
-      if (
-        path.isAbsolute(name) ||
-        name.includes('\\') ||
-        name.split('/').some((part) => !part || part === '.' || part === '..') ||
-        name.startsWith('.snapshot')
-      ) {
+    for (const [name, fileHash] of Object.entries(manifest.files)) {
+      if (!/^[a-f0-9]{64}$/.test(fileHash)) throw new Error('catalogue snapshot has an invalid file hash')
+      if (!isSafeRelativePath(name) || name.startsWith('.snapshot')) {
         throw new Error(`unsafe catalogue snapshot path ${name}`)
       }
-      const key = manifest.format === FORMAT ? `objects/${hash}` : `catalogue/${name}`
+      const key = manifest.format === FORMAT ? `objects/${fileHash}` : `catalogue/${name}`
       const entry = entries.get(key)
-      if (!entry || entry.sha256 !== hash) throw new Error(`catalogue snapshot has an invalid ${name}`)
+      if (!entry || entry.sha256 !== fileHash) throw new Error(`catalogue snapshot has an invalid ${name}`)
       size += entry.bytes
       if (size > MAX_EXTRACTED_BYTES) throw new Error('catalogue snapshot expands beyond its size limit')
       used.add(key)
       const target = path.join(staging, name)
       fs.mkdirSync(path.dirname(target), { recursive: true })
-      const input = sharedFiles.get(hash) ?? entry.file
+      const input = sharedFiles.get(fileHash) ?? entry.file
       try {
         fs.linkSync(input, target)
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
         fs.copyFileSync(input, target)
       }
-      sharedFiles.set(hash, target)
+      sharedFiles.set(fileHash, target)
     }
     if ([...entries.keys()].some((name) => !used.has(name))) throw new Error('catalogue snapshot contains an unlisted file')
     fs.writeFileSync(path.join(staging, '.snapshot.json'), encoded(expected))
@@ -396,23 +393,16 @@ function installManifestFiles(
         }
       }
     }
-    const previous = `${directory}.previous-${randomUUID()}`
     if (installedSnapshotDetails(directory)?.pointer.id === expected.id) {
       verifyInstalledSnapshot(directory)
       return
     }
-    if (fs.existsSync(directory)) fs.renameSync(directory, previous)
     try {
-      fs.renameSync(staging, directory)
+      replaceDirectory(staging, directory)
     } catch (error) {
-      if (installedSnapshotDetails(directory)?.pointer.id === expected.id) {
-        verifyInstalledSnapshot(directory)
-        return
-      }
-      if (fs.existsSync(previous)) fs.renameSync(previous, directory)
-      throw error
+      if (installedSnapshotDetails(directory)?.pointer.id !== expected.id) throw error
+      verifyInstalledSnapshot(directory)
     }
-    fs.rmSync(previous, { recursive: true, force: true })
   } finally {
     fs.rmSync(staging, { recursive: true, force: true })
   }
@@ -473,23 +463,23 @@ async function fetchSnapshotObjects(
       if (manifest.revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
     }
     const hashes = [...new Set(Object.values(manifest.files))]
-    if (hashes.some((hash) => !/^[a-f0-9]{64}$/.test(hash))) throw new Error('catalogue object hash is invalid')
+    if (hashes.some((objectHash) => !/^[a-f0-9]{64}$/.test(objectHash))) throw new Error('catalogue object hash is invalid')
     const entries = new Map<string, { sha256: string; bytes: number; file: string }>()
     let cursor = 0
     let total = 0
     const workers = Array.from({ length: Math.min(8, hashes.length) }, async () => {
       while (cursor < hashes.length) {
-        const hash = hashes[cursor++]!
-        const file = path.join(objectCache(directory), hash)
-        if (!fs.existsSync(file) || fs.statSync(file).size > 64 * 1024 * 1024 || hashCatalogueFile(file) !== hash) {
+        const objectHash = hashes[cursor++]!
+        const file = path.join(objectCache(directory), objectHash)
+        if (!fs.existsSync(file) || fs.statSync(file).size > 64 * 1024 * 1024 || hashCatalogueFile(file) !== objectHash) {
           await replaceFile(file, async (temporary) =>
-            downloadCatalogueObject(await request(`${base}/objects/${hash}.gz`), temporary, hash),
+            downloadCatalogueObject(await request(`${base}/objects/${objectHash}.gz`), temporary, objectHash),
           )
         }
         const bytes = fs.statSync(file).size
         total += bytes
         if (bytes > 64 * 1024 * 1024 || total > MAX_EXTRACTED_BYTES) throw new Error('catalogue objects exceed their size limit')
-        entries.set(`objects/${hash}`, { sha256: hash, bytes, file })
+        entries.set(`objects/${objectHash}`, { sha256: objectHash, bytes, file })
       }
     })
     const settled = await Promise.allSettled(workers)
@@ -533,13 +523,13 @@ export function verifyInstalledSnapshot(directory: string): SnapshotPointer {
   const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')))
   if (JSON.stringify(revisions) !== JSON.stringify(manifest.revisions)) throw new Error('catalogue revisions do not match the manifest')
   let size = 0
-  for (const [name, hash] of Object.entries(manifest.files)) {
-    if (path.isAbsolute(name) || name.split('/').includes('..')) throw new Error(`unsafe catalogue snapshot path ${name}`)
+  for (const [name, fileHash] of Object.entries(manifest.files)) {
+    if (!isSafeRelativePath(name)) throw new Error(`unsafe catalogue snapshot path ${name}`)
     const file = path.join(directory, name)
     if (!fs.statSync(file).isFile()) throw new Error(`catalogue snapshot has an invalid ${name}`)
     const bytes = fs.readFileSync(file)
     size += bytes.length
-    if (sha256(bytes) !== hash) throw new Error(`catalogue snapshot has an invalid ${name}`)
+    if (sha256(bytes) !== fileHash) throw new Error(`catalogue snapshot has an invalid ${name}`)
   }
   if (size > MAX_EXTRACTED_BYTES) throw new Error('catalogue snapshot expands beyond its size limit')
   const listed = new Set(Object.keys(manifest.files))

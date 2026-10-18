@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -36,6 +36,7 @@ import {
   type OfflineReferenceBundle,
   type OfflineReferenceVersion,
 } from '../../src/contracts/offlineReference'
+import { catalogueDataDirectory } from './catalogueFiles'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
   if (!edition) return files
@@ -81,7 +82,7 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
     : { version: 1, ...content }
   const shared = shareReferenceText(wire)
   const encoded = shared.texts.length ? { ...(shared.value as typeof wire), version: 3, texts: shared.texts } : wire
-  const revision = createHash('sha256').update(JSON.stringify(encoded)).digest('hex')
+  const revision = hash('sha256', JSON.stringify(encoded))
   const json = Buffer.from(JSON.stringify({ ...encoded, revision }))
   if (json.length > MAX_OFFLINE_BYTES) throw new Error('Offline reference is too large')
   const compressed = gzipSync(json, { level: 9 })
@@ -91,7 +92,7 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
   return { revision, compressed }
 }
 
-export async function writeReferenceBundle(outDir: string, directory = process.env.CATALOGUE_DIR ?? path.resolve('catalogue-data')) {
+export async function writeReferenceBundle(outDir: string, directory = catalogueDataDirectory()) {
   const { catalogue, rules } = loadSnapshotWithRules(directory)
   const versions = catalogueEditionLoaders(
     directory,

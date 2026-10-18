@@ -2,8 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { baselineShortfall } from './lib/baselines'
 import { factionRestrictionCoverageIssues, loadDatacards } from '../src/server/datacards'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-const directory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', 'catalogue-data')
+const directory = catalogueDataDirectory()
 const datacards = loadDatacards(path.join(directory, 'datacards', '11th', 'gdc'))
 if (!datacards.factions.size) throw new Error('Game Datacards data is unavailable')
 

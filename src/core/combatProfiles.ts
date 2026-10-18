@@ -1,3 +1,4 @@
+import { groupBy } from './collections'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
 import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
@@ -242,11 +243,11 @@ export function combatPlan(
       values: profile.values.map((entry) => {
         if (datasheetProfileKind(profile.type) !== `${phase}-weapon` || datasheetCharacteristicKind(entry.name) !== 'keywords') return entry
         const keywords = [...new Set(splitWeaponKeywords(entry.value))]
-        const groups = new Map<string, string[]>()
-        for (const word of keywords) {
+        const applying = keywords.filter((word) => {
           const parsed = combatKeyword(word)
-          if (parsed && combatKeywordApplies(parsed, targetKeywords)) groups.set(parsed.kind, [...(groups.get(parsed.kind) ?? []), word])
-        }
+          return parsed && combatKeywordApplies(parsed, targetKeywords)
+        })
+        const groups = groupBy(applying, (word) => combatKeyword(word)!.kind)
         const omitted = new Set<string>()
         for (const [kind, alternatives] of groups) {
           if (alternatives.length < 2 || kind === 'close-quarters') continue

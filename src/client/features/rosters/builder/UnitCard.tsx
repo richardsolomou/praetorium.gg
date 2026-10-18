@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../../../core/attach'
 import { FactionLabel, type FactionPresentation } from '../../../components/FactionMark'
+import { countLabel } from '../../../text'
 
 type BuiltUnit = {
   entryId: string
@@ -134,9 +135,7 @@ export function UnitCard({
               </span>
             ) : null}
             {unit.modelCount !== undefined ? (
-              <span className="mt-1 block text-xs text-dim">
-                {unit.modelCount} {unit.modelCount === 1 ? 'model' : 'models'}
-              </span>
+              <span className="mt-1 block text-xs text-dim">{countLabel(unit.modelCount, 'model')}</span>
             ) : null}
           </span>
           {unit.wargear.length ? (
@@ -319,7 +318,7 @@ function AttachMenu({
 }
 
 function UnitAlertMarker({ count, unitName }: { count: number; unitName: string }) {
-  const summary = `${count} ${count === 1 ? 'alert' : 'alerts'} set for ${unitName}`
+  const summary = `${countLabel(count, 'alert')} set for ${unitName}`
   return (
     <Tooltip>
       <TooltipTrigger

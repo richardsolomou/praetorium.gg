@@ -25,7 +25,7 @@ export function rosterDetachments(loaded: LoadedCatalogue, catalogueId: string, 
 
 /** A profile-backed roster can hold several detachments: the points budget limits them, not the wrapper's single-selection constraint. */
 export const isDetachmentWrapperLimit = (error: EvaluationError, chosen: number) =>
-  chosen > 1 && error.entryName.toLowerCase().includes('detachment') && error.message.includes('allows at most 1, has ')
+  chosen > 1 && error.entryName.toLowerCase().includes('detachment') && error.limit?.max === 1
 
 /**
  * Each detachment's partners that would break a catalogue limit beside it, such as a second
@@ -36,7 +36,7 @@ export function exclusiveDetachments(loaded: LoadedCatalogue, catalogueId: strin
   const options = loaded.detachments.get(catalogueId)?.options ?? []
   const limits = (ids: string[]) =>
     evaluate(rosterDetachments(loaded, catalogueId, ids).selections, loaded.index, { primaryCatalogueId: catalogueId }).errors.filter(
-      (error) => error.message.startsWith('allows at most ') && !isDetachmentWrapperLimit(error, ids.length),
+      (error) => error.limit && !isDetachmentWrapperLimit(error, ids.length),
     )
   const alone = new Map(options.map((option) => [option.id, new Set(limits([option.id]).map((error) => error.entryId))]))
   const exclusive = new Map<string, { id: string; limit: string }[]>()

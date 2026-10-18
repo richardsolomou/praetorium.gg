@@ -28,15 +28,17 @@ function library(rosters: (typeof base)[], editable = true) {
   saveRoster = vi.fn().mockResolvedValue({ id: 'copy', created: true, updatedAt: 1 })
   vi.mocked(app).mockReturnValue({
     service: {
-      rosterAccess: vi.fn(async (id: string) => {
-        const roster = rosters.find((candidate) => candidate.id === id)
-        return roster ? { roster, editable } : null
-      }),
       playerDefaults: vi.fn().mockResolvedValue({ rosterVisibility: 'private', battleSize: 2_000 }),
-      rosterGroup: vi.fn(async (_userId: string, roster: typeof base) =>
-        rosters.filter((saved) => (saved.baseRosterId ?? saved.id) === (roster.baseRosterId ?? roster.id)),
-      ),
-      saveRoster,
+      rosterService: {
+        rosterAccess: vi.fn(async (id: string) => {
+          const roster = rosters.find((candidate) => candidate.id === id)
+          return roster ? { roster, editable } : null
+        }),
+        rosterGroup: vi.fn(async (_userId: string, roster: typeof base) =>
+          rosters.filter((saved) => (saved.baseRosterId ?? saved.id) === (roster.baseRosterId ?? roster.id)),
+        ),
+        saveRoster,
+      },
     },
     catalogueFor: async () => null,
     rosterLabelRulesFor: async () => null,

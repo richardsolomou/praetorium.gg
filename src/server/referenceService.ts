@@ -104,7 +104,7 @@ export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
   )
 }
 
-export function referenceDetachment(corpus: ReferenceCorpus, factionId: string, detachment: string) {
+function referenceDetachment(corpus: ReferenceCorpus, factionId: string, detachment: string) {
   const wanted = detachment.trim().toLocaleLowerCase()
   return corpus.catalogue.detachments.find(
     (candidate) =>

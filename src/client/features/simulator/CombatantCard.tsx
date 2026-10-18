@@ -21,6 +21,8 @@ import type { Combatant } from './useCombatant'
 import { useLoadoutOptimizer } from './useLoadoutOptimizer'
 import { attachedUnit } from '../../../core/attach'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
+import { Problem } from '../../components/Problem'
+import { countLabel } from '../../text'
 
 const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
 
@@ -201,9 +203,7 @@ export function CombatantCard({
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {unit ? (
             <span className="flex min-h-5 items-center gap-2 whitespace-nowrap text-xs text-dim">
-              <span>
-                {totalModels} {totalModels === 1 ? 'model' : 'models'}
-              </span>
+              <span>{countLabel(totalModels, 'model')}</span>
               <span className="readout text-sm text-info">
                 {unit.points +
                   (combatant.sheets.data?.companions ?? []).reduce(
@@ -389,11 +389,7 @@ export function CombatantCard({
           </p>
         ) : null}
       </div>
-      {optimizer.error ? (
-        <p role="alert" className="mt-2 text-xs text-discarded">
-          {optimizer.error}
-        </p>
-      ) : null}
+      {optimizer.error ? <Problem className="mt-2 text-xs">{optimizer.error}</Problem> : null}
       {combatant.sheets.data?.attachmentErrors.length ? (
         <p role="alert" className="mt-2 text-xs text-discarded">
           {combatant.sheets.data.attachmentErrors.map((error) => `${error.entryName}: ${error.message}`).join(' · ')}
@@ -412,7 +408,7 @@ export function CombatantCard({
         </div>
       ) : null}
       {failed ? (
-        <div role="alert" className="mt-2 text-sm text-discarded">
+        <Problem className="mt-2">
           Unit data could not load.{' '}
           <Button
             variant="outline"
@@ -426,7 +422,7 @@ export function CombatantCard({
           >
             Retry
           </Button>
-        </div>
+        </Problem>
       ) : null}
       {!factions.isPending && !factions.data ? (
         <p className="mt-2 text-sm text-dim">

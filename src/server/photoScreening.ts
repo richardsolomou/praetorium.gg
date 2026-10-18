@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { parseImageDataUrl } from './privateImages'
 
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone'
 /** Pinned, so probabilities stay comparable across uploads while thresholds are chosen from them. */
 const MODEL = 'jev-1.14.0'
-const READABLE = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/
 
 /** Collection photos must show miniatures; sculpted or painted content is ruled out where generic filters would flag it. */
 export const COLLECTION_PHOTO_QUESTIONS = {
@@ -34,8 +34,8 @@ export function photoScreening(apiKey: string, fetcher: typeof fetch = fetch) {
   return {
     /** The probability of yes to each question, or null for a format the model cannot read. */
     async screen<Id extends string>(image: string, questions: Record<Id, string>) {
-      const match = READABLE.exec(image)
-      if (!match) return null
+      const readable = parseImageDataUrl(image, ['jpeg', 'png'])
+      if (!readable) return null
       const ids = Object.keys(questions) as [Id, ...Id[]]
       const reference = randomUUID()
       const answer = await fetcher(ENDPOINT, {
@@ -48,7 +48,13 @@ export function photoScreening(apiKey: string, fetcher: typeof fetch = fetch) {
         body: JSON.stringify({
           model: MODEL,
           state: { photo: reference },
-          assets: { [reference]: { type: 'image', format: match[1] === 'png' ? 'png' : 'jpg', data_base64: match[2] } },
+          assets: {
+            [reference]: {
+              type: 'image',
+              format: readable.format === 'png' ? 'png' : 'jpg',
+              data_base64: readable.bytes.toString('base64'),
+            },
+          },
           questions: Object.fromEntries(ids.map((id) => [id, { type: 'noul', instructions: questions[id] }])),
         }),
         signal: AbortSignal.timeout(30_000),

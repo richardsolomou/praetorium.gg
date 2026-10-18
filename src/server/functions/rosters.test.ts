@@ -21,7 +21,14 @@ vi.mock('../app', () => ({
   app: () => ({
     factionIndexFor: mocks.factionIndexFor,
     factionFor: mocks.factionFor,
-    service: { discoverRosters: mocks.discover, rostersLentTo: mocks.lent, rosterAccess: mocks.access, copySource: async () => null },
+    service: {
+      rosterService: {
+        discoverRosters: mocks.discover,
+        rostersLentTo: mocks.lent,
+        rosterAccess: mocks.access,
+        copySource: async () => null,
+      },
+    },
   }),
 }))
 vi.mock('../playerSession', () => ({ currentUserId: async () => mocks.viewerId }))

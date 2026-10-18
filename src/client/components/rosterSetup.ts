@@ -1,6 +1,6 @@
 import { routeSlug } from '../../core/slug'
 
-export type DispositionOption = { id: string; name: string }
+type DispositionOption = { id: string; name: string }
 
 const dispositionTones: Record<string, { quiet: string; strong: string; accent: string }> = {
   'take-and-hold': {

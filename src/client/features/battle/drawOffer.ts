@@ -10,7 +10,7 @@ export type { WhenDrawn } from '../../../contracts/missions'
  * what is on the table it cannot, so that one is stated for the player to judge —
  * the same reason objective control is never inferred anywhere else.
  */
-export type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: string; required: boolean }
+type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: string; required: boolean }
 
 export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): DrawOffer | null {
   if (!rule) return null

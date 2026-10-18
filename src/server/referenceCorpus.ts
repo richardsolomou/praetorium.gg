@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import { hasTextTokens, textPointersIn, type TextLocations } from '../shared/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import type { ReferenceDocument, ReferenceSection } from '../contracts/reference'
@@ -51,7 +51,7 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   ].toSorted(
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
-  const revision = createHash('sha256').update(JSON.stringify({ catalogue, documents })).digest('hex')
+  const revision = hash('sha256', JSON.stringify({ catalogue, documents }))
   const corpus = { catalogue, documents, byId: new Map(documents.map((document) => [document.id, document])), revision }
   corpora.set(canonical, { catalogue: loaded, rules, files, corpus })
   return corpus

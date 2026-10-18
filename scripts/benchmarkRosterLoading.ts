@@ -4,11 +4,13 @@ import { attachedUnit } from '../src/core/attach'
 import { buildUnit, type RosterPick } from '../src/core/roster'
 import { abilityNamesIn, datasheetIn, datasheetViewsIn } from '../src/shared/catalogue'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
-import { calculateRosterPrice, rosterDetachments } from '../src/shared/pricing'
-import { deploymentRules } from '../src/shared/pricing'
+import { calculateRosterPrice } from '../src/shared/pricing'
+import { rosterDetachments } from '../src/shared/rosterDetachments'
+import { deploymentRules } from '../src/shared/rosterDeployment'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-process.env.CATALOGUE_DIR ??= new URL('../catalogue-data', import.meta.url).pathname
+process.env.CATALOGUE_DIR = catalogueDataDirectory()
 
 const { catalogue: loaded, rules } = loadSnapshot(process.env.CATALOGUE_DIR)
 const faction = loaded.factions.toSorted(

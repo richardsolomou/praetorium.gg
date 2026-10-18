@@ -6,7 +6,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -29,8 +29,6 @@ export type WorkerTask =
 
 export type WorkerResult = { ok: true; source: ChangeSource | null; revisions: Record<string, string> } | { ok: false; reason: string }
 
-const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
-
 /** The revisions a snapshot says it holds, without any source this code no longer has. */
 const knownRevisions = (directory: string): Record<string, string> =>
   Object.fromEntries(
@@ -48,7 +46,7 @@ async function published(task: Extract<WorkerTask, { kind: 'published' }>, work:
   fs.writeFileSync(archive, bytes)
   // The listing carries no archive checksum; the id is the manifest's hash and the manifest
   // hashes every file, so those still verify what is inside.
-  const pointer: SnapshotPointer = { format: 'praetorium.catalogue-pointer.v1', id: task.id, archiveSha256: sha256(bytes) }
+  const pointer: SnapshotPointer = { format: 'praetorium.catalogue-pointer.v1', id: task.id, archiveSha256: hash('sha256', bytes) }
   installSnapshotArchive(directory, archive, pointer, null)
   fs.rmSync(archive, { force: true })
   const sources = historicalSnapshotSources(directory)

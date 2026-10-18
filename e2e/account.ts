@@ -1,6 +1,7 @@
 import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
+import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
 import { productOperator, savedWork, userIdFor } from './storage'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
@@ -27,6 +28,22 @@ export async function signUp(page: Page, name: string) {
     .first()
     .waitFor({ state: 'attached' })
   return { email, password }
+}
+
+/** Submits the sign-in form for an existing account. */
+export async function signIn(page: Page, email: string, password: string) {
+  await page.goto('/sign-in')
+  // Filling before hydration submits the form natively and never signs in.
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill(password)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+}
+
+/** Signs into the seeded preview player, who is an administrator. */
+export async function signInAsPreview(page: Page) {
+  await signIn(page, PREVIEW_EMAIL, PREVIEW_PASSWORD)
+  await page.waitForURL('/')
 }
 
 /** Signs up and saves a private copy of the preview Necrons list under a new name. */

@@ -24,7 +24,15 @@ import {
 } from '../functions'
 import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
-import { meKey, onboardingKey } from './queryKeys'
+import {
+  collectionProfileKey,
+  friendInviteKey,
+  meKey,
+  notificationSettingsKey,
+  onboardingKey,
+  playerDefaultsKey,
+  userProfileKey,
+} from './queryKeys'
 
 export const meQuery = () =>
   queryOptions({
@@ -45,17 +53,17 @@ export const meQuery = () =>
     staleTime: SSR_STALE_TIME,
   })
 export const notificationSettingsQuery = () =>
-  queryOptions({ queryKey: ['notification-settings'], queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: notificationSettingsKey(), queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
 export const playerDefaultsQuery = () =>
-  queryOptions({ queryKey: ['player-defaults'], queryFn: () => playerDefaults(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: playerDefaultsKey(), queryFn: () => playerDefaults(), staleTime: SSR_STALE_TIME })
 export const mcpConnectionsQuery = () => queryOptions({ queryKey: ['mcp-connections'], queryFn: () => mcpConnections() })
 export const onboardingQuery = () =>
   queryOptions({ queryKey: onboardingKey(), queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })
 export const activeFriendInviteQuery = () =>
-  queryOptions({ queryKey: ['friend-invite', 'active'], queryFn: () => activeFriendInvite(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: friendInviteKey('active'), queryFn: () => activeFriendInvite(), staleTime: SSR_STALE_TIME })
 export const friendInviteQuery = (token: string) =>
   queryOptions({
-    queryKey: ['friend-invite', token],
+    queryKey: friendInviteKey(token),
     queryFn: () => friendInvite({ data: { token } }),
     staleTime: SSR_STALE_TIME,
   })
@@ -94,7 +102,7 @@ export const recentCollectionPhotosQuery = () =>
 
 export const userProfileQuery = (userId: string) =>
   queryOptions({
-    queryKey: ['user-profile', userId],
+    queryKey: userProfileKey(userId),
     queryFn: () => userProfile({ data: { userId } }),
     staleTime: SSR_STALE_TIME,
   })
@@ -102,4 +110,4 @@ export const userProfileQuery = (userId: string) =>
 export const signInOptionsQuery = () => queryOptions({ queryKey: ['sign-in-options'], queryFn: () => signInOptions(), staleTime: Infinity })
 
 export const collectionProfileQuery = (userId: string) =>
-  queryOptions({ queryKey: ['collection-profile', userId], queryFn: () => collectionProfile({ data: { userId } }) })
+  queryOptions({ queryKey: collectionProfileKey(userId), queryFn: () => collectionProfile({ data: { userId } }) })

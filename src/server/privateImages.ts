@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { localDevelopmentObjectStore } from './localObjectStore'
+import { notFound } from './notFound'
 import { privateR2Client, r2Objects } from './r2Client'
 
 const DATA_URL = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/
@@ -10,6 +11,17 @@ const FORMATS = {
     contentType: 'image/webp',
     matches: (bytes: Buffer) => bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP',
   },
+}
+
+type ImageFormat = keyof typeof FORMATS
+
+/** An image data URL's bytes, when they match its declared format and that format is one of `formats`; otherwise null. */
+export function parseImageDataUrl(image: string, formats: readonly ImageFormat[] = ['png', 'jpeg', 'webp']) {
+  const match = DATA_URL.exec(image)
+  const format = match?.[1] as ImageFormat | undefined
+  if (!match || !format || !formats.includes(format)) return null
+  const bytes = Buffer.from(match[2]!, 'base64')
+  return FORMATS[format].matches(bytes) ? { format, contentType: FORMATS[format].contentType, bytes } : null
 }
 
 export type PrivateObjects = {
@@ -52,12 +64,10 @@ export async function storePrivateImage(
   { maxBytes, refusal }: { maxBytes: number; refusal: string },
 ): Promise<string> {
   if (!objects) throw new Response('image uploads are not available', { status: 503 })
-  const match = DATA_URL.exec(image)
-  const format = match && FORMATS[match[1] as keyof typeof FORMATS]
-  const bytes = match ? Buffer.from(match[2]!, 'base64') : null
-  if (!format || !bytes || bytes.byteLength > maxBytes || !format.matches(bytes)) throw new Response(refusal, { status: 400 })
+  const parsed = parseImageDataUrl(image)
+  if (!parsed || parsed.bytes.byteLength > maxBytes) throw new Response(refusal, { status: 400 })
   const id = randomUUID()
-  await objects.put(`${prefix}${id}`, bytes, format.contentType)
+  await objects.put(`${prefix}${id}`, parsed.bytes, parsed.contentType)
   return id
 }
 
@@ -76,5 +86,3 @@ export async function privateImageResponse(objects: PrivateObjects | null, key: 
     },
   })
 }
-
-export const notFound = () => new Response('not found', { status: 404, headers: { 'Cache-Control': 'no-store' } })

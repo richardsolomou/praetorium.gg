@@ -73,7 +73,7 @@ type CardRelationships = {
 }
 
 /** The book's datasheets and the roster's copy limits, which decide whether a new unit can be added to attach. */
-export type AttachDiscovery = {
+type AttachDiscovery = {
   candidates: readonly PickerUnit[]
   held: Readonly<Record<string, number>>
   limits: ReadonlyMap<string, number | null>

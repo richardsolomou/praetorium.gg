@@ -1,7 +1,7 @@
 import { writeCanonicalCatalogue } from '../src/server/canonicalCatalogue'
-import { canonicalCatalogueInputDirectory, canonicalCatalogueOutputFile } from './lib/canonicalCatalogueFiles'
+import { catalogueDataDirectory, canonicalCatalogueOutputFile } from './lib/catalogueFiles'
 
-const catalogue = writeCanonicalCatalogue(canonicalCatalogueInputDirectory(), canonicalCatalogueOutputFile())
+const catalogue = writeCanonicalCatalogue(catalogueDataDirectory(), canonicalCatalogueOutputFile())
 console.log(`canonical datasheets: ${catalogue.datasheets.length}`)
 console.log(`canonical rule documents: ${catalogue.ruleDocuments.length}`)
 console.log(`canonical audit issues: ${catalogue.issues.length}`)

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createHash, randomUUID } from 'node:crypto'
+import { hash, randomUUID } from 'node:crypto'
 import { rosterPickSchema } from '../../src/core/commands'
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, pointsBudgetOf } from '../../src/core/battle'
 import { ROSTER_SOURCES } from '../../src/core/savedRoster'
@@ -7,7 +7,7 @@ import { currentRosterIds } from '../../src/core/retiredCatalogueIds'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import type { RosterPick } from '../../src/core/roster'
 import { builtPickSelections } from '../../src/core/rosterSelections'
-import { detachmentIds } from '../../src/server/rosterPersistence'
+import { detachmentIds, rosterRow } from '../../src/server/rosterPersistence'
 import { calculateRosterPrice, savedRosterPriceInput, unavailablePriceSelections } from '../../src/shared/pricing'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import type { LoadedRules } from '../../src/shared/rules'
@@ -44,7 +44,7 @@ export const productionRosterSnapshotSchema = z
     }
   })
 export type ProductionRosterSnapshot = z.infer<typeof productionRosterSnapshotSchema>
-export const importedRosterId = (id: string) => `production-${createHash('sha256').update(id).digest('hex').slice(0, 32)}`
+export const importedRosterId = (id: string) => `production-${hash('sha256', id).slice(0, 32)}`
 const unavailableSchema = z.object({
   pickIndex: z.number().int().nonnegative(),
   entryId: z.string(),
@@ -287,24 +287,17 @@ export async function importProductionRosters(
       continue
     }
     const row = JSON.stringify({
+      ...rosterRow({
+        ...roster,
+        prep: null,
+        baseRosterId: roster.baseRosterId && byId.has(roster.baseRosterId) ? importedRosterId(roster.baseRosterId) : null,
+      }),
       id,
       userId,
       name: `Production roster ${roster.id.slice(0, 48)}`,
       automaticName: false,
-      catalogueId: roster.catalogueId,
-      detachmentId: JSON.stringify(roster.detachmentIds),
-      disposition: roster.disposition,
-      limit: roster.limit,
       pointsBudget: roster.pointsBudget ?? null,
-      picks: JSON.stringify(roster.picks),
-      waivedRules: JSON.stringify(roster.waivedRules),
-      optionalRules: JSON.stringify(roster.optionalRules),
-      borrowedDetachmentId: roster.borrowedDetachmentId,
-      baseRosterId: roster.baseRosterId && byId.has(roster.baseRosterId) ? importedRosterId(roster.baseRosterId) : null,
-      prep: null,
-      tags: '[]',
       visibility: 'private',
-      source: roster.source,
       now: roster.updatedAt,
     })
     const outcome = await operator.syncRoster({
@@ -312,7 +305,7 @@ export async function importProductionRosters(
       expectedVersion: null,
       deleted: false,
       operationId: randomUUID(),
-      fingerprint: createHash('sha256').update(row).digest('hex'),
+      fingerprint: hash('sha256', row),
     })
     if (outcome.outcome === 'conflict') continue
     if (outcome.outcome !== 'applied') throw new Error(`Could not insert local roster ${id}: ${outcome.message}`)

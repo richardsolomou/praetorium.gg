@@ -8,9 +8,10 @@ import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
 import { combatWeaponKeywordInventory, unselectedCombatRules } from './lib/combatRuleInventory'
 import type { InventoryRule } from './lib/combatRuleShortlist'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 const { values } = parseArgs({ options: { json: { type: 'boolean' }, faction: { type: 'string' } } })
-const directory = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
+const directory = path.resolve(catalogueDataDirectory())
 const { catalogue: loaded, rules } = loadSnapshotWithRules(directory)
 const entries = new Map<string, InventoryRule>()
 function add(name: string, description: string | null, source: string, scope: CombatRule['scope']) {

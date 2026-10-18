@@ -2,7 +2,7 @@ import { InfiniteQueryObserver, QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as functions from '../../server/functions'
 import { battlesFrom, battlesQuery, friendBattlesQuery, publicBattlesQuery } from './battles'
-import { leagueBattlesFrom, leagueBattlesQuery } from './leagues'
+import { leagueBattlesQuery } from './leagues'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -14,7 +14,7 @@ describe.each([
     name: 'league battles',
     options: () => leagueBattlesQuery('league', 'event'),
     request: 'listLeagueBattles' as const,
-    rows: leagueBattlesFrom,
+    rows: battlesFrom,
   },
 ])('$name pages', ({ options, request, rows }) => {
   it.each([undefined, null])('rejects a %s first page instead of caching it as a successful feed', async (missing) => {

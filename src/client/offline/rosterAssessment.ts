@@ -2,6 +2,7 @@ import { calculateRosterAssessment, calculateRosterTotals, savedRosterPriceInput
 import { rosterUseProblem } from '../../core/rosterLegality'
 import { localConstruction } from './construction'
 import type { LocalRoster } from './localRuntime'
+import { nextTask } from '../../shared/nextTask'
 
 type Assessment = { points: number | null; problem: NonNullable<ReturnType<typeof rosterUseProblem>>['kind'] | null; label: string }
 const cache = new Map<string, { version: number; revision: string; data: Assessment }>()
@@ -13,7 +14,7 @@ export async function localRosterAssessment(roster: LocalRoster, owner: string) 
   const key = JSON.stringify([owner, roster.id])
   const cached = cache.get(key)
   if (cached?.version === roster.updatedAt && cached.revision === local.revision) return cached.data
-  await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  await nextTask()
   const input = savedRosterPriceInput(roster)
   const assessed = calculateRosterAssessment(input, local.catalogue, local.rules)
   const data: Assessment = {

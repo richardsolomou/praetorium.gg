@@ -15,19 +15,18 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { friendshipsQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { useOrigin } from '../../useOrigin'
-import { useNativeShare } from '../../nativeBridge'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { entrantGroups, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { formatList } from '../../text'
+import { formatList, countLabel } from '../../text'
+import { SHARED_LABEL, useInviteShareLabel } from '../friends/friendInvite'
 
 /** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`, and `last` closes the row. */
-export type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
+type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
 
 /** The organizer's view of who is in an open event: requests to answer, entrants to size, pair or remove, and who was turned away. */
 export function OrganizerEntrants({ league, token, row }: { league: League; token: string; row: EntrantRowRenderer }) {
@@ -105,11 +104,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
   }
   // A refusal is shown on the row it came from, unless a confirmation dialog is already showing it.
   const rowError = (error: Error | null, failedId: string | undefined, entry: LeagueEntryView) =>
-    error && failedId === entry.userId ? (
-      <p role="alert" className="w-full text-right text-xs text-destructive">
-        {errorMessage(error)}
-      </p>
-    ) : null
+    error && failedId === entry.userId ? <Problem error={error} className="w-full text-right text-xs" /> : null
   const moderateError = (entry: LeagueEntryView) => (removing ? null : rowError(moderate.error, moderate.variables?.userId, entry))
   // Removing an entrant is rare and recedes to an icon; the confirmation says the word.
   const removeButton = (entry: LeagueEntryView) => (
@@ -420,7 +415,7 @@ export function NextEventPanel({ league }: { league: League }) {
 export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
   const invite = useInviteShare(league)
-  const shareLabel = useNativeShare() ? 'Share invite' : 'Copy invite link'
+  const shareLabel = useInviteShareLabel()
   return (
     <section className="border border-edge bg-panel p-4">
       <h2 className="rubric border-b border-edge pb-2">Invite players</h2>
@@ -446,7 +441,7 @@ export function InvitePanel({ league }: { league: League }) {
           className={`flex items-center justify-center gap-1.5 border-t border-edge-strong px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
         >
           {invite.feedback === 'copied' || invite.feedback === 'shared' ? <Check className="size-3.5" /> : <Share2 className="size-3.5" />}
-          {invite.feedback === 'copied' ? 'Link copied' : invite.feedback === 'shared' ? 'Invite shared' : shareLabel}
+          {invite.feedback === 'copied' || invite.feedback === 'shared' ? SHARED_LABEL[invite.feedback] : shareLabel}
         </span>
       </button>
       <p aria-live="polite" className={`mt-2 text-xs ${invite.feedback === 'error' ? 'text-destructive' : 'sr-only'}`}>
@@ -493,7 +488,7 @@ function AddFriends({ league, token }: { league: League; token: string }) {
             <DialogTitle className="text-2xl">Add friends</DialogTitle>
             <DialogDescription>
               They are entered straight away, without asking to join.
-              {places === null ? '' : ` ${places === 1 ? '1 place' : `${places} places`} left.`}
+              {places === null ? '' : ` ${countLabel(places, 'place')} left.`}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -540,7 +535,7 @@ function AddFriends({ league, token }: { league: League; token: string }) {
               Cancel
             </Button>
             <Button disabled={add.isPending || !picked.length} onClick={() => add.mutate()}>
-              {add.isPending ? 'Adding…' : picked.length ? `Add ${picked.length} player${picked.length === 1 ? '' : 's'}` : 'Add players'}
+              {add.isPending ? 'Adding…' : picked.length ? `Add ${countLabel(picked.length, 'player')}` : 'Add players'}
             </Button>
           </DialogFooter>
         </DialogContent>

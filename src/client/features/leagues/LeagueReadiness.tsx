@@ -4,6 +4,7 @@ import { leagueRevealChecklist, mayRevealLeague, type LeagueEntryView, type Leag
 import { revealLeague } from '../../functions'
 import { namesPhrase, useLeagueRefresh, type League } from './leagueEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { countLabel } from '../../text'
 
 /** What the organizer still has to do before every roster can open, said to everyone so nobody wonders what the wait is. */
 const ORGANIZER_STEPS: Partial<Record<LeagueRevealCheck['step'], string>> = {
@@ -142,7 +143,7 @@ export function RevealRostersDialog({
         <>
           {accepted.length === 1 ? 'The sealed roster opens' : `All ${accepted.length} sealed rosters open`} for everyone who can open this
           league, and nobody else can join this event.{' '}
-          {pending ? `${pending} request${pending === 1 ? '' : 's'} still waiting will be turned down. ` : ''}
+          {pending ? `${countLabel(pending, 'request')} still waiting will be turned down. ` : ''}
           You cannot undo this.
         </>
       }

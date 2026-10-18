@@ -1,7 +1,7 @@
 import type { Phase } from '../../../core/battle'
 import { ROSTER_REMINDERS_MAX } from '../../../core/reminders'
 
-export const REMINDER_DISMISSAL_SCOPES = ['phase', 'turn', 'round', 'battle'] as const
+const REMINDER_DISMISSAL_SCOPES = ['phase', 'turn', 'round', 'battle'] as const
 
 export type ReminderDismissalScope = (typeof REMINDER_DISMISSAL_SCOPES)[number]
 

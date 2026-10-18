@@ -5,7 +5,6 @@ import { ShieldCheck } from 'lucide-react'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { ADMIN_USER_ROLES, type AdminUser, type AdminUserSort } from '../../../admin'
 import { adminUsersQuery, heldCollectionPhotosQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
 import { useSettled } from '../../useSettled'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageTabsList } from '../../components/PageTabs'
@@ -13,6 +12,7 @@ import { AdminPhotos } from './AdminPhotos'
 import { AdminUserPanel } from './AdminUserPanel'
 import { AdminUsersTable } from './AdminUsersTable'
 import { type AdminSearch, type AdminTab, DEFAULT_PAGE_SIZE, DEFAULT_SORT } from './adminSearch'
+import { Problem } from '../../components/Problem'
 
 const NO_USERS: AdminUser[] = []
 
@@ -100,11 +100,7 @@ export function AdminUsers({
               }
               onOpen={setOpened}
             />
-            {usersResult.error ? (
-              <p role="alert" className="border border-edge bg-panel p-4 text-sm text-destructive">
-                {errorMessage(usersResult.error)}
-              </p>
-            ) : null}
+            {usersResult.error ? <Problem error={usersResult.error} className="border border-edge bg-panel p-4" /> : null}
           </TabsContent>
           <TabsContent value="photos" className="mt-4">
             <AdminPhotos />

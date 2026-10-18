@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { reviewRosterSetup, verifySetupReview, type RosterSetupReview as SetupReview } from './rosterSetupReview'
 import { SetupConsequences } from './SetupConsequences'
 import type { RosterDraft } from './rosterDraft'
@@ -6,7 +6,6 @@ import { errorMessage } from '../../queryClient'
 import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { prepareFactionUnits } from '../../functions'
 import { Link } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import { Check, Layers3 } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
@@ -514,7 +513,7 @@ export function RosterSetupDialog({
           </span>
         </div>
         {unavailableDetachmentIds.length ? (
-          <div role="alert" className="mt-2 border border-destructive/60 bg-destructive/10 p-3 text-sm text-destructive">
+          <Problem className="mt-2 border border-destructive/60 bg-destructive/10 p-3">
             This roster has {unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'} that this faction no longer offers.
             <Button
               variant="ghost"
@@ -530,7 +529,7 @@ export function RosterSetupDialog({
             >
               Remove unavailable
             </Button>
-          </div>
+          </Problem>
         ) : null}
         {offeredDetachments.length ? (
           <SearchField
@@ -609,11 +608,7 @@ export function RosterSetupDialog({
         {offeredDetachments.length && !availableDetachments.length ? (
           <p className="mt-2 text-sm text-dim">No detachments match this search.</p>
         ) : null}
-        {pointsError ? (
-          <p role="alert" className="mt-2 text-xs text-destructive">
-            {pointsError}
-          </p>
-        ) : null}
+        {pointsError ? <Problem className="mt-2 text-xs">{pointsError}</Problem> : null}
       </fieldset>
 
       {offeredOptionalRules.length ? (
@@ -712,9 +707,9 @@ export function RosterSetupDialog({
   const actions = (
     <>
       {saveError || reviewing.isError || confirming.isError ? (
-        <p role="alert" className="mr-auto self-center text-sm text-destructive">
+        <Problem className="mr-auto self-center">
           Could not save roster: {saveError ?? errorMessage(reviewing.error ?? confirming.error)}
-        </p>
+        </Problem>
       ) : missing ? (
         <output className="mr-auto self-center text-sm text-discarded">
           <span id={missingId}>{missing}</span>

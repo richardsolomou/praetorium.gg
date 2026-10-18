@@ -27,19 +27,24 @@ import {
   savedRosterLoadoutDatasheets,
   savedRosterSummaries,
   savedRosterPage,
-  sharedRoster,
   units,
 } from '../functions'
-import { savedRosterFamilies } from '../productSignals'
+import { inFamilies, savedRosterFamilies } from '../productSignals'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { rosterPriceKey } from './rosterPriceKey'
 import {
+  collectionCountsKey,
+  collectionKey,
+  collectionProgressKey,
+  collectionWishesKey,
+  datasheetPhotosKey,
+  factionDatasheetsKey,
+  fieldedDatasheetsKey,
   homeRostersKey,
   rosterAccessKey,
   rosterBootstrapKey,
   savedRosterPageKey,
   savedRosterSummariesKey,
-  sharedRosterKey,
 } from './queryKeys'
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
@@ -52,20 +57,20 @@ export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: 
     staleTime: SSR_STALE_TIME,
   })
 
-export const collectionQuery = () => queryOptions({ queryKey: ['collection'], queryFn: () => collection(), staleTime: SSR_STALE_TIME })
+export const collectionQuery = () => queryOptions({ queryKey: collectionKey(), queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 export const fieldedDatasheetsQuery = () =>
-  queryOptions({ queryKey: ['fielded-datasheets'], queryFn: () => fieldedDatasheets(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: fieldedDatasheetsKey(), queryFn: () => fieldedDatasheets(), staleTime: SSR_STALE_TIME })
 export const collectionCountsQuery = () =>
-  queryOptions({ queryKey: ['collection-counts'], queryFn: () => collectionCounts(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: collectionCountsKey(), queryFn: () => collectionCounts(), staleTime: SSR_STALE_TIME })
 /** Only datasheets with built models appear; the rest have none built or painted. */
 export const collectionProgressQuery = () =>
-  queryOptions({ queryKey: ['collection-progress'], queryFn: () => collectionProgress(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: collectionProgressKey(), queryFn: () => collectionProgress(), staleTime: SSR_STALE_TIME })
 export const collectionWishesQuery = () =>
-  queryOptions({ queryKey: ['collection-wishes'], queryFn: () => collectionWishes(), staleTime: SSR_STALE_TIME })
+  queryOptions({ queryKey: collectionWishesKey(), queryFn: () => collectionWishes(), staleTime: SSR_STALE_TIME })
 /** Never saved for offline reading: a photo whose owner stops sharing must leave the page on the next read. */
 export const datasheetPhotosQuery = (entryId: string) =>
   queryOptions({
-    queryKey: ['datasheet-photos', entryId],
+    queryKey: datasheetPhotosKey(entryId),
     queryFn: () => datasheetPhotos({ data: { entryId } }),
     staleTime: SSR_STALE_TIME,
   })
@@ -105,13 +110,13 @@ export const datasheetOfferedByQuery = (entryId: string, catalogueIds: readonly 
 
 export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
   queryOptions({
-    queryKey: ['faction-datasheets', catalogueId, query],
+    queryKey: factionDatasheetsKey(catalogueId, query),
     networkMode: 'always',
     initialData: () => offlineDatasheets(catalogueId, query) ?? undefined,
     initialDataUpdatedAt: () => (currentReference() ? Date.now() : (referenceData()?.savedAt ?? 0)),
     queryFn: async ({ client }) => {
       const saved = offlineDatasheets(catalogueId, query)
-      const current = client.getQueryData<UnitSummary[]>(['faction-datasheets', catalogueId, query])
+      const current = client.getQueryData<UnitSummary[]>(factionDatasheetsKey(catalogueId, query))
       if (typeof window !== 'undefined' && !navigator.onLine && current !== undefined) return current
       if (saved && currentReference()) return saved
       try {
@@ -231,15 +236,9 @@ export const rosterBootstrapQuery = (id: string, battle?: string) =>
   })
 
 export function invalidateSavedRosters(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({ predicate: (query) => savedRosterFamilies.has(query.queryKey[0] as string) })
+  return queryClient.invalidateQueries({ predicate: inFamilies(savedRosterFamilies) })
 }
 
-export const sharedRosterQuery = (id: string, battle?: string) =>
-  queryOptions({
-    queryKey: sharedRosterKey(id, battle),
-    queryFn: () => sharedRoster({ data: { id, ...(battle ? { battle } : {}) } }),
-    staleTime: SSR_STALE_TIME,
-  })
 /** The friends an owner has lent a roster to. */
 export const rosterLoansQuery = (id: string) =>
   queryOptions({

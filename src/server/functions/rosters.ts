@@ -56,7 +56,7 @@ export const priceRoster = createServerFn({ method: 'POST' })
 export const savedRosterSummaries = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
-    return id ? app().service.savedRosterSummaries(id) : []
+    return id ? app().service.rosterService.savedRosterSummaries(id) : []
   }),
 )
 
@@ -65,7 +65,7 @@ export const homeRosters = createServerFn({ method: 'GET' }).handler(() =>
     const id = await currentUserId()
     if (!id) return { count: 0, rosters: [] }
     const instance = app()
-    const { count, summaries, priceable } = await instance.service.homeRosters(id)
+    const { count, summaries, priceable } = await instance.service.rosterService.homeRosters(id)
     if (!priceable.length) return { count, rosters: [] }
     const [totals, verdicts] = await Promise.all([cachedRosterTotalsFor(priceable), cachedRosterVerdictsFor(priceable)])
     const rosters = priceable.map((_, index) => ({
@@ -89,7 +89,7 @@ export const playerRosters = createServerFn({ method: 'GET' })
   .validator(userSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const { summaries, priceable } = await app().service.publicRosters(data.userId)
+      const { summaries, priceable } = await app().service.rosterService.publicRosters(data.userId)
       const values = await cachedRosterTotalsFor(priceable)
       const totals = priceable.map((roster, index) => ({
         id: roster.id,
@@ -115,7 +115,7 @@ export const discoverRosters = createServerFn({ method: 'GET' })
       const factions = factionIndex?.factions ?? []
       const scope = discoveryScope(filter, factions)
       if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], nextCursor: null }
-      const page = await instance.service.discoverRosters({
+      const page = await instance.service.rosterService.discoverRosters({
         ...scope,
         audience,
         viewerId,
@@ -140,17 +140,17 @@ export const discoverRosters = createServerFn({ method: 'GET' })
 
 export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
-  .handler(({ data }) => rpc(async () => app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))
+  .handler(({ data }) => rpc(async () => app().service.rosterService.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))
 
 /** A reader's access to a roster, with the variant group its owner can switch between. */
 async function accessToRoster(data: { id: string; battle?: string }) {
   const userId = await currentUserId()
-  const access = await app().service.rosterAccess(data.id, userId, data.battle ?? null)
+  const access = await app().service.rosterService.rosterAccess(data.id, userId, data.battle ?? null)
   if (!access) return null
-  const copiedFrom = await app().service.copySource(access.roster.copiedFromRosterId, userId)
+  const copiedFrom = await app().service.rosterService.copySource(access.roster.copiedFromRosterId, userId)
   if (!access.editable || !userId) return { lentBy: null, ...access, variants: [], differences: null, copiedFrom }
   const [variants, differences] = await Promise.all([
-    app().service.rosterGroup(userId, access.roster),
+    app().service.rosterService.rosterGroup(userId, access.roster),
     variantDifferences(userId, [access.roster]),
   ])
   return { lentBy: null, ...access, variants, differences: differences.get(access.roster.id) ?? null, copiedFrom }
@@ -181,7 +181,7 @@ export const savedRosterPage = createServerFn({ method: 'GET' })
       const userId = await currentUserId()
       if (!userId) return []
       const instance = app()
-      const saved = await instance.service.savedRostersByIds(userId, data.ids)
+      const saved = await instance.service.rosterService.savedRostersByIds(userId, data.ids)
       if (!saved.length) return []
       const [assessments, history, differences] = await Promise.all([
         cachedRosterAssessmentsFor(saved),
@@ -209,7 +209,7 @@ export const savedRosterChangedIds = createServerFn({ method: 'GET' }).handler((
     const instance = app()
     const history = (await instance.catalogueHistoryFor()) ?? []
     if (!history.length) return []
-    const saved = await instance.service.savedRosters(id)
+    const saved = await instance.service.rosterService.savedRosters(id)
     if (!saved.length) return []
     const sets = historySince(history, Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
     if (!sets.length) return []
@@ -262,7 +262,7 @@ export const rosterChanges = createServerFn({ method: 'GET' })
   .validator(rosterInBattleSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const roster = await app().service.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
+      const roster = await app().service.rosterService.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
       return roster ? changesSinceSaved(roster, await cachedRosterPrice(roster)) : []
     }),
   )
@@ -296,7 +296,7 @@ export const deleteRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.deleteRoster(player.id, data.id)
+      await app().service.rosterService.deleteRoster(player.id, data.id)
       await app().telemetry.capture(player.id, 'roster_deleted')
       return null
     }),
@@ -307,7 +307,7 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.setRosterVisibility(player.id, data.id, data.visibility)
+      await app().service.rosterService.setRosterVisibility(player.id, data.id, data.visibility)
       await app().telemetry.capture(player.id, 'roster_visibility_updated', { visibility: data.visibility })
       return null
     }),
@@ -318,7 +318,7 @@ export const lendRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.lendRoster(player.id, data.id, data.borrowerId)
+      await app().service.rosterService.lendRoster(player.id, data.id, data.borrowerId)
       await app().telemetry.capture(player.id, 'roster_lent')
       return null
     }),
@@ -330,7 +330,7 @@ export const endRosterLoan = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.endRosterLoan(player.id, data.id, data.borrowerId)
+      await app().service.rosterService.endRosterLoan(player.id, data.id, data.borrowerId)
       await app().telemetry.capture(player.id, 'roster_loan_ended', { by: player.id === data.borrowerId ? 'borrower' : 'owner' })
       return null
     }),
@@ -341,7 +341,7 @@ export const rosterLoans = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const player = await requireUser()
-      return app().service.rosterLoans(player.id, data.id)
+      return app().service.rosterService.rosterLoans(player.id, data.id)
     }),
   )
 
@@ -350,7 +350,7 @@ export const rostersLentToMe = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const id = await currentUserId()
     if (!id) return []
-    const lent = await app().service.rostersLentTo(id)
+    const lent = await app().service.rosterService.rostersLentTo(id)
     const assessments = await cachedRosterAssessmentsFor(lent.map(({ priceable }) => priceable))
     return lent.map(({ priceable: _priceable, ...entry }, index) => ({
       ...entry,
@@ -365,7 +365,7 @@ export const setRosterLocked = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const saved = await app().service.setRosterLocked(player.id, data.id, data.locked)
+      const saved = await app().service.rosterService.setRosterLocked(player.id, data.id, data.locked)
       await app().telemetry.capture(player.id, 'roster_lock_updated', { locked: data.locked })
       return saved
     }),
@@ -376,7 +376,7 @@ export const setRosterArchived = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const saved = await app().service.setRosterArchived(player.id, data.id, data.archived)
+      const saved = await app().service.rosterService.setRosterArchived(player.id, data.id, data.archived)
       await app().telemetry.capture(player.id, 'roster_archive_updated', { archived: data.archived })
       return saved
     }),

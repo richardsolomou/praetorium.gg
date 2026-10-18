@@ -115,6 +115,7 @@ import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
 import type { CombatRoster } from '../simulator/useCombatant'
 import { countLabel } from '../../text'
+import { Problem } from '../../components/Problem'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -1334,25 +1335,13 @@ export function ListBuilder({
             </Button>
           </p>
         ) : null}
-        {lockRoster.isError ? (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            {errorMessage(lockRoster.error)}
-          </p>
-        ) : null}
+        {lockRoster.isError ? <Problem error={lockRoster.error} className="mt-1 text-xs" /> : null}
         {!editable && duplicateRoster.isError ? (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            That roster could not be duplicated. Try again.
-          </p>
+          <Problem className="mt-1 text-xs">That roster could not be duplicated. Try again.</Problem>
         ) : null}
-        {createVariant.isError ? (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            The variant could not be created. Try again.
-          </p>
-        ) : null}
+        {createVariant.isError ? <Problem className="mt-1 text-xs">The variant could not be created. Try again.</Problem> : null}
         {share.isError ? (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            Could not share the link: {errorMessage(share.error)}
-          </p>
+          <Problem className="mt-1 text-xs">Could not share the link: {errorMessage(share.error)}</Problem>
         ) : (
           <output className="mt-1 block text-xs text-dim empty:hidden">
             {share.isPending
@@ -1367,9 +1356,7 @@ export function ListBuilder({
           </output>
         )}
         {exchange.isError ? (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            Could not make an exchange code: {errorMessage(exchange.error)}
-          </p>
+          <Problem className="mt-1 text-xs">Could not make an exchange code: {errorMessage(exchange.error)}</Problem>
         ) : null}
         {requestRefusal ? (
           <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-discarded">
@@ -1424,22 +1411,22 @@ export function ListBuilder({
           />
         ) : null}
         {editable && priced?.detachmentError ? (
-          <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+          <Problem className="mt-1 flex items-center gap-1.5 text-xs">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />
             {priced.detachmentError}
             <Button variant="ghost" size="xs" className="h-auto p-0 text-destructive underline hover:text-destructive" onClick={openSetup}>
               Review setup
             </Button>
-          </p>
+          </Problem>
         ) : null}
         {editable && priced?.dispositionError ? (
-          <p role="alert" className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+          <Problem className="mt-1 flex items-center gap-1.5 text-xs">
             <TriangleAlert className="size-3 shrink-0" aria-hidden />
             {priced.dispositionError} Its detachments disagree, so a battle cannot pick a mission for it.
             <Button variant="ghost" size="xs" className="h-auto p-0 text-destructive underline hover:text-destructive" onClick={openSetup}>
               Choose one
             </Button>
-          </p>
+          </Problem>
         ) : null}
 
         {setupDialog}

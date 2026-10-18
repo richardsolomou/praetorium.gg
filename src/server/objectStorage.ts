@@ -3,11 +3,11 @@ import { localDevelopmentObjectStore } from './localObjectStore'
 
 export const DEFAULT_PUBLIC_ASSETS_BASE_URL = 'https://s3.praetorium.gg'
 
-type ObjectBucket = {
+export type ObjectStore = {
+  publicBaseUrl: string
   head: (key: string) => Promise<unknown>
-  put: (key: string, body: Uint8Array, options: { httpMetadata: { contentType: string; cacheControl: string } }) => Promise<unknown>
+  put: (key: string, body: Uint8Array, headers: Record<string, string>) => Promise<void>
 }
-export type ObjectStore = { publicBaseUrl: string; bucket: ObjectBucket }
 
 export function publicAssetsBaseUrl(): string {
   return (process.env.PUBLIC_ASSETS_BASE_URL?.trim() || DEFAULT_PUBLIC_ASSETS_BASE_URL).replace(/\/$/, '')
@@ -15,28 +15,15 @@ export function publicAssetsBaseUrl(): string {
 
 export function configuredObjectStore(): ObjectStore | null {
   const local = localDevelopmentObjectStore()
-  if (local) return { bucket: local, publicBaseUrl: publicAssetsBaseUrl() }
+  if (local) return { publicBaseUrl: publicAssetsBaseUrl(), head: (key) => local.head(key), put: (key, body) => local.put(key, body) }
   const r2 = publicAssetsR2Client()
   if (!r2) return null
-  const objects = r2Objects(r2)
-  return {
-    publicBaseUrl: publicAssetsBaseUrl(),
-    bucket: {
-      head: async (key) => ((await objects.head(key)) ? { key } : null),
-      async put(key, body, options) {
-        await objects.put(key, body, {
-          'content-type': options.httpMetadata.contentType,
-          'cache-control': options.httpMetadata.cacheControl,
-        })
-        return null
-      },
-    },
-  }
+  const { head, put } = r2Objects(r2)
+  return { publicBaseUrl: publicAssetsBaseUrl(), head, put }
 }
 
 /** Uploads only when the key is not already there — every caller here writes content-addressed keys, so a hit means the bytes already match. */
 export async function putIfAbsent(store: ObjectStore, key: string, body: Uint8Array, contentType: string) {
-  if (!(await store.bucket.head(key))) {
-    await store.bucket.put(key, body, { httpMetadata: { contentType, cacheControl: 'public, max-age=31536000, immutable' } })
-  }
+  if (!(await store.head(key)))
+    await store.put(key, body, { 'content-type': contentType, 'cache-control': 'public, max-age=31536000, immutable' })
 }

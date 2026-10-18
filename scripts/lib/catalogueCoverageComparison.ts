@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../../src/core/slug'
 import { constructionCardKey, datacardsFactionKeys } from '../../src/server/datacards'
-import { joinKey } from '../../src/shared/rulesSource'
+import { joinKey } from '../../src/core/text'
+import { catalogueDataDirectory } from './catalogueFiles'
 
 type Described = { name: string; described: boolean }
 type DetachmentAbilities = { name: string; abilities: Described[] }
@@ -99,7 +100,7 @@ export function compareCatalogueCoverage(
   beforeFile: string,
   afterFile: string,
   accepted: AcceptedLoss[],
-  catalogueDirectory = process.env.CATALOGUE_DIR ?? path.join(import.meta.dirname, '..', '..', 'catalogue-data'),
+  catalogueDirectory = catalogueDataDirectory(),
 ) {
   const before: FactionCoverage[] = JSON.parse(fs.readFileSync(beforeFile, 'utf8'))
   const after: FactionCoverage[] = JSON.parse(fs.readFileSync(afterFile, 'utf8'))

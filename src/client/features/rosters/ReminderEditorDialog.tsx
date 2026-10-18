@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import {
+  phaseName,
   REMINDER_PHASES,
   REMINDER_TIMINGS_MAX,
   reminderTimingLabel,
@@ -31,7 +32,7 @@ const TURN_LABELS: Record<TurnScope, string> = {
   either: 'Either turn',
 }
 
-const phaseLabel = (phase: ReminderPhase) => (phase === 'any' ? 'Any phase' : `${phase[0]?.toLocaleUpperCase()}${phase.slice(1)}`)
+const phaseLabel = (phase: ReminderPhase) => (phase === 'any' ? 'Any phase' : phaseName(phase))
 
 type TimingDraft = {
   id: string

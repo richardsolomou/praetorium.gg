@@ -5,7 +5,8 @@ import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS } from '../core/collection'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
-import { PUSH_PLATFORMS, pushTokenSchema } from '../core/notifications'
+import { PUSH_PLATFORMS } from '../core/notificationConfig'
+import { pushTokenSchema } from '../core/notifications'
 import {
   customPointsBudget,
   FORMAT_RULE_IDS,
@@ -21,7 +22,14 @@ import {
   STRATAGEMS_MAX,
 } from '../core/battle'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
-import { commandSchema, detachmentIdSchema, rosterPickSchema, stratagemSchema } from '../core/commands'
+import {
+  commandSchema,
+  detachmentIdSchema,
+  idSchema as id,
+  rosterLimitSchema as rosterLimit,
+  rosterPickSchema,
+  stratagemSchema,
+} from '../core/commands'
 import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
@@ -43,12 +51,10 @@ import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
-const id = z.string().min(1).max(64)
 const token = id
 // Ids a client sends may predate a retired source: a guest draft, an open tab, an agent's cache.
 const catalogueId = id.transform(currentCatalogueId)
 const slug = z.string().min(1).max(160)
-const rosterLimit = z.number().int().min(0).max(10_000)
 /**
  * A custom points budget beside the battle size. Absent is not the same as null: a client
  * built before budgets existed omits it, and its save keeps whatever budget is stored.

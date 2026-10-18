@@ -67,7 +67,7 @@ export type CatalogueChangeSet = {
 }
 
 /** Enough for any points update; a whole new edition is summarised rather than stored whole. */
-export const CATALOGUE_CHANGE_LIMIT = 2000
+const CATALOGUE_CHANGE_LIMIT = 2000
 
 const pointsSchema = z.string().nullable()
 const datasheetIdentity = { id: z.string(), name: z.string() }

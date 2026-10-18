@@ -7,7 +7,7 @@ const LIMIT = 8
 /** The player's own rosters and battles are left out, so nothing private outlives signing out on a shared device. */
 const REMEMBERED = new Set<GlobalSearchResult['group']>(['Pages', 'Factions', 'Datasheets', 'Detachments', 'Missions', 'Rules'])
 
-export type RecentSearch = Pick<GlobalSearchResult, 'id' | 'group' | 'label' | 'detail' | 'href' | 'faction'>
+type RecentSearch = Pick<GlobalSearchResult, 'id' | 'group' | 'label' | 'detail' | 'href' | 'faction'>
 
 const isRecentSearch = (value: unknown): value is RecentSearch => {
   const entry = value as Partial<RecentSearch> | null

@@ -1,6 +1,15 @@
 import { PUBLIC_APP_QUERIES } from '../src/contracts/appSnapshot'
 import { expect, test, type Page } from './test'
-import { createBattle, createRoster, PRACTICE_OPPONENT, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  createBattle,
+  createRoster,
+  PRACTICE_OPPONENT,
+  retryUntilVisible,
+  signInAsPreview,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 
 async function savedState(page: Page) {
   return page.evaluate(
@@ -197,11 +206,7 @@ test('email sign-in settles across two open Home tabs without alternating accoun
   const other = await context.newPage()
   await other.goto('/')
   await expect(other.getByRole('heading', { level: 1 })).toContainText('Build your army')
-  await page.goto('/sign-in')
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Email').fill('preview@praetorium.gg')
-  await page.getByLabel('Password').fill('preview-preview-preview')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await signInAsPreview(page)
   for (const tab of [page, other]) {
     await expect(tab.getByRole('heading', { level: 1 })).toHaveText('Welcome back, Preview')
   }

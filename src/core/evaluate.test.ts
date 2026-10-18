@@ -1310,8 +1310,8 @@ describe('a limit written on the datasheet’s own category', () => {
   it('marks excess copies as illegal', () => {
     const index = indexOf(cappedBook(1))
     expect(evaluateForces([[{ id: 'immortals' }, { id: 'immortals' }]], index).errors).toEqual([
-      { entryId: 'cat-immortals', entryName: 'Immortals', message: 'allows at most 1, has 2' },
-      { entryId: 'cat-immortals', entryName: 'Immortals', message: 'allows at most 1, has 2' },
+      { entryId: 'cat-immortals', entryName: 'Immortals', message: 'allows at most 1, has 2', limit: { max: 1, measured: 2 } },
+      { entryId: 'cat-immortals', entryName: 'Immortals', message: 'allows at most 1, has 2', limit: { max: 1, measured: 2 } },
     ])
   })
 

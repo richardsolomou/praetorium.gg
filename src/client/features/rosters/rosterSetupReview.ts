@@ -8,7 +8,7 @@ import type { RosterDraft } from './rosterDraft'
 import { priceSchema, saveRosterSchema } from '../../../contracts/schemas'
 import type { RosterSetup } from './RosterSetupDialog'
 
-export type SetupPrice = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
+type SetupPrice = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 export type RosterSetupReview = {
   ownerId: string | null
   serverSave?: ReviewedServerSave
@@ -18,7 +18,7 @@ export type RosterSetupReview = {
   after: SetupPrice
 }
 
-export async function priceSetup(draft: RosterDraft) {
+async function priceSetup(draft: RosterDraft) {
   const price = await priceRoster({ data: priceSchema.parse({ ...draft, units: draft.picks }) })
   if (!price) throw new Error('The rules needed to review this roster are unavailable.')
   return price

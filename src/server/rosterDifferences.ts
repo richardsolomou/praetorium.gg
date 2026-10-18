@@ -9,7 +9,7 @@ export async function variantDifferences(userId: string, rosters: readonly Compa
   if (!variants.length) return new Map<string, NamedRosterDifferences>()
   const known = new Map(rosters.map((roster) => [roster.id, roster]))
   const missing = [...new Set(variants.map((roster) => roster.baseRosterId!))].filter((id) => !known.has(id))
-  if (missing.length) for (const base of await app().service.savedRostersByIds(userId, missing)) known.set(base.id, base)
+  if (missing.length) for (const base of await app().service.rosterService.savedRostersByIds(userId, missing)) known.set(base.id, base)
   const differences = new Map<string, NamedRosterDifferences>()
   for (const variant of variants) {
     const base = known.get(variant.baseRosterId!)

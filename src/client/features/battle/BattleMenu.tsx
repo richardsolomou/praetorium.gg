@@ -2,22 +2,13 @@ import { useState } from 'react'
 import { EllipsisVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 
 type Ending = { key: string; label: string; description: string; act: () => void }
 
@@ -107,26 +98,20 @@ export function BattleMenu({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
-      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirming?.label}?</AlertDialogTitle>
-            <AlertDialogDescription>{confirming?.description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep playing</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                confirming?.act()
-                setConfirming(null)
-              }}
-            >
-              {confirming?.label}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {confirming ? (
+        <ConfirmDialog
+          title={`${confirming.label}?`}
+          description={confirming.description}
+          cancel="Keep playing"
+          confirm={confirming.label}
+          destructive
+          onClose={() => setConfirming(null)}
+          onConfirm={() => {
+            confirming.act()
+            setConfirming(null)
+          }}
+        />
+      ) : null}
     </>
   )
 }

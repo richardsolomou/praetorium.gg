@@ -24,7 +24,7 @@ const hooks = vi.hoisted(() => ({
 }))
 vi.mock('../../functions', async (actual) => ({
   ...(await actual<typeof import('../../functions')>()),
-  deviceLoadoutSearch: () => hooks.stream(),
+  loadoutSearch: async () => hooks.stream(),
 }))
 vi.mock('./combatWorker', () => ({
   default: function CombatWorker() {

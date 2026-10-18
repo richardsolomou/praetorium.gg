@@ -1,3 +1,5 @@
+import { plainQuotes } from '../core/text'
+import { cachedIn } from '../core/collections'
 import { nameOf, targetOf } from '../core/catalogue'
 import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
@@ -17,13 +19,7 @@ const cardIndexes = new WeakMap<FactionContent, Map<string, DatasheetDetails>>()
 const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
 
 /** Catalogue and datacard sources use different apostrophe and hyphen glyphs in otherwise identical names. */
-const comparable = (name: string) =>
-  normalizedName(
-    name
-      .normalize('NFKC')
-      .replaceAll(/[‘’ʼ]/g, "'")
-      .replaceAll(/[‐‑‒–—−]/g, '-'),
-  )
+const comparable = (name: string) => normalizedName(plainQuotes(name.normalize('NFKC')).replaceAll(/[‐‑‒–—−]/g, '-'))
 
 function cardIn(content: FactionContent, name: string): DatasheetDetails | null {
   let index = cardIndexes.get(content)
@@ -39,13 +35,7 @@ function cardIn(content: FactionContent, name: string): DatasheetDetails | null 
 }
 
 export function datacardOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatacardJoin | null {
-  const key = `${catalogueId}:${entryId}`
-  const cache = joins.get(loaded) ?? new Map<string, DatacardJoin | null>()
-  if (!joins.has(loaded)) joins.set(loaded, cache)
-  if (cache.has(key)) return cache.get(key) ?? null
-  const found = join(loaded, catalogueId, entryId)
-  cache.set(key, found)
-  return found
+  return cachedIn(joins, loaded, `${catalogueId}:${entryId}`, () => join(loaded, catalogueId, entryId))
 }
 
 export const datacardJoinOutcome = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>

@@ -1,5 +1,5 @@
 import { readdir, readFile, lstat } from 'node:fs/promises'
-import { createHash, randomUUID } from 'node:crypto'
+import { hash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import pRetry from 'p-retry'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
@@ -112,7 +112,7 @@ export async function publishWebAssets(
             retryMs,
           )
           if (etag !== null) {
-            if (etag === `"${createHash('md5').update(body).digest('hex')}"`) continue
+            if (etag === `"${hash('md5', body)}"`) continue
             const stored = await retryTransient(
               async () => {
                 const existing = await storage.request(url, { signal: signal() })

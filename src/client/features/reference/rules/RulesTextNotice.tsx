@@ -3,6 +3,7 @@ import type { RuleTextSource } from '../../../../contracts/rules'
 import { openTextSourcesDialog } from '../../../components/TextSourcesDialog'
 import type { useRuleText } from '../../../rulesText'
 import { useHydrated } from '../../../useClientValue'
+import { Problem } from '../../../components/Problem'
 
 /** A rules page's text state: asks before any text loads, then gets out of the way once it has. */
 export function RulesTextNotice({ text, state }: { text: RuleTextSource | null; state: ReturnType<typeof useRuleText> }) {
@@ -35,9 +36,7 @@ export function RulesTextNotice({ text, state }: { text: RuleTextSource | null; 
   if (state.query.isError) {
     return (
       <div className="flex flex-wrap items-center gap-3 border border-edge bg-panel p-3 text-sm">
-        <p role="alert" className="min-w-0 flex-1 text-destructive">
-          Couldn’t load the rules text.
-        </p>
+        <Problem className="min-w-0 flex-1">Couldn’t load the rules text.</Problem>
         <Button size="sm" variant="outline" onClick={() => void state.query.refetch()}>
           Try again
         </Button>

@@ -2,7 +2,7 @@ import type { OnboardingProgress } from '../../../core/onboarding'
 import { nativeBridgeVersion } from '../../nativeBridge'
 import { readStoredValue, writeStoredValue } from '../../storedValue'
 
-export type SpectatorInviteOffer = 'roster' | 'battle'
+type SpectatorInviteOffer = 'roster' | 'battle'
 
 /**
  * The first step a viewer without a seat has not taken yet, or nothing.
