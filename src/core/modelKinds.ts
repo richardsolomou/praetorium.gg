@@ -80,9 +80,18 @@ export function choiceOptionWargear(
   options: ChoiceOptions = {},
 ) {
   const path = choiceKey.split('/')
-  const nested = allAt(selection, [...path, optionId])
-  const direct = allAt(selection, path).filter((entry) => entry.id === optionId)
+  const nested = carriedAt(selection, [...path, optionId])
+  const direct = carriedAt(selection, path).filter((entry) => entry.id === optionId)
   return optionWargear(optionId, index, options, nested.length ? nested : direct)
+}
+
+/** Selections at a path, each counted once per model above it: four identical models share one held option. */
+function carriedAt(selection: Selection, path: readonly string[], carriers = 1): Selection[] {
+  const [next, ...rest] = path
+  if (next === undefined) return [{ ...selection, count: (selection.count ?? 1) * carriers }]
+  return (selection.selections ?? [])
+    .filter((candidate) => candidate.id === next)
+    .flatMap((child) => (rest.length ? carriedAt(child, rest, carriers * (child.count ?? 1)) : carriedAt(child, rest, carriers)))
 }
 
 export function optionWargear(optionId: string, index: CatalogueIndex, options: ChoiceOptions = {}, selected: readonly Selection[] = []) {
