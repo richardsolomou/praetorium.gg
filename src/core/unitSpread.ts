@@ -16,13 +16,14 @@ import {
   maximumCountAt,
   repeatedCarrierOn,
   repeatedModelOn,
+  replacesSquadmate,
   requiredCount,
   resolve,
   UNBOUNDED,
 } from './definitions'
 import { type EvaluateOptions, type Selection, selectionCountBoundsAt } from './evaluate'
 import { expand, withChoice } from './expand'
-import { allAt, at, replaceAt, updateSelection, withCounts, withoutSelectionAt, withPlaceFor, withSpread } from './selection'
+import { allAt, at, countAt, replaceAt, updateSelection, withCounts, withoutSelectionAt, withPlaceFor, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 
 export function withUnitSpread(
@@ -37,11 +38,22 @@ export function withUnitSpread(
   const group = groupId ? index.definitions.get(groupId) : undefined
   const occupants = group ? childrenOf(resolve(group, index), index) : []
   if (group && occupants.some((option) => resolve(option.definition, index).type === 'model')) {
-    return keepingTheSquad(selection, withModelOccupants(selection, path, counts, group, occupants, index, options), path, index)
+    const kept = keepingTheSquad(selection, withModelOccupants(selection, path, counts, group, occupants, index, options), path, index)
+    return keepingReplacedSquadmates(selection, kept, path, index)
   }
 
   const repeatedEntry = repeatedModelOn(path.slice(0, -1), index)
   const entry = group ? resolve(group, index) : undefined
+  // A specialist the datasheet holds outside any group, as the Sanctifiers hold theirs.
+  if (entry?.type === 'model' && groupId) {
+    const count = counts[groupId] ?? 0
+    const placed = count
+      ? updateSelection(withCounts(selection, [{ path, count }]), path, () =>
+          expand(groupId, group!, index, MAX_DEPTH, count, new Set(), 1),
+        )
+      : withoutSelectionAt(selection, path)
+    return keepingReplacedSquadmates(selection, placed, path.slice(0, -1), index)
+  }
   if (repeatedEntry && entry?.type === 'upgrade' && groupId) {
     return spreadRepeatedUpgrade(selection, path, counts[groupId] ?? 0, repeatedEntry)
   }
@@ -73,10 +85,16 @@ export function withUnitChoice(
   options: EvaluateOptions = {},
 ): Selection {
   const path = key.split('/')
+  const id = path.at(-1)
+  const definition = id ? index.definitions.get(id) : undefined
+  // A specialist the datasheet holds outside any group is taken or not, as its own count.
+  if (id && definition && resolve(definition, index).type === 'model') {
+    return withUnitSpread(selection, key, { [id]: optionId === id ? 1 : 0 }, index, options)
+  }
   const carrier = withExpandedCarrier(selection, path, index)
   if (!selectedCarriers(carrier, path, index)) return selection
   const chosen = withChoice(carrier, key, optionId, index, options)
-  return keepingTheSquad(selection, chosen, path, index)
+  return keepingReplacedSquadmates(selection, keepingTheSquad(selection, chosen, path, index), path, index)
 }
 
 /** Expand each spread option so required descendants and their rules survive. */
@@ -422,6 +440,33 @@ function keepingAFullGroup(before: Selection, after: Selection, path: readonly s
 }
 
 /**
+ * A specialist taking a squadmate's place lowers that squadmate's limits, as a Sanctifier
+ * given the simulacrum imperialis lowers the hand-flamer Sanctifiers', so the body moves
+ * between them and the squad keeps its size.
+ */
+function keepingReplacedSquadmates(before: Selection, after: Selection, groupPath: readonly string[], index: CatalogueIndex): Selection {
+  const held = at(after, groupPath)
+  const holder = held && index.definitions.get(held.id)
+  if (!holder) return after
+  const offered = childrenOf(resolve(holder, index), index)
+  const replacing = offered.some(
+    (option) =>
+      countAt(before, [...groupPath, option.id]) !== countAt(after, [...groupPath, option.id]) &&
+      replacesSquadmate(option.definition, offered, index),
+  )
+  if (!replacing) return after
+  const fielded = (tree: Selection) => {
+    const group = at(tree, groupPath)
+    return group ? modelCountOf(group, index) : 0
+  }
+  const grew = fielded(after) - fielded(before)
+  const bounds = (squadmate: Selection) => selectionCountBoundsAt(after, [...groupPath, squadmate.id], index)
+  if (grew > 0) return spendBodies(after, groupPath, '', grew, index, (giver) => bounds(giver)?.maximum ?? giver.count ?? 1)
+  if (grew < 0) return refundBodies(after, groupPath, '', -grew, index, (taker) => bounds(taker)?.minimum ?? 0)
+  return after
+}
+
+/**
  * The squadmates a body can be taken from or handed back to: models in the same group
  * with copies available above its minimum. Spend the group's named default first,
  * then the largest remainder, so a specialist replaces an ordinary trooper rather
@@ -449,13 +494,14 @@ function refundBodies(
   carrierId: string,
   spare: number,
   index: CatalogueIndex,
+  most = (taker: Selection) => maximumCount(index.definitions.get(taker.id)!, index),
 ): Selection {
   let left = spare
   return updateSelection(selection, groupPath, (group) => {
     const given = new Map<string, number>()
     for (const taker of squadmates(group, carrierId, index)) {
       if (left <= 0) break
-      const cap = maximumCount(index.definitions.get(taker.id)!, index)
+      const cap = most(taker)
       const give = Math.min(left, cap === null ? left : Math.max(0, cap - (taker.count ?? 1)))
       if (!give) continue
       given.set(taker.id, give)

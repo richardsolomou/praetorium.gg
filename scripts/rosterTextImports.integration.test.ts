@@ -76,4 +76,41 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
   it("keeps both of a Piranha's stated seeker missiles", () => {
     expect(wargear(listForgePiranhas, 'Piranhas')).toContain('2x seeker missile')
   })
+
+  // Agents of the Imperium hold the Simulacrum Sanctifier on the datasheet, outside any group.
+  const alliedSanctifiers = `Sanitised list - Grey Knights - Take and Hold - Warpbane Task Force (100 Points)
+
+
+Allies: Imperial Agents:
+Sanctifiers (100 pts)
+  • Death Cult Assassin
+    • Death Cult blades
+  • Miraculist
+    • Burning hands
+    • Holy fire
+  • Missionary w/ flamer
+    • Ministorum flamer
+    • Sanctifier melee weapon
+  • Missionary w/ plasma gun
+    • Plasma gun
+    • Sanctifier melee weapon
+  • Salvationist
+    • Close combat weapon
+    • Salvationist Medikit
+  • 3x Sanctifier w/ hand flamer
+    • 3x Ministorum hand flamer
+    • 3x Sanctifier melee weapon
+  • Sanctifier w/ simulacrum imperialis
+    • Close combat weapon
+    • Ministorum hand flamer
+    • Simulacrum Imperialis
+`
+
+  it('places an allied Simulacrum Sanctifier', () => {
+    expect(summary(alliedSanctifiers).mismatches).toEqual([])
+  })
+
+  it('arms an allied Simulacrum Sanctifier', () => {
+    expect(wargear(alliedSanctifiers, 'Sanctifiers')).toContain('1x simulacrum imperialis')
+  })
 })

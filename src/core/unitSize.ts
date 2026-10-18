@@ -9,7 +9,7 @@
  */
 
 import type { CatalogueIndex } from './catalogue'
-import { maximumCount, requiredCount, resolve, UNBOUNDED } from './definitions'
+import { childrenOf, maximumCount, replacesSquadmate, requiredCount, resolve, UNBOUNDED } from './definitions'
 import type { Selection } from './evaluate'
 import { defaultSelection } from './expand'
 
@@ -84,8 +84,10 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
       const min = requiredCount(definition, index)
       const max = maximumCount(definition, index) ?? UNBOUNDED
       // A squad is not always written as a group: sometimes the bodies hang
-      // directly off the unit and carry their own bounds.
-      if (max > min) groups.push({ min, max, total: count, adjust: here })
+      // directly off the unit and carry their own bounds. A specialist taking a
+      // squadmate's place is not one of them: the squad is the same size either way.
+      if (max > min && !replacesSquadmate(definition, squadmatesIn(selection, index), index))
+        groups.push({ min, max, total: count, adjust: here })
       else models += count
       groups.push(...nested.groups)
       continue
@@ -115,13 +117,20 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
 function occupantBounds(group: Selection, index: CatalogueIndex): { min: number; max: number } {
   let min = 0
   let max = 0
+  const squadmates = squadmatesIn(group, index)
   for (const child of group.selections ?? []) {
     const definition = index.definitions.get(child.id)
-    if (!definition || resolve(definition, index).type !== 'model') continue
+    if (!definition || resolve(definition, index).type !== 'model' || replacesSquadmate(definition, squadmates, index)) continue
     min += requiredCount(definition, index)
     max = Math.min(UNBOUNDED, max + (maximumCount(definition, index) ?? UNBOUNDED))
   }
   return { min, max: max || UNBOUNDED }
+}
+
+/** What a unit or group offers, for asking which of its models take another's place. */
+function squadmatesIn(selection: Selection, index: CatalogueIndex) {
+  const definition = index.definitions.get(selection.id)
+  return definition ? childrenOf(resolve(definition, index), index) : []
 }
 
 /** Which occupant of a group to grow: the one the data lets take the most. */

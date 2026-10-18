@@ -23,6 +23,7 @@ import {
   pointsOf,
   repeatedCarrierOn,
   repeatedModelOn,
+  replacesSquadmate,
   requiredCount,
   resolve,
   UNBOUNDED,
@@ -274,6 +275,40 @@ function collectUnitChoices(
           carried: false,
           owner: modelOwnerOf(trail, index),
         })
+      }
+
+      // A specialist the datasheet holds outside any group, taking a squadmate's place.
+      if (
+        inner.type === 'model' &&
+        target.type !== undefined &&
+        lower === 0 &&
+        replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache)
+      ) {
+        const count = countAt(selection, here)
+        const most = maximumCountAt(selection, here, child.definition, index, options) ?? maximumCount(child.definition, index)
+        if (most !== null && most !== UNBOUNDED && Math.max(most, count) > 0) {
+          choices.push({
+            key: here.join('/'),
+            name: inner.name ?? child.id,
+            chosen: count ? child.id : '',
+            optional: true,
+            room: Math.max(most, count),
+            options: [
+              {
+                id: child.id,
+                name: inner.name ?? child.id,
+                points: pointsOf(child, index),
+                count,
+                min: 0,
+                max: Math.max(most, count),
+                profile: modelProfileOf(child.definition, index),
+              },
+            ],
+            uniform: false,
+            carried: false,
+            owner: modelOwnerOf(trail, index),
+          })
+        }
       }
 
       if (inner.type === undefined) {
