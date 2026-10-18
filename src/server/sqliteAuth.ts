@@ -29,6 +29,7 @@ import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAu
 import { configuredAuthProviderOptions, configuredAuthProviders } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
 import { isNativeOAuthState } from './nativeOAuthState'
+import { guestDeviceSubject } from '../core/guestSession'
 
 type Environment = NodeJS.ProcessEnv
 
@@ -520,6 +521,24 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     })
   }
 
+  /**
+   * A realtime token for the device holding a guest seat, as short-lived as an account's. The product module admits it
+   * only while that device still holds the seat, and lets it watch only the seat's own battle.
+   */
+  const spacetimeGuestToken = async (seatId: string, deviceHash: string) => {
+    const issuedAt = Math.floor(Date.now() / 1000)
+    const expiresAt = issuedAt + 300
+    const payload = {
+      iat: issuedAt,
+      sub: guestDeviceSubject(deviceHash),
+      userId: seatId,
+      accessExpiresAt: expiresAt,
+      tokenType: 'spacetime-guest',
+      exp: expiresAt,
+    }
+    return (await auth.api.signJWT({ body: { payload } })).token
+  }
+
   return Object.assign(auth, {
     mcpResource,
     issuer,
@@ -538,5 +557,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     revokeAppleUser,
     hasMcpConsent,
     revokeMcpConsent,
+    spacetimeGuestToken,
   })
 }

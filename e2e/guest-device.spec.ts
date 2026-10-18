@@ -1,11 +1,29 @@
 import { expect, test, type Page } from './test'
 import { advance, attachRoster, createBattle, createRoster, desktopContext, signUp, startBattle, takeTheTurn, uniqueName } from './account'
 import { add } from './builder.harness'
-import { withAuthSql } from './storage'
+import { productSql, withAuthSql } from './storage'
 
 const GUEST = 'Sam the Guest'
 const PHONE = { width: 390, height: 844 }
 const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
+const phase = (page: Page) => page.locator('[data-scoreboard] h1')
+/** Below the five seconds a page without a live subscription waits between polls. */
+const LIVE_MS = 3_000
+
+async function battleId(url: string) {
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${new URL(url).pathname.split('/').at(-1)!}`
+  if (!battle) throw new Error('Battle not found')
+  return battle.id
+}
+
+/** The sessions subscribed to the battle's live signal, which a page records once its subscription applies. */
+async function watchers(id: string) {
+  return (await productSql<{ subject: string }>`SELECT subject FROM watched_battles WHERE battle_id = ${id}`).map((row) => row.subject)
+}
+
+async function loggedCommands(id: string) {
+  return productSql`SELECT seq, user_id, body FROM commands WHERE battle_id = ${id}`
+}
 
 async function playerId(name: string) {
   const row = await withAuthSql(
@@ -16,7 +34,7 @@ async function playerId(name: string) {
 }
 
 async function playTurn(page: Page) {
-  for (let phase = 0; phase < 6; phase += 1) await advance(page)
+  for (let step = 0; step < 6; step += 1) await advance(page)
 }
 
 async function shot(page: Page, name: string) {
@@ -68,6 +86,9 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await guest.getByRole('button', { name: 'Join on this device' }).click()
   await guest.waitForURL(/\/battles\/[^/]+$/)
   const battleUrl = guest.url()
+  const id = await battleId(battleUrl)
+  // The guest's device subscribes to the battle's live signal as its seat, as a signed-in player's does.
+  await expect.poll(async () => (await watchers(id)).some((subject) => subject.startsWith('guest-device:'))).toBe(true)
   await expect(host.getByRole('dialog', { name: `${GUEST} is playing on their device` })).toBeVisible()
   await host.keyboard.press('Escape')
 
@@ -97,8 +118,11 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await host.getByRole('button', { name: `Invite ${GUEST} to play on their device` }).click()
   await expect(host.getByRole('dialog', { name: `${GUEST} is playing on their device` })).toBeVisible()
   await host.keyboard.press('Escape')
+  // The host's move reaches the guest's device through the live signal, sooner than a poll could.
+  await advance(host)
+  await expect(phase(guest)).toHaveText((await phase(host).textContent())!, { timeout: LIVE_MS })
   // The guest's hand is theirs now, dealt on their device rather than the host's.
-  await playTurn(host)
+  for (let step = 1; step < 6; step += 1) await advance(host)
   await takeTheTurn(guest)
   await expect(scoreboard(guest).getByText(`${GUEST}’s turn`, { exact: true })).toBeVisible()
   await shot(guest, 'guest-battle')
@@ -131,9 +155,12 @@ test('a guest joins from their own device, plays their side and keeps the game b
 
   const claim = guest.getByRole('region', { name: 'Add this battle to your record' })
   await shot(guest, 'claim')
+  const written = await loggedCommands(id)
   await claim.getByRole('button', { name: 'Add to my record' }).click()
   const claimed = guest.getByRole('region', { name: 'This battle is in your record' })
   await expect(claimed).toBeVisible()
+  // Claiming records who the seat was; the log stays exactly as it was played.
+  expect(await loggedCommands(id)).toEqual(written)
   await expect(guest.getByText(`${GUEST} concedes`)).toHaveCount(0)
   await shot(guest, 'claimed')
   await claimed.getByRole('button', { name: `Add ${hostName} as a friend` }).click()

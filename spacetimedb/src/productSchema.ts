@@ -37,6 +37,8 @@ const battleUsers = table(
     joinedAt: t.u64(),
     /** Set only on a guest's seat: the name its host gave someone without an account. */
     guestName: t.option(t.string()).default(undefined),
+    /** Set only on an account that claimed a guest seat: the seat its commands were logged as, which every read resolves to this account. */
+    claimedSeat: t.option(t.string()).default(undefined),
   },
 )
 

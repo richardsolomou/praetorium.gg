@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 import { GUEST_SESSION_MS } from '../core/guestSession'
@@ -116,4 +116,47 @@ it('reports why a claim was refused', async () => {
   const { service, repository } = guestService()
   repository.claimGuestSeat.mockResolvedValue('finish the battle before adding it to your record')
   await expect(service.claimGuest('battle-token', 'newcomer', { seat: GUEST, secret: 'secret' })).rejects.toMatchObject({ status: 409 })
+})
+
+describe('what a guest’s live refresh reads', () => {
+  const cards = [
+    { key: 'secret', name: 'Hidden purpose' },
+    { key: 'spare', name: 'Spare purpose' },
+  ]
+  const prep = { kind: 'set-prep', stratagems: [], secondaries: [], secondaryDeck: cards, primary: null, secondaryMode: 'fixed' } as const
+  const history = (holder: string, joined: boolean) => ({
+    battle: { id: 'battle', token: 'battle-token', createdAt: 0 },
+    players: [
+      { id: 'host', name: 'Host', image: null, side: 0, automated: false },
+      { id: GUEST, name: 'Alex', image: null, side: 1, automated: !joined },
+    ],
+    log: (
+      [
+        ['host', { kind: 'attach-roster', roster: { name: 'Host army', text: '10 Intercessors' } }],
+        [GUEST, { kind: 'attach-roster', roster: { name: 'Guest army', text: '10 Necron Warriors' } }],
+        ['host', { kind: 'begin-battle', firstPlayerId: 'host' }],
+        [holder, prep],
+        [holder, { kind: 'select-secret', playerId: holder, secondary: cards[0] }],
+      ] as const
+    ).map(([by, command], index) => ({ seq: index + 1, by, at: index, command })),
+  })
+  const secondaries = async (holder: string, viewer: string, joined = true) => {
+    const { service, repository } = guestService({ joined })
+    Object.assign(repository, { battleHistoryByToken: vi.fn().mockResolvedValue(history(holder, joined)) })
+    const screen = await service.screen('battle-token', viewer)
+    if (screen.kind !== 'battle') throw new Error(`Expected a seated screen, got ${screen.kind}`)
+    return screen.view.players.find((player) => player.id === holder)?.secondaries.map((card) => card.name)
+  }
+
+  it('keeps the host’s Secret Mission from the guest', async () => {
+    expect(await secondaries('host', GUEST)).toEqual(['Secret mission'])
+  })
+
+  it('keeps a joined guest’s Secret Mission from the host', async () => {
+    expect(await secondaries(GUEST, 'host')).toEqual(['Secret mission'])
+  })
+
+  it('shows the guest their own Secret Mission', async () => {
+    expect(await secondaries(GUEST, GUEST)).toEqual(['Hidden purpose'])
+  })
 })

@@ -10,7 +10,7 @@ export function guestSessionCurrent(joinedAt: number, now: number) {
 /**
  * Why a signed-in player may not take over the guest seat they played, or null.
  *
- * Only a finished battle moves, so no device can be mid-turn under the guest's seat while it is renamed.
+ * Only a finished battle moves, so no device can be mid-turn as the guest's seat when the account takes it over.
  */
 export function guestClaimRefusal(state: Pick<BattleState, 'status'>, seatIds: readonly string[], claimantId: string) {
   if (seatIds.includes(claimantId)) return 'you already have a seat in this battle'
@@ -18,11 +18,29 @@ export function guestClaimRefusal(state: Pick<BattleState, 'status'>, seatIds: r
   return null
 }
 
-/** Replaces every value that is exactly the seat id, so the log names the claimant wherever it named the guest. */
-export function renameSeat<T>(value: T, from: string, to: string): T {
-  if (value === from) return to as T
-  if (Array.isArray(value)) return value.map((item: unknown) => renameSeat(item, from, to)) as T
+/** The realtime session subject of the device holding a guest seat, so a token outlives neither the device's hold nor its session. */
+export function guestDeviceSubject(deviceHash: string) {
+  return `guest-device:${deviceHash}`
+}
+
+/**
+ * The log as every reader sees it: a claimed guest seat is the account that claimed it, as sender and wherever a
+ * command names the seat. The stored commands keep the seat they were written with.
+ */
+export function claimedLog<T extends { by: string; command: unknown }>(
+  log: readonly T[],
+  claims: readonly { seatId: string; userId: string }[],
+): T[] {
+  if (!claims.length) return [...log]
+  const accounts = new Map(claims.map(({ seatId, userId }) => [seatId, userId]))
+  return log.map((entry) => ({ ...entry, by: accounts.get(entry.by) ?? entry.by, command: renameSeats(entry.command, accounts) }))
+}
+
+/** Replaces every value that is exactly a claimed seat, so free text that mentions one keeps its words. */
+function renameSeats<T>(value: T, accounts: ReadonlyMap<string, string>): T {
+  if (typeof value === 'string') return (accounts.get(value) ?? value) as T
+  if (Array.isArray(value)) return value.map((item: unknown) => renameSeats(item, accounts)) as T
   if (value && typeof value === 'object')
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renameSeat(item, from, to)])) as T
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renameSeats(item, accounts)])) as T
   return value
 }

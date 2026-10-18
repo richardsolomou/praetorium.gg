@@ -1,3 +1,5 @@
+import { isGuestSeat } from '../../src/core/newBattle'
+
 /** The parts of a connection's JWT the admission decision reads. */
 export type AdmissionClaims = {
   subject: string
@@ -15,7 +17,8 @@ export type Admission =
 /**
  * Who a connecting client is: the database owner or configured operator, a guest
  * holding SpacetimeDB's own anonymous token, or a player holding a short-lived
- * access token this deployment issued. Anything else is refused.
+ * access token this deployment issued. A player is an account, or a guest seat's
+ * device that still holds the seat. Anything else is refused.
  */
 export function admitConnection(input: {
   trusted: boolean
@@ -26,6 +29,7 @@ export function admitConnection(input: {
   now: bigint
   maxTokenSeconds: bigint
   isRevoked: (subject: string) => boolean
+  holdsGuestSeat: (seatId: string, subject: string) => boolean
 }): Admission {
   const { jwt, now, maxTokenSeconds } = input
   if (input.trusted) return { kind: 'trusted' }
@@ -55,13 +59,14 @@ export function admitConnection(input: {
     !Number.isSafeInteger(expiresAt) ||
     typeof tokenExpiresAt !== 'number' ||
     !Number.isSafeInteger(tokenExpiresAt) ||
-    tokenType !== 'spacetime-access' ||
-    (isAdmin !== undefined && typeof isAdmin !== 'boolean') ||
+    tokenType !== (isGuestSeat(userId) ? 'spacetime-guest' : 'spacetime-access') ||
+    (isAdmin !== undefined && (typeof isAdmin !== 'boolean' || isGuestSeat(userId))) ||
     BigInt(expiresAt) <= now ||
     BigInt(expiresAt) > now + maxTokenSeconds ||
     BigInt(tokenExpiresAt) <= now ||
     BigInt(tokenExpiresAt) > now + maxTokenSeconds ||
-    input.isRevoked(jwt.subject)
+    input.isRevoked(jwt.subject) ||
+    (isGuestSeat(userId) && !input.holdsGuestSeat(userId, jwt.subject))
   ) {
     return { kind: 'refused' }
   }

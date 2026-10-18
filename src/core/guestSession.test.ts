@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GUEST_SESSION_MS, guestClaimRefusal, guestSessionCurrent, renameSeat } from './guestSession'
+import { GUEST_SESSION_MS, claimedLog, guestClaimRefusal, guestSessionCurrent } from './guestSession'
 import type { LoggedCommand } from './battle'
 
 describe('guest sessions', () => {
@@ -32,28 +32,32 @@ describe('claiming a guest seat', () => {
   })
 })
 
-describe('renaming a seat', () => {
-  const entry: LoggedCommand = {
-    seq: 3,
-    by: 'guest:battle:0',
-    at: 10,
-    command: { kind: 'end-battle', reason: 'conceded', concededBy: 'guest:battle:0' },
-  }
+describe('reading a claimed seat', () => {
+  const log: LoggedCommand[] = [
+    { seq: 1, by: 'host', at: 5, command: { kind: 'begin-battle', firstPlayerId: 'guest:battle:0' } },
+    { seq: 2, by: 'guest:battle:0', at: 10, command: { kind: 'end-battle', reason: 'conceded', concededBy: 'guest:battle:0' } },
+  ]
+  const claims = [{ seatId: 'guest:battle:0', userId: 'newcomer' }]
 
-  it('renames the seat that sent a command', () => {
-    expect(renameSeat(entry, 'guest:battle:0', 'newcomer').by).toBe('newcomer')
+  it('names the claimant as the sender of the guest’s commands', () => {
+    expect(claimedLog(log, claims).map((entry) => entry.by)).toEqual(['host', 'newcomer'])
   })
 
-  it('renames the seat a command names', () => {
-    expect(renameSeat(entry, 'guest:battle:0', 'newcomer').command).toEqual({
-      kind: 'end-battle',
-      reason: 'conceded',
-      concededBy: 'newcomer',
-    })
+  it('names the claimant wherever a command named the seat', () => {
+    expect(claimedLog(log, claims).map((entry) => entry.command)).toEqual([
+      { kind: 'begin-battle', firstPlayerId: 'newcomer' },
+      { kind: 'end-battle', reason: 'conceded', concededBy: 'newcomer' },
+    ])
   })
 
   it('leaves text that only mentions the seat alone', () => {
-    const note = { kind: 'note', text: 'guest:battle:0 played well' }
-    expect(renameSeat(note, 'guest:battle:0', 'newcomer')).toEqual(note)
+    const note = { ...log[0]!, command: { kind: 'note', text: 'guest:battle:0 played well' } } as unknown as LoggedCommand
+    expect(claimedLog([note], claims)).toEqual([note])
+  })
+
+  it('leaves the log it reads as it was written', () => {
+    const written = structuredClone(log)
+    claimedLog(log, claims)
+    expect(log).toEqual(written)
   })
 })

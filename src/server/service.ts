@@ -1018,7 +1018,8 @@ function referencedPlays(
   })
 }
 
-function guestDeviceHash(secret: string) {
+/** What the service keeps of a guest device's secret, and what that device's realtime token names it by. */
+export function guestDeviceHash(secret: string) {
   return createHash('sha256').update(secret).digest('hex')
 }
 

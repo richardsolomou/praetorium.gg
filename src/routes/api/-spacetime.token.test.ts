@@ -1,17 +1,23 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route } from './spacetime.token'
 
-const { currentUser, spacetimeToken, userBattleId } = vi.hoisted(() => ({
+const { currentUser, heldGuestSeat, spacetimeGuestToken, spacetimeToken, userBattleId } = vi.hoisted(() => ({
   currentUser: vi.fn(),
+  heldGuestSeat: vi.fn(),
+  spacetimeGuestToken: vi.fn(),
   spacetimeToken: vi.fn(),
   userBattleId: vi.fn(),
 }))
 vi.mock('../../server/playerSession', () => ({ currentUser }))
-vi.mock('../../server/app', () => ({ app: () => ({ spacetimeToken, service: { userBattleId } }) }))
+vi.mock('../../server/guestSession', () => ({ heldGuestSeat }))
+vi.mock('../../server/app', () => ({ app: () => ({ spacetimeToken, spacetimeGuestToken, service: { userBattleId } }) }))
 beforeEach(() => {
   vi.stubEnv('SPACETIME_DATABASE', 'praetorium')
   vi.stubEnv('APP_URL', 'https://praetorium.gg')
   currentUser.mockReset().mockResolvedValue({ id: 'player-1' })
+  heldGuestSeat.mockReset().mockResolvedValue(null)
+  spacetimeGuestToken.mockReset().mockResolvedValue('guest-token')
   spacetimeToken.mockReset().mockResolvedValue('access-token')
   userBattleId.mockReset()
 })
@@ -40,4 +46,37 @@ it('issues no realtime token for a battle the player is not seated in', async ()
 it('issues a signed-in player a token with their seated battle', async () => {
   userBattleId.mockResolvedValue('battle-1')
   expect(await ((await token('?battle=seated-battle')) as Response).json()).toMatchObject({ token: 'access-token', battleId: 'battle-1' })
+})
+
+describe('a guest seat’s device', () => {
+  const held = { token: 'guest-battle', seat: 'guest:battle-2:0', secret: 'device-secret' }
+  beforeEach(() => {
+    currentUser.mockResolvedValue(null)
+    heldGuestSeat.mockImplementation(async (battle: string) => (battle === held.token ? held : null))
+    userBattleId.mockResolvedValue('battle-2')
+  })
+
+  it('gets a token for the seat it holds in that battle', async () => {
+    expect(await ((await token('?battle=guest-battle')) as Response).json()).toMatchObject({ token: 'guest-token', battleId: 'battle-2' })
+  })
+
+  it('gets a token naming its seat and the hash of its secret', async () => {
+    await token('?battle=guest-battle')
+    expect(spacetimeGuestToken).toHaveBeenCalledWith(held.seat, createHash('sha256').update(held.secret).digest('hex'))
+  })
+
+  it('opens the battle as its seat', async () => {
+    await token('?battle=guest-battle')
+    expect(userBattleId).toHaveBeenCalledWith('guest-battle', held.seat)
+  })
+
+  it('gets no token for a battle it holds no seat in', async () => {
+    expect(((await token('?battle=another-battle')) as Response).status).toBe(401)
+    expect(spacetimeGuestToken).not.toHaveBeenCalled()
+  })
+
+  it('gets no token without naming its battle', async () => {
+    expect(((await token()) as Response).status).toBe(401)
+    expect(spacetimeGuestToken).not.toHaveBeenCalled()
+  })
 })
