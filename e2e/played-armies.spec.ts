@@ -48,12 +48,18 @@ for (const [width, label] of [
       const card = playedArmy(reader, playerName)
       await expect(card).toContainText('Legal')
       await expect(card).toContainText('played')
+      await expect(card.locator('[data-played-outcome]')).toContainText('Won by concession against Orks')
       await expectNoHorizontalOverflow(reader.locator('main'))
       await shot(card, `test-results/played-army-${label}.png`)
 
+      await card.getByRole('link', { name: 'View battle' }).click()
+      await expect(reader).toHaveURL(new RegExp(`/battles/${token}$`))
+      await reader.goBack()
+
       await card.getByRole('link', { name: new RegExp(ARMY, 'i') }).click()
       await expect(reader).toHaveURL(new RegExp(`battle=${token}`))
-      await expect(reader.locator('main')).toContainText(ARMY, { ignoreCase: true })
+      await expect(reader.getByLabel('List name')).toHaveValue(ARMY)
+      await expect(reader.getByLabel('List name')).not.toBeEditable()
       await reader.goBack()
 
       await playedArmy(reader, playerName)

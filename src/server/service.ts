@@ -261,16 +261,25 @@ export class PraetoriumService {
    * hold so a battle whose player narrows their audience leaves on the next read. A page holds
    * only finished battles, so it can come back short; its cursor still continues.
    */
-  async playedArmies(viewerId: string | null, before?: BattlesCursor) {
+  async playedArmies(viewerId: string | null, before?: BattlesCursor, factions: readonly BattleFaction[] = []) {
     const { battles: histories, nextCursor } = await this.repository.publicBattles({ limit: PLAYED_ARMY_BATTLES, before, viewerId })
-    return { armies: histories.flatMap((history) => playedArmies(history, foldHistory(history))), nextCursor }
+    return { armies: histories.flatMap((history) => this.playedArmiesOf(history, factions)), nextCursor }
   }
 
   /** One army from a finished battle this reader may watch, or nothing. */
   async playedArmy(token: string, playerId: string, viewerId: string | null) {
     const history = await this.repository.battleHistoryByToken(token)
     if (!history || !(await this.mayWatch(history, viewerId))) return null
-    return playedArmies(history, foldHistory(history)).find((army) => army.player.id === playerId) ?? null
+    return this.playedArmiesOf(history, []).find((army) => army.player.id === playerId) ?? null
+  }
+
+  private playedArmiesOf(history: BattleHistory, factions: readonly BattleFaction[]) {
+    const state = foldHistory(history)
+    return playedArmies(
+      history,
+      state,
+      battleSummary(history, state, null, null, new Map(factions.map((faction) => [faction.id, faction]))),
+    )
   }
 
   /** The battles this player's friends are in and they are not. */

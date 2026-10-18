@@ -1,6 +1,7 @@
 import type { BattleState, Roster } from './battle'
 import { attachedUnitCount } from './attachedUnits'
 import type { RosterPick } from './roster'
+import { battleOutcome, sideScore, type StandingBattle, type StandingFaction } from './standings'
 
 type Built = NonNullable<Roster['built']>
 
@@ -20,6 +21,17 @@ export type PlayedArmy = {
   picks: RosterPick[]
   unitCount: number
   playedAt: number
+  outcome: PlayedOutcome
+}
+
+/** How the battle went for the side an army stood on, as standings count it. */
+export type PlayedOutcome = {
+  result: 'won' | 'lost' | 'drawn'
+  conceded: boolean
+  score: number
+  /** The best total among the opposing sides. */
+  opponentScore: number
+  opponents: StandingFaction[]
 }
 
 /**
@@ -34,7 +46,11 @@ export function playedArmies(
     players: readonly { id: string; name: string }[]
     log: readonly { at: number }[]
   },
-  state: { status: BattleState['status']; players: readonly Pick<BattleState['players'][number], 'id' | 'automated' | 'roster'>[] },
+  state: {
+    status: BattleState['status']
+    players: readonly Pick<BattleState['players'][number], 'id' | 'side' | 'automated' | 'roster'>[]
+  },
+  summary: StandingBattle,
 ): PlayedArmy[] {
   if (state.status !== 'finished') return []
   const names = new Map(history.players.map((player) => [player.id, player.name]))
@@ -59,7 +75,24 @@ export function playedArmies(
         picks: built.picks,
         unitCount: attachedUnitCount(built.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
         playedAt,
+        outcome: outcome(summary, seat.side),
       },
     ]
   })
+}
+
+function outcome(battle: StandingBattle, side: number): PlayedOutcome {
+  const opposing = [...new Set(battle.sides)].filter((other) => other !== side)
+  const opponents = new Map<string, StandingFaction>()
+  battle.sides.forEach((seated, seat) => {
+    const faction = battle.factions[seat]
+    if (seated !== side && faction) opponents.set(faction.slug, faction)
+  })
+  return {
+    result: battleOutcome(battle, side),
+    conceded: Boolean(battle.result?.concededBy),
+    score: sideScore(battle, side),
+    opponentScore: Math.max(0, ...opposing.map((other) => sideScore(battle, other))),
+    opponents: [...opponents.values()],
+  }
 }

@@ -13,7 +13,11 @@ const fielded = (name: string): Command => {
   }
 }
 
-function fixture({ audience = 'public', finished = true }: { audience?: BattleAudience; finished?: boolean } = {}) {
+function fixture({
+  audience = 'public',
+  finished = true,
+  bobAudience = 'public',
+}: { audience?: BattleAudience; finished?: boolean; bobAudience?: BattleAudience | null } = {}) {
   const history = {
     battle: { id: 'battle', token: 'token', createdAt: 0 },
     players: NAMES.map((player, side) => ({ ...player, side, automated: false })),
@@ -26,12 +30,7 @@ function fixture({ audience = 'public', finished = true }: { audience?: BattleAu
   }
   const repository = {
     battleHistoryByToken: vi.fn().mockResolvedValue(history),
-    battleAudiences: vi.fn().mockResolvedValue(
-      new Map([
-        [ALICE, audience],
-        [BOB, 'public'],
-      ]),
-    ),
+    battleAudiences: vi.fn().mockResolvedValue(new Map([[ALICE, audience], ...(bobAudience ? [[BOB, bobAudience] as const] : [])])),
     relationships: vi.fn().mockResolvedValue([]),
     publicBattles: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
   } as unknown as RepositoryPort
@@ -80,4 +79,22 @@ it('refuses an army from a deleted battle', async () => {
   const { service, repository } = fixture()
   vi.mocked(repository.battleHistoryByToken).mockResolvedValue(undefined)
   expect(await service.playedArmy('token', BOB, 'reader')).toBeNull()
+})
+
+it('gives a reader the army from a battle whose other seat has no audience of its own, as a guest has none', async () => {
+  const { service } = fixture({ bobAudience: null })
+  expect((await service.playedArmy('token', ALICE, 'reader'))?.name).toBe('Alice army')
+})
+
+it('says the army whose opponent conceded won', async () => {
+  const { service } = fixture()
+  expect((await service.playedArmies(null)).armies[0]?.outcome.result).toBe('won')
+})
+
+it('names the opposing army’s faction from the catalogue', async () => {
+  const { service } = fixture()
+  const factions = [{ id: 'cat', slug: 'death-guard', displayName: 'Death Guard', icon: null }]
+  expect(
+    (await service.playedArmies(null, undefined, factions)).armies[0]?.outcome.opponents.map((faction) => faction.displayName),
+  ).toEqual(['Death Guard'])
 })

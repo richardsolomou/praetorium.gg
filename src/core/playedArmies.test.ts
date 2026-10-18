@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { playedArmies } from './playedArmies'
 import { copiedArmy } from './rosterCopies'
 import type { Roster } from './battle'
+import type { StandingBattle } from './standings'
 
 const built = {
   catalogueId: 'necrons',
@@ -16,10 +17,23 @@ const built = {
 }
 const seat = (id: string, roster: Roster | null = { id: `${id}-roster`, name: `${id} army`, text: '', built }, automated = false) => ({
   id,
+  side: id === 'kieran' ? 0 : 1,
   automated,
   roster,
 })
-const battle = (status: 'setup' | 'playing' | 'finished', players = [seat('kieran'), seat('sam')]) =>
+const orks = { slug: 'orks', displayName: 'Orks', icon: null }
+const necrons = { slug: 'necrons', displayName: 'Necrons', icon: null }
+const summary = (scores = [85, 60], result: StandingBattle['result'] = null): StandingBattle => ({
+  status: 'finished',
+  playerIds: ['kieran', 'sam'],
+  players: ['Kieran', 'Sam'],
+  sides: [0, 1],
+  scores,
+  factions: [necrons, orks],
+  result,
+  lastActivity: 900,
+})
+const battle = (status: 'setup' | 'playing' | 'finished', players = [seat('kieran'), seat('sam')], summarized = summary()) =>
   playedArmies(
     {
       battle: { token: 'duel', createdAt: 100 },
@@ -30,6 +44,7 @@ const battle = (status: 'setup' | 'playing' | 'finished', players = [seat('kiera
       log: [{ at: 900 }],
     },
     { status, players },
+    summarized,
   )
 
 describe('playedArmies', () => {
@@ -59,6 +74,35 @@ describe('playedArmies', () => {
     expect(
       battle('finished', [seat('kieran', { name: 'Old', text: '', built: { ...built, catalogueId: 'mfm-14~necrons' } })])[0]?.catalogueId,
     ).toBe('mfm-14~necrons')
+  })
+})
+
+describe('playedArmies outcome', () => {
+  it('says the army that scored more won', () => {
+    expect(battle('finished')[0]?.outcome.result).toBe('won')
+  })
+
+  it('says the army that scored less lost', () => {
+    expect(battle('finished')[1]?.outcome.result).toBe('lost')
+  })
+
+  it('says an army level on points drew', () => {
+    expect(battle('finished', undefined, summary([70, 70]))[0]?.outcome.result).toBe('drawn')
+  })
+
+  it('gives the army’s score before its opponent’s', () => {
+    expect(battle('finished')[1]?.outcome).toMatchObject({ score: 60, opponentScore: 85 })
+  })
+
+  it('names the factions it played against', () => {
+    expect(battle('finished')[0]?.outcome.opponents).toEqual([orks])
+  })
+
+  it('says an army whose player conceded lost, whatever the score', () => {
+    expect(battle('finished', undefined, summary([85, 60], { concededBy: 'kieran' }))[0]?.outcome).toMatchObject({
+      result: 'lost',
+      conceded: true,
+    })
   })
 })
 

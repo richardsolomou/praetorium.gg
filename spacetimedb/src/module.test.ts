@@ -153,6 +153,51 @@ describe('session access', () => {
   })
 })
 
+describe('public battle feed', () => {
+  const feed = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth) =>
+    (
+      JSON.parse(
+        module.battleFeed(procedure(operator), {
+          payload: JSON.stringify({
+            scope: 'public',
+            userId: null,
+            viewerId: null,
+            withUserId: null,
+            leagueToken: null,
+            eventToken: null,
+            since: null,
+            before: null,
+            limit: 10,
+          }),
+        }),
+      ) as { battles: { battle: { token: string } }[] }
+    ).battles.map((battle) => battle.battle.token)
+  const tableWithAGuest = (creatorAudience: string) => {
+    const { operator, procedure } = harness()
+    module.createBattle(procedure(operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle-token',
+        userId: 'creator',
+        allyIds: [],
+        opponentIds: ['guest:battle:0'],
+        initialCommands: [],
+        now: NOW,
+      }),
+    })
+    module.setBattleAudience(procedure(operator), { userId: 'creator', audience: creatorAudience, now: BigInt(NOW) })
+    return feed(procedure, operator)
+  }
+
+  it('lists a battle whose only other seat has no audience of its own', () => {
+    expect(tableWithAGuest('public')).toEqual(['battle-token'])
+  })
+
+  it('leaves out that battle when its account holder narrows their audience', () => {
+    expect(tableWithAGuest('friends')).toEqual([])
+  })
+})
+
 describe('battle commands', () => {
   const creator = 'creator'
   const create = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth, initialCommands: unknown[] = []) =>

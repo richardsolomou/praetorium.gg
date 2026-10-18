@@ -295,10 +295,14 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
   .handler(({ data: { before, ...filter } }) =>
     rpc(async () => {
       const instance = app()
-      const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
+      const [viewerId, factionIndex, battleFactions] = await Promise.all([
+        currentUserId(),
+        instance.factionIndexFor(),
+        instance.battleFactionsFor(),
+      ])
       const factions = factionIndex?.factions ?? []
       if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
-      const page = await instance.service.playedArmies(viewerId, before ?? undefined)
+      const page = await instance.service.playedArmies(viewerId, before ?? undefined, battleFactions)
       const indexed = new Map(factions.map((faction) => [faction.id, faction]))
       const shown = page.armies.flatMap((army) => {
         const copy = copiedArmy(army)

@@ -392,12 +392,20 @@ function PlayedArmies({
                     />
                   </Link>
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
-                    <span className="min-w-0 truncate text-xs text-dim">
-                      Played by{' '}
-                      <Link to="/users/$userId" params={{ userId: army.player.id }} className="font-semibold text-info hover:text-bone">
-                        {army.player.name}
-                      </Link>
-                    </span>
+                    <div className="min-w-0 space-y-0.5 text-xs text-dim">
+                      <p className="truncate">
+                        Played by{' '}
+                        <Link to="/users/$userId" params={{ userId: army.player.id }} className="font-semibold text-info hover:text-bone">
+                          {army.player.name}
+                        </Link>
+                      </p>
+                      <p data-played-outcome>
+                        {playedOutcome(army.outcome)} ·{' '}
+                        <Link to="/battles/$token" params={{ token: army.battle }} className="font-semibold text-info hover:text-bone">
+                          View battle
+                        </Link>
+                      </p>
+                    </div>
                     {signedIn ? (
                       <Button
                         variant="outline"
@@ -442,6 +450,13 @@ function PlayedArmies({
       </div>
     </section>
   )
+}
+
+/** "Won 85–60 against Orks": the side's result as standings count it, its score first, and who it faced. */
+function playedOutcome({ result, conceded, score, opponentScore, opponents }: PlayedArmy['outcome']) {
+  const verb = { won: 'Won', lost: 'Lost', drawn: 'Drew' }[result]
+  const against = opponents.length ? ` against ${opponents.map((faction) => faction.displayName).join(' and ')}` : ''
+  return `${verb} ${conceded ? 'by concession' : `${score}–${opponentScore}`}${against}`
 }
 
 function DiscoveredRoster({
