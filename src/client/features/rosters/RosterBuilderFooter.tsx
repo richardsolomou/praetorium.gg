@@ -58,7 +58,7 @@ export function RosterBuilderFooter({
   return (
     <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span data-onboarding="roster-points" className="flex items-center gap-2">
+        <span data-onboarding="roster-points" className="flex items-center gap-1.5 sm:gap-2">
           {loading ? (
             <Skeleton className="size-5" aria-hidden />
           ) : over || illegal ? (
@@ -77,10 +77,17 @@ export function RosterBuilderFooter({
                     : 'Within the points limit'}
             </span>
           )}
-          <span data-stat="points" className={`figure text-xl font-bold ${over ? 'text-destructive' : 'text-info'}`}>
+          <span data-stat="points" className={`figure text-lg font-bold sm:text-xl ${over ? 'text-destructive' : 'text-info'}`}>
             {loading ? <span aria-label="Loading roster points">…</span> : points}/{limit}
           </span>
-          <span className="eyebrow">points</span>
+          <span className="flex flex-col leading-tight">
+            <span className="eyebrow">points</span>
+            {loading ? null : (
+              <span data-stat="points-left" className={`text-xs ${over ? 'text-destructive' : 'text-dim'}`}>
+                {points > limit ? `${points - limit} over` : `${limit - points} left`}
+              </span>
+            )}
+          </span>
         </span>
 
         {leagueWarning}
@@ -102,8 +109,8 @@ export function RosterBuilderFooter({
             </Button>
           ) : null}
           {onSave ? (
-            <Button size="sm" className="max-sm:min-h-11" onClick={onSave} disabled={!hasUnits}>
-              Save roster
+            <Button size="sm" className="max-sm:min-h-11" onClick={onSave} disabled={!hasUnits} aria-label="Save roster">
+              Save<span className="max-sm:hidden"> roster</span>
             </Button>
           ) : null}
         </span>

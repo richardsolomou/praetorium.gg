@@ -163,6 +163,7 @@ test('picker card height stays stable as the roster crosses the points budget', 
   await page.reload()
   await expect(page.locator('[data-unit="Monolith"]')).toHaveCount(1)
   await expect(page.locator('[data-stat="points"]')).toHaveText('1125/1000')
+  await expect(page.locator('[data-stat="points-left"]')).toHaveText('125 over')
   await expect(page.getByText('Over the points limit', { exact: true }).first()).toBeAttached()
 })
 
@@ -199,6 +200,7 @@ test('accepts an Add click while the preceding edit is being priced', async ({ p
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
   await expect(page.locator('[data-unit="Overlord"]')).toHaveCount(1)
   await expect(page.locator('[data-stat="points"]')).toHaveText('155/2000')
+  await expect(page.locator('[data-stat="points-left"]')).toHaveText('1845 left')
 })
 
 test('a picker favourite stays selected throughout a delayed save', async ({ page }) => {
