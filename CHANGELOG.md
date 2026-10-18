@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.164.0
+
+### Minor Changes
+
+- 541ad35: After a guest game, the guest can create an account, starting with the name they played under, to add the battle to their record and the leaderboard, and send the host a friend request.
+- d5bf2fa: Track a real battle against an opponent without an account by seating them as a guest; the game counts in your record but not on the leaderboard.
+- 541ad35: A guest can scan the host's QR code or open their link to choose their own army and play their side on their own device, without an account, seeing the other side's actions as they happen.
+- d8cf26b: Without an account, the rosters page and builder look and work like a signed-in player's, keeping one roster on your device; starting another asks you to sign up, and your roster moves into the new account.
+
+### Patch Changes
+
+- f106f1f: Battle setup no longer says mission data is unavailable for a side that has not chosen its army yet.
+
 ## 0.163.0
 
 ### Minor Changes
