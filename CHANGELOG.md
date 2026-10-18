@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.160.0
+
+### Minor Changes
+
+- 9fa6e13: Open the Discord community and GitHub repository from icon links beside Search in the app header, or join Discord from Support.
+
 ## 0.159.1
 
 ### Patch Changes
