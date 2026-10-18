@@ -10,6 +10,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { importRoster, saveRoster } from '../../functions'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
+import { importRosterFormat } from '../../../shared/rosterFiles'
 import { battleSizeLabel } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
 import { sendFeedback } from '../feedback/sendFeedback'
@@ -112,16 +113,21 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
   })
 
   const inputOf = (file: string) => (isRosterExchangeCode(file) ? 'exchange-code' : 'text')
+  const formatOf = (file: string) => (isRosterExchangeCode(file) ? 'praetorium' : importRosterFormat(file))
   const bring = useMutation({
     onMutate: (file) => posthog.capture('roster_import_submitted', { input: inputOf(file) }),
     mutationFn: async (file: string): Promise<MatchedImport> => {
       const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
-        posthog.capture('roster_import_failed', { reason: 'request', input: inputOf(file) })
+        posthog.capture('roster_import_failed', { reason: 'request', input: inputOf(file), format: formatOf(file) })
         reportImportFailure({ reason: 'request', inputKind: inputOf(file), unknown: [], unplaced: [], input: file })
         throw error
       })
       if (!matched(imported)) {
-        posthog.capture('roster_import_failed', { reason: 'catalogue_unmatched', input: inputOf(file) })
+        posthog.capture('roster_import_failed', {
+          reason: 'catalogue_unmatched',
+          input: inputOf(file),
+          format: imported.format ?? 'unrecognized',
+        })
         reportImportFailure({
           reason: 'catalogue_unmatched',
           inputKind: inputOf(file),

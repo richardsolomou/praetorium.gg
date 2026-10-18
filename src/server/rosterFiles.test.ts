@@ -1522,3 +1522,121 @@ describe('roster exchange import', () => {
     ])
   })
 })
+
+describe('ListForge, Warmind, and WTC roster import', () => {
+  it.each([
+    [
+      'listforge',
+      `Lord - Necrons - Disruption - Pantheon of Woe (150 Points)
+
+Attached Units:
+Lokhust Lord + Immortals (150 pts)
+  Lokhust Lord (80 pts)
+    • Warlord
+    • E: Demanding Leader
+  Immortals (70 pts)
+    • 5x Immortal
+      • 5x Tesla carbine
+`,
+    ],
+    [
+      'listforge-wtc',
+      `+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+List Name: Lord
+Factions Used: Necrons
+Army Points: 150
+Disposition: Disruption
+Detachment(s): Pantheon of Woe
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+ATTACHED UNITS:
+Lokhust Lord + Immortals (150 pts)
+  Lokhust Lord (80 pts)
+    • Warlord
+    • Enhancement: Demanding Leader
+  Immortals (70 pts)
+    • 5x Immortal
+      • 5x Tesla carbine
+`,
+    ],
+    [
+      'warmind',
+      `Lord
+──────────────────────────────
+Faction: Necrons
+Detachment: Pantheon of Woe
+Battle Size: Strike Force (2000 pts)
+Total: 150 / 2000 pts · 2/3 DP · ✓ Legal
+Disposition: Disruption
+
+BATTLELINE
+Lokhust Lord (80 pts) · Warlord
+   · Enhancement: Demanding Leader (+10 pts)
+   └ Leads: Immortals ×5 (70 pts)
+      · 5× Tesla carbine
+
+──────────────────────────────
+150 / 2000 pts · 2 units · Strike Force
+Built with Warmind · https://warmind.online`,
+    ],
+    [
+      'wtc',
+      `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ DETACHMENT: Pantheon of Woe
++ FORCE DISPOSITION: Disruption
++ TOTAL ARMY POINTS: 150pts
++ WARLORD: Char1: Lokhust Lord
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Attached Unit 1
+
+Lokhust Lord (80 pts)
+• Attached as: Leader (Character)
+• Warlord
+• Demanding Leader (+10 pts)
+
+Immortals (70 pts)
+• Attached as: Bodyguard
+• 5x Immortal
+• 5x Tesla carbine`,
+    ],
+  ])('imports %s text with its attachment, enhancement, and reported points', (format, file) => {
+    const imported = importRosterFile({ file }, loaded)
+
+    expect(imported).toMatchObject({
+      catalogueId: 'necrons',
+      detachmentIds: ['pantheon'],
+      disposition: 'disruption',
+      format,
+      source: 'roster-file',
+      reportedPoints: 150,
+      unknown: [],
+      sourceUnitCount: 2,
+    })
+    expect(imported.units.map((unit) => unit.entryId)).toEqual(['lord', 'immortals'])
+    expect(imported.units[0]?.attachedTo).toBe(1)
+  })
+
+  it('reads the official layout under a New Recruit WTC header as New Recruit', () => {
+    const imported = importRosterFile(
+      {
+        file: `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ TOTAL ARMY POINTS: 70pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+OTHER DATASHEETS
+
+Immortals (70 pts)
+• 5x Immortal
+• 5x Tesla carbine
+
+Created with newrecruit.eu v35.79`,
+      },
+      loaded,
+    )
+
+    expect(imported).toMatchObject({ format: 'newrecruit', source: 'newrecruit', sourceUnitCount: 1 })
+  })
+})

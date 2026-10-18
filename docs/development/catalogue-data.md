@@ -244,7 +244,7 @@ Unit notes are owner-only: `readerRosterFromRow` and battle/league reads strip t
 
 Variant groups (`baseRosterId`) cannot be changed by saves and outlive their deleted base. A visitor keeps one browser draft; a later-found draft asks before entering an account, and claim retries reuse its ID. Never overwrite an existing visitor draft through an import or exchange link.
 
-Imports accept supported text exports, not `.ros`/`.rosz`. Unknown factions refuse; unmatched units or choices are reported for confirmation, never silently dropped or substituted, and every import is reviewed before saving. Show reported points separately from the authoritative price, and report unsupported battle sizes instead of guessing.
+Imports accept supported text exports (Praetorium, New Recruit, BattleBase, the official app, ListForge, Warmind, and WTC-style text, parsed in `src/core`), not `.ros`/`.rosz`. Unknown factions refuse; unmatched units or choices are reported for confirmation, never silently dropped or substituted, and every import is reviewed before saving. Show reported points separately from the authoritative price, and report unsupported battle sizes instead of guessing.
 
 `src/shared/rosterFiles.ts` owns text exports. They are extended Praetorium text, not event-submission schemas; do not label a layout event-compatible (the [WTC 2026 event pack v1.1](https://wtc-belgium.com/wp-content/uploads/2026/06/2026-WTC40K-11th-edition-Event-Pack-v1.1.pdf) specifies none). Exports never carry notes, preparation, waived or optional rules. Points alone never choose a battle size they do not equal.
 

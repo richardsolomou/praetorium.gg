@@ -399,7 +399,7 @@ export const importRoster = createServerFn({ method: 'POST' })
               )
             : {}),
           unit_count: result.units.length,
-          source: result.source,
+          source: result.format,
           input: isRosterExchangeCode(data.file) ? 'exchange-code' : 'text',
           missing_count: result.unknown.length,
           unplaced_count: result.unplaced.length,
