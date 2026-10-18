@@ -16,6 +16,8 @@ import { ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
 import { variantDifferences } from '../rosterDifferences'
 import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
+import { copiedArmy } from '../../core/rosterCopies'
+import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   copyRosterSchema,
@@ -29,6 +31,8 @@ import {
   rosterArchiveSchema,
   rosterLockSchema,
   renameUnitLoadoutSchema,
+  playedArmiesSchema,
+  playedArmySchema,
   saveUnitLoadoutSchema,
   unitLoadoutIdSchema,
   rosterLoanSchema,
@@ -279,6 +283,74 @@ export const saveRoster = createServerFn({ method: 'POST' })
       // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
       if (created) await captureRosterCreated(app(), player.id, data)
       return { id, updatedAt }
+    }),
+  )
+
+/**
+ * Armies from finished battles anyone may watch, newest first, with their player and whether the
+ * rules version they were fielded under fields them with today's data. Picks stay on the server.
+ */
+export const discoverPlayedArmies = createServerFn({ method: 'GET' })
+  .validator(playedArmiesSchema)
+  .handler(({ data: { before, ...filter } }) =>
+    rpc(async () => {
+      const instance = app()
+      const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
+      const factions = factionIndex?.factions ?? []
+      if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
+      const page = await instance.service.playedArmies(viewerId, before ?? undefined)
+      const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+      const shown = page.armies.flatMap((army) => {
+        const copy = copiedArmy(army)
+        return inDiscoveryScope(copy, filter, indexed) ? [{ army, copy }] : []
+      })
+      const assessments = await cachedRosterAssessmentsFor(
+        shown.map(({ army, copy }) => ({
+          ...copy,
+          id: `${army.battle}:${army.player.id}`,
+          updatedAt: army.playedAt,
+          optionalRules: [],
+          borrowedDetachmentId: null,
+        })),
+      )
+      return {
+        armies: shown.map(({ army: { picks: _picks, ...army } }, index) => ({
+          ...army,
+          points: assessments[index]!.points,
+          problem: assessments[index]!.verdict.problem,
+        })),
+        nextCursor: page.nextCursor,
+      }
+    }),
+  )
+
+/** A new roster holding an army from a finished battle the player may watch. The battle is not changed. */
+export const copyPlayedArmy = createServerFn({ method: 'POST' })
+  .validator(playedArmySchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const instance = app()
+      const army = await instance.service.playedArmy(data.token, data.playerId, player.id)
+      if (!army) throw new Response('That army is no longer available to copy.', { status: 404 })
+      const copy = copiedArmy(army)
+      const { rosterVisibility } = await instance.service.playerDefaults(player.id)
+      const roster = saveRosterSchema.parse({
+        name: `Copy of ${army.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
+        catalogueId: copy.catalogueId,
+        detachmentIds: copy.detachmentIds,
+        disposition: army.disposition,
+        limit: army.limit,
+        pointsBudget: army.pointsBudget,
+        picks: copy.picks,
+        waivedRules: army.waivedRules,
+        optionalRules: [],
+        prep: null,
+        visibility: rosterVisibility,
+      })
+      const saved = await saveOwnedRoster(player.id, roster)
+      await captureRosterCreated(instance, player.id, roster, { played: true })
+      return { id: saved.id }
     }),
   )
 

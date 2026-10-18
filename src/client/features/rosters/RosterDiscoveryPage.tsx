@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Copy, ListFilter, ScrollText, Users } from 'lucide-react'
+import { Copy, ListFilter, ScrollText, Swords, Users } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
@@ -28,9 +28,9 @@ import {
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import type { SearchableGroup } from '../../components/SearchableSelect'
-import { copyRoster } from '../../functions'
+import { copyPlayedArmy, copyRoster } from '../../functions'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQuery } from '../../queries'
+import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQuery, playedArmiesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
 import { CreateRoster } from './CreateRoster'
@@ -45,6 +45,7 @@ export type RosterDiscoverySearch = { faction?: string; detachment?: string; rul
 type IndexedFactions = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof factionIndexQuery>['queryFn']>>>>['factions']
 type DiscoveredPage = Awaited<ReturnType<NonNullable<ReturnType<typeof discoveredRostersQuery>['queryFn']>>>
 type Discovered = DiscoveredPage['rosters'][number]
+type PlayedArmy = Awaited<ReturnType<NonNullable<ReturnType<typeof playedArmiesQuery>['queryFn']>>>['armies'][number]
 
 const RULES_LABEL: Record<RulesVersionStatus, string> = { current: 'Current', archived: 'Archived', preview: 'Preview' }
 const RULES_GROUPS: SearchableGroup[] = [
@@ -79,8 +80,9 @@ export function discoveryFilter(search: RosterDiscoverySearch, factions: Indexed
   }
 }
 
-/** Other players' public rosters, or a signed-in player's friends' public rosters. */
-export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; search: RosterDiscoverySearch }) {
+/** Other players' public rosters, a signed-in player's friends' public rosters, or armies from finished public battles. */
+export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | 'played'; search: RosterDiscoverySearch }) {
+  const played = view === 'played'
   const navigate = useNavigate()
   const path = useRouterState({ select: (state) => state.location.href })
   const { data: me } = useQuery(meQuery())
@@ -114,15 +116,25 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
   const choose = (next: RosterDiscoverySearch) => void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next } })
   const active = [filter.faction, filter.detachment, filter.rules].filter(Boolean).length
 
-  const result = useInfiniteQuery({ ...discoveredRostersQuery(filter, view, sort), enabled: !search.faction || indexResult.isSuccess })
+  const ready = !search.faction || indexResult.isSuccess
+  const result = useInfiniteQuery({ ...discoveredRostersQuery(filter, played ? 'public' : view, sort), enabled: !played && ready })
+  const playedResult = useInfiniteQuery({ ...playedArmiesQuery(filter), enabled: played && ready })
   const shown = result.data?.pages.flatMap((page) => page.rosters) ?? []
-  const listed = view === 'friends' ? "friends' public rosters" : 'public rosters'
+  const listed = played ? 'played armies' : view === 'friends' ? "friends' public rosters" : 'public rosters'
 
   const queryClient = useQueryClient()
   const duplicate = useMutation({
     mutationFn: (entry: Discovered) => copyRoster({ data: { id: entry.roster.id, variant: false } }),
     onSuccess: async ({ id }, entry) => {
       posthog.capture('roster_duplicated', { unit_count: entry.roster.unitCount, discovered: true })
+      await invalidateSavedRosters(queryClient)
+      await navigate({ to: '/rosters/$id', params: { id } })
+    },
+  })
+  const copyPlayed = useMutation({
+    mutationFn: (army: PlayedArmy) => copyPlayedArmy({ data: { token: army.battle, playerId: army.player.id } }),
+    onSuccess: async ({ id }, army) => {
+      posthog.capture('roster_duplicated', { unit_count: army.unitCount, played: true })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
     },
@@ -195,90 +207,240 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience; se
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <RosterSortMenu value={sort} onChange={(chosen) => choose({ ...search, sort: chosen === 'updated-desc' ? undefined : chosen })} />
+          {played ? null : (
+            <RosterSortMenu
+              value={sort}
+              onChange={(chosen) => choose({ ...search, sort: chosen === 'updated-desc' ? undefined : chosen })}
+            />
+          )}
         </div>
         {duplicate.isError ? <Problem>Could not duplicate that roster: {errorMessage(duplicate.error)}</Problem> : null}
+        {copyPlayed.isError ? <Problem>Could not copy that army: {errorMessage(copyPlayed.error)}</Problem> : null}
 
-        <section>
-          <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>
-          <div className="mt-2 space-y-3">
-            {result.isError && !shown.length ? (
-              <PageState
-                headingLevel={2}
-                eyebrow="Rosters"
-                title="Could not load rosters"
-                explanation={`The ${listed} could not be loaded. Try again.`}
-                action={
-                  <Button variant="outline" onClick={() => void result.refetch()} disabled={result.isFetching}>
-                    Try again
-                  </Button>
-                }
-              />
-            ) : result.isPending ? (
-              <div aria-busy="true" className="space-y-3">
-                <output className="sr-only">Loading {listed}…</output>
-                <DiscoveredRosterSkeleton />
-              </div>
-            ) : shown.length || result.hasNextPage ? (
-              <>
-                {shown.length ? null : <p className="py-2 text-sm text-dim">None of the most recently saved rosters match yet.</p>}
-                {shown.map((entry) => (
-                  <DiscoveredRoster
-                    key={entry.roster.id}
-                    entry={entry}
-                    faction={factions.find((faction) => faction.id === entry.roster.catalogueId)}
-                    signedIn={Boolean(me)}
-                    signInPath={path}
-                    duplicating={duplicate.isPending && duplicate.variables?.roster.id === entry.roster.id}
-                    onDuplicate={() => duplicate.mutate(entry)}
-                    disabled={duplicate.isPending}
-                  />
-                ))}
-                {result.hasNextPage ? (
-                  <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
-                    {result.isFetchingNextPage ? 'Loading…' : 'Show more rosters'}
-                  </Button>
-                ) : null}
-              </>
-            ) : active ? (
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
-                No {listed} match these filters
-                <Button variant="outline" size="sm" onClick={() => choose({})}>
-                  Clear filters
-                </Button>
-              </p>
-            ) : view === 'friends' ? (
-              <div data-friends-empty>
+        {played ? (
+          <PlayedArmies
+            result={playedResult}
+            factions={factions}
+            filtered={active > 0}
+            signedIn={Boolean(me)}
+            signInPath={path}
+            copying={copyPlayed.isPending ? copyPlayed.variables : null}
+            onCopy={(army) => copyPlayed.mutate(army)}
+            onClearFilters={() => choose({})}
+          />
+        ) : (
+          <section>
+            <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>
+            <div className="mt-2 space-y-3">
+              {result.isError && !shown.length ? (
                 <PageState
                   headingLevel={2}
-                  eyebrow="Friends' rosters"
-                  title="No friends' rosters yet."
-                  explanation="Rosters your friends make public appear here."
-                  icon={Users}
+                  eyebrow="Rosters"
+                  title="Could not load rosters"
+                  explanation={`The ${listed} could not be loaded. Try again.`}
                   action={
-                    <Link to="/friends" className={buttonClass({ variant: 'outline' })}>
-                      <Users /> Your friends
-                    </Link>
+                    <Button variant="outline" onClick={() => void result.refetch()} disabled={result.isFetching}>
+                      Try again
+                    </Button>
                   }
                 />
-              </div>
-            ) : (
-              <PageState
-                headingLevel={2}
-                eyebrow="Public rosters"
-                title={me ? 'No other public rosters yet.' : 'No public rosters yet.'}
-                explanation={
-                  me
-                    ? "Other players' public rosters appear here; your own are under Mine."
-                    : 'Players list a roster here by choosing Public in its roster setup.'
-                }
-                icon={ScrollText}
-              />
-            )}
-          </div>
-        </section>
+              ) : result.isPending ? (
+                <div aria-busy="true" className="space-y-3">
+                  <output className="sr-only">Loading {listed}…</output>
+                  <DiscoveredRosterSkeleton />
+                </div>
+              ) : shown.length || result.hasNextPage ? (
+                <>
+                  {shown.length ? null : <p className="py-2 text-sm text-dim">None of the most recently saved rosters match yet.</p>}
+                  {shown.map((entry) => (
+                    <DiscoveredRoster
+                      key={entry.roster.id}
+                      entry={entry}
+                      faction={factions.find((faction) => faction.id === entry.roster.catalogueId)}
+                      signedIn={Boolean(me)}
+                      signInPath={path}
+                      duplicating={duplicate.isPending && duplicate.variables?.roster.id === entry.roster.id}
+                      onDuplicate={() => duplicate.mutate(entry)}
+                      disabled={duplicate.isPending}
+                    />
+                  ))}
+                  {result.hasNextPage ? (
+                    <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
+                      {result.isFetchingNextPage ? 'Loading…' : 'Show more rosters'}
+                    </Button>
+                  ) : null}
+                </>
+              ) : active ? (
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
+                  No {listed} match these filters
+                  <Button variant="outline" size="sm" onClick={() => choose({})}>
+                    Clear filters
+                  </Button>
+                </p>
+              ) : view === 'friends' ? (
+                <div data-friends-empty>
+                  <PageState
+                    headingLevel={2}
+                    eyebrow="Friends' rosters"
+                    title="No friends' rosters yet."
+                    explanation="Rosters your friends make public appear here."
+                    icon={Users}
+                    action={
+                      <Link to="/friends" className={buttonClass({ variant: 'outline' })}>
+                        <Users /> Your friends
+                      </Link>
+                    }
+                  />
+                </div>
+              ) : (
+                <PageState
+                  headingLevel={2}
+                  eyebrow="Public rosters"
+                  title={me ? 'No other public rosters yet.' : 'No public rosters yet.'}
+                  explanation={
+                    me
+                      ? "Other players' public rosters appear here; your own are under Mine."
+                      : 'Players list a roster here by choosing Public in its roster setup.'
+                  }
+                  icon={ScrollText}
+                />
+              )}
+            </div>
+          </section>
+        )}
       </PageContent>
     </main>
+  )
+}
+
+/**
+ * Armies as their finished battles fielded them, under the rules version recorded then.
+ *
+ * A card opens the frozen army in its battle, which copying never changes; the points and
+ * legality beside it are today's answer for that rules version, which a copy starts from.
+ */
+function PlayedArmies({
+  result,
+  factions,
+  filtered,
+  signedIn,
+  signInPath,
+  copying,
+  onCopy,
+  onClearFilters,
+}: {
+  result: ReturnType<typeof useInfiniteQuery<Awaited<ReturnType<NonNullable<ReturnType<typeof playedArmiesQuery>['queryFn']>>>>>
+  factions: IndexedFactions
+  filtered: boolean
+  signedIn: boolean
+  signInPath: string
+  copying: PlayedArmy | null
+  onCopy: (army: PlayedArmy) => void
+  onClearFilters: () => void
+}) {
+  const armies = result.data?.pages.flatMap((page) => page.armies) ?? []
+  return (
+    <section>
+      <h2 className="rubric border-b border-edge pb-2">Played armies</h2>
+      <p className="mt-2 text-xs text-dim">
+        Armies from finished battles every player keeps public, as they were fielded. Points and legality are checked against today’s data
+        for the rules version each was played under.
+      </p>
+      <div className="mt-2 space-y-3">
+        {result.isError && !armies.length ? (
+          <PageState
+            headingLevel={2}
+            eyebrow="Played armies"
+            title="Could not load played armies"
+            explanation="The played armies could not be loaded. Try again."
+            action={
+              <Button variant="outline" onClick={() => void result.refetch()} disabled={result.isFetching}>
+                Try again
+              </Button>
+            }
+          />
+        ) : result.isPending ? (
+          <div aria-busy="true" className="space-y-3">
+            <output className="sr-only">Loading played armies…</output>
+            <DiscoveredRosterSkeleton />
+          </div>
+        ) : armies.length || result.hasNextPage ? (
+          <>
+            {armies.length ? null : <p className="py-2 text-sm text-dim">None of the most recently finished battles match yet.</p>}
+            {armies.map((army) => {
+              const indexed = factions.find((faction) => faction.id === army.catalogueId)
+              // Frozen armies keep the status their rules version had when they were fielded.
+              const faction = indexed && {
+                ...indexed,
+                edition:
+                  indexed.edition && army.edition
+                    ? { ...indexed.edition, name: army.edition.name, status: army.edition.status }
+                    : indexed.edition,
+              }
+              const key = `${army.battle}:${army.player.id}`
+              return (
+                <article key={key} data-played-army={army.name} className="border border-edge bg-panel hover:border-info hover:bg-raised">
+                  <Link to="/rosters/$id" params={{ id: army.player.id }} search={{ battle: army.battle }} className="flex min-w-0 p-3">
+                    <RosterSummary
+                      roster={{ ...army, updatedAt: army.playedAt }}
+                      faction={faction}
+                      points={army.points}
+                      problem={army.problem}
+                      showLock={false}
+                      showLegality
+                      dateLabel="played"
+                    />
+                  </Link>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
+                    <span className="min-w-0 truncate text-xs text-dim">
+                      Played by{' '}
+                      <Link to="/users/$userId" params={{ userId: army.player.id }} className="font-semibold text-info hover:text-bone">
+                        {army.player.name}
+                      </Link>
+                    </span>
+                    {signedIn ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={copying !== null}
+                        onClick={() => onCopy(army)}
+                        aria-label={`Copy ${army.name}`}
+                      >
+                        <Copy /> {copying && `${copying.battle}:${copying.player.id}` === key ? 'Copying…' : 'Copy to my rosters'}
+                      </Button>
+                    ) : (
+                      <Link to="/sign-in" search={{ next: signInPath }} className={buttonClass({ variant: 'outline', size: 'sm' })}>
+                        <Copy /> Sign in to copy
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              )
+            })}
+            {result.hasNextPage ? (
+              <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
+                {result.isFetchingNextPage ? 'Loading…' : 'Show more armies'}
+              </Button>
+            ) : null}
+          </>
+        ) : filtered ? (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
+            No played armies match these filters
+            <Button variant="outline" size="sm" onClick={onClearFilters}>
+              Clear filters
+            </Button>
+          </p>
+        ) : (
+          <PageState
+            headingLevel={2}
+            eyebrow="Played armies"
+            title="No played armies yet."
+            explanation="Armies appear here once a battle every player keeps public has finished."
+            icon={Swords}
+          />
+        )}
+      </div>
+    </section>
   )
 }
 

@@ -8,7 +8,7 @@ export async function captureRosterCreated(
   instance: Pick<ReturnType<typeof app>, 'telemetry' | 'catalogueFor' | 'rulesFor'>,
   userId: string,
   data: z.infer<typeof saveRosterSchema>,
-  extra: { variant?: boolean } = {},
+  extra: { variant?: boolean; played?: boolean } = {},
 ) {
   await instance.telemetry.capture(userId, 'roster_created', {
     ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor(data.catalogueId)),
