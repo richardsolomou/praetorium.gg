@@ -364,6 +364,93 @@ describe('a squad that both divides itself and arms a specialist', () => {
   })
 })
 
+describe('specialists in a squad of fixed size', () => {
+  // A Pathfinder Team is always nine Pathfinders: three may take special weapons and one
+  // a grenade launcher, and the carbines' minimum makes room for them.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'team',
+        name: 'Pathfinder Team',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'pathfinders',
+            name: 'Pathfinders',
+            constraints: [
+              { id: 'pathfinders-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'pathfinders-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'carbine',
+                name: 'Pathfinders w/ pulse carbine',
+                type: 'model',
+                constraints: [
+                  { id: 'carbine-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+                  { id: 'carbine-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                modifiers: [
+                  { type: 'decrement', field: 'carbine-min', value: 3 },
+                  {
+                    type: 'decrement',
+                    field: 'carbine-min',
+                    value: 1,
+                    conditions: [
+                      {
+                        type: 'greaterThan',
+                        value: 0,
+                        field: 'selections',
+                        scope: 'parent',
+                        childId: 'launcher',
+                        includeChildSelections: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: 'launcher',
+                name: 'Pathfinders w/ pulse carbine and grenade launcher',
+                type: 'model',
+                constraints: [{ id: 'launcher-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'specials',
+                name: 'Special Weapons (0-3)',
+                constraints: [{ id: 'specials-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'rail',
+                    name: 'Pathfinders w/ rail rifle',
+                    type: 'model',
+                    constraints: [{ id: 'rail-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+                    selectionEntries: [{ id: 'rail-rifle', name: 'Rail rifle', type: 'upgrade', constraints: mandatory('rail-rifle-min') }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('arms every special weapon asked for', () => {
+    const built = buildUnit('team', index, 9, undefined, { spreads: { 'pathfinders/specials': { rail: 3 } } })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Rail rifle', count: 3 })
+  })
+
+  it('offers the grenade launcher the carbines make room for', () => {
+    const launcher = buildUnit('team', index, 9)!
+      .choices.flatMap((choice) => choice.options)
+      .find((option) => option.id === 'launcher')
+    expect(launcher?.max).toBe(1)
+  })
+})
+
 describe('a specialist joining a squad whose default models are split', () => {
   const index = indexOf({
     sharedSelectionEntries: [

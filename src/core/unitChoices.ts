@@ -332,13 +332,22 @@ function collectUnitChoices(
         const resizesUnit = resizingGroup.length === here.length && resizingGroup.every((step, position) => step === here[position])
         // A specialist joining the group the unit is sized by replaces one of the
         // models that size counts, so their bodies above their own minimum are room too.
+        // A unit of fixed size makes room the same way when taking a specialist lowers a
+        // required model's minimum, as a Pathfinder Team's grenade launcher does.
         const sized = resizesUnit
           ? choosable.find((option) => option.id === resizingPath.at(-1) && !adjustable.includes(option))
-          : undefined
-        const spare = sized ? Math.max(0, countOf(sized.id) - minimum(sized.definition) * scale) : 0
+          : !resizingPath.length && capacity !== null && fixed
+            ? choosable.find((option) => !adjustable.includes(option) && hasMutableMinimum(option.definition, index, options.modifierCache))
+            : undefined
+        const sizePath = resizesUnit || !sized ? resizingPath : [...here, sized.id]
+        const spare = !sized
+          ? 0
+          : hasMutableMinimum(sized.definition, index, options.modifierCache)
+            ? mutableSpare(selection, here, sized, adjustable, countOf, sizePath, index, options)
+            : Math.max(0, countOf(sized.id) - minimum(sized.definition) * scale)
         const adjustableRoom = separate
           ? sum(adjustable.map(roomFor))
-          : resizesUnit
+          : resizesUnit || sized
             ? heldRoom(adjustable, countOf) + spare
             : fixed && adjustable.some(variableMinimum)
               ? room - choosable.filter((option) => !adjustable.includes(option)).reduce((total, option) => total + countOf(option.id), 0)
@@ -348,7 +357,7 @@ function collectUnitChoices(
         const maximumFor = (option: Option) => {
           if (independent) return roomFor(option)
           if (sized && !repeating) {
-            return replacingMaximum(selection, here, option, countOf(option.id) + spare, resizingPath, index, options)
+            return replacingMaximum(selection, here, option, countOf(option.id) + spare, sizePath, index, options)
           }
           if (!repeating) return legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options)
           return separate ? roomFor(option) : adjustableRoom
@@ -533,6 +542,41 @@ function replacingMaximum(
       modifierCache: context.modifierCache,
     })
     if (!errors.length) return count
+  }
+  return 0
+}
+
+/**
+ * How many of the sized model a specialist may replace when taking one lowers that
+ * model's minimum, as an Intercessor's grenade launcher does: the most that still
+ * leaves both kinds within their own limits.
+ */
+function mutableSpare(
+  selection: Selection,
+  path: readonly string[],
+  sized: Option,
+  adjustable: readonly Option[],
+  countOf: (id: string) => number,
+  sizePath: readonly string[],
+  index: CatalogueIndex,
+  context: EvaluateOptions,
+): number {
+  const sizedId = resolve(sized.definition, index).id
+  for (let count = countOf(sized.id); count >= 1; count--) {
+    const fits = adjustable.some((option) => {
+      const candidate = withCounts(selection, [
+        { path: [...path, option.id], count: countOf(option.id) + count },
+        { path: sizePath, count: countOf(sized.id) - count },
+      ])
+      const errors = [sizedId, resolve(option.definition, index).id].flatMap((id) =>
+        evaluationErrorsFor(id, [...(context.roster ?? []), candidate], index, {
+          primaryCatalogueId: context.primaryCatalogueId,
+          modifierCache: context.modifierCache,
+        }),
+      )
+      return !errors.length
+    })
+    if (fits) return count
   }
   return 0
 }

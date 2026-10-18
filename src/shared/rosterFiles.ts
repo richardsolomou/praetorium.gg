@@ -462,37 +462,38 @@ function textRosterPick(
       aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
       (name) => name,
     )
+    // Models are counted even where only one may join, since choosing one would not place its body.
+    const counted = (choice: (typeof choices)[number]) =>
+      choice.room > 1 || choice.options.some((option) => isModel(option.id, loaded.index))
     const placed = new Set([...placeableNames(selection, aliases, models, unit.name, loaded), ...warlordNames])
-    const spreadEntries = choices
-      .filter((choice) => choice.room > 1)
-      .flatMap((choice): [string, Record<string, number>][] => {
-        const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
-        const explicit = counts.size > 0
-        // A model the list does not count keeps the body a choice gave it: the cyclone
-        // missile launcher brings its Terminator, and counting none would take it away.
-        // A list naming every body in the group by kind, nested specialists included,
-        // says what each model is: the rest are left out on purpose, and the weapons it
-        // lists are no longer evidence of more bodies.
-        if (choice.options.some((option) => isModel(option.id, loaded.index))) {
-          const named = (option: { name: string }) => stated.get(normalized(option.name)) ?? 0
-          const bodies = choices
-            .filter((other) => other === choice || other.key.startsWith(`${choice.key}/`))
-            .flatMap((other) => other.options)
-            .filter((option) => isModel(option.id, loaded.index))
-            .reduce((total, option) => total + named(option), 0)
-          const asked =
-            bodies >= choice.room ? choice.options.map((option) => [option.id, named(option)] as const) : explicit ? [...counts] : []
-          return asked.length ? [[choice.key, Object.fromEntries(asked.map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
-        }
-        return [
-          [
-            choice.key,
-            Object.fromEntries(
-              choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
-            ),
-          ],
-        ]
-      })
+    const spreadEntries = choices.filter(counted).flatMap((choice): [string, Record<string, number>][] => {
+      const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
+      const explicit = counts.size > 0
+      // A model the list does not count keeps the body a choice gave it: the cyclone
+      // missile launcher brings its Terminator, and counting none would take it away.
+      // A list naming every body in the group by kind, nested specialists included,
+      // says what each model is: the rest are left out on purpose, and the weapons it
+      // lists are no longer evidence of more bodies.
+      if (choice.options.some((option) => isModel(option.id, loaded.index))) {
+        const named = (option: { name: string }) => stated.get(normalized(option.name)) ?? 0
+        const bodies = choices
+          .filter((other) => other === choice || other.key.startsWith(`${choice.key}/`))
+          .flatMap((other) => other.options)
+          .filter((option) => isModel(option.id, loaded.index))
+          .reduce((total, option) => total + named(option), 0)
+        const asked =
+          bodies >= choice.room ? choice.options.map((option) => [option.id, named(option)] as const) : explicit ? [...counts] : []
+        return asked.length ? [[choice.key, Object.fromEntries(asked.map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
+      }
+      return [
+        [
+          choice.key,
+          Object.fromEntries(
+            choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
+          ),
+        ],
+      ]
+    })
     // A weapon spread under a model the list leaves out would only bring that model back.
     const absent = spreadEntries.flatMap(([key, counts]) =>
       Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
@@ -503,7 +504,7 @@ function textRosterPick(
       models: built?.size.models ?? 1,
       choices: Object.fromEntries(
         choices.flatMap((choice, at) => {
-          if (choice.room !== 1) return []
+          if (counted(choice)) return []
           // An optional choice takes nothing the list gives it no count for.
           const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(([, count]) => !choice.optional || count > 0)
           const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), scopes[at]!.stated, offeredBy) ?? choice.chosen

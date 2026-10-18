@@ -2067,6 +2067,76 @@ describe('a squad grown past its minimum', () => {
   })
 })
 
+describe('a specialist that lowers its squadmates’ minimum', () => {
+  // An Intercessor with a grenade launcher stands in for one of the four Intercessors a
+  // five-model squad must field: the data lowers their minimum once one is taken.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'intercessors',
+        name: 'Intercessor Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'squad',
+            name: 'Intercessors',
+            constraints: [
+              { id: 'squad-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'squad-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'sergeant',
+                name: 'Intercessor Sergeant',
+                type: 'model',
+                constraints: [
+                  ...mandatory('sergeant-min'),
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'trooper',
+                name: 'Intercessor',
+                type: 'model',
+                constraints: [
+                  { id: 'trooper-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+                  { id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                modifiers: [
+                  {
+                    type: 'decrement',
+                    field: 'trooper-min',
+                    value: 1,
+                    conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'intercessors', childId: 'launcher' }],
+                  },
+                ],
+              },
+              {
+                id: 'launcher',
+                name: 'Intercessor w/ Grenade Launcher',
+                type: 'model',
+                constraints: [{ id: 'launcher-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const launchers = (models: number) =>
+    buildUnit('intercessors', index, models)!
+      .choices.flatMap((choice) => choice.options)
+      .find((option) => option.id === 'launcher')?.max
+
+  it('may replace one of a five-model squad', () => {
+    expect(launchers(5)).toBe(1)
+  })
+
+  it('answers to its own limit in a full squad', () => {
+    expect(launchers(10)).toBe(2)
+  })
+})
+
 describe('an enhancement a unit upgrade opens', () => {
   // A Trygon takes Trygon Prime only once its Character upgrade makes it a character,
   // and the data hides the enhancements until the unit it roots holds that upgrade.

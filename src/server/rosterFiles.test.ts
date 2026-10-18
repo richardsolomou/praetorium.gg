@@ -96,6 +96,72 @@ const faction: CatalogueFile = {
         ],
       },
       {
+        // Always nine Pathfinders: the carbines' minimum makes room for each specialist.
+        id: 'pathfinder-team',
+        name: 'Pathfinder Team',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'pathfinders',
+            name: 'Pathfinders',
+            constraints: [
+              { id: 'pathfinders-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'pathfinders-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'pathfinder-carbine',
+                name: 'Pathfinders w/ pulse carbine',
+                type: 'model',
+                constraints: [
+                  { id: 'pathfinder-carbine-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+                  { id: 'pathfinder-carbine-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                modifiers: [
+                  { type: 'decrement', field: 'pathfinder-carbine-min', value: 3 },
+                  {
+                    type: 'decrement',
+                    field: 'pathfinder-carbine-min',
+                    value: 1,
+                    conditions: [
+                      {
+                        type: 'greaterThan',
+                        value: 0,
+                        field: 'selections',
+                        scope: 'parent',
+                        childId: 'pathfinder-launcher',
+                        includeChildSelections: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: 'pathfinder-launcher',
+                name: 'Pathfinders w/ pulse carbine and grenade launcher',
+                type: 'model',
+                constraints: [{ id: 'pathfinder-launcher-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'pathfinder-specials',
+                name: 'Special Weapons (0-3)',
+                constraints: [{ id: 'pathfinder-specials-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'pathfinder-rail',
+                    name: 'Pathfinders w/ rail rifle',
+                    type: 'model',
+                    constraints: [{ id: 'pathfinder-rail-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
         // A squad may carry up to two tokens, written as an upgrade outside any group.
         id: 'incubi',
         name: 'Incubi',
@@ -2304,6 +2370,12 @@ describe('text import wargear', () => {
 
   it('takes an upgrade a unit may hold more than once', () => {
     const file = 'Shrine - Necrons - Pantheon of Woe (90 Points)\n\nInfantry:\nIncubi (90 pts)\n  • Incubi Shrine Token\n  • 5x Incubi\n'
+    expect(importRosterFile({ file }, loaded).unplaced).toEqual([])
+  })
+
+  it('fields every specialist of a squad that never changes size', () => {
+    const file =
+      'Scouts - Necrons - Pantheon of Woe (85 Points)\n\nInfantry:\nPathfinder Team (85 pts)\n  • 5x Pathfinders w/ pulse carbine\n  • 3x Pathfinders w/ rail rifle\n  • Pathfinders w/ pulse carbine and grenade launcher\n'
     expect(importRosterFile({ file }, loaded).unplaced).toEqual([])
   })
 
