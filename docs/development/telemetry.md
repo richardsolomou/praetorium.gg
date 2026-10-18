@@ -10,6 +10,8 @@ The WebView browser owns product events, identified replay, logs, and metrics. M
 
 Server logs, spans, and request metrics use stable operation or server-function names and bounded metadata, never raw URLs or payloads. In the `process.*` gauges from `src/server/runtimeMetrics.ts`, ArrayBuffer bytes are already part of external memory; do not add the two.
 
+Server telemetry resources carry `deployment.host` from the public `APP_URL`. Older spans lack it and can mix deployed instances; do not infer a production hostname from `deployment.environment` alone.
+
 Public crawler `$http_log` capture allows only reference/discovery paths without account or opaque object IDs, strips query strings, keeps only the referrer origin, disables GeoIP, and creates no person profile; its salted identities are day-scoped. Because Cloudflare caches signed-out pages ([Deployment](../deployment.md#runtime)), these logs count origin renders, not reads.
 
 MCP Analytics keeps anonymous tool names, timings, outcomes, and protocol/deployment metadata, never arguments, results, intent, client identifiers, or exceptions. The project's `Remove MCP Analytics IP` transformation removes the address added at ingestion; SDK `$ip = null` alone does not prove removal.
@@ -20,12 +22,14 @@ Custom events measure starts, attempts, completed actions, and bounded failures;
 
 - `account_signed_in` fires after two-factor checks, so a pending challenge is not a sign-in; a signup produces only `account_created`.
 - `roster_created` can be an empty row or a claimed guest draft; use `roster_unit_added` to measure building. Durable sync emits roster creation/deletion only on the transaction that applies the lifecycle change.
-- `battle_created`, `league_created`, and `league_battle_created` share capture properties between direct mutations and durable sync. Sync captures only when its database transaction reports a newly applied action; recovered receipts and concurrent retries do not count another creation.
+- `src/server/productActions.ts` owns the mutations and completion captures shared by direct handlers and durable actions. `delivery` distinguishes `direct` from `sync`. Sync captures only when its database transaction reports a newly applied action; recovered receipts and concurrent retries do not count another completion. The sync entry point still requires frozen roster metadata before sealing.
 - `roster_imported` means parsed and `guest_roster_imported` means opened as a local draft; `roster_import_saved` and `guest_roster_saved` mean saved, and retries can repeat a guest completion, so count unique people.
+- `roster_import_review_required` means parsing left unmatched or unplaced entries. Historical events also include clean imports; filter for positive `missing_count` or `unplaced_count` when comparing periods.
 - `roster_priced` and `roster_datasheet_loaded` come from the server, or from the browser when the device answers the read from its download (`constructionReadEvents` in `src/client/offline/constructionReads.ts`); both build their properties with `src/shared/rosterTelemetry.ts`, and `duration_ms` is where the work ran.
 - Roster `unit_count` counts an attached character and bodyguard as one unit; request metrics and import `pick_count` count payload picks.
 - `detachment_rules_covered` requires every selected detachment, including imported options, to resolve to supported Game Datacards semantics.
 - `battle_command_submitted` refusals carry a `RefusalCode` from `src/core/battle.ts`, never the message; read it with `command`, since codes are shared across kinds. `unclassified` is a refusal the server's rules did not reproduce, expected only while releases overlap. `set-setup-step` appears only for battles set up before the one-page setup.
+- Direct and synced battle commands share completion and lifecycle capture through `src/server/battleTelemetry.ts`. Synced successes require the database's atomic `applied` acknowledgement, not a replay precheck; stale and refused submissions count attempts. The optional report preserves older module responses, and an absent acknowledgement never counts a synced success.
 - Measure spectator invite conversion as unique people from `spectator_invite_followed` to `guest_roster_started`, `account_created`, or `battle_creation_submitted`; a battle finishing while watched can repeat `shown`.
 - `collection_photo_screened` and `profile_picture_screened` carry TypeSafe Jev probabilities per question in `src/server/photoScreening.ts`, or an `outcome` of `unreadable` or `failed`. They decide nothing yet; choose thresholds from them before acting on uploads, and compare only rows from the same `model`.
 - `reference` (`datasheet` or `detachment`) marks flows begun on a reference page; measure reference conversion with it, not destination pageviews.
@@ -54,13 +58,13 @@ Hosted web builds upload hidden maps and bundles, including workers, before imag
 
 Count unique people for conversion and retention, attempts for friction, and completed actions for use; funnels measure people, not objects, because object IDs are excluded. Absence of an event indicates drop-off only after deployment and within a defined window.
 
+Apply browser bot classifications only to browser events. PostHog classifies server SDK completions as Automation too; excluding that classification across a mixed funnel removes legitimate successful actions. Keep hostless historical server events when filtering the production host.
+
 ## Saved dashboards
 
-- [Feature adoption](https://us.posthog.com/project/548119/dashboard/2162146)
-- [Conversion and drop-off](https://us.posthog.com/project/548119/dashboard/2162147)
-- [Player retention](https://us.posthog.com/project/548119/dashboard/2162148)
+[Product and reliability](https://us.posthog.com/project/548119/dashboard/2225391) combines player activity, conversion, retention, failures, browser performance, server diagnostics, feedback, and MCP health.
 
-These use the project's internal/test-account filters, and acquisition views add the production host filter. Initial channel type is first acquisition, not a later visit's channel. Inspect each saved insight for its definition and window rather than copying configuration here.
+Player charts exclude internal/test accounts and the owner's production account, retain server completions, and apply bot classification only to browser events. Server trace charts include older deployed instances without host attribution and use a fixed seven-day window. Inspect each saved insight for its definition, window, and instrumentation limits rather than copying configuration here. These are working definitions, not approved Data Catalog metrics.
 
 ## Verification
 

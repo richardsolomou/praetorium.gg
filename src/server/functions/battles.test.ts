@@ -35,7 +35,7 @@ it.each([
 ])('counts the named players after battle creation for %j', async (players, count) => {
   await invokeCreate({ data: createBattleSchema.parse({ ...players, limit: 2000, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'battle_created', { practice: false, limit: 2000, player_count: count, casual: true, manual: false }],
+    ['actor', 'battle_created', { delivery: 'direct', practice: false, limit: 2000, player_count: count, casual: true, manual: false }],
   ])
 })
 
@@ -51,14 +51,22 @@ it.each(['appended', 'rejected'])('records the attempted setup step and its %s o
     data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'set-setup-step', step: 3 } }),
   })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'battle_command_submitted', { command: 'set-setup-step', outcome, setup_step: 3, duration_ms: expect.any(Number) }],
+    [
+      'actor',
+      'battle_command_submitted',
+      { command: 'set-setup-step', outcome, setup_step: 3, delivery: 'direct', duration_ms: expect.any(Number) },
+    ],
   ])
 })
 
 it('keeps ordinary battle command payloads out of telemetry', async () => {
   await invokeSubmit({ data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'reset-setup' } }) })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'battle_command_submitted', { command: 'reset-setup', outcome: 'appended', duration_ms: expect.any(Number) }],
+    [
+      'actor',
+      'battle_command_submitted',
+      { command: 'reset-setup', outcome: 'appended', delivery: 'direct', duration_ms: expect.any(Number) },
+    ],
   ])
 })
 
@@ -69,7 +77,7 @@ it('records the refusal code but not its message for a refused command', async (
     [
       'actor',
       'battle_command_submitted',
-      { command: 'reset-setup', outcome: 'refused', reason: 'stratagem-limit', duration_ms: expect.any(Number) },
+      { command: 'reset-setup', outcome: 'refused', reason: 'stratagem-limit', delivery: 'direct', duration_ms: expect.any(Number) },
     ],
   ])
 })
@@ -77,7 +85,7 @@ it('records the refusal code but not its message for a refused command', async (
 it('reports no preset size for an automatically configured battle', async () => {
   await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', limit: null, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'battle_created', { practice: false, limit: null, player_count: 2, casual: true, manual: false }],
+    ['actor', 'battle_created', { delivery: 'direct', practice: false, limit: null, player_count: 2, casual: true, manual: false }],
   ])
 })
 

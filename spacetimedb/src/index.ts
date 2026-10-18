@@ -695,7 +695,14 @@ export const submitBattle = spacetime.procedure(
       if (input.body.length > 1_000_000) throw new SenderError('Battle command is too large')
       const raw = decodePayload(
         z.looseObject({
-          $sync: z.object({ operationId: z.uuid(), fingerprint: z.string().length(64), at: z.number().int().nonnegative() }).optional(),
+          $sync: z
+            .object({
+              operationId: z.uuid(),
+              fingerprint: z.string().length(64),
+              at: z.number().int().nonnegative(),
+              reportApplied: z.boolean().optional(),
+            })
+            .optional(),
         }),
         input.body,
         'Invalid battle command',
@@ -704,6 +711,7 @@ export const submitBattle = spacetime.procedure(
       const parsed = commandSchema.safeParse(raw)
       if (!parsed.success) throw new SenderError('Invalid battle command')
       const { seats, log } = battleData(tx, input.battleId)
+      const appliedReport = sync?.reportApplied ? { applied: false } : {}
       const state = reduceBattle(
         seats.map((seat) => seat.id),
         log,
@@ -717,15 +725,15 @@ export const submitBattle = spacetime.procedure(
           const metadata = (JSON.parse(stored.body) as { $sync: { fingerprint: string } }).$sync
           if (previous.by !== input.userId || metadata.fingerprint !== sync.fingerprint)
             throw new SenderError('Operation ID reused for a different action')
-          return productJson({ result: { outcome: 'appended', seq: previous.seq }, log })
+          return productJson({ result: { outcome: 'appended', seq: previous.seq }, log, ...appliedReport })
         }
       }
-      if (input.expectedSeq !== state.seq) return productJson({ result: { outcome: 'stale', seq: state.seq }, log })
+      if (input.expectedSeq !== state.seq) return productJson({ result: { outcome: 'stale', seq: state.seq }, log, ...appliedReport })
       const refusal = validate(state, input.userId, parsed.data)
-      if (refusal) return productJson({ result: { outcome: 'refused', reason: refusal }, log })
+      if (refusal) return productJson({ result: { outcome: 'refused', reason: refusal }, log, ...appliedReport })
       if (input.externalRefusal) {
         if (input.externalRefusal.length > 1_000) throw new SenderError('Invalid battle refusal')
-        return productJson({ result: { outcome: 'refused', reason: input.externalRefusal }, log })
+        return productJson({ result: { outcome: 'refused', reason: input.externalRefusal }, log, ...appliedReport })
       }
       const seq = state.seq + 1
       tx.db.commands.insert({
@@ -741,6 +749,7 @@ export const submitBattle = spacetime.procedure(
       if (state.status === 'finished' || parsed.data.kind === 'end-battle') touchPublic(tx, 'standings')
       return productJson({
         result: { outcome: 'appended', seq },
+        ...(sync?.reportApplied ? { applied: true } : {}),
         log: [
           ...log,
           {

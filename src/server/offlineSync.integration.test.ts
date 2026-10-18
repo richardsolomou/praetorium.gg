@@ -372,11 +372,37 @@ it.skipIf(!url || !database || !token)('replays an offline battle command after 
     const first = await operator.submit(input)
     await operator.submit({ battleId, userId: opponent, expectedSeq: 1, command: { kind: 'set-setup-step', step: 2 }, now })
     const retry = await operator.submit(input)
-    expect({ first: first.result, retry: retry.result, length: retry.log.length }).toEqual({
+    expect({ first: first.result, retry: retry.result, applied: [first.applied, retry.applied], length: retry.log.length }).toEqual({
       first: { outcome: 'appended', seq: 1 },
       retry: { outcome: 'appended', seq: 1 },
+      applied: [true, false],
       length: 2,
     })
+  } finally {
+    await operator.deleteUserData(owner)
+    await operator.deleteUserData(opponent)
+  }
+})
+it.skipIf(!url || !database || !token)('reports one new application across concurrent battle-command retries', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const opponent = randomUUID()
+  const battleId = randomUUID()
+  const now = Date.now()
+  try {
+    await operator.createBattle({ id: battleId, token: randomUUID(), userId: owner, opponentIds: [opponent], now })
+    const input = {
+      battleId,
+      userId: owner,
+      expectedSeq: 0,
+      command: { kind: 'set-setup-step' as const, step: 1 },
+      now,
+      operationId: randomUUID(),
+      fingerprint,
+      recordedAt: now,
+    }
+    const results = await Promise.all([operator.submit(input), operator.submit(input)])
+    expect(results.map(({ applied }) => applied).sort((left, right) => Number(left) - Number(right))).toEqual([false, true])
   } finally {
     await operator.deleteUserData(owner)
     await operator.deleteUserData(opponent)

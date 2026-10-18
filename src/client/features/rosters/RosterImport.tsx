@@ -134,11 +134,11 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
       return imported
     },
     onSuccess: (imported, file) => {
-      posthog.capture('roster_import_review_required', {
-        missing_count: imported.unknown.length,
-        unplaced_count: imported.unplaced.length,
-      })
-      if (imported.unknown.length || imported.unplaced.length)
+      if (imported.unknown.length || imported.unplaced.length) {
+        posthog.capture('roster_import_review_required', {
+          missing_count: imported.unknown.length,
+          unplaced_count: imported.unplaced.length,
+        })
         reportImportFailure({
           reason: 'review_required',
           inputKind: inputOf(file),
@@ -146,6 +146,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
           unplaced: imported.unplaced,
           input: file,
         })
+      }
     },
   })
 

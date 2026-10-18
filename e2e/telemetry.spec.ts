@@ -152,6 +152,36 @@ Exported with BattleBase, Data Version: v20260812`)
     .poll(() => events.filter((event) => event.name === 'roster_import_saved'))
     .toEqual([{ name: 'roster_import_saved', properties: { source: 'battlebase', pick_count: 1 } }])
   expect(JSON.stringify(events)).not.toContain('Private imported army')
+  expect(events.filter((event) => event.name === 'roster_import_review_required')).toEqual([])
+})
+
+test('a matched import reports review only for unmatched entries', async ({ page }) => {
+  await signUp(page, uniqueName('Import review analytics'))
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
+  const events = await recordEvents(page)
+  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await page.getByLabel('Roster text').fill(`Private imported army (2000 Points)
+
+Necrons
+Awakened Dynasty
+Strike Force (2,000 Points)
+
+CHARACTER
+
+Technomancer (70 Points)
+  • Warlord
+
+OTHER DATASHEETS
+
+Private unknown unit (100 Points)
+  • 1x Private weapon
+
+Exported with BattleBase, Data Version: v20260812`)
+  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'roster_import_review_required'))
+    .toEqual([{ name: 'roster_import_review_required', properties: { missing_count: 1, unplaced_count: 0 } }])
 })
 
 test('cancelled creation forms report intent without submissions, and opening the simulator reports its source', async ({ page }) => {

@@ -169,18 +169,55 @@ describe('battle commands', () => {
   const submit = (
     procedure: ReturnType<typeof harness>['procedure'],
     operator: TestAuth,
-    input: { userId?: string; expectedSeq: number; externalRefusal?: string },
+    input: {
+      userId?: string
+      expectedSeq: number
+      externalRefusal?: string
+      sync?: { operationId: string; fingerprint: string; at: number; reportApplied?: boolean }
+    },
   ) =>
     JSON.parse(
       module.submitBattle(procedure(operator), {
         battleId: 'battle',
         userId: input.userId ?? creator,
         expectedSeq: input.expectedSeq,
-        body: JSON.stringify({ kind: 'set-setup-step', step: 1 }),
+        body: JSON.stringify({ kind: 'set-setup-step', step: 1, ...(input.sync ? { $sync: input.sync } : {}) }),
         now: BigInt(NOW),
         externalRefusal: input.externalRefusal ?? '',
       }),
-    ) as { result: { outcome: string; reason?: string } }
+    ) as { result: { outcome: string; reason?: string }; applied?: boolean }
+
+  it('reports the atomic application of a synced command only once', () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator)
+    const input = {
+      expectedSeq: 0,
+      sync: { operationId: '00000000-0000-4000-8000-000000000001', fingerprint: 'a'.repeat(64), at: NOW, reportApplied: true },
+    }
+    expect([submit(procedure, operator, input).applied, submit(procedure, operator, input).applied]).toEqual([true, false])
+  })
+
+  it.each([undefined, { operationId: '00000000-0000-4000-8000-000000000001', fingerprint: 'a'.repeat(64), at: NOW }])(
+    'preserves the legacy command response when no applied report is requested (%j)',
+    (sync) => {
+      const { operator, procedure } = harness()
+      create(procedure, operator)
+      expect(submit(procedure, operator, { expectedSeq: 0, sync })).not.toHaveProperty('applied')
+    },
+  )
+
+  it.each([{ expectedSeq: 1 }, { expectedSeq: 0, externalRefusal: 'private refusal details' }])(
+    'does not report a new application when a synced command is refused or stale (%j)',
+    (input) => {
+      const { test, operator, procedure } = harness()
+      create(procedure, operator)
+      const result = submit(procedure, operator, {
+        ...input,
+        sync: { operationId: '00000000-0000-4000-8000-000000000001', fingerprint: 'a'.repeat(64), at: NOW, reportApplied: true },
+      })
+      expect([result.applied, test.db.commands.count()]).toEqual([false, 0n])
+    },
+  )
 
   it('appends a command at the expected sequence', () => {
     const { operator, procedure } = harness()

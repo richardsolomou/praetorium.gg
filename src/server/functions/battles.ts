@@ -1,10 +1,11 @@
+import { captureBattleCommand } from '../battleTelemetry'
+import { productActions } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
 import type { PraetoriumService } from '../service'
 import { currentUserId, requireUser, requireUserId } from '../playerSession'
 import { submittedBattleCommand } from '../battleSubmission'
-import { captureBattleCreated } from '../creationTelemetry'
 import { mutationRpc, rpc } from '../rpc'
 import {
   battlesPageSchema,
@@ -26,14 +27,6 @@ async function orNull<T>(work: () => Promise<T>) {
     if (error instanceof Response && error.status === 404) return null
     throw error
   }
-}
-
-function battleLifecycleEvent(kind: string) {
-  if (kind === 'attach-roster') return 'battle_roster_attached'
-  if (kind === 'begin-battle') return 'battle_started'
-  if (kind === 'end-battle') return 'battle_finished'
-  if (kind === 'reopen-battle') return 'battle_reopened'
-  return null
 }
 
 /** A page of the battle list. History grows for an account's lifetime; a page does not. */
@@ -149,9 +142,7 @@ export const createBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.createBattle(player.id, data)
-      await captureBattleCreated(player.id, data, result)
-      return result
+      return productActions.createBattle(player.id, data)
     }),
   )
 
@@ -160,9 +151,7 @@ export const deleteBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.deleteBattle(data.token, player.id)
-      await app().telemetry.capture(player.id, 'battle_deleted')
-      return null
+      return productActions.deleteBattle(player.id, data)
     }),
   )
 
@@ -176,17 +165,7 @@ export const submit = createServerFn({ method: 'POST' })
       const result: Awaited<ReturnType<PraetoriumService['submitWithWorkspace']>> = await app().service[
         data.workspace ? 'submitWithWorkspace' : 'submit'
       ](data.token, player.id, data.expectedSeq, command, await app().rulesFor())
-      await app().telemetry.capture(player.id, 'battle_command_submitted', {
-        command: command.kind,
-        outcome: result.result.outcome,
-        ...(result.result.outcome === 'refused' ? { reason: result.result.code } : {}),
-        ...(command.kind === 'set-setup-step' ? { setup_step: command.step } : {}),
-        duration_ms: Math.round(performance.now() - startedAt),
-      })
-      if (result.result.outcome === 'appended') {
-        const lifecycleEvent = battleLifecycleEvent(command.kind)
-        if (lifecycleEvent) await app().telemetry.capture(player.id, lifecycleEvent)
-      }
+      await captureBattleCommand(player.id, command, result.result, performance.now() - startedAt, 'direct')
       return result
     }),
   )

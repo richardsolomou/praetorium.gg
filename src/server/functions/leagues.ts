@@ -1,9 +1,8 @@
+import { productActions } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
-import { captureLeagueCreated, captureLeagueBattleCreated } from '../creationTelemetry'
 import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
-import { rosterForUse } from '../rosterUsage'
 import { mutationRpc, rpc } from '../rpc'
 import {
   addLeagueEntrantsSchema,
@@ -81,9 +80,7 @@ export const createLeague = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.leagueService.createLeague(player.id, data)
-      await captureLeagueCreated(player.id, data)
-      return result
+      return productActions.createLeague(player.id, data)
     }),
   )
 
@@ -92,9 +89,7 @@ export const joinLeague = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const status = await app().service.leagueService.joinLeague(data.token, player.id, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_joined', { status })
-      return status
+      return productActions.joinLeague(player.id, data)
     }),
   )
 
@@ -103,9 +98,7 @@ export const addLeagueEntrants = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.leagueService.addLeagueEntrants(data.token, player.id, data.userIds, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_entrants_added', { count: result.added })
-      return result
+      return productActions.addLeagueEntrants(player.id, data)
     }),
   )
 
@@ -114,9 +107,7 @@ export const admitLeagueEntries = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const { admitted } = await app().service.leagueService.admitLeagueEntries(data.token, player.id, data.userIds, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_entries_admitted', { count: admitted.length })
-      return { admitted: admitted.length }
+      return productActions.admitLeagueEntries(player.id, data)
     }),
   )
 
@@ -125,9 +116,7 @@ export const moderateLeagueEntry = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.leagueService.moderateLeagueEntry(data.token, player.id, data.userId, data.status, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_entry_moderated', { status: data.status })
-      return null
+      return productActions.moderateLeagueEntry(player.id, data)
     }),
   )
 
@@ -136,13 +125,7 @@ export const submitLeagueRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const { saved, snapshot } = await rosterForUse(player.id, data.rosterId)
-      const result = await app().service.leagueService.submitLeagueRoster(data.token, player.id, saved, snapshot, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_roster_submitted', {
-        format: result.format,
-        required_limit: result.requiredLimit,
-      })
-      return null
+      return productActions.submitLeagueRoster(player.id, data)
     }),
   )
 
@@ -151,8 +134,7 @@ export const setLeagueTeamDisposition = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.leagueService.setLeagueTeamDisposition(data.token, player.id, data.disposition, data.eventToken)
-      return null
+      return productActions.setLeagueTeamDisposition(player.id, data)
     }),
   )
 
@@ -161,9 +143,7 @@ export const revealLeague = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.leagueService.revealLeague(data.token, player.id, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_rosters_revealed')
-      return null
+      return productActions.revealLeague(player.id, data)
     }),
   )
 
@@ -178,9 +158,7 @@ export const unsealLeagueRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.leagueService.unsealLeagueRoster(data.token, player.id, data.userId, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_roster_unsealed')
-      return null
+      return productActions.unsealLeagueRoster(player.id, data)
     }),
   )
 
@@ -189,14 +167,7 @@ export const createLeagueEvent = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const { token, ...input } = data
-      const result = await app().service.leagueService.createLeagueEvent(token, player.id, input)
-      await app().telemetry.capture(player.id, 'league_event_created', {
-        format: data.format,
-        roster_limit: data.rosterLimit,
-        owner_plays: data.ownerPlays,
-      })
-      return result
+      return productActions.createLeagueEvent(player.id, data)
     }),
   )
 
@@ -205,15 +176,7 @@ export const assignLeagueRosterRequirement = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.leagueService.assignLeagueRosterRequirement(
-        data.token,
-        player.id,
-        data.userId,
-        data.requiredLimit,
-        data.eventToken,
-      )
-      await app().telemetry.capture(player.id, 'league_roster_requirement_assigned', { required_limit: result.requiredLimit })
-      return null
+      return productActions.assignLeagueRosterRequirement(player.id, data)
     }),
   )
 
@@ -222,9 +185,7 @@ export const assignLeagueTeam = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.leagueService.assignLeagueTeam(data.token, player.id, data.userIds, data.eventToken)
-      await app().telemetry.capture(player.id, 'league_team_assigned', { team_size: result.teamSize })
-      return null
+      return productActions.assignLeagueTeam(player.id, data)
     }),
   )
 
@@ -233,19 +194,7 @@ export const updateLeague = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const { token, ...input } = data
-      const { ruleChanged } = await app().service.leagueService.updateLeague(token, player.id, input)
-      await app().telemetry.capture(player.id, 'league_updated', {
-        visibility: input.visibility,
-        admission: input.admission,
-        player_limit_set: input.playerLimit !== null,
-      })
-      if (ruleChanged && input.rule)
-        await app().telemetry.capture(player.id, 'league_event_updated', {
-          format: input.rule.format,
-          roster_limit: input.rule.rosterLimit,
-        })
-      return null
+      return productActions.updateLeague(player.id, data)
     }),
   )
 
@@ -265,9 +214,7 @@ export const deleteLeague = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.leagueService.deleteLeague(data.token, player.id)
-      await app().telemetry.capture(player.id, 'league_deleted')
-      return null
+      return productActions.deleteLeague(player.id, data)
     }),
   )
 
@@ -276,16 +223,6 @@ export const createLeagueBattle = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const result = await app().service.leagueService.createLeagueBattle(
-        player.id,
-        data.token,
-        data.opponentId,
-        data.missionPackId,
-        data.eventToken,
-        data.allyId,
-        data.secondOpponentId,
-      )
-      await captureLeagueBattleCreated(player.id, result)
-      return { token: result.token }
+      return productActions.createLeagueBattle(player.id, data)
     }),
   )
