@@ -128,6 +128,31 @@ export function hasDynamicSelectionLimit(definition: Definition, index: Catalogu
   )
 }
 
+/**
+ * Whether taking this model lowers a squadmate's own limits, as a Sanctifier given the
+ * simulacrum imperialis lowers the hand-flamer Sanctifiers': it takes one of their
+ * places rather than adding a body.
+ */
+export function replacesSquadmate(definition: Definition, squadmates: readonly Option[], index: CatalogueIndex, cache?: ModifierCache) {
+  const ids = new Set([definition.id, resolve(definition, index).id])
+  const counted = (childId: string | undefined) => childId !== undefined && ids.has(childId)
+  return squadmates.some((squadmate) => {
+    if (ids.has(squadmate.id)) return false
+    const limits = new Set(
+      constraintsOn(squadmate.definition, index)
+        .filter((constraint) => constraint.field === 'selections')
+        .map((constraint) => constraint.id),
+    )
+    const target = resolve(squadmate.definition, index)
+    return flattenedModifiers([squadmate.definition, ...(target === squadmate.definition ? [] : [target])], cache).some(
+      (modifier) =>
+        modifier.type === 'decrement' &&
+        limits.has(modifier.field) &&
+        [...(modifier.repeats ?? []), ...(modifier.conditions ?? [])].some((counter) => counted(counter.childId)),
+    )
+  })
+}
+
 /** What the entry says about itself, plus what the link's target says, without repeating either. */
 function constraintsOn(definition: Definition, index: CatalogueIndex): Constraint[] {
   const target = resolve(definition, index)
