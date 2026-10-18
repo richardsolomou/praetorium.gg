@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fromWtcText } from './wtcText'
+import { warmindWtc } from './rosterText.fixtures'
 
 // Shortened from a published event list, with the player and team removed.
 const officialLayout = `+++++++++++++++++++++++++++++++++++++++++++++++
@@ -34,26 +35,6 @@ Commander in Enforcer Battlesuit (100 pts)
 • Starflare Ignition System (+20 pts)
 
 Created with newrecruit.eu v35.79`
-
-// A Warmind "New Recruit (WTC)" export, which has no footer.
-const compactLayout = `+ FACTION KEYWORD: Death Guard
-+ DETACHMENT: Death Lord's Chosen
-+ TOTAL ARMY POINTS: 375pts
-+ BATTLE SIZE: Incursion (1000 point limit)
-+ FORCE DISPOSITION: Priority Assets
-+ WARLORD: Char1: Lord of Contagion
-+ NUMBER OF UNITS: 2
-
-CHARACTER
-
-Char1: 1x Lord of Contagion (120 pts): Warlord, Manreaper
-Enhancement: Face of Death (+10 pts)
-
-OTHER DATASHEETS
-
-3x Deathshroud Terminators (150 pts)
-3 with Plaguespurt Gauntlet, Manreaper
-1 with Icon of Despair`
 
 describe('WTC text import', () => {
   it('reads the official app layout under a WTC header', () => {
@@ -96,14 +77,22 @@ describe('WTC text import', () => {
     })
   })
 
-  it('reads the tournament layout and a named battle size', () => {
-    const parsed = fromWtcText(compactLayout)
-    expect(parsed).toMatchObject({ limit: 1000, sizeName: 'Incursion', reportedPoints: 375, disposition: 'Priority Assets' })
+  it("reads Warmind's tournament layout, both detachments, and a named battle size", () => {
+    const parsed = fromWtcText(warmindWtc)
+    expect(parsed).toMatchObject({
+      detachment: 'Exhibition of Slaughter, Kabalite Cartel',
+      limit: 2000,
+      sizeName: 'Strike Force',
+      reportedPoints: 350,
+      disposition: 'Reconnaissance',
+    })
     expect(parsed?.units.map((unit) => [unit.name, unit.models, unit.warlord, unit.unread])).toEqual([
-      ['Lord of Contagion', 1, true, undefined],
-      ['Deathshroud Terminators', 3, false, undefined],
+      ['Archon', 1, true, undefined],
+      ['Kabalite Warriors', 10, false, undefined],
+      ['Venom', 1, false, undefined],
+      ['Venom', 1, false, undefined],
     ])
-    expect(parsed?.units[0]?.selections).toContainEqual({ name: 'Enhancement: Face of Death', count: 1 })
+    expect(parsed?.units[0]?.selections).toContainEqual({ name: 'Enhancement: Informant Network', count: 1 })
   })
 
   it('needs a faction keyword', () => {

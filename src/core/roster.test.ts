@@ -2006,6 +2006,316 @@ describe('who the data lets a list nominate as its Warlord', () => {
   })
 })
 
+describe('a squad grown past its minimum', () => {
+  // The Terminator Assault Squad lists its storm-shield models before its default claws.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'assault',
+        name: 'Terminator Assault Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'terminators',
+            name: 'Assault Terminators',
+            defaultSelectionEntryId: 'claws',
+            constraints: [
+              { id: 'terminators-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'terminators-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'shields',
+                name: 'Assault Terminator w/ Thunder Hammer & Storm Shield',
+                type: 'model',
+                constraints: [{ id: 'shields-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'shield',
+                    name: 'Storm Shield',
+                    type: 'upgrade',
+                    costs: [{ typeId: PTS, name: 'pts', value: 5 }],
+                    constraints: mandatory('shield-min'),
+                  },
+                ],
+              },
+              {
+                id: 'claws',
+                name: 'Assault Terminator w/ Twin Lightning Claws',
+                type: 'model',
+                constraints: [{ id: 'claws-max', type: 'max', value: 9, field: 'selections', scope: 'parent' }],
+                selectionEntries: [{ id: 'claw', name: 'Twin Lightning Claws', type: 'upgrade', constraints: mandatory('claw-min') }],
+              },
+              {
+                id: 'sergeant',
+                name: 'Assault Terminator Sergeant',
+                type: 'model',
+                constraints: [
+                  ...mandatory('sergeant-min'),
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('adds models of the kind the squad defaults to', () => {
+    expect(wargearOf(buildUnit('assault', index, 10)!.selection, index)).toEqual([{ name: 'Twin Lightning Claws', count: 9 }])
+  })
+})
+
+describe('a specialist that lowers its squadmates’ minimum', () => {
+  // An Intercessor with a grenade launcher stands in for one of the four Intercessors a
+  // five-model squad must field: the data lowers their minimum once one is taken.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'intercessors',
+        name: 'Intercessor Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'squad',
+            name: 'Intercessors',
+            constraints: [
+              { id: 'squad-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'squad-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'sergeant',
+                name: 'Intercessor Sergeant',
+                type: 'model',
+                constraints: [
+                  ...mandatory('sergeant-min'),
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'trooper',
+                name: 'Intercessor',
+                type: 'model',
+                constraints: [
+                  { id: 'trooper-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+                  { id: 'trooper-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+                modifiers: [
+                  {
+                    type: 'decrement',
+                    field: 'trooper-min',
+                    value: 1,
+                    conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'intercessors', childId: 'launcher' }],
+                  },
+                ],
+              },
+              {
+                id: 'launcher',
+                name: 'Intercessor w/ Grenade Launcher',
+                type: 'model',
+                constraints: [{ id: 'launcher-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const launchers = (models: number) =>
+    buildUnit('intercessors', index, models)!
+      .choices.flatMap((choice) => choice.options)
+      .find((option) => option.id === 'launcher')?.max
+
+  it('may replace one of a five-model squad', () => {
+    expect(launchers(5)).toBe(1)
+  })
+
+  it('answers to its own limit in a full squad', () => {
+    expect(launchers(10)).toBe(2)
+  })
+})
+
+describe('an enhancement a unit upgrade opens', () => {
+  // A Trygon takes Trygon Prime only once its Character upgrade makes it a character,
+  // and the data hides the enhancements until the unit it roots holds that upgrade.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'trygon',
+        name: 'Trygon',
+        type: 'model',
+        selectionEntries: [
+          {
+            id: 'trygon-character',
+            name: 'Trygon Character upgrade',
+            type: 'upgrade',
+            constraints: [{ id: 'trygon-character-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'trygon-enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'trygon-enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            modifiers: [
+              {
+                type: 'set',
+                field: 'hidden',
+                value: true,
+                conditions: [
+                  {
+                    type: 'lessThan',
+                    value: 1,
+                    field: 'selections',
+                    scope: 'root-entry',
+                    childId: 'trygon-character',
+                    includeChildSelections: true,
+                  },
+                ],
+              },
+            ],
+            selectionEntries: [{ id: 'trygon-prime', name: 'Trygon Prime', type: 'upgrade' }],
+          },
+        ],
+      },
+    ],
+  })
+  const offered = (choices: Record<string, string>) => buildUnit('trygon', index, undefined, choices)!.choices.map((choice) => choice.name)
+
+  it('stays closed without the upgrade', () => {
+    expect(offered({})).toEqual(['Trygon Character upgrade'])
+  })
+
+  it('opens once the unit holds the upgrade', () => {
+    expect(offered({ 'trygon-character': 'trygon-character' })).toContain('Enhancements')
+  })
+})
+
+describe('an option hidden by what squadmates hold', () => {
+  // Death Company Intercessors hide the alternate-pistol model while any model keeps its
+  // default bolt rifle, and Hernkyn Yaegirs hide each Theyn weapon while the squad holds
+  // the other one; the player can change both, so neither closes the option.
+  const hiddenWhile = (childId: string, scope: string) => [
+    {
+      type: 'set' as const,
+      field: 'hidden',
+      value: true,
+      conditions: [{ type: 'atLeast' as const, value: 1, field: 'selections', scope, childId, includeChildSelections: true }],
+    },
+  ]
+  const weapon = (id: string, name: string, modifiers: ReturnType<typeof hiddenWhile> = []) => ({
+    id,
+    name,
+    type: 'upgrade' as const,
+    constraints: [{ id: `${id}-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+    modifiers,
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'death-company',
+        name: 'Death Company Intercessors',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'intercessors',
+            name: 'Intercessors',
+            defaultSelectionEntryId: 'intercessor',
+            constraints: [
+              { id: 'intercessors-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'intercessors-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'intercessor',
+                name: 'Intercessor',
+                type: 'model',
+                constraints: [{ id: 'intercessor-max', type: 'max', value: 10, field: 'selections', scope: 'parent' }],
+                selectionEntryGroups: [
+                  {
+                    id: 'intercessor-weapon',
+                    name: 'Weapon',
+                    defaultSelectionEntryId: 'bolt-rifle',
+                    constraints: [
+                      ...mandatory('intercessor-weapon-min'),
+                      { id: 'intercessor-weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [weapon('bolt-rifle', 'Bolt rifle'), weapon('chainsword', 'Chainsword')],
+                  },
+                ],
+              },
+              {
+                id: 'alternate-pistol',
+                name: 'Intercessor w/ alternate pistol',
+                type: 'model',
+                constraints: [{ id: 'alternate-pistol-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                modifiers: hiddenWhile('bolt-rifle', 'parent'),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'yaegirs',
+        name: 'Hernkyn Yaegirs',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'theyn',
+            name: 'Yaegir Theyn',
+            type: 'model',
+            constraints: [...mandatory('theyn-min'), { id: 'theyn-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntryGroups: [
+              {
+                id: 'theyn-weapon',
+                name: 'Weapon',
+                defaultSelectionEntryId: 'theyn-shotgun',
+                constraints: [
+                  ...mandatory('theyn-weapon-min'),
+                  { id: 'theyn-weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  weapon('theyn-shotgun', 'Bolt shotgun', hiddenWhile('revolver-yaegir', 'yaegirs')),
+                  weapon('theyn-revolver', 'Bolt revolver and plasma knife', hiddenWhile('shotgun-yaegir', 'yaegirs')),
+                ],
+              },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'hernkyn',
+            name: 'Hernkyn Yaegirs',
+            defaultSelectionEntryId: 'shotgun-yaegir',
+            constraints: [
+              { id: 'hernkyn-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'hernkyn-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              { id: 'shotgun-yaegir', name: 'Hernkyn Yaegir w/ bolt shotgun', type: 'model' },
+              { id: 'revolver-yaegir', name: 'Hernkyn Yaegir w/ revolver and knife', type: 'model' },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const optionsOf = (entryId: string, name: string) =>
+    buildUnit(entryId, index)!
+      .choices.filter((choice) => choice.name === name)
+      .flatMap((choice) => choice.options.map((option) => option.name))
+
+  it('offers the alternate-pistol model while squadmates keep their bolt rifles', () => {
+    expect(optionsOf('death-company', 'Intercessors')).toContain('Intercessor w/ alternate pistol')
+  })
+
+  it('offers the Theyn either weapon while the squad holds bolt shotguns', () => {
+    expect(optionsOf('yaegirs', 'Weapon')).toContain('Bolt revolver and plasma knife')
+  })
+})
+
 describe('options inside one model of a squad', () => {
   // "OFFICER model only" is written as a condition on the option's ancestors, and the
   // officer is the model carrying the option, not the unit around it.

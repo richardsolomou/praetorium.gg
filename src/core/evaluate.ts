@@ -522,7 +522,35 @@ export function hiddenByRules(
   const census = new Census(0, options.modifierCache)
   const { root, node } = candidateContext(definition, index, options, census, lineage)
 
-  let hidden = Boolean(definition.hidden || node.target.hidden)
+  return hiddenIn(Boolean(definition.hidden || node.target.hidden), node, root, index, census)
+}
+
+/**
+ * Visibility for a definition inside the unit that offers it, so a condition on the
+ * root entry counts what the unit already holds, such as the Character upgrade a
+ * Trygon needs before it can take Trygon Prime. A path the unit cannot build reads as hidden.
+ */
+export function hiddenByRulesAt(
+  definition: Definition,
+  selection: Selection,
+  path: readonly string[],
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): boolean {
+  const census = new Census(0, options.modifierCache)
+  const counter = { next: 0 }
+  const root = candidateRoot(index, options, census, counter)
+  // A candidate the unit does not hold yet is judged as one being added, as `hiddenByRules` judges it.
+  const unit = build(withPath(selection, path, 1), root, index, census, counter)
+  let node = unit
+  for (const id of path) node = node?.children.find((child) => child.id === id) ?? null
+  if (!unit || !node) return true
+  root.children.push(unit)
+  return hiddenIn(Boolean(definition.hidden || node.target.hidden), node, root, index, census)
+}
+
+function hiddenIn(initial: boolean, node: Node, root: Node, index: CatalogueIndex, census: Census) {
+  let hidden = initial
   for (const modifier of modifiersOf(node, census)) {
     if (modifier.field !== 'hidden') continue
     if (repeatCount(modifier, node, root, index, census) === 0) continue
@@ -586,13 +614,13 @@ function selectionCountBoundsFor(node: Node, root: Node, index: CatalogueIndex, 
   return { minimum, maximum }
 }
 
-function withPath(selection: Selection, path: readonly string[]): Selection {
+function withPath(selection: Selection, path: readonly string[], count = 0): Selection {
   const [id, ...rest] = path
   if (!id) return selection
   const children = [...(selection.selections ?? [])]
   const at = children.findIndex((child) => child.id === id)
-  const child = children[at] ?? { id, count: 0 }
-  const placed = withPath(child, rest)
+  const child = children[at] ?? { id, count }
+  const placed = withPath(child, rest, count)
   if (at >= 0) children[at] = placed
   else children.push(placed)
   return { ...selection, selections: children }
@@ -700,6 +728,21 @@ function candidateContext(
   lineage: readonly Definition[] = [],
 ) {
   const counter = { next: 0 }
+  const root = candidateRoot(index, options, census, counter)
+  // The candidate sits inside every entry and group that offers it, so an `ancestor`
+  // condition sees the model carrying it as well as the unit.
+  let node = root
+  for (const each of [...lineage, definition]) {
+    const link = isLink(each) ? each : null
+    const target = link ? (index.definitions.get(link.targetId) ?? each) : each
+    const child: Node = { target, order: counter.next++, link, id: each.id, count: 1, fielded: 1, parent: node, children: [] }
+    node.children = node === root ? [...root.children, child] : [child]
+    node = child
+  }
+  return { root, node }
+}
+
+function candidateRoot(index: CatalogueIndex, options: EvaluateOptions, census: Census, counter: { next: number }): Node {
   const root: Node = {
     target: options.mustering ? { id: index.forces[0]?.id ?? 'roster', name: index.forces[0]?.name } : { id: 'roster' },
     order: counter.next++,
@@ -714,17 +757,7 @@ function candidateContext(
   root.children = (options.roster ?? [])
     .map((selection) => build(selection, root, index, census, counter))
     .filter((each): each is Node => each !== null)
-  // The candidate sits inside every entry and group that offers it, so an `ancestor`
-  // condition sees the model carrying it as well as the unit.
-  let node = root
-  for (const each of [...lineage, definition]) {
-    const link = isLink(each) ? each : null
-    const target = link ? (index.definitions.get(link.targetId) ?? each) : each
-    const child: Node = { target, order: counter.next++, link, id: each.id, count: 1, fielded: 1, parent: node, children: [] }
-    node.children = node === root ? [...root.children, child] : [child]
-    node = child
-  }
-  return { root, node }
+  return root
 }
 
 function build(selection: Selection, parent: Node, index: CatalogueIndex, census: Census, counter: { next: number }): Node | null {
