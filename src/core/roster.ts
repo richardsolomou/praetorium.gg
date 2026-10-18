@@ -146,8 +146,13 @@ function assemble(
       const rightModels = Boolean(modelGroup(right))
       return Number(leftModels) - Number(rightModels) || (left.split('/').length - right.split('/').length) * (leftModels ? -1 : 1)
     })
+  // A model is counted by the wargear it must carry, never by an upgrade it may go without.
   const governed = (key: string, optionId: string) =>
-    modelOption(optionId) && requests.some(([other]) => other.startsWith(`${key}/${optionId}/`))
+    modelOption(optionId) &&
+    requests.some(([other]) => {
+      const group = index.definitions.get(other.split('/').at(-1) ?? '')
+      return other.startsWith(`${key}/${optionId}/`) && group !== undefined && requiredCount(group, index) > 0
+    })
   const applySpread = (tree: Selection, [key, counts]: [string, Record<string, number>]) => {
     const removedParent = requests.some(([parent, held]) =>
       Object.entries(held).some(([optionId, count]) => count === 0 && !modelOption(optionId) && key.startsWith(`${parent}/${optionId}/`)),

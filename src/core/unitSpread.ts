@@ -55,7 +55,11 @@ export function withUnitSpread(
       ? keepingTheSquad(selection, spreadOptions(selection, path, counts, group, index), path, index)
       : withSpread(selection, key, counts)
 
-  if (group && maximumCount(group, index) === null) {
+  // A group of one option each model may take more than once fills a model at a time.
+  if (
+    group &&
+    (maximumCount(group, index) === null || (childrenOf(resolve(group, index), index).length === 1 && maximumCount(group, index)! > 1))
+  ) {
     return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, index)
   }
   return spreadRepeatedGroup(selection, path, counts, repeating, index, options)
@@ -159,7 +163,14 @@ function withModelOccupants(
     }
     const filler =
       untouched.find((child) => child.id === defaultId && minimum(child) !== null) ?? untouched.find((child) => (minimum(child) ?? 0) > 0)
-    const spare = filler ? Math.max(0, (filler.count ?? 1) - (minimum(filler) ?? 0)) : 0
+    // A per-model upgrade splits the filler into copies, so its minimum is over all of them;
+    // bodies leave the plainest copies first, so the upgrade a player chose stays.
+    const fillers = filler
+      ? untouched
+          .filter((child) => child.id === filler.id)
+          .toSorted((one, other) => (one.selections?.length ?? 0) - (other.selections?.length ?? 0))
+      : []
+    const spare = filler ? Math.max(0, fillers.reduce((total, child) => total + (child.count ?? 1), 0) - (minimum(filler) ?? 0)) : 0
     const free =
       capacity === null || capacity === UNBOUNDED
         ? Number.POSITIVE_INFINITY
@@ -173,13 +184,19 @@ function withModelOccupants(
       allocated.set(option.id, count)
       left -= count
     }
-    const taken = Math.max(0, [...allocated.values()].reduce((total, count) => total + count, 0) - free)
+    let taken = Math.max(0, [...allocated.values()].reduce((total, count) => total + count, 0) - free)
+    const remaining = new Map<Selection, number>()
+    for (const child of fillers) {
+      const removed = Math.min(child.count ?? 1, taken)
+      remaining.set(child, (child.count ?? 1) - removed)
+      taken -= removed
+    }
     return {
       ...held,
       selections: [
         ...untouched.flatMap((child) => {
-          if (child !== filler || !taken) return [child]
-          const count = (child.count ?? 1) - taken
+          const count = remaining.get(child)
+          if (count === undefined || count === (child.count ?? 1)) return [child]
           return count > 0 ? [{ ...child, count }] : []
         }),
         ...occupants.flatMap((option) => standing(held.selections ?? [], option, allocated.get(option.id) ?? 0, index)),
