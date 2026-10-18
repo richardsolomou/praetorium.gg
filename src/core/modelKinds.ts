@@ -85,6 +85,32 @@ export function choiceOptionWargear(
   return optionWargear(optionId, index, options, nested.length ? nested : direct)
 }
 
+/** An option's wargear less what choices inside it took beyond their minimum, which those choices price themselves. */
+export function ownChoiceOptionWargear(
+  choices: readonly Pick<UnitChoice, 'key' | 'options'>[],
+  choiceKey: string,
+  optionId: string,
+  selection: Selection,
+  index: CatalogueIndex,
+  options: ChoiceOptions = {},
+) {
+  const inside = `${choiceKey}/${optionId}/`
+  const chosenInside = choices
+    .filter((choice) => choice.key.startsWith(inside))
+    .flatMap((choice) =>
+      choice.options
+        .filter((option) => option.count > option.min)
+        .flatMap((option) => {
+          const pieces = choiceOptionWargear(choice.key, option.id, selection, index, options)
+          return pieces.length ? pieces : [{ name: option.name, count: option.count }]
+        }),
+    )
+  return choiceOptionWargear(choiceKey, optionId, selection, index, options).flatMap((piece) => {
+    const count = chosenInside.filter((held) => sameWargear(held.name, piece.name)).reduce((left, held) => left - held.count, piece.count)
+    return count > 0 ? [{ ...piece, count }] : []
+  })
+}
+
 /** Selections at a path, each counted once per model above it: four identical models share one held option. */
 function carriedAt(selection: Selection, path: readonly string[], carriers = 1): Selection[] {
   const [next, ...rest] = path

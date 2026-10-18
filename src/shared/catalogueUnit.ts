@@ -2,7 +2,7 @@ import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/
 import { evaluate, type Selection } from '../core/evaluate'
 import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
-import { choiceOptionWargear } from '../core/modelKinds'
+import { ownChoiceOptionWargear } from '../core/modelKinds'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
 import { mfmWargearOptionPoints } from './mfm'
@@ -25,7 +25,7 @@ export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: s
   const wargearAdjustment = built.choices
     .flatMap((choice) =>
       choice.options.flatMap((option) => {
-        const pieces = choiceOptionWargear(choice.key, option.id, built.selection, loaded.index, options)
+        const pieces = ownChoiceOptionWargear(built.choices, choice.key, option.id, built.selection, loaded.index, options)
         const price = mfmWargearOptionPoints(mfmUnit, option.name, pieces, option.count || 1)
         return option.count > option.min && price !== null ? [(price - option.points) * (option.count - option.min)] : []
       }),

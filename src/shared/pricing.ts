@@ -12,7 +12,7 @@ import {
   keywordIdsBySelection,
   type Selection,
 } from '../core/evaluate'
-import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear } from '../core/modelKinds'
+import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear, ownChoiceOptionWargear } from '../core/modelKinds'
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit, type BuiltUnit, resolveUnitChoice } from '../core/roster'
 import { unavailableRosterSelections } from '../core/rosterSelections'
@@ -237,7 +237,7 @@ function adjustUnitPoints(
       .flatMap((choice) =>
         choiceOptionsForPricing(choice).flatMap((option) => {
           if (option.count <= option.min) return []
-          const pieces = choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, {
+          const pieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, loaded.index, {
             primaryCatalogueId: data.catalogueId,
             mustering: true,
           })
@@ -697,7 +697,8 @@ function calculateRoster(
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           const pieceCounts = choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options)
-          const mfmPoints = mfmOptionPoints(mfmDetachments, mfmUnit, choice.name, option.name, pieceCounts, option.count)
+          const ownPieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, loaded.index, options)
+          const mfmPoints = mfmOptionPoints(mfmDetachments, mfmUnit, choice.name, option.name, ownPieces, option.count)
           const priced = mfmPoints === null ? option : { ...option, points: mfmPoints }
           return pieceCounts.length ? { ...priced, pieces: pieceCounts.map((piece) => piece.name), pieceCounts } : priced
         })
