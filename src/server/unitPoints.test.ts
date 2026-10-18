@@ -313,6 +313,155 @@ it('uses MFM wargear prices after a selected option is saved and reloaded', () =
   }).toEqual({ picker: 95, option: 10, unit: 105, roster: 105, assessment: 105, total: 105 })
 })
 
+it('charges MFM once for an option whose catalogue cost sits on its weapons', () => {
+  const catalogue = bookOf({
+    selectionEntries: [
+      {
+        id: 'tank',
+        name: 'Tank',
+        type: 'model',
+        costs: points(100),
+        selectionEntryGroups: [
+          {
+            id: 'sponsons',
+            name: 'Sponsons',
+            constraints: [{ id: 'sponsons-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntries: [
+              {
+                id: 'meltas',
+                name: '2 Multi-meltas',
+                type: 'upgrade',
+                selectionEntries: [
+                  {
+                    id: 'melta',
+                    name: 'Multi-melta',
+                    type: 'upgrade',
+                    costs: points(5),
+                    constraints: [
+                      { id: 'melta-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                      { id: 'melta-max', type: 'max', value: 2, field: 'selections', scope: 'parent' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  catalogue.mfm = new Map([
+    [
+      'test-catalogue',
+      {
+        slug: 'test-catalogue',
+        version: '1.5',
+        units: [
+          {
+            name: 'Tank',
+            pricing: [{ range: '[1,)', costs: [{ models: 1, points: 95 }] }],
+            wargear: [{ item: 'Multi-melta', points: 5 }],
+          },
+        ],
+      },
+    ],
+  ])
+  const roster = {
+    catalogueId: 'cat',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    units: [{ entryId: 'tank', choices: { sponsons: 'meltas' } }],
+  }
+
+  expect(calculateRosterPrice(roster, catalogue, null)?.units[0]?.points).toBe(105)
+})
+
+it('prices an option taken by several identical models per model', () => {
+  const catalogue = bookOf({
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        costs: points(100),
+        selectionEntries: [
+          {
+            id: 'trooper',
+            name: 'Trooper',
+            type: 'model',
+            constraints: [
+              { id: 'trooper-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'trooper-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'weapons',
+                name: 'Weapons',
+                defaultSelectionEntryId: 'bolter',
+                constraints: [
+                  { id: 'weapons-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'weapons-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'bolter', name: 'Storm bolter', type: 'upgrade' },
+                  {
+                    id: 'hammer',
+                    name: 'Thunder hammer and storm shield',
+                    type: 'upgrade',
+                    selectionEntries: [
+                      {
+                        id: 'hammer-weapon',
+                        name: 'Thunder hammer',
+                        type: 'upgrade',
+                        constraints: [{ id: 'hammer-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                      },
+                      {
+                        id: 'shield',
+                        name: 'Storm shield',
+                        type: 'upgrade',
+                        costs: points(5),
+                        constraints: [{ id: 'shield-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  catalogue.mfm = new Map([
+    [
+      'test-catalogue',
+      {
+        slug: 'test-catalogue',
+        version: '1.5',
+        units: [
+          {
+            name: 'Squad',
+            pricing: [{ range: '[1,)', costs: [{ models: 4, points: 100 }] }],
+            wargear: [{ item: 'Storm shield', points: 5 }],
+          },
+        ],
+      },
+    ],
+  ])
+  const roster = {
+    catalogueId: 'cat',
+    detachmentIds: [],
+    disposition: null,
+    limit: 2_000,
+    units: [{ entryId: 'squad', choices: { 'trooper/weapons': 'hammer' } }],
+  }
+
+  expect(
+    calculateRosterPrice(roster, catalogue, null)?.units[0]?.choices[0]?.options.find((option) => option.id === 'hammer')?.points,
+  ).toBe(5)
+})
+
 it('charges MFM only for the optional copy of required wargear', () => {
   const catalogue = bookOf({
     selectionEntries: [

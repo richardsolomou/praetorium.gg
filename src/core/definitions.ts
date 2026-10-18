@@ -57,10 +57,18 @@ export function childrenOf(definition: Definition, index: CatalogueIndex): Optio
   return found
 }
 
-export function pointsOf(option: Option, index: CatalogueIndex): number {
+/** An option's price, including entries it must hold: a "2 Multi-meltas" option can carry its cost on the weapons. */
+export function pointsOf(option: Option, index: CatalogueIndex, visited = new Set<string>()): number {
   const target = resolve(option.definition, index)
-  const own = option.definition.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value
-  return own ?? target.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value ?? 0
+  const own =
+    option.definition.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value ??
+    target.costs?.find((cost) => cost.typeId === index.pointsTypeId)?.value ??
+    0
+  if (visited.has(target.id)) return own
+  const seen = new Set([...visited, target.id])
+  return childrenOf(target, index)
+    .filter((child) => resolve(child.definition, index).type !== undefined)
+    .reduce((total, child) => total + requiredCount(child.definition, index) * pointsOf(child, index, seen), own)
 }
 
 /** The binding cap on how many of this may be taken, or null when nothing limits it. */
