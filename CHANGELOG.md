@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.161.0
+
+### Minor Changes
+
+- c172dff: Browse armies from finished public battles on the Rosters page's Played tab, see who played each one and under which rules version, and duplicate one to edit and simulate.
+- 15bb37f: Played armies show their battle result the way battle cards do, with the score, the factions they faced, and a link to the battle.
+- 2f4ee7e: Save a configured unit as a loadout and add it from beneath its datasheet in the picker of another roster of the same army, which points out any choice its rules version, detachment or limits do not allow. Rename or delete a saved loadout from its menu in the picker.
+
 ## 0.160.1
 
 ### Patch Changes
