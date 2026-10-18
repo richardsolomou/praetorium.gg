@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.162.1
+
+### Patch Changes
+
+- fc910ff: Give mission cards more scrolling space in mobile scoring prompts, including at larger text sizes.
+
 ## 0.162.0
 
 ### Minor Changes
