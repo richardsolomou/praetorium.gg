@@ -23,6 +23,7 @@ type BuilderUnitCardProps = {
   onRemove: (index: number) => void
   onDuplicate: (index: number) => void
   canDuplicate?: boolean
+  onSaveLoadout?: (index: number) => void
   onDetach: (index: number) => void
   onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
 }
@@ -42,6 +43,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onRemove,
   onDuplicate,
   canDuplicate,
+  onSaveLoadout,
   onDetach,
   onAttach,
 }: BuilderUnitCardProps) {
@@ -55,6 +57,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onRemove={() => onRemove(index)}
       onDuplicate={() => onDuplicate(index)}
       canDuplicate={canDuplicate}
+      onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
       joined={joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) }))}
       canJoin={canJoin}
       onJoin={(choice) => onAttach(index, 'join', choice)}

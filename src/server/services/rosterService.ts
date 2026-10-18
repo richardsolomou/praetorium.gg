@@ -12,6 +12,7 @@ import { detachmentIds } from '../../core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
 import type { RosterDiscoveryQuery } from '../../core/rosterDiscovery'
+import { UNIT_LOADOUTS_MAX, type UnitLoadout } from '../../core/unitLoadouts'
 
 type SavedPrep = {
   stratagems: Stratagem[]
@@ -320,6 +321,20 @@ export class RosterService {
   async setFavouriteFaction(userId: string, catalogueId: string, favourite: boolean) {
     if (favourite) await this.repository.addFavouriteFaction({ userId, catalogueId, now: this.clock() })
     else await this.repository.removeFavouriteFaction(userId, catalogueId)
+  }
+
+  unitLoadouts(userId: string) {
+    return this.repository.unitLoadoutsByUser(userId)
+  }
+
+  async saveUnitLoadout(userId: string, { id, ...loadout }: UnitLoadout & { id: string }) {
+    const outcome = await this.repository.saveUnitLoadout(id, userId, loadout, this.clock())
+    if (outcome === 'full') throw new Response(`You can keep up to ${UNIT_LOADOUTS_MAX} saved loadouts. Delete one first.`, { status: 409 })
+    if (outcome === 'refused') throw new Response('you do not own this loadout', { status: 403 })
+  }
+
+  async deleteUnitLoadout(userId: string, id: string) {
+    await this.repository.deleteUnitLoadout(id, userId)
   }
 
   async favouriteDatasheets(userId: string) {

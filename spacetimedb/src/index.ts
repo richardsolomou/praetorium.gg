@@ -38,6 +38,7 @@ import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
+import { UNIT_LOADOUTS_MAX, unitLoadoutSchema } from '../../src/core/unitLoadouts'
 import { productSyncRefusal } from './syncOutcome'
 
 // Auth settings live in the module environment; the issuer, audience and operator columns stay
@@ -392,6 +393,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.favouriteFactions.userId.filter(userId))) ctx.db.favouriteFactions.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDatasheets.userId.filter(userId))) ctx.db.favouriteDatasheets.key.delete(row.key)
+  for (const row of Array.from(ctx.db.unitLoadouts.userId.filter(userId))) ctx.db.unitLoadouts.id.delete(row.id)
   if (ctx.db.practiceOpponents.userId.delete(userId)) {
     touchPublic(ctx, 'opponents')
     touchAdmin(ctx)
@@ -1858,6 +1860,52 @@ export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catal
 export const removeFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string() }, (ctx, input) => {
   removeFavouriteFactionIn(ctx, [input.userId, input.catalogueId])
 })
+
+export const unitLoadoutsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(
+      Array.from(tx.db.unitLoadouts.userId.filter(userId))
+        .toSorted((left, right) => Number(right.createdAt - left.createdAt) || left.id.localeCompare(right.id))
+        .map(({ id, name, catalogueId, pick, createdAt }) => ({ id, name, catalogueId, pick: JSON.parse(pick) as unknown, createdAt })),
+    )
+  }),
+)
+
+/** `saved` also answers a retried save; `full` and `refused` change nothing. */
+export const saveUnitLoadout = spacetime.procedure(
+  { id: t.string(), userId: t.string(), payload: t.string(), at: t.u64() },
+  t.string(),
+  (ctx, { id, userId, payload, at }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (!validId(id) || !validId(userId)) throw new SenderError('Invalid loadout')
+      const loadout = decodePayload(unitLoadoutSchema.strict(), payload, 'Invalid loadout')
+      const current = tx.db.unitLoadouts.id.find(id)
+      if (current) return current.userId === userId ? 'saved' : 'refused'
+      if (Array.from(tx.db.unitLoadouts.userId.filter(userId)).length >= UNIT_LOADOUTS_MAX) return 'full'
+      tx.db.unitLoadouts.insert({
+        id,
+        userId,
+        name: loadout.name,
+        catalogueId: loadout.catalogueId,
+        pick: JSON.stringify(loadout.pick),
+        createdAt: at,
+      })
+      touchProduct(tx, userId, 'rosters')
+      return 'saved'
+    }),
+)
+
+export const deleteUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (tx.db.unitLoadouts.id.find(id)?.userId !== userId) return false
+    tx.db.unitLoadouts.id.delete(id)
+    touchProduct(tx, userId, 'rosters')
+    return true
+  }),
+)
 
 export const favouriteDetachmentsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
   ctx.withTx((tx) => {

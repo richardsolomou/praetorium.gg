@@ -28,6 +28,8 @@ import {
   rosterInBattleSchema,
   rosterArchiveSchema,
   rosterLockSchema,
+  saveUnitLoadoutSchema,
+  unitLoadoutIdSchema,
   rosterLoanSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
@@ -430,5 +432,35 @@ export const exportRoster = createServerFn({ method: 'POST' })
           unit_count: data.units.length,
         })
       return result
+    }),
+  )
+
+/** The signed-in player's saved unit loadouts; a visitor has none. */
+export const unitLoadouts = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    return id ? app().service.rosterService.unitLoadouts(id) : []
+  }),
+)
+
+export const saveUnitLoadout = createServerFn({ method: 'POST' })
+  .validator(saveUnitLoadoutSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.rosterService.saveUnitLoadout(player.id, data)
+      await app().telemetry.capture(player.id, 'unit_loadout_saved', {})
+      return null
+    }),
+  )
+
+export const deleteUnitLoadout = createServerFn({ method: 'POST' })
+  .validator(unitLoadoutIdSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.rosterService.deleteUnitLoadout(player.id, data.id)
+      await app().telemetry.capture(player.id, 'unit_loadout_deleted', {})
+      return null
     }),
   )

@@ -206,6 +206,19 @@ export function pickEditor(
       })
     },
 
+    /** A saved loadout joins as a unit of its own, priced and checked like any other. */
+    apply: (loadout: RosterPick) => {
+      const key = allocateKey()
+      setPicks((current) => {
+        if (
+          !context.limits ||
+          !canAddCopy(loadout.entryId, current.filter((pick) => pick.entryId === loadout.entryId).length, context.limits)
+        )
+          return current
+        return [...current, { ...loadout, attachedTo: undefined, key }]
+      })
+    },
+
     /** A copy takes the loadout; the note belongs to the unit it was copied from. */
     duplicate: (index: number) =>
       insert((current) => {

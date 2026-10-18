@@ -22,6 +22,7 @@ import * as CollectionWishesByUserProcedure from '../collection_wishes_by_user_p
 import * as CreateBattleProcedure from '../create_battle_procedure'
 import * as DatasheetPhotosProcedure from '../datasheet_photos_procedure'
 import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator_procedure'
+import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as EndRosterLoanProcedure from '../end_roster_loan_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
@@ -63,6 +64,7 @@ import * as RostersByIdsProcedure from '../rosters_by_ids_procedure'
 import * as RostersByUserProcedure from '../rosters_by_user_procedure'
 import * as RostersLentToProcedure from '../rosters_lent_to_procedure'
 import * as SaveRosterProcedure from '../save_roster_procedure'
+import * as SaveUnitLoadoutProcedure from '../save_unit_loadout_procedure'
 import * as SetBattleAudienceProcedure from '../set_battle_audience_procedure'
 import * as SetCollectionPublishedProcedure from '../set_collection_published_procedure'
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
@@ -75,6 +77,7 @@ import * as SubmitBattleProcedure from '../submit_battle_procedure'
 import * as SyncProductProcedure from '../sync_product_procedure'
 import * as SyncReceiptProcedure from '../sync_receipt_procedure'
 import * as SyncRosterProcedure from '../sync_roster_procedure'
+import * as UnitLoadoutsByUserProcedure from '../unit_loadouts_by_user_procedure'
 import * as UpdateOnboardingProcedure from '../update_onboarding_procedure'
 import * as UsableRosterProcedure from '../usable_roster_procedure'
 
@@ -110,6 +113,8 @@ export type DatasheetPhotosArgs = __Infer<typeof DatasheetPhotosProcedure.params
 export type DatasheetPhotosResult = __Infer<typeof DatasheetPhotosProcedure.returnType>
 export type DeleteBattleForOperatorArgs = __Infer<typeof DeleteBattleForOperatorProcedure.params>
 export type DeleteBattleForOperatorResult = __Infer<typeof DeleteBattleForOperatorProcedure.returnType>
+export type DeleteUnitLoadoutArgs = __Infer<typeof DeleteUnitLoadoutProcedure.params>
+export type DeleteUnitLoadoutResult = __Infer<typeof DeleteUnitLoadoutProcedure.returnType>
 export type DiscoverRostersArgs = __Infer<typeof DiscoverRostersProcedure.params>
 export type DiscoverRostersResult = __Infer<typeof DiscoverRostersProcedure.returnType>
 export type EndRosterLoanArgs = __Infer<typeof EndRosterLoanProcedure.params>
@@ -192,6 +197,8 @@ export type RostersLentToArgs = __Infer<typeof RostersLentToProcedure.params>
 export type RostersLentToResult = __Infer<typeof RostersLentToProcedure.returnType>
 export type SaveRosterArgs = __Infer<typeof SaveRosterProcedure.params>
 export type SaveRosterResult = __Infer<typeof SaveRosterProcedure.returnType>
+export type SaveUnitLoadoutArgs = __Infer<typeof SaveUnitLoadoutProcedure.params>
+export type SaveUnitLoadoutResult = __Infer<typeof SaveUnitLoadoutProcedure.returnType>
 export type SetBattleAudienceArgs = __Infer<typeof SetBattleAudienceProcedure.params>
 export type SetBattleAudienceResult = __Infer<typeof SetBattleAudienceProcedure.returnType>
 export type SetCollectionPublishedArgs = __Infer<typeof SetCollectionPublishedProcedure.params>
@@ -216,6 +223,8 @@ export type SyncReceiptArgs = __Infer<typeof SyncReceiptProcedure.params>
 export type SyncReceiptResult = __Infer<typeof SyncReceiptProcedure.returnType>
 export type SyncRosterArgs = __Infer<typeof SyncRosterProcedure.params>
 export type SyncRosterResult = __Infer<typeof SyncRosterProcedure.returnType>
+export type UnitLoadoutsByUserArgs = __Infer<typeof UnitLoadoutsByUserProcedure.params>
+export type UnitLoadoutsByUserResult = __Infer<typeof UnitLoadoutsByUserProcedure.returnType>
 export type UpdateOnboardingArgs = __Infer<typeof UpdateOnboardingProcedure.params>
 export type UpdateOnboardingResult = __Infer<typeof UpdateOnboardingProcedure.returnType>
 export type UsableRosterArgs = __Infer<typeof UsableRosterProcedure.params>

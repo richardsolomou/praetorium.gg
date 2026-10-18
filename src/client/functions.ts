@@ -495,6 +495,17 @@ export async function setRosterVisibility(
   return null
 }
 
+/** Saved loadouts are kept only by the server, so saving or deleting one needs a connection. */
+export async function saveUnitLoadout(args: Parameters<typeof server.saveUnitLoadout>[0]): ReturnType<typeof server.saveUnitLoadout> {
+  if (!navigator.onLine) throw new Error('Connect to the internet to save a loadout.')
+  return server.saveUnitLoadout(args)
+}
+
+export async function deleteUnitLoadout(args: Parameters<typeof server.deleteUnitLoadout>[0]): ReturnType<typeof server.deleteUnitLoadout> {
+  if (!navigator.onLine) throw new Error('Connect to the internet to delete a loadout.')
+  return server.deleteUnitLoadout(args)
+}
+
 /** Locking is accepted by the server, after this device has sent the roster's saved changes. */
 export async function setRosterLocked(args: Parameters<typeof server.setRosterLocked>[0]): ReturnType<typeof server.setRosterLocked> {
   const owner = localOwner()?.id

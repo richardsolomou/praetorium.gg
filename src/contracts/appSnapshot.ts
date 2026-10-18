@@ -49,6 +49,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'favourite-factions',
   'favourite-detachments',
   'favourite-datasheets',
+  'unit-loadouts',
   'onboarding',
   'player-defaults',
   'battle-audience',

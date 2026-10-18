@@ -18,6 +18,7 @@ import {
 import type { FormatRuleId } from '../../../../core/battle'
 import { enforces, formatRules } from '../../../../core/battle'
 import type { UnitSummary } from '../../../../contracts/catalogue'
+import type { RosterPick } from '../../../../core/roster'
 import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
@@ -28,12 +29,14 @@ import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
 import { canAddCopy, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
+import { SavedLoadouts } from './SavedLoadouts'
 
 type Props = {
   enabled: boolean
   catalogueId: string
   detachmentIds: readonly string[]
   onAdd: (entryId: string) => void
+  onApplyLoadout: (pick: RosterPick) => void
   onPreview: (entryId: string, name: string) => void
   inRoster: Record<string, number>
   limits: ReadonlyMap<string, number | null>
@@ -78,6 +81,7 @@ export const Picker = memo(function Picker({
   catalogueId,
   detachmentIds,
   onAdd,
+  onApplyLoadout,
   onPreview,
   inRoster,
   limits,
@@ -203,37 +207,50 @@ export const Picker = memo(function Picker({
         ) : unitsResult.isError ? (
           <Problem className="py-3 text-xs">The book could not be loaded.</Problem>
         ) : shown.length ? (
-          sections.map(({ id, plural, alliedFaction }) => {
-            const rows = shown
-              .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
-              .toSorted((left, right) => Number(favourites.has(right.id)) - Number(favourites.has(left.id)))
-            return rows.length ? (
-              <Fragment key={id}>
-                {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
-                <Section title={plural} count={rows.length} defaultOpen={!alliedFaction}>
-                  {rows.map((unit) => {
-                    const held = inRoster[unit.id] ?? 0
-                    const full = !canAddCopy(unit.id, held, limits)
-                    return (
-                      <PickerRow
-                        key={unit.id}
-                        unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
-                        unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
-                        held={held}
-                        full={full}
-                        favourite={favourites.has(unit.id)}
-                        favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
-                        query={query}
-                        onPreview={onPreview}
-                        onFavourite={signedIn ? toggleFavourite : undefined}
-                        onAdd={onAdd}
-                      />
-                    )
-                  })}
-                </Section>
-              </Fragment>
-            ) : null
-          })
+          [
+            signedIn ? (
+              <SavedLoadouts
+                key="saved-loadouts"
+                catalogueId={catalogueId}
+                units={unitsResult.data}
+                inRoster={inRoster}
+                limits={limits}
+                query={query}
+                onApply={onApplyLoadout}
+              />
+            ) : null,
+            ...sections.map(({ id, plural, alliedFaction }) => {
+              const rows = shown
+                .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
+                .toSorted((left, right) => Number(favourites.has(right.id)) - Number(favourites.has(left.id)))
+              return rows.length ? (
+                <Fragment key={id}>
+                  {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
+                  <Section title={plural} count={rows.length} defaultOpen={!alliedFaction}>
+                    {rows.map((unit) => {
+                      const held = inRoster[unit.id] ?? 0
+                      const full = !canAddCopy(unit.id, held, limits)
+                      return (
+                        <PickerRow
+                          key={unit.id}
+                          unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
+                          unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
+                          held={held}
+                          full={full}
+                          favourite={favourites.has(unit.id)}
+                          favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
+                          query={query}
+                          onPreview={onPreview}
+                          onFavourite={signedIn ? toggleFavourite : undefined}
+                          onAdd={onAdd}
+                        />
+                      )
+                    })}
+                  </Section>
+                </Fragment>
+              ) : null
+            }),
+          ]
         ) : (
           <p className="py-3 text-xs text-faint">
             {found?.length ? 'Everything is filtered out.' : query ? 'No matching units.' : 'No units available.'}

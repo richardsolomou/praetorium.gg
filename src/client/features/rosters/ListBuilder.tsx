@@ -76,6 +76,7 @@ import { Loadout } from './builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { changedDraftSpreadCounts, withDraftSpreadCounts } from './builder/loadoutModel'
 import { Picker, type PickerFilter } from './builder/Picker'
+import { SaveLoadoutDialog } from './builder/SaveLoadoutDialog'
 import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
@@ -677,7 +678,7 @@ export function ListBuilder({
    */
   const reporting = useRef<{
     event: 'roster_unit_added' | 'roster_unit_removed' | 'roster_unit_duplicated'
-    reference?: 'datasheet'
+    reference?: 'datasheet' | 'loadout'
   } | null>(null)
   useLayoutEffect(() => {
     editor.current = edit
@@ -696,15 +697,19 @@ export function ListBuilder({
     [setSelected],
   )
   const [requestRefusal, setRequestRefusal] = useState<string | null>(null)
-  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[]; link?: AttachLink }[]>([])
-  const add = (entryId: string, link?: AttachLink) => {
+  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[]; link?: AttachLink; loadout?: RosterPick }[]>(
+    [],
+  )
+  const queueAdd = (entryId: string, extra: { link?: AttachLink; loadout?: RosterPick }) => {
     setRequestRefusal(null)
     setQueuedAdds((current) => {
       const queued = current.filter((entry) => entry.entryId === entryId).length
       if (picks.length + current.length >= 100 || !canAddCopy(entryId, (held[entryId] ?? 0) + queued, unitLimits)) return current
-      return [...current, { entryId, context: priceRequest.queryKey, ...(link ? { link } : {}) }]
+      return [...current, { entryId, context: priceRequest.queryKey, ...extra }]
     })
   }
+  const add = (entryId: string, link?: AttachLink) => queueAdd(entryId, link ? { link } : {})
+  const applyLoadout = (loadout: RosterPick) => queueAdd(loadout.entryId, { loadout })
   useEffect(() => {
     const next = queuedAdds[0]
     if (!next) return
@@ -720,8 +725,9 @@ export function ListBuilder({
       setRequestRefusal(outcome.message)
       return
     }
-    editor.current.add(next.entryId, next.link)
-    reporting.current = { event: 'roster_unit_added' }
+    if (next.loadout) editor.current.apply(next.loadout)
+    else editor.current.add(next.entryId, next.link)
+    reporting.current = { event: 'roster_unit_added', ...(next.loadout ? { reference: 'loadout' as const } : {}) }
     if (next.link) posthog.capture('roster_attachment_updated', { attached: true })
   }, [editable, held, priceFailed, priceLoading, pricePending, priceRequest.queryKey, queuedAdds, unitLimits])
   const requestHandled = useRef(false)
@@ -764,6 +770,8 @@ export function ListBuilder({
     setReminders((current) => remindersAfterUnitInserted(current, index + 1))
     reporting.current = { event: 'roster_unit_duplicated' }
   }, [])
+  const [savingLoadout, setSavingLoadout] = useState<number | null>(null)
+  const openSaveLoadout = useCallback((index: number) => setSavingLoadout(index), [])
   const join = useCallback((index: number, targetKey: number | undefined) => {
     editor.current.join(index, targetKey)
     posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
@@ -1045,6 +1053,7 @@ export function ListBuilder({
             catalogueId={catalogueId}
             detachmentIds={detachmentIds}
             onAdd={add}
+            onApplyLoadout={applyLoadout}
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
@@ -1514,6 +1523,7 @@ export function ListBuilder({
                         onRemove={drop}
                         onDuplicate={duplicate}
                         canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
+                        onSaveLoadout={me && !guest && !pricePending ? openSaveLoadout : undefined}
                         onDetach={detach}
                         onAttach={attach}
                         editable={building}
@@ -1734,6 +1744,14 @@ export function ListBuilder({
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
       {savedId && (editable || locked) && !guest ? (
         <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
+      ) : null}
+      {savingLoadout !== null && picks[savingLoadout] && units[savingLoadout] ? (
+        <SaveLoadoutDialog
+          pick={picks[savingLoadout]}
+          unit={units[savingLoadout]}
+          catalogueId={catalogueId}
+          onClose={() => setSavingLoadout(null)}
+        />
       ) : null}
       {combatRoster ? (
         <RosterCombatDialog roster={combatRoster} startWithRosters={compareTargets} onClose={() => setCombatRoster(null)} />

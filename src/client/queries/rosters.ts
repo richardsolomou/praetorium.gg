@@ -27,6 +27,7 @@ import {
   savedRosterLoadoutDatasheets,
   savedRosterSummaries,
   savedRosterPage,
+  unitLoadouts,
   units,
 } from '../functions'
 import { inFamilies, savedRosterFamilies } from '../productSignals'
@@ -45,7 +46,12 @@ import {
   rosterBootstrapKey,
   savedRosterPageKey,
   savedRosterSummariesKey,
+  unitLoadoutsKey,
 } from './queryKeys'
+
+/** The player's saved unit loadouts, which the builder offers to every roster of the same army. */
+export const unitLoadoutsQuery = () =>
+  queryOptions({ queryKey: unitLoadoutsKey(), queryFn: () => unitLoadouts(), staleTime: SSR_STALE_TIME })
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
 export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: RosterAudience, sort: RosterSort) =>

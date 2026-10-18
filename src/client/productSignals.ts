@@ -20,6 +20,7 @@ const queryFamilies = {
     'roster-loans',
     'rosters-lent-to-me',
     'outdated-league-entries',
+    'unit-loadouts',
   ],
   collection: [
     'collection',

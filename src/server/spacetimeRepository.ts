@@ -692,6 +692,18 @@ export class SpacetimeRepository {
     return this.product.setRosterVisibility(...args)
   }
 
+  unitLoadoutsByUser(...args: Parameters<SpacetimeOperator['unitLoadoutsByUser']>) {
+    return this.product.unitLoadoutsByUser(...args)
+  }
+
+  saveUnitLoadout(...args: Parameters<SpacetimeOperator['saveUnitLoadout']>) {
+    return this.product.saveUnitLoadout(...args)
+  }
+
+  deleteUnitLoadout(...args: Parameters<SpacetimeOperator['deleteUnitLoadout']>) {
+    return this.product.deleteUnitLoadout(...args)
+  }
+
   setRosterLocked(...args: Parameters<SpacetimeOperator['setRosterLocked']>) {
     return this.product.setRosterLocked(...args)
   }
