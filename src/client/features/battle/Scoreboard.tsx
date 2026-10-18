@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { Pause, Timer } from 'lucide-react'
 import { type BattleClock, latestTurnRound } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
+import { isGuestSeat } from '../../../core/newBattle'
 import { battleResult } from '../../battleOutcome'
 import { completedSideRound } from './battleProgress'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -148,10 +149,17 @@ function SideScore({
           {side.armies.map((army, at) => (
             <span key={army.playerId} className="inline-flex items-center gap-x-1">
               {at ? <span className="text-dim">&amp;</span> : null}
-              <Link to="/users/$userId" params={{ userId: army.playerId }} className="group inline-flex items-center gap-1 align-middle">
-                <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-3xs" />
-                <span className="sr-only whitespace-nowrap group-hover:underline sm:not-sr-only">{army.playerName}</span>
-              </Link>
+              {isGuestSeat(army.playerId) ? (
+                <span className="inline-flex items-center gap-1 align-middle">
+                  <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-3xs" />
+                  <span className="sr-only whitespace-nowrap sm:not-sr-only">{army.playerName}</span>
+                </span>
+              ) : (
+                <Link to="/users/$userId" params={{ userId: army.playerId }} className="group inline-flex items-center gap-1 align-middle">
+                  <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-3xs" />
+                  <span className="sr-only whitespace-nowrap group-hover:underline sm:not-sr-only">{army.playerName}</span>
+                </Link>
+              )}
             </span>
           ))}
         </p>

@@ -11,6 +11,7 @@ import {
 import { battleView } from './battleView'
 import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, text } from './battle.fixtures'
+import { guestSeatId } from './newBattle'
 
 describe('battle management', () => {
   it('requires a conceding player for a concession', () => {
@@ -47,6 +48,17 @@ describe('battle management', () => {
   it('does not let a practice opponent concede', () => {
     const state = reduceBattle(PLAYERS, log(...started()), undefined, [BOB])
     expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBe('a practice opponent cannot concede')
+  })
+
+  it('records a guest conceding', () => {
+    const guest = guestSeatId('battle', 0)
+    const history = log(
+      [ALICE, roster('Ultramarines')],
+      [guest, roster('Death Guard')],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    )
+    const state = reduceBattle([ALICE, guest], history, undefined, [guest])
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: guest })).toBeNull()
   })
 
   it('can reopen a finished battle without discarding its score', () => {

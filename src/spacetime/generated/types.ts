@@ -42,6 +42,7 @@ export const BattleUsers = __t.object('BattleUsers', {
   userId: __t.string(),
   side: __t.u8(),
   joinedAt: __t.u64(),
+  guestName: __t.option(__t.string()),
 })
 export type BattleUsers = __Infer<typeof BattleUsers>
 

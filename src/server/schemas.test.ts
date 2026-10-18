@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
+import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 import {
   battleReplayBatchSchema,
   createBattleSchema,
@@ -79,6 +80,26 @@ describe('battle creation input', () => {
 
   it('refuses an ally with nobody to play against', () => {
     expect(createBattleSchema.safeParse({ allyId: 'carol' }).success).toBe(false)
+  })
+
+  it('seats a guest opponent by name', () => {
+    expect(createBattleSchema.parse({ guestNames: [' Alex '] }).guestNames).toEqual(['Alex'])
+  })
+
+  it('refuses a guest without a name', () => {
+    expect(createBattleSchema.safeParse({ guestNames: ['  '] }).success).toBe(false)
+  })
+
+  it('refuses a guest name longer than a display name', () => {
+    expect(createBattleSchema.safeParse({ guestNames: ['x'.repeat(PROFILE_NAME_MAX_LENGTH + 1)] }).success).toBe(false)
+  })
+
+  it('counts guests among the opposing seats', () => {
+    expect(createBattleSchema.safeParse({ opponentIds: ['bob', 'carol'], guestNames: ['Alex'] }).success).toBe(false)
+  })
+
+  it('lets an ally face a guest', () => {
+    expect(createBattleSchema.safeParse({ allyId: 'carol', guestNames: ['Alex'] }).success).toBe(true)
   })
 })
 

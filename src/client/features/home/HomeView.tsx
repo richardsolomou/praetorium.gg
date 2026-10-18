@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { buttonClass } from '../../components/buttonClass'
+import { isPracticeSeat } from '../../../core/newBattle'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { OnboardingProgress } from '../../../core/onboarding'
@@ -67,9 +68,7 @@ export function HomeView({
   onDelete,
 }: HomeData) {
   const going = mine.filter((battle) => battle.status !== 'finished')
-  const played = mine
-    .filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some((player) => player.automated))
-    .slice(0, PLAYED)
+  const played = mine.filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some(isPracticeSeat)).slice(0, PLAYED)
   // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
   const hero = me ? undefined : open[0]

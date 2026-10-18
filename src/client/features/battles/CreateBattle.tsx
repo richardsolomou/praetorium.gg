@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Check, ChevronRight, Link2, Plus } from 'lucide-react'
+import { Check, ChevronRight, Link2, Plus, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
+import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import { createBattle, leagueBattleOptions } from '../../functions'
 import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
@@ -32,14 +35,18 @@ import { Problem } from '../../components/Problem'
 /** A seat this player may fill: a friend, or one of the instance's practice opponents. */
 type Opponent = { id: string; name: string; image: string | null; automated: boolean }
 
+/** What a seat holds while a guest is chosen for it; no account id contains a space. */
+const guestChoice = (seat: Seat) => `guest ${seat.id}`
+
 /**
  * Who may fill a seat, with the people first and the seats nobody signs in to after.
  *
  * Grouped rather than badged: a practice opponent is not a friend with a label on it,
  * it is a different kind of chair, and the heading says so once instead of every row
- * repeating it.
+ * repeating it. A guest sits only across the table, where the creator plays them.
  */
 function seatOptions(
+  seat: Seat,
   opponents: readonly Opponent[],
   labels: ReadonlyMap<string, string>,
   taken: ReadonlySet<string | null>,
@@ -47,6 +54,13 @@ function seatOptions(
   const free = opponents.filter((opponent) => !taken.has(opponent.id))
   return [
     { label: 'Friends', items: free.filter((opponent) => !opponent.automated).map((opponent) => seatOption(opponent, labels)) },
+    {
+      label: 'No account',
+      items:
+        seat.side === 'theirs'
+          ? [{ label: 'Guest', value: guestChoice(seat), icon: <UserRound className="size-6 p-1 text-dim" aria-hidden /> }]
+          : [],
+    },
     { label: 'Practice opponents', items: free.filter((opponent) => opponent.automated).map((opponent) => seatOption(opponent, labels)) },
   ].filter((group) => group.items.length)
 }
@@ -60,25 +74,30 @@ export function CreateBattle() {
   // leave a hole where the request expects a player.
   const [theirIds, setTheirIds] = useState<(string | null)[]>([null, null])
   const [allyId, setAllyId] = useState<string | null>(null)
+  const [guestNames, setGuestNames] = useState<Record<string, string>>({})
   const [shape, setShape] = useState<TableShape>('1v1')
   const [soloPairRole, setSoloPairRole] = useState<SoloPairRole>('solo')
   const [tracking, setTracking] = useState<'guided' | 'manual'>('guided')
   const [leagueMatches, setLeagueMatches] = useState<Awaited<ReturnType<typeof leagueBattleOptions>>>([])
   const seats = seatsFor(shape, soloPairRole)
   const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
-  const seated = seats.every(seatedIn)
+  const guestIn = (seat: Seat) => seatedIn(seat) === guestChoice(seat)
+  const guestName = (seat: Seat) => (guestNames[seat.id] ?? '').trim()
+  const seated = seats.every((seat) => seatedIn(seat) && (!guestIn(seat) || guestName(seat)))
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
     onMutate: (casual: boolean) => posthog.capture('battle_creation_submitted', { format: shape, casual, manual: tracking === 'manual' }),
     onError: () => posthog.capture('battle_creation_failed', { format: shape, reason: 'request' }),
     mutationFn: async (casual: boolean) => {
-      const players = seatedPlayers(seats, seatedIn)
+      const players = seatedPlayers(seats, (seat) => (guestIn(seat) ? null : seatedIn(seat)))
+      const guests = seats.filter(guestIn).map(guestName)
       const playerData = {
-        opponentIds: players.opponentIds,
+        ...(players.opponentIds.length ? { opponentIds: players.opponentIds } : {}),
         ...(players.allyId ? { allyId: players.allyId } : {}),
       }
-      if (!casual) {
+      // A league seats only its entrants, so a table with a guest at it has no league match to offer.
+      if (!casual && !guests.length) {
         const matches = await leagueBattleOptions({ data: playerData })
         if (matches.length) return { kind: 'league' as const, matches }
       }
@@ -88,6 +107,7 @@ export function CreateBattle() {
         battle = await createBattle({
           data: {
             ...playerData,
+            ...(guests.length ? { guestNames: guests } : {}),
             limit: null,
             missionPackId: tracking === 'manual' ? null : (references?.packs[0]?.id ?? null),
             casual,
@@ -95,7 +115,7 @@ export function CreateBattle() {
           },
         })
       } catch (error) {
-        if (!casual) {
+        if (!casual && !guests.length) {
           const matches = await leagueBattleOptions({ data: playerData })
           if (matches.length) return { kind: 'league' as const, matches }
         }
@@ -126,6 +146,7 @@ export function CreateBattle() {
     setOpen(next)
   }
   const labels = disambiguatedPlayerLabels(opponents)
+  const labelFor = (seat: Seat) => (guestIn(seat) ? guestName(seat) || 'Guest' : seatLabel(seatedIn(seat), labels, opponents))
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
@@ -182,7 +203,9 @@ export function CreateBattle() {
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
-              <DialogDescription>Choose who is playing. A practice opponent lets you play both sides yourself.</DialogDescription>
+              <DialogDescription>
+                Choose who is playing. A guest is an opponent without an account; a practice opponent lets you play both sides alone.
+              </DialogDescription>
             </DialogHeader>
             <DialogBody>
               <Choice
@@ -218,26 +241,44 @@ export function CreateBattle() {
                 </div>
               ) : opponentQuery.error ? null : (
                 <>
-                  {opponents.length ? (
-                    <SeatRows
-                      onboarding="battle-seats"
-                      idPrefix="battle"
-                      seats={seats}
-                      seatedIn={seatedIn}
-                      groupsFor={(_seat, taken) => seatOptions(opponents, labels, taken)}
-                      onPick={(seat, id) => {
-                        changeIntent()
-                        if (seat.side === 'yours') return setAllyId(id)
-                        setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
-                      }}
-                    />
-                  ) : null}
+                  <SeatRows
+                    onboarding="battle-seats"
+                    idPrefix="battle"
+                    seats={seats}
+                    seatedIn={seatedIn}
+                    groupsFor={(seat, taken) => seatOptions(seat, opponents, labels, taken)}
+                    onPick={(seat, id) => {
+                      changeIntent()
+                      if (seat.side === 'yours') return setAllyId(id)
+                      setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : held)))
+                    }}
+                    renderDetail={(seat) =>
+                      guestIn(seat) ? (
+                        <div className="mt-2 space-y-1">
+                          <Label htmlFor={`battle-${seat.id}-guest`}>Guest’s name</Label>
+                          <Input
+                            id={`battle-${seat.id}-guest`}
+                            value={guestNames[seat.id] ?? ''}
+                            maxLength={PROFILE_NAME_MAX_LENGTH}
+                            autoComplete="off"
+                            className="h-11"
+                            onChange={(event) => {
+                              changeIntent()
+                              setGuestNames((current) => ({ ...current, [seat.id]: event.target.value }))
+                            }}
+                          />
+                          <p className="text-xs text-dim">
+                            You play their side. The game counts in your record but not on the leaderboard, and their name shows to anyone
+                            who can watch it.
+                          </p>
+                        </div>
+                      ) : null
+                    }
+                  />
                   {opponents.some((opponent) => !opponent.automated) ? null : <InviteOpponent />}
                 </>
               )}
-              {opponents.length ? (
-                <SeatMatchup onboarding="battle-sides" seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, opponents)} />
-              ) : null}
+              <SeatMatchup onboarding="battle-sides" seats={seats} labelFor={labelFor} />
               <div>
                 <Choice
                   label="Tracking"

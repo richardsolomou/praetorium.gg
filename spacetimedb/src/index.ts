@@ -35,6 +35,8 @@ import { rosterReminderSchema } from '../../src/core/reminders'
 import { boundedProgress, DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
 import { groupBy } from '../../src/core/collections'
 import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
+import { guestSeatId, isGuestSeat } from '../../src/core/newBattle'
+import { PROFILE_NAME_MAX_LENGTH } from '../../src/core/profileName'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -195,6 +197,8 @@ const ROSTER_LOANS_PER_ROSTER = 100
 type ProductScope = 'rosters' | 'collection' | 'favourites' | 'friends' | 'invites' | 'onboarding' | 'settings' | 'leagues' | 'battles'
 
 function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
+  // Nobody signs in as a guest, so nobody would ever read its revisions or delete them with an account.
+  if (isGuestSeat(userId)) return
   for (const scope of scopes) {
     const key = JSON.stringify([userId, scope])
     const current = ctx.db.productRevisions.key.find(key)
@@ -532,7 +536,8 @@ function battleData(ctx: Context, battleId: string) {
     seats: seats.map((seat) => ({
       id: seat.userId,
       side: seat.side,
-      automated: Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
+      automated: seat.guestName !== undefined || Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
+      ...(seat.guestName !== undefined ? { guestName: seat.guestName } : {}),
     })),
     log,
   }
@@ -550,7 +555,8 @@ const newBattle = z.strictObject({
   token: idInput,
   userId: idInput,
   allyIds: z.array(idInput).max(3),
-  opponentIds: z.array(idInput).min(1).max(3),
+  opponentIds: z.array(idInput).max(3),
+  guestNames: z.array(z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH)).max(2).default([]),
   initialCommands: z.array(commandSchema).max(1_000),
   now: z.number().int().nonnegative(),
 })
@@ -765,7 +771,13 @@ export const submitBattle = spacetime.procedure(
 )
 
 function friendshipKey(requesterId: string, addresseeId: string) {
-  if (!validId(requesterId) || !validId(addresseeId) || requesterId === addresseeId) {
+  if (
+    !validId(requesterId) ||
+    !validId(addresseeId) ||
+    requesterId === addresseeId ||
+    isGuestSeat(addresseeId) ||
+    isGuestSeat(requesterId)
+  ) {
     throw new SenderError('Invalid friendship')
   }
   return JSON.stringify([requesterId, addresseeId])
@@ -2362,13 +2374,20 @@ function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
 
   requireOperator(tx)
-  const { id, token, userId, allyIds, opponentIds, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
-  const seats = [
+  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
+  const seats: { id: string; side: number; guestName?: string }[] = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
     ...opponentIds.map((seatId) => ({ id: seatId, side: 1 })),
+    ...guestNames.map((guestName, at) => ({ id: guestSeatId(id, at), side: 1, guestName })),
   ]
-  if (seats.length > 4 || new Set(seats.map((seat) => seat.id)).size !== seats.length) throw new SenderError('Invalid battle seats')
+  if (
+    seats.length > 4 ||
+    !seats.some((seat) => seat.side === 1) ||
+    [userId, ...allyIds, ...opponentIds].some(isGuestSeat) ||
+    new Set(seats.map((seat) => seat.id)).size !== seats.length
+  )
+    throw new SenderError('Invalid battle seats')
   tx.db.battles.insert({ id, token, createdAt: BigInt(now) })
   for (const [index, seat] of seats.entries()) {
     tx.db.battleUsers.insert({
@@ -2377,6 +2396,7 @@ function createBattleIn(tx: Context, args: unknown[]) {
       userId: seat.id,
       side: seat.side,
       joinedAt: BigInt(now + index),
+      guestName: seat.guestName,
     })
     touchProduct(tx, seat.id, 'battles', 'onboarding')
   }
@@ -3297,6 +3317,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         userId: seat.id,
         side: seat.side,
         joinedAt: BigInt(input.now + index),
+        guestName: undefined,
       })
     const log: LoggedCommand[] = []
     for (const [index, command] of input.initialCommands.entries()) {

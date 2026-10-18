@@ -29,7 +29,7 @@ const cases = [
     input: { opponentIds: ['private-opponent', 'private-second'], allyId: 'private-ally', limit: 2000, casual: true },
     result: { token: 'private-battle', practice: true },
     event: 'battle_created',
-    properties: { delivery: 'sync', practice: true, limit: 2000, player_count: 4, casual: true, manual: false },
+    properties: { delivery: 'sync', practice: true, limit: 2000, player_count: 4, casual: true, manual: false, guests: 0 },
   },
   {
     kind: 'createLeague' as const,

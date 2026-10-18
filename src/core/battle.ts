@@ -12,6 +12,7 @@
 import { groupBy } from './collections'
 import { attachedUnits } from './attachedUnits'
 import { refuse, sameSide } from './battlePrimitives'
+import { isPracticeSeat } from './newBattle'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
@@ -1559,7 +1560,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (!command.concededBy) return refuse('concession-required', 'choose who conceded')
       const concedingPlayer = state.players.find((candidate) => candidate.id === command.concededBy)
       if (!concedingPlayer) return refuse('unknown-player', 'that player is not in this battle')
-      if (concedingPlayer.automated) return refuse('practice-concession', 'a practice opponent cannot concede')
+      if (isPracticeSeat(concedingPlayer)) return refuse('practice-concession', 'a practice opponent cannot concede')
       return null
     }
     case 'reopen-battle':

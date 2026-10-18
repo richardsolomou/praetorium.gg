@@ -257,6 +257,83 @@ describe('battle commands', () => {
   })
 })
 
+describe('guest seats', () => {
+  const create = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth, seats: Record<string, unknown>) =>
+    JSON.parse(
+      module.createBattle(procedure(operator), {
+        payload: JSON.stringify({
+          id: 'battle',
+          token: 'battle-token',
+          userId: 'host',
+          allyIds: [],
+          opponentIds: [],
+          ...seats,
+          now: NOW * 1_000,
+        }),
+      }),
+    ) as { seats: { id: string; side: number; automated: boolean; guestName?: string }[] }
+  const publicFeed = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth) =>
+    (
+      JSON.parse(
+        module.battleFeed(procedure(operator), {
+          payload: JSON.stringify({
+            scope: 'public',
+            userId: null,
+            viewerId: null,
+            withUserId: null,
+            leagueToken: null,
+            eventToken: null,
+            since: null,
+            before: null,
+            limit: 10,
+          }),
+        }),
+      ) as { battles: { battle: { id: string } }[] }
+    ).battles.map((row) => row.battle.id)
+
+  it('seats a guest the host names, played by the table', () => {
+    const { operator, procedure } = harness()
+    expect(create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] }).seats[1]).toEqual({
+      id: 'guest:battle:0',
+      side: 1,
+      automated: true,
+      guestName: 'Alex',
+    })
+  })
+
+  it('refuses an account seat that claims a guest seat', () => {
+    const { operator, procedure } = harness()
+    expect(() => create(procedure, operator, { opponentIds: ['guest:other:0'], initialCommands: [] })).toThrow('Invalid battle seats')
+  })
+
+  it('keeps no product revisions for a guest', () => {
+    const { test, operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    expect(Array.from(test.db.productRevisions.userId.filter('guest:battle:0'))).toEqual([])
+  })
+
+  it('refuses a friendship with a guest', () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    expect(() =>
+      module.requestFriend(procedure(operator), { requesterId: 'host', addresseeId: 'guest:battle:0', now: BigInt(NOW) }),
+    ).toThrow('Invalid friendship')
+  })
+
+  it('lists a guest battle publicly when the host shares battles publicly', () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    expect(publicFeed(procedure, operator)).toEqual(['battle'])
+  })
+
+  it('keeps a guest battle out of the public feed when the host keeps battles to players', () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    module.setBattleAudience(procedure(operator), { userId: 'host', audience: 'private', now: BigInt(NOW) })
+    expect(publicFeed(procedure, operator)).toEqual([])
+  })
+})
+
 describe('roster lock', () => {
   const roster = (picks: string) =>
     JSON.stringify({

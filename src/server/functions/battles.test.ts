@@ -32,10 +32,15 @@ it.each([
   [{ opponentIds: ['opponent', 'second'] }, 3],
   [{ opponentIds: ['opponent'], allyId: 'ally' }, 3],
   [{ opponentIds: ['opponent', 'second'], allyId: 'ally' }, 4],
+  [{ opponentIds: ['opponent'], guestNames: ['Alex'], allyId: 'ally' }, 4],
 ])('counts the named players after battle creation for %j', async (players, count) => {
   await invokeCreate({ data: createBattleSchema.parse({ ...players, limit: 2000, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'battle_created', { delivery: 'direct', practice: false, limit: 2000, player_count: count, casual: true, manual: false }],
+    [
+      'actor',
+      'battle_created',
+      { delivery: 'direct', practice: false, limit: 2000, player_count: count, casual: true, manual: false, guests: expect.any(Number) },
+    ],
   ])
 })
 
@@ -85,7 +90,11 @@ it('records the refusal code but not its message for a refused command', async (
 it('reports no preset size for an automatically configured battle', async () => {
   await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', limit: null, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'battle_created', { delivery: 'direct', practice: false, limit: null, player_count: 2, casual: true, manual: false }],
+    [
+      'actor',
+      'battle_created',
+      { delivery: 'direct', practice: false, limit: null, player_count: 2, casual: true, manual: false, guests: 0 },
+    ],
   ])
 })
 
@@ -99,4 +108,9 @@ it('answers a device with the battle history from the same submission', async ()
   mocks.submitWithWorkspace.mockResolvedValue(answer)
   const data = { ...submitSchema.parse({ token: 'private-battle', expectedSeq: 2, command: { kind: 'reset-setup' } }), workspace: true }
   expect({ answer: await invokeSubmit({ data }), plain: mocks.submit.mock.calls.length }).toEqual({ answer, plain: 0 })
+})
+
+it('reports how many guests a battle seats', async () => {
+  await invokeCreate({ data: createBattleSchema.parse({ guestNames: ['Alex'], casual: true }) })
+  expect(mocks.capture.mock.calls[0]?.[2]).toMatchObject({ guests: 1 })
 })

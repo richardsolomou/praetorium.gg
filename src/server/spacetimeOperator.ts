@@ -70,7 +70,7 @@ const favouriteDetachmentRow = z.object({
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
 const battleSnapshot = z.object({
   battle: z.object({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
-  seats: z.array(z.object({ id: z.string(), side: z.number().int(), automated: z.boolean() })),
+  seats: z.array(z.object({ id: z.string(), side: z.number().int(), automated: z.boolean(), guestName: z.string().optional() })),
   log: z.array(
     z.object({
       seq: z.number().int(),
@@ -253,6 +253,7 @@ export class SpacetimeOperator {
     userId: string
     allyIds?: string[]
     opponentIds?: string[]
+    guestNames?: string[]
     initialCommand?: Command
     initialCommands?: Command[]
     now: number
@@ -266,6 +267,7 @@ export class SpacetimeOperator {
           userId: input.userId,
           allyIds: input.allyIds ?? [],
           opponentIds: input.opponentIds ?? [],
+          guestNames: input.guestNames ?? [],
           initialCommands: input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : []),
           now: input.now,
         }),

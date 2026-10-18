@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { guestSeatId } from './newBattle'
 import { averagePoints, standings, type StandingBattle, winRate } from './standings'
 
 const army = (slug: string) => ({ slug, displayName: slug, icon: null })
@@ -105,6 +106,12 @@ describe('standings', () => {
     const practice = duel({ playerIds: ['alice', 'practice'], players: ['Alice', 'Practice opponent'] })
 
     expect(standings([practice], { exclude: ['practice'] })).toEqual({ overall: [], factions: [] })
+  })
+
+  it('leaves out a battle a guest was seated in', () => {
+    const guest = duel({ playerIds: ['alice', guestSeatId('battle', 0)], players: ['Alice', 'Alex'] })
+
+    expect(standings([guest])).toEqual({ overall: [], factions: [] })
   })
 
   it('adds up every battle a player appears in', () => {

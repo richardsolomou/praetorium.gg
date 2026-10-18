@@ -34,6 +34,14 @@ Creation seats the entire table in one transaction; reads never take seats and t
 
 Practice opponents are ordinary seats backed by credential-less accounts, using a seated player's roster without friendship; there is no automated opponent. Exclude practice battles from public/friends feeds, standings, and service records. Legacy one-seat logs still fold, but new one-seat battles cannot start.
 
+A guest is a real opponent without an account, seated on the opposing side by the name the creator gives them. `src/core/newBattle.ts` owns the decisions:
+
+- Identity: the seat ID is `guestSeatId(battleId, at)`, so it can never be an account and the same person in two battles is two seats; the name lives only on the seat row (`battle_users.guestName`), not in the log. Account seats claiming a guest ID, friendships with one, and product revisions for one are refused in the product module.
+- Operation: the seat is automated like a practice seat, so seated players choose its roster from their own lists, answer its prompts, and see its private cards. It can concede, because the game is real; `isPracticeSeat` is the practice-only test.
+- Visibility: a guest has no audience preference, so the seated accounts' narrowest preference decides who may watch, and the name shows wherever the battle does. Creation says so.
+- Records: guest battles count in seated accounts' service records and appear in feeds, but never in standings for any seat, because one person recorded both sides. The record offers no guest as an opponent filter.
+- Not supported: guests in leagues or on the creator's side, and claiming a guest's games after signing up ([#1151](https://github.com/richardsolomou/praetorium.gg/issues/1151)).
+
 Setup progress is derived from the log (`set-setup-step` exists only for older logs). Any seated player may answer for either side, but may choose only their own, lent, or practice-seat rosters. Any seated device records derived cards once every army is in, so an absent player cannot block setup; shared choices wait for those writes.
 
 Infer battle size only once every army is selected, from saved roster formats, never actual totals. Both sides need the same allowance (allies split it) and the same custom points budget; Start battle is refused while budgets differ, and budgets never change the size. Preserve mismatched selections. Text-only armies require a manual size. League presets and explicit historical sizes stay fixed; reset clears choices and inferred size but keeps explicit presets. A layout without pinned geometry cannot start; legacy layout IDs resolve only through an unambiguous saved disposition pair and variant, never a substitute.
@@ -66,7 +74,7 @@ The clock derives elapsed time from every logged timestamp, including undone act
 
 `battleView` is the only field-visibility decision. Face-down Secret Mission identities and any deck that would identify them stay hidden; ordinary tactical cards are public. Preview images always read as signed out and use `no-store` for player content, since publication can be revoked. Profiles and service records use only watchable games, so private results cannot leak through rank, counts, or metadata.
 
-Standings rate finished guided, non-practice results with OpenSkill from bounded logs in finish order. Allies share their side's result; concessions override score. Revision changes invalidate caches across replicas after finish, reopen, deletion, or visibility changes; report the actual window when a count limit truncates it. Teams Event battle points (`teamsBattlePoints.ts`) are display-only: results, standings, and ratings never use them.
+Standings rate finished guided results without practice or guest seats with OpenSkill from bounded logs in finish order. Allies share their side's result; concessions override score. Revision changes invalidate caches across replicas after finish, reopen, deletion, or visibility changes; report the actual window when a count limit truncates it. Teams Event battle points (`teamsBattlePoints.ts`) are display-only: results, standings, and ratings never use them.
 
 ## Realtime updates
 

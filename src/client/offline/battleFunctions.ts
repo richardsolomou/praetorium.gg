@@ -9,6 +9,7 @@ import { battleWorkspace } from '../../server/functions/offline'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import type { LocalState } from '../../contracts/localState'
 import { commandSchema } from '../../core/commands'
+import { guestSeatId, isPracticeSeat } from '../../core/newBattle'
 import { createBattleSchema, saveRosterSchema, submitSchema } from '../../contracts/schemas'
 import { appendLocalCommand, resolveLocalDraw, localBattleState } from '../../core/offlineBattle'
 import { battleView } from '../../core/battleView'
@@ -308,7 +309,8 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const owner = localOwner()
   if (!localEngine() || !owner || !localConstruction()) return server.createBattle(args)
   const input = createBattleSchema.parse(args.data)
-  if (!input.casual) {
+  const guestNames = input.guestNames ?? []
+  if (!input.casual && !guestNames.length) {
     const matches = await leagueBattleOptions({ data: input })
     if (matches.length) throw new Error('Start this matchup from its saved league, or choose a casual battle.')
   }
@@ -317,7 +319,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const allyIds = input.allyId ? [input.allyId] : []
   const invited = [...allyIds, ...opponentIds]
   if (
-    !opponentIds.length ||
+    (!opponentIds.length && !guestNames.length) ||
     invited.includes(owner.id) ||
     new Set(invited).size !== invited.length ||
     invited.some((id) => !opponents.some((player) => player.id === id))
@@ -329,6 +331,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const players = [
     { ...me, side: 0, automated: false },
     ...invited.map((id) => ({ ...opponents.find((player) => player.id === id)!, side: allyIds.includes(id) ? 0 : 1 })),
+    ...guestNames.map((name, at) => ({ id: guestSeatId(identifiers.battleId, at), name, image: null, side: 1, automated: true })),
   ]
   const command = commandSchema.parse({
     kind: 'configure-battle',
@@ -336,8 +339,8 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
     missionPackId: input.manual ? null : input.missionPackId,
     terrainLayoutId: null,
     twistId: null,
-    teamBattle: invited.length >= 2,
-    playerCount: invited.length + 1,
+    teamBattle: players.length >= 3,
+    playerCount: players.length,
     clockLimitMinutes: null,
     ...(input.manual ? { manual: true } : {}),
   })
@@ -349,7 +352,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
     serverNow: now,
   }
   await queueLocal('createBattle', { input, identifiers }, `battle:${identifiers.battleToken}`, workspace, undefined, undefined, owner.id)
-  return { token: identifiers.battleToken, practice: players.some((player) => player.automated) }
+  return { token: identifiers.battleToken, practice: players.some(isPracticeSeat) }
 }
 
 const projectedBattles = new Map<string, string>()

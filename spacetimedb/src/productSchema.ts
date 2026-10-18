@@ -35,6 +35,8 @@ const battleUsers = table(
     userId: t.string().index('btree'),
     side: t.u8(),
     joinedAt: t.u64(),
+    /** Set only on a guest's seat: the name its host gave someone without an account, whose side the host plays. */
+    guestName: t.option(t.string()).default(undefined),
   },
 )
 

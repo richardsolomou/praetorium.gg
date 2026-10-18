@@ -1,6 +1,7 @@
 /** Fold a player’s visible finished battles with the same outcome and score functions as the leaderboard; store no second record. */
 
 import { groupBy } from './collections'
+import { isGuestSeat } from './newBattle'
 import { type BattleState, mayNameCard, type PlayerId, pointsLabel } from './battle'
 import { battleOutcome, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'
 
@@ -467,7 +468,8 @@ export function recordFacets(battles: readonly RecordBattle[], playerId: string)
     for (const detachment of new Set(seats.flatMap((other) => battle.detachments[other] ?? []))) {
       add('opponentDetachments', detachment, detachment)
     }
-    for (const other of seats) {
+    // A guest seat belongs to one battle, so it narrows nothing a battle list does not already show.
+    for (const other of seats.filter((at) => !isGuestSeat(battle.playerIds[at] ?? ''))) {
       add('opponents', battle.playerIds[other], battle.players[other] ?? 'Unknown player', battle.playerDetails?.[other]?.image)
     }
   }

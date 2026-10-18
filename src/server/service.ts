@@ -543,7 +543,7 @@ export class PraetoriumService {
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings =
       typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null, manual: false }
-    const { allyIds, opponentIds, invited } = newBattleSeats(input)
+    const { allyIds, opponentIds, guestNames, invited } = newBattleSeats(input)
     // One query for everyone named rather than one apiece, and both reads at once:
     // who exists and who may be invited are independent questions.
     const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.socialService.opponents(userId)])
@@ -554,12 +554,13 @@ export class PraetoriumService {
     if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
-    if (invited.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
+    if (invited.length + guestNames.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
       throw new Response('a battle seats four players at most', { status: 400 })
     // Every battle names its table. There is no opening a game and waiting to see
     // who turns up, so a battle without an opponent is not a battle yet.
-    if (!opponentIds.length) throw new Response('choose an opponent', { status: 400 })
-    if (invited.length && (typeof input !== 'object' || !input.casual)) {
+    if (!opponentIds.length && !guestNames.length) throw new Response('choose an opponent', { status: 400 })
+    // A league seats its own entrants, so a table with a guest at it can only be casual.
+    if (invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
       const leagueMatches = await this.leagueBattleOptions(userId, input)
       if (leagueMatches.length) {
         throw new Response('start this matchup from its league page, or confirm a casual battle', { status: 409 })
@@ -574,14 +575,15 @@ export class PraetoriumService {
       userId,
       allyIds,
       opponentIds,
+      guestNames,
       initialCommand: {
         kind: 'configure-battle',
         limit: settings.limit,
         missionPackId: settings.manual ? null : settings.missionPackId,
         terrainLayoutId: null,
         twistId: null,
-        teamBattle: invited.length >= 2,
-        playerCount: (invited.length + 1) as 2 | 3 | 4,
+        teamBattle: invited.length + guestNames.length >= 2,
+        playerCount: (invited.length + guestNames.length + 1) as 2 | 3 | 4,
         clockLimitMinutes: null,
         ...(settings.manual ? { manual: true } : {}),
       },

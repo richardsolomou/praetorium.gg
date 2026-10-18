@@ -34,6 +34,15 @@ function withProductStats<Row extends Omit<AdminUser, (typeof ADMIN_USER_COUNT_F
   }))
 }
 
+function seatPlayer(
+  profiles: ReadonlyMap<string, Omit<BattlePlayer, 'side' | 'automated'>>,
+  seat: Snapshot['seats'][number],
+): BattlePlayer {
+  const profile = seat.guestName === undefined ? profiles.get(seat.id) : { id: seat.id, name: seat.guestName, image: null }
+  if (!profile) throw new Error(`Battle seat ${seat.id} is missing from auth database`)
+  return { ...profile, side: seat.side, automated: seat.automated }
+}
+
 export class SpacetimeRepository {
   constructor(
     private readonly accounts: SqliteAccountRepository,
@@ -875,15 +884,15 @@ export class SpacetimeRepository {
   }
 
   private async battleSeats(snapshot: Snapshot) {
-    const profiles = await this.accounts.profilesByIds(snapshot.seats.map((seat) => seat.id))
-    return {
-      battle: snapshot.battle,
-      players: snapshot.seats.map((seat) => {
-        const profile = profiles.get(seat.id)
-        if (!profile) throw new Error(`Battle seat ${seat.id} is missing from auth database`)
-        return { ...profile, side: seat.side, automated: seat.automated }
-      }),
-    }
+    const profiles = await this.seatProfiles([snapshot])
+    return { battle: snapshot.battle, players: snapshot.seats.map((seat) => seatPlayer(profiles, seat)) }
+  }
+
+  /** Accounts come from the auth database; a guest seat carries the only name it has. */
+  private seatProfiles(snapshots: readonly Pick<Snapshot, 'seats'>[]) {
+    return this.accounts.profilesByIds(
+      snapshots.flatMap((row) => row.seats.filter((seat) => seat.guestName === undefined).map((seat) => seat.id)),
+    )
   }
 
   private async battleHistory(snapshot: Snapshot): Promise<BattleHistory> {
@@ -892,15 +901,11 @@ export class SpacetimeRepository {
 
   private async feed(input: Parameters<SpacetimeOperator['battleFeed']>[0]) {
     const page = await this.product.battleFeed(input)
-    const profiles = await this.accounts.profilesByIds(page.battles.flatMap((row) => row.seats.map((seat) => seat.id)))
+    const profiles = await this.seatProfiles(page.battles)
     const battles = page.battles.map((row) => ({
       battle: row.battle,
       at: row.at,
-      players: row.seats.map((seat) => {
-        const profile = profiles.get(seat.id)
-        if (!profile) throw new Error(`Battle seat ${seat.id} is missing from auth database`)
-        return { ...profile, side: seat.side, automated: seat.automated }
-      }),
+      players: row.seats.map((seat) => seatPlayer(profiles, seat)),
       log: row.log,
     }))
     return { battles, nextCursor: page.nextCursor }

@@ -163,12 +163,15 @@ const newBattlePlayers = {
 export const leagueBattleOptionsSchema = z.object(newBattlePlayers)
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
+const opposingSeats = (value: { opponentId?: string; opponentIds?: string[]; guestNames?: string[] }) =>
+  (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) + (value.guestNames?.length ?? 0)
 /**
  * Who is in a new battle, and on which side.
  *
  * `allyId` sits with the creator and `opponentIds` face them, so the same 2v1 can be
  * opened by either player of the allied pair. A 2v2 adds one ally and two opponents,
  * and the combined seat count is bounded rather than either side on its own.
+ * `guestNames` seats opponents without an account on the opposing side.
  */
 export const createBattleSchema = z
   .object({
@@ -179,15 +182,14 @@ export const createBattleSchema = z
       .refine((value) => GAME_SIZES.some((size) => size.limit === value))
       .nullable()
       .optional(),
+    guestNames: z.array(z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH)).min(1).max(2).optional(),
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
     manual: z.boolean().default(false),
   })
-  .refine(
-    (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 3,
-    'a battle seats four players at most',
-  )
-  .refine((value) => !value.allyId || Boolean(value.opponentIds?.length || value.opponentId), 'an ally needs someone to play against')
+  .refine((value) => opposingSeats(value) <= 2, 'a side seats two players at most')
+  .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')
+  .refine((value) => !value.allyId || opposingSeats(value) > 0, 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),

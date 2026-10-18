@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
+import { isGuestSeat } from '../../../core/newBattle'
 import type { Army, Side } from '../../sides'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { tint } from './battleTints'
@@ -9,13 +10,20 @@ import { tint } from './battleTints'
  *
  * One picture at one size wherever a seat is named — the side panel during a battle
  * and the strip above setup — so a player is recognised the same way from the first
- * screen of a game to the last.
+ * screen of a game to the last. A guest has no profile to go to, so their name says
+ * what they are instead.
  */
 export function PlayerName({ army, linked = true, className = '' }: { army: Army; linked?: boolean; className?: string }) {
+  const guest = isGuestSeat(army.playerId)
+  if (guest) linked = false
   const inner = (
     <>
       <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-6 text-xs" />
-      <span className={`break-words ${linked ? 'group-hover:underline' : ''}`}>{army.playerName}</span>
+      <span className={`break-words ${linked ? 'group-hover:underline' : ''}`}>
+        {army.playerName}
+        {/* Inside the name so it wraps with it rather than squeezing it in a narrow card. */}
+        {guest ? <span className="chip ml-1.5 align-middle">Guest</span> : null}
+      </span>
     </>
   )
   // Unlinked where the card around it is already a control: a link inside a button is
