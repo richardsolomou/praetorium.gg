@@ -95,11 +95,19 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
 
     const inside = nested.models + nested.groups.reduce((sum, group) => sum + group.total, 0)
     if (target.type === undefined && inside > 0) {
+      const stated = maximumCount(definition, index)
+      // A group of models fixed at a size fields that many, whatever range each occupant
+      // could take within it; its default body is still what a specialist swaps out.
+      // A fixed group of composition upgrades counts the choice, not the models.
+      if (stated !== null && stated > 0 && stated === requiredCount(definition, index) && holdsModels(child, index)) {
+        groups.push({ min: stated, max: stated, total: inside, adjust: widest(child, index, here) ?? here })
+        continue
+      }
       // A group's bounds are often absent and carried by its occupants instead,
       // so fall back to what they add up to rather than reporting no limit.
       const occupants = occupantBounds(child, index)
       const min = requiredCount(definition, index) || occupants.min
-      const max = maximumCount(definition, index) ?? occupants.max
+      const max = stated ?? occupants.max
       if (max > min) {
         groups.push({ min, max, total: inside, adjust: widest(child, index, here) ?? here })
         continue
@@ -112,6 +120,14 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
 
   return { models, groups }
 }
+
+/** Whether a group holds only models, directly or through groups of models. */
+const holdsModels = (group: Selection, index: CatalogueIndex): boolean =>
+  (group.selections ?? []).every((child) => {
+    const definition = index.definitions.get(child.id)
+    const type = definition && resolve(definition, index).type
+    return type === 'model' || (definition !== undefined && type === undefined && holdsModels(child, index))
+  })
 
 /** What a group's model occupants add up to, for when the group states no bounds itself. */
 function occupantBounds(group: Selection, index: CatalogueIndex): { min: number; max: number } {

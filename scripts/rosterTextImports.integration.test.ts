@@ -77,6 +77,21 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     expect(wargear(listForgePiranhas, 'Piranhas')).toContain('2x seeker missile')
   })
 
+  // Warmind's ListForge and official-app layouts state no model count, and a Wyches squad is always ten.
+  const wychesLoadout = ['7x Splinter Pistol', '3x Gladiatorial Weapons', '7x Hekatarii Blade']
+  const wychesFrom = {
+    warmindListForge: `Wyches - Drukhari - Exhibition of Slaughter (90 Points)\n\nBattle Size: Strike Force (2000 point limit)\n\nBattleline:\nWyches (90 pts)\n• B: ${wychesLoadout.join(', ')}`,
+    warmindOfficial: `Wyches (90 points)\n\nDrukhari\nExhibition of Slaughter (1 Detachment Point)\nStrike Force (2000 points)\n\nBATTLELINE\n\nWyches (90 points)\n${wychesLoadout.map((line) => `  • ${line}`).join('\n')}\n`,
+  }
+
+  it.each(Object.entries(wychesFrom))('imports Wyches from %s without a mismatch', (_name, file) => {
+    expect(summary(file).mismatches).toEqual([])
+  })
+
+  it.each(Object.entries(wychesFrom))('keeps all three Gladiatorial Weapons in Wyches from %s', (_name, file) => {
+    expect(wargear(file, 'Wyches')).toContain('3x gladiatorial weapons')
+  })
+
   // Agents of the Imperium hold the Simulacrum Sanctifier on the datasheet, outside any group.
   const alliedSanctifiers = `Sanitised list - Grey Knights - Take and Hold - Warpbane Task Force (100 Points)
 
