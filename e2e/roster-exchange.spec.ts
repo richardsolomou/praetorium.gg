@@ -113,15 +113,16 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await visitor.reload()
   expect((await exportedText(visitor)).replace(/^.*Exported with.*$/m, '')).toBe(sent.replace(/^.*Exported with.*$/m, ''))
 
-  // Opening a link again never replaces the one draft a visitor keeps without asking.
+  // Opening a link again never replaces the one draft a visitor keeps: a second roster asks for an account.
+  const kept = await visitor.evaluate(() => localStorage.getItem('praetorium.guest-draft'))
   await visitor.goto('/')
   await visitor.goto(`/rosters#code=${code}`)
-  const notice = visitor.getByRole('alert').filter({ hasText: 'Your link carries another roster' })
-  await expect(notice).toBeVisible()
-  await expect(visitor.getByRole('dialog', { name: 'Import roster', exact: true })).toHaveCount(0)
-  await shot(notice, 'test-results/roster-exchange-guest-draft-notice-phone.png')
-  await notice.getByRole('button', { name: 'Discard draft and import' }).click()
   await expect(draft).toContainText('2 of 2 matched entries')
+  await draft.getByRole('button', { name: 'Open imported draft', exact: true }).click()
+  const prompt = visitor.getByRole('dialog', { name: 'Keep more than one roster' })
+  await expect(prompt).toBeVisible()
+  await shot(prompt, 'test-results/roster-exchange-guest-draft-notice-phone.png')
+  expect(await visitor.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toBe(kept)
 })
 
 test('damaged, unsupported and unavailable exchange codes explain why they cannot import', async ({ browser }) => {

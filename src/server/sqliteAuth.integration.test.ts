@@ -76,6 +76,26 @@ it('signs up, claims an administrator, and revokes its product session', async (
   expect(await auth.api.getSession({ headers })).toBeNull()
 })
 
+it('issues a guest seat’s device a realtime token that names only its seat', async () => {
+  const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
+  const { payload } = await jwtVerify(
+    await auth.spacetimeGuestToken('guest:battle:0', 'a'.repeat(64)),
+    createLocalJWKSet(await auth.api.getJwks()),
+    {
+      issuer: 'https://praetorium.gg/api/auth',
+      audience: 'praetorium-test',
+    },
+  )
+  expect(payload).toMatchObject({
+    sub: `guest-device:${'a'.repeat(64)}`,
+    userId: 'guest:battle:0',
+    tokenType: 'spacetime-guest',
+    exp: payload.accessExpiresAt,
+  })
+  // SpacetimeDB refuses a token without an issue time.
+  expect([payload.isAdmin, (payload.exp ?? 0) - (payload.iat ?? 0)]).toEqual([undefined, 300])
+})
+
 it.each([
   ['http://127.0.0.1:3000', 'http://localhost:3000'],
   ['http://localhost:3000', 'http://127.0.0.1:3000'],

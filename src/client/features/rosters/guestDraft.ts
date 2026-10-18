@@ -5,8 +5,10 @@ import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
 import { parseWorkspaceState, readStoredWorkspaceState, readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { currentRosterIds } from '../../../core/retiredCatalogueIds'
+import { attachedUnitCount } from '../../../core/attachedUnits'
+import { requireReviewedRoster } from '../../offline/reviewedRoster'
 
-/** Where a visitor's list is built, and so where every piece of its tab state is kept. */
+/** The rosters page, where a visitor's list is listed and where signing in saves it to the account. */
 export const GUEST_PATH = '/rosters'
 const NAME = 'guest-draft'
 const KEY = 'praetorium.guest-draft'
@@ -18,28 +20,21 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 /**
  * A list a visitor is building, kept on this device until an account saves it.
  *
- * `saveRequestedAt` records when the visitor last submitted sign-in from the save prompt.
+ * `saveRequestedAt` records when the visitor last submitted sign-in from the save prompt; drafts from before
+ * `updatedAt` was kept have none.
  */
-export type GuestDraft = { version: typeof VERSION; id: string; draft: Omit<RosterDraft, 'id'>; saveRequestedAt?: number }
+export type GuestDraft = {
+  version: typeof VERSION
+  id: string
+  draft: Omit<RosterDraft, 'id'>
+  updatedAt?: number
+  saveRequestedAt?: number
+}
 
-let openDraft: boolean | null = null
 let lastWritten: string | null = null
-const listeners = new Set<() => void>()
 
-export function subscribeGuestDraft(listener: () => void) {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-
-export function guestDraftOpen(hinted: boolean) {
-  return openDraft ?? hinted
-}
-
-export function setGuestDraftOpen(open: boolean) {
-  if (openDraft === open) return
-  openDraft = open
-  listeners.forEach((listener) => listener())
-}
+/** The builder's address for a visitor's list, which is the one the list keeps once an account saves it under its id. */
+export const guestDraftPath = (guest: Pick<GuestDraft, 'id'>) => `/rosters/${guest.id}`
 
 export const EMPTY_SETUP: RosterSetup = {
   name: '',
@@ -55,16 +50,43 @@ export const EMPTY_SETUP: RosterSetup = {
 }
 
 /**
- * A new list from a visitor's setup. It stays private in this browser; claiming it applies the player's default visibility.
+ * A visitor's list from a setup, an import or a copy. It stays private in this browser; claiming it applies the
+ * player's default visibility.
  *
  * Its id is made here because saving a list by an id its owner already holds updates that row, so a claim that is
  * sent again after a reload lands on the list it already made rather than a second one.
  */
-export function newGuestDraft(setup: RosterSetup): GuestDraft {
+export function guestDraftOf(draft: Omit<RosterDraft, 'id'>): GuestDraft {
+  return { version: VERSION, id: crypto.randomUUID(), draft: { ...draft, visibility: 'private' }, updatedAt: Date.now() }
+}
+
+export const newGuestDraft = (setup: RosterSetup) => guestDraftOf({ ...setup, picks: [], prep: null, source: 'editable' })
+
+/** The draft as the rosters page lists a saved one: private, and never locked, archived or a variant. */
+export function guestRosterSummary(guest: GuestDraft) {
+  const { draft } = guest
+  // A draft from before edits were dated reads as edited now rather than in 1970.
+  const updatedAt = guest.updatedAt ?? Date.now()
   return {
-    version: VERSION,
-    id: crypto.randomUUID(),
-    draft: { ...setup, visibility: 'private', picks: [], prep: null, source: 'editable' },
+    id: guest.id,
+    name: draft.name,
+    automaticName: !draft.name,
+    catalogueId: draft.catalogueId,
+    detachmentIds: draft.detachmentIds,
+    disposition: draft.disposition,
+    limit: draft.limit,
+    pointsBudget: draft.pointsBudget ?? null,
+    waivedRules: draft.waivedRules ?? [],
+    optionalRules: draft.optionalRules ?? [],
+    borrowedDetachmentId: draft.borrowedDetachmentId ?? null,
+    baseRosterId: null,
+    locked: false,
+    archived: false,
+    visibility: 'private' as const,
+    source: draft.source ?? 'editable',
+    createdAt: updatedAt,
+    updatedAt,
+    unitCount: attachedUnitCount(draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
   }
 }
 
@@ -132,6 +154,16 @@ export function writeGuestDraft(draft: GuestDraft) {
   }
 }
 
+/**
+ * Keeps an edit from the builder, dated now. One that changes nothing is not written, since another tab hears every
+ * write as a change and would start its builder again.
+ */
+export function editGuestDraft(guest: GuestDraft, draft: GuestDraft['draft']) {
+  const kept = readGuestDraft()
+  if (kept?.id === guest.id && JSON.stringify(kept.draft) === JSON.stringify(draft)) return true
+  return writeGuestDraft({ ...guest, draft, updatedAt: Date.now() })
+}
+
 /** Records that the visitor is signing in to save the draft, so arriving signed in saves it without asking. */
 export function requestGuestSave(now = Date.now()) {
   const guest = readGuestDraft()
@@ -166,11 +198,19 @@ function forget(remove: () => void) {
 
 /** Forgets the draft and the setup and warning state the builder kept beside it. */
 export function clearGuestDraft() {
+  const kept = readGuestDraft()
   forget(() => localStorage.removeItem(KEY))
   lastWritten = null
-  for (const name of [NAME, 'roster-setup', 'waivers-dismissed']) writeWorkspaceState(GUEST_PATH, name, null)
+  writeWorkspaceState(GUEST_PATH, NAME, null)
+  if (kept) for (const name of ['roster-setup', 'waivers-dismissed']) writeWorkspaceState(guestDraftPath(kept), name, null)
   markGuestDraft(false)
-  setGuestDraftOpen(false)
+}
+
+/** Keeps a reviewed setup change, refused when another tab changed the list after the review began. */
+export function keepReviewedDraft(guest: GuestDraft, { id: _id, ...draft }: RosterDraft, source: RosterDraft) {
+  const latest = readGuestDraft()
+  requireReviewedRoster(latest?.id === guest.id ? latest.draft : null, { ...source, id: undefined })
+  return writeGuestDraft({ ...guest, draft, updatedAt: Date.now() })
 }
 
 /** What `saveRoster` is sent to keep a visitor's list under their new account. */

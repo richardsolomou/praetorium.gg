@@ -3,15 +3,19 @@ import { localRedirectPath } from 'ras-stack/auth/client'
 import { SignInPage } from '../client/features/account/SignInPage'
 import { signInOptionsQuery } from '../client/queries'
 import { signedInDestination } from '../client/features/account/signInGuard'
-import { searchFlag } from '../client/searchParams'
+import { searchFlag, searchText } from '../client/searchParams'
+import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
 export const Route = createFileRoute('/sign-in')({
   validateSearch: (search: Record<string, unknown>) => {
-    const result: { next?: string; error?: string; reset?: boolean; join?: boolean } = {}
+    // `name` starts a new account with the name its holder already played under, such as a guest seat's.
+    const result: { next?: string; error?: string; reset?: boolean; join?: boolean; name?: string } = {}
     result.next = localRedirectPath(search.next)
     if (typeof search.error === 'string' && search.error) result.error = search.error
     if (searchFlag(search.reset)) result.reset = true
     if (searchFlag(search.join)) result.join = true
+    const name = searchText(search.name, PROFILE_NAME_MAX_LENGTH)
+    if (name) result.name = name
     return result
   },
   beforeLoad: async ({ context, location, preload, search }) => {

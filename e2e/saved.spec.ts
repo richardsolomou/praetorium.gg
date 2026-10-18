@@ -427,10 +427,10 @@ test('the roster library reprices a saved list edited in another tab', async ({ 
   await viewer.close()
 })
 
-test('a visitor opening the roster library is given the builder instead', async ({ page }) => {
+test('a visitor opening the roster library sees the rosters page with nothing kept yet', async ({ page }) => {
   await page.goto('/rosters')
 
-  await expect(page.getByRole('region', { name: 'Create roster' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
   await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
 })
 
@@ -631,9 +631,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.goto(sharedUrl)
   await expect(guest.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(guest.getByLabel('List name')).toHaveAttribute('readonly', '')
-  const signInToDuplicate = guest.getByRole('menuitem', { name: 'Sign in to duplicate' })
-  await retryUntilVisible(signInToDuplicate, () => guest.getByRole('button', { name: 'Roster actions' }).click())
-  await expect(signInToDuplicate).toHaveAttribute('href', /\/sign-in\?next=/)
+  const duplicateHere = guest.getByRole('menuitem', { name: 'Duplicate to this device' })
+  await retryUntilVisible(duplicateHere, () => guest.getByRole('button', { name: 'Roster actions' }).click())
   await expect(guest.getByRole('menuitem', { name: 'Export text' })).toBeVisible()
   await expect(guest.getByRole('menuitem', { name: 'Print' })).toBeVisible()
   await guest.screenshot({ path: 'test-results/shared-roster-actions.png', fullPage: true })
@@ -671,7 +670,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.screenshot({ path: 'test-results/shared-roster-read-only-phone.png', fullPage: true })
   await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
   await guest.getByRole('button', { name: 'Roster actions' }).click()
-  await expect(guest.getByRole('menuitem', { name: 'Sign in to duplicate' })).toBeVisible()
+  await expect(guest.getByRole('menuitem', { name: 'Duplicate to this device' })).toBeVisible()
   expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   await guest.screenshot({ path: 'test-results/shared-roster-actions-phone.png', fullPage: true })
   await guest.keyboard.press('Escape')

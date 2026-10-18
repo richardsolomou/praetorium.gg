@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Label } from '@/components/ui/label'
 import type { OnboardingTarget } from '../onboardingTargets'
 import type { Seat } from '../seats'
@@ -36,6 +37,7 @@ export function SeatRows({
   groupsFor,
   onboarding,
   onPick,
+  renderDetail,
 }: {
   idPrefix: string
   seats: readonly Seat[]
@@ -43,6 +45,8 @@ export function SeatRows({
   groupsFor: (seat: Seat, taken: ReadonlySet<string | null>) => SearchableGroup[]
   onboarding?: OnboardingTarget
   onPick: (seat: Seat, id: string) => void
+  /** Anything more a filled seat needs, beneath its choice. */
+  renderDetail?: (seat: Seat) => ReactNode
 }) {
   return (
     <div data-onboarding={onboarding} className="space-y-2">
@@ -64,6 +68,7 @@ export function SeatRows({
               searchPlaceholder="Search players…"
               className="mt-1 h-11"
             />
+            {renderDetail?.(seat)}
           </div>
         )
       })}

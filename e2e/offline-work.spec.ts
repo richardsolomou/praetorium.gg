@@ -242,6 +242,38 @@ test('an offline practice battle and its commands survive reopening and sync tog
   })
 })
 
+test('a guest battle created offline keeps the guest’s seat when it syncs', async ({ page, context }) => {
+  test.setTimeout(240_000)
+  const account = await signUp(page, uniqueName('Offline guest host'))
+  const operator = await productOperator()
+  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
+  const rosterId = crypto.randomUUID()
+  await operator.saveRoster({
+    ...source,
+    id: rosterId,
+    userId: await userIdFor(account.email),
+    name: 'Guest army',
+    automaticName: false,
+    now: Date.now(),
+  })
+  await page.goto('/battles')
+  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
+    page.getByRole('button', { name: 'New battle' }).click(),
+  )
+  await page.keyboard.press('Escape')
+  await waitForOfflineApp(page)
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await context.setOffline(true)
+  const token = new URL(await createBattle(page, { guest: 'Offline Guest' })).pathname.split('/').at(-1)!
+  await attachRoster(page, 'Guest army', { forPlayer: 'Offline Guest' })
+  await context.setOffline(false)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect.poll(async () => (await savedWork(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  const synced = (await operator.battleByToken(token))!
+  const guest = synced.seats.find((seat) => seat.guestName === 'Offline Guest')
+  expect(synced.log.find((entry) => entry.command.kind === 'attach-roster')?.command).toMatchObject({ playerId: guest?.id })
+})
+
 test('a battle link opened before its offline creation syncs opens once the battle arrives', async ({ page, context, browser }) => {
   test.setTimeout(240_000)
   const opponentName = uniqueName('Early opponent')

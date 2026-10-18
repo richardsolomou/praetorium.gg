@@ -17,13 +17,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { CreateRoster } from './CreateRoster'
+import { buttonClass } from '../../components/buttonClass'
+import { useAccountPrompt } from './AccountPrompt'
+import { claimInput, GUEST_PATH, type GuestDraft, guestRosterSummary, readGuestDraft } from './guestDraft'
+import { GuestBattleLink, useGuestRosterRow } from './GuestRoster'
+import { useNewRoster } from './newRoster'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { RosterExportDialog } from './RosterExportDialog'
 import { RosterExchangeDialog } from './RosterExchangeDialog'
 import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
-import { SignInRequired } from '../../components/SignInRequired'
 import { factionSelectGroups } from './builder/factions'
 import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
@@ -60,7 +64,17 @@ const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
 const storedEditingSession = () => readStoredWorkspaceState(WORKSPACE_PATH, EDITING_STATE)
 
-export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearch; sort: RosterSort }) {
+/**
+ * A visitor's one list on this device, read once the page is in the browser; `pending` holds its row's place until then.
+ */
+export type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChange: (guest: GuestDraft | null) => void }
+
+/**
+ * A player's rosters, or a visitor's one roster on this device, on the same page.
+ *
+ * A visitor's actions that would make a second list, or that need an account, ask them to sign up instead.
+ */
+export function RosterLibraryPage({ search, sort, device }: { search: RosterLibrarySearch; sort: RosterSort; device?: DeviceLibrary }) {
   const [selectedSort, setSelectedSort] = useState(sort)
   const pageKey = JSON.stringify([
     search.limit ?? null,
@@ -77,11 +91,14 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     setSelectedSort(sort)
   }
   const { data: me } = useQuery(meQuery())
+  const guest = me ? null : (device?.guest ?? null)
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
-  const availableResult = useQuery({ ...factionIndexQuery(), enabled: Boolean(me) })
+  const availableResult = useQuery(factionIndexQuery())
   const lent = useQuery({ ...rostersLentToMeQuery(), enabled: Boolean(me) }).data ?? []
-  const { data: references } = useQuery({ ...gameReferencesQuery(), enabled: Boolean(me) })
-  const saved = savedResult.data ?? []
+  const { data: references } = useQuery(gameReferencesQuery())
+  const guestRow = useGuestRosterRow(guest)
+  const account = useAccountPrompt()
+  const saved = me ? (savedResult.data ?? []) : guest ? [guestRosterSummary(guest)] : []
   const available = availableResult.data
   const navigate = useNavigate()
   const router = useRouter()
@@ -113,9 +130,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   )
   const needsFactions = Boolean(search.faction || search.updates === 'older')
   const libraryPending =
-    savedResult.isPending || (needsFactions && availableResult.isPending) || (search.updates === 'changed' && changedResult.isPending)
+    (me ? savedResult.isPending : Boolean(device?.pending)) ||
+    (needsFactions && availableResult.isPending) ||
+    (search.updates === 'changed' && changedResult.isPending)
   const libraryError =
-    savedResult.isError || (needsFactions && availableResult.isError) || (search.updates === 'changed' && changedResult.isError)
+    (me && savedResult.isError) || (needsFactions && availableResult.isError) || (search.updates === 'changed' && changedResult.isError)
   const active = shown.filter((roster) => !roster.archived)
   const archived = shown.filter((roster) => roster.archived)
   const [archivedOpen, setArchivedOpen] = useState(false)
@@ -130,12 +149,32 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
   )
   const pageResults = pages.results
   if (!rowsSettled && savedResult.isSuccess && pageResults.every((result) => result.isSuccess)) setRowsSettled(true)
-  const pageById = pages.byId
+  const pageById = guest
+    ? new Map([
+        [
+          guest.id,
+          { id: guest.id, points: guestRow.points, label: guestRow.label ?? '', problem: guestRow.problem, changes: 0, differences: null },
+        ],
+      ])
+    : pages.byId
   const changedLists = changedIds.size
   const olderLists = available ? saved.filter(olderRules).length : 0
 
   const origin = useOrigin()
-  const actions = useRosterActions(origin)
+  const actions = useRosterActions(
+    origin,
+    guest
+      ? {
+          guest,
+          points: guestRow.points,
+          onChanged: () => device?.onChange(readGuestDraft()),
+          onRemoved: () => device?.onChange(null),
+        }
+      : null,
+  )
+  // A visitor keeps one list; making another asks them to sign up first.
+  const another = guest ? () => account.ask('another-roster') : undefined
+  const { keepImported, saveError: importError } = useNewRoster()
   const [deleting, setDeleting] = useState<SavedRoster | null>(null)
   const storedSession = useClientValue(storedEditingSession, null)
   const restoredSession = useMemo(() => parseWorkspaceState<EditingSession>(storedSession), [storedSession])
@@ -170,7 +209,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         label={pageById.get(roster.id)?.label}
         dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
         factionLoading={availableResult.isPending}
-        pointsLoading={pages.pending(index)}
+        pointsLoading={guest ? guestRow.pending : pages.pending(index)}
         problem={pageById.get(roster.id)?.problem ?? null}
         differences={pageById.get(roster.id)?.differences}
         updates={{ olderRules: olderRules(roster), changes: pageById.get(roster.id)?.changes ?? 0 }}
@@ -180,6 +219,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
         onConvert={() => setEditing({ rosterId: roster.id, draft: setupOf(roster), mode: 'convert' })}
         onDelete={() => setDeleting(roster)}
+        onNeedsAccount={guest ? account.ask : undefined}
       />
     )
     return variants.length ? (
@@ -192,10 +232,8 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
     )
   }
 
-  if (!me) return <SignInRequired title="Your rosters" explanation="Sign in to see the army lists saved to your account." />
-
   const filtered = Boolean(search.limit !== undefined || search.faction || search.visibility || search.updates)
-  const archivable = Boolean(deleting && !deleting.archived)
+  const archivable = Boolean(deleting && !deleting.archived && !guest)
   const deleteAction = (
     <AlertDialogAction
       variant="destructive"
@@ -217,8 +255,8 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
-            <RosterImport />
-            <CreateRoster factionOptions={available?.factions ?? []} limit={search.limit} />
+            <RosterImport onImport={me ? undefined : keepImported} blocked={another} />
+            <CreateRoster factionOptions={available?.factions ?? []} limit={search.limit} blocked={another} />
           </>
         }
       >
@@ -226,6 +264,16 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
       </PageHeader>
 
       <PageContent className="space-y-6">
+        {me ? null : (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-edge bg-sunken px-3 py-2 text-sm text-dim">
+            <p className="min-w-0 flex-1">Without an account, this device keeps one roster. Sign up free to keep as many as you like.</p>
+            <Link to="/sign-in" search={{ next: GUEST_PATH, join: true }} className={buttonClass({ size: 'sm' })}>
+              Create an account
+            </Link>
+          </div>
+        )}
+        <GuestBattleLink />
+        {importError ? <Problem>{importError}</Problem> : null}
         <RosterFilters
           value={{ ...search, sort: selectedSort }}
           factionGroups={factionGroups}
@@ -302,10 +350,13 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
             ) : active.length ? (
               <>
                 {groups.map(renderCard)}
-                {pageResults.some((result) => result.isError) ? (
+                {pageResults.some((result) => result.isError) || guestRow.failed ? (
                   <Button
                     variant="outline"
-                    onClick={() => void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))}
+                    onClick={() => {
+                      if (guestRow.failed) guestRow.retry()
+                      void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))
+                    }}
                   >
                     Retry roster points and legality
                   </Button>
@@ -369,9 +420,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleting?.archived
-                ? 'This removes the saved roster for good. Frozen copies in battles and leagues are kept.'
-                : 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and leagues are kept either way.'}
+              {guest
+                ? 'This removes the roster from this device for good. A copy you brought to a battle is kept there.'
+                : deleting?.archived
+                  ? 'This removes the saved roster for good. Frozen copies in battles and leagues are kept.'
+                  : 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and leagues are kept either way.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -408,10 +461,11 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           value={session?.draft ?? setupOf(editing)}
           onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft, mode: session?.mode })}
           hasUnits={Boolean(editing.unitCount)}
-          reviewSource={editing.id}
+          reviewSource={guest ? claimInput(guest) : editing.id}
+          guest={Boolean(guest)}
           pending={actions.update.isPending}
           saveError={actions.update.isError ? errorMessage(actions.update.error) : undefined}
-          canKeepOriginal
+          canKeepOriginal={!guest}
           onSave={async (_setup, review, options) => {
             if (!review) throw new Error('Review the roster before saving changes.')
             const id = options?.keepOriginal ? (await actions.convertAsVariant.mutateAsync(review)).id : editing.id
@@ -421,6 +475,7 @@ export function RosterLibraryPage({ search, sort }: { search: RosterLibrarySearc
           }}
         />
       ) : null}
+      {account.prompt}
       <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />
       <RosterExchangeDialog exchange={actions.exchangeCode} onClose={actions.clearExchange} />
     </main>

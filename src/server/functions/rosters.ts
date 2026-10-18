@@ -328,6 +328,26 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
     }),
   )
 
+/** An army from a finished battle the reader may watch, as a roster that would copy it; nothing is saved. */
+async function playedArmyCopy(data: { token: string; playerId: string }, viewerId: string | null) {
+  const army = await app().service.playedArmy(data.token, data.playerId, viewerId)
+  if (!army) throw new Response('That army is no longer available to copy.', { status: 404 })
+  const copy = copiedArmy(army)
+  return saveRosterSchema.parse({
+    name: `Copy of ${army.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
+    catalogueId: copy.catalogueId,
+    detachmentIds: copy.detachmentIds,
+    disposition: army.disposition,
+    limit: army.limit,
+    pointsBudget: army.pointsBudget,
+    picks: copy.picks,
+    waivedRules: army.waivedRules,
+    optionalRules: [],
+    prep: null,
+    visibility: 'private',
+  })
+}
+
 /** A new roster holding an army from a finished battle the player may watch. The battle is not changed. */
 export const copyPlayedArmy = createServerFn({ method: 'POST' })
   .validator(playedArmySchema)
@@ -335,28 +355,18 @@ export const copyPlayedArmy = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       const instance = app()
-      const army = await instance.service.playedArmy(data.token, data.playerId, player.id)
-      if (!army) throw new Response('That army is no longer available to copy.', { status: 404 })
-      const copy = copiedArmy(army)
       const { rosterVisibility } = await instance.service.playerDefaults(player.id)
-      const roster = saveRosterSchema.parse({
-        name: `Copy of ${army.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
-        catalogueId: copy.catalogueId,
-        detachmentIds: copy.detachmentIds,
-        disposition: army.disposition,
-        limit: army.limit,
-        pointsBudget: army.pointsBudget,
-        picks: copy.picks,
-        waivedRules: army.waivedRules,
-        optionalRules: [],
-        prep: null,
-        visibility: rosterVisibility,
-      })
+      const roster = { ...(await playedArmyCopy(data, player.id)), visibility: rosterVisibility }
       const saved = await saveOwnedRoster(player.id, roster)
       await captureRosterCreated(instance, player.id, roster, { played: true })
       return { id: saved.id }
     }),
   )
+
+/** A played army as a visitor's copy would hold it, which their device keeps rather than an account. */
+export const playedArmyDraft = createServerFn({ method: 'GET' })
+  .validator(playedArmySchema)
+  .handler(({ data }) => rpc(async () => playedArmyCopy(data, await currentUserId())))
 
 export const copyRoster = createServerFn({ method: 'POST' })
   .validator(copyRosterSchema)

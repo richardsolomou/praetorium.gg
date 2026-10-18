@@ -166,12 +166,15 @@ const newBattlePlayers = {
 export const leagueBattleOptionsSchema = z.object(newBattlePlayers)
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
+const opposingSeats = (value: { opponentId?: string; opponentIds?: string[]; guestNames?: string[] }) =>
+  (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) + (value.guestNames?.length ?? 0)
 /**
  * Who is in a new battle, and on which side.
  *
  * `allyId` sits with the creator and `opponentIds` face them, so the same 2v1 can be
  * opened by either player of the allied pair. A 2v2 adds one ally and two opponents,
  * and the combined seat count is bounded rather than either side on its own.
+ * `guestNames` seats opponents without an account on the opposing side.
  */
 export const createBattleSchema = z
   .object({
@@ -182,15 +185,14 @@ export const createBattleSchema = z
       .refine((value) => GAME_SIZES.some((size) => size.limit === value))
       .nullable()
       .optional(),
+    guestNames: z.array(z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH)).min(1).max(2).optional(),
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
     manual: z.boolean().default(false),
   })
-  .refine(
-    (value) => (value.allyId ? 1 : 0) + (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) <= 3,
-    'a battle seats four players at most',
-  )
-  .refine((value) => !value.allyId || Boolean(value.opponentIds?.length || value.opponentId), 'an ally needs someone to play against')
+  .refine((value) => opposingSeats(value) <= 2, 'a side seats two players at most')
+  .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')
+  .refine((value) => !value.allyId || opposingSeats(value) > 0, 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
@@ -214,6 +216,9 @@ export const onboardingUpdateSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('welcome') }),
 ])
 export const friendInviteSchema = z.object({ token })
+/** A guest seat in a battle; `replace` retires its link and any device that joined through it. */
+export const guestInviteSchema = z.object({ token, playerId: id, replace: z.boolean().default(false) })
+export const guestInvitationSchema = z.object({ invite: token })
 
 /**
  * A player's profile, and what to narrow their record by.
@@ -254,13 +259,6 @@ export const adminUsersSchema = z.object({
  * `expectedSeq` is the client's claim about the history it has already seen.
  * Sending it is what makes a command conditional on nothing having happened since.
  */
-const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
-export const submitSchema = z.object({
-  token,
-  expectedSeq: z.number().int().min(0),
-  command: z.union([commandSchema, attachSavedRosterSchema]),
-})
-
 /**
  * The format restrictions this roster has switched off, by the ids `formatRules` names.
  *
@@ -351,6 +349,15 @@ export const saveRosterSchema = z
   })
   .superRefine(validatePointsBudget)
   .overwrite((value) => withStandardBudget(currentRosterIds(value)))
+
+const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
+/** A guest has no saved lists, so they field the one this device is building, priced and frozen by the server. */
+const attachDraftRosterSchema = z.object({ kind: z.literal('attach-draft-roster'), draft: saveRosterSchema }).strict()
+export const submitSchema = z.object({
+  token,
+  expectedSeq: z.number().int().min(0),
+  command: z.union([commandSchema, attachSavedRosterSchema, attachDraftRosterSchema]),
+})
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(200_000) })

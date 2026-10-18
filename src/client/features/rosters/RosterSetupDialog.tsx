@@ -119,10 +119,8 @@ type Props = {
   canKeepOriginal?: boolean
   pending?: boolean
   saveError?: string
-  /** A visitor's list, which stays private until an account saves it and so offers no access to choose. */
+  /** A visitor's list, which stays private until an account saves it, so its access is shown but not chosen. */
   guest?: boolean
-  /** Drawn as the page itself rather than over it, for a page that has nothing else to show yet. */
-  inline?: boolean
 }
 
 /**
@@ -168,7 +166,6 @@ export function RosterSetupDialog({
   pending = false,
   saveError,
   guest = false,
-  inline = false,
   canKeepOriginal = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
@@ -678,12 +675,12 @@ export function RosterSetupDialog({
         <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
       </div>
 
-      <div hidden={guest}>
+      <div>
         <Label className="eyebrow block" htmlFor="setup-visibility">
           Access
         </Label>
         <Select
-          disabled={mode === 'convert'}
+          disabled={guest || mode === 'convert'}
           value={draft.visibility}
           onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
         >
@@ -699,7 +696,7 @@ export function RosterSetupDialog({
           </SelectContent>
         </Select>
         <p id="setup-visibility-reach" className="mt-1.5 text-xs text-dim">
-          {VISIBILITY_REACH[draft.visibility]}
+          {guest ? 'Only you, on this device. Sign in to share it by link or publicly.' : VISIBILITY_REACH[draft.visibility]}
         </p>
       </div>
     </div>
@@ -715,11 +712,9 @@ export function RosterSetupDialog({
           <span id={missingId}>{missing}</span>
         </output>
       ) : null}
-      {inline ? null : (
-        <Button variant="outline" disabled={confirming.isPending} onClick={() => onOpenChange(false)}>
-          Cancel
-        </Button>
-      )}
+      <Button variant="outline" disabled={confirming.isPending} onClick={() => onOpenChange(false)}>
+        Cancel
+      </Button>
       {review ? (
         <Button
           variant="outline"
@@ -760,9 +755,7 @@ export function RosterSetupDialog({
                   ? 'Creating…'
                   : 'Saving…'
                 : mode === 'create'
-                  ? inline
-                    ? 'Start building'
-                    : 'Create roster'
+                  ? 'Create roster'
                   : mode === 'convert'
                     ? 'Convert roster'
                     : reviewSource
@@ -794,63 +787,52 @@ export function RosterSetupDialog({
         borrowedError={borrowedError}
         onChooseBorrowed={(detachmentId) => changeDraft({ ...draft, borrowedDetachmentId: detachmentId, disposition: null })}
       />
-      {inline ? (
-        <section aria-label={title} className="space-y-6">
-          {fields}
-          <div className="flex flex-col-reverse gap-2 border-t border-edge pt-5 sm:flex-row sm:justify-end">{actions}</div>
-        </section>
-      ) : (
-        <Dialog open={open} onOpenChange={(next) => !confirming.isPending && onOpenChange(next)}>
-          <DialogContent size="md">
-            <DialogHeader>
-              <DialogTitle className="text-2xl">{review ? 'Review roster changes' : title}</DialogTitle>
-              <DialogDescription>{review ? 'Check the changes before saving.' : description}</DialogDescription>
-            </DialogHeader>
-            <DialogBody>
-              {review ? (
-                <>
-                  <SetupConsequences review={review} guest={guest} />
-                  {canKeepOriginal && mode === 'convert' ? (
-                    <label htmlFor={keepOriginalId} className="mt-5 flex items-start justify-between gap-3 border-t border-edge pt-4">
-                      <span>
-                        <span className="block text-sm font-semibold">Keep the original</span>
-                        <span className="block text-xs text-dim">
-                          Leave this roster on its current rules and save the converted roster as a variant.
-                        </span>
-                      </span>
-                      <Switch
-                        id={keepOriginalId}
-                        checked={keepOriginal}
-                        disabled={confirming.isPending}
-                        onCheckedChange={setKeepOriginal}
-                      />
-                    </label>
-                  ) : null}
-                </>
-              ) : (
-                fields
-              )}
-            </DialogBody>
-            <DialogFooter>{actions}</DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-      <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
-        <DialogContent id="detachment-reference-dialog" initialFocus={false} size="lg">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
-            <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>
+      <Dialog open={open} onOpenChange={(next) => !confirming.isPending && onOpenChange(next)}>
+        <DialogContent size="md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">{review ? 'Review roster changes' : title}</DialogTitle>
+            <DialogDescription>{review ? 'Check the changes before saving.' : description}</DialogDescription>
           </DialogHeader>
           <DialogBody>
-            {reference ? (
-              <DetachmentReference
-                catalogueId={reference.catalogueId}
-                detachmentId={reference.detachmentId}
-                slug={reference.slug}
-                faction={faction?.id === reference.catalogueId ? faction : undefined}
-              />
-            ) : null}
+            {review ? (
+              <>
+                <SetupConsequences review={review} guest={guest} />
+                {canKeepOriginal && mode === 'convert' ? (
+                  <label htmlFor={keepOriginalId} className="mt-5 flex items-start justify-between gap-3 border-t border-edge pt-4">
+                    <span>
+                      <span className="block text-sm font-semibold">Keep the original</span>
+                      <span className="block text-xs text-dim">
+                        Leave this roster on its current rules and save the converted roster as a variant.
+                      </span>
+                    </span>
+                    <Switch id={keepOriginalId} checked={keepOriginal} disabled={confirming.isPending} onCheckedChange={setKeepOriginal} />
+                  </label>
+                ) : null}
+              </>
+            ) : (
+              fields
+            )}
           </DialogBody>
+          <DialogFooter>{actions}</DialogFooter>
+          {/* Nested so Escape closes the reference first and leaves the setup open beneath it. */}
+          <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
+            <DialogContent id="detachment-reference-dialog" initialFocus={false} size="lg">
+              <DialogHeader className="sr-only">
+                <DialogTitle>{reference?.name ?? 'Detachment reference'}</DialogTitle>
+                <DialogDescription>Detachment rules, enhancements, and stratagems.</DialogDescription>
+              </DialogHeader>
+              <DialogBody>
+                {reference ? (
+                  <DetachmentReference
+                    catalogueId={reference.catalogueId}
+                    detachmentId={reference.detachmentId}
+                    slug={reference.slug}
+                    faction={faction?.id === reference.catalogueId ? faction : undefined}
+                  />
+                ) : null}
+              </DialogBody>
+            </DialogContent>
+          </Dialog>
         </DialogContent>
       </Dialog>
     </>

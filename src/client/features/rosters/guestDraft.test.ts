@@ -3,7 +3,10 @@ import { saveRosterSchema } from '../../../contracts/schemas'
 import {
   claimInput,
   clearGuestDraft,
+  editGuestDraft,
   EMPTY_SETUP,
+  guestDraftPath,
+  guestRosterSummary,
   guestSaveRequested,
   newGuestDraft,
   readGuestDraft,
@@ -124,12 +127,60 @@ describe("a visitor's draft", () => {
     expect(writeGuestDraft(newGuestDraft(setup))).toBe(false)
   })
 
-  it('forgets the draft and the tab state kept beside it', () => {
+  it('forgets the draft and the tab state its builder kept beside it', () => {
     const { device, tab } = stubStorage()
-    writeGuestDraft(newGuestDraft(setup))
-    tab.set('praetorium.workspace-state:/rosters:roster-setup', '{}')
+    const draft = newGuestDraft(setup)
+    writeGuestDraft(draft)
+    tab.set(`praetorium.workspace-state:/rosters/${draft.id}:roster-setup`, '{}')
     clearGuestDraft()
     expect(device.size + tab.size).toBe(0)
+  })
+
+  it('is dated by an edit that changes it', () => {
+    stubStorage()
+    const draft = { ...newGuestDraft(setup), updatedAt: 1 }
+    writeGuestDraft(draft)
+    editGuestDraft(draft, { ...draft.draft, name: 'Renamed' })
+    expect(readGuestDraft()!.updatedAt).not.toBe(1)
+  })
+
+  it('is not rewritten by an edit that changes nothing, which another tab would hear as a change', () => {
+    const { device } = stubStorage()
+    const draft = { ...newGuestDraft(setup), updatedAt: 1 }
+    writeGuestDraft(draft)
+    const stored = device.get(KEY)
+    editGuestDraft(draft, { ...draft.draft })
+    expect(device.get(KEY)).toBe(stored)
+  })
+
+  it('opens in the builder at the address its saved list will have', () => {
+    const draft = newGuestDraft(setup)
+    expect(guestDraftPath(draft)).toBe(`/rosters/${draft.id}`)
+  })
+})
+
+describe('a draft on the rosters page', () => {
+  const draft = newGuestDraft({ ...setup, name: 'Dynasty' })
+
+  it('is listed under the id an account saves it with', () => {
+    expect(guestRosterSummary(draft).id).toBe(claimInput(draft).id)
+  })
+
+  it('is listed as private', () => {
+    expect(guestRosterSummary({ ...draft, draft: { ...draft.draft, visibility: 'public' } }).visibility).toBe('private')
+  })
+
+  it('counts an attached leader with the unit it leads', () => {
+    const picks = [{ entryId: 'warriors' }, { entryId: 'overlord', attachedTo: 0 }] as typeof draft.draft.picks
+    expect(guestRosterSummary({ ...draft, draft: { ...draft.draft, picks } }).unitCount).toBe(1)
+  })
+
+  it('takes its name from the army when it has none', () => {
+    expect(guestRosterSummary({ ...draft, draft: { ...draft.draft, name: '' } }).automaticName).toBe(true)
+  })
+
+  it('is dated by its last edit', () => {
+    expect(guestRosterSummary({ ...draft, updatedAt: 1_000 }).updatedAt).toBe(1_000)
   })
 })
 

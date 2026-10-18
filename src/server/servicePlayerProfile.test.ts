@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest'
-import { ALICE, BOB, NAMES, log, started } from '../core/battle.fixtures'
+import { ALICE, BOB, NAMES, log, roster, started } from '../core/battle.fixtures'
+import { guestSeatId } from '../core/newBattle'
 import type { BattleAudience } from '../core/battleAudience'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
@@ -59,4 +60,40 @@ it('keeps a players-only battle in a player’s profile for the opponent who sat
 
 it('shows a public battle in a player’s profile to an anonymous reader', async () => {
   expect((await profileOf('public', null)).played).toBe(1)
+})
+
+function recordAgainst(opponent: { id: string; name: string }, practiceIds: string[]) {
+  const history = {
+    battle: { id: 'battle', token: 'token', createdAt: 0 },
+    players: [
+      { id: ALICE, name: 'Alice', image: null, side: 0, automated: false },
+      { ...opponent, image: null, side: 1, automated: true },
+    ],
+    log: log(
+      [ALICE, roster('Ultramarines')],
+      [ALICE, { kind: 'attach-roster', playerId: opponent.id, roster: { name: 'Death Guard', text: '10 Plague Marines' } }],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+      [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: opponent.id }],
+    ),
+  }
+  const repository = {
+    battlesSeatedBy: vi.fn().mockResolvedValue([history]),
+    practiceOpponents: vi.fn().mockResolvedValue(practiceIds.map((id) => ({ id, name: 'Practice Opponent', image: null }))),
+    battleAudiences: vi.fn().mockResolvedValue(new Map([[ALICE, 'public']])),
+    relationships: vi.fn().mockResolvedValue([]),
+  } as unknown as RepositoryPort
+  const service = new PraetoriumService(
+    repository,
+    () => 10,
+    () => 0,
+  )
+  return service.playerProfile(ALICE, null)
+}
+
+it('counts a battle against a guest in the host’s record', async () => {
+  expect((await recordAgainst({ id: guestSeatId('battle', 0), name: 'Alex' }, [])).record.battles).toBe(1)
+})
+
+it('leaves a battle against a practice opponent out of the record', async () => {
+  expect((await recordAgainst({ id: 'practice', name: 'Practice Opponent' }, ['practice'])).record.battles).toBe(0)
 })

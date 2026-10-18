@@ -32,11 +32,23 @@ const socialAuthErrorMessage = (error?: string) => {
  * An account is who you are here: battles, saved lists and every command in a log
  * point at it, and there is no other way to be anyone.
  */
-export function SignInPage({ error, next, reset, join }: { error?: string; next?: string; reset?: boolean; join?: boolean }) {
+export function SignInPage({
+  error,
+  next,
+  reset,
+  join,
+  name: suggestedName,
+}: {
+  error?: string
+  next?: string
+  reset?: boolean
+  join?: boolean
+  name?: string
+}) {
   const { data: options } = useQuery(signInOptionsQuery())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
+  const [name, setName] = useState(suggestedName ?? '')
   const guest = useClientValue(peekGuestDraft, null)
   const savingRoster = next === GUEST_PATH && Boolean(guest)
   const gateViewed = useRef(false)
@@ -132,9 +144,10 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                 : 'Save your army lists and play battles with friends. Free.'}
             </p>
           ) : null}
-          {savingRoster ? (
+          {savingRoster && guest ? (
             <Link
-              to="/rosters"
+              to="/rosters/$id"
+              params={{ id: guest.id }}
               className="mt-3 inline-block text-sm text-info underline underline-offset-2"
               onClick={() => posthog.capture('guest_roster_save_gate_interacted', { action: 'return_to_draft' })}
             >

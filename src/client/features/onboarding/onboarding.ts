@@ -852,7 +852,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'battles',
     href: '/battles',
     title: 'Fill every seat',
-    description: 'Each seat takes a confirmed friend or a practice opponent, and nobody can sit in two of them.',
+    description: 'Each seat takes a confirmed friend, a guest you name, or a practice opponent, and nobody can sit in two of them.',
     placement: 'left',
     next: 'battle-sides',
     nextLabel: 'Next',

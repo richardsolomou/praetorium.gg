@@ -151,7 +151,7 @@ export const PRODUCT_GUIDES = [
     steps: [
       {
         title: 'Choose your army and game size',
-        text: 'Open Rosters, pick a faction and battle size, and choose your detachments. Select Start building to open the list. You can try the builder without an account.',
+        text: 'Open Rosters, select New roster, pick a faction and battle size, and choose your detachments. Select Create roster to open the list. You can try the builder without an account.',
       },
       {
         title: 'Add units and choose their equipment',
@@ -174,7 +174,7 @@ export const PRODUCT_GUIDES = [
       {
         question: 'Do I need an account to build an army?',
         answer:
-          'No. You can build a list as a visitor. The draft stays on this device across visits. An account is required to save it to your library, open it on another device or play a battle.',
+          'No. You can keep one list as a visitor. It stays on this device across visits. An account is required to keep more than one, open them on another device or play a battle.',
       },
       {
         question: 'Does validation cover every rule?',
@@ -185,7 +185,7 @@ export const PRODUCT_GUIDES = [
     example: {
       title: 'Try a five-model Immortals draft',
       steps: [
-        'Choose Necrons, Strike Force, Awakened Dynasty and Take and Hold, then select Start building.',
+        'Select New roster, choose Necrons, Strike Force, Awakened Dynasty and Take and Hold, then select Create roster.',
         'Search for Immortals and add one unit. Open its card: the initial squad has five models. Review its points and loadout before adding the rest of the army.',
         'Reload the page or reopen Rosters in another tab on the same device to check that the draft returns. This is a first unit, not a complete army: resolve the builder’s validation messages and use Save roster to keep it with your account.',
       ],
@@ -315,7 +315,7 @@ export const PRODUCT_GUIDES = [
     steps: [
       {
         title: 'Sign in and choose who is playing',
-        text: 'Save your army lists, then open Battles and choose New battle. Pick 1v1, 2v1 or 2v2 and fill the player seats. Add friends before seating them, or choose a practice opponent to play on your own. Choose Start battle to open setup.',
+        text: 'Save your army lists, then open Battles and choose New battle. Pick 1v1, 2v1 or 2v2 and fill the player seats. Add friends before seating them, seat a guest by name for an opponent without an account and share their link so they can play on their own phone, or choose a practice opponent to play on your own. Choose Start battle to open setup.',
       },
       {
         title: 'Complete the shared setup',
@@ -327,14 +327,14 @@ export const PRODUCT_GUIDES = [
       },
       {
         title: 'Review the finished battle',
-        text: 'Open the finished game to read its report and replay turns. Public finished games contribute to player records and standings; practice games do not. Share the battle link only with the audience allowed by the seated players’ visibility settings.',
+        text: 'Open the finished game to read its report and replay turns. Public finished games contribute to player records and standings. A game against a guest counts in your record but not in standings until the guest signs up and adds it to theirs; practice games count in neither. Share the battle link only with the audience allowed by the seated players’ visibility settings.',
       },
     ],
     questions: [
       {
         question: 'Do all players need an account?',
         answer:
-          'Human players need accounts to play. A practice opponent lets one signed-in player run both sides. Visitors can watch public games without signing in.',
+          'No. Seat an opponent without an account as a guest: you enter their name, then either record their side for them or share a link so they choose their army and play on their own device. After the game they can sign up to keep it in their record. A practice opponent lets one signed-in player run both sides alone. Visitors can watch public games without signing in.',
       },
       {
         question: 'Who can watch my battle?',
@@ -344,7 +344,7 @@ export const PRODUCT_GUIDES = [
       {
         question: 'Does Praetorium offer matchmaking or tournament pairings?',
         answer:
-          'No. It tracks games with friends and practice opponents, and supports league registration with sealed rosters. It does not arrange opponents or tournament pairings.',
+          'No. It tracks games with friends, guests and practice opponents, and supports league registration with sealed rosters. It does not arrange opponents or tournament pairings.',
       },
     ],
     example: {

@@ -36,6 +36,9 @@ import { rosterReminderSchema } from '../../src/core/reminders'
 import { boundedProgress, DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
 import { groupBy } from '../../src/core/collections'
 import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
+import { guestSeatId, isGuestSeat } from '../../src/core/newBattle'
+import { claimedLog, guestClaimRefusal, guestDeviceSubject, guestSessionCurrent } from '../../src/core/guestSession'
+import { PROFILE_NAME_MAX_LENGTH } from '../../src/core/profileName'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
@@ -207,6 +210,8 @@ type ProductScope =
   | 'simulator'
 
 function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
+  // Nobody signs in as a guest, so nobody would ever read its revisions or delete them with an account.
+  if (isGuestSeat(userId)) return
   for (const scope of scopes) {
     const key = JSON.stringify([userId, scope])
     const current = ctx.db.productRevisions.key.find(key)
@@ -281,6 +286,7 @@ function deleteBattle(ctx: Context, battleId: string) {
   for (const row of Array.from(ctx.db.watchedBattles.battleId.filter(battleId))) ctx.db.watchedBattles.key.delete(row.key)
   for (const row of Array.from(ctx.db.commands.battleId.filter(battleId))) ctx.db.commands.key.delete(row.key)
   for (const row of Array.from(ctx.db.battleUsers.battleId.filter(battleId))) ctx.db.battleUsers.key.delete(row.key)
+  for (const row of Array.from(ctx.db.guestSeats.battleId.filter(battleId))) ctx.db.guestSeats.seatId.delete(row.seatId)
   ctx.db.leagueEventBattles.battleId.delete(battleId)
   ctx.db.battles.id.delete(battleId)
 }
@@ -318,6 +324,15 @@ export const onConnect = spacetime.clientConnected((ctx) => {
     now: nowSeconds(ctx),
     maxTokenSeconds: MAX_TOKEN_SECONDS,
     isRevoked: (subject) => Boolean(ctx.db.revokedSession.subject.find(subject)),
+    holdsGuestSeat: (seatId, subject) => {
+      const device = ctx.db.guestSeats.seatId.find(seatId)
+      return (
+        device?.deviceHash !== undefined &&
+        device.joinedAt !== undefined &&
+        guestDeviceSubject(device.deviceHash) === subject &&
+        guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(ctx.timestamp.microsSinceUnixEpoch / 1_000n))
+      )
+    },
   })
   if (admission.kind === 'refused') throw new SenderError('Invalid auth token')
   if (admission.kind !== 'player') return
@@ -523,7 +538,7 @@ function battleData(ctx: Context, battleId: string) {
   const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId)).sort(
     (left, right) => left.side - right.side || (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0),
   )
-  const log = Array.from(ctx.db.commands.battleId.filter(battleId))
+  const written = Array.from(ctx.db.commands.battleId.filter(battleId))
     .sort((left, right) => left.seq - right.seq)
     .flatMap((row): LoggedCommand[] => {
       const body: unknown = JSON.parse(row.body)
@@ -541,12 +556,22 @@ function battleData(ctx: Context, battleId: string) {
           ]
         : []
     })
+  // Every product read of a battle passes through here, so no reader sees a claimed guest seat by its old name.
+  const log = claimedLog(
+    written,
+    seats.flatMap((seat) => (seat.claimedSeat === undefined ? [] : [{ seatId: seat.claimedSeat, userId: seat.userId }])),
+  )
   return {
     battle,
     seats: seats.map((seat) => ({
       id: seat.userId,
       side: seat.side,
-      automated: Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
+      // A guest who joined on their own device plays their side; until then, or once the host takes it back, the table does.
+      automated:
+        seat.guestName !== undefined
+          ? ctx.db.guestSeats.seatId.find(seat.userId)?.deviceHash === undefined
+          : Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
+      ...(seat.guestName !== undefined ? { guestName: seat.guestName } : {}),
     })),
     log,
   }
@@ -564,7 +589,8 @@ const newBattle = z.strictObject({
   token: idInput,
   userId: idInput,
   allyIds: z.array(idInput).max(3),
-  opponentIds: z.array(idInput).min(1).max(3),
+  opponentIds: z.array(idInput).max(3),
+  guestNames: z.array(z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH)).max(2).default([]),
   initialCommands: z.array(commandSchema).max(1_000),
   now: z.number().int().nonnegative(),
 })
@@ -778,8 +804,166 @@ export const submitBattle = spacetime.procedure(
     }),
 )
 
+function guestSeatIn(ctx: Context, battleId: string, seatId: string) {
+  const seat = ctx.db.battleUsers.key.find(JSON.stringify([battleId, seatId]))
+  if (seat?.guestName === undefined) throw new SenderError('Invalid guest seat')
+  return seat
+}
+
+/** The link a host shares for a guest seat, made the first time it is asked for and kept until the host replaces it. */
+export const guestInvite = spacetime.procedure({ battleId: t.string(), seatId: t.string(), invite: t.string() }, t.string(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    guestSeatIn(tx, input.battleId, input.seatId)
+    const current = tx.db.guestSeats.seatId.find(input.seatId)
+    if (current) return productJson(current.invite)
+    if (!validId(input.invite)) throw new SenderError('Invalid invite')
+    tx.db.guestSeats.insert({
+      seatId: input.seatId,
+      battleId: input.battleId,
+      invite: input.invite,
+      deviceHash: undefined,
+      joinedAt: undefined,
+    })
+    return productJson(input.invite)
+  }),
+)
+
+/** A new link that retires the old one and any device that joined through it, so the table plays the seat again. */
+export const replaceGuestInvite = spacetime.procedure(
+  { battleId: t.string(), seatId: t.string(), invite: t.string() },
+  t.string(),
+  (ctx, input) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      guestSeatIn(tx, input.battleId, input.seatId)
+      if (!validId(input.invite)) throw new SenderError('Invalid invite')
+      tx.db.guestSeats.seatId.delete(input.seatId)
+      tx.db.guestSeats.insert({
+        seatId: input.seatId,
+        battleId: input.battleId,
+        invite: input.invite,
+        deviceHash: undefined,
+        joinedAt: undefined,
+      })
+      endGuestSessions(tx, input.seatId)
+      touchBattleSeats(tx, input.battleId)
+      return productJson(input.invite)
+    }),
+)
+
+export const guestSeatByInvite = spacetime.procedure({ invite: t.string() }, t.string(), (ctx, { invite }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const row = tx.db.guestSeats.invite.find(invite)
+    const battle = row && tx.db.battles.id.find(row.battleId)
+    if (!row || !battle) return productJson(null)
+    const seats = Array.from(tx.db.battleUsers.battleId.filter(row.battleId))
+    return productJson({
+      battleId: battle.id,
+      token: battle.token,
+      seatId: row.seatId,
+      guestName: seats.find((seat) => seat.userId === row.seatId)?.guestName ?? '',
+      hostId: seats.find((seat) => seat.side === 0 && seat.guestName === undefined)?.userId ?? null,
+      joined: row.deviceHash !== undefined,
+    })
+  }),
+)
+
+/** The first device to open a link takes the seat; a second device finds it taken until the host shares a new link. */
+export const joinGuestSeat = spacetime.procedure({ invite: t.string(), deviceHash: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!/^[0-9a-f]{64}$/.test(input.deviceHash)) throw new SenderError('Invalid guest device')
+    const row = tx.db.guestSeats.invite.find(input.invite)
+    const battle = row && tx.db.battles.id.find(row.battleId)
+    if (!row || !battle) return productJson('missing')
+    if (row.deviceHash !== undefined) return productJson('taken')
+    tx.db.guestSeats.seatId.update({ ...row, deviceHash: input.deviceHash, joinedAt: input.now })
+    touchBattleSeats(tx, row.battleId)
+    return productJson({ battleId: battle.id, token: battle.token, seatId: row.seatId })
+  }),
+)
+
+export const guestDevice = spacetime.procedure({ seatId: t.string() }, t.string(), (ctx, { seatId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const row = tx.db.guestSeats.seatId.find(seatId)
+    const battle = row && tx.db.battles.id.find(row.battleId)
+    if (!row?.deviceHash || row.joinedAt === undefined || !battle) return productJson(null)
+    return productJson({ battleId: battle.id, token: battle.token, deviceHash: row.deviceHash, joinedAt: safeNumber(row.joinedAt) })
+  }),
+)
+
+/**
+ * Seats the account the guest signed up with in a finished battle's guest seat. The log keeps the seat it was written
+ * with and `battleData` reads it as the account, so the battle folds as one between accounts. The device must still
+ * hold the seat, so only the guest can claim it.
+ */
+export const claimGuestSeat = spacetime.procedure(
+  { battleId: t.string(), seatId: t.string(), userId: t.string(), deviceHash: t.string(), now: t.u64() },
+  t.string(),
+  (ctx, input) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      if (!validId(input.userId) || isGuestSeat(input.userId)) throw new SenderError('Invalid user ID')
+      const seat = guestSeatIn(tx, input.battleId, input.seatId)
+      const device = tx.db.guestSeats.seatId.find(input.seatId)
+      if (
+        !device?.deviceHash ||
+        device.deviceHash !== input.deviceHash ||
+        device.joinedAt === undefined ||
+        !guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(input.now))
+      )
+        return productJson('this device is not playing that seat')
+      const { seats, log } = battleData(tx, input.battleId)
+      const state = reduceBattle(
+        seats.map((one) => one.id),
+        log,
+        seats.map((one) => one.side),
+        seats.filter((one) => one.automated).map((one) => one.id),
+      )
+      const refusal = guestClaimRefusal(
+        state,
+        seats.map((one) => one.id),
+        input.userId,
+      )
+      if (refusal) return productJson(refusal)
+      tx.db.battleUsers.key.delete(seat.key)
+      tx.db.battleUsers.insert({
+        ...seat,
+        key: JSON.stringify([input.battleId, input.userId]),
+        userId: input.userId,
+        guestName: undefined,
+        claimedSeat: input.seatId,
+      })
+      tx.db.guestSeats.seatId.delete(input.seatId)
+      endGuestSessions(tx, input.seatId)
+      for (const one of [...seats.map((other) => other.id), input.userId]) touchProduct(tx, one, 'battles', 'onboarding')
+      touchPublic(tx, 'battles')
+      touchPublic(tx, 'standings')
+      touchAdmin(tx)
+      return productJson('claimed')
+    }),
+)
+
+/** Disconnects the device that held a guest seat, which its next token can no longer reconnect. */
+function endGuestSessions(ctx: Context, seatId: string) {
+  for (const row of Array.from(ctx.db.sessionAccess.userId.filter(seatId))) revoke(ctx, row.subject)
+}
+
+function touchBattleSeats(ctx: Context, battleId: string) {
+  for (const seat of ctx.db.battleUsers.battleId.filter(battleId)) touchProduct(ctx, seat.userId, 'battles')
+}
+
 function friendshipKey(requesterId: string, addresseeId: string) {
-  if (!validId(requesterId) || !validId(addresseeId) || requesterId === addresseeId) {
+  if (
+    !validId(requesterId) ||
+    !validId(addresseeId) ||
+    requesterId === addresseeId ||
+    isGuestSeat(addresseeId) ||
+    isGuestSeat(requesterId)
+  ) {
     throw new SenderError('Invalid friendship')
   }
   return JSON.stringify([requesterId, addresseeId])
@@ -2454,13 +2638,20 @@ function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
 
   requireOperator(tx)
-  const { id, token, userId, allyIds, opponentIds, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
-  const seats = [
+  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
+  const seats: { id: string; side: number; guestName?: string }[] = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
     ...opponentIds.map((seatId) => ({ id: seatId, side: 1 })),
+    ...guestNames.map((guestName, at) => ({ id: guestSeatId(id, at), side: 1, guestName })),
   ]
-  if (seats.length > 4 || new Set(seats.map((seat) => seat.id)).size !== seats.length) throw new SenderError('Invalid battle seats')
+  if (
+    seats.length > 4 ||
+    !seats.some((seat) => seat.side === 1) ||
+    [userId, ...allyIds, ...opponentIds].some(isGuestSeat) ||
+    new Set(seats.map((seat) => seat.id)).size !== seats.length
+  )
+    throw new SenderError('Invalid battle seats')
   tx.db.battles.insert({ id, token, createdAt: BigInt(now) })
   for (const [index, seat] of seats.entries()) {
     tx.db.battleUsers.insert({
@@ -2469,6 +2660,8 @@ function createBattleIn(tx: Context, args: unknown[]) {
       userId: seat.id,
       side: seat.side,
       joinedAt: BigInt(now + index),
+      guestName: seat.guestName,
+      claimedSeat: undefined,
     })
     touchProduct(tx, seat.id, 'battles', 'onboarding')
   }
@@ -3415,6 +3608,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         userId: seat.id,
         side: seat.side,
         joinedAt: BigInt(input.now + index),
+        guestName: undefined,
+        claimedSeat: undefined,
       })
     const log: LoggedCommand[] = []
     for (const [index, command] of input.initialCommands.entries()) {

@@ -11,6 +11,7 @@ import { pointsBudgetOf } from '../../../core/battle'
 import { datasheetOfferedByQuery, factionIndexQuery, meQuery, playerDefaultsQuery, savedRosterSummariesQuery } from '../../queries'
 import { EMPTY_SETUP, type GuestDraft, readGuestDraft } from './guestDraft'
 import { type RosterReference, useNewRoster } from './newRoster'
+import { useAccountPrompt } from './AccountPrompt'
 import { RosterSetupDialog, type RosterSetupFaction } from './RosterSetupDialog'
 import { rosterTitle } from './RosterSummary'
 import { sortRosters } from '../../../core/rosterSort'
@@ -57,6 +58,7 @@ function StartRosterDialog({
       value={value}
       hasUnits={false}
       pending={create.pending}
+      saveError={create.saveError}
       onSave={(setup) => create.start(setup, add)}
     />
   )
@@ -65,12 +67,15 @@ function StartRosterDialog({
 /** A detachment page's way into the builder: a new roster with this detachment already chosen. */
 export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFaction; detachmentId: string }) {
   const [open, setOpen] = useState(false)
+  const { data: me } = useQuery(meQuery())
+  const account = useAccountPrompt()
   return (
     <>
       <Button
         variant="outline"
         size="sm"
         onClick={() => {
+          if (!me && readGuestDraft()) return account.ask('another-roster')
           posthog.capture('roster_creation_started', { reference: 'detachment' })
           setOpen(true)
         }}
@@ -78,6 +83,7 @@ export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFac
         <Plus /> Start a roster
       </Button>
       <StartRosterDialog open={open} onOpenChange={setOpen} faction={faction} detachmentIds={[detachmentId]} reference="detachment" />
+      {account.prompt}
     </>
   )
 }
@@ -134,7 +140,12 @@ export function AddToRoster({
     // A visitor with nothing built yet has only one place to go.
     setStep(!me && !draft && canStart ? 'create' : 'choose')
   }
+  const account = useAccountPrompt()
   const startNew = () => {
+    if (!me && guestDraft) {
+      setStep('closed')
+      return account.ask('another-roster')
+    }
     posthog.capture('roster_creation_started', { reference: 'datasheet' })
     setStep('create')
   }
@@ -174,7 +185,7 @@ export function AddToRoster({
               <>
                 {draftTakesIt && guestDraft ? (
                   <RosterChoice
-                    to="/rosters"
+                    id={guestDraft.id}
                     entryId={entryId}
                     title={guestDraft.draft.name || 'Your unsaved roster'}
                     detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${rulesVersion(guestDraft.draft.catalogueId)} · ${pointsBudgetOf(guestDraft.draft)} pts · not saved yet`}
@@ -185,7 +196,6 @@ export function AddToRoster({
                   return (
                     <RosterChoice
                       key={roster.id}
-                      to="/rosters/$id"
                       id={roster.id}
                       entryId={entryId}
                       title={rosterTitle(roster, book)}
@@ -203,7 +213,6 @@ export function AddToRoster({
           </DialogBody>
           {canStart ? (
             <DialogFooter>
-              {!me && guestDraft ? <p className="mr-auto self-center text-xs text-faint">A new roster replaces your unsaved one.</p> : null}
               <Button onClick={startNew}>
                 <Plus /> New {faction.displayName} roster
               </Button>
@@ -218,34 +227,24 @@ export function AddToRoster({
         add={entryId}
         reference="datasheet"
       />
+      {account.prompt}
     </>
   )
 }
 
-function RosterChoice({
-  to,
-  id,
-  entryId,
-  title,
-  detail,
-}: { entryId: string; title: string; detail: string } & ({ to: '/rosters'; id?: never } | { to: '/rosters/$id'; id: string })) {
-  const className = 'flex items-center gap-3 border border-edge bg-panel px-3 py-2 text-left hover:border-primary/60 hover:bg-raised'
-  const body = (
-    <>
+function RosterChoice({ id, entryId, title, detail }: { id: string; entryId: string; title: string; detail: string }) {
+  return (
+    <Link
+      to="/rosters/$id"
+      params={{ id }}
+      search={{ add: entryId }}
+      className="flex items-center gap-3 border border-edge bg-panel px-3 py-2 text-left hover:border-primary/60 hover:bg-raised"
+    >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{title}</span>
         <span className="block text-xs text-dim">{detail}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-faint" aria-hidden />
-    </>
-  )
-  return to === '/rosters' ? (
-    <Link to="/rosters" search={{ add: entryId }} className={className}>
-      {body}
-    </Link>
-  ) : (
-    <Link to="/rosters/$id" params={{ id }} search={{ add: entryId }} className={className}>
-      {body}
     </Link>
   )
 }

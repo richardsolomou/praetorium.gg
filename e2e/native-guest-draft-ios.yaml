@@ -5,8 +5,9 @@ appId: gg.praetorium
     timeout: 30000
 - tapOn: Rosters
 - extendedWaitUntil:
-    visible: Build a roster
+    visible: New roster
     timeout: 30000
+- tapOn: New roster
 - tapOn: 'Pick a faction\s*'
 - tapOn: Search factions…
 - inputText: Necrons
@@ -29,10 +30,12 @@ appId: gg.praetorium
 - tapOn: '(?i)Take and Hold\s*'
 - scrollUntilVisible:
     element:
-      text: Start building
+      text: Create roster
     direction: DOWN
     centerElement: true
-- tapOn: Start building
+- tapOn:
+    text: Create roster
+    index: 1
 - tapOn: Add units
 - tapOn: Add a unit
 - inputText: Necron Warriors

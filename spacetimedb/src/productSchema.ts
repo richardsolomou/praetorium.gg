@@ -35,6 +35,25 @@ const battleUsers = table(
     userId: t.string().index('btree'),
     side: t.u8(),
     joinedAt: t.u64(),
+    /** Set only on a guest's seat: the name its host gave someone without an account. */
+    guestName: t.option(t.string()).default(undefined),
+    /** Set only on an account that claimed a guest seat: the seat its commands were logged as, which every read resolves to this account. */
+    claimedSeat: t.option(t.string()).default(undefined),
+  },
+)
+
+/**
+ * The link a host shares so a guest can play their own seat, and the one device that took it.
+ * Only a hash of the device's secret is kept, so reading this table never lets anyone act as the guest.
+ */
+const guestSeats = table(
+  { name: 'guest_seats' },
+  {
+    seatId: t.string().primaryKey(),
+    battleId: t.string().index('btree'),
+    invite: t.string().unique(),
+    deviceHash: t.option(t.string()),
+    joinedAt: t.option(t.u64()),
   },
 )
 
@@ -409,6 +428,7 @@ export const productTables = {
   userOnboardingTasks,
   battles,
   battleUsers,
+  guestSeats,
   battleSharing,
   pushPreferences,
   playerDefaults,

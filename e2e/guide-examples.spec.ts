@@ -9,6 +9,7 @@ import {
   retryUntilVisible,
   signUp,
   startBattle,
+  visitorSetup,
   waitForRosterSave,
 } from './account'
 import { chooseCombatUnit, closeCombatBreakdown } from './combat'
@@ -16,14 +17,13 @@ import { chooseCombatUnit, closeCombatBreakdown } from './combat'
 test.use({ viewport: { width: 1440, height: 1100 } })
 
 test('the army guide example keeps a five-model Immortals draft through reload and a new tab', async ({ page }, testInfo) => {
-  await page.goto('/rosters')
-  const setup = page.getByRole('region', { name: 'Create roster' })
+  const setup = await visitorSetup(page)
   await retryUntilVisible(page.getByPlaceholder('Search factions…'), () => setup.getByRole('combobox', { name: 'Faction' }).click())
   await page.getByPlaceholder('Search factions…').fill('Necrons')
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Start building' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
   await add(page, 'Immortals')
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
   await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toContain('"picks":[{')
@@ -33,7 +33,7 @@ test('the army guide example keeps a five-model Immortals draft through reload a
   await expect(page.getByLabel('Immortals models')).toHaveText('5')
   await page.locator('[data-roster-builder]').screenshot({ path: testInfo.outputPath('build-an-army.png') })
   const reopened = await page.context().newPage()
-  await reopened.goto('/rosters')
+  await reopened.goto(page.url())
   await expect(reopened.locator('[data-unit="Immortals"]')).toHaveCount(1)
   await reopened.close()
 })

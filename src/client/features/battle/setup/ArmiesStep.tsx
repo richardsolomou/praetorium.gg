@@ -28,13 +28,17 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, Dia
 import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
 import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 import { Problem } from '../../../components/Problem'
+import { isGuestSeat } from '../../../../core/newBattle'
+import type { RosterAttachment } from '../useCommand'
+import { GuestInvite } from '../GuestInvite'
+import { GuestRosterChooser } from './GuestRosterChooser'
 
 type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
 type Props = {
   view: BattleView
   sides: Side[]
   send: (command: Command) => void
-  attachSavedRoster: (rosterId: string, playerId?: string) => Promise<boolean>
+  attachRoster: (command: RosterAttachment) => Promise<boolean>
   pending: boolean
   problem: string | null
 }
@@ -45,7 +49,7 @@ type Props = {
  * A player only ever changes their own list, but everyone sees every list as soon as
  * it is attached — that is what makes the step worth doing together.
  */
-export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, problem }: Props) {
+export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }: Props) {
   /** The army the chooser is picking for: your own, or a practice opponent's. */
   const [choosing, setChoosing] = useState<Army | null>(null)
   /**
@@ -57,9 +61,11 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
   const [confirming, setConfirming] = useState<SavedRoster | null>(null)
   /** A chosen list the library already prices over its limit, held back instead of sent for the server to refuse. */
   const [overLimit, setOverLimit] = useState<SavedRoster | null>(null)
-  const rosterQuery = useQuery(savedRosterSummariesQuery())
+  /** A guest has no account, so no saved or lent lists: their army comes from this device's builder. */
+  const guest = isGuestSeat(view.viewerId)
+  const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: !guest })
   const saved = (rosterQuery.data ?? []).filter((roster) => !roster.archived)
-  const lentQuery = useQuery(rostersLentToMeQuery())
+  const lentQuery = useQuery({ ...rostersLentToMeQuery(), enabled: !guest })
   const nameDisposition = useDispositionNames()
   const yourSide = sides.find((side) => side.isViewer)
   const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
@@ -72,7 +78,8 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
   const eligible = chooserLimit === null ? saved : saved.filter((roster) => roster.limit === chooserLimit)
   const lent = (lentQuery.data ?? []).filter(({ summary }) => chooserLimit === null || summary.limit === chooserLimit)
   const attach = async (savedRoster: SavedRoster) => {
-    if (choosing && (await attachSavedRoster(savedRoster.id, choosing.playerId))) setChoosing(null)
+    if (choosing && (await attachRoster({ kind: 'attach-saved-roster', rosterId: savedRoster.id, playerId: choosing.playerId })))
+      setChoosing(null)
   }
   // The confirmation closes as it is answered, so a refused attach reports itself in
   // the chooser behind it rather than under a dialog that has nowhere to say it.
@@ -128,8 +135,11 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                   </div>
                   {view.leagueToken ? (
                     <span className="chip shrink-0 self-start text-achieved sm:self-auto">League roster</span>
-                  ) : army.isViewer || army.automated ? (
-                    <div className="flex shrink-0 items-center gap-1">
+                  ) : army.isViewer || (army.automated && !guest) ? (
+                    <div className="flex shrink-0 flex-wrap items-center gap-1">
+                      {isGuestSeat(army.playerId) && !guest ? (
+                        <GuestInvite token={view.token} playerId={army.playerId} name={army.playerName} joined={false} />
+                      ) : null}
                       <Button
                         variant="outline"
                         size="sm"
@@ -156,9 +166,12 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
                       ) : null}
                     </div>
                   ) : (
-                    <span className={`chip shrink-0 self-start sm:self-auto ${army.roster ? 'text-achieved' : 'text-dim'}`}>
-                      {army.roster ? 'Ready' : 'Waiting'}
-                    </span>
+                    <div className="flex shrink-0 flex-wrap items-center gap-1 self-start sm:self-auto">
+                      {isGuestSeat(army.playerId) && !guest ? (
+                        <GuestInvite token={view.token} playerId={army.playerId} name={army.playerName} joined />
+                      ) : null}
+                      <span className={`chip ${army.roster ? 'text-achieved' : 'text-dim'}`}>{army.roster ? 'Ready' : 'Waiting'}</span>
+                    </div>
                   )}
                 </div>
                 {/*
@@ -209,8 +222,17 @@ export function ArmiesStep({ view, sides, send, attachSavedRoster, pending, prob
           </SetupSidePanel>
         ))}
       </div>
+      <GuestRosterChooser
+        open={guest && choosing !== null}
+        onOpenChange={(open) => !open && setChoosing(null)}
+        pending={pending}
+        problem={problem}
+        onChoose={(draft) => {
+          void attachRoster({ kind: 'attach-draft-roster', draft }).then((attached) => attached && setChoosing(null))
+        }}
+      />
       <RosterChooser
-        open={choosing !== null}
+        open={!guest && choosing !== null}
         onOpenChange={(open) => !open && setChoosing(null)}
         forArmy={choosing}
         rosters={eligible}

@@ -90,7 +90,7 @@ export async function referenceLlms(request: Request) {
   const revisions = corpus ? Object.entries(corpus.catalogue.revisions).map(([source, revision]) => `- ${source}: ${revision}`) : []
   const body = `# Praetorium
 
-Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tracker, and community-data reference. Visitors can build a draft and simulate a matchup without an account; drafts stay on this device across visits. Visitors can also import roster text. Sign in to save rosters to your account, open them on other devices, or play battles. Reference answers come from verified immutable snapshots and never from generated summaries.
+Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tracker, and community-data reference. Visitors can keep one roster and simulate a matchup without an account; the roster stays on this device across visits. Visitors can also import roster text. Sign in to save rosters to your account, open them on other devices, or play battles. Reference answers come from verified immutable snapshots and never from generated summaries.
 
 ## Agent interfaces
 

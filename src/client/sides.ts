@@ -34,7 +34,7 @@ export type Army = {
   playerName: string
   playerImage: string | null
   isViewer: boolean
-  /** A practice opponent's army: nobody signs in to it, so the table plays it. */
+  /** A practice opponent's or guest's army: nobody signs in to it, so the table plays it. */
   automated: boolean
   roster: ViewPlayer['roster']
   /** The saved list this army came from, when it came from one. */
@@ -68,12 +68,12 @@ export type Side = {
   captain: ViewPlayer
   /** The side the viewer is sitting on. */
   isViewer: boolean
-  /** A side of practice opponents alone. Nobody signs in to it, so the table plays it. */
+  /** A side of practice opponents or guests alone. Nobody signs in to it, so the table plays it. */
   automated: boolean
   /**
    * Whether the viewer is one of the people playing this side.
    *
-   * Their own side, or a side of practice opponents — nobody signs in to those, so
+   * Their own side, or a side of practice opponents or guests — nobody signs in to those, so
    * their cards, reserves and turns are taken by the table facing them. Every
    * control that asks "is this mine to press" asks this instead of `isViewer`, so
    * one answer decides it everywhere.

@@ -42,6 +42,8 @@ export const BattleUsers = __t.object('BattleUsers', {
   userId: __t.string(),
   side: __t.u8(),
   joinedAt: __t.u64(),
+  guestName: __t.option(__t.string()),
+  claimedSeat: __t.option(__t.string()),
 })
 export type BattleUsers = __Infer<typeof BattleUsers>
 
@@ -159,6 +161,15 @@ export const Friendships = __t.object('Friendships', {
   acceptedAt: __t.option(__t.u64()),
 })
 export type Friendships = __Infer<typeof Friendships>
+
+export const GuestSeats = __t.object('GuestSeats', {
+  seatId: __t.string(),
+  battleId: __t.string(),
+  invite: __t.string(),
+  deviceHash: __t.option(__t.string()),
+  joinedAt: __t.option(__t.u64()),
+})
+export type GuestSeats = __Infer<typeof GuestSeats>
 
 export const LeagueAdmins = __t.object('LeagueAdmins', {
   key: __t.string(),

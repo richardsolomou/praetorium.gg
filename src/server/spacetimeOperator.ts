@@ -80,7 +80,7 @@ const unitLoadoutRow = z.object({
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
 const battleSnapshot = z.object({
   battle: z.object({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
-  seats: z.array(z.object({ id: z.string(), side: z.number().int(), automated: z.boolean() })),
+  seats: z.array(z.object({ id: z.string(), side: z.number().int(), automated: z.boolean(), guestName: z.string().optional() })),
   log: z.array(
     z.object({
       seq: z.number().int(),
@@ -91,6 +91,15 @@ const battleSnapshot = z.object({
     }),
   ),
 })
+const guestInvitation = z.object({
+  battleId: z.string(),
+  token: z.string(),
+  seatId: z.string(),
+  guestName: z.string(),
+  hostId: z.string().nullable(),
+  joined: z.boolean(),
+})
+const joinedGuest = z.object({ battleId: z.string(), token: z.string(), seatId: z.string() })
 const battleFeedResult = z.object({
   battles: z.array(z.object({ ...battleSnapshot.shape, at: z.number().int() })),
   nextCursor: z.object({ at: z.number().int(), id: z.string() }).nullable(),
@@ -263,6 +272,7 @@ export class SpacetimeOperator {
     userId: string
     allyIds?: string[]
     opponentIds?: string[]
+    guestNames?: string[]
     initialCommand?: Command
     initialCommands?: Command[]
     now: number
@@ -276,6 +286,7 @@ export class SpacetimeOperator {
           userId: input.userId,
           allyIds: input.allyIds ?? [],
           opponentIds: input.opponentIds ?? [],
+          guestNames: input.guestNames ?? [],
           initialCommands: input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : []),
           now: input.now,
         }),
@@ -286,6 +297,34 @@ export class SpacetimeOperator {
 
   async battleByToken(token: string) {
     return (await this.read('battle_by_token', [token], battleSnapshot.nullable())) ?? undefined
+  }
+
+  async guestInvite(battleId: string, seatId: string, link: string) {
+    return this.read('guest_invite', [battleId, seatId, link], z.string())
+  }
+
+  async replaceGuestInvite(battleId: string, seatId: string, link: string) {
+    return this.read('replace_guest_invite', [battleId, seatId, link], z.string())
+  }
+
+  async guestSeatByInvite(link: string) {
+    return this.read('guest_seat_by_invite', [link], guestInvitation.nullable())
+  }
+
+  async joinGuestSeat(link: string, deviceHash: string, now: number) {
+    return this.read('join_guest_seat', [link, deviceHash, now], z.union([z.enum(['missing', 'taken']), joinedGuest]))
+  }
+
+  async guestDevice(seatId: string) {
+    return this.read(
+      'guest_device',
+      [seatId],
+      z.object({ battleId: z.string(), token: z.string(), deviceHash: z.string(), joinedAt: z.number().int() }).nullable(),
+    )
+  }
+
+  async claimGuestSeat(input: { battleId: string; seatId: string; userId: string; deviceHash: string; now: number }) {
+    return this.read('claim_guest_seat', [input.battleId, input.seatId, input.userId, input.deviceHash, input.now], z.string())
   }
 
   async battleFeed(input: {

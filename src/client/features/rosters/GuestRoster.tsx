@@ -1,38 +1,35 @@
-import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useLocation, useNavigate, useRouter } from '@tanstack/react-router'
+import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { saveRoster } from '../../functions'
-import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
-import { factionIndexQuery, factionQuery, invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
+import { factionQuery, invalidateSavedRosters, playerDefaultsQuery, priceQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useClientValue, useHydrated } from '../../useClientValue'
 import {
   claimInput,
   clearGuestDraft,
-  EMPTY_SETUP,
+  editGuestDraft,
   GUEST_PATH,
   type GuestDraft,
   guestSaveRequested,
+  keepReviewedDraft,
   markGuestDraft,
-  newGuestDraft,
   peekGuestDraft,
   readGuestDraft,
-  setGuestDraftOpen,
   watchGuestDraft,
-  writeGuestDraft,
 } from './guestDraft'
 import { ListBuilder } from './ListBuilder'
 import { RosterOutline } from './RosterPresentation'
 import { saveFailureReason } from './saveFailure'
-import { RosterSetupDialog } from './RosterSetupDialog'
-import { importedSetup, RosterImport } from './RosterImport'
 import { countLabel } from '../../text'
+import { readGuestBattle } from '../battles/guestBattle'
+import { normalisePicks } from './rosterPicks'
+import { rosterUseProblem } from '../../../core/rosterLegality'
 
 const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
 
@@ -40,9 +37,9 @@ const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabl
  * A visitor's list, read once the page is in the browser, the only place it lives.
  *
  * The server cannot see browser storage, so it draws the page from the cookie hint;
- * a visitor coming back to a list moves on to it as soon as the page mounts. Another
- * tab's edit or claim replaces this tab's copy, and `revision` counts those so the
- * builder can start again from the list that is now kept.
+ * the list arrives as soon as the page mounts. Another tab's edit or claim replaces
+ * this tab's copy, and `revision` counts those so the builder can start again from
+ * the list that is now kept.
  */
 export function useGuestDraft(hinted: boolean) {
   const router = useRouter()
@@ -52,93 +49,64 @@ export function useGuestDraft(hinted: boolean) {
   const [changed, setChanged] = useState<{ guest: GuestDraft | null; revision: number }>()
   const guest = changed ? changed.guest : stored
   useEffect(() => {
-    const kept = readGuestDraft()
-    setGuestDraftOpen(Boolean(kept))
     // A cookie from another tab, or a draft from before there was one, is set right for the next refresh.
-    if (Boolean(kept) !== hinted) {
-      markGuestDraft(Boolean(kept))
+    if (Boolean(readGuestDraft()) !== hinted) {
+      markGuestDraft(!hinted)
       void router.invalidate()
     }
   }, [hinted, router])
-  useEffect(
-    () =>
-      watchGuestDraft((next) => {
-        setGuestDraftOpen(Boolean(next))
-        setChanged((current) => ({ guest: next, revision: (current?.revision ?? 0) + 1 }))
-      }),
-    [],
-  )
+  useEffect(() => watchGuestDraft((next) => setChanged((current) => ({ guest: next, revision: (current?.revision ?? 0) + 1 }))), [])
   const set = (next: GuestDraft | null) => {
-    setGuestDraftOpen(Boolean(next))
     setChanged((current) => ({ guest: next, revision: current?.revision ?? 0 }))
     void router.invalidate()
   }
   return [{ ready, guest, revision: changed?.revision ?? 0 }, set] as const
 }
 
+/** Points, name and legality for the visitor's row on the rosters page, priced as the builder prices the list. */
+export function useGuestRosterRow(guest: GuestDraft | null) {
+  const draft = guest?.draft
+  const price = useQuery({
+    ...priceQuery(
+      draft?.catalogueId ?? '',
+      draft?.detachmentIds ?? [],
+      draft?.disposition ?? null,
+      draft?.limit ?? 0,
+      normalisePicks(draft?.picks ?? []),
+      draft?.waivedRules,
+      draft?.borrowedDetachmentId,
+      draft?.optionalRules,
+    ),
+    enabled: Boolean(draft),
+  })
+  const priced = price.data
+  return {
+    pending: Boolean(draft) && price.isPending,
+    failed: price.isError,
+    retry: () => void price.refetch(),
+    points: priced?.points ?? null,
+    label: priced?.label,
+    problem: priced && draft ? (rosterUseProblem(priced, draft)?.kind ?? null) : null,
+  }
+}
+
+/** The builder for the one list a visitor keeps on this device, at the address an account will save it under. */
 export function GuestRoster({
   guest,
   requested,
-  onStart,
+  print,
   onDiscard,
 }: {
-  guest: GuestDraft | null
+  guest: GuestDraft
   requested?: Parameters<typeof ListBuilder>[0]['requested']
-  onStart: (guest: GuestDraft) => void
+  print?: boolean
   onDiscard: () => void
 }) {
   const navigate = useNavigate()
   const [unkept, setUnkept] = useState(false)
-  const linkedCode = useLocation({ select: (location) => location.hash.startsWith('code=') })
-  const { data: factionIndex } = useQuery(factionIndexQuery())
-  const factionResult = useQuery({ ...factionQuery(guest?.draft.catalogueId ?? ''), enabled: Boolean(guest) })
+  const factionResult = useQuery(factionQuery(guest.draft.catalogueId))
   const faction = factionResult.data
 
-  // Nothing is built yet, so the setup is the page rather than a dialog over an empty one.
-  if (!guest) {
-    return (
-      <main className="w-full">
-        <PageHeader
-          eyebrow="Roster builder"
-          title="Build a roster"
-          description="Pick an army and start adding units. This device keeps your list until you sign in to save it."
-          actions={
-            <>
-              <RosterImport
-                onImport={(imported) => {
-                  const started = newGuestDraft({ ...EMPTY_SETUP, ...importedSetup(imported, EMPTY_SETUP.limit) })
-                  started.draft = { ...started.draft, picks: imported.units, source: imported.source }
-                  setUnkept(!writeGuestDraft(started))
-                  onStart(started)
-                }}
-              />
-              <Link to="/sign-in" search={{ next: GUEST_PATH }} className={buttonClass({ variant: 'outline' })}>
-                Sign in
-              </Link>
-            </>
-          }
-        />
-        <PageContent>
-          <RosterSetupDialog
-            mode="create"
-            guest
-            inline
-            open
-            onOpenChange={() => {}}
-            factionOptions={factionIndex?.factions ?? []}
-            value={EMPTY_SETUP}
-            hasUnits={false}
-            onSave={(setup) => {
-              const started = newGuestDraft(setup)
-              setUnkept(!writeGuestDraft(started))
-              posthog.capture('guest_roster_started', { limit: setup.limit, detachment_count: setup.detachmentIds.length })
-              onStart(started)
-            }}
-          />
-        </PageContent>
-      </main>
-    )
-  }
   if (factionResult.isPending) return <BuilderFrame />
   // The draft names a faction the army data does not hold now, or none has loaded yet.
   if (!faction) {
@@ -174,27 +142,7 @@ export function GuestRoster({
           This browser is not keeping the list. Allow browser storage to save it; reloading will lose it.
         </p>
       ) : null}
-      {linkedCode ? (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-2 border-b border-discarded/40 bg-discarded/5 px-3 py-2 text-xs text-discarded"
-        >
-          <p className="min-w-0 flex-1">
-            Your link carries another roster. This device keeps one draft: sign in to save this one first, or discard it to import the
-            linked roster.
-          </p>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => {
-              clearGuestDraft()
-              onDiscard()
-            }}
-          >
-            Discard draft and import
-          </Button>
-        </div>
-      ) : null}
+      <GuestBattleLink className="border-b" />
       <ListBuilder
         key={guest.id}
         prep={guest.draft.prep ?? NO_PREP}
@@ -208,16 +156,15 @@ export function GuestRoster({
         }}
         initialFaction={faction}
         requested={requested}
+        print={print}
         guest={{
           onDraftChange: ({ id: _saved, ...draft }) => {
-            const kept = writeGuestDraft({ ...guest, draft })
+            const kept = editGuestDraft(guest, draft)
             setUnkept(!kept)
             return kept
           },
-          onReviewedChange: ({ id: _id, ...draft }, source) => {
-            const latest = readGuestDraft()
-            requireReviewedRoster(latest?.id === guest.id ? latest.draft : null, { ...source, id: undefined })
-            const kept = writeGuestDraft({ ...guest, draft })
+          onReviewedChange: (draft, source) => {
+            const kept = keepReviewedDraft(guest, draft, source)
             setUnkept(!kept)
             return kept
           },
@@ -243,6 +190,7 @@ const unitCount = (guest: GuestDraft) => attachedUnitCount(guest.draft.picks.map
  */
 export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDiscard: () => void }) {
   const navigate = useNavigate()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const started = useRef(false)
   const [confirming, setConfirming] = useState(() => !guestSaveRequested(guest))
@@ -258,6 +206,8 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
       clearGuestDraft()
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id }, replace: true })
+      // A claim made from the draft's own address lands where it started, which reads the saved list once asked again.
+      await router.invalidate()
     },
   })
   useEffect(() => {
@@ -314,6 +264,20 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
         </div>
       }
     />
+  )
+}
+
+/** The way back for a guest who left their battle to build the list they bring to it. */
+export function GuestBattleLink({ className = 'border' }: { className?: string }) {
+  const battle = useClientValue(readGuestBattle, null)
+  if (!battle) return null
+  return (
+    <div className={`flex flex-wrap items-center gap-2 border-primary/40 bg-primary/5 px-3 py-2 text-xs ${className}`}>
+      <p className="min-w-0 flex-1">This device keeps your list. Bring it to your battle when it is ready.</p>
+      <Link to="/battles/$token" params={{ token: battle }} className={buttonClass({ size: 'sm' })}>
+        Back to your battle
+      </Link>
+    </div>
   )
 }
 

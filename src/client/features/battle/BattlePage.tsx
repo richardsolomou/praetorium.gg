@@ -1,11 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BattleUnavailable } from './BattleUnavailable'
 import { FullPageState } from '../../components/PageState'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
+import { GuestKeepGame } from './GuestKeepGame'
+import { isGuestSeat } from '../../../core/newBattle'
 import { celebrateVictory } from './victory'
 import { battleResult } from '../../battleOutcome'
 import { sides } from '../../sides'
@@ -42,7 +44,7 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
       setNativeBattleActive(false)
     }
   }, [])
-  const { send, attachSavedRoster, problem, pending } = useCommand(token, screen.view.seq)
+  const { send, attachRoster, problem, pending } = useCommand(token, screen.view.seq)
   const status = screen.view.status
   const previousStatus = useRef(status)
   // Setup and the tracker share a URL, so the scroll that reached Start battle would carry into the first turn.
@@ -58,7 +60,7 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
         mission={screen.mission}
         missions={screen.missions}
         send={send}
-        attachSavedRoster={attachSavedRoster}
+        attachRoster={attachRoster}
         pending={pending}
         problem={problem}
       />
@@ -68,6 +70,8 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
 
 function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
   const { view, clock, missions } = screen
+  // Kept here, so the thanks outlasts the refetch that seats the account where the guest sat.
+  const [claimed, setClaimed] = useState(false)
   const won = useMemo(() => {
     const table = sides(view, missions)
     const result = battleResult(table, view)
@@ -77,5 +81,15 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
   useEffect(() => {
     if (won !== null) void celebrateVictory(view.token, won)
   }, [view.token, won])
-  return <Spectator view={view} clock={clock} missions={missions} timeline={screen.timeline} />
+  return (
+    <Spectator
+      view={view}
+      clock={clock}
+      missions={missions}
+      timeline={screen.timeline}
+      lead={
+        isGuestSeat(view.viewerId) || claimed ? <GuestKeepGame view={view} claimed={claimed} onClaimed={() => setClaimed(true)} /> : null
+      }
+    />
+  )
 }

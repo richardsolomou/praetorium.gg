@@ -20,7 +20,7 @@ const access = (payload: Record<string, unknown> = {}, claims: Partial<Admission
   ...claims,
 })
 
-function admit(jwt: AdmissionClaims | null, overrides: { trusted?: boolean; revoked?: string[] } = {}) {
+function admit(jwt: AdmissionClaims | null, overrides: { trusted?: boolean; revoked?: string[]; heldSeats?: string[] } = {}) {
   return admitConnection({
     trusted: overrides.trusted ?? false,
     senderHex: SENDER,
@@ -30,6 +30,7 @@ function admit(jwt: AdmissionClaims | null, overrides: { trusted?: boolean; revo
     now: NOW,
     maxTokenSeconds: 600n,
     isRevoked: (subject) => (overrides.revoked ?? []).includes(subject),
+    holdsGuestSeat: (seatId, subject) => (overrides.heldSeats ?? []).includes(`${seatId} ${subject}`),
   })
 }
 
@@ -73,6 +74,39 @@ describe('admitConnection', () => {
       fullPayload: { hex_identity: SENDER, userId: 'player-1' },
     }
     expect(admit(claims).kind).toBe('refused')
+  })
+
+  describe('a guest seat’s device', () => {
+    const SEAT = 'guest:battle-1:0'
+    const device = (payload: Record<string, unknown> = {}) =>
+      access({ userId: SEAT, tokenType: 'spacetime-guest', ...payload }, { subject: 'guest-device:hash' })
+    const holding = { heldSeats: [`${SEAT} guest-device:hash`] }
+
+    it('is admitted as the seat it holds', () => {
+      expect(admit(device(), holding)).toEqual({
+        kind: 'player',
+        subject: 'guest-device:hash',
+        userId: SEAT,
+        expiresAt: NOW + 300n,
+        isAdmin: false,
+      })
+    })
+
+    it('is refused once it no longer holds the seat', () => {
+      expect(admit(device()).kind).toBe('refused')
+    })
+
+    it('is refused when its token names an account', () => {
+      expect(admit(device({ userId: 'player-1' }), { heldSeats: ['player-1 guest-device:hash'] }).kind).toBe('refused')
+    })
+
+    it('is refused when its token claims admin', () => {
+      expect(admit(device({ isAdmin: true }), holding).kind).toBe('refused')
+    })
+
+    it('cannot pass an account token off as a guest seat', () => {
+      expect(admit(access({ userId: SEAT }, { subject: 'guest-device:hash' }), holding).kind).toBe('refused')
+    })
   })
 
   it('lets the owner and the configured operator in without a token', () => {

@@ -15,7 +15,11 @@ function serviceRecordingCreation() {
     () => 0,
     () => 0,
   )
-  return { service, initialCommand: () => createBattle.mock.calls[0]?.[0]?.initialCommand }
+  return {
+    service,
+    created: () => createBattle.mock.calls[0]?.[0],
+    initialCommand: () => createBattle.mock.calls[0]?.[0]?.initialCommand,
+  }
 }
 
 it.each([undefined, null, 1000])('creates the initial format command atomically for preset %s', async (limit) => {
@@ -37,4 +41,28 @@ it('creates a manually tracked battle without a mission pack', async () => {
   const { service, initialCommand } = serviceRecordingCreation()
   await service.createBattle('actor', { opponentId: 'opponent', missionPackId: 'pack', casual: true, manual: true })
   expect(initialCommand()).toMatchObject({ missionPackId: null, manual: true })
+})
+
+it('seats a guest the creator names without a friendship', async () => {
+  const { service, created } = serviceRecordingCreation()
+  await service.createBattle('actor', { guestNames: ['Alex'], missionPackId: null, casual: true })
+  expect(created()).toMatchObject({ opponentIds: [], guestNames: ['Alex'] })
+})
+
+it('counts a guest among the players a battle seats', async () => {
+  const { service, initialCommand } = serviceRecordingCreation()
+  await service.createBattle('actor', { opponentId: 'opponent', guestNames: ['Alex'], missionPackId: null, casual: true })
+  expect(initialCommand()).toMatchObject({ teamBattle: true, playerCount: 3 })
+})
+
+it('does not report a guest battle as practice', async () => {
+  const { service } = serviceRecordingCreation()
+  expect(await service.createBattle('actor', { guestNames: ['Alex'], missionPackId: null, casual: true })).toMatchObject({
+    practice: false,
+  })
+})
+
+it('refuses a battle with nobody across the table', async () => {
+  const { service } = serviceRecordingCreation()
+  await expect(service.createBattle('actor', { missionPackId: null, casual: true })).rejects.toMatchObject({ status: 400 })
 })

@@ -4,7 +4,7 @@ import { GAME_SIZES } from '../core/battle'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
 import { ROSTER_UPDATE_FILTERS, type RosterUpdateFilter } from '../client/features/rosters/RosterFilters'
 import { useQuery } from '@tanstack/react-query'
-import { BuilderFrame, ClaimGuestRoster, GuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
+import { BuilderFrame, ClaimGuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
 import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
 import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
@@ -14,7 +14,6 @@ import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
-import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
 import { searchText } from '../client/searchParams'
 
 const VIEWS = ['friends', 'public', 'played'] as const
@@ -22,7 +21,7 @@ type RosterView = (typeof VIEWS)[number]
 
 export const Route = createFileRoute('/rosters/')({
   pendingComponent: RosterLoading,
-  validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; add?: string } => {
+  validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView } => {
     const limit = Number(search.limit)
     const faction = searchText(search.faction, 128)
     const view = VIEWS.find((known) => known === search.view)
@@ -47,7 +46,6 @@ export const Route = createFileRoute('/rosters/')({
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
       ...(ROSTER_UPDATE_FILTERS.includes(search.updates as RosterUpdateFilter) ? { updates: search.updates as RosterUpdateFilter } : {}),
-      ...requestedDatasheetSearch(search),
     }
   },
   loaderDeps: ({ search: { view, faction, detachment, rules, sort } }) => ({ view, faction, detachment, rules, sort }),
@@ -63,9 +61,7 @@ export const Route = createFileRoute('/rosters/')({
           staleTime: 'static',
         })
     }
-    // A visitor's page is the roster setup, which offers every faction.
-    else if (!me) await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-    // Whether this browser holds a visitor's list, so the first frame is the builder or the claim it becomes.
+    // Whether this browser holds a visitor's list, so the first frame holds its row or the claim it becomes.
     return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
   },
   head: ({ match }) =>
@@ -96,28 +92,17 @@ export const Route = createFileRoute('/rosters/')({
 })
 
 /**
- * A player's library, or for a visitor the builder in its place; either may instead ask for
- * friends' or public rosters, and a visitor asking for friends' sees the public ones.
- *
- * A visitor has no lists to read, so the page they reach is the one they can use:
- * the builder, with the list kept on the device. Signing up comes back here, and a
- * player arriving with a visitor's list still on the device has it saved first.
+ * A player's library, or a visitor's one list on this device on the same page; either may instead ask for friends' or
+ * public rosters. Signing up comes back here, and a player arriving with a visitor's list still on the device has it
+ * saved first.
  */
 function RosterLibraryRoute() {
-  const { add, view, detachment, rules, sort: listSort, ...search } = Route.useSearch()
+  const { view, detachment, rules, sort: listSort, ...search } = Route.useSearch()
   const { guestDraft: hinted, sort } = Route.useLoaderData()
-  const requested = useRequestedDatasheet(add)
   const { data: me } = useQuery(meQuery())
-  const [{ ready, guest, revision }, setGuest] = useGuestDraft(hinted)
-  if (view)
-    return (
-      <RosterDiscoveryPage
-        view={me || view === 'played' ? view : 'public'}
-        search={{ faction: search.faction, detachment, rules, sort: listSort }}
-      />
-    )
-  if (!ready && hinted) return <BuilderFrame />
+  const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
+  if (view) return <RosterDiscoveryPage view={view} search={{ faction: search.faction, detachment, rules, sort: listSort }} />
+  if (me && !ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
-  if (me) return <RosterLibraryPage search={search} sort={sort} />
-  return <GuestRoster key={revision} guest={guest} requested={requested} onStart={setGuest} onDiscard={() => setGuest(null)} />
+  return <RosterLibraryPage search={search} sort={sort} device={{ guest, pending: !ready && hinted, onChange: setGuest }} />
 }

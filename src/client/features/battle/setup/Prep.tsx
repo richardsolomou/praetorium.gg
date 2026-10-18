@@ -175,6 +175,10 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     )
   }
 
+  // A side with no army asks for no rules, so it is waiting on a list rather than on the data.
+  if (!rules && !requests.some((request) => request.catalogueId))
+    return <p className="text-sm text-dim">Secondaries open once this side’s army is chosen.</p>
+
   // A request still in flight is not a missing pack, so the panel reserves its controls
   // rather than telling the table the data is unavailable. Read as in-flight rather than
   // pending, because a request this side never makes stays pending forever.

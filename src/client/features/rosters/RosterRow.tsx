@@ -29,6 +29,7 @@ import {
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { useNativeShare } from '../../nativeBridge'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
+import type { AccountReason } from './AccountPrompt'
 import {
   type RosterProblem,
   RosterSummary,
@@ -71,6 +72,7 @@ export function RosterRow({
   differences,
   updates,
   showVisibility = true,
+  onNeedsAccount,
 }: {
   roster: SavedRoster
   layout?: RosterRowLayout
@@ -94,10 +96,12 @@ export function RosterRow({
   /** Why the current army data says this list cannot be fielded, judged beside the totals. */
   problem?: RosterProblem | null
   updates?: RosterUpdates
+  /** A visitor's list on this device, whose account-only actions ask them to sign up instead. */
+  onNeedsAccount?: (reason: AccountReason) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, actions, origin, onEdit, onConvert, onDelete }
+  const items = { roster, title, actions, origin, onEdit, onConvert, onDelete, onNeedsAccount }
 
   return (
     <ContextMenu>
@@ -174,6 +178,7 @@ function RosterActionItems({
   onEdit,
   onConvert,
   onDelete,
+  onNeedsAccount,
   showPrivacy = false,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
@@ -186,11 +191,13 @@ function RosterActionItems({
   onEdit: () => void
   onConvert: () => void
   onDelete: () => void
+  onNeedsAccount?: (reason: AccountReason) => void
   /** Only the overflow menu offers making a list private again; the row menu is shorter. */
   showPrivacy?: boolean
 }) {
   const feedback = actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null
   const nativeShare = useNativeShare()
+  const orAccount = (reason: AccountReason, action: () => void) => (onNeedsAccount ? () => onNeedsAccount(reason) : action)
   return (
     <>
       <Item disabled={roster.locked} onClick={onEdit}>
@@ -199,13 +206,16 @@ function RosterActionItems({
       <Item disabled={roster.locked} onClick={onConvert}>
         <Pencil /> Convert rules version
       </Item>
-      <Item disabled={actions.variant.isPending} onClick={() => actions.variant.mutate(roster)}>
+      <Item disabled={actions.variant.isPending} onClick={orAccount('variant', () => actions.variant.mutate(roster))}>
         <GitBranchPlus /> Create variant
       </Item>
-      <Item disabled={actions.duplicate.isPending} onClick={() => actions.duplicate.mutate(roster)}>
+      <Item disabled={actions.duplicate.isPending} onClick={orAccount('another-roster', () => actions.duplicate.mutate(roster))}>
         <Copy /> Duplicate
       </Item>
-      <Item disabled={actions.lock.isPending} onClick={() => actions.lock.mutate({ id: roster.id, locked: !roster.locked })}>
+      <Item
+        disabled={actions.lock.isPending}
+        onClick={orAccount('lock', () => actions.lock.mutate({ id: roster.id, locked: !roster.locked }))}
+      >
         {roster.locked ? (
           <>
             <LockOpen /> Unlock roster
@@ -216,7 +226,10 @@ function RosterActionItems({
           </>
         )}
       </Item>
-      <Item disabled={actions.archive.isPending} onClick={() => actions.archive.mutate({ id: roster.id, archived: !roster.archived })}>
+      <Item
+        disabled={actions.archive.isPending}
+        onClick={orAccount('archive', () => actions.archive.mutate({ id: roster.id, archived: !roster.archived }))}
+      >
         {roster.archived ? (
           <>
             <ArchiveRestore /> Unarchive
@@ -228,7 +241,7 @@ function RosterActionItems({
         )}
       </Item>
       <Separator />
-      <Item disabled={!origin || actions.access.isPending} onClick={() => void actions.share(roster, title)}>
+      <Item disabled={!origin || actions.access.isPending} onClick={orAccount('share', () => void actions.share(roster, title))}>
         <Link2 />
         {roster.visibility === 'private' ? (
           <span>

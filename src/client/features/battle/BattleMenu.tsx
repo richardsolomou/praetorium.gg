@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { isPracticeSeat } from '../../../core/newBattle'
 
 type Ending = { key: string; label: string; description: string; act: () => void }
 
@@ -48,7 +49,7 @@ export function BattleMenu({
 }: Props) {
   const [confirming, setConfirming] = useState<Ending | null>(null)
   const endings: Ending[] = players
-    .filter((player) => !player.automated)
+    .filter((player) => !isPracticeSeat(player))
     .map((player) => ({
       key: `concede:${player.id}`,
       label: player.isViewer ? 'Concede battle' : `Concede for ${player.name}`,

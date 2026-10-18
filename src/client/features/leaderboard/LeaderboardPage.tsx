@@ -31,7 +31,7 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
         <p className="text-sm text-faint">
           Everyone starts at 1000, and beating a higher-rated player gains more. A concession is a loss and allies share their side's
-          result. Practice, private and manually tracked battles do not count.
+          result. Practice, guest, private and manually tracked battles do not count.
         </p>
       </PageContent>
     </main>

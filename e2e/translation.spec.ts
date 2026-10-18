@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { chooseUnit, retryUntilVisible, signUp, uniqueName } from './account'
+import { chooseUnit, retryUntilVisible, signUp, uniqueName, visitorSetup } from './account'
 
 async function replaceTranslatedText(page: Page) {
   await page.evaluate(() => {
@@ -21,13 +21,13 @@ async function replaceTranslatedText(page: Page) {
 for (const width of [1440, 390])
   test(`a translated guest roster setup can select its first faction at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/rosters')
-    const faction = page.getByRole('combobox', { name: 'Faction', exact: true })
+    const setup = await visitorSetup(page)
+    const faction = setup.getByRole('combobox', { name: 'Faction', exact: true })
     await expect(faction).toBeEnabled()
     await replaceTranslatedText(page)
     await faction.click()
     await page.getByRole('option', { name: 'Necrons', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Build a roster', exact: true })).toBeVisible()
+    await expect(setup).toBeVisible()
     await expect(faction).toContainText('Necrons')
     await page.screenshot({ path: `test-results/translated-guest-roster-${width}.png`, fullPage: true })
   })

@@ -83,6 +83,7 @@ type App = {
   sync: () => SyncState
   auth: ReturnType<typeof createSqliteAuth>
   spacetimeToken: ((headers: Headers) => Promise<string>) | null
+  spacetimeGuestToken: (seatId: string, deviceHash: string) => Promise<string>
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
   push: boolean
@@ -353,6 +354,7 @@ export function app(): App {
       ),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
+      spacetimeGuestToken: auth.spacetimeGuestToken,
       email,
       catalogue: loaded.catalogue,
       canonicalCatalogue: loaded.canonical,

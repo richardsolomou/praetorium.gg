@@ -4,6 +4,8 @@ import {
   battleReport,
   friendBattles,
   friendships,
+  guestInvitation,
+  guestInvite,
   myBattles,
   openBattle,
   opponents,
@@ -27,6 +29,8 @@ import {
   battlesKey,
   friendBattlesKey,
   friendshipsKey,
+  guestInvitationKey,
+  guestInviteKey,
   opponentsKey,
   playerProfileKey,
   playerRankingsKey,
@@ -163,3 +167,17 @@ function battleSequence(value: unknown): number | null {
 
 export const reportQuery = (token: string, enabled: boolean) =>
   queryOptions({ queryKey: reportKey(token), queryFn: () => battleReport({ data: { token } }), enabled, staleTime: SSR_STALE_TIME })
+
+/**
+ * A guest seat's link, made the first time it is asked for. While nobody has joined, it asks again every few seconds,
+ * so the host sees the guest arrive without a signal for it.
+ */
+export const guestInviteQuery = (token: string, playerId: string) =>
+  queryOptions({
+    queryKey: guestInviteKey(token, playerId),
+    queryFn: () => guestInvite({ data: { token, playerId, replace: false } }),
+    refetchInterval: (query) => (query.state.data?.joined ? false : 3_000),
+  })
+
+export const guestInvitationQuery = (invite: string) =>
+  queryOptions({ queryKey: guestInvitationKey(invite), queryFn: () => guestInvitation({ data: { invite } }), staleTime: SSR_STALE_TIME })

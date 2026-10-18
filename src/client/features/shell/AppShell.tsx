@@ -5,14 +5,14 @@ import { WebMcp } from '../agents/WebMcp'
 import { AppPersistence } from '../../offline/AppPersistence'
 import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
-import { HeadContent, Link, Outlet, Scripts, useLocation, useMatch } from '@tanstack/react-router'
+import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { BookOpen, Calculator, ChevronDown, Gavel, Layers3, Medal, Menu, ScrollText, Swords, Trophy, UsersRound, X } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
@@ -27,7 +27,6 @@ import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { FeedbackDialog, openFeedback } from '../feedback/FeedbackDialog'
 import { meQuery } from '../../queries'
 import { CommunityLinks } from './CommunityLinks'
-import { guestDraftOpen, subscribeGuestDraft } from '../rosters/guestDraft'
 import { followTextSize } from '../../textSize'
 import { followTextSourceChoice } from '../../rulesText'
 import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
@@ -155,15 +154,7 @@ function PrimaryNavigation({ path }: { path: string }) {
 export function AppShell() {
   const location = useLocation()
   const path = location.pathname
-  // The loader hints the first frame; a draft still needs this layout when browser storage fails.
-  const guestHint = useMatch({ from: '/rosters/', shouldThrow: false })?.loaderData?.guestDraft === true
-  const guestDraft = useSyncExternalStore(
-    subscribeGuestDraft,
-    () => guestDraftOpen(guestHint),
-    () => guestHint,
-  )
-  const guestBuilder = (path === '/rosters' || path === '/rosters/') && guestDraft
-  const immersive = guestBuilder || /^\/rosters\/(?:new|import|(?!discover$)[^/]+(?:\/edit)?)$/.test(path)
+  const immersive = /^\/rosters\/(?:new|import|(?!discover$)[^/]+(?:\/edit)?)$/.test(path)
   const { data: me } = useQuery(meQuery())
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))

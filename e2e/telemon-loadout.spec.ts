@@ -1,18 +1,17 @@
 import { expect, test } from './test'
+import { visitorSetup } from './account'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 
 for (const width of [1440, 390]) {
   test(`Telemon bundles select and persist at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/rosters')
-    await page.waitForLoadState('networkidle')
-    const setup = page.getByRole('region', { name: 'Create roster' })
+    const setup = await visitorSetup(page)
     await setup.getByRole('combobox', { name: 'Faction' }).click()
     await page.getByPlaceholder('Search factions…').fill('Adeptus Custodes')
     await page.getByRole('option', { name: 'Adeptus Custodes', exact: true }).click()
     await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-    await setup.getByRole('button', { name: 'Start building' }).click()
+    await setup.getByRole('button', { name: 'Create roster' }).click()
     if (width < 1300) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await add(page, 'Telemon Heavy Dreadnought')
     if (width < 1300) await page.getByRole('button', { name: 'Close', exact: true }).click()

@@ -1,4 +1,5 @@
 import type { CatalogueEdition } from './catalogueEdition'
+import { isGuestSeat } from './newBattle'
 /** Standings rate players from finished battles; each faction table rates the seats that fielded it. */
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
@@ -71,11 +72,15 @@ export function sideScore(battle: StandingBattle, side: number) {
   return battle.sides.reduce((total, seat, index) => (seat === side ? total + (battle.scores[index] ?? 0) : total), 0)
 }
 
-/** Exclude practice and manually tracked battles entirely, including the human side; all table shapes count together. */
+/**
+ * Exclude practice, guest, and manually tracked battles entirely, including the account holders' side; all table shapes count together.
+ * The host plays a guest's side unverified, so counting it would let anyone rate themselves against opponents they made up.
+ */
 function counted(battles: readonly StandingBattle[], exclude: readonly string[]) {
   const excluded = new Set(exclude)
   return battles.filter(
-    (battle) => battle.status === 'finished' && !battle.settings?.manual && !battle.playerIds.some((id) => excluded.has(id)),
+    (battle) =>
+      battle.status === 'finished' && !battle.settings?.manual && !battle.playerIds.some((id) => excluded.has(id) || isGuestSeat(id)),
   )
 }
 

@@ -21,7 +21,7 @@ type Matched<T> = T extends { catalogueId: string | null; source: string | null 
   ? T & { catalogueId: string; source: NonNullable<T['source']> }
   : never
 /** A list whose faction was recognised, which is the only thing an import cannot do without. */
-type MatchedImport = Matched<Imported>
+export type MatchedImport = Matched<Imported>
 const matched = (imported: Imported): imported is MatchedImport => Boolean(imported.catalogueId && imported.source)
 
 /** The roster setup an import carries; text exports leave out rule waivers and allied detachments. */
@@ -77,7 +77,11 @@ function Shortfall({ title, rows }: { title: string; rows: readonly { key: strin
   )
 }
 
-export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport) => void }) {
+/**
+ * `onImport` keeps the list somewhere other than the account, such as a visitor's device; `blocked` replaces importing
+ * for a visitor who already keeps their one list there, including an import a scanned code opened.
+ */
+export function RosterImport({ onImport, blocked }: { onImport?: (imported: MatchedImport) => void; blocked?: () => void }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const navigate = useNavigate()
@@ -178,6 +182,10 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
   }, [hash, navigate, resetSubmit, submit])
 
   const accept = (imported: MatchedImport) => {
+    if (blocked) {
+      setOpen(false)
+      return blocked()
+    }
     if (!onImport) return keep.mutate(imported)
     onImport(imported)
     posthog.capture('guest_roster_imported', {
@@ -190,6 +198,7 @@ export function RosterImport({ onImport }: { onImport?: (imported: MatchedImport
   }
 
   const show = () => {
+    if (blocked) return blocked()
     posthog.capture('roster_import_started', { input: 'text' })
     bring.reset()
     keep.reset()

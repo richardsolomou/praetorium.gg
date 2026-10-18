@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { type Command, reduceBattle } from './battle'
 import { ALICE, BOB, log, PLAYERS, started } from './battle.fixtures'
+import { guestSeatId } from './newBattle'
 import {
   CARD_SAMPLE,
   type CardPlay,
@@ -638,6 +639,19 @@ describe('results against each faction', () => {
 
   it('leaves out an opponent whose army was pasted in as text', () => {
     expect(serviceRecord([duel({ factions: [army('necrons'), null] })], 'alice').opposingFactions).toEqual([])
+  })
+})
+
+describe('a battle against a guest', () => {
+  const guest = guestSeatId('battle', 0)
+  const battle = () => duel({ playerIds: ['alice', guest], players: ['Alice', 'Alex'] })
+
+  it('counts in the host’s record', () => {
+    expect(serviceRecord([battle()], 'alice')).toMatchObject({ battles: 1, won: 1 })
+  })
+
+  it('offers no guest to narrow the record by', () => {
+    expect(recordFacets([battle()], 'alice').opponents).toEqual([])
   })
 })
 

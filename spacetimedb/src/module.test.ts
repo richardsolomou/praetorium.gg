@@ -180,7 +180,8 @@ describe('public battle feed', () => {
         token: 'battle-token',
         userId: 'creator',
         allyIds: [],
-        opponentIds: ['guest:battle:0'],
+        opponentIds: [],
+        guestNames: ['Sam'],
         initialCommands: [],
         now: NOW,
       }),
@@ -300,6 +301,378 @@ describe('battle commands', () => {
     const { test, operator, procedure } = harness()
     expect(() => create(procedure, operator, [{ kind: 'begin-battle', firstPlayerId: 'stranger' }])).toThrow()
     expect(test.db.battles.count()).toBe(0n)
+  })
+})
+
+describe('guest seats', () => {
+  const create = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth, seats: Record<string, unknown>) =>
+    JSON.parse(
+      module.createBattle(procedure(operator), {
+        payload: JSON.stringify({
+          id: 'battle',
+          token: 'battle-token',
+          userId: 'host',
+          allyIds: [],
+          opponentIds: [],
+          ...seats,
+          now: NOW * 1_000,
+        }),
+      }),
+    ) as { seats: { id: string; side: number; automated: boolean; guestName?: string }[] }
+  const publicFeed = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth) =>
+    (
+      JSON.parse(
+        module.battleFeed(procedure(operator), {
+          payload: JSON.stringify({
+            scope: 'public',
+            userId: null,
+            viewerId: null,
+            withUserId: null,
+            leagueToken: null,
+            eventToken: null,
+            since: null,
+            before: null,
+            limit: 10,
+          }),
+        }),
+      ) as { battles: { battle: { id: string } }[] }
+    ).battles.map((row) => row.battle.id)
+
+  it('seats a guest the host names, played by the table', () => {
+    const { operator, procedure } = harness()
+    expect(create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] }).seats[1]).toEqual({
+      id: 'guest:battle:0',
+      side: 1,
+      automated: true,
+      guestName: 'Alex',
+    })
+  })
+
+  it('refuses an account seat that claims a guest seat', () => {
+    const { operator, procedure } = harness()
+    expect(() => create(procedure, operator, { opponentIds: ['guest:other:0'], initialCommands: [] })).toThrow('Invalid battle seats')
+  })
+
+  it('keeps no product revisions for a guest', () => {
+    const { test, operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    expect(Array.from(test.db.productRevisions.userId.filter('guest:battle:0'))).toEqual([])
+  })
+
+  it('refuses a friendship with a guest', () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    expect(() =>
+      module.requestFriend(procedure(operator), { requesterId: 'host', addresseeId: 'guest:battle:0', now: BigInt(NOW) }),
+    ).toThrow('Invalid friendship')
+  })
+
+  it('lists a guest battle publicly when the host shares battles publicly', () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    expect(publicFeed(procedure, operator)).toEqual(['battle'])
+  })
+
+  it('keeps a guest battle out of the public feed when the host keeps battles to players', () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
+    module.setBattleAudience(procedure(operator), { userId: 'host', audience: 'private', now: BigInt(NOW) })
+    expect(publicFeed(procedure, operator)).toEqual([])
+  })
+})
+
+describe('guest devices', () => {
+  const GUEST = 'guest:battle:0'
+  const setup = () => {
+    const h = harness()
+    module.createBattle(h.procedure(h.operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle-token',
+        userId: 'host',
+        allyIds: [],
+        opponentIds: [],
+        guestNames: ['Alex'],
+        initialCommands: [],
+        now: NOW * 1_000,
+      }),
+    })
+    const read = <T>(json: string) => JSON.parse(json) as T
+    const invite = (seatId = GUEST, replace = false) => {
+      const input = { battleId: 'battle', seatId, invite: replace ? 'renewed' : 'first' }
+      const procedure = h.procedure(h.operator)
+      return read<string>(replace ? module.replaceGuestInvite(procedure, input) : module.guestInvite(procedure, input))
+    }
+    const join = (code: string, deviceHash = 'a'.repeat(64)) =>
+      read<unknown>(module.joinGuestSeat(h.procedure(h.operator), { invite: code, deviceHash, now: BigInt(NOW * 1_000) }))
+    const device = () => read<unknown>(module.guestDevice(h.procedure(h.operator), { seatId: GUEST }))
+    const seat = () =>
+      read<{ seats: { id: string; automated: boolean }[] }>(
+        module.battleForOperator(h.procedure(h.operator), { battleId: 'battle' }),
+      ).seats.find((one) => one.id === GUEST)
+    const finish = () =>
+      h.call(TestAuth.internal(), (ctx) => {
+        for (const [seq, body] of [
+          { kind: 'begin-battle', firstPlayerId: 'host' },
+          { kind: 'end-battle', reason: 'conceded', concededBy: GUEST },
+        ].entries())
+          ctx.db.commands.insert({
+            key: JSON.stringify(['battle', seq + 1]),
+            battleId: 'battle',
+            seq: seq + 1,
+            userId: seq ? GUEST : 'host',
+            at: BigInt(NOW * 1_000),
+            body: JSON.stringify(body),
+          })
+      })
+    const claim = (deviceHash = 'a'.repeat(64), userId = 'newcomer') =>
+      read<unknown>(
+        module.claimGuestSeat(h.procedure(h.operator), { battleId: 'battle', seatId: GUEST, userId, deviceHash, now: BigInt(NOW * 1_000) }),
+      )
+    return { ...h, invite, join, device, seat, finish, claim }
+  }
+
+  it('keeps one invite per guest seat', () => {
+    const { invite } = setup()
+    invite()
+    expect(invite()).toBe('first')
+  })
+
+  it('refuses an invite for a seat that is not a guest', () => {
+    const { invite } = setup()
+    expect(() => invite('host')).toThrow('Invalid guest seat')
+  })
+
+  it('seats the device that opens the invite', () => {
+    const { invite, join } = setup()
+    expect(join(invite())).toEqual({ battleId: 'battle', token: 'battle-token', seatId: GUEST })
+  })
+
+  it('refuses a second device once the guest has joined', () => {
+    const { invite, join } = setup()
+    const code = invite()
+    join(code)
+    expect(join(code, 'b'.repeat(64))).toBe('taken')
+  })
+
+  it('refuses an invite the host replaced', () => {
+    const { invite, join } = setup()
+    const code = invite()
+    invite(GUEST, true)
+    expect(join(code)).toBe('missing')
+  })
+
+  it('remembers only the hash of the joined device', () => {
+    const { invite, join, device } = setup()
+    join(invite())
+    expect(device()).toEqual({ battleId: 'battle', token: 'battle-token', deviceHash: 'a'.repeat(64), joinedAt: NOW * 1_000 })
+  })
+
+  it('stops the table playing a guest who joined on their own device', () => {
+    const { invite, join, seat } = setup()
+    join(invite())
+    expect(seat()?.automated).toBe(false)
+  })
+
+  it('hands the seat back to the table when the host replaces the invite', () => {
+    const { invite, join, seat } = setup()
+    join(invite())
+    invite(GUEST, true)
+    expect(seat()?.automated).toBe(true)
+  })
+
+  it('forgets guest devices with their battle', () => {
+    const { test, invite, join, operator, procedure } = setup()
+    join(invite())
+    module.deleteBattleForOperator(procedure(operator), { battleId: 'battle' })
+    expect(test.db.guestSeats.count()).toBe(0n)
+  })
+
+  it('moves a finished battle onto the account that claims the guest seat', () => {
+    const { invite, join, finish, claim, operator, procedure } = setup()
+    join(invite())
+    finish()
+    expect(claim()).toBe('claimed')
+    const data = JSON.parse(module.battleForOperator(procedure(operator), { battleId: 'battle' })) as {
+      seats: { id: string; guestName?: string }[]
+      log: { by: string; command: { concededBy?: string } }[]
+    }
+    expect([data.seats.map((one) => one.id), data.log.at(-1)?.by, data.log.at(-1)?.command.concededBy, data.seats[1]?.guestName]).toEqual([
+      ['host', 'newcomer'],
+      'newcomer',
+      'newcomer',
+      undefined,
+    ])
+  })
+
+  it('refuses a claim from a device that did not join', () => {
+    const { invite, join, finish, claim } = setup()
+    join(invite())
+    finish()
+    expect(claim('b'.repeat(64))).toBe('this device is not playing that seat')
+  })
+
+  it('refuses a claim before the battle finishes', () => {
+    const { invite, join, claim } = setup()
+    join(invite())
+    expect(claim()).toBe('finish the battle before adding it to your record')
+  })
+
+  it('refuses a claim from the host', () => {
+    const { invite, join, finish, claim } = setup()
+    join(invite())
+    finish()
+    expect(claim('a'.repeat(64), 'host')).toBe('you already have a seat in this battle')
+  })
+
+  it('leaves every logged command as it was written when a guest claims', () => {
+    const { test, invite, join, finish, claim } = setup()
+    join(invite())
+    finish()
+    const commands = () => Array.from(test.db.commands.battleId.filter('battle'))
+    const written = commands()
+    claim()
+    expect(commands()).toEqual(written)
+  })
+
+  it('names the claimant in their battle feed', () => {
+    const { invite, join, finish, claim, operator, procedure } = setup()
+    join(invite())
+    finish()
+    claim()
+    const feed = JSON.parse(
+      module.battleFeed(procedure(operator), {
+        payload: JSON.stringify({
+          scope: 'user',
+          userId: 'newcomer',
+          viewerId: 'newcomer',
+          withUserId: null,
+          leagueToken: null,
+          eventToken: null,
+          since: null,
+          before: null,
+          limit: 10,
+        }),
+      }),
+    ) as { battles: { log: { by: string; command: { concededBy?: string } }[] }[] }
+    expect(feed.battles.map(({ log }) => [log.at(-1)?.by, log.at(-1)?.command.concededBy])).toEqual([['newcomer', 'newcomer']])
+  })
+
+  it('lets the claimant act as their account when the battle reopens', () => {
+    const { invite, join, finish, claim, operator, procedure } = setup()
+    join(invite())
+    finish()
+    claim()
+    const submitted = JSON.parse(
+      module.submitBattle(procedure(operator), {
+        battleId: 'battle',
+        userId: 'newcomer',
+        expectedSeq: 2,
+        body: JSON.stringify({ kind: 'reopen-battle' }),
+        now: BigInt(NOW * 1_000),
+        externalRefusal: '',
+      }),
+    ) as { result: { outcome: string } }
+    expect(submitted.result.outcome).toBe('appended')
+  })
+
+  describe('realtime', () => {
+    const HASH = 'a'.repeat(64)
+    const device = (hash = HASH, payload: Record<string, unknown> = {}) =>
+      player(`guest-device:${hash}`, { userId: GUEST, tokenType: 'spacetime-guest', ...payload })
+    const connected = () => {
+      const h = setup()
+      h.join(h.invite())
+      const auth = device()
+      h.call(auth, (ctx) => module.onConnect(ctx, {}))
+      return { ...h, auth }
+    }
+    const otherBattle = (h: ReturnType<typeof harness>) =>
+      module.createBattle(h.procedure(h.operator), {
+        payload: JSON.stringify({
+          id: 'other',
+          token: 'other-token',
+          userId: 'stranger',
+          allyIds: [],
+          opponentIds: [],
+          guestNames: ['Blake'],
+          initialCommands: [],
+          now: NOW * 1_000,
+        }),
+      })
+
+    it('admits the device that holds the guest seat as that seat', () => {
+      const { test } = connected()
+      expect(test.db.sessionAccess.subject.find(`guest-device:${HASH}`)?.userId).toBe(GUEST)
+    })
+
+    it('refuses a device that does not hold the seat', () => {
+      const { invite, join, call } = setup()
+      join(invite())
+      expect(() => call(device('b'.repeat(64)), (ctx) => module.onConnect(ctx, {}))).toThrow('Invalid auth token')
+    })
+
+    it('refuses a guest token that names an account', () => {
+      const { invite, join, call } = setup()
+      join(invite())
+      expect(() => call(device(HASH, { userId: 'host' }), (ctx) => module.onConnect(ctx, {}))).toThrow('Invalid auth token')
+    })
+
+    it('refuses an account token that names a guest seat', () => {
+      const { invite, join, call } = setup()
+      join(invite())
+      expect(() => call(player(`guest-device:${HASH}`, { userId: GUEST }), (ctx) => module.onConnect(ctx, {}))).toThrow(
+        'Invalid auth token',
+      )
+    })
+
+    it('refuses a guest whose session has lapsed', () => {
+      const { invite, join, call, at } = setup()
+      join(invite())
+      const later = NOW + 31 * 24 * 60 * 60
+      at(later)
+      expect(() => call(device(HASH, { accessExpiresAt: later + 300, exp: later + 300 }), (ctx) => module.onConnect(ctx, {}))).toThrow(
+        'Invalid auth token',
+      )
+    })
+
+    it('signals the guest when their battle moves', () => {
+      const { test, call, auth, finish } = connected()
+      call(auth, (ctx) => module.watchBattle(ctx, { battleId: 'battle' }))
+      finish()
+      expect(module.myBattleSignals(test.viewContext(auth))).toEqual([{ battleId: 'battle', seq: 2 }])
+    })
+
+    it('refuses to let a guest watch another battle', () => {
+      const h = connected()
+      otherBattle(h)
+      expect(() => h.call(h.auth, (ctx) => module.watchBattle(ctx, { battleId: 'other' }))).toThrow('Battle unavailable')
+    })
+
+    it('lists only the guest seat’s own battle', () => {
+      const h = connected()
+      otherBattle(h)
+      expect(module.myBattleList(h.test.viewContext(h.auth))).toEqual([{ battleId: 'battle', seq: 0 }])
+    })
+
+    it('gives a guest no account or admin signals', () => {
+      const { test, auth } = connected()
+      expect([module.myProductSignals(test.viewContext(auth)), module.myAdminSignals(test.viewContext(auth))]).toEqual([[], []])
+    })
+
+    it('ends the guest’s realtime session when the host takes the seat back', () => {
+      const { test, call, auth, invite } = connected()
+      call(auth, (ctx) => module.watchBattle(ctx, { battleId: 'battle' }))
+      invite(GUEST, true)
+      expect(module.myBattleSignals(test.viewContext(auth))).toEqual([])
+    })
+
+    it('ends the guest’s realtime session when they claim the seat', () => {
+      const { test, finish, claim } = connected()
+      finish()
+      claim()
+      expect(test.db.sessionAccess.subject.find(`guest-device:${HASH}`)).toBeNull()
+    })
   })
 })
 
