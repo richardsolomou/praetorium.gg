@@ -99,7 +99,10 @@ test('an unmatched import reports one failed attempt and no completed save', asy
     .toEqual([
       { name: 'roster_import_started', properties: { input: 'text' } },
       { name: 'roster_import_submitted', properties: { input: 'text' } },
-      { name: 'roster_import_failed', properties: { reason: 'catalogue_unmatched', input: 'text' } },
+      {
+        name: 'roster_import_failed',
+        properties: { reason: 'catalogue_unmatched', input: 'text', format: 'unrecognized' },
+      },
       {
         name: 'survey sent',
         properties: expect.objectContaining({
