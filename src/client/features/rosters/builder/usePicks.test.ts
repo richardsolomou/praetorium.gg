@@ -269,6 +269,42 @@ describe('datasheet roster caps', () => {
     edit.duplicate(0)
     expect(count()).toBe(3)
   })
+
+  it('rejects a saved loadout at the cap', () => {
+    const { edit, count } = editWithLimit(2, 2)
+    edit.apply({ entryId: 'squad', catalogueId: 'imperium' })
+    expect(count()).toBe(2)
+  })
+})
+
+describe('applying a saved loadout', () => {
+  const applied = (loadout: Parameters<ReturnType<typeof pickEditor>['apply']>[0]) => {
+    let picks: KeyedPick[] = [{ key: 0, entryId: 'captain', catalogueId: 'imperium' }]
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
+      () => 1,
+    )
+    edit.apply(loadout)
+    return picks[1]
+  }
+
+  it('adds the configured unit with its wargear', () => {
+    expect(applied({ entryId: 'squad', catalogueId: 'imperium', models: 10, choices: { weapon: 'plasma' } })).toEqual({
+      key: 1,
+      entryId: 'squad',
+      catalogueId: 'imperium',
+      models: 10,
+      choices: { weapon: 'plasma' },
+      attachedTo: undefined,
+    })
+  })
+
+  it('never joins it to the unit at the saved attachment position', () => {
+    expect(applied({ entryId: 'squad', catalogueId: 'imperium', attachedTo: 0 })?.attachedTo).toBeUndefined()
+  })
 })
 
 /**

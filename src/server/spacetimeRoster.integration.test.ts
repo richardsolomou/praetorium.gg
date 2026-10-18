@@ -379,6 +379,27 @@ it.skipIf(!url || !database || !token)('keeps collection and favourites idempote
   expect(await store.collectionByUser(userId)).toEqual([])
 })
 
+it.skipIf(!url || !database || !token)('keeps saved loadouts to their owner and removes them with the account', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const id = randomUUID()
+  const loadout = { name: 'Plasma squad', catalogueId: 'cat', pick: { entryId: 'squad', models: 10, choices: { weapon: 'plasma' } } }
+  try {
+    expect(await store.saveUnitLoadout(id, userId, loadout, 1)).toBe('saved')
+    expect(await store.saveUnitLoadout(id, 'other', loadout, 2)).toBe('refused')
+    expect(await store.unitLoadoutsByUser(userId)).toEqual([{ id, ...loadout, createdAt: 1 }])
+    expect(await store.unitLoadoutsByUser('other')).toEqual([])
+    expect(await store.deleteUnitLoadout(id, 'other')).toBe(false)
+    expect(await store.renameUnitLoadout(id, 'other', 'Taken')).toBe(false)
+    expect(await store.renameUnitLoadout(id, userId, 'Melta squad')).toBe(true)
+    expect(await store.unitLoadoutsByUser(userId)).toEqual([{ id, ...loadout, name: 'Melta squad', createdAt: 1 }])
+    await store.deleteUserData(userId)
+    expect(await store.unitLoadoutsByUser(userId)).toEqual([])
+  } finally {
+    await store.deleteUnitLoadout(id, userId)
+  }
+})
+
 it.skipIf(!url || !database || !token)('records a model count without duplicating the collection entry', async () => {
   const store = new SpacetimeOperator(url!, database!, token!)
   const userId = randomUUID()

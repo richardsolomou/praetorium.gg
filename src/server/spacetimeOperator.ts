@@ -13,6 +13,7 @@ import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
+import { unitLoadoutPickSchema, type UnitLoadout } from '../core/unitLoadouts'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
 // reading after a newer module appends a column or result field.
@@ -66,6 +67,13 @@ const favouriteDetachmentRow = z.object({
   catalogueId: z.string(),
   detachmentId: z.string(),
   at: z.number().int(),
+})
+const unitLoadoutRow = z.object({
+  id: z.string(),
+  name: z.string(),
+  catalogueId: z.string(),
+  pick: unitLoadoutPickSchema,
+  createdAt: z.number().int(),
 })
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
 const battleSnapshot = z.object({
@@ -731,6 +739,22 @@ export class SpacetimeOperator {
 
   async removeFavouriteDatasheet(userId: string, entryId: string) {
     await this.call('remove_favourite_datasheet', [userId, entryId])
+  }
+
+  async unitLoadoutsByUser(userId: string) {
+    return this.read('unit_loadouts_by_user', [userId], z.array(unitLoadoutRow))
+  }
+
+  async saveUnitLoadout(id: string, userId: string, loadout: UnitLoadout, now: number) {
+    return this.reply('save_unit_loadout', [id, userId, JSON.stringify(loadout), now], z.enum(['saved', 'full', 'refused']))
+  }
+
+  async renameUnitLoadout(id: string, userId: string, name: string) {
+    return this.reply('rename_unit_loadout', [id, userId, name], z.boolean())
+  }
+
+  async deleteUnitLoadout(id: string, userId: string) {
+    return this.reply('delete_unit_loadout', [id, userId], z.boolean())
   }
 
   async pushEnabled(userId: string) {

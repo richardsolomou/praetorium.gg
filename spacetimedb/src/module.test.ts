@@ -7,6 +7,7 @@ const env = vi.hoisted((): Record<string, string> => ({}))
 vi.mock('spacetime:sys@2.2', async (original) => ({ ...(await original<object>()), env_get: (key: string) => env[key] ?? null }))
 
 import spacetime, * as module from './index'
+import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -152,6 +153,51 @@ describe('session access', () => {
   })
 })
 
+describe('public battle feed', () => {
+  const feed = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth) =>
+    (
+      JSON.parse(
+        module.battleFeed(procedure(operator), {
+          payload: JSON.stringify({
+            scope: 'public',
+            userId: null,
+            viewerId: null,
+            withUserId: null,
+            leagueToken: null,
+            eventToken: null,
+            since: null,
+            before: null,
+            limit: 10,
+          }),
+        }),
+      ) as { battles: { battle: { token: string } }[] }
+    ).battles.map((battle) => battle.battle.token)
+  const tableWithAGuest = (creatorAudience: string) => {
+    const { operator, procedure } = harness()
+    module.createBattle(procedure(operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle-token',
+        userId: 'creator',
+        allyIds: [],
+        opponentIds: ['guest:battle:0'],
+        initialCommands: [],
+        now: NOW,
+      }),
+    })
+    module.setBattleAudience(procedure(operator), { userId: 'creator', audience: creatorAudience, now: BigInt(NOW) })
+    return feed(procedure, operator)
+  }
+
+  it('lists a battle whose only other seat has no audience of its own', () => {
+    expect(tableWithAGuest('public')).toEqual(['battle-token'])
+  })
+
+  it('leaves out that battle when its account holder narrows their audience', () => {
+    expect(tableWithAGuest('friends')).toEqual([])
+  })
+})
+
 describe('battle commands', () => {
   const creator = 'creator'
   const create = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth, initialCommands: unknown[] = []) =>
@@ -288,6 +334,103 @@ describe('roster lock', () => {
       'locked',
       '[{"entryId":"unit-proof"}]',
     ])
+  })
+})
+
+describe('saved unit loadouts', () => {
+  const loadout = (id: string, userId = 'owner', pick: object = { entryId: 'captain', choices: { pistol: 'plasma' } }) => ({
+    id,
+    userId,
+    payload: JSON.stringify({ name: 'Plasma Captain', catalogueId: 'sm', pick }),
+    at: BigInt(NOW),
+  })
+  const saved = (setup: ReturnType<typeof harness>, userId = 'owner') =>
+    JSON.parse(module.unitLoadoutsByUser(setup.procedure(setup.operator), { userId })) as { id: string; name: string }[]
+
+  it('lists a saved loadout to its owner', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    expect(saved(setup).map((row) => row.id)).toEqual(['one'])
+  })
+
+  it('lists nothing of another player’s loadouts', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    expect(saved(setup, 'other')).toEqual([])
+  })
+
+  it('refuses a caller other than the operator', () => {
+    const setup = harness()
+    expect(() => module.saveUnitLoadout(setup.procedure(stranger()), loadout('one'))).toThrow('Operator required')
+  })
+
+  it('refuses a loadout carrying a private note', () => {
+    const setup = harness()
+    expect(() =>
+      module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one', 'owner', { entryId: 'captain', note: 'secret' })),
+    ).toThrow('Invalid loadout')
+  })
+
+  it('refuses another loadout once the library is full', () => {
+    const setup = harness()
+    for (let index = 0; index < UNIT_LOADOUTS_MAX; index++) module.saveUnitLoadout(setup.procedure(setup.operator), loadout(`l-${index}`))
+    expect(module.saveUnitLoadout(setup.procedure(setup.operator), loadout('extra'))).toBe('full')
+  })
+
+  it('keeps a retried save once', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    expect(saved(setup)).toHaveLength(1)
+  })
+
+  it('refuses a save over another player’s loadout ID', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    expect(module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one', 'other'))).toBe('refused')
+  })
+
+  it('leaves another player’s loadout when asked to delete it', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    module.deleteUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'other' })
+    expect(saved(setup)).toHaveLength(1)
+  })
+
+  it('deletes a loadout for its owner', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    module.deleteUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'owner' })
+    expect(saved(setup)).toEqual([])
+  })
+
+  it('renames a loadout for its owner, keeping its pick and creation time', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    module.renameUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'owner', name: '  Melta Captain  ' })
+    expect(saved(setup)).toEqual([
+      { id: 'one', name: 'Melta Captain', catalogueId: 'sm', pick: { entryId: 'captain', choices: { pistol: 'plasma' } }, createdAt: NOW },
+    ])
+  })
+
+  it('leaves another player’s loadout when asked to rename it', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    module.renameUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'other', name: 'Taken' })
+    expect(saved(setup)).toMatchObject([{ name: 'Plasma Captain' }])
+  })
+
+  it.each(['   ', 'x'.repeat(UNIT_LOADOUT_NAME_MAX_LENGTH + 1)])('refuses a rename to an invalid name', (name) => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    expect(() => module.renameUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'owner', name })).toThrow('Invalid loadout')
+  })
+
+  it('deletes loadouts with the account', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    setup.call(setup.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(setup.test.db.unitLoadouts.id.find('one')).toBeNull()
   })
 })
 

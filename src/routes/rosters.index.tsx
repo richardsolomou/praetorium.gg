@@ -11,13 +11,13 @@ import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/
 import { discoveryFilter, RosterDiscoveryPage, type RosterDiscoverySearch } from '../client/features/rosters/RosterDiscoveryPage'
 import { RULES_VERSION_STATUSES, type RulesVersionStatus } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
-import { discoveredRostersQuery, factionIndexQuery, meQuery } from '../client/queries'
+import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
 import { searchText } from '../client/searchParams'
 
-const VIEWS = ['friends', 'public'] as const
+const VIEWS = ['friends', 'public', 'played'] as const
 type RosterView = (typeof VIEWS)[number]
 
 export const Route = createFileRoute('/rosters/')({
@@ -55,10 +55,13 @@ export const Route = createFileRoute('/rosters/')({
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-      await context.queryClient.infiniteQuery({
-        ...discoveredRostersQuery(discoveryFilter(search, index?.factions ?? []), me ? view : 'public', sort ?? 'updated-desc'),
-        staleTime: 'static',
-      })
+      const filter = discoveryFilter(search, index?.factions ?? [])
+      if (view === 'played') await context.queryClient.infiniteQuery({ ...playedArmiesQuery(filter), staleTime: 'static' })
+      else
+        await context.queryClient.infiniteQuery({
+          ...discoveredRostersQuery(filter, me ? view : 'public', sort ?? 'updated-desc'),
+          staleTime: 'static',
+        })
     }
     // A visitor's page is the roster setup, which offers every faction.
     else if (!me) await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
@@ -68,19 +71,26 @@ export const Route = createFileRoute('/rosters/')({
   head: ({ match }) =>
     pageHead(
       match.context.origin,
-      match.search.view === 'public'
+      match.search.view === 'played'
         ? {
-            title: 'Public Warhammer 40,000 army lists',
+            title: 'Played Warhammer 40,000 army lists',
             description:
-              'Browse Warhammer 40,000 army lists other players published, filter them by faction, detachment and rules version, and duplicate one to edit.',
-            path: '/rosters?view=public',
+              'Browse Warhammer 40,000 armies from finished public battles, filter them by faction, detachment and rules version, and copy one to edit.',
+            path: '/rosters?view=played',
           }
-        : {
-            title: 'Warhammer 40,000 army builder',
-            description:
-              'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
-            path: '/rosters',
-          },
+        : match.search.view === 'public'
+          ? {
+              title: 'Public Warhammer 40,000 army lists',
+              description:
+                'Browse Warhammer 40,000 army lists other players published, filter them by faction, detachment and rules version, and duplicate one to edit.',
+              path: '/rosters?view=public',
+            }
+          : {
+              title: 'Warhammer 40,000 army builder',
+              description:
+                'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
+              path: '/rosters',
+            },
     ),
   component: RosterLibraryRoute,
 })
@@ -100,7 +110,12 @@ function RosterLibraryRoute() {
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest, revision }, setGuest] = useGuestDraft(hinted)
   if (view)
-    return <RosterDiscoveryPage view={me ? view : 'public'} search={{ faction: search.faction, detachment, rules, sort: listSort }} />
+    return (
+      <RosterDiscoveryPage
+        view={me || view === 'played' ? view : 'public'}
+        search={{ faction: search.faction, detachment, rules, sort: listSort }}
+      />
+    )
   if (!ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
   if (me) return <RosterLibraryPage search={search} sort={sort} />

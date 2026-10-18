@@ -335,6 +335,18 @@ const favouriteDatasheets = table(
   },
 )
 
+const unitLoadouts = table(
+  { name: 'unit_loadouts' },
+  {
+    id: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    name: t.string(),
+    catalogueId: t.string(),
+    pick: t.string(),
+    createdAt: t.u64(),
+  },
+)
+
 const productRevisions = table(
   { name: 'product_revisions' },
   {
@@ -411,6 +423,7 @@ export const productTables = {
   practiceOpponents,
   favouriteDetachments,
   favouriteDatasheets,
+  unitLoadouts,
   productRevisions,
   publicRevisions,
 }

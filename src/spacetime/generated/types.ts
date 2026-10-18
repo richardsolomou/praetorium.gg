@@ -395,6 +395,16 @@ export const SyncReceipts = __t.object('SyncReceipts', {
 })
 export type SyncReceipts = __Infer<typeof SyncReceipts>
 
+export const UnitLoadouts = __t.object('UnitLoadouts', {
+  id: __t.string(),
+  userId: __t.string(),
+  name: __t.string(),
+  catalogueId: __t.string(),
+  pick: __t.string(),
+  createdAt: __t.u64(),
+})
+export type UnitLoadouts = __Infer<typeof UnitLoadouts>
+
 export const UserOnboarding = __t.object('UserOnboarding', {
   userId: __t.string(),
   welcomed: __t.bool(),

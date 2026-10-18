@@ -9,7 +9,7 @@ export const DEFAULT_BATTLE_AUDIENCE: BattleAudience = 'public'
 /** Narrowest first, so a comparison is an index rather than a table of cases. */
 const NARROWNESS: readonly BattleAudience[] = ['private', 'friends', 'public']
 
-/** An empty table is private; seats without a choice use the default. */
+/** An empty table is private; seats without a choice, such as a seat with no account, use the default. */
 export function battleAudience(seats: readonly (BattleAudience | undefined)[]): BattleAudience {
   if (!seats.length) return 'private'
   return seats.reduce<BattleAudience>((narrowest, seat) => narrower(narrowest, seat ?? DEFAULT_BATTLE_AUDIENCE), 'public')

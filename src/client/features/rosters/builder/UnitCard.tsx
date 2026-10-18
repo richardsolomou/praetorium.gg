@@ -1,4 +1,4 @@
-import { BellRing, Copy, EllipsisVertical, Plus, X } from 'lucide-react'
+import { BellRing, BookmarkPlus, Copy, EllipsisVertical, Plus, X } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -56,6 +56,8 @@ type Editing = {
   onRemove: () => void
   onDuplicate: () => void
   canDuplicate: boolean
+  /** Absent for a visitor, who has no account to keep a loadout in. */
+  onSaveLoadout?: () => void
   /** Units this one may join. */
   canJoin: AttachChoice[]
   onJoin: (choice: AttachChoice) => void
@@ -77,6 +79,7 @@ export function UnitCard({
   onRemove = noop,
   onDuplicate = noop,
   canDuplicate = true,
+  onSaveLoadout,
   joined = NONE,
   canJoin = NONE,
   onJoin = noop,
@@ -89,7 +92,7 @@ export function UnitCard({
   const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:layout_style] ${
     selected ? 'border-parchment' : 'border-edge hover:border-info'
   }`
-  const actions = { onDuplicate, canDuplicate, onRemove }
+  const actions = { onDuplicate, canDuplicate, onSaveLoadout, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -338,11 +341,13 @@ function UnitActions({
   Item,
   onDuplicate,
   canDuplicate,
+  onSaveLoadout,
   onRemove,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   onDuplicate: () => void
   canDuplicate: boolean
+  onSaveLoadout?: () => void
   onRemove: () => void
 }) {
   return (
@@ -350,6 +355,11 @@ function UnitActions({
       <Item className={ITEM} disabled={!canDuplicate} onClick={onDuplicate}>
         <Copy className="size-3.5" /> Duplicate unit
       </Item>
+      {onSaveLoadout ? (
+        <Item className={ITEM} onClick={onSaveLoadout}>
+          <BookmarkPlus className="size-3.5" /> Save loadout
+        </Item>
+      ) : null}
       <Item variant="destructive" className={ITEM} onClick={onRemove}>
         <X className="size-3.5" /> Delete unit
       </Item>
