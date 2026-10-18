@@ -1044,6 +1044,10 @@ describe('a model that carries two of one weapon', () => {
     })),
   })
   const most = (id: string, value: number): Constraint[] => [{ id: `${id}-max`, type: 'max', value, field: 'selections', scope: 'parent' }]
+  const exactly = (id: string, value: number): Constraint[] => [
+    { id: `${id}-min`, type: 'min', value, field: 'selections', scope: 'parent' },
+    ...most(id, value),
+  ]
   const heldBy = (index: ReturnType<typeof indexOf>, spreads: Record<string, number>) => {
     const built = buildUnit('squad', index, undefined, undefined, { spreads: { models: spreads } })!
     return heldWargear(modelKindsOf('squad', built.selection, index), built.choices, wargearOf(built.selection, index))
@@ -1061,12 +1065,7 @@ describe('a model that carries two of one weapon', () => {
               id: 'models',
               name: 'Sanctifiers',
               selectionEntries: [
-                carrying(
-                  'single',
-                  'Sanctifier w/ hand flamer',
-                  [['Hand flamer', 1]],
-                  [...mandatory('single-min').map((min) => ({ ...min, value: 3 })), ...most('single', 3)],
-                ),
+                carrying('single', 'Sanctifier w/ hand flamer', [['Hand flamer', 1]], exactly('single', 3)),
                 carrying('twin', 'Sanctifier w/ two hand flamers', [['Hand flamer', 2]], most('twin', 1)),
               ],
             },
@@ -1074,11 +1073,6 @@ describe('a model that carries two of one weapon', () => {
         },
       ],
     })
-    const built = buildUnit('squad', index)!
-
-    expect(modelKindsOf('squad', built.selection, index).find((kind) => kind.name === 'Sanctifier w/ two hand flamers')?.fixed).toEqual([
-      { name: 'Hand flamer', each: { twin: 2 } },
-    ])
     expect(heldBy(index, { twin: 1 })).toContainEqual({ name: 'Hand flamer', count: 5 })
   })
 

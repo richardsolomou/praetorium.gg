@@ -49,8 +49,16 @@ export type ModelKind = {
 export const modelFixedCount = (
   kind: Pick<ModelKind, 'members'>,
   piece: ModelKind['fixed'][number],
-  countOf: (member: ModelKind['members'][number]) => number,
-) => piece.count ?? kind.members.reduce((total, member) => total + countOf(member) * (piece.each?.[member.id] ?? 1), 0)
+  countOf: (source: ModelRowSource) => number,
+) =>
+  piece.count ??
+  kind.members.reduce(
+    (total, member) =>
+      total +
+      (member.choiceKey ? countOf({ choiceKey: member.choiceKey, optionId: member.id }) : member.baseCount) *
+        (piece.each?.[member.id] ?? 1),
+    0,
+  )
 
 export const modelRowSources = (row: ModelRow): readonly ModelRowSource[] => [row, ...(row.alternatives ?? [])]
 
@@ -194,7 +202,8 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       return [member.id, outside ? wargearOf(outside, index) : []] as const
     }),
   )
-  const carriedOf = (id: string) => (carriedBy.get(id) ?? []).map((piece) => piece.name)
+  const carriedNames = new Map([...carriedBy].map(([id, pieces]) => [id, pieces.map((piece) => piece.name)]))
+  const carriedOf = (id: string) => carriedNames.get(id) ?? []
   const eachOf = (id: string, name: string) => carriedBy.get(id)?.find((piece) => piece.name === name)?.count ?? 1
   const owns = (id: string) => choices.some((choice) => choice.owner?.id === id)
   // Standing models have no editable source, so only offered variants join a named pool.
@@ -297,13 +306,8 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       }
     })
     const fixedOf = (name: string) => {
-      const each = Object.fromEntries(
-        members.flatMap((member) => {
-          const count = eachOf(member.id, name)
-          return count > 1 ? [[member.id, count] as const] : []
-        }),
-      )
-      return Object.keys(each).length ? { name, each } : { name }
+      const doubled = members.map((member) => [member.id, eachOf(member.id, name)] as const).filter(([, count]) => count > 1)
+      return doubled.length ? { name, each: Object.fromEntries(doubled) } : { name }
     }
 
     return {

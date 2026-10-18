@@ -45,7 +45,7 @@ export function heldWargear(
     for (const piece of kind.fixed)
       add(
         piece.name,
-        modelFixedCount(kind, piece, (member) => (member.choiceKey ? countOf(member.choiceKey, member.id) : member.baseCount)),
+        modelFixedCount(kind, piece, ({ choiceKey, optionId }) => countOf(choiceKey, optionId)),
       )
     for (const row of kind.rows) {
       const count = modelRowCount(row, ({ choiceKey, optionId }) => countOf(choiceKey, optionId))
