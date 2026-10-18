@@ -48,6 +48,23 @@ it.skipIf(!url || !database || !token)('acknowledges a plain-string battle audie
   }
 })
 
+it.skipIf(!url || !database || !token)('reports one newly applied transaction across concurrent saved-action retries', async () => {
+  const operator = store()
+  const owner = randomUUID()
+  const id = randomUUID()
+  const contexts = Array.from({ length: 2 }, () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false }))
+  try {
+    await Promise.all(
+      contexts.map((context) => offlineContext.run(context, () => operator.setBattleAudience(owner, 'friends', Date.now()))),
+    )
+    expect(contexts.map((context) => offlineContext.run(context, () => offlineContext.getStore()?.applied))).toEqual(
+      expect.arrayContaining([false, true]),
+    )
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
+
 it.skipIf(!url || !database || !token)('acknowledges and replays a successfully sealed offline league roster', async () => {
   const operator = store()
   const owner = randomUUID()

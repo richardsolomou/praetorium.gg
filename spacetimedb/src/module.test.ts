@@ -47,6 +47,43 @@ beforeEach(() => {
   for (const key of Object.keys(env)) delete env[key]
 })
 
+describe('saved action acknowledgements', () => {
+  const input = () => ({
+    id: '00000000-0000-4000-8000-000000000001',
+    owner: 'creator',
+    fingerprint: 'a'.repeat(64),
+    createdAt: NOW * 1_000,
+    name: 'set_battle_audience',
+    args: ['creator', 'friends', NOW * 1_000],
+    reportApplied: true,
+  })
+
+  it('identifies the transaction that applied a saved action', () => {
+    const { procedure, operator } = harness()
+    expect(JSON.parse(module.syncProduct(procedure(operator), { payload: JSON.stringify(input()) }))).toEqual({
+      result: '"friends"',
+      applied: true,
+    })
+  })
+
+  it('does not report a replayed receipt as a newly applied action', () => {
+    const { procedure, operator } = harness()
+    const data = input()
+    module.syncProduct(procedure(operator), { payload: JSON.stringify(data) })
+    expect(JSON.parse(module.syncProduct(procedure(operator), { payload: JSON.stringify(data) }))).toEqual({
+      result: '"friends"',
+      applied: false,
+    })
+  })
+
+  it('preserves the response existing servers expect', () => {
+    const { procedure, operator } = harness()
+    const data = { ...input(), reportApplied: undefined }
+    const first = module.syncProduct(procedure(operator), { payload: JSON.stringify(data) })
+    expect([first, module.syncProduct(procedure(operator), { payload: JSON.stringify(data) })]).toEqual(['"friends"', '"friends"'])
+  })
+})
+
 describe('auth configuration', () => {
   it('refuses to initialize a database with an invalid issuer', () => {
     const test = createModuleTestHarness(spacetime, module)

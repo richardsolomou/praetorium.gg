@@ -8,6 +8,7 @@ type OfflineContext = {
   createdAt: number
   identifiers: Record<string, string>
   wrote: boolean
+  applied?: boolean
 }
 export const offlineContext = globalSingleton('praetorium.offline-context', () => new AsyncLocalStorage<OfflineContext>())
 export function offlineIdentifier(name: string, generate: () => string) {
