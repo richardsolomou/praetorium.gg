@@ -96,6 +96,50 @@ const faction: CatalogueFile = {
         ],
       },
       {
+        // Names as BSData writes them, which other tools print as their datacard does.
+        id: 'malys',
+        name: 'Lady Malys',
+        type: 'model',
+        selectionEntries: [
+          {
+            id: 'malys-blades',
+            name: 'The Executioner’s demiklaives',
+            type: 'upgrade',
+            constraints: [{ id: 'malys-blades-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+          },
+          {
+            id: 'malys-melee',
+            name: 'Melee Weapons',
+            type: 'upgrade',
+            constraints: [{ id: 'malys-melee-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+            profiles: [
+              { id: 'malys-blade', name: 'Lady’s Blade', typeName: 'Melee Weapons' },
+              { id: 'malys-fan', name: 'Razor fan', typeName: 'Melee Weapons' },
+            ],
+          },
+          {
+            id: 'malys-agent',
+            name: 'Kabalite Agent with razorflail',
+            type: 'upgrade',
+            constraints: [{ id: 'malys-agent-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntries: [
+              {
+                id: 'malys-flail',
+                name: 'Razorflail',
+                type: 'upgrade',
+                constraints: [{ id: 'malys-flail-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'malys-pistol',
+                name: 'Splinter Pistol',
+                type: 'upgrade',
+                constraints: [{ id: 'malys-pistol-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+      {
         // Each special-weapon biker chooses a pistol or a chainsword.
         id: 'bikers',
         name: 'Chaos Bikers',
@@ -2182,6 +2226,12 @@ describe('text import wargear', () => {
     const file =
       'Bikes - Necrons - Pantheon of Woe (80 Points)\n\nMounted:\nChaos Bikers (80 pts)\n  • Biker Champion\n  • 2x Biker w/ meltagun\n    • 2x Meltagun\n    • 2x Astartes chainsword\n'
     expect(wargear(file)).toEqual(['2x Meltagun', '2x Astartes chainsword'])
+  })
+
+  it('says nothing of wargear it holds under another of its names', () => {
+    const file =
+      "Malys - Necrons - Pantheon of Woe (130 Points)\n\nEpic Hero:\nLady Malys (130 pts)\n• B: Executioner's Demiklaives, Lady's Blade, Razor Fan, Splinter Pistol and 1 Razorflail\n"
+    expect(importRosterFile({ file }, loaded).unplaced).toEqual([])
   })
 
   it('arms one model with as many of an option as it may carry', () => {

@@ -518,7 +518,7 @@ function textRosterPick(
   const imported = buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
   const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
   const unplaced = [...stated.keys()]
-    .filter((name) => !carried.has(name) && !warlordNames.has(name) && name !== normalized(unit.name))
+    .filter((name) => !isCarried(name, carried) && !warlordNames.has(name) && name !== normalized(unit.name))
     .map((name) => {
       const label = labels.get(name) ?? name
       const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds })
@@ -548,15 +548,28 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
     if (!definition || (node.count ?? 1) <= 0) return
     const target = resolve(definition, index)
     const profile = target.type === 'model' ? modelProfileOf(definition, index) : undefined
-    for (const name of [nameOf(definition, index.definitions), target.name, profile]) {
+    // A datacard can name the weapons an entry's profiles hold, as Lady Malys's "Melee Weapons" holds a blade and a fan.
+    const weapons =
+      target.type === 'model'
+        ? []
+        : (target.profiles ?? []).flatMap((held) => held.name?.replace(/^➤\s*/, '').replace(/\s+-\s+.+$/, '') ?? [])
+    for (const name of [nameOf(definition, index.definitions), target.name, profile, ...weapons]) {
       if (!name) continue
-      found.add(normalized(name))
-      found.add(normalized(name.replace(/\s+w\/\s.+$/i, '').replace(/\s+\(Upgrade\)$/i, '')))
+      found.add(withoutArticle(name))
+      found.add(withoutArticle(name.replace(/\s+w\/\s.+$/i, '').replace(/\s+\(Upgrade\)$/i, '')))
     }
     node.selections?.forEach(walk)
   }
   walk(selection)
   return found
+}
+
+const withoutArticle = (name: string) => normalized(name).replace(/^the /, '')
+
+/** Whether a built unit holds a stated name, including Warmind's "Splinter Pistol and 1 Razorflail" for a loadout that holds both. */
+function isCarried(name: string, carried: ReadonlySet<string>) {
+  const parts = name.split(/\s+and\s+(?:\d+\s+)?/)
+  return carried.has(withoutArticle(name)) || (parts.length > 1 && parts.every((part) => carried.has(withoutArticle(part))))
 }
 
 /**
