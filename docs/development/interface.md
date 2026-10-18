@@ -123,7 +123,7 @@ Run `just e2e offline-work.spec.ts offline.spec.ts app-cache.spec.ts` after chan
 
 ## Verification
 
-Inspect affected surfaces at desktop and phone widths. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard and touch access, and loading geometry. Rows pairing a name with controls must survive doubled text at phone width: give the name a minimum width and let the controls wrap (`e2e/accessibility.spec.ts`). Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
+Inspect affected surfaces at desktop and phone widths. Test the same components before and after hydration, on hard requests and client navigation, and with delayed requests. Check horizontal overflow, final-control scroll space, keyboard and touch access, and loading geometry. Rows pairing a name with controls must survive doubled text at phone width: give the name a minimum width and let the controls wrap (`e2e/accessibility.spec.ts`). Page tab rows from `src/client/components/PageTabs.tsx` wrap onto a second line rather than widen the page. Browser journeys must wait for page initialization before filling hosted authentication forms; server-rendered fields can appear before React owns their values.
 
 Interactive rules badges must not change a selector option's accessible name. Assert selected values separately from decorative trigger text, and exercise both grouped and virtualized selectors when changing their contents.
 

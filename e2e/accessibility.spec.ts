@@ -225,4 +225,19 @@ test.describe('a touch device', () => {
     })
     expect(outside).toBe(false)
   })
+
+  test('wraps page tabs inside the screen at double text size', async ({ page }) => {
+    await signUp(page, 'Tabs')
+    await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu for Tabs' }).click()
+    await page.getByRole('menuitem', { name: 'My profile' }).click()
+    await expect(page.getByRole('tab', { name: 'Collection' })).toBeVisible()
+    await doubleText(page)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+
+    await page.goto('/rosters')
+    const views = page.getByRole('navigation', { name: 'Rosters' })
+    await expect(views).toBeVisible()
+    await doubleText(page)
+    expect(await views.evaluate((nav) => nav.scrollWidth <= nav.clientWidth)).toBe(true)
+  })
 })
