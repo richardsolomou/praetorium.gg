@@ -498,6 +498,15 @@ function textRosterPick(
     const absent = spreadEntries.flatMap(([key, counts]) =>
       Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
     )
+    // A piece the counted choices already place is not also another choice's to take.
+    const spreadPlaced = new Map<string, number>()
+    for (const [key, counts] of spreadEntries) {
+      const names = aliases[choices.findIndex((choice) => choice.key === key)]
+      for (const [id, count] of Object.entries(counts))
+        for (const [name, each] of names?.get(id) ?? []) spreadPlaced.set(name, (spreadPlaced.get(name) ?? 0) + count * each)
+    }
+    const leftFor = (at: number, id: string) =>
+      [...(aliases[at]!.get(id) ?? [])].some(([name]) => (scopes[at]!.stated.get(name) ?? 0) > (spreadPlaced.get(name) ?? 0))
     const pick = {
       entryId,
       catalogueId,
@@ -506,7 +515,9 @@ function textRosterPick(
         choices.flatMap((choice, at) => {
           if (counted(choice)) return []
           // An optional choice takes nothing the list gives it no count for.
-          const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(([, count]) => !choice.optional || count > 0)
+          const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(
+            ([id, count]) => (!choice.optional || count > 0) && (count === 0 || leftFor(at, id)),
+          )
           const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), scopes[at]!.stated, offeredBy) ?? choice.chosen
           return chosen ? [[choice.key, chosen]] : []
         }),

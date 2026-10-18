@@ -1027,3 +1027,74 @@ describe('a specialist that takes the place of a squadmate', () => {
     expect(taking(index, 'simulacrum').size).toMatchObject({ min: 5, max: 5 })
   })
 })
+
+describe('a specialist in the second fixed group of a fixed-size unit', () => {
+  // Talonstrike Kill Team: four Heavy Intercessors and five Intercessors, each a fixed
+  // group whose default model gives up a place, by its limits, to each specialist taken.
+  const specialistLowers = (limit: string, specialist: string) => ({
+    type: 'decrement' as const,
+    field: limit,
+    value: 1,
+    repeats: [{ childId: specialist, field: 'selections', scope: 'team', value: 1, repeats: 1, includeChildSelections: true }],
+  })
+  const fixedGroup = (id: string, size: number, specialistMost: number) => ({
+    id,
+    name: `${size} ${id}`,
+    constraints: [
+      { id: `${id}-min`, type: 'min' as const, value: size, field: 'selections', scope: 'parent' },
+      { id: `${id}-max`, type: 'max' as const, value: size, field: 'selections', scope: 'parent' },
+    ],
+    selectionEntries: [
+      {
+        id: `${id}-trooper`,
+        name: `${id} trooper`,
+        type: 'model' as const,
+        constraints: [
+          { id: `${id}-trooper-min`, type: 'min' as const, value: size, field: 'selections', scope: 'parent' },
+          { id: `${id}-trooper-max`, type: 'max' as const, value: size, field: 'selections', scope: 'parent' },
+        ],
+        modifiers: [specialistLowers(`${id}-trooper-min`, `${id}-specialist`), specialistLowers(`${id}-trooper-max`, `${id}-specialist`)],
+      },
+      {
+        id: `${id}-specialist`,
+        name: `${id} specialist`,
+        type: 'model' as const,
+        constraints: [{ id: `${id}-specialist-max`, type: 'max' as const, value: specialistMost, field: 'selections', scope: 'parent' }],
+      },
+    ],
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'team',
+        name: 'Talonstrike Kill Team',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'composition',
+            name: 'Unit Composition',
+            selectionEntries: [
+              {
+                id: 'sergeant',
+                name: 'Kill Team Sergeant',
+                type: 'model',
+                constraints: [
+                  { id: 'sergeant-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
+            selectionEntryGroups: [fixedGroup('heavy', 4, 4), fixedGroup('jump', 5, 2)],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers the specialist of a fixed group the unit is not sized by', () => {
+    const offered = buildUnit('team', index)!
+      .choices.flatMap((choice) => choice.options)
+      .find((option) => option.id === 'jump-specialist')
+    expect(offered?.max).toBe(2)
+  })
+})
