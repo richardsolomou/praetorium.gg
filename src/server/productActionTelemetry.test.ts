@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { offlineActionSchemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { saveRosterSchema } from '../contracts/schemas'
+import { encodeSimulatorState } from '../contracts/simulatorState'
 import { leagueRosterFixture } from './leagueRoster.fixtures'
 import { offlineActions } from './offlineActions'
 import { productActions } from './productActions'
@@ -26,6 +27,8 @@ const league = {
   admission: 'approval',
   playerLimit: null,
 }
+const side = (entryId: string) => ({ catalogueId: 'private-faction', pick: { entryId }, rules: {} })
+const matchup = encodeSimulatorState({ v: 1, sides: [side('private-unit'), side('private-target')], swapped: false })
 const cases: Case[] = [
   { kind: 'setOwned', input: { entryId: 'private-unit', owned: true }, events: [['player_collection_updated', { owned: true }]] },
   { kind: 'setCollectionModels', input: { entryId: 'private-unit', models: 3 }, events: [['player_collection_counted', { models: 3 }]] },
@@ -69,6 +72,8 @@ const cases: Case[] = [
     result: false,
     events: [['push_notifications_updated', { enabled: false }]],
   },
+  { kind: 'rememberMatchup', input: { shared: matchup, attacker: 'Private unit', defender: 'Private target' }, events: [] },
+  { kind: 'forgetMatchup', input: { shared: matchup }, events: [] },
   { kind: 'updateOnboardingProgress', input: { operation: 'welcome' }, events: [['onboarding_welcomed']] },
   {
     kind: 'updateOnboardingProgress',

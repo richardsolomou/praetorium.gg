@@ -48,6 +48,14 @@ export const productActions = {
     await captureMutation(owner, 'favourite_datasheet_updated', { favourite: data.favourite })
     return null
   }),
+  rememberMatchup: action(schemas.rememberMatchup, async (owner, data) => {
+    await app().service.rememberMatchup(owner, data)
+    return null
+  }),
+  forgetMatchup: action(schemas.forgetMatchup, async (owner, data) => {
+    await app().service.forgetMatchup(owner, data.shared)
+    return null
+  }),
   setPlayerDefaults: action(schemas.setPlayerDefaults, async (owner, data) => {
     const defaults = await app().service.setPlayerDefaults(owner, data)
     await captureMutation(owner, 'player_defaults_set', {

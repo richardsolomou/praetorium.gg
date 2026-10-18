@@ -14,6 +14,7 @@ import { commandSchema } from '../../src/core/commands'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, battleAudience, maySpectate, type BattleAudience } from '../../src/core/battleAudience'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
+import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
   alliedLeagueRosterLimit,
@@ -193,7 +194,17 @@ function requireOperator(ctx: Context) {
 
 const ROSTER_LOANS_PER_ROSTER = 100
 
-type ProductScope = 'rosters' | 'collection' | 'favourites' | 'friends' | 'invites' | 'onboarding' | 'settings' | 'leagues' | 'battles'
+type ProductScope =
+  | 'rosters'
+  | 'collection'
+  | 'favourites'
+  | 'friends'
+  | 'invites'
+  | 'onboarding'
+  | 'settings'
+  | 'leagues'
+  | 'battles'
+  | 'simulator'
 
 function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
   for (const scope of scopes) {
@@ -394,6 +405,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.favouriteDetachments.userId.filter(userId))) ctx.db.favouriteDetachments.key.delete(row.key)
   for (const row of Array.from(ctx.db.favouriteDatasheets.userId.filter(userId))) ctx.db.favouriteDatasheets.key.delete(row.key)
   for (const row of Array.from(ctx.db.unitLoadouts.userId.filter(userId))) ctx.db.unitLoadouts.id.delete(row.id)
+  for (const row of Array.from(ctx.db.recentMatchups.userId.filter(userId))) ctx.db.recentMatchups.key.delete(row.key)
   if (ctx.db.practiceOpponents.userId.delete(userId)) {
     touchPublic(ctx, 'opponents')
     touchAdmin(ctx)
@@ -1853,6 +1865,24 @@ export const removeFavouriteDatasheet = spacetime.reducer({ userId: t.string(), 
   removeFavouriteDatasheetIn(ctx, [input.userId, input.entryId])
 })
 
+export const recentMatchupsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(recentMatchupsOf(tx, userId).map(({ shared, attacker, defender, at }) => ({ shared, attacker, defender, at })))
+  }),
+)
+
+export const rememberMatchup = spacetime.reducer(
+  { userId: t.string(), pairing: t.string(), shared: t.string(), attacker: t.string(), defender: t.string(), at: t.u64() },
+  (ctx, input) => {
+    rememberMatchupIn(ctx, [input.userId, input.pairing, input.shared, input.attacker, input.defender, input.at])
+  },
+)
+
+export const forgetMatchup = spacetime.reducer({ userId: t.string(), pairing: t.string() }, (ctx, input) => {
+  forgetMatchupIn(ctx, [input.userId, input.pairing])
+})
+
 export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string(), at: t.u64() }, (ctx, input) => {
   addFavouriteFactionIn(ctx, [input.userId, input.catalogueId, input.at])
 })
@@ -2746,6 +2776,32 @@ function removeFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
   if (ctx.db.favouriteDatasheets.key.delete(JSON.stringify([userId, entryId]))) touchProduct(ctx, userId, 'favourites')
 }
 
+function recentMatchupsOf(ctx: Context, userId: string) {
+  return Array.from(ctx.db.recentMatchups.userId.filter(userId)).sort((a, b) => (a.at === b.at ? 0 : a.at > b.at ? -1 : 1))
+}
+
+function rememberMatchupIn(ctx: Context, args: unknown[]) {
+  const { shape } = recentMatchupSchema
+  const [userId, pairing, shared, attacker, defender, at] = z
+    .tuple([idInput, matchupPairingSchema, shape.shared, shape.attacker, shape.defender, timestampArg])
+    .parse(args)
+
+  requireOperator(ctx)
+  const key = JSON.stringify([userId, pairing])
+  const row = { key, userId, shared, attacker, defender, at }
+  if (ctx.db.recentMatchups.key.find(key)) ctx.db.recentMatchups.key.update(row)
+  else ctx.db.recentMatchups.insert(row)
+  for (const old of recentMatchupsOf(ctx, userId).slice(RECENT_MATCHUP_LIMIT)) ctx.db.recentMatchups.key.delete(old.key)
+  touchProduct(ctx, userId, 'simulator')
+}
+
+function forgetMatchupIn(ctx: Context, args: unknown[]) {
+  const [userId, pairing] = z.tuple([idInput, matchupPairingSchema]).parse(args)
+
+  requireOperator(ctx)
+  if (ctx.db.recentMatchups.key.delete(JSON.stringify([userId, pairing]))) touchProduct(ctx, userId, 'simulator')
+}
+
 function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, detachmentId, at] = z.tuple([textArg, textArg, textArg, timestampArg]).parse(args)
 
@@ -3413,6 +3469,8 @@ const syncProductActions = {
   remove_favourite_detachment: removeFavouriteDetachmentIn,
   add_favourite_datasheet: addFavouriteDatasheetIn,
   remove_favourite_datasheet: removeFavouriteDatasheetIn,
+  remember_matchup: rememberMatchupIn,
+  forget_matchup: forgetMatchupIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
   league_command: leagueCommandIn,

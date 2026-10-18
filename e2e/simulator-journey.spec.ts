@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { retryUntilVisible, signInAsPreview } from './account'
+import { retryUntilVisible, signIn, signInAsPreview, signUp, uniqueName } from './account'
 import { holdCombatCalculations } from './combat'
 
 const pairing = 'Intercessor Squad vs Necron Warriors'
@@ -9,6 +9,7 @@ test(
   'an editable example is remembered only after a result and reopens with its latest settings',
   { tag: '@catalogue' },
   async ({ page, context }) => {
+    await signUp(page, uniqueName('Recent matchups'))
     await page.goto('/simulator')
     await page.waitForLoadState('networkidle')
     const gate = await holdCombatCalculations(page)
@@ -70,10 +71,34 @@ test('recent matchups are accessible from signed-in home at desktop and phone wi
   }
 })
 
-test('damaged stored matchups and invalid shared links leave the simulator usable', async ({ page }) => {
-  await page.addInitScript(() =>
-    localStorage.setItem('praetorium:recent-matchups:v1', '[{"shared":"broken","attacker":"x","defender":"y"}]'),
-  )
+test(
+  'a guest keeps no matchups, and a player’s follow their account to another device',
+  { tag: '@catalogue' },
+  async ({ page, browser }) => {
+    await page.goto('/simulator')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Try an example', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
+    await expect(page.locator(history)).toHaveCount(0)
+    const account = await signUp(page, uniqueName('Matchups'))
+    await page.goto('/simulator')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Try an example', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Recent matchups', exact: true }).getByRole('link', { name: pairing })).toBeVisible()
+    const elsewhere = await (await browser.newContext()).newPage()
+    await signIn(elsewhere, account.email, account.password)
+    await elsewhere.waitForURL('/')
+    await elsewhere.goto('/simulator')
+    await expect(elsewhere.getByRole('region', { name: 'Recent matchups', exact: true }).getByRole('link', { name: pairing })).toBeVisible()
+    await elsewhere.getByRole('button', { name: `Remove ${pairing}`, exact: true }).click()
+    await expect(elsewhere.locator(history)).toHaveCount(0)
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true, level: 1 })).toHaveCount(0)
+    await expect(page.locator(history)).toHaveCount(0)
+  },
+)
+
+test('an invalid shared link leaves the simulator usable', async ({ page }) => {
   await page.goto('/simulator?s=invalid')
   await expect(page.getByRole('button', { name: 'Try an example', exact: true })).toBeEnabled()
   await expect(page.locator(history)).toHaveCount(0)

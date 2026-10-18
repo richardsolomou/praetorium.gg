@@ -347,6 +347,18 @@ const unitLoadouts = table(
   },
 )
 
+const recentMatchups = table(
+  { name: 'recent_matchups' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    shared: t.string(),
+    attacker: t.string(),
+    defender: t.string(),
+    at: t.u64(),
+  },
+)
+
 const productRevisions = table(
   { name: 'product_revisions' },
   {
@@ -424,6 +436,7 @@ export const productTables = {
   favouriteDetachments,
   favouriteDatasheets,
   unitLoadouts,
+  recentMatchups,
   productRevisions,
   publicRevisions,
 }

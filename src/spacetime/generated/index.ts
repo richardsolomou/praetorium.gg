@@ -42,9 +42,11 @@ import ClearCollectionPhotoDeletionsReducer from './clear_collection_photo_delet
 import DeletePushTokensReducer from './delete_push_tokens_reducer'
 import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
+import ForgetMatchupReducer from './forget_matchup_reducer'
 import KeepCollectionPhotoReducer from './keep_collection_photo_reducer'
 import RegisterPracticeOpponentReducer from './register_practice_opponent_reducer'
 import RegisterPushTokenReducer from './register_push_token_reducer'
+import RememberMatchupReducer from './remember_matchup_reducer'
 import RemoveCollectionPhotoReducer from './remove_collection_photo_reducer'
 import RemoveCollectionPhotoByIdReducer from './remove_collection_photo_by_id_reducer'
 import RemoveFavouriteDatasheetReducer from './remove_favourite_datasheet_reducer'
@@ -111,6 +113,7 @@ import * as PublicStandingsRevisionProcedure from './public_standings_revision_p
 import * as PushEnabledProcedure from './push_enabled_procedure'
 import * as PushTargetsProcedure from './push_targets_procedure'
 import * as RecentCollectionPhotosProcedure from './recent_collection_photos_procedure'
+import * as RecentMatchupsByUserProcedure from './recent_matchups_by_user_procedure'
 import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
@@ -213,9 +216,11 @@ const reducersSchema = __reducers(
   __reducerSchema('delete_push_tokens', DeletePushTokensReducer),
   __reducerSchema('delete_roster', DeleteRosterReducer),
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
+  __reducerSchema('forget_matchup', ForgetMatchupReducer),
   __reducerSchema('keep_collection_photo', KeepCollectionPhotoReducer),
   __reducerSchema('register_practice_opponent', RegisterPracticeOpponentReducer),
   __reducerSchema('register_push_token', RegisterPushTokenReducer),
+  __reducerSchema('remember_matchup', RememberMatchupReducer),
   __reducerSchema('remove_collection_photo', RemoveCollectionPhotoReducer),
   __reducerSchema('remove_collection_photo_by_id', RemoveCollectionPhotoByIdReducer),
   __reducerSchema('remove_favourite_datasheet', RemoveFavouriteDatasheetReducer),
@@ -296,6 +301,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('push_enabled', PushEnabledProcedure.params, PushEnabledProcedure.returnType),
   __procedureSchema('push_targets', PushTargetsProcedure.params, PushTargetsProcedure.returnType),
   __procedureSchema('recent_collection_photos', RecentCollectionPhotosProcedure.params, RecentCollectionPhotosProcedure.returnType),
+  __procedureSchema('recent_matchups_by_user', RecentMatchupsByUserProcedure.params, RecentMatchupsByUserProcedure.returnType),
   __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),

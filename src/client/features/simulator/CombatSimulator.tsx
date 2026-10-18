@@ -10,11 +10,13 @@ import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
 import { SimulationMode } from './CombatControls'
 import { RosterCombatComparison } from './RosterCombatComparison'
-import { type CombatRoster, useCombatant } from './useCombatant'
+import { type Combatant, type CombatRoster, useCombatant } from './useCombatant'
+import { attachedUnit } from '../../../core/attach'
 import { decodeSimulatorState, encodeSimulatorState, type MatchupSettings, type SimulatorState } from '../../../contracts/simulatorState'
 import { combatUnitsQuery } from '../../queries'
-import { exampleMatchup, rememberMatchup } from './matchupHistory'
+import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentMatchups } from './RecentMatchups'
+import type { RecentMatchup } from '../../../core/recentMatchups'
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
 export function CombatSimulator({
@@ -30,6 +32,7 @@ export function CombatSimulator({
   const [comparingRosters, setComparingRosters] = useState(false)
   const [session, setSession] = useState(() => ({ key: 0, shared }))
   const units = useQuery(combatUnitsQuery())
+  const history = useMatchupHistory()
   const example = units.data ? exampleMatchup(units.data) : null
   const restore = (value: string) => {
     const initial = decodeSimulatorState(value)
@@ -80,6 +83,7 @@ export function CombatSimulator({
                 key={session.key}
                 initial={decodeSimulatorState(session.shared)}
                 onChange={share}
+                onRemember={history.remember}
                 reference={reference}
               />
               <RecentMatchups surface="simulator" onOpen={restore} />
@@ -96,6 +100,15 @@ export function CombatSimulator({
   )
 }
 
+/** The selected unit and everything attached to it, so a recent matchup names its leaders too. */
+function joinedUnitName(combatant: Combatant) {
+  const { pickIndex, picks, price } = combatant
+  return [pickIndex, ...attachedUnit(picks.positioned, pickIndex)]
+    .flatMap((index) => price.data?.units[index]?.name ?? [])
+    .join(' + ')
+    .slice(0, 200)
+}
+
 export function CombatSimulatorMatchup({
   source = 'standalone',
   roster,
@@ -105,6 +118,7 @@ export function CombatSimulatorMatchup({
   inDialog = false,
   initial,
   onChange,
+  onRemember,
   reference,
 }: {
   source?: 'standalone' | 'roster' | 'battle'
@@ -115,6 +129,8 @@ export function CombatSimulatorMatchup({
   inDialog?: boolean
   initial?: SimulatorState | null
   onChange?: (state: SimulatorState) => void
+  /** Keeps a completed pairing in the player's recent matchups; only the standalone simulator supplies it. */
+  onRemember?: (entry: RecentMatchup) => void
   reference?: 'datasheet'
 }) {
   const opened = useRef(false)
@@ -201,11 +217,11 @@ export function CombatSimulatorMatchup({
       initialSettings={matchup}
       onSettingsChange={reportSettings}
       onCompleted={() => {
-        if (source !== 'standalone' || !attacker.ready || !defender.ready || !attacker.unit || !defender.unit) return
-        rememberMatchup({
+        if (!onRemember || !attacker.ready || !defender.ready || !attacker.unit || !defender.unit) return
+        onRemember({
           shared: encodeSimulatorState(JSON.parse(state) as SimulatorState),
-          attacker: attacker.unit.name,
-          defender: defender.unit.name,
+          attacker: joinedUnitName(attacker),
+          defender: joinedUnitName(defender),
         })
       }}
       preferences={attacker.weaponPreferences}

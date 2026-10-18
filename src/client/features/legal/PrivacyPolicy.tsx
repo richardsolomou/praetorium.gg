@@ -25,7 +25,8 @@ export function PrivacyPolicy() {
         <p>
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
           and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their owned,
-          built and painted model counts and photos, your wishlist, favourites, and practice opponents you seat.
+          built and painted model counts and photos, your wishlist, favourites, the combat simulator matchups you last ran, and practice
+          opponents you seat.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>

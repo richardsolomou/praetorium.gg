@@ -21,6 +21,7 @@ import {
   favouriteFactionsQuery,
   favouriteDetachmentsQuery,
   favouriteDatasheetsQuery,
+  recentMatchupsQuery,
   collectionQuery,
   collectionCountsQuery,
   collectionProgressQuery,
@@ -136,6 +137,7 @@ export function AppPersistence() {
                 client.query({ ...favouriteFactionsQuery(), staleTime: Infinity }),
                 client.query({ ...favouriteDetachmentsQuery(), staleTime: Infinity }),
                 client.query({ ...favouriteDatasheetsQuery(), staleTime: Infinity }),
+                client.query({ ...recentMatchupsQuery(), staleTime: Infinity }),
                 client.query({ ...savedRosterSummariesQuery(), staleTime: Infinity }).then(async (summaries) => {
                   await prepareRosters(client, summaries, () => active && client.getQueryData<{ id: string }>(meKey())?.id === me.id)
                 }),

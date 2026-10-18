@@ -26,6 +26,8 @@ import {
 import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import { playedArmies } from '../core/playedArmies'
 import type { PlayerDefaults } from '../core/playerDefaults'
+import type { RecentMatchup } from '../core/recentMatchups'
+import { simulatorPairing } from '../contracts/simulatorState'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleClock, type BattleClock } from '../core/battleClock'
@@ -440,6 +442,22 @@ export class PraetoriumService {
 
   setPlayerDefaults(userId: string, defaults: PlayerDefaults) {
     return this.repository.setPlayerDefaults(userId, defaults, this.clock())
+  }
+
+  /** The standalone simulator pairings this player reopened most recently, newest first. */
+  async recentMatchups(userId: string): Promise<RecentMatchup[]> {
+    return (await this.repository.recentMatchupsByUser(userId)).map(({ shared, attacker, defender }) => ({ shared, attacker, defender }))
+  }
+
+  rememberMatchup(userId: string, matchup: RecentMatchup) {
+    const pairing = simulatorPairing(matchup.shared)
+    if (!pairing) throw new Error('Choose both units before remembering a matchup.')
+    return this.repository.rememberMatchup({ userId, pairing, ...matchup, now: this.clock() })
+  }
+
+  async forgetMatchup(userId: string, shared: string) {
+    const pairing = simulatorPairing(shared)
+    if (pairing) await this.repository.forgetMatchup(userId, pairing)
   }
 
   registerPushDevice(userId: string, device: { token: string; platform: 'ios' | 'android' }) {

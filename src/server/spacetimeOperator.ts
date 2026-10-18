@@ -11,6 +11,7 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
+import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
 import { unitLoadoutPickSchema, type UnitLoadout } from '../core/unitLoadouts'
@@ -60,6 +61,7 @@ const collectionRow = z.object({
   painted: z.number().int().default(0),
   photoIds: z.array(z.uuid()).optional(),
 })
+const recentMatchupRow = recentMatchupSchema.extend({ at: z.number().int() })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.object({
@@ -755,6 +757,18 @@ export class SpacetimeOperator {
 
   async deleteUnitLoadout(id: string, userId: string) {
     return this.reply('delete_unit_loadout', [id, userId], z.boolean())
+  }
+
+  async recentMatchupsByUser(userId: string) {
+    return this.read('recent_matchups_by_user', [userId], z.array(recentMatchupRow))
+  }
+
+  async rememberMatchup(input: RecentMatchup & { userId: string; pairing: string; now: number }) {
+    await this.call('remember_matchup', [input.userId, input.pairing, input.shared, input.attacker, input.defender, input.now])
+  }
+
+  async forgetMatchup(userId: string, pairing: string) {
+    await this.call('forget_matchup', [userId, pairing])
   }
 
   async pushEnabled(userId: string) {

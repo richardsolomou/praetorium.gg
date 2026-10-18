@@ -575,3 +575,66 @@ describe('roster discovery', () => {
     expect(friendsPage(procedure, operator)).toEqual(['friend-list'])
   })
 })
+
+describe('recent matchups', () => {
+  const remember = (setup: ReturnType<typeof harness>, pairing: string, at: number, shared = `link-${pairing}`) =>
+    setup.call(setup.operator, (ctx) =>
+      module.rememberMatchup(ctx, {
+        userId: 'owner',
+        pairing,
+        shared,
+        attacker: 'Intercessor Squad',
+        defender: 'Necron Warriors',
+        at: BigInt(at),
+      }),
+    )
+  const recent = (setup: ReturnType<typeof harness>) =>
+    (JSON.parse(module.recentMatchupsByUser(setup.procedure(setup.operator), { userId: 'owner' })) as { shared: string }[]).map(
+      (entry) => entry.shared,
+    )
+
+  it('lists pairings newest first', () => {
+    const setup = harness()
+    remember(setup, 'a', 1)
+    remember(setup, 'b', 2)
+    expect(recent(setup)).toEqual(['link-b', 'link-a'])
+  })
+
+  it('replaces a pairing with its latest settings', () => {
+    const setup = harness()
+    remember(setup, 'a', 1)
+    remember(setup, 'b', 2)
+    remember(setup, 'a', 3, 'edited')
+    expect(recent(setup)).toEqual(['edited', 'link-b'])
+  })
+
+  it('keeps only the six latest pairings', () => {
+    const setup = harness()
+    for (let index = 0; index < 7; index += 1) remember(setup, String(index), index)
+    expect(recent(setup)).toEqual(['6', '5', '4', '3', '2', '1'].map((pairing) => `link-${pairing}`))
+  })
+
+  it('forgets a pairing', () => {
+    const setup = harness()
+    remember(setup, 'a', 1)
+    remember(setup, 'b', 2)
+    setup.call(setup.operator, (ctx) => module.forgetMatchup(ctx, { userId: 'owner', pairing: 'a' }))
+    expect(recent(setup)).toEqual(['link-b'])
+  })
+
+  it('refuses a matchup from anyone but the operator', () => {
+    const setup = harness()
+    expect(() =>
+      setup.call(player('owner'), (ctx) =>
+        module.rememberMatchup(ctx, { userId: 'owner', pairing: 'a', shared: 'link', attacker: 'a', defender: 'b', at: 1n }),
+      ),
+    ).toThrow()
+  })
+
+  it('forgets every pairing with the account', () => {
+    const setup = harness()
+    remember(setup, 'a', 1)
+    setup.call(setup.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(recent(setup)).toEqual([])
+  })
+})

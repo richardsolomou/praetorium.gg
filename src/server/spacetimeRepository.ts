@@ -189,6 +189,18 @@ export class SpacetimeRepository {
     return this.product.acceptFriendInvite(...args)
   }
 
+  recentMatchupsByUser(...args: Parameters<SpacetimeOperator['recentMatchupsByUser']>) {
+    return this.product.recentMatchupsByUser(...args)
+  }
+
+  rememberMatchup(...args: Parameters<SpacetimeOperator['rememberMatchup']>) {
+    return this.product.rememberMatchup(...args)
+  }
+
+  forgetMatchup(...args: Parameters<SpacetimeOperator['forgetMatchup']>) {
+    return this.product.forgetMatchup(...args)
+  }
+
   pushEnabled(...args: Parameters<SpacetimeOperator['pushEnabled']>) {
     return this.product.pushEnabled(...args)
   }

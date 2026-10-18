@@ -1,9 +1,13 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { RosterPick } from '../../core/roster'
-import { combatantDatasheet, combatLoadouts, combatUnits } from '../functions'
-import { combatUnitsKey } from './queryKeys'
+import { combatantDatasheet, combatLoadouts, combatUnits, recentMatchups } from '../functions'
+import { SSR_STALE_TIME } from './shared'
+import { combatUnitsKey, recentMatchupsKey } from './queryKeys'
 
 export const combatUnitsQuery = () => queryOptions({ queryKey: combatUnitsKey(), queryFn: () => combatUnits(), staleTime: Infinity })
+
+export const recentMatchupsQuery = () =>
+  queryOptions({ queryKey: recentMatchupsKey(), queryFn: () => recentMatchups(), staleTime: SSR_STALE_TIME })
 
 export const combatantDatasheetQuery = (
   catalogueId: string,

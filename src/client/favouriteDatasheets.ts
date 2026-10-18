@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import { setFavouriteDatasheet } from './functions'
-import { useOptimisticFavourites } from './favourites'
+import { useOptimisticList } from './optimisticList'
 import { favouriteDatasheetsQuery } from './queries'
 
 /** Stable between favourite changes, so memoized picker rows only redraw when a heart actually changes. */
 export function useFavouriteDatasheets(enabled = true) {
   const query = favouriteDatasheetsQuery()
   const { data, isPending } = useQuery({ ...query, enabled })
-  const mutation = useOptimisticFavourites<string, { entryId: string; favourite: boolean }>(
+  const mutation = useOptimisticList<string, { entryId: string; favourite: boolean }>(
     query.queryKey,
     ({ entryId, favourite }) => setFavouriteDatasheet({ data: { entryId, favourite } }),
     (previous, { entryId, favourite }) => (favourite ? [...new Set([...previous, entryId])] : previous.filter((id) => id !== entryId)),
