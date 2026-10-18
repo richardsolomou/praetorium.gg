@@ -13,6 +13,7 @@ import { fromWtcText, toWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
+import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import type { TextRoster, TextRosterUnit } from '../core/textRoster'
@@ -407,12 +408,18 @@ function textRosterPick(
 ) {
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
+  const statedUnder = new Map<string, Map<string, number>>()
   for (const selection of unit.selections) {
     // New Recruit marks a unit upgrade it lists among enhancements with "(Upgrade)".
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+?)(?:\s+\(Upgrade\))?$/i, '$1').trim()
     const name = normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
+    if (!selection.model) continue
+    const model = normalized(selection.model)
+    const under = statedUnder.get(model) ?? new Map<string, number>()
+    under.set(name, (under.get(name) ?? 0) + selection.count)
+    statedUnder.set(model, under)
   }
   const models = modelNames(entryId, loaded.index)
   const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) ? count : 0), 0)
@@ -429,12 +436,65 @@ function textRosterPick(
   const held = new Map<string, number>()
   for (const piece of wargearOf(selection, loaded.index))
     held.set(normalized(piece.name), (held.get(normalized(piece.name)) ?? 0) + piece.count)
-  const statedChoiceCounts = new Map(choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, stated, held)]))
+  // A choice on a model the list names, with its wargear listed beneath it, reads only those lines.
+  const scopes = choices.map((choice) => {
+    const path = choice.key.split('/')
+    for (let depth = path.length - 1; depth >= 0; depth--) {
+      const definition = loaded.index.definitions.get(path[depth]!)
+      if (!definition || resolve(definition, loaded.index).type !== 'model') continue
+      const names = [nameOf(definition, loaded.index.definitions), modelProfileOf(definition, loaded.index)]
+      const under = names.flatMap((name) => statedUnder.get(normalized(name ?? '')) ?? [])[0]
+      if (!under) break
+      const model = selectionAt(selection, path.slice(0, depth + 1))
+      const own = new Map<string, number>()
+      for (const piece of model ? wargearOf(model, loaded.index) : [])
+        own.set(normalized(piece.name), (own.get(normalized(piece.name)) ?? 0) + piece.count)
+      return { stated: under, held: own }
+    }
+    return { stated, held }
+  })
+  const statedChoiceCounts = new Map(
+    choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, scopes[at]!.stated, scopes[at]!.held)]),
+  )
   const offeredBy = countBy(
     aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
     (name) => name,
   )
   const placed = new Set([...placeableNames(selection, aliases, models, unit.name, loaded), ...warlordNames])
+  const spreadEntries = choices
+    .filter((choice) => choice.room > 1)
+    .flatMap((choice): [string, Record<string, number>][] => {
+      const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
+      const explicit = counts.size > 0
+      // A model the list does not count keeps the body a choice gave it: the cyclone
+      // missile launcher brings its Terminator, and counting none would take it away.
+      // A list naming every body in the group by kind, nested specialists included,
+      // says what each model is: the rest are left out on purpose, and the weapons it
+      // lists are no longer evidence of more bodies.
+      if (choice.options.some((option) => isModel(option.id, loaded.index))) {
+        const named = (option: { name: string }) => stated.get(normalized(option.name)) ?? 0
+        const bodies = choices
+          .filter((other) => other === choice || other.key.startsWith(`${choice.key}/`))
+          .flatMap((other) => other.options)
+          .filter((option) => isModel(option.id, loaded.index))
+          .reduce((total, option) => total + named(option), 0)
+        const asked =
+          bodies >= choice.room ? choice.options.map((option) => [option.id, named(option)] as const) : explicit ? [...counts] : []
+        return asked.length ? [[choice.key, Object.fromEntries(asked.map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
+      }
+      return [
+        [
+          choice.key,
+          Object.fromEntries(
+            choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
+          ),
+        ],
+      ]
+    })
+  // A weapon spread under a model the list leaves out would only bring that model back.
+  const absent = spreadEntries.flatMap(([key, counts]) =>
+    Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
+  )
   const pick = {
     entryId,
     catalogueId,
@@ -444,31 +504,11 @@ function textRosterPick(
         if (choice.room !== 1) return []
         // An optional choice takes nothing the list gives it no count for.
         const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(([, count]) => !choice.optional || count > 0)
-        const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), stated, offeredBy) ?? choice.chosen
+        const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), scopes[at]!.stated, offeredBy) ?? choice.chosen
         return chosen ? [[choice.key, chosen]] : []
       }),
     ),
-    spreads: Object.fromEntries(
-      choices
-        .filter((choice) => choice.room > 1)
-        .flatMap((choice) => {
-          const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
-          const explicit = counts.size > 0
-          // A model the list does not count keeps the body a choice gave it: the cyclone
-          // missile launcher brings its Terminator, and counting none would take it away.
-          if (choice.options.some((option) => isModel(option.id, loaded.index))) {
-            return explicit ? [[choice.key, Object.fromEntries([...counts].map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
-          }
-          return [
-            [
-              choice.key,
-              Object.fromEntries(
-                choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
-              ),
-            ],
-          ]
-        }),
-    ),
+    spreads: Object.fromEntries(spreadEntries.filter(([key]) => !absent.some((prefix) => key.startsWith(prefix)))),
     toggles,
     attachedTo: undefined as number | undefined,
   }
@@ -622,7 +662,9 @@ function singleChoice(
   stated: ReadonlyMap<string, number>,
   offeredBy: ReadonlyMap<string, number>,
 ) {
-  const candidates = options.filter((option) => counts?.has(option.id))
+  // A zero says the rest of the unit accounts for every one stated, as the squad's
+  // splinter pistols do when only the leader's blast pistol is hers.
+  const candidates = options.filter((option) => (counts?.get(option.id) ?? 0) > 0)
   const exclusive = candidates.find((option) =>
     [...(aliases.get(option.id)?.keys() ?? [])].some((name) => offeredBy.get(name) === 1 && stated.has(name)),
   )

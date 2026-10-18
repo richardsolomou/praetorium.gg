@@ -69,13 +69,11 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     return held.map((piece) => `${piece.count}x ${piece.name.toLowerCase()}`)
   }
 
-  // Depends on #1149: a stated choice the selection tree cannot hold is neither kept nor reported.
-  it.fails("keeps a Hekatrix's stated pistol", () => {
+  it("keeps a Hekatrix's stated pistol", () => {
     expect(wargear(listForgeDetailed, 'Wyches')).toContain('1x blast pistol')
   })
 
-  // Depends on #1149.
-  it.fails("keeps both of a Piranha's stated seeker missiles", () => {
+  it("keeps both of a Piranha's stated seeker missiles", () => {
     expect(wargear(listForgePiranhas, 'Piranhas')).toContain('2x seeker missile')
   })
 })

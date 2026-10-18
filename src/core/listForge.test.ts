@@ -36,7 +36,15 @@ describe('ListForge text import', () => {
       { name: 'Enhancement: Informant Network', count: 1 },
     ])
     expect(warriors?.selections).toContainEqual({ name: 'Kabalite Warrior', count: 5 })
-    expect(warriors?.selections).toContainEqual({ name: 'Splinter rifle', count: 5 })
+    expect(warriors?.selections).toContainEqual({ name: 'Splinter rifle', count: 5, model: 'Kabalite Warrior' })
+  })
+
+  it('names the model each nested line belongs to', () => {
+    const wyches = fromListForgeText(listForgeDetailed)!.units[3]
+    expect(wyches?.selections.filter((selection) => selection.model === 'Hekatrix').map((selection) => selection.name)).toEqual([
+      'Blast Pistol',
+      'Power weapon',
+    ])
   })
 
   it('reads the WTC layout', () => {

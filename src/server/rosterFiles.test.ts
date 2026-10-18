@@ -77,6 +77,220 @@ const faction: CatalogueFile = {
                 ],
               },
             ],
+            selectionEntryGroups: [
+              {
+                id: 'seekers',
+                name: 'Seeker Missiles (0-2)',
+                constraints: [{ id: 'seekers-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'seeker',
+                    name: 'Seeker missile',
+                    type: 'upgrade',
+                    constraints: [{ id: 'seeker-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        // Each special-weapon biker chooses a pistol or a chainsword.
+        id: 'bikers',
+        name: 'Chaos Bikers',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'biker-champion',
+            name: 'Biker Champion',
+            type: 'model',
+            constraints: [
+              { id: 'biker-champion-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'biker-champion-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'biker-squad',
+            name: '2-5 Bikers',
+            defaultSelectionEntryId: 'biker-bolter',
+            constraints: [
+              { id: 'biker-squad-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+              { id: 'biker-squad-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'biker-bolter',
+                name: 'Biker w/ bolt pistol',
+                type: 'model',
+                constraints: [{ id: 'biker-bolter-max', type: 'max', value: 5, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'biker-bolter-pistol',
+                    name: 'Bolt pistol',
+                    type: 'upgrade',
+                    constraints: [{ id: 'biker-bolter-pistol-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+              {
+                id: 'biker-sword',
+                name: 'Biker w/ chainsword',
+                type: 'model',
+                constraints: [{ id: 'biker-sword-max', type: 'max', value: 5, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  {
+                    id: 'biker-sword-weapon',
+                    name: 'Astartes chainsword',
+                    type: 'upgrade',
+                    constraints: [{ id: 'biker-sword-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'biker-specials',
+                name: 'Up to two:',
+                constraints: [{ id: 'biker-specials-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                selectionEntries: (
+                  [
+                    ['biker-melta', 'Biker w/ meltagun', 'Meltagun'],
+                    ['biker-flamer', 'Biker w/ flamer', 'Flamer'],
+                  ] as const
+                ).map(([id, name, weapon]) => ({
+                  id,
+                  name,
+                  type: 'model' as const,
+                  constraints: [{ id: `${id}-max`, type: 'max' as const, value: 2, field: 'selections', scope: 'parent' }],
+                  selectionEntries: [
+                    {
+                      id: `${id}-weapon`,
+                      name: weapon,
+                      type: 'upgrade' as const,
+                      constraints: [{ id: `${id}-weapon-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+                    },
+                  ],
+                  selectionEntryGroups: [
+                    {
+                      id: `${id}-side`,
+                      name: 'Bolt pistol or chainsword',
+                      defaultSelectionEntryId: `${id}-pistol`,
+                      constraints: [
+                        { id: `${id}-side-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' },
+                        { id: `${id}-side-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' },
+                      ],
+                      selectionEntries: [
+                        { id: `${id}-pistol`, name: 'Bolt pistol', type: 'upgrade' as const },
+                        { id: `${id}-sword`, name: 'Astartes chainsword', type: 'upgrade' as const },
+                      ],
+                    },
+                  ],
+                })),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        // Only two troopers keep boltguns by default, so the default squad also holds knife-armed ones.
+        id: 'plague-marines',
+        name: 'Plague Marines',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'plague-squad',
+            name: 'Plague Marines',
+            defaultSelectionEntryId: 'plague-boltgun',
+            constraints: [
+              { id: 'plague-squad-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'plague-squad-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: (
+              [
+                ['plague-boltgun', 'Plague Marine w/ boltgun', 'Boltgun'],
+                ['plague-knives', 'Plague Marine w/ plague knives', 'Plague knives'],
+                ['plague-spewer', 'Plague Marine w/ plague spewer', 'Plague spewer'],
+                ['plague-heavy', 'Plague Marine w/ heavy plague weapon', 'Heavy plague weapon'],
+              ] as const
+            ).map(([id, name, weapon]) => ({
+              id,
+              name,
+              type: 'model' as const,
+              constraints: [{ id: `${id}-max`, type: 'max' as const, value: 2, field: 'selections', scope: 'parent' }],
+              selectionEntries: [
+                {
+                  id: `${id}-weapon`,
+                  name: weapon,
+                  type: 'upgrade' as const,
+                  constraints: [{ id: `${id}-weapon-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+                },
+              ],
+            })),
+          },
+        ],
+      },
+      {
+        // The leader's pistol is a choice; the rest of the squad carries the default one.
+        id: 'wyches',
+        name: 'Wyches',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'hekatrix',
+            name: 'Hekatrix',
+            type: 'model',
+            constraints: [
+              { id: 'hekatrix-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'hekatrix-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'hekatrix-pistol',
+                name: 'Pistol Choice',
+                defaultSelectionEntryId: 'hekatrix-splinter',
+                constraints: [
+                  { id: 'hekatrix-pistol-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'hekatrix-pistol-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'hekatrix-splinter', name: 'Splinter Pistol', type: 'upgrade' },
+                  { id: 'hekatrix-blast', name: 'Blast Pistol', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'wych-squad',
+            name: 'Wyches',
+            defaultSelectionEntryId: 'wych',
+            constraints: [
+              { id: 'wych-squad-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'wych-squad-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: (
+              [
+                ['wych', 'Wych', 'Splinter Pistol', 4],
+                ['wych-blaster', 'Wych w/ Blast Pistol', 'Blast Pistol', 2],
+              ] as const
+            ).map(([id, name, weapon, most]) => ({
+              id,
+              name,
+              type: 'model' as const,
+              constraints: [{ id: `${id}-max`, type: 'max' as const, value: most, field: 'selections', scope: 'parent' }],
+              selectionEntries: [
+                {
+                  id: `${id}-weapon`,
+                  name: weapon,
+                  type: 'upgrade' as const,
+                  constraints: [{ id: `${id}-weapon-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+                },
+              ],
+            })),
           },
         ],
       },
@@ -1937,6 +2151,43 @@ describe('text import sizing', () => {
     const file =
       'Scouts - Necrons - Pantheon of Woe (65 Points)\n\nVehicle:\nPiranhas (65 pts)\n  • Piranhas\n    • 2x Twin pulse carbine\n'
     expect(importRosterFile({ file }, loaded).units[0]?.models).toBe(1)
+  })
+})
+
+describe('text import wargear', () => {
+  const wargear = (file: string) => {
+    const pick = importRosterFile({ file }, loaded).units[0]!
+    const built = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, { spreads: pick.spreads })!
+    return wargearOf(built.selection, loaded.index).map((piece) => `${piece.count}x ${piece.name}`)
+  }
+
+  it('gives a leader the option the squad does not account for', () => {
+    const file = 'Raid - Necrons - Pantheon of Woe (90 Points)\n\nBattleline:\nWyches (90 pts)\n• B: Blast Pistol, 4x Splinter Pistol\n'
+    expect(wargear(file)).toContain('1x Blast Pistol')
+  })
+
+  it("reads the weapons listed under a model as that model's own", () => {
+    const file =
+      'Raid - Necrons - Pantheon of Woe (90 Points)\n\nBattleline:\nWyches (90 pts)\n  • Hekatrix\n    • Splinter Pistol\n  • 2x Wych\n    • 2x Splinter Pistol\n  • 2x Wych w/ Blast Pistol\n    • 2x Blast Pistol\n'
+    expect(wargear(file)).toEqual(['3x Splinter Pistol', '2x Blast Pistol'])
+  })
+
+  it('fields only the models a list names when it names the whole squad', () => {
+    const file =
+      'Plague - Necrons - Pantheon of Woe (90 Points)\n\nBattleline:\nPlague Marines (90 pts)\n  • 2x Plague Marine w/ plague spewer\n    • 2x Plague spewer\n  • 2x Plague Marine w/ heavy plague weapon\n    • 2x Heavy plague weapon\n'
+    expect(wargear(file)).toEqual(['2x Plague spewer', '2x Heavy plague weapon'])
+  })
+
+  it('arms the specialists a list names with the weapons it gives them', () => {
+    const file =
+      'Bikes - Necrons - Pantheon of Woe (80 Points)\n\nMounted:\nChaos Bikers (80 pts)\n  • Biker Champion\n  • 2x Biker w/ meltagun\n    • 2x Meltagun\n    • 2x Astartes chainsword\n'
+    expect(wargear(file)).toEqual(['2x Meltagun', '2x Astartes chainsword'])
+  })
+
+  it('arms one model with as many of an option as it may carry', () => {
+    const file =
+      'Scouts - Necrons - Pantheon of Woe (65 Points)\n\nVehicle:\nPiranhas (65 pts)\n  • Piranhas\n    • 2x Twin pulse carbine\n    • 2x Seeker missile\n'
+    expect(wargear(file)).toContain('2x Seeker missile')
   })
 })
 

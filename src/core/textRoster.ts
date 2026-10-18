@@ -13,7 +13,8 @@ export type TextRoster = {
 
 export type TextRosterUnit = {
   name: string
-  selections: { name: string; count: number }[]
+  /** `model` is the line a choice is nested under, where a layout lists each model's wargear beneath it. */
+  selections: { name: string; count: number; model?: string }[]
   leading: string | null
   leader?: string | null
   models?: number | null

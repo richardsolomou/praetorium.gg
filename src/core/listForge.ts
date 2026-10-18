@@ -130,6 +130,8 @@ function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'
   let attached = false
   let members: TextRosterUnit[] | null = null
   let current: TextRosterUnit | null = null
+  // The shallowest bullet of a unit names a model or a piece of its wargear; deeper ones belong to it.
+  let top: { indent: number; name: string } | null = null
   const close = () => {
     if (members && members.length > 1) groups.push({ leaders: members.slice(0, -1), bodyguard: members.at(-1)! })
     members = null
@@ -149,7 +151,10 @@ function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'
     }
     const item = line.match(bullet)
     if (item) {
-      if (current) addItem(current, item[2]!, Number(item[1] ?? 1))
+      const indent = line.length - line.trimStart().length
+      const nested = top !== null && indent > top.indent
+      if (!nested) top = { indent, name: item[2]! }
+      if (current) addItem(current, item[2]!, Number(item[1] ?? 1), nested ? top!.name : undefined)
       else unread.push(trimmed)
       continue
     }
@@ -161,6 +166,7 @@ function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'
       continue
     }
     if (header) {
+      top = null
       current = { name: header[1]!.trim(), selections: [], leading: null, warlord: false }
       units.push(current)
       members?.push(current)
@@ -176,7 +182,7 @@ function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'
   return { units, ...(unread.length ? { unread } : {}) }
 }
 
-function addItem(unit: TextRosterUnit, name: string, count: number) {
+function addItem(unit: TextRosterUnit, name: string, count: number, model?: string) {
   if (/^Warlord$/i.test(name)) {
     unit.warlord = true
     return
@@ -191,5 +197,8 @@ function addItem(unit: TextRosterUnit, name: string, count: number) {
     return
   }
   const enhancement = name.match(/^(?:E|Enhancement):\s*(.+?)(?:\s*\(\+\d[\d,]*\s*pts\))?$/i)
-  unit.selections.push(enhancement ? { name: `Enhancement: ${enhancement[1]}`, count: 1 } : { name, count })
+  unit.selections.push({
+    ...(enhancement ? { name: `Enhancement: ${enhancement[1]}`, count: 1 } : { name, count }),
+    ...(model ? { model } : {}),
+  })
 }
