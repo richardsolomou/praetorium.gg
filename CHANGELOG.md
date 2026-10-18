@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.159.0
+
+### Minor Changes
+
+- c159027: Export rosters as ListForge, Warmind, and WTC-style text.
+- 8329719: Import rosters pasted from ListForge, Warmind, and WTC-style tournament lists.
+
 ## 0.158.0
 
 ### Minor Changes
