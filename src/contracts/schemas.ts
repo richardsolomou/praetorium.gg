@@ -37,6 +37,8 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_AUDIENCES, rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { isPlayerDefaults } from '../core/playerDefaults'
+import { recentMatchupSchema } from '../core/recentMatchups'
+import { simulatorPairing } from './simulatorState'
 import {
   LEAGUE_ADMISSIONS,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
@@ -403,6 +405,8 @@ export const collectionImportSchema = z.object({
 })
 export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.boolean() })
 export const favouriteDatasheetSchema = z.object({ entryId: id, favourite: z.boolean() })
+export const rememberMatchupSchema = recentMatchupSchema.refine((entry) => simulatorPairing(entry.shared) !== null, 'choose both units')
+export const forgetMatchupSchema = recentMatchupSchema.pick({ shared: true })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({
   matchupIds: z.array(slug).min(1).max(2),

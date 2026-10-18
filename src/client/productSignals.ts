@@ -39,6 +39,7 @@ const queryFamilies = {
   leagues: ['leagues', 'league', 'league-roster', 'league-battles', 'opponents'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
   battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'league-battles', 'played-armies'],
+  simulator: ['recent-matchups'],
 } as const
 
 const publicQueryFamilies = {
@@ -69,6 +70,8 @@ const operationScopes = {
   setFavouriteFaction: ['favourites'],
   setFavouriteDetachment: ['favourites'],
   setFavouriteDatasheet: ['favourites'],
+  rememberMatchup: ['simulator'],
+  forgetMatchup: ['simulator'],
   setPlayerDefaults: ['settings'],
   setBattleAudience: ['settings'],
   setPushNotifications: ['settings'],

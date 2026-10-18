@@ -4,7 +4,14 @@ import { captureAppSnapshot, restoreAppSnapshot } from './offline/appSnapshot'
 import { writeAppSnapshot } from './offline/appStorage'
 import { configureLocalRuntime } from './offline/localRuntime'
 import { projectLocalState } from './functions'
-import { favouriteDatasheetsKey, favouriteDetachmentsKey, favouriteFactionsKey, meKey, onboardingKey } from './queries/queryKeys'
+import {
+  favouriteDatasheetsKey,
+  favouriteDetachmentsKey,
+  favouriteFactionsKey,
+  meKey,
+  onboardingKey,
+  recentMatchupsKey,
+} from './queries/queryKeys'
 
 export function createQueryClient() {
   const client = new QueryClient({
@@ -28,6 +35,7 @@ export function createQueryClient() {
       client.setQueryData(favouriteFactionsKey(), [])
       client.setQueryData(favouriteDetachmentsKey(), [])
       client.setQueryData(favouriteDatasheetsKey(), [])
+      client.setQueryData(recentMatchupsKey(), [])
     }
     for (const entry of saved.queries) client.setQueryData(entry.key, entry.data)
   }

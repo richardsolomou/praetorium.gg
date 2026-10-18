@@ -50,6 +50,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'favourite-detachments',
   'favourite-datasheets',
   'unit-loadouts',
+  'recent-matchups',
   'onboarding',
   'player-defaults',
   'battle-audience',

@@ -309,6 +309,16 @@ export const PushTokens = __t.object('PushTokens', {
 })
 export type PushTokens = __Infer<typeof PushTokens>
 
+export const RecentMatchups = __t.object('RecentMatchups', {
+  key: __t.string(),
+  userId: __t.string(),
+  shared: __t.string(),
+  attacker: __t.string(),
+  defender: __t.string(),
+  at: __t.u64(),
+})
+export type RecentMatchups = __Infer<typeof RecentMatchups>
+
 export const RevocationExpiry = __t.object('RevocationExpiry', {
   scheduledId: __t.u64(),
   subject: __t.string(),
