@@ -7,7 +7,7 @@ const env = vi.hoisted((): Record<string, string> => ({}))
 vi.mock('spacetime:sys@2.2', async (original) => ({ ...(await original<object>()), env_get: (key: string) => env[key] ?? null }))
 
 import spacetime, * as module from './index'
-import { UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
+import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -300,7 +300,7 @@ describe('saved unit loadouts', () => {
     at: BigInt(NOW),
   })
   const saved = (setup: ReturnType<typeof harness>, userId = 'owner') =>
-    JSON.parse(module.unitLoadoutsByUser(setup.procedure(setup.operator), { userId })) as { id: string }[]
+    JSON.parse(module.unitLoadoutsByUser(setup.procedure(setup.operator), { userId })) as { id: string; name: string }[]
 
   it('lists a saved loadout to its owner', () => {
     const setup = harness()
@@ -357,6 +357,28 @@ describe('saved unit loadouts', () => {
     module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
     module.deleteUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'owner' })
     expect(saved(setup)).toEqual([])
+  })
+
+  it('renames a loadout for its owner, keeping its pick and creation time', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    module.renameUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'owner', name: '  Melta Captain  ' })
+    expect(saved(setup)).toEqual([
+      { id: 'one', name: 'Melta Captain', catalogueId: 'sm', pick: { entryId: 'captain', choices: { pistol: 'plasma' } }, createdAt: NOW },
+    ])
+  })
+
+  it('leaves another player’s loadout when asked to rename it', () => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    module.renameUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'other', name: 'Taken' })
+    expect(saved(setup)).toMatchObject([{ name: 'Plasma Captain' }])
+  })
+
+  it.each(['   ', 'x'.repeat(UNIT_LOADOUT_NAME_MAX_LENGTH + 1)])('refuses a rename to an invalid name', (name) => {
+    const setup = harness()
+    module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
+    expect(() => module.renameUnitLoadout(setup.procedure(setup.operator), { id: 'one', userId: 'owner', name })).toThrow('Invalid loadout')
   })
 
   it('deletes loadouts with the account', () => {

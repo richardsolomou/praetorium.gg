@@ -8,8 +8,10 @@ export const UNIT_LOADOUTS_MAX = 100
 /** What a saved loadout keeps of a unit: its datasheet, squad size and wargear. */
 export const unitLoadoutPickSchema = rosterPickSchema.pick({ entryId: true, models: true, choices: true, spreads: true }).strict()
 
+export const unitLoadoutNameSchema = z.string().trim().min(1).max(UNIT_LOADOUT_NAME_MAX_LENGTH)
+
 export const unitLoadoutSchema = z.object({
-  name: z.string().trim().min(1).max(UNIT_LOADOUT_NAME_MAX_LENGTH),
+  name: unitLoadoutNameSchema,
   /** The book that owns the datasheet, in the rules version it was saved from. */
   catalogueId: idSchema,
   pick: unitLoadoutPickSchema,

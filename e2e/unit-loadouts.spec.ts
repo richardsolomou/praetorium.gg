@@ -5,6 +5,7 @@ import { productOperator, userIdFor } from './storage'
 
 const UNIT = 'Immortals'
 const LOADOUT = 'Six Immortals'
+const RENAMED = 'Tesla Immortals'
 const NOTE = 'Loadout note stays in its roster'
 const RETIRED = 'Retired guard'
 
@@ -25,7 +26,7 @@ for (const [width, label] of [
   [390, 'phone'],
   [1440, 'desktop'],
 ] as const) {
-  test(`a saved loadout is added to another roster of its army without its note (${label})`, async ({ browser }) => {
+  test(`a saved loadout is renamed and added to another roster of its army without its note (${label})`, async ({ browser }) => {
     test.setTimeout(180_000)
     const page = await (await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } })).newPage()
     const account = await signUp(page, uniqueName('Loadout keeper'))
@@ -61,7 +62,8 @@ for (const [width, label] of [
       Date.now(),
     )
     await openPicker(page)
-    const saved = page.locator(`[data-picker-unit="${UNIT}"] + [data-saved-loadout="${LOADOUT}"]`)
+    const savedAs = (name: string) => page.locator(`[data-picker-unit="${UNIT}"] + [data-saved-loadout="${name}"]`)
+    const saved = savedAs(LOADOUT)
     await expect(saved.locator('.chip')).toHaveText(/^\d+ pts$/)
     const search = page.getByLabel('Add a unit')
     await search.fill('six immortals')
@@ -69,6 +71,19 @@ for (const [width, label] of [
     await expect(page.locator('[data-picker-unit="Necron Warriors"]')).toHaveCount(0)
     await search.fill(UNIT)
     await expect(saved).toBeVisible()
+
+    await saved.getByRole('button', { name: `Saved loadout actions for ${LOADOUT}` }).click()
+    await page.getByRole('menuitem', { name: 'Rename loadout' }).click()
+    const rename = page.getByRole('dialog', { name: 'Rename loadout' })
+    await rename.getByLabel('Name').fill(RENAMED)
+    await shot(rename, `test-results/unit-loadout-rename-${label}.png`)
+    await rename.getByRole('button', { name: 'Rename' }).click()
+    await expect(rename).toBeHidden()
+    const renamed = savedAs(RENAMED)
+    await search.fill('tesla immortals')
+    await expect(renamed).toBeVisible()
+    await search.fill('six immortals')
+    await expect(page.locator(`[data-picker-unit="${UNIT}"]`)).toHaveCount(0)
     await search.fill('')
 
     const retired = page.locator(`[data-saved-loadout="${RETIRED}"]`)
@@ -76,7 +91,7 @@ for (const [width, label] of [
     await expect(retired.getByRole('button', { name: `Add saved loadout ${RETIRED}` })).toBeDisabled()
     const picker = page.locator('div[data-onboarding="roster-picker"]')
     await expectNoHorizontalOverflow(picker)
-    await saved.scrollIntoViewIfNeeded()
+    await renamed.scrollIntoViewIfNeeded()
     await shot(picker, `test-results/unit-loadout-picker-${label}.png`)
     await retired.scrollIntoViewIfNeeded()
     await shot(picker, `test-results/unit-loadout-unavailable-${label}.png`)
@@ -84,7 +99,7 @@ for (const [width, label] of [
     await page.getByRole('menuitem', { name: 'Delete loadout' }).click()
     await page.getByRole('alertdialog', { name: 'Delete saved loadout?' }).getByRole('button', { name: 'Delete loadout' }).click()
     await expect(retired).toHaveCount(0)
-    await waitForRosterSave(page, () => saved.getByRole('button', { name: `Add saved loadout ${LOADOUT}` }).click())
+    await waitForRosterSave(page, () => renamed.getByRole('button', { name: `Add saved loadout ${RENAMED}` }).click())
     await closePicker(page)
     await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
     await expect(page.getByLabel(`${UNIT} models`)).toHaveText('6')

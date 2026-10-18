@@ -32,6 +32,7 @@ import { Problem } from '../../../components/Problem'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { loadoutPick } from '../../../../core/rosterCopies'
 import type { priceQuery } from '../../../queries'
+import { LoadoutNameDialog } from './LoadoutNameDialog'
 import { LoadoutRow } from './LoadoutRow'
 import { type PickerLoadout, pickerRows } from './pickerRows'
 import { useUnitLoadouts } from './useUnitLoadouts'
@@ -115,7 +116,8 @@ export const Picker = memo(function Picker({
   const owned = collectionResult.data
   const { favourites, loading: favouritesLoading, toggleFavourite, pending: favouriting } = useFavouriteDatasheets(enabled && signedIn)
 
-  const { loadouts: savedLoadouts, remove } = useUnitLoadouts(enabled && signedIn)
+  const { loadouts: savedLoadouts, rename, remove } = useUnitLoadouts(enabled && signedIn)
+  const [renaming, setRenaming] = useState<PickerLoadout | null>(null)
   const [deleting, setDeleting] = useState<PickerLoadout | null>(null)
   const offered = useMemo(() => new Set((unitsResult.data ?? []).map((unit) => unit.id)), [unitsResult.data])
   const applicable = useMemo(
@@ -279,6 +281,7 @@ export const Picker = memo(function Picker({
                               unavailableReason={null}
                               onPreview={onPreview}
                               onApply={onApplyLoadout}
+                              onRename={setRenaming}
                               onDelete={setDeleting}
                             />
                           ))}
@@ -302,6 +305,7 @@ export const Picker = memo(function Picker({
                       unavailableReason={outcome.kind === 'refused' ? outcome.message : null}
                       onPreview={onPreview}
                       onApply={onApplyLoadout}
+                      onRename={setRenaming}
                       onDelete={setDeleting}
                     />
                   )
@@ -315,6 +319,22 @@ export const Picker = memo(function Picker({
           </p>
         )}
       </ScrollArea>
+      {renaming ? (
+        <LoadoutNameDialog
+          title="Rename loadout"
+          initialName={renaming.name}
+          submit="Rename"
+          pendingLabel="Renaming…"
+          accepts={(name) => name !== renaming.name}
+          pending={rename.isPending}
+          error={rename.error}
+          onSubmit={(name) => rename.mutate({ id: renaming.id, name }, { onSuccess: () => setRenaming(null) })}
+          onClose={() => {
+            rename.reset()
+            setRenaming(null)
+          }}
+        />
+      ) : null}
       <ConfirmDialog
         open={deleting !== null}
         title="Delete saved loadout?"

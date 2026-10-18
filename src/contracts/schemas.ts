@@ -6,7 +6,7 @@ import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS } from '../core/collection'
 import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import { PUSH_PLATFORMS } from '../core/notificationConfig'
-import { unitLoadoutSchema } from '../core/unitLoadouts'
+import { unitLoadoutNameSchema, unitLoadoutSchema } from '../core/unitLoadouts'
 import { pushTokenSchema } from '../core/notifications'
 import {
   customPointsBudget,
@@ -383,6 +383,7 @@ export const rosterArchiveSchema = z.object({ id, archived: z.boolean() })
 export const rosterLoanSchema = z.object({ id, borrowerId: id })
 export const saveUnitLoadoutSchema = unitLoadoutSchema.extend({ id: z.uuid() })
 export const unitLoadoutIdSchema = z.object({ id: z.uuid() })
+export const renameUnitLoadoutSchema = unitLoadoutIdSchema.extend({ name: unitLoadoutNameSchema })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
 export const collectionModelsSchema = z.object({ entryId: id, models: z.number().int().min(1).max(MAX_COLLECTION_MODELS) })

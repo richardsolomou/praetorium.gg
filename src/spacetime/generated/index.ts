@@ -114,6 +114,7 @@ import * as RecentCollectionPhotosProcedure from './recent_collection_photos_pro
 import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
+import * as RenameUnitLoadoutProcedure from './rename_unit_loadout_procedure'
 import * as RequestFriendProcedure from './request_friend_procedure'
 import * as RosterByIdProcedure from './roster_by_id_procedure'
 import * as RosterGroupByUserProcedure from './roster_group_by_user_procedure'
@@ -298,6 +299,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),
+  __procedureSchema('rename_unit_loadout', RenameUnitLoadoutProcedure.params, RenameUnitLoadoutProcedure.returnType),
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
   __procedureSchema('roster_by_id', RosterByIdProcedure.params, RosterByIdProcedure.returnType),
   __procedureSchema('roster_group_by_user', RosterGroupByUserProcedure.params, RosterGroupByUserProcedure.returnType),

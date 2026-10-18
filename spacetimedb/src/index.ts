@@ -38,7 +38,7 @@ import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import type { Roster } from '../../src/core/battle'
 import { z } from 'zod'
 import { productTables } from './productSchema'
-import { UNIT_LOADOUTS_MAX, unitLoadoutSchema } from '../../src/core/unitLoadouts'
+import { UNIT_LOADOUTS_MAX, unitLoadoutNameSchema, unitLoadoutSchema } from '../../src/core/unitLoadouts'
 import { productSyncRefusal } from './syncOutcome'
 
 // Auth settings live in the module environment; the issuer, audience and operator columns stay
@@ -1895,6 +1895,20 @@ export const saveUnitLoadout = spacetime.procedure(
       touchProduct(tx, userId, 'rosters')
       return 'saved'
     }),
+)
+
+/** Only the name changes, so rosters and searches keep finding the same loadout. */
+export const renameUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string(), name: t.string() }, t.bool(), (ctx, input) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const name = unitLoadoutNameSchema.safeParse(input.name)
+    if (!name.success) throw new SenderError('Invalid loadout')
+    const current = tx.db.unitLoadouts.id.find(input.id)
+    if (current?.userId !== input.userId) return false
+    tx.db.unitLoadouts.id.update({ ...current, name: name.data })
+    touchProduct(tx, input.userId, 'rosters')
+    return true
+  }),
 )
 
 export const deleteUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>

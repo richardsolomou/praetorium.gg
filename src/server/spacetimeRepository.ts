@@ -700,6 +700,10 @@ export class SpacetimeRepository {
     return this.product.saveUnitLoadout(...args)
   }
 
+  renameUnitLoadout(...args: Parameters<SpacetimeOperator['renameUnitLoadout']>) {
+    return this.product.renameUnitLoadout(...args)
+  }
+
   deleteUnitLoadout(...args: Parameters<SpacetimeOperator['deleteUnitLoadout']>) {
     return this.product.deleteUnitLoadout(...args)
   }

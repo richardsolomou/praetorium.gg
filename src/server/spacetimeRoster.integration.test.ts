@@ -390,6 +390,9 @@ it.skipIf(!url || !database || !token)('keeps saved loadouts to their owner and 
     expect(await store.unitLoadoutsByUser(userId)).toEqual([{ id, ...loadout, createdAt: 1 }])
     expect(await store.unitLoadoutsByUser('other')).toEqual([])
     expect(await store.deleteUnitLoadout(id, 'other')).toBe(false)
+    expect(await store.renameUnitLoadout(id, 'other', 'Taken')).toBe(false)
+    expect(await store.renameUnitLoadout(id, userId, 'Melta squad')).toBe(true)
+    expect(await store.unitLoadoutsByUser(userId)).toEqual([{ id, ...loadout, name: 'Melta squad', createdAt: 1 }])
     await store.deleteUserData(userId)
     expect(await store.unitLoadoutsByUser(userId)).toEqual([])
   } finally {

@@ -1,4 +1,4 @@
-import { Bookmark, EllipsisVertical, Plus, Trash2 } from 'lucide-react'
+import { Bookmark, EllipsisVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,7 @@ type Props = {
   unavailableReason: string | null
   onPreview: (entryId: string, name: string) => void
   onApply: (pick: RosterPick) => void
+  onRename: (loadout: PickerLoadout) => void
   onDelete: (loadout: PickerLoadout) => void
 }
 
@@ -25,6 +26,7 @@ export const LoadoutRow = memo(function LoadoutRow({
   unavailableReason,
   onPreview,
   onApply,
+  onRename,
   onDelete,
 }: Props) {
   const name = (
@@ -68,6 +70,9 @@ export const LoadoutRow = memo(function LoadoutRow({
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem className="text-xs font-semibold uppercase" onClick={() => onRename(loadout)}>
+              <Pencil className="size-3.5" /> Rename loadout
+            </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" className="text-xs font-semibold uppercase" onClick={() => onDelete(loadout)}>
               <Trash2 className="size-3.5" /> Delete loadout
             </DropdownMenuItem>

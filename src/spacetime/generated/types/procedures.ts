@@ -55,6 +55,7 @@ import * as RecentCollectionPhotosProcedure from '../recent_collection_photos_pr
 import * as RejectFriendProcedure from '../reject_friend_procedure'
 import * as RemoveBattleProcedure from '../remove_battle_procedure'
 import * as RemoveFriendProcedure from '../remove_friend_procedure'
+import * as RenameUnitLoadoutProcedure from '../rename_unit_loadout_procedure'
 import * as RequestFriendProcedure from '../request_friend_procedure'
 import * as RosterByIdProcedure from '../roster_by_id_procedure'
 import * as RosterGroupByUserProcedure from '../roster_group_by_user_procedure'
@@ -179,6 +180,8 @@ export type RemoveBattleArgs = __Infer<typeof RemoveBattleProcedure.params>
 export type RemoveBattleResult = __Infer<typeof RemoveBattleProcedure.returnType>
 export type RemoveFriendArgs = __Infer<typeof RemoveFriendProcedure.params>
 export type RemoveFriendResult = __Infer<typeof RemoveFriendProcedure.returnType>
+export type RenameUnitLoadoutArgs = __Infer<typeof RenameUnitLoadoutProcedure.params>
+export type RenameUnitLoadoutResult = __Infer<typeof RenameUnitLoadoutProcedure.returnType>
 export type RequestFriendArgs = __Infer<typeof RequestFriendProcedure.params>
 export type RequestFriendResult = __Infer<typeof RequestFriendProcedure.returnType>
 export type RosterByIdArgs = __Infer<typeof RosterByIdProcedure.params>

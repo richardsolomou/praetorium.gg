@@ -308,4 +308,20 @@ describe('saved unit loadouts', () => {
   it('refuses a save over another player’s loadout', async () => {
     expect(await refusal('refused')).toBe(403)
   })
+
+  it('renames under the signed-in player only', async () => {
+    const renameUnitLoadout = vi.fn().mockResolvedValue(true)
+    await new RosterService({ renameUnitLoadout } as unknown as RepositoryPort, () => 0).renameUnitLoadout(
+      'user-1',
+      loadout.id,
+      'Melta Captain',
+    )
+    expect(renameUnitLoadout).toHaveBeenCalledWith(loadout.id, 'user-1', 'Melta Captain')
+  })
+
+  it('refuses a rename of a loadout the player does not keep', async () => {
+    const service = new RosterService({ renameUnitLoadout: vi.fn().mockResolvedValue(false) } as unknown as RepositoryPort, () => 0)
+    const error = await service.renameUnitLoadout('user-1', loadout.id, 'Melta Captain').catch((caught: unknown) => caught)
+    expect(error instanceof Response && error.status).toBe(404)
+  })
 })

@@ -28,6 +28,7 @@ import {
   rosterInBattleSchema,
   rosterArchiveSchema,
   rosterLockSchema,
+  renameUnitLoadoutSchema,
   saveUnitLoadoutSchema,
   unitLoadoutIdSchema,
   rosterLoanSchema,
@@ -461,6 +462,17 @@ export const deleteUnitLoadout = createServerFn({ method: 'POST' })
       const player = await requireUser()
       await app().service.rosterService.deleteUnitLoadout(player.id, data.id)
       await app().telemetry.capture(player.id, 'unit_loadout_deleted', {})
+      return null
+    }),
+  )
+
+export const renameUnitLoadout = createServerFn({ method: 'POST' })
+  .validator(renameUnitLoadoutSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      await app().service.rosterService.renameUnitLoadout(player.id, data.id, data.name)
+      await app().telemetry.capture(player.id, 'unit_loadout_renamed', {})
       return null
     }),
   )

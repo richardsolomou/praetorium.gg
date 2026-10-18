@@ -749,6 +749,10 @@ export class SpacetimeOperator {
     return this.reply('save_unit_loadout', [id, userId, JSON.stringify(loadout), now], z.enum(['saved', 'full', 'refused']))
   }
 
+  async renameUnitLoadout(id: string, userId: string, name: string) {
+    return this.reply('rename_unit_loadout', [id, userId, name], z.boolean())
+  }
+
   async deleteUnitLoadout(id: string, userId: string) {
     return this.reply('delete_unit_loadout', [id, userId], z.boolean())
   }

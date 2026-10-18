@@ -501,6 +501,11 @@ export async function saveUnitLoadout(args: Parameters<typeof server.saveUnitLoa
   return server.saveUnitLoadout(args)
 }
 
+export async function renameUnitLoadout(args: Parameters<typeof server.renameUnitLoadout>[0]): ReturnType<typeof server.renameUnitLoadout> {
+  if (!navigator.onLine) throw new Error('Connect to the internet to rename a loadout.')
+  return server.renameUnitLoadout(args)
+}
+
 export async function deleteUnitLoadout(args: Parameters<typeof server.deleteUnitLoadout>[0]): ReturnType<typeof server.deleteUnitLoadout> {
   if (!navigator.onLine) throw new Error('Connect to the internet to delete a loadout.')
   return server.deleteUnitLoadout(args)

@@ -333,6 +333,11 @@ export class RosterService {
     if (outcome === 'refused') throw new Response('you do not own this loadout', { status: 403 })
   }
 
+  async renameUnitLoadout(userId: string, id: string, name: string) {
+    if (!(await this.repository.renameUnitLoadout(id, userId, name)))
+      throw new Response('That loadout is no longer saved.', { status: 404 })
+  }
+
   async deleteUnitLoadout(userId: string, id: string) {
     await this.repository.deleteUnitLoadout(id, userId)
   }
