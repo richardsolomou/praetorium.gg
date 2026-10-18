@@ -6,7 +6,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, Dia
 import { GUEST_PATH } from './guestDraft'
 
 /** What a visitor tried that needs an account, as the prompt's title and its telemetry name it. */
-export type AccountReason = 'another-roster' | 'variant' | 'loadout' | 'share' | 'lock' | 'archive' | 'lend'
+export type AccountReason = 'another-roster' | 'variant' | 'loadout' | 'share' | 'lock' | 'archive' | 'lend' | 'battle'
 
 const TITLE: Record<AccountReason, string> = {
   'another-roster': 'Keep more than one roster',
@@ -16,6 +16,7 @@ const TITLE: Record<AccountReason, string> = {
   lock: 'Lock rosters with an account',
   archive: 'Archive rosters with an account',
   lend: 'Lend rosters with an account',
+  battle: 'Start battles with an account',
 }
 
 /**
