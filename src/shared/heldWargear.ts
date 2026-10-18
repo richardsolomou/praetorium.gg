@@ -1,4 +1,4 @@
-import { type ModelKind, modelRowPieces, modelRowCount, modelRowSources } from '../core/modelKinds'
+import { type ModelKind, modelFixedCount, modelRowPieces, modelRowCount, modelRowSources } from '../core/modelKinds'
 import { isUnitCompositionChoice } from '../core/unitChoices'
 import { wargearKey } from '../core/wargear'
 
@@ -42,11 +42,11 @@ export function heldWargear(
   }
 
   for (const kind of models) {
-    const bodies = kind.members.reduce(
-      (total, member) => total + (member.choiceKey ? countOf(member.choiceKey, member.id) : member.baseCount),
-      0,
-    )
-    for (const piece of kind.fixed) add(piece.name, piece.count ?? bodies)
+    for (const piece of kind.fixed)
+      add(
+        piece.name,
+        modelFixedCount(kind, piece, (member) => (member.choiceKey ? countOf(member.choiceKey, member.id) : member.baseCount)),
+      )
     for (const row of kind.rows) {
       const count = modelRowCount(row, ({ choiceKey, optionId }) => countOf(choiceKey, optionId))
       for (const name of modelRowPieces(row, kind.rows)) add(name, count)

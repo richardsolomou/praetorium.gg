@@ -1025,3 +1025,93 @@ it('counts a two-model team once on the card', () => {
     ]),
   )
 })
+
+describe('a model that carries two of one weapon', () => {
+  const carrying = (id: string, name: string, weapons: readonly [string, number][], constraints: Constraint[], profile?: string) => ({
+    id,
+    name,
+    type: 'model' as const,
+    ...(profile ? { profiles: [{ id: `${id}-profile`, name: profile, typeName: 'Unit' }] } : {}),
+    constraints,
+    selectionEntries: weapons.map(([weapon, count], position) => ({
+      id: `${id}-${position}`,
+      name: weapon,
+      type: 'upgrade' as const,
+      constraints: [
+        { id: `${id}-${position}-min`, type: 'min' as const, value: count, field: 'selections', scope: 'parent' },
+        { id: `${id}-${position}-max`, type: 'max' as const, value: count, field: 'selections', scope: 'parent' },
+      ],
+    })),
+  })
+  const most = (id: string, value: number): Constraint[] => [{ id: `${id}-max`, type: 'max', value, field: 'selections', scope: 'parent' }]
+  const heldBy = (index: ReturnType<typeof indexOf>, spreads: Record<string, number>) => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { models: spreads } })!
+    return heldWargear(modelKindsOf('squad', built.selection, index), built.choices, wargearOf(built.selection, index))
+  }
+
+  it('counts both of the weapons a Sanctifier with two hand flamers carries', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Sanctifiers',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Sanctifiers',
+              selectionEntries: [
+                carrying(
+                  'single',
+                  'Sanctifier w/ hand flamer',
+                  [['Hand flamer', 1]],
+                  [...mandatory('single-min').map((min) => ({ ...min, value: 3 })), ...most('single', 3)],
+                ),
+                carrying('twin', 'Sanctifier w/ two hand flamers', [['Hand flamer', 2]], most('twin', 1)),
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const built = buildUnit('squad', index)!
+
+    expect(modelKindsOf('squad', built.selection, index).find((kind) => kind.name === 'Sanctifier w/ two hand flamers')?.fixed).toEqual([
+      { name: 'Hand flamer', each: { twin: 2 } },
+    ])
+    expect(heldBy(index, { twin: 1 })).toContainEqual({ name: 'Hand flamer', count: 5 })
+  })
+
+  it('counts each loadout of one kind by what that loadout carries', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Tankbustas',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'models',
+              name: 'Tankbustas',
+              selectionEntries: [
+                carrying('twin', 'Tankbusta w/ two launchas', [['Launcha', 2]], most('twin', 1), 'Tankbusta'),
+                carrying(
+                  'pulsa',
+                  'Tankbusta w/ pulsa rokkit',
+                  [
+                    ['Launcha', 1],
+                    ['Pulsa rokkit', 1],
+                  ],
+                  most('pulsa', 1),
+                  'Tankbusta',
+                ),
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(heldBy(index, { twin: 1, pulsa: 1 })).toContainEqual({ name: 'Launcha', count: 3 })
+  })
+})

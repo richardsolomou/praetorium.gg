@@ -2,7 +2,7 @@ import { escapeRegExp } from '../../../../core/text'
 import { groupBy, uniqueBy } from '../../../../core/collections'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
-import { modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
+import { modelFixedCount, modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
 import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
 
 export { sameWargear as sameWeapon } from '../../../../core/wargear'
@@ -480,13 +480,18 @@ export const addsModel = (model: LoadoutModel, source: LoadoutRowSource) =>
 export type PoolChange = [string, SpreadCounts][]
 
 /** How many models of this kind the unit holds, read from the choices its members point at. */
-export function modelCount(model: LoadoutModel, choices: readonly LoadoutChoice[]) {
-  return model.members.reduce((total, member) => {
-    if (!member.choiceKey) return total + member.baseCount
-    const choice = choices.find((candidate) => candidate.key === member.choiceKey)
-    return total + (choice?.options.find((candidate) => candidate.id === member.id)?.count ?? 0)
-  }, 0)
+function memberCount(member: LoadoutModel['members'][number], choices: readonly LoadoutChoice[]) {
+  if (!member.choiceKey) return member.baseCount
+  const choice = choices.find((candidate) => candidate.key === member.choiceKey)
+  return choice?.options.find((candidate) => candidate.id === member.id)?.count ?? 0
 }
+
+export function modelCount(model: LoadoutModel, choices: readonly LoadoutChoice[]) {
+  return model.members.reduce((total, member) => total + memberCount(member, choices), 0)
+}
+
+export const loadoutFixedCount = (model: LoadoutModel, piece: LoadoutModel['fixed'][number], choices: readonly LoadoutChoice[]) =>
+  modelFixedCount(model, piece, (member) => memberCount(member, choices))
 
 /**
  * Giving and taking a weapon on one card, where every row draws on the same bodies.

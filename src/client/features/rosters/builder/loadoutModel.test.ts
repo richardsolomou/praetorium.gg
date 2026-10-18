@@ -9,6 +9,7 @@ import {
   increaseBlocked,
   type LoadoutChoice,
   type LoadoutModel,
+  loadoutFixedCount,
   loadoutRowCount,
   loadoutInstructions,
   modelCount,
@@ -644,6 +645,19 @@ describe('putting a weapon down on a model card', () => {
     )
 
     expect(modelCount(model, [group])).toBe(2)
+  })
+
+  it('counts a fixed weapon once for each copy its models carry', () => {
+    const group = choice([option('single', 3, 3), option('twin', 1, 1)], 4)
+    const model = card(
+      [],
+      [
+        { id: 'single', choiceKey: 'group', baseCount: 0 },
+        { id: 'twin', choiceKey: 'group', baseCount: 0 },
+      ],
+    )
+
+    expect(loadoutFixedCount(model, { name: 'Hand flamer', each: { twin: 2 } }, [group])).toBe(5)
   })
 
   it('changes one factored weapon choice without changing the other', () => {

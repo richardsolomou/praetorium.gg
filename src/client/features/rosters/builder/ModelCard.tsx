@@ -4,6 +4,7 @@ import {
   changeBy,
   choiceRemoval,
   increaseBlocked,
+  loadoutFixedCount,
   type LoadoutChoice,
   type LoadoutModel,
   type LoadoutOption,
@@ -140,7 +141,7 @@ export function ModelCard({
       <ul className="space-y-3">
         {orderedModelWargear(model, choices, weapons).map((entry) => {
           if ('fixed' in entry) {
-            const fixedCount = entry.fixed.count ?? count
+            const fixedCount = loadoutFixedCount(model, entry.fixed, choices)
             if (!showLoadoutEntry(fixedCount, showOptions)) return null
             return (
               <WargearRow
