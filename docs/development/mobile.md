@@ -16,6 +16,8 @@ Press `i` for iOS or `a` for Android. `just mobile-ios` and `just mobile-android
 
 `mobile/src/package.json` marks shared mobile source as ES modules for Node test consumers; keep Expo and Metro configuration in the parent CommonJS scope. Run `pnpm exec playwright test --list` after changing shared imports, because focused runs do not load every consumer.
 
+Shared modules must run in the bundled Hermes runtime; Node or browser support alone does not establish native API support.
+
 - `mobile/src/appShellState.ts` owns launch, load, callback delivery, retry, and renderer recovery. Ordinary launch does not wait for secure storage; an authentication callback does.
 - `mobile/src/navigation.ts` keeps trusted application links in the WebView, preserving path, query, and fragment, and sends external links to the operating system. [Mobile release](mobile-release.md#production-identity-checks) owns associated-domain checks.
 - Web features check `window.PraetoriumNative.bridgeVersion` and the specific capability in `src/client/nativeBridge.ts`; a bridge version does not imply every capability. Keep older installed shells usable.

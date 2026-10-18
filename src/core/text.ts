@@ -30,7 +30,6 @@ export const joinKey = (nameOrSlug: string) =>
 
 export const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const list = new Intl.ListFormat('en-GB', { type: 'conjunction' })
-
 /** "a, b and c": the house style has no serial comma. */
-export const formatList = (items: readonly string[]) => list.format(items)
+export const formatList = (items: readonly string[]) =>
+  items.length < 3 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
