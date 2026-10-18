@@ -24,6 +24,7 @@ import { type ArmyUpdate, armySlugs } from './HomeArmyUpdates'
 import type { HomeRoster } from './HomeRosters'
 import { HomeView } from './HomeView'
 import { HomeNotifications } from './HomeNotifications'
+import { RecentMatchups } from '../simulator/RecentMatchups'
 
 /**
  * The home page, reading everything the route loader already put in the cache.
@@ -86,6 +87,7 @@ export function Home() {
         leaders={standings ? { rows: standings.overall.rows, days: standings.days } : null}
         newBattle={<CreateBattle />}
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
+        recentMatchups={<RecentMatchups surface="home" />}
         onDelete={setDeleting}
       />
       <DeleteBattleDialog battle={deleting} onClose={() => setDeleting(null)} />

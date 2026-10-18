@@ -1,6 +1,6 @@
 import { invalidWeaponChoices } from './combatPreferences'
 import { calculateCombatPair } from './combatCalculation'
-import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -109,6 +109,7 @@ export function CombatMatchup({
   loadoutSpace,
   initialSettings,
   onSettingsChange,
+  onCompleted,
   preferences,
   invalidatedPreferences = false,
   onPreferencesChange: setPreferences,
@@ -126,6 +127,7 @@ export function CombatMatchup({
   /** Situational settings restored from a shared link, and where to report changes. */
   initialSettings?: MatchupSettings
   onSettingsChange?: (settings: MatchupSettings) => void
+  onCompleted?: () => void
   preferences: Record<string, string>
   invalidatedPreferences?: boolean
   onPreferencesChange: Dispatch<SetStateAction<Record<string, string>>>
@@ -139,6 +141,7 @@ export function CombatMatchup({
   const [retry, setRetry] = useState(0)
   const [invalidatedChoice, setInvalidatedChoice] = useState(false)
   const reported = useRef(false)
+  const completed = useEffectEvent(() => onCompleted?.())
   const failureReported = useRef(false)
   const [allocation, setAllocation] = useState<readonly string[]>(initialSettings?.allocation ?? [])
   useEffect(() => {
@@ -309,6 +312,7 @@ export function CombatMatchup({
         if (controller.signal.aborted) return
         setOutcome({ key: requestKey, attempt: retry, answer })
         const telemetry = combatOutcomeEvent(answer, entryPoint)
+        if (telemetry?.name === 'combat_simulation_completed') completed()
         if (telemetry?.name === 'combat_simulation_completed' && !reported.current) {
           reported.current = true
           posthog.capture(telemetry.name, telemetry.properties)

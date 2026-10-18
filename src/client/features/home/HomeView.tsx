@@ -38,6 +38,7 @@ export type HomeData = {
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
   notifications?: ReactNode
+  recentMatchups?: ReactNode
   /** Asking to delete one of the reader's own games, answered by `Home` and not here. */
   onDelete?: (battle: Battle) => void
 }
@@ -62,6 +63,7 @@ export function HomeView({
   leaders,
   newBattle,
   notifications,
+  recentMatchups,
   onDelete,
 }: HomeData) {
   const going = mine.filter((battle) => battle.status !== 'finished')
@@ -99,6 +101,7 @@ export function HomeView({
               <>
                 <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
                 {listsFirst ? null : rosterShelf}
+                {recentMatchups}
                 <HomeArmyUpdates updates={armyUpdates} />
               </>
             }
@@ -125,6 +128,7 @@ export function HomeView({
     <main className="w-full">
       <HomeHero battle={hero} />
       <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
+        {recentMatchups}
         <HomeFeatures />
         <HomeIncluded />
         <HomeIntro />

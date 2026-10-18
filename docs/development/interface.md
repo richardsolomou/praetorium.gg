@@ -6,7 +6,7 @@ Praetorium uses a compact interface that stays dark only. [Product design](../pr
 
 Write for a player: name the game task, outcome, and next action, and keep implementation terms in technical documentation. Deletion warnings name what will be lost. Label Copy when an action writes to the clipboard and Share only when `useNativeShare` reports the system share sheet. Marketing leads with player benefits, keeps licensing and attribution, and avoids unsupported competitor comparisons. Dates spell out the month; battle cards and Home activity show scores once, without a result sentence.
 
-Keep contextual help brief and learning guidance in player guides; illustrative positions in guides do not define terrain or deployment rules. Do not add standalone simulator examples, tracker-help panels, or finished-game score breakdowns. Practice uses the ordinary New battle dialog; do not add a separate practice action. Show a roster limit count once, beside a short state label.
+Keep contextual help brief and learning guidance in player guides; illustrative positions in guides do not define terrain or deployment rules. The standalone simulator offers an optional editable example in its page header, without moving the unit controls during selection or loading. Do not add tracker-help panels or finished-game score breakdowns. Practice uses the ordinary New battle dialog; do not add a separate practice action. Show a roster limit count once, beside a short state label.
 
 ## Application navigation
 

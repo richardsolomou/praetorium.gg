@@ -15,10 +15,11 @@ export function isCombatCalculationRequest(request: Request) {
 export async function holdCombatCalculations(page: Page) {
   const waiting = Promise.withResolvers<void>()
   const hold = async (route: Route) => {
-    if (!isCombatCalculationRequest(route.request())) return route.continue()
-    await page.evaluate(() => window.PraetoriumCombatGate?.pending.push(() => {}))
-    await waiting.promise
     try {
+      if (isCombatCalculationRequest(route.request())) {
+        await page.evaluate(() => window.PraetoriumCombatGate?.pending.push(() => {}))
+        await waiting.promise
+      }
       await route.continue()
     } catch (error) {
       if (!(error instanceof Error) || !error.message.includes('Route is already handled')) throw error

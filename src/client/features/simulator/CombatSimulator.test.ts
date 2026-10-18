@@ -4,6 +4,7 @@ import type { CombatMatchup } from './CombatMatchup'
 import type { MatchupSettings, SimulatorState } from '../../../contracts/simulatorState'
 import { CombatSimulatorMatchup } from './CombatSimulator'
 import type { Combatant } from './useCombatant'
+import { rememberMatchup } from './matchupHistory'
 
 const hooks = vi.hoisted(() => ({ cursor: 0, side: 0, slots: [] as unknown[], combatants: [] as Combatant[], initial: vi.fn() }))
 vi.mock('react', async (original) => ({
@@ -33,11 +34,15 @@ vi.mock('./useCombatant', () => ({
     return hooks.combatants[hooks.side++ % 2]
   },
 }))
+vi.mock('./matchupHistory', async (original) => ({
+  ...(await original<typeof import('./matchupHistory')>()),
+  rememberMatchup: vi.fn(),
+}))
 
-function render(initial?: SimulatorState) {
+function render(initial?: SimulatorState, source: 'standalone' | 'roster' | 'battle' = 'standalone') {
   hooks.cursor = 0
   hooks.side = 0
-  const element = CombatSimulatorMatchup({ initial })
+  const element = CombatSimulatorMatchup({ initial, source })
   return element.props as ComponentProps<typeof CombatMatchup>
 }
 function swap(props: ComponentProps<typeof CombatMatchup>) {
@@ -56,6 +61,7 @@ const settings: MatchupSettings = {
 beforeEach(() => {
   hooks.slots = []
   hooks.initial.mockReset()
+  vi.mocked(rememberMatchup).mockClear()
   hooks.combatants = ['first', 'second'].map(
     (identity) =>
       ({
@@ -66,10 +72,27 @@ beforeEach(() => {
         invalidatedPreferences: false,
         price: { isError: false },
         sheets: { isError: false },
-        shared: null,
+        unit: { name: identity },
+        shared: { catalogueId: 'book', pick: { entryId: identity }, rules: {} },
         setWeaponPreferences: vi.fn(),
       }) as unknown as Combatant,
   )
+})
+
+it.each(['roster', 'battle'] as const)('never remembers a completed %s experiment on the shared device', (source) => {
+  render(undefined, source).onCompleted!()
+  expect(rememberMatchup).not.toHaveBeenCalled()
+})
+
+it('does not remember a standalone setup whose selected unit is still loading', () => {
+  hooks.combatants[0]!.ready = false
+  render().onCompleted!()
+  expect(rememberMatchup).not.toHaveBeenCalled()
+})
+
+it('remembers a completed standalone pairing with its shareable choices', () => {
+  render().onCompleted!()
+  expect(rememberMatchup).toHaveBeenCalledWith({ shared: expect.any(String), attacker: 'first', defender: 'second' })
 })
 
 it('keeps each side’s weapon choices through swapping twice', () => {
