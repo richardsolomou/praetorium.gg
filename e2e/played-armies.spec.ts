@@ -6,7 +6,7 @@ import { productOperator, userIdFor } from './storage'
 /** The seeded finished battle's Aeldari army, which this test fields again under its own players. */
 const ARMY = 'Warhost 2K'
 
-const playedArmy = (page: Page, player: string) => page.locator(`[data-played-army="${ARMY}"]`).filter({ hasText: `Played by ${player}` })
+const playedArmy = (page: Page, player: string) => page.locator(`[data-played-army="${ARMY}"]`).filter({ hasText: `By ${player}` })
 
 for (const [width, label] of [
   [390, 'phone'],
@@ -48,11 +48,14 @@ for (const [width, label] of [
       const card = playedArmy(reader, playerName)
       await expect(card).toContainText('Legal')
       await expect(card).toContainText('played')
-      await expect(card.locator('[data-played-outcome]')).toContainText('Won by concession against Orks')
+      const outcome = card.locator('[data-played-outcome]')
+      await expect(outcome.locator('.chip')).toHaveText('Won')
+      await expect(outcome).toContainText('Conceded')
+      await expect(outcome).toContainText('Orks')
       await expectNoHorizontalOverflow(reader.locator('main'))
       await shot(card, `test-results/played-army-${label}.png`)
 
-      await card.getByRole('link', { name: 'View battle' }).click()
+      await outcome.getByRole('link', { name: 'Open battle' }).click()
       await expect(reader).toHaveURL(new RegExp(`/battles/${token}$`))
       await reader.goBack()
 
@@ -63,7 +66,7 @@ for (const [width, label] of [
       await reader.goBack()
 
       await playedArmy(reader, playerName)
-        .getByRole('button', { name: `Copy ${ARMY}` })
+        .getByRole('button', { name: `Duplicate ${ARMY}` })
         .click()
       await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
       await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${ARMY}`)

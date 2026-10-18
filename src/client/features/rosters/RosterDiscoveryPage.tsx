@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Copy, ListFilter, ScrollText, Swords, Users } from 'lucide-react'
+import { Copy, Eye, ListFilter, ScrollText, Swords, Users } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
@@ -39,6 +39,8 @@ import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle } from './RosterSummary'
 import { RosterViews } from './RosterViews'
 import { Problem } from '../../components/Problem'
+import { FactionMark } from '../../components/FactionMark'
+import { BATTLE_ENDINGS, battleOutcomeStage } from '../../battleStage'
 
 export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus; sort?: RosterSort }
 
@@ -391,34 +393,27 @@ function PlayedArmies({
                       dateLabel="played"
                     />
                   </Link>
+                  <PlayedOutcome outcome={army.outcome} token={army.battle} />
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
-                    <div className="min-w-0 space-y-0.5 text-xs text-dim">
-                      <p className="truncate">
-                        Played by{' '}
-                        <Link to="/users/$userId" params={{ userId: army.player.id }} className="font-semibold text-info hover:text-bone">
-                          {army.player.name}
-                        </Link>
-                      </p>
-                      <p data-played-outcome>
-                        {playedOutcome(army.outcome)} ·{' '}
-                        <Link to="/battles/$token" params={{ token: army.battle }} className="font-semibold text-info hover:text-bone">
-                          View battle
-                        </Link>
-                      </p>
-                    </div>
+                    <span className="min-w-0 truncate text-xs text-dim">
+                      By{' '}
+                      <Link to="/users/$userId" params={{ userId: army.player.id }} className="font-semibold text-info hover:text-bone">
+                        {army.player.name}
+                      </Link>
+                    </span>
                     {signedIn ? (
                       <Button
                         variant="outline"
                         size="sm"
                         disabled={copying !== null}
                         onClick={() => onCopy(army)}
-                        aria-label={`Copy ${army.name}`}
+                        aria-label={`Duplicate ${army.name}`}
                       >
-                        <Copy /> {copying && `${copying.battle}:${copying.player.id}` === key ? 'Copying…' : 'Copy to my rosters'}
+                        <Copy /> {copying && `${copying.battle}:${copying.player.id}` === key ? 'Duplicating…' : 'Duplicate'}
                       </Button>
                     ) : (
                       <Link to="/sign-in" search={{ next: signInPath }} className={buttonClass({ variant: 'outline', size: 'sm' })}>
-                        <Copy /> Sign in to copy
+                        <Copy /> Sign in to duplicate
                       </Link>
                     )}
                   </div>
@@ -452,11 +447,34 @@ function PlayedArmies({
   )
 }
 
-/** "Won 85–60 against Orks": the side's result as standings count it, its score first, and who it faced. */
-function playedOutcome({ result, conceded, score, opponentScore, opponents }: PlayedArmy['outcome']) {
-  const verb = { won: 'Won', lost: 'Lost', drawn: 'Drew' }[result]
-  const against = opponents.length ? ` against ${opponents.map((faction) => faction.displayName).join(' and ')}` : ''
-  return `${verb} ${conceded ? 'by concession' : `${score}–${opponentScore}`}${against}`
+/** How the battle went for the army's side, drawn as its battle card draws it, with the way into the battle. */
+function PlayedOutcome({ outcome, token }: { outcome: PlayedArmy['outcome']; token: string }) {
+  const stage = battleOutcomeStage(outcome.result)
+  return (
+    <div data-played-outcome className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-edge px-3 py-2">
+      <span className={`chip ${stage.tint}`}>{stage.name}</span>
+      <span className="figure text-lg leading-none font-bold">
+        <span className="text-side-a">{outcome.score}</span>
+        <span className="px-1 text-sm text-faint">–</span>
+        <span className="text-side-b">{outcome.opponentScore}</span>
+      </span>
+      {outcome.conceded ? <span className="text-2xs text-faint">{BATTLE_ENDINGS.conceded}</span> : null}
+      {outcome.opponents.length ? (
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-dim">
+          <span className="text-faint">vs</span>
+          {outcome.opponents.map((faction) => (
+            <span key={faction.slug} className="flex min-w-0 items-center gap-1.5">
+              <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+              <span className="truncate">{faction.displayName}</span>
+            </span>
+          ))}
+        </span>
+      ) : null}
+      <Link to="/battles/$token" params={{ token }} className={buttonClass({ variant: 'ghost', size: 'sm', className: 'ml-auto' })}>
+        <Eye /> Open battle
+      </Link>
+    </div>
+  )
 }
 
 function DiscoveredRoster({
