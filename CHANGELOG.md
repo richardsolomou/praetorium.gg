@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.157.4
+
+### Patch Changes
+
+- ab66405: Screen readers now announce failures to copy a roster link, leave an impersonated account, share a battle invite or load the unit picker.
+- ab66405: Profile picture uploads are refused when the file's contents do not match its declared JPEG, PNG or WebP type.
+- ab66405: Assistant tool and onboarding tour failures now show in the error colour.
+- ab66405: A faction link with a malformed rules version now opens the faction's current rules instead of an error page.
+- ab66405: Combat simulator failures now show in red, so they stand apart from prompts to choose models or weapons.
+- ab66405: A text size chosen in one tab now applies to your other open tabs straight away, not only once you open the settings there.
+
 ## 0.157.3
 
 ### Patch Changes
