@@ -1,5 +1,14 @@
 import { expect, type Page, test } from './test'
-import { befriend, chooseRosterAction, confirmRosterSetup, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  befriend,
+  chooseRosterAction,
+  confirmRosterSetup,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+} from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, userIdFor } from './storage'
 
@@ -34,8 +43,8 @@ async function addNotedUnit(page: Page) {
 }
 
 async function filterTo(page: Page, choices: { faction: string; detachment: string; rules: string }) {
-  await page.getByRole('button', { name: 'Filter', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Filter rosters' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Filter', exact: true }).click())
   for (const [label, option] of [
     ['Faction', choices.faction],
     ['Detachment', choices.detachment],

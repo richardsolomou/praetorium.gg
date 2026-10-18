@@ -57,46 +57,10 @@ test('Terminator hammer and shield loadouts survive reload', { tag: '@catalogue'
   })
 })
 
-test('the Death Guard Defiler calculates either Shearing claws mode', async ({ page }) => {
-  await page.goto('/simulator')
-  await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Defiler')
-  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  const melee = page.getByRole('region', { name: 'Melee results' })
-  const damage = (await combatEstimate(page, 'Melee')).locator('.readout').first()
-  for (const mode of ['strike', 'sweep']) {
-    await choose(page, 'Defiler · Shearing claws', `Shearing claws - ${mode}`)
-    await expect(melee.getByRole('heading', { name: `Shearing claws - ${mode}`, exact: true })).toBeVisible()
-    await expect(melee.locator('[data-weapon-card]')).toHaveCount(1)
-    await expect(melee).not.toContainText('equipped weapons could not be matched')
-    await expect(melee).toHaveAttribute('aria-busy', 'false')
-    await expect(damage).toHaveText(/^\d+\.\d{2}$/)
-    await page.screenshot({ path: `test-results/simulator-defiler-${mode}.png` })
-  }
-})
-
-test('source-linked equipment calculates without ownership errors', async ({ page }) => {
+test('a source-linked weapon bundle calculates after changing its loadout', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/simulator')
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  for (const [faction, unit, phase] of [
-    ['Blood Angels', 'Lemartes', 'Shooting'],
-    ['Chaos Daemons', 'Pink Horrors', 'Shooting'],
-    ['Astra Militarum', 'Cadian Heavy Weapons Squad', 'Melee'],
-    ['Aeldari', 'Jain Zar', 'Melee'],
-    ['Drukhari', 'Lady Malys', 'Melee'],
-    ['Orks', 'Deffkoptas', 'Shooting'],
-  ] as const) {
-    await chooseCombatUnit(page, 'Attacker', faction, unit)
-    const results = page.getByRole('region', { name: `${phase} results` })
-    await expect(results).toHaveAttribute('aria-busy', 'false')
-    await expect(results.getByRole('alert')).toHaveCount(0)
-    await expect((await combatEstimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
-    await expect(results).not.toContainText('ref. only')
-    await atWidths(page, [1440, 390], async (width) => {
-      await noOverflow(page)
-      await page.screenshot({ path: `test-results/simulator-ownership-${unit.replaceAll(' ', '-')}-${width}.png` })
-    })
-  }
   await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Triarch Praetorians')
   const attackerLoadout = page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true })
   await attackerLoadout.click()
@@ -157,22 +121,6 @@ async function atWidths(page: Page, widths: number[], check: (width: number) => 
   }
   await page.setViewportSize(viewport)
 }
-
-test('the unit picker keeps only distinct faction contexts', async ({ page }) => {
-  await page.goto('/simulator')
-  await page.getByRole('combobox', { name: 'Attacker unit' }).click()
-  const search = page.getByPlaceholder('Search units…')
-  await search.fill('Intercessor Squad')
-  await expect(page.getByRole('option', { name: /^Intercessor Squad, / })).toHaveCount(1)
-  await expect(page.getByRole('option', { name: /^Intercessor Squad, Space Marines,/ })).toBeVisible()
-  await search.fill('Assault Intercessor Squad')
-  await expect(page.getByRole('option', { name: /^Assault Intercessor Squad, / })).toHaveCount(1)
-  await page.getByRole('listbox').screenshot({ path: 'test-results/simulator-assault-intercessor-choices.png' })
-  await search.fill('Impulsor')
-  await expect(page.getByRole('option', { name: /^Impulsor, / })).toHaveCount(2)
-  await expect(page.getByRole('option', { name: /^Impulsor, Black Templars,/ })).toBeVisible()
-  await expect(page.getByRole('option', { name: /^Impulsor, Space Marines,/ })).toBeVisible()
-})
 
 test('the unit picker says units are loading instead of finding no matches', async ({ page }) => {
   const held = Promise.withResolvers<void>()

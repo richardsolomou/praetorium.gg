@@ -15,7 +15,15 @@ export type RuntimeStore = {
 }
 
 const sharedStore: RuntimeStore = { has: storeHasArchive, download: downloadRuntime, upload: uploadRuntime }
-const compilerSources = ['src/contracts', 'src/core', 'src/server', 'src/shared', 'scripts/lib', 'scripts/compileCatalogueRuntime.ts']
+const compilerSources = [
+  'pnpm-lock.yaml',
+  'src/contracts',
+  'src/core',
+  'src/server',
+  'src/shared',
+  'scripts/lib',
+  'scripts/compileCatalogueRuntime.ts',
+]
 
 function* sourceFiles(root: string, relative: string): Generator<string> {
   const target = path.join(root, relative)
@@ -28,8 +36,8 @@ function* sourceFiles(root: string, relative: string): Generator<string> {
 }
 
 /**
- * A compiled runtime depends on the snapshot and on every compiler source as it is now, so the key
- * names both and nobody has to remember a version bump. Files are walked rather than listed by git
+ * A compiled runtime depends on the snapshot, dependencies and every compiler source, so the key
+ * names all three and nobody has to remember a version bump. Files are walked rather than listed by git
  * because the image build has neither.
  */
 export function compilerSourcesFingerprint(worktree = process.cwd()) {

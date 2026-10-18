@@ -136,47 +136,6 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  catalogue-smoke:
-    name: Catalogue smoke
-    needs: [browser-build]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/browser-test-stack
-        id: stack
-        # Catalogue snapshots are private, read only by the catalogue sync inside this action.
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Run catalogue smoke tests
-        env:
-          SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
-          PLAYWRIGHT_OUTPUT_DIR: test-results-catalogue
-          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-report-catalogue.json
-          PLAYWRIGHT_STARTUP_REPORT: e2e-startup-catalogue.json
-        run: pnpm exec playwright test --grep @catalogue --reporter=github,json
-      - name: Report browser-test startup
-        if: success() || failure()
-        run: |
-          if test -f e2e-startup-catalogue.json; then
-            echo 'Catalogue smoke startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
-            cat e2e-startup-catalogue.json >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - if: success() || failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-report-catalogue
-          path: e2e-report-catalogue.json
-          retention-days: 30
-          if-no-files-found: ignore
-      - if: failure() || (success() && hashFiles('test-results-catalogue/**/trace.zip') != '')
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-results-catalogue
-          path: test-results-catalogue
-          retention-days: 7
-
   e2e-shard:
     name: E2E runner ${{ matrix.runner }} of 16
     needs: [browser-build]
@@ -201,7 +160,7 @@ jobs:
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
           set -euo pipefail
-          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --grep-invert @catalogue --reporter=json > /dev/null
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
           node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" 16 > "$RUNNER_TEMP/e2e-shard.txt"
           PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
@@ -235,13 +194,12 @@ jobs:
 
   e2e:
     if: always()
-    needs: [browser-build, catalogue-smoke, e2e-shard]
+    needs: [browser-build, e2e-shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
         run: |
           test '${{ needs.browser-build.result }}' = success
-          test '${{ needs.catalogue-smoke.result }}' = success
           test '${{ needs.e2e-shard.result }}' = success
 
   points:
