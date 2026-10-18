@@ -225,13 +225,14 @@ export function ScoringDialog({
   return (
     <>
       <BattlePromptDialog open minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
-        {/* Edged and titled in the side's own tint: points cannot be taken back without an
-          undo, so which side is being paid is readable before the sentence naming them. */}
         <BattleDialogContent minimizeDisabled={pending} size="md" className={colours.border}>
-          <DialogHeader className="px-(--dialog-actions) text-center">
+          <DialogHeader>
             <DialogTitle className={colours.text}>
               Scoring {moment} points · {sideName(side)}
             </DialogTitle>
+          </DialogHeader>
+
+          <DialogBody className="gap-3">
             <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
             {finalAwardsDue ? (
               <p className="text-sm text-dim">
@@ -244,7 +245,7 @@ export function ScoringDialog({
               </p>
             ) : null}
             {allowances.length ? (
-              <p className="readout flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-xs text-dim">
+              <p className="readout flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-dim">
                 {allowances.map((allowance) => (
                   <span key={allowance.label}>
                     {allowance.label} <span className="text-bone">{allowance.standing}</span>/{allowance.cap} {allowance.when}
@@ -252,9 +253,11 @@ export function ScoringDialog({
                 ))}
               </p>
             ) : null}
-          </DialogHeader>
-
-          <DialogBody className="gap-3">
+            {capNotes.map((note) => (
+              <p key={note} className="text-3xs text-discarded">
+                {note}
+              </p>
+            ))}
             {due.map((card) => {
               const taken = answerFor(card)
               const { claimed, scoring } = settledFor(card)
@@ -312,28 +315,23 @@ export function ScoringDialog({
             })}
           </DialogBody>
 
-          <DialogFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-            {/* The result of the calculation above it, so a reader who cannot watch the
-              number move is told when a cap has quietly taken a piece of it. */}
-            <output className="mr-auto block space-y-1">
-              <p className="readout text-sm text-dim">
+          <DialogFooter className="flex-col items-stretch sm:flex-row sm:items-center">
+            <div className="flex items-center justify-between gap-3 sm:flex-1">
+              <output className="readout text-sm text-dim">
                 Scoring <span className="font-bold text-bone">{total}</span> VP
-              </p>
-              {capNotes.map((note) => (
-                <p key={note} className="max-w-prose text-3xs text-discarded">
-                  {note}
-                </p>
-              ))}
-            </output>
-            <UndoLatestButton disabled={pending || undoable === null} onClick={undo.request} />
-            {onCancel ? (
-              <Button variant="outline" disabled={pending} onClick={onCancel}>
-                Back
+              </output>
+              <UndoLatestButton compact disabled={pending || undoable === null} onClick={undo.request} />
+            </div>
+            <div className="flex gap-2">
+              {onCancel ? (
+                <Button className="flex-1 sm:flex-none" variant="outline" disabled={pending} onClick={onCancel}>
+                  Back
+                </Button>
+              ) : null}
+              <Button className={`flex-1 sm:flex-none ${colours.fill}`} disabled={pending} onClick={confirm}>
+                {confirmLabel}
               </Button>
-            ) : null}
-            <Button className={colours.fill} disabled={pending} onClick={confirm}>
-              {confirmLabel}
-            </Button>
+            </div>
           </DialogFooter>
         </BattleDialogContent>
       </BattlePromptDialog>
