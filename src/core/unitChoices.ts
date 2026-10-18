@@ -27,7 +27,14 @@ import {
   resolve,
   UNBOUNDED,
 } from './definitions'
-import { evaluationErrorsFor, type EvaluateOptions, hiddenByRules, selectionCountBoundsAt, type Selection } from './evaluate'
+import {
+  evaluationErrorsFor,
+  type EvaluateOptions,
+  hiddenByRules,
+  hiddenByRulesAt,
+  selectionCountBoundsAt,
+  type Selection,
+} from './evaluate'
 import { allAt, at, countAt, withCounts, withSpread } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 
@@ -169,7 +176,7 @@ function collectUnitChoices(
     const key = path.join('/')
     const cached = visibility.get(key)
     if (cached !== undefined) return cached
-    const value = !hiddenByRules(definition, index, { ...options, roster }, lineage)
+    const value = !hiddenByRulesAt(definition, selection, path, index, options)
     visibility.set(key, value)
     return value
   }

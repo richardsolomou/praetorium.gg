@@ -96,6 +96,45 @@ const faction: CatalogueFile = {
         ],
       },
       {
+        // Its enhancements stay hidden until the unit holds its Character upgrade.
+        id: 'trygon',
+        name: 'Trygon',
+        type: 'model',
+        selectionEntries: [
+          {
+            id: 'trygon-character',
+            name: 'Trygon Character upgrade',
+            type: 'upgrade',
+            constraints: [{ id: 'trygon-character-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'trygon-enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'trygon-enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            modifiers: [
+              {
+                type: 'set',
+                field: 'hidden',
+                value: true,
+                conditions: [
+                  {
+                    type: 'lessThan',
+                    value: 1,
+                    field: 'selections',
+                    scope: 'root-entry',
+                    childId: 'trygon-character',
+                    includeChildSelections: true,
+                  },
+                ],
+              },
+            ],
+            selectionEntries: [{ id: 'trygon-prime', name: 'Trygon Prime', type: 'upgrade' }],
+          },
+        ],
+      },
+      {
         // Names as BSData writes them, which other tools print as their datacard does.
         id: 'malys',
         name: 'Lady Malys',
@@ -2231,6 +2270,12 @@ describe('text import wargear', () => {
   it('says nothing of wargear it holds under another of its names', () => {
     const file =
       "Malys - Necrons - Pantheon of Woe (130 Points)\n\nEpic Hero:\nLady Malys (130 pts)\n• B: Executioner's Demiklaives, Lady's Blade, Razor Fan, Splinter Pistol and 1 Razorflail\n"
+    expect(importRosterFile({ file }, loaded).unplaced).toEqual([])
+  })
+
+  it('takes an enhancement that a stated upgrade opens', () => {
+    const file =
+      'Tunnels - Necrons - Pantheon of Woe (155 Points)\n\nMonster:\nTrygon (155 pts)\n  • Trygon Character upgrade\n  • E: Trygon Prime\n'
     expect(importRosterFile({ file }, loaded).unplaced).toEqual([])
   })
 

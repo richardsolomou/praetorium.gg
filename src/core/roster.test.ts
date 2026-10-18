@@ -2006,6 +2006,62 @@ describe('who the data lets a list nominate as its Warlord', () => {
   })
 })
 
+describe('an enhancement a unit upgrade opens', () => {
+  // A Trygon takes Trygon Prime only once its Character upgrade makes it a character,
+  // and the data hides the enhancements until the unit it roots holds that upgrade.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'trygon',
+        name: 'Trygon',
+        type: 'model',
+        selectionEntries: [
+          {
+            id: 'trygon-character',
+            name: 'Trygon Character upgrade',
+            type: 'upgrade',
+            constraints: [{ id: 'trygon-character-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'trygon-enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'trygon-enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            modifiers: [
+              {
+                type: 'set',
+                field: 'hidden',
+                value: true,
+                conditions: [
+                  {
+                    type: 'lessThan',
+                    value: 1,
+                    field: 'selections',
+                    scope: 'root-entry',
+                    childId: 'trygon-character',
+                    includeChildSelections: true,
+                  },
+                ],
+              },
+            ],
+            selectionEntries: [{ id: 'trygon-prime', name: 'Trygon Prime', type: 'upgrade' }],
+          },
+        ],
+      },
+    ],
+  })
+  const offered = (choices: Record<string, string>) => buildUnit('trygon', index, undefined, choices)!.choices.map((choice) => choice.name)
+
+  it('stays closed without the upgrade', () => {
+    expect(offered({})).toEqual(['Trygon Character upgrade'])
+  })
+
+  it('opens once the unit holds the upgrade', () => {
+    expect(offered({ 'trygon-character': 'trygon-character' })).toContain('Enhancements')
+  })
+})
+
 describe('options inside one model of a squad', () => {
   // "OFFICER model only" is written as a condition on the option's ancestors, and the
   // officer is the model carrying the option, not the unit around it.
