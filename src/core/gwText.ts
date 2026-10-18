@@ -30,14 +30,23 @@ export const headings = {
   other: 'OTHER DATASHEETS',
 } as const
 
-/** Each bodyguard with the units attached to it, by roster entry. */
-export function attachedGroups(units: GwTextRoster['units']) {
-  return units.flatMap((bodyguard) => {
+/**
+ * Each bodyguard with the units attached to it, by roster entry, and every other unit
+ * under its heading's group.
+ */
+export function rosterSections(units: GwTextRoster['units']) {
+  const groups = units.flatMap((bodyguard) => {
     const leaders = units.filter(
       (unit) => unit !== bodyguard && unit.attachedToEntry !== undefined && unit.attachedToEntry === bodyguard.entry,
     )
     return leaders.length ? [{ leaders, bodyguard }] : []
   })
+  const grouped = new Set(groups.flatMap(({ leaders, bodyguard }) => [...leaders, bodyguard]))
+  const sections = (Object.keys(headings) as (keyof typeof headings)[]).map((group) => ({
+    group,
+    units: units.filter((unit) => unit.group === group && !grouped.has(unit)),
+  }))
+  return { groups, sections }
 }
 
 /** A plain-text roster in the same human-readable shape as the official app export. */

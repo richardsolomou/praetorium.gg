@@ -1,4 +1,4 @@
-import { attachedGroups, type GwTextRoster } from './gwText'
+import { type GwTextRoster, rosterSections } from './gwText'
 import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
 
 const title = /^(.+) \((\d[\d,]*) Points?\)$/i
@@ -51,8 +51,7 @@ export function toListForgeText(roster: GwTextRoster) {
     roster.detachments.map((detachment) => detachment.name).join(' and ') || 'No detachment',
   ]
   const lines = [`${setup.join(' - ')} (${roster.points} Points)`]
-  const groups = attachedGroups(roster.units)
-  const grouped = new Set(groups.flatMap(({ leaders, bodyguard }) => [...leaders, bodyguard]))
+  const { groups, sections: unattached } = rosterSections(roster.units)
   if (groups.length) lines.push('', 'Attached Units:')
   for (const { leaders, bodyguard } of groups) {
     const members = [...leaders, bodyguard]
@@ -60,8 +59,7 @@ export function toListForgeText(roster: GwTextRoster) {
     lines.push(`${members.map((unit) => unit.name).join(' + ')} (${points} pts)`)
     for (const unit of members) lines.push(`  ${unit.name} (${unit.points} pts)`, ...listForgeItems(unit, '    '))
   }
-  for (const group of Object.keys(sections) as (keyof typeof sections)[]) {
-    const units = roster.units.filter((unit) => unit.group === group && !grouped.has(unit))
+  for (const { group, units } of unattached) {
     if (!units.length) continue
     lines.push('', `${sections[group]}:`)
     for (const unit of units) lines.push(`${unit.name} (${unit.points} pts)`, ...listForgeItems(unit, '  '))

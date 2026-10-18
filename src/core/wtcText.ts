@@ -1,4 +1,4 @@
-import { attachedGroups, type GwTextRoster, headings } from './gwText'
+import { type GwTextRoster, headings, rosterSections } from './gwText'
 import { newRecruitUnits } from './newRecruit'
 import { plainQuotes } from './text'
 import { attachGroups, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
@@ -73,8 +73,7 @@ export function toWtcText(roster: GwTextRoster) {
     `+ NUMBER OF UNITS: ${roster.units.length}`,
     fence,
   ]
-  const groups = attachedGroups(roster.units)
-  const grouped = new Set(groups.flatMap(({ leaders, bodyguard }) => [...leaders, bodyguard]))
+  const { groups, sections } = rosterSections(roster.units)
   if (groups.length) lines.push('', 'Attached Units')
   for (const [at, { leaders, bodyguard }] of groups.entries()) {
     lines.push('', `Attached Unit ${at + 1}`)
@@ -84,8 +83,7 @@ export function toWtcText(roster: GwTextRoster) {
     }
     lines.push('', ...wtcUnit(bodyguard, 'Attached as: Bodyguard'))
   }
-  for (const group of Object.keys(headings) as (keyof typeof headings)[]) {
-    const units = roster.units.filter((unit) => unit.group === group && !grouped.has(unit))
+  for (const { group, units } of sections) {
     if (!units.length) continue
     lines.push('', headings[group])
     for (const unit of units) lines.push('', ...wtcUnit(unit))

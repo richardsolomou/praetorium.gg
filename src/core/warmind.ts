@@ -1,4 +1,4 @@
-import { attachedGroups, type GwTextRoster, headings } from './gwText'
+import { type GwTextRoster, headings, rosterSections } from './gwText'
 import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
 
 const rule = /^─{10,}$/
@@ -109,22 +109,16 @@ export function toWarmindText(roster: GwTextRoster, version: string) {
     `Total: ${roster.points} / ${budget} pts`,
     ...(roster.dispositions.length ? [`Disposition: ${roster.dispositions.join(', ')}`] : []),
   ]
-  const groups = attachedGroups(roster.units)
-  const grouped = new Set(groups.flatMap(({ leaders, bodyguard }) => [...leaders, bodyguard]))
-  for (const group of Object.keys(headings) as (keyof typeof headings)[]) {
-    const section = groups.flatMap(({ leaders, bodyguard }) =>
-      leaders[0]!.group === group
-        ? [
-            ...leaders.flatMap((leader) => warmindUnit(leader, '', '   ')),
-            ...warmindUnit(
-              bodyguard,
-              `   └ ${leaders.some((leader) => leader.joined.some((row) => row.label === 'Leading')) ? 'Leads' : 'Supports'}: `,
-              '      ',
-            ),
-          ]
-        : [],
-    )
-    for (const unit of roster.units) if (unit.group === group && !grouped.has(unit)) section.push(...warmindUnit(unit, '', '   '))
+  const { groups, sections } = rosterSections(roster.units)
+  for (const { group, units } of sections) {
+    const section: string[] = []
+    for (const { leaders, bodyguard } of groups) {
+      if (leaders[0]!.group !== group) continue
+      const leads = leaders.some((leader) => leader.joined.some((row) => row.label === 'Leading'))
+      for (const leader of leaders) section.push(...warmindUnit(leader, '', '   '))
+      section.push(...warmindUnit(bodyguard, `   └ ${leads ? 'Leads' : 'Supports'}: `, '      '))
+    }
+    for (const unit of units) section.push(...warmindUnit(unit, '', '   '))
     if (section.length) lines.push('', headings[group], ...section)
   }
   lines.push(
