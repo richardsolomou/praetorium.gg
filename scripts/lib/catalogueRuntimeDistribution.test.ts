@@ -13,7 +13,7 @@ import {
   packCatalogueRuntime,
   runtimeStoreUrl,
   uploadRuntime,
-  storeHasRuntime,
+  storeHasArchive,
 } from './catalogueRuntimeDistribution'
 
 let root: string
@@ -102,14 +102,14 @@ it('does not fetch when the store is off', async () => {
 
 it('reports a key the store answers for, and treats an unreachable store as holding it', async () => {
   vi.stubGlobal('fetch', async (_input: string, init?: RequestInit) => new Response('', { status: init?.method === 'HEAD' ? 404 : 200 }))
-  const missing = await storeHasRuntime('key', 'https://store.test/by-key')
+  const missing = await storeHasArchive('key', 'https://store.test/by-key')
   vi.stubGlobal('fetch', async () => new Response('', { status: 200 }))
-  const present = await storeHasRuntime('key', 'https://store.test/by-key')
+  const present = await storeHasArchive('key', 'https://store.test/by-key')
   vi.stubGlobal('fetch', async () => {
     throw new Error('offline')
   })
-  const unreachable = await storeHasRuntime('key', 'https://store.test/by-key')
-  expect({ missing, present, unreachable, off: await storeHasRuntime('key', null) }).toEqual({
+  const unreachable = await storeHasArchive('key', 'https://store.test/by-key')
+  expect({ missing, present, unreachable, off: await storeHasArchive('key', null) }).toEqual({
     missing: false,
     present: true,
     unreachable: true,

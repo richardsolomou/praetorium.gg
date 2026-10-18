@@ -4,7 +4,7 @@
 
 ## Runtime
 
-Dokploy runs the web replicas, with SQLite accounts/sessions on a shared volume and SpacetimeDB for product state. Public R2 stores profile images and the compiled catalogue runtime; private R2 stores catalogue snapshots, backups, the audit cache, feedback screenshots and collection photos. The replicas and product database share one VM, so an outage requires restoration.
+Dokploy runs the web replicas, with SQLite accounts/sessions on a shared volume and SpacetimeDB for product state. Public R2 stores profile images, the compiled catalogue runtime and the offline reference bundle; private R2 stores catalogue snapshots, backups, the audit cache, feedback screenshots and collection photos. The replicas and product database share one VM, so an outage requires restoration.
 
 The Node server trusts Cloudflare's visitor header for proxying and rate limits, so restrict origin traffic to Cloudflare: direct callers could otherwise choose that header. Asset errors use `no-store` so a missing file cannot poison the browser or edge cache.
 

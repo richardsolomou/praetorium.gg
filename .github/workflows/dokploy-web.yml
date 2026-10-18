@@ -139,6 +139,9 @@ jobs:
             posthog_api_key=${{ secrets.POSTHOG_API_KEY }}
             catalogue_store=${{ vars.CLOUDFLARE_ACCOUNT_ID }} ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }} ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
           cache-scope: node-web-image
+          # Nothing verifies image attestations, and generating them costs about 20 seconds per release.
+          sbom: 'false'
+          provenance: 'false'
       - name: Publish and route shared build assets before changing replicas
         env:
           IMAGE: ${{ steps.image.outputs.reference }}

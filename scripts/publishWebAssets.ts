@@ -6,6 +6,7 @@ import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 
 const CACHE = 'public, max-age=31536000, immutable'
+const CONCURRENT_REQUESTS = 32
 const TYPES: Record<string, string> = {
   '.bin': 'application/octet-stream',
   '.js': 'text/javascript',
@@ -91,7 +92,7 @@ export async function publishWebAssets(
   let next = 0
   let uploaded = 0
   await Promise.all(
-    Array.from({ length: 8 }, async () => {
+    Array.from({ length: CONCURRENT_REQUESTS }, async () => {
       try {
         while (next < entries.length) {
           stopped.throwIfAborted()
@@ -190,7 +191,7 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
   const entries = [...assets]
   let next = 0
   await Promise.all(
-    Array.from({ length: 8 }, async () => {
+    Array.from({ length: CONCURRENT_REQUESTS }, async () => {
       try {
         while (next < entries.length) {
           stopped.throwIfAborted()
