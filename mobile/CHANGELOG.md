@@ -1,5 +1,11 @@
 # @praetorium/mobile
 
+## 1.4.1
+
+### Patch Changes
+
+- c7a366e: Fix the app closing before its first screen appears.
+
 ## 1.4.0
 
 ### Minor Changes

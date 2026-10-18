@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.158.0
+
+### Minor Changes
+
+- d26b3b9: Try an editable combat simulator example and reopen recent standalone matchups from the simulator or home page on this device.
+
+### Patch Changes
+
+- fce5392: A weapon chosen inside a model option, such as a Terminator's cyclone missile launcher, is charged once instead of twice.
+
 ## 0.157.5
 
 ### Patch Changes
