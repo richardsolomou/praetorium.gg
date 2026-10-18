@@ -69,7 +69,7 @@ function GuestInviteDialog({ token, playerId, name, onClose }: { token: string; 
   return (
     <>
       <Dialog open onOpenChange={(next) => !next && onClose()}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" fit>
           <DialogHeader>
             <DialogTitle>{joined ? `${name} is playing on their device` : `Invite ${name} to play`}</DialogTitle>
             <DialogDescription>

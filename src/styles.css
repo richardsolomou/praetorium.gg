@@ -197,8 +197,8 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     bottom: calc(5rem + env(safe-area-inset-bottom));
   }
 
-  /* A compact dialog is a screen of its own; `src/client/components/Dialog.tsx` keeps its header in place. */
-  html [data-slot='dialog-content'] {
+  /* A compact dialog is a screen of its own unless it fits its content; `src/client/components/Dialog.tsx` keeps its header in place. */
+  html [data-slot='dialog-content']:not([data-fit]) {
     inset: 0;
     width: 100%;
     max-width: none;

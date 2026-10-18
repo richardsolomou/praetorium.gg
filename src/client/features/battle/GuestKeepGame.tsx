@@ -19,6 +19,7 @@ export function GuestKeepGame({ view, claimed, onClaimed }: { view: BattleView; 
   const queryClient = useQueryClient()
   const { data: me } = useQuery(meQuery())
   const host = view.players.find((player) => player.id === view.creatorId)
+  const seat = view.players.find((player) => player.id === view.viewerId)
   const draft = useClientValue(peekGuestDraft, null)
   const next = `/battles/${view.token}`
   const claim = useMutation({
@@ -88,7 +89,7 @@ export function GuestKeepGame({ view, claimed, onClaimed }: { view: BattleView; 
         <li>Your games and lists on any device</li>
       </ul>
       <div className="flex flex-wrap gap-2">
-        <Link to="/sign-in" search={{ next, join: true }} className={buttonClass({ size: 'sm' })}>
+        <Link to="/sign-in" search={{ next, join: true, name: seat?.name }} className={buttonClass({ size: 'sm' })}>
           Create an account
         </Link>
         <Link to="/sign-in" search={{ next }} className={buttonClass({ variant: 'ghost', size: 'sm' })}>

@@ -24,20 +24,23 @@ const ACTIONS_INSET = ['[--dialog-actions:1rem]', '[--dialog-actions:3rem]', '[-
  * A dialog that keeps its header, header actions and footer in place while only its body scrolls.
  *
  * Compact screens show it full screen; `src/styles.css` owns that geometry. `fill` holds the
- * full height on wide screens too, for a body that lays out its own scrolling regions.
+ * full height on wide screens too, for a body that lays out its own scrolling regions. `fit`
+ * keeps a short dialog sized to its content on compact screens as well, as a confirmation is.
  */
 export function DialogContent({
   size = 'sm',
   fill = false,
+  fit = false,
   actions,
   showCloseButton = true,
   className,
   children,
   ...props
-}: ComponentProps<typeof GeneratedDialogContent> & { size?: keyof typeof SIZES; fill?: boolean; actions?: ReactNode }) {
+}: ComponentProps<typeof GeneratedDialogContent> & { size?: keyof typeof SIZES; fill?: boolean; fit?: boolean; actions?: ReactNode }) {
   return (
     <GeneratedDialogContent
       {...props}
+      data-fit={fit || undefined}
       showCloseButton={false}
       className={cn(
         'flex flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-4rem)]',
@@ -49,7 +52,7 @@ export function DialogContent({
     >
       {children}
       {actions || showCloseButton ? (
-        <div className="absolute top-[calc(0.5rem+env(safe-area-inset-top))] right-2 flex gap-2">
+        <div className={cn('absolute right-2 flex gap-2', fit ? 'top-2' : 'top-[calc(0.5rem+env(safe-area-inset-top))]')}>
           {actions}
           {showCloseButton ? (
             <DialogClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" />}>
