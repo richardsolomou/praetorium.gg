@@ -31,19 +31,27 @@ export async function activeReferenceCorpus(catalogueId?: string) {
   const instance = app()
   if (instance.sync().status !== 'ready') return null
   const textLocations = await publishedTextLocations()
+  const factions = (await instance.factionsFor())?.factions
   if (!catalogueId || !catalogueEditionId(catalogueId))
     return referenceCorpusFor({
       catalogue: () => instance.catalogue(),
       rules: () => instance.rules(),
       canonicalCatalogue: () => instance.canonicalCatalogue(),
       textLocations,
+      factions,
     })
   const [catalogue, rules, canonical] = await Promise.all([
     instance.catalogueFor(catalogueId),
     instance.rulesFor(catalogueId),
     instance.canonicalCatalogueFor(catalogueId),
   ])
-  return referenceCorpusFor({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical, textLocations })
+  return referenceCorpusFor({
+    catalogue: () => catalogue,
+    rules: () => rules,
+    canonicalCatalogue: () => canonical,
+    textLocations,
+    factions,
+  })
 }
 
 export async function referenceSearchResponse(request: Request) {

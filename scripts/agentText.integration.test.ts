@@ -7,6 +7,7 @@ import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadRules } from '../src/server/rules'
 import { recordIdsIn, textSourceFiles, textSourcePaths } from '../src/server/sourceTexts'
 import { combatUnitsFor } from '../src/shared/combatUnits'
+import { factionsFor } from '../src/shared/factionReferences'
 import { hasTextTokens, type TextPointer } from '../src/shared/sourceText'
 import { namesIn, normal, sourceProse, stringsIn } from './lib/sourceProse.fixtures'
 
@@ -53,6 +54,7 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
       catalogue: () => catalogue,
       rules: () => rules,
       canonicalCatalogue: () => canonical,
+      factionsFor: async () => factionsFor(catalogue, rules),
       catalogueFor: async () => catalogue,
       rulesFor: async () => rules,
       canonicalCatalogueFor: async () => canonical,

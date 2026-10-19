@@ -11,6 +11,7 @@ const { reads } = vi.hoisted(() => ({
     canonicalCatalogue: vi.fn(),
     catalogueFor: vi.fn(),
     rulesFor: async () => null,
+    factionsFor: async () => null,
     canonicalCatalogueFor: vi.fn(),
   },
 }))

@@ -75,6 +75,27 @@ test('public product pages deliver their own metadata and canonical URLs without
   await context.close()
 })
 
+test('faction datasheet indexes deliver their own canonical metadata without JavaScript', async ({ browser, baseURL }, testInfo) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  await page.goto(new URL('/factions/space-marines/datasheets', baseURL).href)
+  const destination = page.url()
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(destination)
+    await expect(page).toHaveTitle('Space Marines datasheets — Praetorium')
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', destination)
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Space Marines/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Datasheets', exact: true })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`datasheet-index-${width}.png`) })
+  }
+  await page.locator('main a[href*="/datasheets/"]').first().click()
+  await expect(page).not.toHaveTitle('Space Marines datasheets — Praetorium')
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(1)
+  await context.close()
+})
+
 const guides = [
   {
     slug: 'build-an-army',

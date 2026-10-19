@@ -83,7 +83,7 @@ The browser SDK reads the parameters on landing. It puts them on that `$pageview
 
 [Product and reliability](https://us.posthog.com/project/548119/dashboard/2225391) combines player activity, conversion, retention, failures, browser performance, server diagnostics, feedback, and MCP health.
 
-[Weekly AI-referred visitors and sign-ups](https://us.posthog.com/project/548119/insights/w7Kvgfxd) counts visitors whose `utm_source` or referring domain names an AI assistant, and the accounts they create after that visit. Most ChatGPT visits arrive as referrer `$direct` with `utm_source=chatgpt.com`, so a filter on the referrer alone undercounts them.
+[Weekly AI arrivals and 14-day sign-ups](https://us.posthog.com/project/548119/insights/w7Kvgfxd) groups each person's first AI-referred pageview in its twelve-week lookback, rather than first-ever or all returning visits. It matches assistant `utm_source` values or referrers and counts accounts created within fourteen days of that arrival. Recent conversion counts are provisional; the rate appears only after the whole arrival week has had fourteen days to convert. Most ChatGPT visits arrive as referrer `$direct` with `utm_source=chatgpt.com`, so a filter on the referrer alone undercounts them.
 
 Player charts exclude internal/test accounts and the owner's production account, retain server completions, and apply bot classification only to browser events. Server trace charts include older deployed instances without host attribution and use a fixed seven-day window. Inspect each saved insight for its definition, window, and instrumentation limits rather than copying configuration here. These are working definitions, not approved Data Catalog metrics.
 

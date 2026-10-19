@@ -118,7 +118,7 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
     const wanted = unitName.toLocaleLowerCase()
     const unit = shelf.units.find((candidate) => {
       const sheet = canonical.get(`${faction.id}:${candidate.id}`)
-      return [candidate.id, candidate.name, sheet?.slug, datasheetCitation(sheet).referenceId].some(
+      return [candidate.id, candidate.name, sheet?.slug, datasheetCitation(corpus, sheet).referenceId].some(
         (value) => value?.toLocaleLowerCase() === wanted,
       )
     })
@@ -194,7 +194,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   const units = resolved.sheets.map((sheet, index) => ({
     name: index ? projection.companions[index - 1]!.selected.name : projection.selected.name,
     models: index ? projection.companions[index - 1]!.models : projection.models,
-    ...datasheetCitation(sheet),
+    ...datasheetCitation(corpus, sheet),
   }))
   return { snapshot, units, rules: selection.rules, choices: selection.choices, resolved, role }
 }

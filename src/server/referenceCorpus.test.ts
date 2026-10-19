@@ -2,6 +2,8 @@ import { expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { referenceCorpusFor } from './referenceCorpus'
 import type { LoadedRules } from './rules'
+import { bookOf, card, withCards } from './catalogue.fixtures'
+import { compileCanonicalCatalogue } from './canonicalCatalogue'
 
 function canonical(revision: string, text: string): CanonicalCatalogue {
   return {
@@ -42,6 +44,40 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
     issues: [],
   }
 }
+
+it.each([
+  { rulesSlug: 'mfm-1-6', edition: null, expected: 'mfm-1-6' },
+  { rulesSlug: 'mfm-1-6', edition: { id: 'previous', slug: 'codex-2026-10-13' }, expected: 'codex-2026-10-13' },
+])('publishes datasheet URLs for the selected $expected rules', ({ rulesSlug, edition, expected }) => {
+  const loaded = bookOf({ name: 'Example Army', selectionEntries: [{ id: 'unit', name: 'Test Unit', type: 'unit' }] })
+  loaded.factionContents.set('example-army', withCards('Example Army', new Map([['Test Unit', card()]])))
+  const sources = {
+    canonicalCatalogue: () => compileCanonicalCatalogue(loaded, { definitions: 'one' }),
+    catalogue: () => loaded,
+    rules: () => null,
+    factions: [{ id: 'cat', slug: 'example-army', displayName: 'Example Army', rulesSlug, edition }],
+  }
+
+  expect(referenceCorpusFor(sources)?.byId.get('datasheet:example-army:test-unit')?.url).toBe(
+    `/factions/example-army/rules/${expected}/datasheets/test-unit`,
+  )
+})
+
+it('invalidates cached citations when the faction rules route changes', () => {
+  const loaded = bookOf({ name: 'Example Army', selectionEntries: [{ id: 'unit', name: 'Test Unit', type: 'unit' }] })
+  loaded.factionContents.set('example-army', withCards('Example Army', new Map([['Test Unit', card()]])))
+  const source = compileCanonicalCatalogue(loaded, { definitions: 'one' })
+  const sources = {
+    canonicalCatalogue: () => source,
+    catalogue: () => loaded,
+    rules: () => null,
+    factions: [{ id: 'cat', slug: 'example-army', displayName: 'Example Army', rulesSlug: 'mfm-1-5' }],
+  }
+  const before = referenceCorpusFor(sources)!
+  sources.factions = [{ ...sources.factions[0]!, rulesSlug: 'mfm-1-6' }]
+
+  expect(referenceCorpusFor(sources)!.revision).not.toBe(before.revision)
+})
 
 it('rebuilds the corpus when the active snapshot is replaced', () => {
   let active = canonical('one', 'First snapshot.')
@@ -282,5 +318,39 @@ it('keeps missing source descriptions explicit in bounded documents', () => {
   expect(document.sections.filter((entry) => entry.text === 'Description unavailable.').map((entry) => entry.id)).toEqual([
     'rule-unknown-rule',
     'enhancement-unknown-enhancement',
+  ])
+})
+
+it('publishes the selected rules route for detachment documents and sections', () => {
+  const source = canonical('one', 'Rule text.')
+  source.detachments.push({
+    catalogueId: 'previous~test',
+    faction: 'Test Faction',
+    factionSlug: 'previous~test',
+    id: 'detachment',
+    slug: 'detachment',
+    name: 'Detachment',
+    points: null,
+    dispositions: [],
+    rules: [{ name: 'Rule', description: null }],
+    enhancements: [],
+    upgrades: [],
+    stratagems: [],
+    keywordRules: [],
+    attribution: 'Community data',
+    provenance: { definitions: { revision: 'one', detachmentId: 'detachment' }, datacards: { revision: 'one' } },
+  })
+  const document = referenceCorpusFor({
+    canonicalCatalogue: () => source,
+    catalogue: () => null,
+    rules: () => null,
+    factions: [
+      { id: 'previous~test', slug: 'previous~test', displayName: 'Test Faction', edition: { id: 'previous', slug: 'codex-2026-10-13' } },
+    ],
+  })!.byId.get('detachment:previous~test:detachment')!
+
+  expect([document.url, document.sections[0]?.url]).toEqual([
+    '/factions/test-faction/rules/codex-2026-10-13/detachments/detachment',
+    '/factions/test-faction/rules/codex-2026-10-13/detachments/detachment#summary',
   ])
 })

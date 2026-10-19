@@ -35,6 +35,7 @@ vi.mock('./app', () => ({
     catalogue: () => null,
     rules: () => null,
     rulesFor: async () => null,
+    factionsFor: async () => null,
   }),
 }))
 

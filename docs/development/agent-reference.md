@@ -34,8 +34,12 @@ Feature-detect the API without a polyfill; follow the [imperative API documentat
 
 Canonicals omit parameters and the sitemap lists final destinations. Unlisted/frozen lists and sign-in stay `noindex`; robots disallows sign-in and sign-in return links are `nofollow`. Reference points include only unconditional source-backed values. Discovery ETags must change with content even when the snapshot does not. Unknown rules documents, including encoded route placeholders, return 404.
 
+Faction documents use the advertised faction metadata and `factionReferenceHref` for their selected rules version; their lookup IDs stay stable. Search, unit and simulator citations, sitemap destinations and historical `lastmod` dates follow those document URLs. Datasheet index routes supply their own metadata only at the index, so a nested unit keeps its own canonical and structured data.
+
 `src/contracts/productGuides.ts` owns product instructions; keep them about workflows, not game rules. Guide screenshots come from `e2e/guide-examples.spec.ts`. Run `just e2e discovery.spec.ts` after discovery changes.
 
 ## Verification and attribution
 
 Run `pnpm reference:verify https://<deployment>`. Check crawler access with JavaScript disabled; hydration is not evidence. Every result keeps source and licence attribution. Never send raw search queries or private content to telemetry.
+
+The deployment verifier searches mission names and checks structured setup records and published source pointers. It must not require withheld wording in search results or retrieved documents.
