@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { INDEXNOW_BATCH, INDEXNOW_KEY_PATH, indexNowKey, sitemapChanges } from '../src/server/indexNow.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -16,6 +16,7 @@ type Options = {
   origin: string
   /** The sitemap production served before the deploy. */
   before: string
+  afterFile?: string
   request?: typeof fetch
   sleep?: (ms: number) => Promise<void>
 }
@@ -36,7 +37,7 @@ async function settled(origin: string, revision: string, request: typeof fetch, 
  * Submits the pages a deploy added or re-dated in the sitemap. A missing key, or no earlier
  * sitemap to compare with, submits nothing rather than every page on the site.
  */
-export async function submitIndexNow({ key: configured, revision, origin, before, request = fetch, sleep = delay }: Options) {
+export async function submitIndexNow({ key: configured, revision, origin, before, afterFile, request = fetch, sleep = delay }: Options) {
   const key = indexNowKey(configured)
   if (!key) return console.log('IndexNow is not configured; nothing submitted')
   if (!before.includes('<urlset')) return console.log('No earlier sitemap to compare with; nothing submitted')
@@ -44,9 +45,14 @@ export async function submitIndexNow({ key: configured, revision, origin, before
   const keyFile = await request(new URL(INDEXNOW_KEY_PATH, origin), { cache: 'no-store' })
   if (!keyFile.ok || (await keyFile.text()).trim() !== key)
     throw new Error(`${origin}${INDEXNOW_KEY_PATH} does not serve the configured key`)
-  const sitemap = await request(new URL('/sitemap.xml', origin), { cache: 'no-store' })
+  const sitemapUrl = new URL('/sitemap.xml', origin)
+  sitemapUrl.searchParams.set('revision', revision)
+  const sitemap = await request(sitemapUrl, { cache: 'no-store' })
   if (!sitemap.ok) throw new Error(`The sitemap answered ${sitemap.status}`)
-  const urls = sitemapChanges(before, await sitemap.text())
+  const after = await sitemap.text()
+  if (!after.includes('<urlset')) throw new Error('The released sitemap is not a URL set')
+  if (afterFile) await writeFile(afterFile, after)
+  const urls = sitemapChanges(before, after)
   for (let start = 0; start < urls.length; start += INDEXNOW_BATCH) {
     const response = await request(ENDPOINT, {
       method: 'POST',
@@ -66,10 +72,10 @@ export async function submitIndexNow({ key: configured, revision, origin, before
 }
 
 if (isEntryPoint(import.meta.url)) {
-  const [beforeFile, origin] = process.argv.slice(2)
-  if (!beforeFile || !origin) throw new Error('Usage: submitIndexNow.ts <sitemap-before.xml> <origin>')
+  const [beforeFile, origin, afterFile] = process.argv.slice(2)
+  if (!beforeFile || !origin) throw new Error('Usage: submitIndexNow.ts <sitemap-before.xml> <origin> [sitemap-after.xml]')
   const revision = process.env.DEPLOY_SHA
   if (!revision) throw new Error('DEPLOY_SHA is required')
   const before = await readFile(beforeFile, 'utf8').catch(() => '')
-  await submitIndexNow({ key: process.env.INDEXNOW_KEY, revision, origin, before })
+  await submitIndexNow({ key: process.env.INDEXNOW_KEY, revision, origin, before, afterFile })
 }

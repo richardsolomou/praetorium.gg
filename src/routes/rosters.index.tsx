@@ -14,14 +14,17 @@ import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
-import { searchFlag, searchText } from '../client/searchParams'
+import { searchText } from '../client/searchParams'
+import { rosterStartSearch, type MissionReference } from '../client/features/rosters/rosterStart'
 
 const VIEWS = ['friends', 'public', 'played'] as const
 type RosterView = (typeof VIEWS)[number]
 
 export const Route = createFileRoute('/rosters/')({
   pendingComponent: RosterLoading,
-  validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; new?: true } => {
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; new?: true; reference?: MissionReference } => {
     const limit = Number(search.limit)
     const faction = searchText(search.faction, 128)
     const view = VIEWS.find((known) => known === search.view)
@@ -46,7 +49,7 @@ export const Route = createFileRoute('/rosters/')({
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
       ...(ROSTER_UPDATE_FILTERS.includes(search.updates as RosterUpdateFilter) ? { updates: search.updates as RosterUpdateFilter } : {}),
-      ...(searchFlag(search.new) ? { new: true as const } : {}),
+      ...rosterStartSearch(search),
     }
   },
   loaderDeps: ({ search: { view, faction, detachment, rules, sort } }) => ({ view, faction, detachment, rules, sort }),
@@ -98,7 +101,7 @@ export const Route = createFileRoute('/rosters/')({
  * saved first. `new` opens the setup for another roster, as `/rosters/new` asks.
  */
 function RosterLibraryRoute() {
-  const { view, detachment, rules, sort: listSort, new: starting, ...search } = Route.useSearch()
+  const { view, detachment, rules, sort: listSort, new: starting, reference, ...search } = Route.useSearch()
   const { guestDraft: hinted, sort } = Route.useLoaderData()
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
@@ -110,6 +113,7 @@ function RosterLibraryRoute() {
       search={search}
       sort={sort}
       starting={starting && ready}
+      reference={reference}
       device={{ guest, pending: !ready && hinted, onChange: setGuest }}
     />
   )

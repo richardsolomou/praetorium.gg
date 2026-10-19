@@ -31,7 +31,7 @@ The start period in `scripts/configureDokployNode.ts` covers the first catalogue
 
 The offline reference and app manifests (`offline-reference-version.json`, `offline-app-version.json`) are uncached and point to retained hashed assets. The reference and construction downloads are gzip data served as `application/octet-stream` without HTTP content encoding, so the client decompresses it consistently through Nitro and the CDN. Keep generated bundles and copied rules out of Git.
 
-Open pages poll the uncached `/api/release` and offer a manual Refresh for a newer version. `/whats-new` reads `CHANGELOG.md`, so changeset summaries are player-facing copy. `INDEXNOW_KEY` is production-only; IndexNow submission failure does not fail the release. `TYPESAFE_API_KEY` is production-only too, so only real uploads are screened.
+Open pages poll the uncached `/api/release` and offer a manual Refresh for a newer version. `/whats-new` reads `CHANGELOG.md`, so changeset summaries are player-facing copy. `INDEXNOW_KEY` is production-only; IndexNow submission failure does not fail the release. Its before/after sitemap reads use separate revision-specific query strings to avoid the shared sitemap's one-hour edge cache. The release retains both XML responses for seven days in the `production-sitemaps` artifact, including on submission failure. `TYPESAFE_API_KEY` is production-only too, so only real uploads are screened.
 
 ## Pull request previews
 
