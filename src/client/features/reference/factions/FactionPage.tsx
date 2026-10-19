@@ -16,6 +16,7 @@ import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { useDateFormatting } from '../../../dates'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
+import { StartRoster } from '../../rosters/ReferenceRosterActions'
 
 export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { catalogueId: string; routeCatalogueId?: string }) {
   const path = useRouterState({ select: (state) => state.location.pathname })
@@ -30,7 +31,12 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
   const editions = index?.factions.filter((entry) => currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(faction.id)) ?? []
   editions.sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
   const reference = faction.references[0]
-  const favourite = <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
+  const pageActions = (
+    <div className="flex items-center gap-1">
+      {faction.detachments.length ? <StartRoster faction={faction} /> : null}
+      <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
+    </div>
+  )
   const detachments = favouriteDetachmentsFirst(
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id)),
     faction.id,
@@ -70,10 +76,10 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                   }}
                 />
               </div>
-              {favourite}
+              {pageActions}
             </div>
           ) : (
-            favourite
+            pageActions
           )
         }
       />

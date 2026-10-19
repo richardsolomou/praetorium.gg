@@ -36,9 +36,14 @@ export function MissionPackPage({ packId }: { packId: string }) {
         eyebrow="Mission pack"
         title={pack.name}
         actions={
-          <Link to="/force-dispositions" className={buttonClass({ variant: 'outline' })}>
-            Force dispositions
-          </Link>
+          <>
+            <Link to="/rosters/new" className={buttonClass()}>
+              Build a roster
+            </Link>
+            <Link to="/force-dispositions" className={buttonClass({ variant: 'outline' })}>
+              Force dispositions
+            </Link>
+          </>
         }
       >
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
