@@ -1201,6 +1201,13 @@ export function ListBuilder({
         limit={limit}
         pointsBudget={pointsBudget}
         unitCount={fieldedUnitCount}
+        modelCount={
+          frozen
+            ? frozen.units.reduce((count, unit) => count + unit.models, 0)
+            : priced
+              ? units.reduce((count, unit) => count + unit.size.models, 0)
+              : undefined
+        }
         detachments={
           frozen
             ? frozen.detachments
