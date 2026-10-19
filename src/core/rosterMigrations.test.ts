@@ -1,6 +1,15 @@
 import { expect, it } from 'vitest'
 import { currentDetachmentId, currentPick, currentRosterIds } from './retiredCatalogueIds'
 
+it('consumes only the verified Sternguard weapon choice that is now fixed equipment', () => {
+  const key = 'edfc-d6af-480a-d5fc/97cd-6365-ce27-d73f/5ff5-aadc-6bc4-b2d8'
+  const fixed = currentPick({ entryId: 'bc4e-8331-8179-255b', choices: { [key]: '39c3-1657-46c8-5d87' } })
+  expect([currentPick(fixed), currentPick({ entryId: 'bc4e-8331-8179-255b', choices: { [key]: 'unverified' } })]).toEqual([
+    { entryId: 'bc4e-8331-8179-255b', choices: {} },
+    { entryId: 'bc4e-8331-8179-255b', choices: { [key]: 'unverified' } },
+  ])
+})
+
 it('keeps unchanged Dark Angels detachments when their generated wrappers are removed', () => {
   expect([
     currentDetachmentId('profile-detachment-option-470a-6daa-9014-12df-64a6-9332-de28-21a9'),

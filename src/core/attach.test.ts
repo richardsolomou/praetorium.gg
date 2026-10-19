@@ -128,6 +128,21 @@ describe('a character that can join a unit', () => {
     expect(attachmentOf(index.definitions.get('surgeon')!, index)).toEqual({ kind: 'leader', targets: ['Marines'] })
   })
 
+  it('keeps attachment footnotes out of target identities', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'surgeon',
+          name: 'Surgeon',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following unit: ^^**Marines†\n†An attachment exception.**^^')],
+        },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('surgeon')!, index)).toEqual({ kind: 'leader', targets: ['Marines'] })
+  })
+
   it('reads hyphenated attachment lists', () => {
     const index = indexOf({
       sharedSelectionEntries: [

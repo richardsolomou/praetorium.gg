@@ -4,7 +4,7 @@
     "branch": "main",
     "license": null,
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
-    "revision": "d506fcc0ee4b4babdda03e71dffd4e1e3cf5bcbf",
+    "revision": "b8667d44504e025827a584cfc6bf2f2eba3cb9f8",
     "attribution": "Community catalogue data from BSData."
   },
   "points": {
@@ -24,7 +24,7 @@
     "license": null,
     "attribution": "Data provided by game-datacards",
     "description": "Game Datacards data for Warhammer 40,000 11th edition, including factions, core rules, missions, and layouts.",
-    "revision": "9c0762c8311db122c0faa9a3a09ef891c3c2d782"
+    "revision": "ebcd0cbedb197fd8246b7cff580fde3625c6f3f1"
   },
   "icons": {
     "repository": "Certseeds/wh40k-icon",
@@ -34,7 +34,7 @@
     "licenseUrl": "https://github.com/Certseeds/wh40k-icon/blob/master/LICENSE",
     "attribution": "Faction icon artwork from Certseeds/wh40k-icon",
     "description": "Pinned faction icon artwork selected and renamed for the reference UI.",
-    "revision": "be230023ff0755d19ffb1a1762658c711c2887f9",
+    "revision": "99b7cb90655dddbd8acdef9ab40d52ae5fe61db0",
     "icons": {
       "adepta-sororitas": "human_imperium/adepta-sororitas.svg",
       "adeptus-astartes": "human_imperium/adeptus-astartes.svg",

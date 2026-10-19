@@ -18,6 +18,17 @@ const composition = () =>
   })
 const overlay = { source: 'definitions', ...catalogueSources.definitions, files: ['Custodes.json'] }
 
+it('accepts the same retired Git commit fetched from upstream instead of a fork', () => {
+  const previous = composition()
+  previous.editions[0]!.edition.status = 'retired'
+  previous.editions[0]!.edition.releases = [{ at: 1, status: 'retired' }]
+  previous.editions[0]!.sources.definitions = { ...catalogueSources.definitions, repository: 'contributor/catalogues' }
+  const next = structuredClone(previous)
+  next.editions[0]!.sources.definitions!.repository = catalogueSources.definitions.repository
+
+  expect(() => validateEditionContinuity(previous, next)).not.toThrow()
+})
+
 it('requires exact commit pins for every overlay', () => {
   expect(catalogueCompositionSchema.safeParse({ ...composition(), overlays: [{ ...overlay, revision: 'main' }] }).success).toBe(false)
 })

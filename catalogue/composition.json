@@ -43,12 +43,12 @@
       },
       "sources": {
         "definitions": {
-          "repository": "richardsolomou/wh40k-11e",
+          "repository": "BSData/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
           "revision": "8b50fc3240e29c6ab0e254f75bcefa8cce8ce0ef",
-          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
+          "attribution": "Community catalogue data from BSData."
         },
         "points": {
           "repository": "BSData/wh40k-11e-mfm",
@@ -194,12 +194,12 @@
       },
       "sources": {
         "definitions": {
-          "repository": "richardsolomou/wh40k-11e",
+          "repository": "BSData/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
           "revision": "3988a8bdd210f9d31ea5b6782d0016688ccb6815",
-          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
+          "attribution": "Community catalogue data from BSData."
         },
         "points": {
           "repository": "BSData/wh40k-11e-mfm",
@@ -224,7 +224,7 @@
       "overlays": [
         {
           "source": "definitions",
-          "repository": "richardsolomou/wh40k-11e",
+          "repository": "BSData/wh40k-11e",
           "branch": "Space-Marine-Codex",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
@@ -245,7 +245,7 @@
             "Library - Astartes Heresy Legends.json",
             "Warhammer 40,000.json"
           ],
-          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
+          "attribution": "Community catalogue data from BSData."
         }
       ]
     },
@@ -271,11 +271,11 @@
       },
       "sources": {
         "definitions": {
-          "repository": "richardsolomou/wh40k-11e",
+          "repository": "BSData/wh40k-11e",
           "branch": "main",
           "revision": "1b1ddfd2d064a9b5e7dbed7a63a2a4dd3aedfa29",
           "license": null,
-          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork.",
+          "attribution": "Community catalogue data from BSData.",
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction."
         },
         "points": {
@@ -322,12 +322,12 @@
       },
       "sources": {
         "definitions": {
-          "repository": "richardsolomou/wh40k-11e",
+          "repository": "BSData/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
           "revision": "8b50fc3240e29c6ab0e254f75bcefa8cce8ce0ef",
-          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
+          "attribution": "Community catalogue data from BSData."
         },
         "points": {
           "repository": "BSData/wh40k-11e-mfm",
@@ -373,12 +373,12 @@
       },
       "sources": {
         "definitions": {
-          "repository": "richardsolomou/wh40k-11e",
+          "repository": "BSData/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
           "revision": "8b50fc3240e29c6ab0e254f75bcefa8cce8ce0ef",
-          "attribution": "Community catalogue data from BSData, maintained in the Praetorium fork."
+          "attribution": "Community catalogue data from BSData."
         },
         "points": {
           "repository": "richardsolomou/wh40k-11e-mfm",
