@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.168.0
+
+### Minor Changes
+
+- 9b5923c: A new player guide shows how to add Praetorium to an AI assistant and look up units, points and matchups with links back to the source.
+
 ## 0.167.1
 
 ### Patch Changes
