@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.169.2
+
+### Patch Changes
+
+- 6a6144c: Give connected AI assistants complete Praetorium citation URLs so reference links use the correct website.
+
 ## 0.169.1
 
 ### Patch Changes
