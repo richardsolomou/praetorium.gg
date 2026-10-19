@@ -383,3 +383,39 @@ it('reconnects with a freshly issued token', async () => {
   await vi.advanceTimersByTimeAsync(0)
   expect(await mocks.sockets[0]!.renew!()).toBe('ticket-2')
 })
+
+it('retains the anonymous identity when the SDK requests a reconnect token', async () => {
+  const fetch = vi.fn(async () => Response.json({ token: `anonymous-${fetch.mock.calls.length}` }))
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveProduct(product, false)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  const renewed = await mocks.sockets[0]!.renew!()
+  expect([renewed, fetch.mock.calls.length]).toEqual(['anonymous-1', 1])
+})
+
+it('renews a seated battle token instead of reusing its expiring credential', async () => {
+  const fetch = vi.fn(async () =>
+    Response.json({ token: `seat-${fetch.mock.calls.length}`, database: 'test', uri: product.uri, battleId: 'battle-id' }),
+  )
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(await mocks.sockets[0]!.renew!()).toBe('seat-2')
+})
+
+it('ends a battle connection when its reconnect ticket loses seat access', async () => {
+  const fetch = vi.fn(async () =>
+    fetch.mock.calls.length === 1
+      ? Response.json({ token: 'seat', database: 'test', uri: product.uri, battleId: 'battle-id' })
+      : new Response(null, { status: 403 }),
+  )
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  await expect(mocks.sockets[0]!.renew!()).rejects.toThrow('Realtime access ended')
+  await vi.advanceTimersByTimeAsync(10_000)
+  expect([fetch.mock.calls.length, mocks.sockets.length]).toEqual([3, 1])
+})

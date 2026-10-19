@@ -75,7 +75,7 @@ League entrants and organizers share one event page, whose next-action card and 
 
 `Home` owns fetching and `HomeView` renders props. The played, friends' and public game shelves each show at most three games, with links to their full lists. Many players only build lists, so nothing assumes battles. The home loader waits for the player's record only within `RECORD_BUDGET_MS`. Never leave a query pending in the SSR query cache: a streamed pending query holds the document, and hydration, open until it settles.
 
-`/search?q=…` and global autocomplete share `useGlobalSearch`: a current download answers on every keystroke, otherwise `globalSearchQuery` asks the service once typing settles. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. Before anything is typed, both list the last eight public results opened from search on this device (`searchHistory.ts`), each removable; the player's own rosters and battles are never remembered. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
+`/search?q=…` and global autocomplete share `useGlobalSearch`: a current download answers on every keystroke, otherwise `globalSearchQuery` asks the service once typing settles. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. `useVirtualRows` defers viewport and row measurements to an animation frame so a render cannot resize an observed element during the same observer delivery; keep that scheduling shared with `SearchableSelect`. Before anything is typed, both list the last eight public results opened from search on this device (`searchHistory.ts`), each removable; the player's own rosters and battles are never remembered. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
 
 Onboarding opens only by player choice and stays nonmodal. Domain-backed progress is derived; only reading tours, skips, and welcome state are stored. Finishing a tour dismisses its prompt only after progress is saved durably.
 
@@ -122,6 +122,10 @@ Account boundaries:
 [Architecture](architecture.md#offline-work) owns durable local work and sync.
 
 Run `just e2e offline-work.spec.ts offline.spec.ts app-cache.spec.ts` after changes to this flow. Cold-loading tests must start in a browser context without saved IndexedDB or service workers. Read server-rendered HTML through the request context; a controlled navigation returns the saved application instead.
+
+## Route recovery
+
+A failed route-module import can come from delivery or connectivity as well as an older build. Its Reload action requests the same route with a fresh document cache key, preserving search and fragment; remove that key only after every route match succeeds. Keep saved account work intact. `route_recovery_started`, `route_recovery_completed`, and route exception `recovery_attempt` (capped at three) distinguish retries from actual recovery without custom asset URLs. `e2e/reliability.spec.ts` verifies an unavailable module through an ordinary failed reload and successful recovery, plus a complete anonymous realtime reconnect.
 
 ## Verification
 

@@ -38,7 +38,7 @@ export function telemetryFeature(pathname: string) {
 }
 
 export const browserEventContext: BeforeSendFn = (event) => {
-  if (!event || typeof window === 'undefined') return event
+  if (typeof window === 'undefined') return event
   let pathname = typeof event.properties.$pathname === 'string' ? event.properties.$pathname : window.location.pathname
   if (event.event === '$web_vitals' && typeof event.properties.$current_url === 'string') {
     try {

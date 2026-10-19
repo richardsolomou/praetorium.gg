@@ -1,3 +1,4 @@
+import { canonicalDetachmentName } from '../core/detachmentName'
 import { routeSlug } from '../core/slug'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
 import { rulesNamed, rulesReferencedIn } from './catalogueRules'
@@ -66,7 +67,7 @@ export function describeDatasheetAbilitiesWithContributions(
   const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
   const character = keywords.has('character')
   const abilitiesByDetachment = new Map(
-    referenceAbilities?.detachments.map((detachment) => [joinKey(detachment.name), detachment] as const) ?? [],
+    referenceAbilities?.detachments.map((detachment) => [joinKey(canonicalDetachmentName(detachment.name)), detachment] as const) ?? [],
   )
   const detachments = faction
     ? detachmentDetails.map((detachment) => ({
@@ -74,7 +75,7 @@ export function describeDatasheetAbilitiesWithContributions(
         slug: routeSlug(detachment.name),
         name: detachment.name,
         rules: detachment.rules,
-        abilities: (abilitiesByDetachment.get(joinKey(detachment.name))?.abilities ?? []).map(describeAbility),
+        abilities: (abilitiesByDetachment.get(joinKey(canonicalDetachmentName(detachment.name)))?.abilities ?? []).map(describeAbility),
         enhancements: character
           ? detachment.enhancements.filter(
               (enhancement) =>
@@ -95,9 +96,9 @@ export function describeDatasheetAbilitiesWithContributions(
           : [],
       }))
     : []
-  const describedDetachmentNames = new Set(detachments.map((detachment) => joinKey(detachment.name)))
+  const describedDetachmentNames = new Set(detachments.map((detachment) => joinKey(canonicalDetachmentName(detachment.name))))
   for (const detachment of referenceAbilities?.detachments ?? []) {
-    if (describedDetachmentNames.has(joinKey(detachment.name))) continue
+    if (describedDetachmentNames.has(joinKey(canonicalDetachmentName(detachment.name)))) continue
     detachments.push({
       id: detachment.id,
       slug: routeSlug(detachment.name),

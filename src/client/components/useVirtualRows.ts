@@ -21,7 +21,15 @@ const sameView = (a: View, b: View) =>
 
 function virtualRows(options: Options) {
   const listeners = new Set<() => void>()
-  const resolve = (next: Options) => ({ observeElementRect, observeElementOffset, scrollToFn: elementScroll, ...next, onChange: refresh })
+  const resolve = (next: Options) => ({
+    observeElementRect,
+    observeElementOffset,
+    scrollToFn: elementScroll,
+    ...next,
+    // Measurement updates can resize the observed viewport; commit them outside the observer's delivery cycle.
+    useAnimationFrameWithResizeObserver: true,
+    onChange: refresh,
+  })
   const virtualizer = new Virtualizer<HTMLDivElement, Element>(resolve(options))
   let view: View = { items: virtualizer.getVirtualItems(), totalSize: virtualizer.getTotalSize() }
   function refresh() {

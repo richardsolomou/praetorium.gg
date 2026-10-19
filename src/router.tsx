@@ -6,7 +6,14 @@ import { Button } from '@/components/ui/button'
 import { FullPageState } from './client/components/PageState'
 import { createQueryClient } from './client/queryClient'
 import { isModuleLoadFailure } from './client/networkErrors'
-import { mayReloadCancelledLoad, reportRouteError, routeErrorExplanation } from './client/routeErrors'
+import {
+  completedModuleRecovery,
+  mayReloadCancelledLoad,
+  moduleRecoveryAttempt,
+  reloadModuleRoute,
+  reportRouteError,
+  routeErrorExplanation,
+} from './client/routeErrors'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
 
@@ -27,9 +34,13 @@ function RouteError({ error }: ErrorComponentProps) {
       explanation={routeErrorExplanation(error)}
       action={
         isModuleLoadFailure(error) ? (
-          <Button onClick={() => window.location.reload()}>Reload</Button>
+          <Button data-route-error onClick={reloadModuleRoute}>
+            Reload
+          </Button>
         ) : (
-          <Button onClick={() => void router.invalidate()}>Try again</Button>
+          <Button data-route-error onClick={() => void router.invalidate()}>
+            Try again
+          </Button>
         )
       }
     />
@@ -46,6 +57,31 @@ export function getRouter() {
     defaultErrorComponent: RouteError,
     defaultOnCatch: reportRouteError,
   })
+  if (typeof window !== 'undefined') {
+    router.subscribe('onRendered', () => {
+      if (!moduleRecoveryAttempt(window.location.href)) return
+      const location = router.state.location.href
+      const matches = router.state.matches
+      const components = matches.map((match) => router.routesById[match.routeId]?.options.component)
+      // SSR can commit before its lazy import settles; an unsuccessful import retains its preload function.
+      void Promise.all(components.map((component) => Promise.resolve(component?.preload?.()))).then(
+        () => {
+          requestAnimationFrame(() => {
+            if (
+              router.state.location.href !== location ||
+              document.querySelector('[data-route-error]') ||
+              matches.some((match) => match.status !== 'success') ||
+              components.some((component) => component?.preload)
+            )
+              return
+            const recovered = completedModuleRecovery(window.location.href)
+            if (recovered) router.history.replace(recovered)
+          })
+        },
+        () => {},
+      )
+    })
+  }
   setupRouterSsrQueryIntegration({ router, queryClient })
   return router
 }

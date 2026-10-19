@@ -4,6 +4,15 @@ import { detachmentNamed, detachmentsOffering, factionsFor, isReferenceDetachmen
 import type { LoadedRules } from './rules'
 
 describe('joining catalogue detachments to their rules reference', () => {
+  it('joins the verified singular BSData label to the plural Game Datacards label', () => {
+    const reference = { points: 2 }
+    expect(detachmentNamed(new Map([['brood-brothers-auxilia', reference]]), 'Brood Brother Auxilia')).toBe(reference)
+  })
+
+  it('does not infer aliases for other singular and plural detachment names', () => {
+    expect(detachmentNamed(new Map([['plague-hosts', []]]), 'Plague Host')).toBeUndefined()
+  })
+
   it('tolerates a spacing-only name difference', () => {
     const haloscreed = { points: 3 }
     expect(detachmentNamed(new Map([['haloscreed-battle-clade', haloscreed]]), 'Haloscreed Battleclade')).toBe(haloscreed)

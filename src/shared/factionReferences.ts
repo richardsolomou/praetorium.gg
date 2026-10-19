@@ -1,3 +1,4 @@
+import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
 import type { StandingFaction } from '../core/standings'
 import { targetOf } from '../core/catalogue'
@@ -25,7 +26,7 @@ export function isReferenceDetachment(
   if (content)
     return [...content.detachments].some(
       (name) =>
-        joinKey(name) === joinKey(detachment.name) &&
+        joinKey(canonicalDetachmentName(name)) === joinKey(canonicalDetachmentName(detachment.name)) &&
         (!content.detachmentFactions?.get(name) || datacardsFactionKeys(content.detachmentFactions.get(name)!).has(slugId)),
     )
 
@@ -38,7 +39,12 @@ export function isReferenceDetachment(
   const ownerId = loaded.index.catalogueOf.get(detachment.id)
   const owner = loaded.factions.find((candidate) => candidate.id === ownerId)
   if (!owner || owner.id === faction.id) return true
-  if (!loaded.detachments.get(owner.id)?.options.some((candidate) => joinKey(candidate.name) === joinKey(detachment.name))) return true
+  if (
+    !loaded.detachments
+      .get(owner.id)
+      ?.options.some((candidate) => joinKey(canonicalDetachmentName(candidate.name)) === joinKey(canonicalDetachmentName(detachment.name)))
+  )
+    return true
   const ownerRulesId = rulesFaction(rules, routeSlug(owner.name))
   return !detachmentNamed(rules?.detachmentReferences.get(ownerRulesId), detachment.name)
 }
@@ -258,7 +264,7 @@ export function detachmentNamed<T>(detachments: ReadonlyMap<string, T> | undefin
   const slug = routeSlug(name)
   const exact = detachments?.get(slug)
   if (exact) return exact
-  const compact = joinKey(name)
-  const matches = [...(detachments ?? [])].filter(([id]) => joinKey(id) === compact)
+  const compact = joinKey(canonicalDetachmentName(name))
+  const matches = [...(detachments ?? [])].filter(([id]) => joinKey(canonicalDetachmentName(id)) === compact)
   return matches.length === 1 ? matches[0]?.[1] : undefined
 }

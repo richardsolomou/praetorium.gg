@@ -1,0 +1,199 @@
+{
+  "project_id": 548119,
+  "dashboard_id": 2225391,
+  "insights": [
+    {
+      "key": "datasheet-join-outcomes",
+      "id": 13051384,
+      "short_id": "GNcO1Gzy",
+      "name": "Datasheet renders by source join",
+      "description": "Production browser render events by datacard_join. Excludes test, owner and browser bots. A missing source join does not prove a rendering failure. Current day is incomplete; no alert until expected unsupported sources are classified.",
+      "dashboards": [2225391],
+      "tags": ["praetorium-product"],
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "TrendsQuery",
+          "series": [
+            {
+              "kind": "EventsNode",
+              "event": "roster_datasheet_rendered",
+              "custom_name": "Rendered datasheets",
+              "math": "total"
+            }
+          ],
+          "interval": "day",
+          "dateRange": {
+            "date_from": "-14d"
+          },
+          "properties": [
+            {
+              "type": "cohort",
+              "key": "id",
+              "value": 464358,
+              "operator": "not_in"
+            },
+            {
+              "type": "hogql",
+              "key": "person_id != '0d83316f-b036-51ab-a2ed-32c2ca96f747'"
+            },
+            {
+              "type": "event",
+              "key": "$host",
+              "operator": "exact",
+              "value": "praetorium.gg"
+            },
+            {
+              "type": "hogql",
+              "key": "properties.$lib != 'web' OR coalesce(properties.$virt_traffic_type, 'Regular') = 'Regular'"
+            }
+          ],
+          "filterTestAccounts": true,
+          "breakdownFilter": {
+            "breakdowns": [
+              {
+                "property": "datacard_join",
+                "type": "event"
+              }
+            ],
+            "breakdown_limit": 10
+          },
+          "trendsFilter": {
+            "display": "ActionsLineGraph",
+            "showLegend": true,
+            "yAxisLabel": "Render events"
+          }
+        }
+      }
+    },
+    {
+      "key": "crawler-origin-volume",
+      "id": 13051385,
+      "short_id": "OTWKDJR4",
+      "name": "Public crawler origin request volume",
+      "description": "Full unsampled production posthog-node $http_log volume on public reference/discovery routes, including bots and internal calls. Counts origin requests, including HEAD, not all visitor reads or people. Review capture scope when volume shifts.",
+      "dashboards": [2225391],
+      "tags": ["praetorium-product"],
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "TrendsQuery",
+          "series": [
+            {
+              "kind": "EventsNode",
+              "event": "$http_log",
+              "custom_name": "Public origin requests",
+              "math": "total"
+            }
+          ],
+          "interval": "day",
+          "dateRange": {
+            "date_from": "-14d"
+          },
+          "properties": [
+            {
+              "type": "event",
+              "key": "$host",
+              "operator": "exact",
+              "value": "praetorium.gg"
+            },
+            {
+              "type": "event",
+              "key": "$lib",
+              "operator": "exact",
+              "value": "posthog-node"
+            }
+          ],
+          "filterTestAccounts": false,
+          "trendsFilter": {
+            "display": "ActionsLineGraph",
+            "yAxisLabel": "Origin requests"
+          }
+        }
+      }
+    },
+    {
+      "key": "search-intent-conversion",
+      "id": 13051416,
+      "short_id": "mYnNZlSL",
+      "name": "Search query started to destination",
+      "description": "Ordered people entering at least two characters, then selecting a result with search_started=true within one hour. Excludes empty openings and recent-result browsing. Starts with the search-intent release; earlier history is unavailable. Working definition.",
+      "dashboards": [2225391],
+      "tags": ["praetorium-product"],
+      "query": {
+        "kind": "InsightVizNode",
+        "source": {
+          "kind": "FunnelsQuery",
+          "series": [
+            {
+              "kind": "EventsNode",
+              "event": "global_search_started",
+              "custom_name": "Enter a search query"
+            },
+            {
+              "kind": "EventsNode",
+              "event": "global_search_result_opened",
+              "custom_name": "Select a searched result",
+              "properties": [
+                {
+                  "type": "event",
+                  "key": "search_started",
+                  "operator": "exact",
+                  "value": "true"
+                },
+                {
+                  "type": "event",
+                  "key": "recent",
+                  "operator": "exact",
+                  "value": "false"
+                }
+              ]
+            }
+          ],
+          "version": 2,
+          "dateRange": {
+            "date_from": "-30d",
+            "explicitDate": false,
+            "excludeIncompletePeriods": false
+          },
+          "properties": [
+            {
+              "key": "id",
+              "type": "cohort",
+              "value": 464358,
+              "operator": "not_in"
+            },
+            {
+              "key": "person_id != '0d83316f-b036-51ab-a2ed-32c2ca96f747'",
+              "type": "hogql"
+            },
+            {
+              "key": "coalesce(properties.$host, '') IN ('', 'praetorium.gg')",
+              "type": "hogql"
+            },
+            {
+              "key": "properties.$lib != 'web' OR coalesce(properties.$virt_traffic_type, 'Regular') = 'Regular'",
+              "type": "hogql"
+            }
+          ],
+          "funnelsFilter": {
+            "layout": "vertical",
+            "exclusions": [],
+            "showLegend": false,
+            "funnelVizType": "steps",
+            "legendPosition": "bottom",
+            "funnelOrderType": "ordered",
+            "showAnnotations": true,
+            "showValuesOnSeries": false,
+            "funnelStepReference": "total",
+            "funnelWindowInterval": 1,
+            "breakdownAttributionType": "first_touch",
+            "funnelWindowIntervalUnit": "hour",
+            "hideIncompleteConversionWindowPeriods": false
+          },
+          "filterTestAccounts": true
+        }
+      }
+    }
+  ]
+}

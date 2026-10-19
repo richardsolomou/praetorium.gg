@@ -1,3 +1,4 @@
+import { canonicalDetachmentName } from '../core/detachmentName'
 import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { type ConstructionDetachment, datacardsFactionKeys, DATACARDS_ATTRIBUTION, type FactionRestrictions } from './datacards'
@@ -67,7 +68,7 @@ export function hasDetachmentSemantics(
   rules: Pick<LoadedRules, 'byDetachment' | 'factionKeys' | 'factionParents'>,
   candidate: Pick<ConstructionDetachment, 'faction' | 'name'>,
 ) {
-  const id = routeSlug(candidate.name)
+  const id = routeSlug(canonicalDetachmentName(candidate.name))
   const candidateFactions = new Set(
     [...datacardsFactionKeys(candidate.faction)].map((faction) => rules.factionKeys.get(faction) ?? faction),
   )

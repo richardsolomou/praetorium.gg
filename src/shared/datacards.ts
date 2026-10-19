@@ -1,3 +1,4 @@
+import { canonicalDetachmentName } from '../core/detachmentName'
 import { uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
@@ -141,7 +142,7 @@ export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|u
 /** The faction-scoped construction join, folding accents and optional card-kind suffixes. */
 export const constructionCardKey = (name: string) => joinKey(name.replace(/(?:\s*\((?:aura|upgrade)\))+\s*$/i, ''))
 /** A card names its detachment and itself. */
-export const descriptionKey = (detachment: string, name: string) => `${routeSlug(detachment)}|${cardName(name)}`
+export const descriptionKey = (detachment: string, name: string) => `${routeSlug(canonicalDetachmentName(detachment))}|${cardName(name)}`
 /** The source's own faction name and the catalogue name already declared for it. */
 export const datacardsFactionKeys = (name: string) => new Set([routeSlug(name), routeSlug(catalogueFactionName(name))])
 export function constructionDetachment(
@@ -150,7 +151,7 @@ export function constructionDetachment(
   detachment: string,
   parentFaction: string | null = null,
 ) {
-  const candidates = datacards.constructionDetachments.get(routeSlug(detachment)) ?? []
+  const candidates = datacards.constructionDetachments.get(routeSlug(canonicalDetachmentName(detachment))) ?? []
   const matches = (candidate: ConstructionDetachment, wanted: string) => datacardsFactionKeys(candidate.faction).has(routeSlug(wanted))
   const exact = candidates.filter((candidate) => matches(candidate, faction))
   const parent = parentFaction ? candidates.filter((candidate) => matches(candidate, parentFaction)) : []

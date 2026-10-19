@@ -312,3 +312,38 @@ test('search remembers opened results on this device until they are removed', as
   await expect(page.getByRole('region', { name: 'Recent' })).toHaveCount(0)
   await expect(page.getByRole('main').getByRole('searchbox', { name: 'Search Praetorium' })).toBeFocused()
 })
+
+for (const width of [390, 1280]) {
+  test.describe(`resizing at ${width}px`, () => {
+    test.use({ hasTouch: width === 390 })
+    test(`search selection remains usable through resizing at ${width}px`, async ({ page }) => {
+      const resizeErrors: string[] = []
+      page.on('pageerror', (error) => {
+        if (error.message.includes('ResizeObserver')) resizeErrors.push(error.message)
+      })
+      await page.setViewportSize({ width, height: 844 })
+      await page.goto('/search?q=Necrons')
+      const results = page.getByRole('region', { name: 'Search results' })
+      await expect(results.getByRole('link').first()).toBeVisible()
+      for (let cycle = 0; cycle < 3; cycle++) {
+        for (const next of [390, 1280, 860, 600, 390, 1440]) {
+          await page.setViewportSize({ width: next, height: cycle % 2 ? 500 : 844 })
+          await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+        }
+      }
+      await page.setViewportSize({ width, height: 844 })
+      await retryUntilVisible(page.getByRole('combobox'), () =>
+        page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
+      )
+      const search = page.getByRole('combobox')
+      await search.fill('Immortals')
+      const option = page.getByRole('option', { name: /^Immortals/ }).first()
+      await expect(option).toBeVisible()
+      await page.screenshot({ path: test.info().outputPath('resized-global-search.png') })
+      if (width === 390) await option.tap()
+      else await search.press('Enter')
+      await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
+      expect(resizeErrors).toEqual([])
+    })
+  })
+}

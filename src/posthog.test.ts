@@ -72,10 +72,6 @@ it('identifies a native WebView without capturing bridge contents', () => {
   expect(browserEventContext(event())?.properties).toEqual({ feature: 'rosters', surface: 'native' })
 })
 
-it('preserves a dropped event', () => {
-  expect(browserEventContext(null)).toBeNull()
-})
-
 it('leaves server rendering alone', () => {
   expect(browserEventContext(event())).toEqual(event())
 })
