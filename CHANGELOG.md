@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.169.1
+
+### Patch Changes
+
+- fe12c61: Faction datasheet pages have clearer search previews, and search and assistant links keep the selected rules version.
+
 ## 0.169.0
 
 ### Minor Changes
