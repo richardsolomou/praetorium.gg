@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.165.2
+
+### Patch Changes
+
+- 309327d: Roster cards and loadouts count every copy of a weapon that a model carries twice, such as the two hand flamers of a Sanctifier.
+
 ## 0.165.1
 
 ### Patch Changes
