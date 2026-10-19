@@ -2,6 +2,7 @@ import type { ProductGuide } from '../../../contracts/productGuides'
 import gameKit from './game-kit.svg?no-inline'
 import armyRoles from './army-roles.svg?no-inline'
 import scoringChoice from './scoring-choice.svg?no-inline'
+import assistantSource from './assistant-source.svg?no-inline'
 
 const overviews: Record<ProductGuide['slug'], { title: string; points: readonly string[] }> = {
   'prepare-your-first-game': {
@@ -32,6 +33,10 @@ const overviews: Record<ProductGuide['slug'], { title: string; points: readonly 
     title: 'One shared record',
     points: ['Seat the players and choose armies.', 'Agree the table and missions.', 'Confirm scores at their timing.'],
   },
+  'connect-an-ai-assistant': {
+    title: 'Answers with a source',
+    points: ['Add https://praetorium.gg/mcp.', 'Ask about units, points or matchups.', 'Open the link before you rely on it.'],
+  },
 }
 
 const illustrations = {
@@ -50,11 +55,21 @@ const illustrations = {
     alt: 'A utility squad moves towards a scoring opportunity while the main damage unit remains protected for later.',
     caption: 'A decision example; the current card decides eligibility and scoring.',
   },
+  'connect-an-ai-assistant': {
+    image: assistantSource,
+    alt: 'An assistant chat asks for a unit’s points and receives an answer with a link to its Praetorium datasheet.',
+    caption: 'Illustrative chat. The assistant reads current Praetorium data and links to the page it used.',
+  },
 } as const
 
 export function guideVisual(guide: ProductGuide) {
   const overview = overviews[guide.slug]
-  if (guide.slug === 'prepare-your-first-game' || guide.slug === 'build-a-balanced-army' || guide.slug === 'plan-your-scoring') {
+  if (
+    guide.slug === 'prepare-your-first-game' ||
+    guide.slug === 'build-a-balanced-army' ||
+    guide.slug === 'plan-your-scoring' ||
+    guide.slug === 'connect-an-ai-assistant'
+  ) {
     return { ...overview, ...illustrations[guide.slug], width: 560, height: 340, screenshot: false }
   }
   return {

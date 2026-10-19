@@ -362,6 +362,56 @@ export const PRODUCT_GUIDES = [
     },
     action: { to: '/battles', label: 'Open Battles' },
   },
+  {
+    slug: 'connect-an-ai-assistant',
+    title: 'How to use Praetorium from an AI assistant',
+    description:
+      'Add Praetorium’s free MCP server to your AI assistant to look up units, points and matchups with links back to the source.',
+    steps: [
+      {
+        title: 'Open your assistant’s connector settings',
+        text: 'Find where your assistant adds a remote MCP server. Assistants name this setting differently, for example connectors, apps or MCP servers. Some assistants show it only in a developer or advanced mode.',
+      },
+      {
+        title: 'Add the Praetorium server address',
+        text: 'Add a server with the address https://praetorium.gg/mcp. It uses Streamable HTTP. You do not need an API key or an account: the reference and combat simulator tools are public.',
+      },
+      {
+        title: 'Ask a question and open the source link',
+        text: 'Ask about a faction’s units, a unit’s points or a combat matchup. The assistant gets names, numbers, points and computed results from the current verified data. Each result has a Praetorium link and its attribution. Open the link before you rely on an answer.',
+      },
+      {
+        title: 'Sign in only for your own rosters and battles',
+        text: 'Tools for saved rosters and battles ask you to sign in to Praetorium and allow read or change access. Review each change your assistant proposes. To disconnect an assistant, open your profile and choose Revoke access under Connected apps.',
+      },
+    ],
+    questions: [
+      {
+        question: 'Does the assistant get the rules text?',
+        answer:
+          'No. Praetorium gives names, numbers, points and computed results, never rules text. Where it holds back wording, the result names the published source file where you can read it.',
+      },
+      {
+        question: 'Do I need an account to connect?',
+        answer:
+          'No. Reference lookups and the combat simulator work without an account. An account is necessary only when you want the assistant to read or change your saved rosters and battles.',
+      },
+      {
+        question: 'Can the assistant change my rosters without asking?',
+        answer:
+          'Only after you allow change access for that assistant. Your assistant may still ask you to confirm each change. You can revoke its access from your profile at any time.',
+      },
+    ],
+    example: {
+      title: 'Check the points for a unit',
+      steps: [
+        'Add https://praetorium.gg/mcp to your assistant and start a new chat.',
+        'Ask: “Using Praetorium, how many points is a five-model Immortals unit for Necrons?”',
+        'The assistant answers with the points and a link to the Immortals datasheet on praetorium.gg. Open the link and compare the points, then add the unit in the army builder.',
+      ],
+    },
+    action: { to: '/rosters', label: 'Open the army builder' },
+  },
 ] as const
 
 export type ProductGuide = (typeof PRODUCT_GUIDES)[number]

@@ -3,7 +3,7 @@ export const PRAETORIUM_GUIDE = {
   capabilities: [
     'Build, import, validate, save, share, print, and export catalogue-backed rosters.',
     'Compare shooting and melee, equipment alternatives, and destruction probabilities in the free combat simulator.',
-    'Read public workflow guides at /guides for army building, roster imports, combat comparisons, and battle tracking.',
+    'Read public workflow guides at /guides for army building, roster imports, combat comparisons, battle tracking, and AI assistant setup.',
     'Set up and track 1v1, 2v1, and 2v2 battles, including missions, phases, command points, scoring, casualties, undo, and corrections.',
     'Run public or private league registration with sealed roster reveal.',
     'Watch live or finished public battles and read public leaderboards, profiles, and rosters.',

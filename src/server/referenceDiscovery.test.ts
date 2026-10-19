@@ -176,6 +176,7 @@ it('lists public workflow guides alongside battles and leagues', async () => {
       'https://praetorium.gg/guides/import-a-roster',
       'https://praetorium.gg/guides/compare-loadouts',
       'https://praetorium.gg/guides/track-a-battle',
+      'https://praetorium.gg/guides/connect-an-ai-assistant',
     ]),
   )
 })
@@ -247,6 +248,14 @@ it('documents reference updates, licensing, and attribution for agents', async (
 
   expect(await response.text()).toMatch(
     /Praetorium guide.*Reference index.*search missions, deployments, terrain, rules, detachments, and datasheets.*instead of reading every datasheet.*Missions.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
+  )
+})
+
+it('links agents and players to the MCP setup guide and canonical answers for common roster questions', async () => {
+  const body = await (await referenceLlms(new Request('https://praetorium.gg/llms.txt'))).text()
+
+  expect(body).toMatch(
+    /\[MCP\]\(https:\/\/praetorium\.gg\/mcp\).*\(https:\/\/praetorium\.gg\/guides\/connect-an-ai-assistant\).*## Common questions.*points.*\/api\/reference\/v1\/factions\/\{catalogueId\}\/units.*\(https:\/\/praetorium\.gg\/guides\/build-an-army\).*\(https:\/\/praetorium\.gg\/guides\/import-a-roster\).*\(https:\/\/praetorium\.gg\/guides\/compare-loadouts\).*## Human reference/s,
   )
 })
 
