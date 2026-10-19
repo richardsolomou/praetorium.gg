@@ -1841,14 +1841,14 @@ describe('Praetorium roster import', () => {
     })
   })
 
-  it.each(['text', 'compactText'] as const)('round-trips a custom points budget through the %s export', (layout) => {
+  it('round-trips a custom points budget through the readable export', () => {
     const exported = exportRosterFile(
       { catalogueId: 'necrons', detachmentIds: [], disposition: null, limit: 2000, pointsBudget: 1500, name: 'Budget force', units: [] },
       loaded,
       { points: 0, disposition: null, detachments: [], units: [] },
       [],
     )
-    expect(importRosterFile({ file: exported[layout] }, loaded)).toMatchObject({ limit: 2000, pointsBudget: 1500 })
+    expect(importRosterFile({ file: exported.text }, loaded)).toMatchObject({ limit: 2000, pointsBudget: 1500 })
   })
 
   it('reports an explicit zero model count instead of silently using the minimum squad size', () => {
@@ -2038,23 +2038,22 @@ describe('unit notes and retired nicknames in text', () => {
     { points: 400, disposition: null, detachments: [], units: [immortals(0), immortals(1)] },
     [],
   )
-  const nicknameLine = { text: '    • Nickname: Alpha', compactText: 'Nickname: Alpha' } as const
-  const withNickname = (layout: 'text' | 'compactText') =>
-    exported[layout].replace(/^(.*Immortals \(200 (?:Points|pts)\).*)$/m, `$1\n${nicknameLine[layout]}`)
+  const nicknameLine = '    • Nickname: Alpha'
+  const withNickname = exported.text.replace(/^(.*Immortals \(200 Points\).*)$/m, `$1\n${nicknameLine}`)
 
-  it.each(['text', 'compactText'] as const)('leaves unit notes out of %s', (layout) => {
-    expect(exported[layout]).not.toContain('Private plan')
+  it('leaves unit notes out of readable text', () => {
+    expect(exported.text).not.toContain('Private plan')
   })
 
-  it.each(['text', 'compactText'] as const)('still matches every unit in %s exported with a nickname line', (layout) => {
-    expect(importRosterFile({ file: withNickname(layout) }, loaded).units.map((unit) => unit.entryId)).toEqual(['immortals', 'immortals'])
+  it('still matches every unit exported with a nickname line', () => {
+    expect(importRosterFile({ file: withNickname }, loaded).units.map((unit) => unit.entryId)).toEqual(['immortals', 'immortals'])
   })
 
-  it.each(['text', 'compactText'] as const)('reports a nickname line in %s as a line the importer does not understand', (layout) => {
-    expect(importRosterFile({ file: withNickname(layout) }, loaded).unplaced).toEqual([
+  it('reports a nickname line as a line the importer does not understand', () => {
+    expect(importRosterFile({ file: withNickname }, loaded).unplaced).toEqual([
       {
         unit: 'Immortals (entry 1)',
-        choices: [{ name: nicknameLine[layout].trim(), reason: 'this line is not understood by the text importer' }],
+        choices: [{ name: nicknameLine.trim(), reason: 'this line is not understood by the text importer' }],
       },
     ])
   })
@@ -2264,7 +2263,7 @@ Created with newrecruit.eu v35.79`,
   })
 })
 
-describe('ListForge, Warmind, and WTC roster export', () => {
+describe('readable roster export', () => {
   const data = {
     catalogueId: 'necrons',
     detachmentIds: ['pantheon', 'skyshroud'],
@@ -2281,29 +2280,11 @@ describe('ListForge, Warmind, and WTC roster export', () => {
   }
   const priced = calculateRosterPrice(data, loaded, null)!
   const exported = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, ['Disruption'])
+  it('provides only the readable text layout', () => {
+    expect(Object.keys(exported).sort()).toEqual(['name', 'omittedUnitCount', 'text'])
+  })
   const { source: _source, format: _format, ...readable } = importRosterFile({ file: exported.text }, loaded)
-  const withModels = (models: number) => readable.units.map((unit) => (unit.entryId === 'immortals' ? { ...unit, models } : unit))
-
-  it.each([
-    // ListForge states no battle size, and Immortals state no wargear to infer six models from.
-    ['listForgeText', 'listforge', { limit: null, pointsBudget: null, units: withModels(5) }],
-    ['warmindText', 'warmind', {}],
-    ['wtcText', 'wtc', { units: withModels(5) }],
-  ] as const)('reads %s back with only its documented losses', (layout, format, dropped) => {
-    expect(importRosterFile({ file: exported[layout] }, loaded)).toEqual({ ...readable, ...dropped, source: 'roster-file', format })
-  })
-
-  it('separates detachments with commas, as ListForge and Warmind write them', () => {
-    expect(
-      [exported.listForgeText, exported.warmindText, exported.wtcText].map((text) => text.includes('Pantheon of Woe, Skyshroud Spearhead')),
-    ).toEqual([true, true, true])
-  })
-
-  it('marks enhancements in ListForge text as ListForge does', () => {
-    expect(exported.listForgeText).toContain('    • E: Demanding Leader\n')
-  })
-
-  it('compares against a readable import that keeps every field', () => {
+  it('round-trips every supported field', () => {
     expect(readable).toMatchObject({
       detachmentIds: ['pantheon', 'skyshroud'],
       disposition: 'disruption',
@@ -2320,7 +2301,7 @@ describe('ListForge, Warmind, and WTC roster export', () => {
     })
   })
 
-  it('keeps the rules version only in Warmind text', () => {
+  it('keeps the rules version in readable text', () => {
     const preview = exportRosterFile(
       { ...data, catalogueId: 'codex~necrons' },
       {
@@ -2330,9 +2311,7 @@ describe('ListForge, Warmind, and WTC roster export', () => {
       { ...priced, disposition: priced.disposition ?? null },
       ['Disruption'],
     )
-    expect(importRosterCatalogueId(preview.warmindText)).toBe('codex~necrons')
-    expect(importRosterCatalogueId(preview.listForgeText)).toBeNull()
-    expect(importRosterCatalogueId(preview.wtcText)).toBeNull()
+    expect(importRosterCatalogueId(preview.text)).toBe('codex~necrons')
   })
 })
 

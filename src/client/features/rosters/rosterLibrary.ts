@@ -89,8 +89,6 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
     onSuccess: refresh,
   })
 
-  // Another tool has nowhere to put a list with no name, so an export and a share
-  // sheet are handed what the library calls it.
   const take = useMutation({
     mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
       const roster = await load(summary)

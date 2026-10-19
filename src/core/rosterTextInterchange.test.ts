@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fromBattleBaseText } from './battlebase'
 import { toGwText, type GwTextRoster } from './gwText'
-import { fromNewRecruitText, toCompactText } from './newRecruit'
+import { fromNewRecruitText } from './newRecruit'
 
 const roster: GwTextRoster = {
   name: 'Repeated squads',
@@ -46,6 +46,30 @@ const roster: GwTextRoster = {
   ],
 }
 
+const compactText = `+++++++++++++++++++++++++++++++++++++++++++++++
++ ROSTER NAME: Repeated squads
++ FACTION KEYWORD: Test Faction
++ DETACHMENT: First and Second
++ FORCE DISPOSITION: Take and Hold
++ BATTLE SIZE: 2000pts
++ TOTAL ARMY POINTS: 190pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+5x Test Squad (90 pts)
+• 3x First weapon
+• 2x Second weapon
+Roster entry: 2
+
+1x Test Leader (100 pts): Warlord
+• 2x Third weapon
+Enhancement: Test Relic
+Leading Test Squad
+Roster entry: 1
+Attached to entry: 2
+
+Exported with Praetorium.gg vtest
+`
+
 describe('roster text interchange', () => {
   it('reads explicit model counts instead of inferring them from weapon counts', () => {
     expect(fromBattleBaseText(toGwText(roster, 'test'))?.units.map((unit) => unit.models)).toEqual([1, 5])
@@ -59,7 +83,7 @@ describe('roster text interchange', () => {
   })
 
   it('retains compact setup without guessing the battle size from spent points', () => {
-    expect(fromNewRecruitText(toCompactText(roster, 'test'))).toMatchObject({
+    expect(fromNewRecruitText(compactText)).toMatchObject({
       name: 'Repeated squads',
       detachment: 'First and Second',
       disposition: 'Take and Hold',
@@ -69,7 +93,7 @@ describe('roster text interchange', () => {
   })
 
   it('retains a compact mixed loadout and its equipment quantities', () => {
-    expect(fromNewRecruitText(toCompactText(roster, 'test'))?.units[0]).toMatchObject({
+    expect(fromNewRecruitText(compactText)?.units[0]).toMatchObject({
       models: 5,
       entry: 2,
       selections: [
@@ -100,12 +124,8 @@ describe('roster text interchange', () => {
   })
 
   it('reads the battle size and its custom points budget back from compact text', () => {
-    const parsed = fromNewRecruitText(toCompactText({ ...roster, pointsBudget: 1500 }, 'test'))
+    const parsed = fromNewRecruitText(compactText.replace('+ BATTLE SIZE: 2000pts', '+ BATTLE SIZE: 1500pts (Strike Force)'))
     expect([parsed?.sizeName, parsed?.limit]).toEqual(['Strike Force', 1500])
-  })
-
-  it('keeps a standard compact battle size line unchanged', () => {
-    expect(toCompactText(roster, 'test')).toContain('+ BATTLE SIZE: 2000pts\n')
   })
 
   it('refuses arbitrary text that merely contains a points value', () => {

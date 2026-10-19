@@ -82,7 +82,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     else if (/^Warlord$/i.test(name)) current.warlord = true
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
-    else if (attachedGroup && /^Attached as:\s*Leader\b/i.test(name)) attachedGroup.leaders.push(current)
+    else if (attachedGroup && /^Attached as:\s*(?:Leader|Support)\b/i.test(name)) attachedGroup.leaders.push(current)
     else if (attachedGroup && /^Attached as:\s*Bodyguard\b/i.test(name)) attachedGroup.bodyguards.push(current)
     else current.selections.push({ name, count: Number(picked[1] ?? 1) })
   }

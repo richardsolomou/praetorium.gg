@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fromBattleBaseText } from './battlebase'
 import { warmindOfficial } from './rosterText.fixtures'
+import { necronsOfficial } from './rosterText.necrons.fixture'
 
 const exportText = `CL 1K - Ammentar Destroyer Spearhead (990 Points)
 
@@ -122,6 +123,25 @@ describe('BattleBase text import', () => {
     )
 
     expect(parsed?.units).toMatchObject([{ leading: 'Lokhust Destroyers' }, { leader: 'Lokhust Lord' }])
+  })
+
+  it('keeps every leader and support attachment in official-app groups', () => {
+    expect(fromBattleBaseText(necronsOfficial)?.units.map((unit) => [unit.name, unit.attachedToEntry])).toEqual([
+      ['Chronomancer', 1],
+      ['Lokhust Heavy Destroyers', undefined],
+      ['Lokhust Lord', 2],
+      ['Lokhust Destroyers', undefined],
+      ['Skorpekh Lord', 3],
+      ['Skorpekh Destroyers', undefined],
+      ['Nekrosor Ammentar', undefined],
+    ])
+  })
+
+  it('keeps an official support marker out of equipment selections', () => {
+    expect(fromBattleBaseText(necronsOfficial)?.units[0]?.selections).toEqual([
+      { name: 'Chronomancer’s stave', count: 1 },
+      { name: 'Enhancements: Murdermind', count: 1 },
+    ])
   })
 
   describe('hand-edited app text', () => {

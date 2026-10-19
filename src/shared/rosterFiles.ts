@@ -6,11 +6,11 @@ import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, nameOf } from '../core/catalogue'
 import { childrenOf, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
 import type { Selection } from '../core/evaluate'
-import { fromNewRecruitText, toCompactText } from '../core/newRecruit'
+import { fromNewRecruitText } from '../core/newRecruit'
 import { normalizedNameVariants } from '../core/name'
-import { fromListForgeText, fromListForgeWtcText, toListForgeText } from '../core/listForge'
-import { fromWarmindText, toWarmindText } from '../core/warmind'
-import { fromWtcText, toWtcText } from '../core/wtcText'
+import { fromListForgeText, fromListForgeWtcText } from '../core/listForge'
+import { fromWarmindText } from '../core/warmind'
+import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
@@ -803,10 +803,6 @@ export function exportRosterFile(
   const metadata = (loaded.edition ? `\nCodex: ${editionLabel(loaded.edition)}` : '') + `\nRuleset: ${data.catalogueId}\n`
   return {
     text: toGwText(roster, version) + metadata,
-    compactText: toCompactText(roster, version) + metadata,
-    listForgeText: toListForgeText(roster),
-    warmindText: toWarmindText(roster, version) + metadata,
-    wtcText: toWtcText(roster),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
   }
