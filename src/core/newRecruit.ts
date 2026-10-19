@@ -1,7 +1,6 @@
 import { plainQuotes } from './text'
 import { type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 import { GAME_SIZES } from './battle'
-import type { GwTextRoster } from './gwText'
 
 const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*pts?\)(?::\s*(.*))?$/i
 const modelLine = /^[•*]\s*(\d+)x\s+([^:]+?)(?::\s*(.*))?$/
@@ -151,28 +150,3 @@ function addSelection(unit: TextRosterUnit, name: string, count: number) {
 }
 
 const normalized = (value: string) => plainQuotes(value.trim().toLocaleLowerCase())
-
-export function toCompactText(roster: GwTextRoster, version: string) {
-  const lines = [
-    '+++++++++++++++++++++++++++++++++++++++++++++++',
-    `+ ROSTER NAME: ${roster.name}`,
-    `+ FACTION KEYWORD: ${roster.faction}`,
-    `+ DETACHMENT: ${roster.detachments.map((detachment) => detachment.name).join(' and ') || 'No detachment'}`,
-    ...(roster.dispositions.length ? [`+ FORCE DISPOSITION: ${roster.dispositions.join(', ')}`] : []),
-    `+ BATTLE SIZE: ${roster.pointsBudget ?? roster.limit}pts${roster.pointsBudget === undefined ? '' : ` (${roster.size})`}`,
-    `+ TOTAL ARMY POINTS: ${roster.points}pts`,
-    '+++++++++++++++++++++++++++++++++++++++++++++++',
-  ]
-  for (const unit of roster.units) {
-    lines.push('', `${unit.models ?? 1}x ${unit.name} (${unit.points} pts)${unit.warlord ? ': Warlord' : ''}`)
-    for (const item of unit.wargear) lines.push(`• ${item.count}x ${item.name}`)
-    for (const enhancement of [...unit.enhancements, ...unit.upgrades]) lines.push(`Enhancement: ${enhancement}`)
-    for (const relation of unit.joined) {
-      if (relation.label === 'Leading' || relation.label === 'Supporting') lines.push(`Leading ${relation.name}`)
-    }
-    if (unit.entry !== undefined) lines.push(`Roster entry: ${unit.entry}`)
-    if (unit.attachedToEntry !== undefined) lines.push(`Attached to entry: ${unit.attachedToEntry}`)
-  }
-  lines.push('', `Exported with Praetorium.gg v${version}`, '')
-  return lines.join('\n')
-}

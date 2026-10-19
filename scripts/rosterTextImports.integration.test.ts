@@ -14,6 +14,7 @@ import {
 } from '../src/core/rosterText.fixtures'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
+import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
@@ -142,6 +143,38 @@ Sanctifiers (100 pts)
       mismatches: [],
       points: '2000 for 2000',
     })
+  })
+
+  it('imports official-app Necrons with every leader and support attachment', () => {
+    expect(summary(necronsOfficial)).toEqual({
+      format: 'roster-file',
+      faction: 'Xenos - Necrons',
+      detachments: 1,
+      units: '7 of 7',
+      attached: 3,
+      mismatches: [],
+      points: '1000 for 1000',
+    })
+  })
+
+  it('preserves the official Necrons model counts', () => {
+    expect(imported(necronsOfficial).units.map((unit) => unit.models)).toEqual([1, 3, 1, 6, 1, 6, 1])
+  })
+
+  it.each([
+    ['Lokhust Heavy Destroyers', '3x gauss destructor'],
+    ['Lokhust Destroyers', '6x gauss cannon'],
+    ['Skorpekh Destroyers', '6x skorpekh hyperphase weapons'],
+    ['Skorpekh Destroyers', '2x plasmacyte'],
+  ])('keeps the official Necrons equipment on %s: %s', (unit, equipment) => {
+    expect(wargear(necronsOfficial, unit)).toContain(equipment)
+  })
+
+  it.each([
+    ['Chronomancer', 'Murdermind'],
+    ['Skorpekh Lord', 'Mark of the Nekrosor'],
+  ])('keeps the official Necrons enhancement on %s', (unit, enhancement) => {
+    expect(priced(necronsOfficial)?.units.find((candidate) => candidate.name === unit)?.enhancements).toContain(enhancement)
   })
 
   it('preserves the reported Custodes model counts', () => {
