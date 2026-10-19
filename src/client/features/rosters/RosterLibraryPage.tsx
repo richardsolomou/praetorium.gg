@@ -22,6 +22,7 @@ import { useAccountPrompt } from './AccountPrompt'
 import { claimInput, GUEST_PATH, type GuestDraft, guestRosterSummary, readGuestDraft } from './guestDraft'
 import { GuestBattleLink, useGuestRosterRow } from './GuestRoster'
 import { useNewRoster } from './newRoster'
+import type { MissionReference } from './rosterStart'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { RosterExportDialog } from './RosterExportDialog'
@@ -78,11 +79,13 @@ export function RosterLibraryPage({
   search,
   sort,
   starting,
+  reference,
   device,
 }: {
   search: RosterLibrarySearch
   sort: RosterSort
   starting?: boolean
+  reference?: MissionReference
   device?: DeviceLibrary
 }) {
   const [selectedSort, setSelectedSort] = useState(sort)
@@ -271,6 +274,7 @@ export function RosterLibraryPage({
               limit={search.limit}
               blocked={another}
               starting={starting}
+              reference={reference}
               onStarted={() => void navigate({ to: '/rosters', search, replace: true })}
             />
           </>

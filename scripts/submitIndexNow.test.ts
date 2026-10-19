@@ -8,7 +8,7 @@ const after = '<urlset><url><loc>https://praetorium.gg/a</loc></url><url><loc>ht
 
 const href = (input: URL | RequestInfo) => (input instanceof Request ? input.url : input instanceof URL ? input.href : input)
 
-function production({ revisions = [REVISION], key = KEY, indexNow = 200 } = {}) {
+function production({ revisions = [REVISION], key = KEY, indexNow = 200, cachedSitemap = false } = {}) {
   const submitted: unknown[] = []
   let health = 0
   const request = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
@@ -18,7 +18,9 @@ function production({ revisions = [REVISION], key = KEY, indexNow = 200 } = {}) 
       return new Response('{"ok":true}', { headers: { 'x-praetorium-revision': revision } })
     }
     if (url.endsWith('/indexnow.txt')) return new Response(key)
-    if (url.endsWith('/sitemap.xml')) return new Response(after)
+    if (new URL(url).pathname === '/sitemap.xml') {
+      return new Response(cachedSitemap && new URL(url).searchParams.get('revision') !== REVISION ? before : after)
+    }
     submitted.push(JSON.parse(typeof init?.body === 'string' ? init.body : 'null'))
     return new Response(null, { status: indexNow })
   }) as unknown as typeof fetch
@@ -36,6 +38,14 @@ const options = (request: typeof fetch) => ({
 
 it('submits the pages the deploy added', async () => {
   const { request, submitted } = production()
+  await submitIndexNow(options(request))
+  expect(submitted).toEqual([
+    { host: 'praetorium.gg', key: KEY, keyLocation: 'https://praetorium.gg/indexnow.txt', urlList: ['https://praetorium.gg/b'] },
+  ])
+})
+
+it('submits new URLs when the shared sitemap URL still serves the old edge cache', async () => {
+  const { request, submitted } = production({ cachedSitemap: true })
   await submitIndexNow(options(request))
   expect(submitted).toEqual([
     { host: 'praetorium.gg', key: KEY, keyLocation: 'https://praetorium.gg/indexnow.txt', urlList: ['https://praetorium.gg/b'] },

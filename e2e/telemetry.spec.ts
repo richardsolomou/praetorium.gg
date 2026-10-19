@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, signInAsPreview, signUp, uniqueName, visitorSetup } from './account'
+import { retryUntilVisible, signInAsPreview, signUp, uniqueName, visitorSetup, waitForRosterSave } from './account'
 import { add } from './builder.harness'
 import { chooseCombatUnit } from './combat'
 
@@ -255,6 +255,72 @@ test('a datasheet reader who starts a roster or the simulator is attributed to t
   await expect
     .poll(() => events.filter((event) => event.name === 'combat_simulator_opened'))
     .toEqual([{ name: 'combat_simulator_opened', properties: { source: 'standalone', reference: 'datasheet' } }])
+})
+
+for (const [reference, path, signedIn, width] of [
+  ['mission-pack', '/missions/chapter-approved-2026-2027', false, 390],
+  ['mission-matchup', '/missions/chapter-approved-2026-2027/matchups/take-and-hold/disruption', true, 1440],
+] as const) {
+  test(`${reference} attributes setup and creation after clearing the handoff URL`, async ({ page }, testInfo) => {
+    if (signedIn) await signUp(page, uniqueName('Mission reference'))
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(path)
+    await page.waitForLoadState('networkidle')
+    const events = await recordEvents(page)
+    const setup = page.getByRole('dialog', { name: 'Create roster' })
+    await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
+    await expect(setup).toBeVisible()
+    await expect(page).toHaveURL(/\/rosters$/)
+    await setup.getByRole('combobox', { name: 'Faction' }).click()
+    await page.getByPlaceholder('Search factions…').fill('Necrons')
+    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+    await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+    await page.screenshot({ path: testInfo.outputPath(`${reference}-setup.png`) })
+    await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
+    if (width < 768) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+    await expect(page.getByLabel('Add a unit')).toBeVisible()
+    if (signedIn) await waitForRosterSave(page, () => add(page, 'Necron Warriors'))
+    else {
+      await add(page, 'Necron Warriors')
+      await expect
+        .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('praetorium.guest-draft') ?? '{}').draft?.picks.length))
+        .toBe(1)
+    }
+    await expect
+      .poll(() =>
+        events.filter((event) =>
+          ['roster_creation_started', 'roster_creation_submitted', 'guest_roster_started', 'roster_unit_added'].includes(event.name),
+        ),
+      )
+      .toEqual([
+        { name: 'roster_creation_started', properties: { reference } },
+        signedIn
+          ? { name: 'roster_creation_submitted', properties: { reference } }
+          : { name: 'guest_roster_started', properties: { reference, limit: 2000, detachment_count: 1 } },
+        { name: 'roster_unit_added', properties: { unit_count: 1 } },
+      ])
+    await page.reload()
+    await expect(page.locator('[data-unit="Necron Warriors"]')).toHaveCount(1)
+  })
+}
+
+test('cancelling a mission setup does not attribute a later generic setup to it', async ({ page }) => {
+  await page.goto('/missions/chapter-approved-2026-2027')
+  await page.waitForLoadState('networkidle')
+  const events = await recordEvents(page)
+  await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
+  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await setup.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: 'New roster', exact: true }).click()
+  await expect(setup).toBeVisible()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'roster_creation_started'))
+    .toEqual([
+      { name: 'roster_creation_started', properties: { reference: 'mission-pack' } },
+      { name: 'roster_creation_started', properties: {} },
+    ])
 })
 
 for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) {

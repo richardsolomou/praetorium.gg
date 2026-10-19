@@ -177,7 +177,7 @@ jobs:
       - name: Record the sitemap production serves before the deploy
         if: inputs.environment == 'production'
         continue-on-error: true
-        run: curl --fail --silent --show-error --max-time 30 --output "$RUNNER_TEMP/sitemap-before.xml" https://praetorium.gg/sitemap.xml
+        run: curl --fail --silent --show-error --max-time 30 --output "$RUNNER_TEMP/sitemap-before.xml" "https://praetorium.gg/sitemap.xml?before=${DEPLOY_SHA}"
       - name: Deploy the pinned image
         uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v1
         with:
@@ -207,4 +207,12 @@ jobs:
       - name: Tell search engines which pages changed
         if: inputs.environment == 'production'
         continue-on-error: true
-        run: node scripts/submitIndexNow.ts "$RUNNER_TEMP/sitemap-before.xml" https://praetorium.gg
+        run: node scripts/submitIndexNow.ts "$RUNNER_TEMP/sitemap-before.xml" https://praetorium.gg "$RUNNER_TEMP/sitemap-after.xml"
+      - name: Retain sitemap comparison evidence
+        if: always() && inputs.environment == 'production'
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-sitemaps
+          path: ${{ runner.temp }}/sitemap-*.xml
+          retention-days: 7
+          if-no-files-found: ignore

@@ -9,6 +9,7 @@ import { advanceOnboarding } from '../onboarding/onboarding'
 import { EMPTY_SETUP } from './guestDraft'
 import { useNewRoster } from './newRoster'
 import { RosterSetupDialog, type RosterSetupFactionOption } from './RosterSetupDialog'
+import type { MissionReference } from './rosterStart'
 
 /**
  * `limit` starts the new list at a size the reader is filtering by, such as the one a league asked for. `blocked`
@@ -21,23 +22,27 @@ export function CreateRoster({
   blocked,
   starting,
   onStarted,
+  reference: arrivingReference,
 }: {
   factionOptions: RosterSetupFactionOption[]
   limit?: number
   blocked?: () => void
   starting?: boolean
   onStarted?: () => void
+  reference?: MissionReference
 }) {
   const [open, setOpen] = useState(false)
+  const [reference, setReference] = useState<MissionReference>()
   const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery(playerDefaultsQuery())
   const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: limit ?? defaults.battleSize }
-  const create = useNewRoster()
-  const started = () => {
-    posthog.capture('roster_creation_started')
+  const create = useNewRoster(reference)
+  const started = (source?: MissionReference) => {
+    posthog.capture('roster_creation_started', source ? { reference: source } : undefined)
     advanceOnboarding('roster', 'roster-start', 'roster-faction')
   }
   const begin = () => {
     if (blocked) return blocked()
+    setReference(undefined)
     started()
     setOpen(true)
   }
@@ -45,12 +50,15 @@ export function CreateRoster({
   const [arrivingFrom, setArrivingFrom] = useState(false)
   if (arriving !== arrivingFrom) {
     setArrivingFrom(arriving)
-    if (arriving && !blocked) setOpen(true)
+    if (arriving && !blocked) {
+      setReference(arrivingReference)
+      setOpen(true)
+    }
   }
   const arrive = useEffectEvent(() => {
     onStarted?.()
     if (blocked) blocked()
-    else started()
+    else started(arrivingReference)
   })
   useEffect(() => {
     if (arriving) arrive()

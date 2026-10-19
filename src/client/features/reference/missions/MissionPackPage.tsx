@@ -37,7 +37,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
         title={pack.name}
         actions={
           <>
-            <Link to="/rosters/new" className={buttonClass()}>
+            <Link to="/rosters/new" search={{ reference: 'mission-pack' }} className={buttonClass()}>
               Build a roster
             </Link>
             <Link to="/force-dispositions" className={buttonClass({ variant: 'outline' })}>
