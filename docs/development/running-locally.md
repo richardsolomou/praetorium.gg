@@ -31,7 +31,7 @@ Ports are allocated automatically; on a collision with an explicit `LOCAL_*_PORT
 
 An interrupted run leaves its stack and processes behind. Run `just teardown` once the branch's pull request has merged; it stops only stacks this worktree or a deleted worktree started, scoped by each stack's directory rather than a process name.
 
-PR CI distributes all browser tests, including `@catalogue` journeys, across the same duration-balanced runners; the tag selects the release preflight rather than a separate CI lane. Refresh `e2e/durations.json` with `just e2e-durations <run-id>...` after changing the suite.
+PR CI distributes all browser tests, including `@catalogue` journeys, across the same duration-balanced runners; the tag selects the release preflight rather than a separate CI lane. Every runner uses the shared build's exact Node version because the build fingerprint includes it. Refresh `e2e/durations.json` with `just e2e-durations <run-id>...` after changing the suite.
 
 Documentation-only pull requests run static checks and skip runtime tests, builds, catalogue comparisons and preview images. `scripts/ciScope.ts` owns the narrow documentation allowlist; mixed changes, unknown paths, empty comparisons and manual dispatches run the full suite. A failed comparison fails CI. The publication text audit runs after the production build in CI so it reuses the offline bundle that build generated; local integration checks still include it.
 

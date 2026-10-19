@@ -110,6 +110,8 @@ afterEach(() => {
   corpus.revision = 'snapshot-one'
   corpus.catalogue.revisions.definitions = 'revision'
   history.entries = []
+  corpus.documents[0]!.url = '/factions/test/datasheets/unit'
+  corpus.documents[1]!.url = '/factions/test/detachments/detachment'
 })
 
 const update = (from: string, recordedAt = 1): CatalogueHistoryEntry => ({
@@ -136,6 +138,27 @@ it('lists canonical reference pages in the snapshot sitemap', async () => {
 
   expect(await response.text()).toMatch(
     /<url><loc>https:\/\/praetorium\.gg\/factions\/test\/datasheets\/unit<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/factions\/test\/detachments\/detachment<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/missions\/test\/matchups\/one\/two<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/missions\/test\/secondaries\/test-secondary<\/loc><\/url>.*<url><loc>https:\/\/praetorium\.gg\/rules\/core\/movement<\/loc><\/url>/s,
+  )
+})
+
+it('lists versioned faction and datasheet index destinations without their aliases', async () => {
+  corpus.documents[0]!.url = '/factions/test/rules/mfm-1-6/datasheets/unit'
+  corpus.documents[1]!.url = '/factions/test/rules/mfm-1-6/detachments/detachment'
+
+  expect([...(await sitemap()).matchAll(/<loc>([^<]*\/factions\/test[^<]*)<\/loc>/g)].map((match) => match[1])).toEqual([
+    'https://praetorium.gg/factions/test/rules/mfm-1-6',
+    'https://praetorium.gg/factions/test/rules/mfm-1-6/datasheets',
+    'https://praetorium.gg/factions/test/rules/mfm-1-6/datasheets/unit',
+    'https://praetorium.gg/factions/test/rules/mfm-1-6/detachments/detachment',
+  ])
+})
+
+it('keeps historical lastmod dates on versioned reference destinations', async () => {
+  corpus.documents[0]!.url = '/factions/test/rules/mfm-1-6/datasheets/unit'
+  history.entries = [factionUpdate('a', Date.UTC(2026, 8, 2))]
+
+  expect(await sitemap()).toContain(
+    '<loc>https://praetorium.gg/factions/test/rules/mfm-1-6/datasheets/unit</loc><lastmod>2026-09-02T00:00:00.000Z</lastmod>',
   )
 })
 

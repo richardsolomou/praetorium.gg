@@ -121,6 +121,7 @@ jobs:
     name: Browser-test build
     runs-on: ubuntu-latest
     outputs:
+      node-version: ${{ steps.node.outputs.version }}
       runner-count: ${{ inputs.e2e-runners || '16' }}
       runners: ${{ inputs.e2e-runners == '8' && '[1,2,3,4,5,6,7,8]' || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]' }}
     steps:
@@ -128,6 +129,9 @@ jobs:
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
         with:
           install: 'false'
+      - name: Record the build's Node version
+        id: node
+        run: node -p "'version=' + process.version" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/e2e-dependencies
       - run: pnpm catalogue:sync
         # Catalogue snapshots are private, read with these on this step alone.
@@ -177,6 +181,7 @@ jobs:
         id: stack
         # Catalogue snapshots are private, read only by the catalogue sync inside this action.
         with:
+          node-version: ${{ needs.browser-build.outputs.node-version }}
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}

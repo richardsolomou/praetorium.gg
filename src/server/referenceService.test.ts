@@ -52,7 +52,17 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
     ruleDocuments: [],
     issues: [],
   }
-  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+  const document = {
+    id: 'datasheet:test-faction:captain',
+    kind: 'datasheet' as const,
+    title: 'Captain',
+    faction: 'Test Faction',
+    url: '/factions/test-faction/rules/mfm-1-6/datasheets/captain',
+    sections: [],
+    revisions: {},
+    attribution: [],
+  }
+  const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
 
   expect(referenceUnits(corpus, loaded, null, 'test-faction', 1_000, 'vanguard')).toMatchObject({
     faction: { id: 'cat', slug: 'test-faction', name: 'Test Faction' },
@@ -70,6 +80,7 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
         canBeLedBy: [],
         canBeSupportedBy: ['Ancient'],
         referenceId: 'datasheet:test-faction:captain',
+        url: '/factions/test-faction/rules/mfm-1-6/datasheets/captain',
       },
     ],
   })

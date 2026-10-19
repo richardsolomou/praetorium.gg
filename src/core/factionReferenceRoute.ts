@@ -1,7 +1,7 @@
 import { catalogueEditionId, editionFamilyId } from './catalogueEdition'
 import { routeSlug } from './slug'
 
-type ReferenceFaction = {
+export type ReferenceFaction = {
   id: string
   displayName: string
   edition?: { id: string; slug?: string; name?: string } | null

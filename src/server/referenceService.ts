@@ -74,7 +74,7 @@ export function referenceUnits(
     corpus.catalogue.datasheets.filter((sheet) => sheet.catalogueId === foundFaction.id).map((sheet) => [sheet.id, sheet]),
   )
   const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize }).map((unit) =>
-    unitReference(unit, canonicalById.get(unit.id)),
+    unitReference(corpus, unit, canonicalById.get(unit.id)),
   )
   const selectedDetachment = detachment ? referenceDetachment(corpus, foundFaction.id, detachment) : null
   if (detachment && !selectedDetachment) return null
@@ -114,15 +114,17 @@ function referenceDetachment(corpus: ReferenceCorpus, factionId: string, detachm
 }
 
 /** Where a datasheet is read: its canonical page and the id get_reference_record accepts. */
-export function datasheetCitation(sheet: CanonicalDatasheet | undefined) {
+export function datasheetCitation(corpus: ReferenceCorpus, sheet: CanonicalDatasheet | undefined) {
   const route = sheet?.referenceRoute ?? (sheet ? { catalogueId: sheet.catalogueId, slug: sheet.slug } : null)
+  if (!route) return { url: null, referenceId: null }
+  const referenceId = `datasheet:${route.catalogueId}:${route.slug}`
   return {
-    url: route ? `/factions/${route.catalogueId}/datasheets/${route.slug}` : null,
-    referenceId: route ? `datasheet:${route.catalogueId}:${route.slug}` : null,
+    url: corpus.byId.get(referenceId)?.url ?? `/factions/${route.catalogueId}/datasheets/${route.slug}`,
+    referenceId,
   }
 }
 
-function unitReference(unit: UnitSummary, sheet: CanonicalDatasheet | undefined) {
+function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: CanonicalDatasheet | undefined) {
   return {
     ...unit,
     keywords: sheet?.keywords ?? [],
@@ -132,7 +134,7 @@ function unitReference(unit: UnitSummary, sheet: CanonicalDatasheet | undefined)
     canSupport: sheet?.attachments.filter((relationship) => relationship.kind === 'support').map((relationship) => relationship.name) ?? [],
     canBeLedBy: sheet?.leaders.map((relationship) => relationship.name) ?? [],
     canBeSupportedBy: sheet?.supporters.map((relationship) => relationship.name) ?? [],
-    ...datasheetCitation(sheet),
+    ...datasheetCitation(corpus, sheet),
   }
 }
 

@@ -11,6 +11,7 @@ import { DATACARDS_ATTRIBUTION } from './datacards'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { RULES_DATA_ATTRIBUTION, type LoadedRules } from './rules'
 import { referenceText } from './referenceText'
+import { factionReferenceHref, type ReferenceFaction } from '../core/factionReferenceRoute'
 
 export type ReferenceSources = {
   canonicalCatalogue: () => CanonicalCatalogue | null
@@ -18,6 +19,7 @@ export type ReferenceSources = {
   rules: () => LoadedRules | null
   /** Where each file a token names lives upstream; without it, withheld words say only that they are withheld. */
   textLocations?: TextLocations
+  factions?: readonly (ReferenceFaction & { slug: string })[]
 }
 
 export type ReferenceCorpus = {
@@ -28,7 +30,13 @@ export type ReferenceCorpus = {
 }
 
 const NO_LOCATIONS: TextLocations = { files: {}, holds: () => false }
-type CachedCorpus = { catalogue: LoadedCatalogue | null; rules: LoadedRules | null; files: TextLocations; corpus: ReferenceCorpus }
+type CachedCorpus = {
+  catalogue: LoadedCatalogue | null
+  rules: LoadedRules | null
+  files: TextLocations
+  factions: ReferenceSources['factions']
+  corpus: ReferenceCorpus
+}
 const corpora = new WeakMap<CanonicalCatalogue, CachedCorpus>()
 
 export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus | null {
@@ -38,14 +46,21 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   const rules = sources.rules()
   const files = sources.textLocations ?? NO_LOCATIONS
   const cached = corpora.get(canonical)
-  if (cached?.catalogue === loaded && cached.rules === rules && cached.files === files) return cached.corpus
+  if (cached?.catalogue === loaded && cached.rules === rules && cached.files === files && cached.factions === sources.factions)
+    return cached.corpus
+  const factionPaths = new Map<string, string>()
+  for (const faction of sources.factions ?? []) {
+    const path = factionReferenceHref(faction)
+    factionPaths.set(faction.id, path)
+    factionPaths.set(faction.slug, path)
+  }
   const catalogue =
     canonical.detachments.length || !loaded || !rules
       ? canonical
       : { ...canonical, detachments: compileCanonicalDetachments(loaded, canonical.revisions, rules) }
   const documents = [
-    ...catalogue.datasheets.map((sheet) => datasheetDocument(files, sheet)),
-    ...catalogue.detachments.map((detachment) => detachmentDocument(files, detachment)),
+    ...catalogue.datasheets.map((sheet) => datasheetDocument(files, sheet, factionPaths)),
+    ...catalogue.detachments.map((detachment) => detachmentDocument(files, detachment, factionPaths)),
     ...(rules ? gameReferenceDocuments(files, gameReferencesFor(rules), rules, catalogue.revisions) : []),
     ...catalogue.ruleDocuments.flatMap((document) => ruleDocuments(files, document)),
   ].toSorted(
@@ -53,7 +68,7 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
   )
   const revision = hash('sha256', JSON.stringify({ catalogue, documents }))
   const corpus = { catalogue, documents, byId: new Map(documents.map((document) => [document.id, document])), revision }
-  corpora.set(canonical, { catalogue: loaded, rules, files, corpus })
+  corpora.set(canonical, { catalogue: loaded, rules, files, factions: sources.factions, corpus })
   return corpus
 }
 
@@ -363,9 +378,9 @@ const section = (
 const present = (sections: (ReferenceSection | null)[]) => sections.filter((entry): entry is ReferenceSection => Boolean(entry))
 const attribution = (value: string | null) => (value ? [value] : [])
 
-function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet): ReferenceDocument {
+function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet, factionPaths: ReadonlyMap<string, string>): ReferenceDocument {
   const route = sheet.referenceRoute ?? { catalogueId: sheet.catalogueId, slug: sheet.slug }
-  const url = `/factions/${route.catalogueId}/datasheets/${route.slug}`
+  const url = `${factionPaths.get(route.catalogueId) ?? `/factions/${route.catalogueId}`}/datasheets/${route.slug}`
   const relationships = [...sheet.attachments, ...sheet.leaders, ...sheet.supporters].map((entry) => entry.name)
   const { entryId } = sheet.provenance.definitions
   return {
@@ -453,8 +468,12 @@ function revisionsForDatasheet(sheet: CanonicalDatasheet) {
   )
 }
 
-function detachmentDocument(files: TextLocations, detachment: CanonicalDetachment): ReferenceDocument {
-  const url = `/factions/${detachment.factionSlug}/detachments/${detachment.slug}`
+function detachmentDocument(
+  files: TextLocations,
+  detachment: CanonicalDetachment,
+  factionPaths: ReadonlyMap<string, string>,
+): ReferenceDocument {
+  const url = `${factionPaths.get(detachment.factionSlug) ?? `/factions/${detachment.factionSlug}`}/detachments/${detachment.slug}`
   return {
     id: `detachment:${detachment.factionSlug}:${detachment.slug}`,
     kind: 'detachment',

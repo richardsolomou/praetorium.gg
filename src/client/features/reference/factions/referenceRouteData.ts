@@ -8,7 +8,30 @@ import {
   favouriteDetachmentsQuery,
   loadReferenceFaction,
   referenceChangesQuery,
+  factionDatasheetsQuery,
 } from '../../../queries'
+
+export async function loadFactionDatasheets(queryClient: QueryClient, catalogueId: string, rules?: string) {
+  const faction = await loadReferenceFaction(queryClient, catalogueId, rules)
+  if (!faction) throw notFound()
+  await queryClient.query({ ...factionDatasheetsQuery(faction.id, ''), staleTime: 'static' })
+  return faction
+}
+
+export function factionDatasheetsHead(faction: Awaited<ReturnType<typeof loadFactionDatasheets>> | undefined, origin: string) {
+  return faction
+    ? pageHead(origin, {
+        title: `${faction.displayName} datasheets`,
+        description: `${faction.displayName} datasheets, unit profiles, weapons, wargear and points.`,
+        path: factionReferenceHref(faction, '/datasheets'),
+        breadcrumbs: [
+          { name: 'Factions', path: '/factions' },
+          { name: faction.displayName, path: factionReferenceHref(faction) },
+          { name: 'Datasheets', path: factionReferenceHref(faction, '/datasheets') },
+        ],
+      })
+    : {}
+}
 
 export async function loadFactionDatasheet(queryClient: QueryClient, catalogueId: string, entryId: string, rules?: string) {
   const faction = await loadReferenceFaction(queryClient, catalogueId, rules)

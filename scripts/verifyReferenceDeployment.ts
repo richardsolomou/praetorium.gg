@@ -103,10 +103,10 @@ if (!mcp.ok || mcpBody.result?.structuredContent?.id !== movementResult.id) thro
 
 const datasheet = (await search('Battle Sisters Squad', 'datasheet')).body.results[0]!
 const detachment = (await search('Bringers of Flame', 'detachment')).body.results[0]!
-const detachmentMatch = detachment.url.match(/^\/factions\/([^/]+)\/detachments\/([^/#]+)/)
-if (!detachmentMatch) throw new Error('detachment search did not return a faction route')
+const [, detachmentFaction, detachmentSlug] = detachment.id.split(':')
+if (!detachmentFaction || !detachmentSlug) throw new Error('detachment search did not return a reference identity')
 const unitIndexResponse = await request(
-  `/api/reference/v1/factions/${encodeURIComponent(detachmentMatch[1]!)}/units?battleSize=2000&detachment=${encodeURIComponent(detachmentMatch[2]!)}`,
+  `/api/reference/v1/factions/${encodeURIComponent(detachmentFaction)}/units?battleSize=2000&detachment=${encodeURIComponent(detachmentSlug)}`,
 )
 const unitIndex = (await unitIndexResponse.json()) as {
   detachment?: { name?: string } | null
@@ -122,10 +122,17 @@ if (
 }
 const missionMatrix = (await search('Force disposition mission matrix', 'mission')).body.results[0]!
 if (missionMatrix.section.id !== 'matrix') throw new Error('mission search did not return the Force Disposition matrix')
-const primaryMission = (await search('Death Trap terrain area trapped this turn', 'mission')).body.results[0]!
+const primaryMission = (await search('Death Trap', 'mission')).body.results.find((result) =>
+  result.id.startsWith('mission:chapter-approved-2026-2027:'),
+)
+if (!primaryMission) throw new Error('primary mission search returned no mission')
 const primaryMissionDocument = await request(`/api/reference/v1/documents/${encodeURIComponent(primaryMission.id)}`)
-if (!(await primaryMissionDocument.text()).includes('Scoring: For each terrain area trapped this turn.')) {
-  throw new Error('primary mission retrieval omitted source scoring')
+const primaryDocument = (await primaryMissionDocument.json()) as { sections?: { textSources?: { source?: string; url?: string }[] }[] }
+if (
+  !primaryMissionDocument.ok ||
+  !primaryDocument.sections?.some((section) => section.textSources?.some((source) => source.source && source.url?.startsWith('https://')))
+) {
+  throw new Error('primary mission retrieval omitted its published source pointer')
 }
 const primaryRecordResponse = await request(`/api/reference/v1/records/${encodeURIComponent(primaryMission.id)}`)
 const primaryRecord = (await primaryRecordResponse.json()) as {
@@ -212,7 +219,7 @@ const mcpUnits = await request('/mcp', {
     method: 'tools/call',
     params: {
       name: 'list_units',
-      arguments: { faction: detachmentMatch[1], battleSize: 2_000, detachment: detachmentMatch[2] },
+      arguments: { faction: detachmentFaction, battleSize: 2_000, detachment: detachmentSlug },
     },
   }),
 })

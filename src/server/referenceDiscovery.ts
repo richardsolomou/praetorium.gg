@@ -42,12 +42,12 @@ export async function referenceSitemap(request: Request) {
   for (const document of corpus.documents) {
     add(document.url.split('#')[0]!)
     for (const section of document.sections) add(section.url.split('#')[0]!)
+    if (document.kind === 'datasheet' || document.kind === 'detachment') {
+      const faction = document.url.split('/').slice(0, -2).join('/')
+      add(faction)
+      if (document.kind === 'datasheet') add(`${faction}/datasheets`)
+    }
   }
-  for (const sheet of corpus.catalogue.datasheets) {
-    const route = sheet.referenceRoute
-    if (route) add(`/factions/${route.catalogueId}`)
-  }
-  for (const detachment of corpus.catalogue.detachments) add(`/factions/${detachment.factionSlug}`)
   for (const document of corpus.catalogue.ruleDocuments) {
     add(`/rules/${document.slug}`)
     for (const section of document.sections) add(`/rules/${document.slug}/${section.slug}`)
@@ -63,7 +63,17 @@ export async function referenceSitemap(request: Request) {
     const canonical = await app().canonicalCatalogueFor()
     if (canonical) {
       for (const [slug, recordedAt] of factionsLastUpdated(history, canonical)) paths.set(`/data-updates/${slug}`, recordedAt)
-      for (const [path, recordedAt] of referencesLastUpdated(history, canonical)) if (paths.has(path)) paths.set(path, recordedAt)
+      const canonicalPaths = new Map(
+        corpus.documents.flatMap((document) => {
+          if (document.kind !== 'datasheet' && document.kind !== 'detachment') return []
+          const [, faction, slug] = document.id.split(':')
+          return [[`/factions/${faction}/${document.kind === 'datasheet' ? 'datasheets' : 'detachments'}/${slug}`, document.url]]
+        }),
+      )
+      for (const [path, recordedAt] of referencesLastUpdated(history, canonical)) {
+        const destination = canonicalPaths.get(path) ?? path
+        if (paths.has(destination)) paths.set(destination, recordedAt)
+      }
     }
   }
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...paths]
