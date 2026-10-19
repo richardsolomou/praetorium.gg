@@ -253,6 +253,58 @@ describe('how many models a unit may field', () => {
     expect(modelCountOf(built.selection, index)).toBe(6)
   })
 
+  describe('a bounded model group inside an unbounded composition group', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'destroyers',
+          name: 'Destroyers',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'composition',
+              name: 'Unit Composition',
+              selectionEntries: [{ id: 'token', name: 'Token', type: 'upgrade', constraints: mandatory('token-min') }],
+              selectionEntryGroups: [
+                {
+                  id: 'bodies',
+                  name: '3-6 models',
+                  constraints: [
+                    { id: 'bodies-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                    { id: 'bodies-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+                  ],
+                  selectionEntries: [
+                    {
+                      id: 'destroyer',
+                      name: 'Destroyer',
+                      type: 'model',
+                      constraints: [
+                        { id: 'model-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                        { id: 'model-max', type: 'max', value: 6, field: 'selections', scope: 'parent' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    it('preserves the nested model limits', () => {
+      expect(unitSize('destroyers', index)).toEqual({ min: 3, max: 6, models: 3, path: ['composition', 'bodies', 'destroyer'] })
+    })
+
+    it.each([
+      [1, 3],
+      [6, 6],
+      [7, 6],
+    ])('clamps a request for %i models to %i', (requested, expected) => {
+      expect(modelCountOf(buildUnit('destroyers', index, requested)!.selection, index)).toBe(expected)
+    })
+  })
+
   it('keeps sizing the required squad once a wider optional group holds a model', () => {
     const index = indexOf({
       sharedSelectionEntries: [

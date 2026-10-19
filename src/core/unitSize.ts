@@ -108,7 +108,7 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
       const occupants = occupantBounds(child, index)
       const min = requiredCount(definition, index) || occupants.min
       const max = stated ?? occupants.max
-      if (max > min) {
+      if (max > min && (min > 0 || max < UNBOUNDED)) {
         groups.push({ min, max, total: inside, adjust: widest(child, index, here) ?? here })
         continue
       }
