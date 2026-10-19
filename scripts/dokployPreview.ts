@@ -9,6 +9,7 @@ import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type Sp
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { requiredEnv } from './lib/requiredEnv.ts'
+import { waitForWebRevision } from './lib/webReadiness.ts'
 
 const execFile = promisify(execFileCallback)
 const allowedSecrets = [
@@ -130,11 +131,13 @@ async function deploy() {
     `SPACETIME_ISSUER=${issuer}`,
     `SPACETIME_OPERATOR_TOKEN=${identity.token}`,
   ].join('\n')
-  await execFile('pnpm', ['exec', 'ras', 'preview', 'dokploy', 'deploy'], { env: process.env, timeout: 900_000, maxBuffer: 4_000_000 })
-  const health = await fetch(`${previewUrl}/api/health`, { signal: AbortSignal.timeout(15_000) })
-  if (!health.ok || health.headers.get('x-praetorium-revision') !== revision) {
-    throw new Error(`Preview ${number} did not serve revision ${revision}`)
+  try {
+    await execFile('pnpm', ['exec', 'ras', 'preview', 'dokploy', 'deploy'], { env: process.env, timeout: 900_000, maxBuffer: 4_000_000 })
+  } catch (error) {
+    if (!(error as { stderr?: string }).stderr?.includes(`Timed out waiting for ${previewUrl}/api/health`)) throw error
+    console.log('The preview is still preparing its catalogue')
   }
+  await waitForWebRevision(previewUrl, revision)
 }
 
 async function run() {

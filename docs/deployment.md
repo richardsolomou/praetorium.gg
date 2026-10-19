@@ -35,7 +35,7 @@ Open pages poll the uncached `/api/release` and offer a manual Refresh for a new
 
 ## Pull request previews
 
-Pull requests receive disposable Dokploy previews at `pr-<number>.praetorium.gg`; the PR's status comment links readiness and failures. Ready means `/api/health` reports the expected commit, not merely that a container started.
+Pull requests receive disposable Dokploy previews at `pr-<number>.praetorium.gg`; the PR's status comment links readiness and failures. Ready means `/api/health` reports the expected commit, not merely that a container started. After the preview CLI reaches its health deadline, deployment allows up to 30 more minutes for initial catalogue preparation; an older healthy revision cannot satisfy readiness.
 
 `.github/workflows/dokploy-preview-image.yml` builds a digest-pinned image without deployment credentials; the trusted `dokploy-preview-deploy.yml` job and `scripts/dokployPreview.ts` deploy it. Fork artifacts require maintainer approval before trusted deployment.
 
