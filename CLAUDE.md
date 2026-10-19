@@ -24,6 +24,7 @@ Read the relevant guide and section before changing its behavior. Read [Architec
 
 ## Shared constraints
 
+- Keep acquisition strategy, outreach targets and drafts, personal/location context, private analytics links, and operational measurement plans in private notes. Public issues and documentation retain reproducible product problems, implementation contracts, and technical verification.
 - Keep fetched upstream catalogues, copied rules prose, generated catalogues, and snapshots out of Git. Authored source corrections belong in `catalogue/patches/`, with minimal upstream context and verified provenance; a correction that adds rules text beyond a single quoted sentence is a commit on a fork branch of its source. Use the verified fetched snapshot, inspect the exact source required by the change, and report missing or unsupported semantics rather than inventing rules.
 - Keep deterministic domain decisions in `src/core`, without IO or framework imports except zod. Reuse the existing authority for legality, pricing, visibility, and battle state; a second implementation of the same decision is a bug.
 - Fold battle state from its command log. Do not persist a second score, phase, round, or mission that can disagree with it.
