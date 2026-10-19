@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.169.0
+
+### Minor Changes
+
+- 5364dfe: Start a roster with a faction already chosen from its faction page, and open a new roster from any mission pack or matchup page.
+
+### Patch Changes
+
+- 8807604: Refresh community catalogue data while the app is running, retain historical rules, and prepare local contributions without private credentials.
+
 ## 0.168.0
 
 ### Minor Changes
