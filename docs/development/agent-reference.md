@@ -14,6 +14,8 @@ Preserve canonical URLs, source revisions, attribution, and unavailable fields; 
 
 `POST /mcp` uses stateless Streamable HTTP; `src/server/referenceMcp.ts` owns tools, resources, and version, and `server.json` the registry entry. Account tools require Better Auth OAuth (`mcp:read`, `mcp:write`) with resource-bound bearer tokens, never browser cookies, and reuse the site's ownership, legality, and sequence checks. `save_roster`'s `limit` is the battle size, with an optional [custom points budget](catalogue-data.md#custom-points-budgets); `create_battle`'s `limit` is only the battle size.
 
+MCP tool and resource citations are absolute URLs for the configured public origin. `src/server/agentLinks.ts` resolves them at the MCP boundary, including JSON text and Markdown canonical citations; internal browser routes and stable record IDs remain relative. Verify the actual assistant's returned link, not only its answer text.
+
 `simulate_combat` ([`combatTools.ts`](../../src/server/combatTools.ts)) runs the standalone simulator flow for two full-strength units. It refuses work above `COMBAT_TOOL_MAX_WORK` because it calculates synchronously on the server, returns uncompilable rules as `notCalculated`, and links to `/simulator` with the same state.
 
 Accept one bounded JSON-RPC message, never batches. SQLite migrations must create OAuth storage before serving. Keep the pinned provider patch for wrapped uniqueness errors during concurrent startup. [Telemetry](telemetry.md#runtime-boundaries) owns MCP telemetry. Publish with `mcp-publisher login github` and `mcp-publisher publish` from the root, keeping registry and server versions aligned.

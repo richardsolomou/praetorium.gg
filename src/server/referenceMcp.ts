@@ -8,6 +8,8 @@ import { PRAETORIUM_MCP_INSTRUCTIONS } from './referenceGuide'
 import { ACCOUNT_MCP_SCOPES } from './accountMcp'
 import { createAgentTools } from './createAgentTools'
 import { boundedText } from './boundedBody'
+import { publicOrigin } from './requestOrigin'
+import { absoluteAgentText } from './agentLinks'
 import {
   referenceResources,
   rulesQuestionPrompt,
@@ -67,7 +69,7 @@ function revokedMcpResponse(resource: string) {
 }
 
 async function serveMcp(request: Request, parsed: unknown, userId: string | null) {
-  const server = referenceMcpServer(userId)
+  const server = referenceMcpServer(userId, publicOrigin(request))
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
   try {
     await server.connect(transport)
@@ -119,15 +121,15 @@ export function referenceMcpOptions() {
   })
 }
 
-function referenceMcpServer(userId: string | null) {
+function referenceMcpServer(userId: string | null, origin: string) {
   const server = new McpServer({ name: 'praetorium-reference', version: '1.2.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
   const tools = createAgentTools(userId)
-  tools.registerMcp(server)
+  tools.registerMcp(server, origin)
 
   for (const resource of referenceResources) {
     const metadata = { title: resource.title, description: resource.description, mimeType: resource.mimeType }
     server.registerResource(resource.name, resource.uri, metadata, async (uri) => ({
-      contents: [{ uri: uri.href, mimeType: resource.mimeType, text: await resource.read() }],
+      contents: [{ uri: uri.href, mimeType: resource.mimeType, text: absoluteAgentText(await resource.read(), origin) }],
     }))
   }
   server.registerPrompt(rulesQuestionPrompt.name, rulesQuestionPrompt, async (input) => promptMessages(rulesQuestionText(input)))

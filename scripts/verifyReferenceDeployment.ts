@@ -98,8 +98,11 @@ const mcp = await request('/mcp', {
     params: { name: 'get_reference', arguments: { id: movementResult.id } },
   }),
 })
-const mcpBody = (await mcp.json()) as { result?: { structuredContent?: { id?: string } } }
+const mcpBody = (await mcp.json()) as { result?: { structuredContent?: { id?: string; url?: string } } }
 if (!mcp.ok || mcpBody.result?.structuredContent?.id !== movementResult.id) throw new Error('MCP retrieval disagreed with the HTTP API')
+if (mcpBody.result.structuredContent.url !== new URL(movementResult.url, base).href) {
+  throw new Error('MCP retrieval omitted its absolute canonical citation')
+}
 
 const datasheet = (await search('Battle Sisters Squad', 'datasheet')).body.results[0]!
 const detachment = (await search('Bringers of Flame', 'detachment')).body.results[0]!
