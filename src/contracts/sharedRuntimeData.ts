@@ -4,15 +4,33 @@ import type { RuntimeData } from './runtimeData'
 const REFERENCE = '$praetoriumBase'
 
 export function shareRuntimeData(value: RuntimeData, base: RuntimeData, path: string[] = []): RuntimeData {
-  if (path.length > 64) throw new Error('Runtime data is too deeply nested')
+  const validate = (item: RuntimeData, depth: number) => {
+    if (depth > 64) throw new Error('Runtime data is too deeply nested')
+    if (!item || typeof item !== 'object') return
+    if (REFERENCE in item) throw new Error('Reserved shared-data field')
+    for (const child of Object.values(item)) validate(child, depth + 1)
+  }
+  validate(value, path.length)
+  return share(value, base, path)
+}
+
+function share(value: RuntimeData, base: RuntimeData, path: string[]): RuntimeData {
   if (value && typeof value === 'object') {
-    if (REFERENCE in value) throw new Error('Reserved shared-data field')
     if (base && typeof base === 'object' && JSON.stringify(value) === JSON.stringify(base)) return { [REFERENCE]: path }
-    if (Array.isArray(value))
-      return value.map((child, index) => shareRuntimeData(child, childOf(base, String(index)), [...path, String(index)]))
-    return Object.fromEntries(
-      Object.entries(value).map(([key, child]) => [key, shareRuntimeData(child, childOf(base, key), [...path, key])]),
-    )
+    if (Array.isArray(value)) {
+      const matches = new Map(
+        (Array.isArray(base) ? base : []).flatMap((child, index) =>
+          child && typeof child === 'object' ? [[JSON.stringify(child), index] as const] : [],
+        ),
+      )
+      return value.map((child, index) => {
+        const matched = child && typeof child === 'object' ? matches.get(JSON.stringify(child)) : undefined
+        return matched === undefined
+          ? share(child, childOf(base, String(index)), [...path, String(index)])
+          : { [REFERENCE]: [...path, String(matched)] }
+      })
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, share(child, childOf(base, key), [...path, key])]))
   }
   return value
 }

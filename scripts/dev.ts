@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { open, readFile, realpath, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -81,6 +82,14 @@ if (command === 'status') {
   }
   if (existing) assertPreviewOverrides(existing, environment)
   else {
+    const catalogueDirectory = environment.CATALOGUE_DIR ?? saved?.catalogueDir ?? path.join(worktree, 'catalogue-data')
+    if (!existsSync(catalogueDirectory)) {
+      execFileSync(process.execPath, ['--import', 'tsx', path.join(worktree, 'scripts/syncCatalogue.ts'), '--prepare'], {
+        cwd: worktree,
+        env: { ...environment, CATALOGUE_DIR: catalogueDirectory },
+        stdio: 'inherit',
+      })
+    }
     await mkdir(path.dirname(logFile), { recursive: true })
     const log = await open(logFile, 'a', 0o600)
     try {

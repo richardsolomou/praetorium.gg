@@ -13,15 +13,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --filte
 COPY . .
 ARG VITE_POSTHOG_HOST
 ARG VITE_POSTHOG_PROJECT_TOKEN
-# Snapshots are private: the build reads one with the account ID and key pair this secret holds, on this step alone.
-RUN --mount=type=cache,target=/app/.catalogue-objects \
-    --mount=type=secret,id=catalogue_store \
-    set -eu; \
-    if [ -s /run/secrets/catalogue_store ]; then \
-      read -r R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY < /run/secrets/catalogue_store || [ -n "${R2_SECRET_ACCESS_KEY:-}" ]; \
-      export R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; \
-    fi; \
-    CATALOGUE_CACHE_DIR=off pnpm catalogue:sync
+ENV CATALOGUE_RUNTIME_FETCH=true
 ARG GITHUB_SHA
 ARG POSTHOG_UPLOAD_SOURCEMAPS=false
 ARG POSTHOG_CLI_HOST
@@ -63,6 +55,7 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 RUN mkdir /native && cp -RL node_modules/.pnpm/node_modules/@libsql/linux-* /native/
 
 FROM node:24.21.0-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
 COPY --from=dependencies --chown=node:node /app/node_modules /app/node_modules
@@ -71,7 +64,7 @@ RUN node -e "require('/app/.output/server/node_modules/libsql')"
 
 ARG GITHUB_SHA
 LABEL org.opencontainers.image.source="https://github.com/richardsolomou/praetorium.gg"
-ENV NODE_ENV=production PORT=3000 DATA_DIR=/data CATALOGUE_DIR=/app/catalogue-data RULES_DIR=/app/catalogue-data/rules CATALOGUE_UPDATE_MODE=off GITHUB_SHA=$GITHUB_SHA
+ENV NODE_ENV=production PORT=3000 DATA_DIR=/data CATALOGUE_RUNTIME_FETCH=true CATALOGUE_UPDATE_MODE=off GITHUB_SHA=$GITHUB_SHA
 RUN mkdir /data && chown node:node /data
 USER node
 EXPOSE 3000

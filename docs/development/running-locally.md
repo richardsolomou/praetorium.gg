@@ -4,9 +4,13 @@
 
 ## Catalogue
 
-`just catalogue-sync` activates the release-pinned verified snapshot from the shared platform cache. Snapshots live in a private bucket, so it reads them only with `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` set; without them, `CATALOGUE_DIR=catalogue-data just catalogue-materialize --without-stored-editions` builds the catalogue from its pinned sources, leaving out the retired rules editions that exist only as published snapshots. Builds reuse the compiled catalogue runtime beside it. `CATALOGUE_CACHE_DIR=off` selects worktree-local copies. `just catalogue-latest` follows the published pointer; `just catalogue-upstream` reports source drift without activation.
+Contributors do not need private credentials. Before starting a preview, `just dev` runs `just catalogue-prepare`'s preparation when the catalogue directory is missing; it preserves an existing catalogue, including materialized source edits. Preparation reuses the release-pinned verified snapshot from the shared platform cache when available. Without a cached snapshot or private store credentials, it automatically builds from the pinned public sources, keeping their rules editions and omitting only historical editions stored exclusively as private snapshots. It prints that limitation without asking for credentials or a rules-version choice. The local server uses the prepared catalogue without background snapshot downloads.
 
-Sync before list, mission, or battlefield work. Never edit the shared cache in place. Generated output stays in the owning stack. [Catalogue data](catalogue-data.md) owns publication and provenance.
+`just catalogue-sync` requires the exact release snapshot and never substitutes a source build; use it for release verification and CI. An uncached snapshot needs private access. Maintainers can keep `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in the main checkout's ignored `.env.local`; catalogue preparation, sync, snapshot reads, and source materialization load only these settings, preferring the process environment, then this checkout's `.env.local` and `.env`, then the main checkout's `.env.local` and `.env`. Linked worktrees reuse those credentials without copying files or inheriting application settings.
+
+Use `just catalogue-prepare` for local setup rather than asking contributors for R2 access. Configured private-store or mirror failures remain errors; preparation does not hide them by switching to public sources. Builds reuse the compiled catalogue runtime beside the shared snapshot cache. `CATALOGUE_CACHE_DIR=off` selects worktree-local copies. `just catalogue-latest` follows the published pointer; `just catalogue-upstream` compares configured pins with approved branch heads without private access.
+
+Prepare the catalogue before list, mission, or battlefield work. Never edit the shared cache in place. Generated output stays in the owning stack. [Catalogue data](catalogue-data.md) owns publication and provenance.
 
 ## Development lifecycle
 
@@ -23,7 +27,7 @@ Ports are allocated automatically; on a collision with an explicit `LOCAL_*_PORT
 
 ## Browser tests
 
-`just e2e` runs isolated production-mode stacks with fresh `/tmp/praetorium-e2e-<id>` data, reusing a fingerprinted compiled build (`scripts/browserTestBuild.ts`); `just e2e-cold <spec>` bypasses that cache. Run `just catalogue-preflight` before shipping a catalogue change. Never reuse the interactive Vite preview as a browser-test stack, and never let concurrent worktrees share test data.
+`just e2e` runs isolated production-mode stacks with fresh `/tmp/praetorium-e2e-<id>` data, reusing a fingerprinted compiled build (`scripts/browserTestBuild.ts`); `just e2e-cold <spec>` bypasses that cache. The fingerprint uses the verified snapshot identity or, for public source builds, the catalogue files themselves. Run `just catalogue-preflight` before shipping a catalogue change; it requires private release-snapshot access. Never reuse the interactive Vite preview as a browser-test stack, and never let concurrent worktrees share test data.
 
 An interrupted run leaves its stack and processes behind. Run `just teardown` once the branch's pull request has merged; it stops only stacks this worktree or a deleted worktree started, scoped by each stack's directory rather than a process name.
 

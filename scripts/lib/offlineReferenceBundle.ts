@@ -37,6 +37,7 @@ import {
   type OfflineReferenceVersion,
 } from '../../src/contracts/offlineReference'
 import { catalogueDataDirectory } from './catalogueFiles'
+import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
   if (!edition) return files
@@ -94,19 +95,22 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
   return { revision, compressed }
 }
 
-export async function writeReferenceBundle(outDir: string, directory = catalogueDataDirectory()) {
+export async function writeReferenceBundle(outDir: string, directory = catalogueDataDirectory(), runtime?: CatalogueRuntime) {
   const { catalogue, rules } = loadSnapshotWithRules(directory)
   const versions = catalogueEditionLoaders(
     directory,
     () => catalogue,
     () => rules,
+    runtime ?? null,
   )
   const canonical = versions.canonicalCatalogue(
-    referenceCatalogue(
-      directory,
-      () => catalogue,
-      () => rules,
-    ),
+    runtime
+      ? null
+      : referenceCatalogue(
+          directory,
+          () => catalogue,
+          () => rules,
+        ),
   )
   if (!canonical) throw new Error('Offline reference canonical catalogue is unavailable')
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
@@ -231,11 +235,11 @@ export async function writeReferenceBundle(outDir: string, directory = catalogue
   }
   const reference = encodeReferenceBundle({ queries, search: versions.searchIndex()! })
   const bundle = `/assets/reference-${reference.revision}.bin`
-  await writeFile(path.join(outDir, bundle), reference.compressed)
+  await writeFile(path.join(outDir, 'assets', path.basename(bundle)), reference.compressed)
   const writeConstruction = async (editions: typeof construction.editions) => {
     const encoded = encodeReferenceBundle({ queries: [], search: EMPTY_SEARCH, construction: { ...construction, editions } })
     const asset = `/assets/construction-${encoded.revision}.bin`
-    await writeFile(path.join(outDir, asset), encoded.compressed)
+    await writeFile(path.join(outDir, 'assets', path.basename(asset)), encoded.compressed)
     return asset
   }
   const versionsOffered = construction.editions.filter((source) => !('base' in source))

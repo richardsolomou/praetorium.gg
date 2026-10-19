@@ -92,7 +92,7 @@ export async function ensureWebHealthCheck(origin: URL, headers: Record<string, 
     Test: ['CMD', 'node', '/app/scripts/healthcheck.ts'],
     Interval: 10_000_000_000,
     Timeout: 10_000_000_000,
-    StartPeriod: 360_000_000_000,
+    StartPeriod: 1_800_000_000_000,
     Retries: 3,
   }
   const response = await request(new URL('/api/application.update', origin), {

@@ -35,16 +35,21 @@ export async function offlineAppVersion(signal: AbortSignal): Promise<OfflineApp
 }
 
 const isAsset = (value: unknown, name: string) =>
-  typeof value === 'string' && new RegExp(`^/assets/${name}-[a-f0-9]{64}\\.bin$`).test(value)
+  typeof value === 'string' && new RegExp(`^/(?:assets|catalogue-assets/[a-f0-9]{64})/${name}-[a-f0-9]{64}\\.bin$`).test(value)
 
 export async function offlineReferenceVersion(signal: AbortSignal): Promise<OfflineReferenceVersion> {
   const value = await fetchManifest('/offline-reference-version.json', signal)
   if (
     typeof value.revision !== 'string' ||
     !/^[a-f0-9]{64}$/.test(value.revision) ||
-    value.bundle !== `/assets/reference-${value.revision}.bin` ||
+    !isAsset(value.bundle, 'reference') ||
+    !value.bundle.endsWith(`/reference-${value.revision}.bin`) ||
     !isAsset(value.construction?.current, 'construction') ||
     !isAsset(value.construction?.complete, 'construction') ||
+    value.construction.current.slice(0, value.construction.current.lastIndexOf('/')) !==
+      value.bundle.slice(0, value.bundle.lastIndexOf('/')) ||
+    value.construction.complete.slice(0, value.construction.complete.lastIndexOf('/')) !==
+      value.bundle.slice(0, value.bundle.lastIndexOf('/')) ||
     !Array.isArray(value.construction.versions) ||
     !value.construction.versions.every((id: unknown) => typeof id === 'string')
   )

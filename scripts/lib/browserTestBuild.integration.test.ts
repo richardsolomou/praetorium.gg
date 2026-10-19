@@ -66,6 +66,20 @@ it('rejects a snapshot manifest that does not match its installed identity', asy
   await expect(fingerprint()).rejects.toThrow('verified catalogue snapshot manifest')
 })
 
+it('fingerprints public source catalogues and invalidates edits to their data', async () => {
+  await rm(path.join(directory, 'snapshot'), { recursive: true })
+  await file('snapshot/revision.json', '{"definitions":"pinned"}')
+  await file('snapshot/definitions/faction.json', '{"name":"before"}')
+  const before = await fingerprint()
+  await file('snapshot/definitions/faction.json', '{"name":"after"}')
+  expect(await fingerprint()).not.toBe(before)
+})
+
+it('rejects a published snapshot whose manifest is missing', async () => {
+  await rm(path.join(directory, 'snapshot/.snapshot-manifest.json'))
+  await expect(fingerprint()).rejects.toMatchObject({ code: 'ENOENT' })
+})
+
 it('invalidates the build after changing a client build environment value', async () => {
   expect(await fingerprint({ VITE_EXAMPLE: 'after' })).not.toBe(await fingerprint({ VITE_EXAMPLE: 'before' }))
 })
@@ -83,6 +97,10 @@ it('does not include runtime ports or database credentials in the build identity
   expect(await fingerprint({ APP_URL: 'http://127.0.0.1:3001', AUTH_SECRET: 'new-secret' })).toBe(
     await fingerprint({ APP_URL: 'http://127.0.0.1:3000', AUTH_SECRET: 'old-secret' }),
   )
+})
+
+it('keeps data-free production builds distinct from builds with bundled reference data', async () => {
+  expect(await fingerprint({ CATALOGUE_RUNTIME_FETCH: 'true' })).not.toBe(await fingerprint({ CATALOGUE_RUNTIME_FETCH: 'false' }))
 })
 
 async function build() {
@@ -109,6 +127,17 @@ it('restores compiled files into a fresh run without copying database state', as
 it('rejects a build from different inputs', async () => {
   await saveBrowserTestBuild(path.join(directory, 'cache'), 'old', await build())
   expect(await restoreBrowserTestBuild(path.join(directory, 'cache'), 'current', path.join(directory, 'run'))).toBe(false)
+})
+
+it('restores a runtime-fetch build without requiring a bundled reference manifest', async () => {
+  await build()
+  await rm(path.join(directory, 'build/public/offline-reference-version.json'))
+  await file('build/server/catalogue-refresh.mjs', 'worker')
+  await file('build/server/catalogue-compiler.json', '{}')
+  const cache = path.join(directory, 'cache')
+  await saveBrowserTestBuild(cache, 'runtime', path.join(directory, 'build'))
+
+  expect(await restoreBrowserTestBuild(cache, 'runtime', path.join(directory, 'run'), true)).toBe(true)
 })
 
 it('builds once and restores for the next stack', async () => {

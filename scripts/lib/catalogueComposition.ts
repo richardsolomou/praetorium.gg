@@ -8,10 +8,16 @@ import {
   type CatalogueOverlay,
   CATALOGUE_COMPOSITION_FILE,
   catalogueCompositionSchema,
+  readCatalogueComposition,
 } from '../../src/server/catalogueComposition'
-import type { CatalogueSourceConfig, SnapshotSourceName } from '../../src/server/catalogueSources'
+import { isSnapshotSourceName, type CatalogueSourceConfig, type SnapshotSourceName } from '../../src/server/catalogueSources'
 import { fetchInto } from '../../src/server/sync'
-import { catalogueBaseUrl, fetchSnapshot } from '../../src/server/catalogueSnapshot'
+import {
+  catalogueBaseUrl,
+  fetchSnapshot,
+  assertCatalogueSnapshotAllowed,
+  configuredCatalogueRevocations,
+} from '../../src/server/catalogueSnapshot'
 import { applyPatches } from './cataloguePatches'
 
 const revisionOf = (value: unknown) => hash('sha256', JSON.stringify(value))
@@ -23,6 +29,7 @@ export async function composeCatalogue(
   patches: string,
   disabled: ReadonlySet<SnapshotSourceName>,
   report?: (message: string) => void,
+  retainedDirectory?: string,
 ) {
   catalogueCompositionSchema.parse(composition)
   const work = fs.mkdtempSync(path.join(path.dirname(directory), '.composition-'))
@@ -72,7 +79,18 @@ export async function composeCatalogue(
       if (snapshot) {
         if (['definitions', 'points', 'datacards'].some((name) => disabled.has(name as SnapshotSourceName)))
           throw new Error(`edition ${edition.id} requires definitions, points, and datacards`)
-        await fetchSnapshot(target, catalogueBaseUrl(), snapshot, report)
+        const retained = retainedDirectory && path.join(retainedDirectory, 'editions', edition.id)
+        const retainedPin = retainedDirectory
+          ? readCatalogueComposition(retainedDirectory)?.editions.find((entry) => entry.edition.id === edition.id)?.snapshot
+          : undefined
+        if (retained && retainedPin?.id === snapshot.id && fs.existsSync(retained)) {
+          assertCatalogueSnapshotAllowed(
+            snapshot,
+            Object.keys(revisions(retained)).filter(isSnapshotSourceName),
+            configuredCatalogueRevocations(),
+          )
+          fs.cpSync(retained, target, { recursive: true })
+        } else await fetchSnapshot(target, catalogueBaseUrl(), snapshot, report)
         validateCatalogueImports(path.join(target, 'definitions'), edition.catalogueIds)
         editionRevisionsById[edition.id] = revisions(target)
         continue

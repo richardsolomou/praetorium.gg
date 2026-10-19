@@ -194,6 +194,21 @@ it('refuses a retained edition with a mismatched archive checksum without replac
   expect(loadCatalogue(path.join(root, 'data'))!.index.definitions.get('guard')!.costs![0]!.value).toBe(110)
 })
 
+it('checks source withdrawals before reusing a cached historical edition', async () => {
+  const manifest = await retainedSnapshot()
+  const previous = await materialize(manifest)
+  vi.stubEnv('CATALOGUE_DISABLED_SOURCES', 'definitions')
+
+  await expect(
+    materializeCatalogue(path.join(root, 'next'), catalogueSources, {
+      disabled,
+      composition: manifest,
+      retainedDirectory: previous,
+      patchesDirectory: path.join(root, 'patches'),
+    }),
+  ).rejects.toThrow('catalogue source definitions has been revoked')
+})
+
 it('refuses a historical snapshot that does not contain its declared playable faction', async () => {
   const manifest = await retainedSnapshot()
   manifest.editions[0]!.edition.catalogueIds = ['missing']

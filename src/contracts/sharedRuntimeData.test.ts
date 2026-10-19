@@ -1,5 +1,19 @@
 import { expect, it } from 'vitest'
 import { shareRuntimeData, restoreRuntimeData } from './sharedRuntimeData'
+
+it('shares unchanged records after upstream reorders an array', () => {
+  const base = [
+    { id: 'first', description: 'First rule' },
+    { id: 'second', description: 'Second rule' },
+  ]
+  const value = [base[1]!, base[0]!]
+  const shared = shareRuntimeData(value, base)
+
+  expect({ shared, restored: restoreRuntimeData(shared, base) }).toEqual({
+    shared: [{ $praetoriumBase: ['1'] }, { $praetoriumBase: ['0'] }],
+    restored: value,
+  })
+})
 import { packRuntimeData, unpackRuntimeData } from './runtimeData'
 
 it('shares identical rules while retaining changed and added faction records', () => {
@@ -37,6 +51,12 @@ it('refuses ambiguous reference records', () => {
 
 it('refuses source records that could impersonate references', () => {
   expect(() => shareRuntimeData({ $praetoriumBase: [] }, null)).toThrow('Reserved shared-data field')
+})
+
+it('refuses nested reserved fields even when the entire source matches its base', () => {
+  const source = [{ id: 'record', nested: { $praetoriumBase: [] } }]
+
+  expect(() => shareRuntimeData(source, source)).toThrow('Reserved shared-data field')
 })
 
 it('bounds repeated references by their expanded size', () => {

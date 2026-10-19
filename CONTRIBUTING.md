@@ -8,11 +8,10 @@ Install Node 24.x, pnpm 11.28.5, just 1.58.0, and SpacetimeDB CLI 2.12.0, then r
 
 ```sh
 just install
-just catalogue-sync
 just dev
 ```
 
-`just dev` prints the URL of a persistent Vite server; leave it running while testing. Use `just dev-status`, `just dev-stop`, and `just dev-restart` to manage only this worktree's stack. `just catalogue-sync` is needed for list building, missions, and battlefields. It reuses a release-pinned snapshot across worktrees and needs the private catalogue store's credentials; without them, run `CATALOGUE_DIR=catalogue-data just catalogue-materialize --without-stored-editions` instead, which builds the catalogue from its pinned sources without the retired rules editions. [Running locally](docs/development/running-locally.md) covers the cache, local databases, and individual commands.
+`just dev` prepares a missing catalogue and prints the URL of a persistent Vite server; leave it running while testing. No private credentials are needed: setup builds from pinned public sources when the release snapshot is unavailable, omitting only historical editions stored exclusively in the private bucket. Use `just dev-status`, `just dev-stop`, and `just dev-restart` to manage only this worktree's stack. [Running locally](docs/development/running-locally.md) covers catalogue preparation, local databases, and individual commands.
 
 ## Check a change
 

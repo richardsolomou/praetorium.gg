@@ -23,6 +23,7 @@ type MaterializeOptions = {
   patchesDirectory?: string
   report?: (message: string) => void
   composition?: CatalogueComposition | null
+  retainedDirectory?: string
 }
 
 function selectIcons(directory: string, source: CatalogueSourceConfig['icons']) {
@@ -86,7 +87,7 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       const omitted = options.source
         ? new Set<SnapshotSourceName>([...disabled, ...SNAPSHOT_SOURCE_NAMES.filter((name) => name !== options.source)])
         : disabled
-      await composeCatalogue(staged, sources, composition, patches, omitted, options.report)
+      await composeCatalogue(staged, sources, composition, patches, omitted, options.report, options.retainedDirectory)
       for (const name of selected.filter((source) => source === 'icons' || source === 'battlemaster'))
         applyPatches(staged, path.join(patches, name), name)
       if (!omitted.has('definitions')) validateCatalogueImports(path.join(staged, 'definitions'))

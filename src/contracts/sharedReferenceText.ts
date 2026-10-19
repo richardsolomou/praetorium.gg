@@ -1,4 +1,5 @@
 import { jsonByteLength } from '../core/json'
+import { hasTextTokens } from '../shared/sourceText'
 
 const REFERENCE = '$praetoriumText'
 const MAX_TEXTS = 100_000
@@ -12,7 +13,7 @@ export function shareReferenceText(value: unknown) {
   const counts = new Map<string, number>()
   const visit = (item: unknown, depth = 0): void => {
     if (depth > 64) throw new Error('Reference data is too deeply nested')
-    if (typeof item === 'string' && item.length >= 120) {
+    if (typeof item === 'string' && (item.length >= 120 || hasTextTokens(item))) {
       counts.set(item, (counts.get(item) ?? 0) + 1)
       if (counts.size > MAX_TEXTS) throw new Error('Reference has too many texts')
     } else if (item && typeof item === 'object') {

@@ -371,6 +371,21 @@ it('activates one immutable cached snapshot for a worktree', async () => {
   expect(installedSnapshot(active)?.id).toBe(pointer.id)
 })
 
+it('reuses a cached private snapshot without credentials or network access', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-cached-private-'))
+  roots.push(root)
+  const archive = path.join(root, 'snapshot.zip')
+  const pointer = packCatalogueSnapshot(completeCatalogue(root), archive, path.join(root, 'pointer.json'))
+  const cached = path.join(root, 'cached')
+  installSnapshotArchive(cached, archive, pointer, null)
+  for (const name of ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']) vi.stubEnv(name, undefined)
+  globalThis.fetch = async () => {
+    throw new Error('cached snapshots must not make network requests')
+  }
+
+  await expect(fetchSnapshot(cached, 'r2://praetorium-private/catalogue', pointer)).resolves.toBe(false)
+})
+
 it('validates catalogue update modes', () => {
   expect(catalogueUpdateMode()).toBe('latest')
   expect(catalogueUpdateMode('pinned')).toBe('pinned')

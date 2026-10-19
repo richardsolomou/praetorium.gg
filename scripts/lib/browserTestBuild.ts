@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { createHash, hash, randomUUID } from 'node:crypto'
-import { access, cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { publishDirectory } from './publishDirectory.ts'
@@ -35,9 +35,31 @@ export function browserTestBuildEnvironment(environment: NodeJS.ProcessEnv) {
 }
 
 export async function browserTestBuildFingerprint(worktree: string, catalogue: string, environment: NodeJS.ProcessEnv) {
-  const snapshot = JSON.parse(await readFile(path.join(catalogue, '.snapshot.json'), 'utf8')) as { id?: string }
-  const manifest = await readFile(path.join(catalogue, '.snapshot-manifest.json'))
-  if (snapshot.id !== hash('sha256', manifest)) throw new Error('Browser tests require a verified catalogue snapshot manifest')
+  const snapshotFile = await readFile(path.join(catalogue, '.snapshot.json'), 'utf8').catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== 'ENOENT') throw error
+    return null
+  })
+  let catalogueIdentity: string
+  if (snapshotFile !== null) {
+    const snapshot = JSON.parse(snapshotFile) as { id?: string }
+    const manifest = await readFile(path.join(catalogue, '.snapshot-manifest.json'))
+    catalogueIdentity = hash('sha256', manifest)
+    if (snapshot.id !== catalogueIdentity) throw new Error('Browser tests require a verified catalogue snapshot manifest')
+  } else {
+    const entries = await readdir(catalogue, { recursive: true, withFileTypes: true })
+    const files = entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => path.relative(catalogue, path.join(entry.parentPath, entry.name)))
+      .sort()
+    const source = createHash('sha256').update('source-catalogue')
+    for (const file of files)
+      source
+        .update(file)
+        .update('\0')
+        .update(await readFile(path.join(catalogue, file)))
+        .update('\0')
+    catalogueIdentity = source.digest('hex')
+  }
   const { stdout } = await execute('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...inputs], {
     cwd: worktree,
     maxBuffer: 8_000_000,
@@ -50,7 +72,8 @@ export async function browserTestBuildFingerprint(worktree: string, catalogue: s
       process.version,
       process.platform,
       process.arch,
-      snapshot.id,
+      catalogueIdentity,
+      environment.CATALOGUE_RUNTIME_FETCH === 'true',
       Object.entries(browserTestBuildEnvironment(environment))
         .filter(([key]) => key.startsWith('VITE_'))
         .sort(([left], [right]) => left.localeCompare(right)),
@@ -70,7 +93,7 @@ export async function browserTestBuildFingerprint(worktree: string, catalogue: s
   return hasher.digest('hex')
 }
 
-export async function restoreBrowserTestBuild(cache: string, fingerprint: string, output: string) {
+export async function restoreBrowserTestBuild(cache: string, fingerprint: string, output: string, runtimeFetch = false) {
   try {
     const before = await stat(cache, { bigint: true })
     if ((await readFile(path.join(cache, 'fingerprint'), 'utf8')) !== fingerprint) return false
@@ -80,7 +103,7 @@ export async function restoreBrowserTestBuild(cache: string, fingerprint: string
       'server/index.mjs',
       'server/seed-preview.mjs',
       'public/offline-app-version.json',
-      'public/offline-reference-version.json',
+      ...(runtimeFetch ? ['server/catalogue-refresh.mjs', 'server/catalogue-compiler.json'] : ['public/offline-reference-version.json']),
     ])
       await access(path.join(output, file))
     const after = await stat(cache, { bigint: true })
@@ -123,7 +146,9 @@ export async function ensureBrowserTestBuild(
   build: () => Promise<void>,
 ) {
   const fingerprint = await browserTestBuildFingerprint(worktree, catalogue, environment)
-  const cached = environment.LOCAL_BUILD_CACHE !== 'off' && (await restoreBrowserTestBuild(cache, fingerprint, output))
+  const cached =
+    environment.LOCAL_BUILD_CACHE !== 'off' &&
+    (await restoreBrowserTestBuild(cache, fingerprint, output, environment.CATALOGUE_RUNTIME_FETCH === 'true'))
   if (!cached) await build()
   if ((await browserTestBuildFingerprint(worktree, catalogue, environment)) !== fingerprint)
     throw new Error('Browser-test build inputs changed during the build; run it again')
