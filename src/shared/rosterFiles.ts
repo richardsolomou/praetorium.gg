@@ -7,6 +7,7 @@ import { type Definition, nameOf } from '../core/catalogue'
 import { childrenOf, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText, toCompactText } from '../core/newRecruit'
+import { normalizedNameVariants } from '../core/name'
 import { fromListForgeText, fromListForgeWtcText, toListForgeText } from '../core/listForge'
 import { fromWarmindText, toWarmindText } from '../core/warmind'
 import { fromWtcText, toWtcText } from '../core/wtcText'
@@ -398,6 +399,20 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
   return visit(normalized(combined), candidates) ?? []
 }
 
+const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
+const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
+const modelAliases = (name: string) => [
+  normalized(name),
+  ...nameVariants(name.replace(/\s+w\/\s.+$/i, '').replace(/\s+(?:Squad|Sodality)$/i, '')),
+]
+
+function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
+  const counts = new Map<string, number>()
+  for (const piece of wargearOf(selection, index))
+    for (const name of nameVariants(piece.name)) counts.set(name, (counts.get(name) ?? 0) + piece.count)
+  return counts
+}
+
 function textRosterPick(
   unit: TextRosterUnit,
   entryId: string,
@@ -410,8 +425,7 @@ function textRosterPick(
   const labels = new Map<string, string>()
   const statedUnder = new Map<string, Map<string, number>>()
   for (const selection of unit.selections) {
-    // New Recruit marks a unit upgrade it lists among enhancements with "(Upgrade)".
-    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+?)(?:\s+\(Upgrade\))?$/i, '$1').trim()
+    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
     const name = normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
@@ -435,9 +449,7 @@ function textRosterPick(
       unitToggles(entryId, selection, loaded.index, context).map((toggle) => [toggle.key, warlord ? 1 : 0]),
     )
     const aliases = choices.map((choice) => optionAliases(choice.options, loaded, context))
-    const held = new Map<string, number>()
-    for (const piece of wargearOf(selection, loaded.index))
-      held.set(normalized(piece.name), (held.get(normalized(piece.name)) ?? 0) + piece.count)
+    const held = wargearCounts(selection, loaded.index)
     // A choice on a model the list names, with its wargear listed beneath it, reads only those lines.
     const scopes = choices.map((choice) => {
       const path = choice.key.split('/')
@@ -448,9 +460,7 @@ function textRosterPick(
         const under = names.flatMap((name) => statedUnder.get(normalized(name ?? '')) ?? [])[0]
         if (!under) break
         const model = selectionAt(selection, path.slice(0, depth + 1))
-        const own = new Map<string, number>()
-        for (const piece of model ? wargearOf(model, loaded.index) : [])
-          own.set(normalized(piece.name), (own.get(normalized(piece.name)) ?? 0) + piece.count)
+        const own = model ? wargearCounts(model, loaded.index) : new Map<string, number>()
         return { stated: under, held: own }
       }
       return { stated, held }
@@ -582,7 +592,9 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
     for (const name of [nameOf(definition, index.definitions), target.name, profile, ...weapons]) {
       if (!name) continue
       found.add(withoutArticle(name))
-      found.add(withoutArticle(name.replace(/\s+w\/\s.+$/i, '').replace(/\s+\(Upgrade\)$/i, '')))
+      found.add(withoutArticle(upgradeName(name.replace(/\s+w\/\s.+$/i, ''))))
+      if (target.type === 'model') for (const alias of modelAliases(name)) found.add(withoutArticle(alias))
+      else for (const alias of nameVariants(name)) found.add(withoutArticle(alias))
     }
     node.selections?.forEach(walk)
   }
@@ -612,8 +624,7 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
     if (target.type === 'model') {
       for (const name of [nameOf(definition, index.definitions), modelProfileOf(definition, index)]) {
         if (!name) continue
-        names.add(normalized(name))
-        names.add(normalized(name.replace(/\s+w\/\s.+$/i, '')))
+        for (const alias of modelAliases(name)) names.add(alias)
       }
     }
     for (const child of childrenOf(target, index)) walk(child.definition)
@@ -656,9 +667,8 @@ function optionAliases(
   return new Map(
     options.map((option) => {
       const selection = defaultSelection(option.id, loaded.index, context)
-      // Some catalogues name an enhancement with the "(Upgrade)" New Recruit adds to others.
-      const names = new Map([option.name, option.name.replace(/\s+\(Upgrade\)$/i, '')].map((name) => [normalized(name), 1]))
-      for (const piece of selection ? wargearOf(selection, loaded.index) : []) names.set(normalized(piece.name), piece.count)
+      const names = new Map([option.name, upgradeName(option.name)].map((name) => [normalized(name), 1]))
+      for (const [name, count] of selection ? wargearCounts(selection, loaded.index) : []) names.set(name, count)
       return [option.id, names]
     }),
   )

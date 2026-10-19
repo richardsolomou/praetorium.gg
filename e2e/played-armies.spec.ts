@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { chooseRosterAction, signUp, uniqueName, waitForRosterSave } from './account'
+import { chooseRosterAction, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, userIdFor } from './storage'
 
@@ -95,13 +95,14 @@ for (const [width, label] of [
 test('a visitor copies a played army as the one roster their device keeps, and is asked to sign up for another', async ({ page }) => {
   await page.goto('/rosters?view=played')
   const card = page.locator(`[data-played-army="${ARMY}"]`).first()
+  await retryUntilVisible(card, () => page.getByRole('button', { name: 'Show more armies' }).click({ timeout: 1_000 }))
   await card.getByRole('button', { name: `Duplicate ${ARMY}` }).click()
   await page.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
   await expect(page.getByLabel('List name')).toHaveValue(`Copy of ${ARMY}`)
   await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain(`Copy of ${ARMY}`)
 
   await page.goto('/rosters?view=played')
-  await page.waitForLoadState('networkidle')
+  await retryUntilVisible(card, () => page.getByRole('button', { name: 'Show more armies' }).click({ timeout: 1_000 }))
   await card.getByRole('button', { name: `Duplicate ${ARMY}` }).click()
   await expect(page.getByRole('dialog', { name: 'Keep more than one roster' })).toBeVisible()
 })

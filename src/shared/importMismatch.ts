@@ -29,6 +29,7 @@ export const normalized = (value: string) =>
     value
       .trim()
       .toLocaleLowerCase()
+      .replace(/[‐‑]/g, '-')
       .replace(/\s+/g, ' ')
       .replace(/\[\d+\]$/, ''),
   )

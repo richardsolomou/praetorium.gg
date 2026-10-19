@@ -1,6 +1,7 @@
 import { expect, test } from './test'
 import { readFile } from 'node:fs/promises'
 import { listForgeDetailed } from '../src/core/rosterText.fixtures'
+import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import {
   confirmRosterSetup,
   attachRoster,
@@ -103,6 +104,36 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
     await expect(saved.locator('pre')).toContainText('• 10x Tesla carbine')
     await expect(saved.locator('pre')).toContainText('• Leading: Immortals')
   }
+})
+
+test('an official Custodes roster keeps all units and choices after import and reload', async ({ page }, testInfo) => {
+  await signUp(page, 'Custodes importer')
+  await page.goto('/rosters')
+  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  await review.getByLabel('Roster text').fill(custodesOfficial)
+  await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await expect(review).toContainText('10 of 10 matched entries')
+  await expect(review.getByRole('alert')).toHaveCount(0)
+  await review.screenshot({ path: testInfo.outputPath('custodes-import-review.png') })
+  await review.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+  await page.reload()
+  await expect(page.locator('[data-unit]')).toHaveCount(10)
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  const text = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
+  for (const line of [
+    'First test (2,000 Points)',
+    '• 2x Adrathic Combi-destructors',
+    'Auric Exemplar',
+    'Flawless Bladework',
+    'Memento Moritoi',
+    'Augury Uplink',
+    '• Leading: Custodian Guard Sodality',
+  ])
+    await expect(text).toContainText(line)
 })
 
 test('an imported roster with disagreeing dispositions asks for one before battle setup', async ({ page }) => {
