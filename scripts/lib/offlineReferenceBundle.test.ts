@@ -38,6 +38,11 @@ it('refuses a version whose transitive import is missing', () => {
   ).toThrow('missing catalogue library')
 })
 const search = { factions: [], datasheets: [], detachments: [], rules: [], missions: [] }
+it('uses the published Unix gzip header on every build platform', () => {
+  const encoded = encodeReferenceBundle({ queries: [], search })
+  expect(encoded.compressed[9]).toBe(3)
+})
+
 it('refuses an encoded bundle the client cannot read', () => {
   expect(() => encodeReferenceBundle({ queries: [{ key: ['private-query'], data: [] }], search })).toThrow(
     'Invalid offline reference bundle',
