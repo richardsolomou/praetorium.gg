@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { withTextPointers, withoutTexts, type TextLocations } from '../shared/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
+import { absoluteAgentLinks, absoluteAgentText } from './agentLinks'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
 import type { AgentToolDescriptor } from '../contracts/agentTools'
@@ -15,7 +16,7 @@ type ToolConfig<Shape extends z.ZodRawShape> = {
 
 type RegisteredTool = {
   descriptor: AgentToolDescriptor
-  registerMcp: (server: McpServer) => void
+  registerMcp: (server: McpServer, origin: string) => void
   parse: (input: unknown) => Promise<Record<string, unknown>>
   execute: (input: unknown) => Promise<CallToolResult>
 }
@@ -69,10 +70,15 @@ export class AgentTools {
         readOnly: config.annotations.readOnlyHint === true,
         account: false,
       },
-      registerMcp: (server) =>
-        server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(name, { ...config, inputSchema: schema }, async (input) =>
-          published(await execute(await schema.parseAsync(input))),
-        ),
+      registerMcp: (server, origin) =>
+        server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(name, { ...config, inputSchema: schema }, async (input) => {
+          const result = await published(await execute(await schema.parseAsync(input)))
+          return {
+            ...result,
+            content: result.content.map((item) => (item.type === 'text' ? { ...item, text: absoluteAgentText(item.text, origin) } : item)),
+            ...(result.structuredContent ? { structuredContent: absoluteAgentLinks(result.structuredContent, origin) } : {}),
+          }
+        }),
       parse,
       execute: async (input) => published(await execute(await parse(input))),
     })
@@ -85,8 +91,8 @@ export class AgentTools {
     }))
   }
 
-  registerMcp(server: McpServer) {
-    for (const tool of this.tools.values()) tool.registerMcp(server)
+  registerMcp(server: McpServer, origin: string) {
+    for (const tool of this.tools.values()) tool.registerMcp(server, origin)
   }
 
   async parseInput(name: string, input: unknown) {

@@ -13,6 +13,11 @@ const document = {
   revisions: { datacards: 'revision' },
   attribution: ['Community data'],
 }
+const absoluteDocument = {
+  ...document,
+  url: 'https://praetorium.gg/rules/core/movement#move',
+  sections: [{ ...document.sections[0], url: 'https://praetorium.gg/rules/core/movement#move' }],
+}
 const catalogue: CanonicalCatalogue = {
   format: 'praetorium.canonical-catalogue.v1',
   compilerVersion: 1,
@@ -85,7 +90,33 @@ it('serves the same reference document through MCP', async () => {
   const response = await handleReferenceMcp(toolRequest('get_reference', { id: document.id }))
 
   expect(response.status).toBe(200)
-  expect(await response.json()).toMatchObject({ result: { structuredContent: document } })
+  expect(await response.json()).toMatchObject({ result: { structuredContent: absoluteDocument } })
+})
+
+it('supplies an absolute canonical citation in MCP document text', async () => {
+  const response = await handleReferenceMcp(toolRequest('get_reference', { id: document.id }))
+  const payload = await response.json()
+
+  expect(payload.result.content[0].text).toContain('Canonical URL: https://praetorium.gg/rules/core/movement#move')
+})
+
+it('supplies absolute section citations in MCP search results', async () => {
+  const response = await handleReferenceMcp(toolRequest('search_reference', { query: 'Move Units' }))
+  const payload = await response.json()
+
+  expect(payload.result.structuredContent.results[0].section.url).toBe('https://praetorium.gg/rules/core/movement#move')
+})
+
+it('uses the configured public origin for MCP citations', async () => {
+  vi.stubEnv('APP_URL', 'https://pr-123.praetorium.gg')
+  try {
+    const response = await handleReferenceMcp(toolRequest('get_reference', { id: document.id }))
+    const payload = await response.json()
+
+    expect(payload.result.structuredContent.url).toBe('https://pr-123.praetorium.gg/rules/core/movement#move')
+  } finally {
+    vi.unstubAllEnvs()
+  }
 })
 
 it('challenges account tools while keeping public reference tools available', async () => {
@@ -184,7 +215,7 @@ it('serves reference discovery and structured records through MCP', async () => 
   expect(await index.json()).toMatchObject({
     result: { structuredContent: { corpusRevision: 'snapshot', factions: [{ name: 'Space Marines' }] } },
   })
-  expect(await record.json()).toMatchObject({ result: { structuredContent: { document, data: document } } })
+  expect(await record.json()).toMatchObject({ result: { structuredContent: { document: absoluteDocument, data: absoluteDocument } } })
   expect(await guide.json()).toMatchObject({
     result: {
       contents: [
