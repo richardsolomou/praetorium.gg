@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.166.0
+
+### Minor Changes
+
+- adc4033: Use the Optimize dropdown to build a unit for ranged or melee combat in the simulator.
+
 ## 0.165.3
 
 ### Patch Changes
