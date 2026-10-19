@@ -203,7 +203,7 @@ Collection photos live in the private bucket as `collection-photos/<uuid>`, up t
 - A Warlord the player removes stays removed, so a doubles roster can leave it to its teammate.
 - Apply loadout choices before nested spreads, then model allocations after specialists. Removed loadouts suppress nested equipment, but restoring them keeps saved choices.
 - Saved counts must match the built unit, because later presses fold against them: `withSquadBodies`, `resizedSpreads` and `builtPickSelections` keep them aligned, and a group is saved as a choice or counts, never both. Verify grow, shrink, another edit, putting a weapon down, and reload.
-- Equipment counts multiply ordinary ancestors once; empty containers are not weapons and linked profiles do not merge distinct carriers.
+- Equipment counts multiply ordinary ancestors once; empty containers are not weapons and linked profiles do not merge distinct carriers. Fixed model equipment retains copies per member; roster cards and loadouts read their total through `modelFixedCount` in `src/core/modelKinds.ts`. Verify doubled equipment through edits, reload and read-only view (`e2e/doubled-wargear.spec.ts`).
 - Match weapon profiles by name and catalogue equipment ownership, never hardcoded names or suffixes; group a bundle's profiles only when a sibling explicitly matches the owner's weapon name (Melta Rifles, Multi-meltas; `e2e/reference-roster.spec.ts`). Squad-size choices are not weapon choices.
 - Reminder timing is a prose-derived suggestion the player confirms; unknown wording stays blank. `remindersForDetachments` drops a detachment's alerts when setup removes it and when a battle freezes the roster.
 
