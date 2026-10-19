@@ -11,16 +11,39 @@ permissions:
   contents: read
 
 jobs:
+  image:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      built: ${{ steps.image.outputs.built }}
+    steps:
+      - name: Check whether an image was built
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          built=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" --jq '
+            [.jobs[] | select(.name == "build" or (.name | startswith("build /")))] |
+            if length == 0 then error("missing preview build job")
+            else any(.[]; .conclusion != "skipped") end')
+          echo "built=$built" >> "$GITHUB_OUTPUT"
+
   approve-fork:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name != github.repository
+    needs: image
+    if: needs.image.outputs.built == 'true' && github.event.workflow_run.head_repository.full_name != github.repository
     runs-on: ubuntu-latest
     environment: pr-preview
     steps:
       - run: true
 
   deploy:
-    needs: approve-fork
-    if: always() && (needs.approve-fork.result == 'success' || needs.approve-fork.result == 'skipped') && (github.event_name == 'pull_request_target' || github.event.workflow_run.pull_requests[0])
+    needs: [image, approve-fork]
+    if: always() && (needs.approve-fork.result == 'success' || needs.approve-fork.result == 'skipped') && (github.event_name == 'pull_request_target' || (github.event.workflow_run.pull_requests[0] && (github.event.workflow_run.status != 'completed' || needs.image.outputs.built == 'true')))
     permissions:
       actions: read
       contents: read

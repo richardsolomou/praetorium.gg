@@ -631,27 +631,6 @@ test('a kind of model filed under two groups is still one card', async ({ page }
   await expect(warriors.getByLabel('Autoch-pattern bolter count')).toHaveText('9')
   await expect(warriors.getByLabel('Magna-rail rifle count')).toBeVisible()
 
-  // The body for the ion blaster comes from a squadmate, not from thin air.
-  await warriors.getByRole('button', { name: 'More Ion blaster' }).click()
-  await expect(warriors.getByLabel('Ion blaster count')).toHaveText('1')
-  await expect(warriors.getByLabel('Autoch-pattern bolter count')).toHaveText('8')
-  await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
-  await expect(page.getByText('Within the points limit')).toBeAttached()
-})
-
-/**
- * The heavy weapon is filed in a group of its own, empty until a player asks for one,
- * and a request could not reach a group that was not in the list yet. Pressing for a
- * magna-rail rifle did nothing at all.
- */
-test('a squad can take the heavy weapon its datasheet offers', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Leagues of Votann', /Hearthband/)
-  await add(page, 'Hearthkyn Warriors')
-  await page.locator('[data-unit="Hearthkyn Warriors"]').getByRole('button', { name: 'Hearthkyn Warriors', exact: true }).click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  const warriors = loadout.locator('section').filter({ has: page.getByLabel('Hearthkyn Warrior models') })
   await warriors.getByRole('button', { name: 'More Magna-rail rifle' }).click()
   await expect(warriors.getByLabel('Magna-rail rifle count')).toHaveText('1')
 
@@ -665,6 +644,13 @@ test('a squad can take the heavy weapon its datasheet offers', async ({ page }) 
   await warriors.getByRole('button', { name: 'Fewer Magna-rail rifle' }).click()
   await expect(warriors.getByLabel('Magna-rail rifle count')).toHaveText('0')
   await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
+
+  // The body for the ion blaster comes from a squadmate, not from thin air.
+  await warriors.getByRole('button', { name: 'More Ion blaster' }).click()
+  await expect(warriors.getByLabel('Ion blaster count')).toHaveText('1')
+  await expect(warriors.getByLabel('Autoch-pattern bolter count')).toHaveText('8')
+  await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
+  await expect(page.getByText('Within the points limit')).toBeAttached()
 })
 
 test('a plague marine squad still puts a weapon down after taking a special weapon', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { waitForOfflineApp } from './offline'
+import { savedApplicationDigest, waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import { createRoster, scrollSearchResultIntoView, signUp, uniqueName } from './account'
 import { add } from './builder.harness'
@@ -60,10 +60,12 @@ test('the complete reference keeps its existing UI after a cold offline launch',
       timeout: 180_000,
     })
     .toBe(true)
-  let download = await page.evaluate(async () =>
-    (await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))!.text(),
-  )
-  expect(download).not.toContain(player)
+  expect(
+    await page.evaluate(async (name) => {
+      const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
+      return (await saved!.text()).includes(name)
+    }, player),
+  ).toBe(false)
   await page.evaluate(async () => {
     const cache = await caches.open('praetorium-reference-v2')
     const html = await (await cache.match('/offline-reference.html'))!.text()
@@ -114,10 +116,16 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(page.locator('main details').first()).toHaveAttribute('open', '')
   await expect(page).toHaveURL(/rules\/core-rules\/moving$/)
   await expect(page.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
-  download = await page.evaluate(async () =>
-    (await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))!.text(),
-  )
-  expect(download).not.toContain('previous-reference')
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
+        return saved ? (await saved.text()).includes('previous-reference') : true
+      }),
+    )
+    .toBe(false)
+  const download = await savedApplicationDigest(page)
+  expect(download).toMatch(/^[a-f0-9]{64}$/)
   await page.unroute('**/offline-reference-version.json')
   await page.route('**/offline-reference-version.json', (route) => route.abort())
   const failedRefresh = page.waitForEvent('requestfailed', {
@@ -126,9 +134,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await failedRefresh
   await expect(page.getByRole('button', { name: 'Refresh now' })).toHaveCount(0)
-  expect(
-    await page.evaluate(async () => (await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))!.text()),
-  ).toBe(download)
+  expect(await savedApplicationDigest(page)).toBe(download)
   await page.unroute('**/offline-reference-version.json')
   await context.setOffline(true)
   await page.close()

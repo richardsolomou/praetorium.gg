@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { system } from '../../src/server/catalogue.fixtures'
 import { readCatalogueRuntime } from '../../src/server/catalogueRuntime'
 import { writeCatalogueRuntime } from './catalogueRuntime'
-import { prepareCatalogueRuntime, runtimeCacheKey, type RuntimeStore } from './catalogueRuntimeCache'
+import { compilerSourcesFingerprint, prepareCatalogueRuntime, runtimeCacheKey, type RuntimeStore } from './catalogueRuntimeCache'
 import { installRuntimeArchive } from './catalogueRuntimeDistribution'
 
 let directory: string
@@ -138,4 +138,12 @@ it('leaves a cached runtime alone when the store holds it', async () => {
 it('compiles without storing when the cache is off', async () => {
   const result = await prepareCatalogueRuntime(directory, output, null, compile, key(), offline)
   expect({ result, cache: fs.existsSync(cacheRoot) }).toEqual({ result: 'compiled', cache: false })
+})
+
+it('invalidates compiled outputs after locked dependencies change', () => {
+  const file = 'pnpm-lock.yaml'
+  fs.writeFileSync(path.join(directory, file), 'before')
+  const before = compilerSourcesFingerprint(directory)
+  fs.writeFileSync(path.join(directory, file), 'after')
+  expect(compilerSourcesFingerprint(directory)).not.toBe(before)
 })

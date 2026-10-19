@@ -27,12 +27,19 @@ Ports are allocated automatically; on a collision with an explicit `LOCAL_*_PORT
 
 An interrupted run leaves its stack and processes behind. Run `just teardown` once the branch's pull request has merged; it stops only stacks this worktree or a deleted worktree started, scoped by each stack's directory rather than a process name.
 
+PR CI distributes all browser tests, including `@catalogue` journeys, across the same duration-balanced runners; the tag selects the release preflight rather than a separate CI lane. Refresh `e2e/durations.json` with `just e2e-durations <run-id>...` after changing the suite.
+
+Documentation-only pull requests run static checks and skip runtime tests, builds, catalogue comparisons and preview images. `scripts/ciScope.ts` owns the narrow documentation allowlist; mixed changes, unknown paths, empty comparisons and manual dispatches run the full suite. A failed comparison fails CI. The publication text audit runs after the production build in CI so it reuses the offline bundle that build generated; local integration checks still include it.
+
+The CI workflow's manual dispatch accepts 8 or 16 browser runners, with 16 as the default. Compare the same revision and record queue waits separately from job and test durations. `pnpm exec tsx scripts/benchmarkE2eRunners.ts <setup-seconds> <report.json>...` models both counts from downloaded passing reports at 4, 8 and 16 available runner slots. It assumes ideal use of two browser workers, adds the measured setup and median report overhead per runner, and excludes the shared build and external queue waits. Confirm estimates with workflow dispatches before changing the default.
+
 Keep the browser runner's startup deadline longer than the build, preview seed, and Node readiness budgets combined, and measure startup phases (`PLAYWRIGHT_STARTUP_REPORT=/absolute/report.json`) before changing timeouts or worker counts. `just e2e-ui <spec>` keeps the stack running for test-only edits; restart it after application, build, or catalogue changes.
 
 Run the complete affected scenario before shipping, including full navigation, reloads, and restored account state; a passing interaction in the Vite preview does not verify production hydration. A failed test retains its trace, screenshot, and DOM state. Gotchas:
 
 - Until a page hydrates, a press on a server-rendered control does nothing, the router cancels a link navigation already under way, and hydration resets scroll position and typed field values. Repeat the interaction until its outcome appears (`retryUntilVisible` and `followLink` in `e2e/account.ts`) rather than waiting for time.
-- Concurrent-tab save assertions must check the persisted result, because either tab can flush the shared mutation queue.
+- A changed URL can precede the routed content. Wait for the destination heading before using controls shared with the previous screen; opening its dialog early can lose the interaction when the route swaps.
+- Concurrent-tab save assertions must check the persisted result, because either tab can flush the shared mutation queue. A refreshed reference reaches the screen before the saved application is written: poll the saved result before testing a cold reload. Compare large saved applications inside the browser and return a boolean or digest so a failed assertion cannot print the complete bundle.
 - A spec that calls `browser.newContext()` imports `test` from `e2e/test.ts`, which closes those contexts at test end; Playwright closes only fixture contexts, and a left-open player keeps polling for the rest of the worker's tests.
 - Test titles must differ after punctuation is removed, because Playwright derives each test's output directory from its title.
 

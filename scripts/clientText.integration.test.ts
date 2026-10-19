@@ -23,7 +23,7 @@ import { gameReferencesFor } from '../src/shared/gameReferences'
 import { pickerUnitsFor } from '../src/shared/pickerUnits'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { rosterLoadoutDatasheets } from '../src/shared/rosterReads'
-import { writeReferenceBundle } from './lib/offlineReferenceBundle'
+import { prepareReferenceBundle } from './lib/offlineReferenceCache'
 import { namesIn, normal, sourceProse, stringsIn } from './lib/sourceProse.fixtures'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -104,7 +104,7 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-offline-'))
     try {
       fs.mkdirSync(path.join(out, 'assets'))
-      await writeReferenceBundle(out, root)
+      await prepareReferenceBundle(out, root)
       for (const file of fs.readdirSync(path.join(out, 'assets'))) {
         const bundle = decodeReferenceBundle(JSON.parse(gunzipSync(fs.readFileSync(path.join(out, 'assets', file))).toString())) as {
           queries: unknown
@@ -133,8 +133,32 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
     return [...found.values()]
   }
 
-  it('reads every payload', { timeout: 120_000 }, () => {
-    expect([published.length > 100, construction.length > 100]).toEqual([true, true])
+  it('audits every public payload family', () => {
+    expect([...new Set(published.map(({ name }) => name.split(' ')[0]!))].sort((left, right) => left.localeCompare(right))).toEqual([
+      'datasheetBySlug',
+      'deployments',
+      'detachmentDetail',
+      'faction',
+      'factionIndex',
+      'gameReferences',
+      'offline',
+      'ruleIndex',
+      'ruleSection',
+      'terrain',
+    ])
+  })
+
+  it('audits every construction payload family', () => {
+    expect([...new Set(construction.map(({ name }) => name.split(' ')[0]!))].sort((left, right) => left.localeCompare(right))).toEqual([
+      'combatantDatasheet',
+      'combatUnits',
+      'detachmentRules',
+      'factionDatasheets',
+      'loadoutDatasheets',
+      'offline',
+      'searchIndex',
+      'units',
+    ])
   })
 
   it('carries no Game Datacards rules text anywhere', { timeout: 120_000 }, () => {
