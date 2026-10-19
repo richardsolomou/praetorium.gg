@@ -368,7 +368,14 @@ export function CombatMatchup({
     key: JSON.stringify([defender, adjustments, defenceRules, attacker?.models]),
     preferences,
     excluded: excludedWeapons,
-    result: outcome?.key === requestKey ? outcome.answer.combined?.result : undefined,
+    results:
+      outcome?.key === requestKey
+        ? {
+            combined: outcome.answer.combined?.result,
+            ranged: outcome.answer.ranged?.result,
+            melee: outcome.answer.melee?.result,
+          }
+        : undefined,
     scoring: loadoutScoring,
     expected: scenarios,
   } satisfies Omit<LoadoutOptimization, 'apply'>)

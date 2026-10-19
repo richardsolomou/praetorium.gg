@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { Crosshair, Swords } from 'lucide-react'
 import type { CombatResult } from '../../../core/combat'
-import { estimateKey, type LoadoutScoring, type OutcomePriority } from '../../../core/combatLoadouts'
+import { estimateKey, type LoadoutScoring, type LoadoutOptimizationMode, type OutcomePriority } from '../../../core/combatLoadouts'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import type { OptionNote } from '../rosters/builder/LoadoutControls'
 import type { LoadoutOdds } from './useLoadoutOdds'
@@ -29,7 +29,7 @@ export type LoadoutOptimization = {
   key: string
   preferences: Record<string, string>
   excluded: Record<Phase, string[]>
-  result?: CombatResult
+  results?: Partial<Record<LoadoutOptimizationMode, CombatResult>>
   scoring: LoadoutScoring | null
   expected: CombatRequest
   apply: (preferences: Record<string, string>) => void
