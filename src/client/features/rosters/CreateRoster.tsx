@@ -5,7 +5,6 @@ import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_PLAYER_DEFAULTS } from '../../../core/playerDefaults'
 import { playerDefaultsQuery } from '../../queries'
-import { useHydrated } from '../../useClientValue'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { EMPTY_SETUP } from './guestDraft'
 import { useNewRoster } from './newRoster'
@@ -30,7 +29,6 @@ export function CreateRoster({
   onStarted?: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const hydrated = useHydrated()
   const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery(playerDefaultsQuery())
   const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: limit ?? defaults.battleSize }
   const create = useNewRoster()
@@ -43,7 +41,7 @@ export function CreateRoster({
     started()
     setOpen(true)
   }
-  const arriving = Boolean(starting && hydrated)
+  const arriving = Boolean(starting)
   const [arrivingFrom, setArrivingFrom] = useState(false)
   if (arriving !== arrivingFrom) {
     setArrivingFrom(arriving)

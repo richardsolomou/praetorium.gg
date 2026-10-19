@@ -14,7 +14,7 @@ import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
-import { searchText } from '../client/searchParams'
+import { searchFlag, searchText } from '../client/searchParams'
 
 const VIEWS = ['friends', 'public', 'played'] as const
 type RosterView = (typeof VIEWS)[number]
@@ -46,7 +46,7 @@ export const Route = createFileRoute('/rosters/')({
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
       ...(ROSTER_UPDATE_FILTERS.includes(search.updates as RosterUpdateFilter) ? { updates: search.updates as RosterUpdateFilter } : {}),
-      ...(search.new === true ? { new: true as const } : {}),
+      ...(searchFlag(search.new) ? { new: true as const } : {}),
     }
   },
   loaderDeps: ({ search: { view, faction, detachment, rules, sort } }) => ({ view, faction, detachment, rules, sort }),
@@ -106,6 +106,11 @@ function RosterLibraryRoute() {
   if (me && !ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
   return (
-    <RosterLibraryPage search={search} sort={sort} starting={starting} device={{ guest, pending: !ready && hinted, onChange: setGuest }} />
+    <RosterLibraryPage
+      search={search}
+      sort={sort}
+      starting={starting && ready}
+      device={{ guest, pending: !ready && hinted, onChange: setGuest }}
+    />
   )
 }

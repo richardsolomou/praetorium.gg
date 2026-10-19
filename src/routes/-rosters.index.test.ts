@@ -7,7 +7,7 @@ it('keeps a request for a new roster with the library filters', () => {
   expect(validate({ new: true, limit: 2000 })).toEqual({ new: true, limit: 2000 })
 })
 
-it.each(['true', 1, 'yes'])('ignores a new roster request of %j', (value) => {
+it.each([1, '1', 'yes'])('ignores a new roster request of %j', (value) => {
   expect(validate({ new: value })).toEqual({})
 })
 
