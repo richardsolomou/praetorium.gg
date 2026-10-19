@@ -3,6 +3,12 @@ name: CI
 on:
   pull_request:
   workflow_dispatch:
+    inputs:
+      e2e-runners:
+        description: Browser runners for a timing comparison
+        type: choice
+        options: ['16', '8']
+        default: '16'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -13,7 +19,11 @@ permissions:
 
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
 jobs:
+  changes:
+    uses: ./.github/workflows/ci-scope.yml
+
   static:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,19 +37,25 @@ jobs:
       - run: pnpm auth:db:check
       - run: pnpm catalogue:check
       - uses: ./.github/actions/setup-spacetime
+        if: needs.changes.outputs.runtime == 'true'
       - uses: richardsolomou/ras-stack/actions/check-spacetime-bindings@v1
+        if: needs.changes.outputs.runtime == 'true'
         with:
           out-dir: src/spacetime/generated
           format-command: pnpm exec oxfmt src/spacetime/generated
       - run: pnpm catalogue:sync
+        if: needs.changes.outputs.runtime == 'true'
         # Catalogue snapshots are private, read with these on this step alone.
         env:
           R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - run: pnpm reference:evaluate
+        if: needs.changes.outputs.runtime == 'true'
 
   unit:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -53,6 +69,8 @@ jobs:
       - run: pnpm test:unit
 
   integration:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -63,10 +81,13 @@ jobs:
           R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - run: pnpm test:integration
+      # The build lane audits publication after generating the offline bundle once.
+      - run: pnpm test:integration --exclude scripts/clientText.integration.test.ts
       - run: pnpm test:python
 
   build:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     runs-on: ubuntu-latest
     # A catalogue runtime or offline reference that no build has shared yet is uploaded under its key for every later build and deployment.
     env:
@@ -92,10 +113,16 @@ jobs:
           key: catalogue-runtime-${{ steps.runtime.outputs.key }}
       - run: pnpm build
       - run: pnpm typecheck
+      - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
 
   browser-build:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     name: Browser-test build
     runs-on: ubuntu-latest
+    outputs:
+      runner-count: ${{ inputs.e2e-runners || '16' }}
+      runners: ${{ inputs.e2e-runners == '8' && '[1,2,3,4,5,6,7,8]' || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]' }}
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
@@ -137,12 +164,12 @@ jobs:
           retention-days: 7
 
   e2e-shard:
-    name: E2E runner ${{ matrix.runner }} of 16
+    name: E2E runner ${{ matrix.runner }} of ${{ needs.browser-build.outputs.runner-count }}
     needs: [browser-build]
     strategy:
       fail-fast: false
       matrix:
-        runner: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        runner: ${{ fromJSON(needs.browser-build.outputs.runners) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -156,12 +183,13 @@ jobs:
       - name: Run the E2E shard
         env:
           E2E_SHARD: ${{ matrix.runner }}
+          E2E_RUNNERS: ${{ needs.browser-build.outputs.runner-count }}
           SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
           set -euo pipefail
           PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
-          node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" 16 > "$RUNNER_TEMP/e2e-shard.txt"
+          node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" "$E2E_RUNNERS" > "$RUNNER_TEMP/e2e-shard.txt"
           PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
             PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
@@ -193,16 +221,19 @@ jobs:
           retention-days: 7
 
   e2e:
-    if: always()
-    needs: [browser-build, e2e-shard]
+    if: always() && needs.changes.outputs.runtime != 'false'
+    needs: [changes, browser-build, e2e-shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
         run: |
+          test '${{ needs.changes.result }}' = success
           test '${{ needs.browser-build.result }}' = success
           test '${{ needs.e2e-shard.result }}' = success
 
   points:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     runs-on: ubuntu-latest
     env:
       BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
@@ -269,6 +300,8 @@ jobs:
           test "$((head_matched * base_checked))" -ge "$((base_matched * head_checked))"
 
   coverage-data:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     # A dropped field still renders, so it throws no exception and moves no event
     # count. This job snapshots what the app can say about the data before and
     # after the change and fails when the change drops any of it.
@@ -368,8 +401,8 @@ jobs:
           if-no-files-found: error
 
   coverage:
-    if: always()
-    needs: [coverage-data, coverage-snapshot]
+    if: always() && needs.changes.outputs.runtime != 'false'
+    needs: [changes, coverage-data, coverage-snapshot]
     runs-on: ubuntu-latest
     env:
       BASE_SHA: ${{ needs.coverage-data.outputs.base-sha }}

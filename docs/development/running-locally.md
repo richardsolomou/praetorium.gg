@@ -29,6 +29,10 @@ An interrupted run leaves its stack and processes behind. Run `just teardown` on
 
 PR CI distributes all browser tests, including `@catalogue` journeys, across the same duration-balanced runners; the tag selects the release preflight rather than a separate CI lane. Refresh `e2e/durations.json` with `just e2e-durations <run-id>...` after changing the suite.
 
+Documentation-only pull requests run static checks and skip runtime tests, builds, catalogue comparisons and preview images. `scripts/ciScope.ts` owns the narrow documentation allowlist; mixed changes, unknown paths, empty comparisons and manual dispatches run the full suite. A failed comparison fails CI. The publication text audit runs after the production build in CI so it reuses the offline bundle that build generated; local integration checks still include it.
+
+The CI workflow's manual dispatch accepts 8 or 16 browser runners, with 16 as the default. Compare the same revision and record queue waits separately from job and test durations. `pnpm exec tsx scripts/benchmarkE2eRunners.ts <setup-seconds> <report.json>...` models both counts from downloaded passing reports at 4, 8 and 16 available runner slots. It assumes ideal use of two browser workers, adds the measured setup and median report overhead per runner, and excludes the shared build and external queue waits. Confirm estimates with workflow dispatches before changing the default.
+
 Keep the browser runner's startup deadline longer than the build, preview seed, and Node readiness budgets combined, and measure startup phases (`PLAYWRIGHT_STARTUP_REPORT=/absolute/report.json`) before changing timeouts or worker counts. `just e2e-ui <spec>` keeps the stack running for test-only edits; restart it after application, build, or catalogue changes.
 
 Run the complete affected scenario before shipping, including full navigation, reloads, and restored account state; a passing interaction in the Vite preview does not verify production hydration. A failed test retains its trace, screenshot, and DOM state. Gotchas:
