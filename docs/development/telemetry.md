@@ -51,7 +51,7 @@ Exception tracking may carry stack traces; manual captures add only an operation
 
 ## Feedback
 
-`src/client/features/feedback` answers the API survey [App feedback](https://us.posthog.com/project/548119/surveys/01a14042-306c-0000-f070-c4fc0aadccf2) with a `survey sent` event whose question ids are pinned in `feedback.ts`; changing the survey's questions means updating them there. Without a successful capture, the dialog keeps the message and offers the issue tracker; local and browser-test stacks always take that path unless a test stubs capture.
+`src/client/features/feedback` answers the App feedback API survey with a `survey sent` event whose question ids are pinned in `feedback.ts`; changing the survey's questions means updating them there. Without a successful capture, the dialog keeps the message and offers the issue tracker; local and browser-test stacks always take that path unless a test stubs capture.
 
 Screenshots go to the private `praetorium-private` R2 bucket (production reaches it with the backup credentials) and only administrators can open their links. After capture, `emailFeedback` emails every admin account through the auth SMTP delivery; a failed delivery never changes what the player sees, since capture is the record.
 
@@ -73,19 +73,17 @@ Every link to praetorium.gg that is posted outside the app carries `utm_source`,
 | -------------- | -------------------------------------- | -------------------------------------------------------------- |
 | `utm_source`   | The site or organisation that shows it | `reddit`, `discord`, `facebook`, `github`, a store's short tag |
 | `utm_medium`   | The kind of placement                  | `community` (a post), `outreach` (an invitation), `profile`    |
-| `utm_campaign` | One post or invitation, never reused   | `2026-10-r-warhammer40k-2v2`, `readme`                         |
+| `utm_campaign` | One post or invitation, never reused   | `community-introduction-01`, `readme`                          |
 
-Use lowercase letters, digits, and hyphens. Values never carry a person's name, handle, or email. Use plain links only: no paid campaigns, and no link shortener that tracks visitors.
+Use lowercase letters, digits, and hyphens. Values never carry a person's name, handle, or email. Use plain links without a tracking shortener. Keep placement plans, recipients and campaign schedules in private notes.
 
-The browser SDK reads the parameters on landing. It puts them on that `$pageview`, adds `$session_entry_utm_*` to every event of that session, and sets `$initial_utm_*` on the person when the visitor signs in. Anonymous visitors have no person profile until then. Server events, such as `account_created` and `roster_created`, carry no campaign properties, so break them down by the person's `$initial_utm_source` and `$initial_utm_campaign`. A funnel that starts with a browser event can break down by `$session_entry_utm_source` with first-touch attribution, which also counts visitors who never sign up. [Campaign links: visit to guest draft to sign-up](https://us.posthog.com/project/548119/insights/UOuZblHZ) does this; change its breakdown to `$session_entry_utm_campaign` to compare single posts.
+The browser SDK reads the parameters on landing. It puts them on that `$pageview`, adds `$session_entry_utm_*` to every event of that session, and sets `$initial_utm_*` on the person when the visitor signs in. Anonymous visitors have no person profile until then. Server events, such as `account_created` and `roster_created`, carry no campaign properties, so break them down by the person's `$initial_utm_source` and `$initial_utm_campaign`. A funnel that starts with a browser event can break down by `$session_entry_utm_source` with first-touch attribution, which also counts visitors who never sign up. Use `$session_entry_utm_campaign` to compare placements.
 
-## Saved dashboards
+## Operational reports
 
-[Product and reliability](https://us.posthog.com/project/548119/dashboard/2225391) combines player activity, conversion, retention, failures, browser performance, server diagnostics, feedback, and MCP health.
+Keep hosted dashboard links, saved insight definitions, acquisition baselines and trial results in private notes. The public event contract above describes what the application captures; it does not prescribe operational reporting or acquisition plans.
 
-[Weekly AI arrivals and 14-day sign-ups](https://us.posthog.com/project/548119/insights/w7Kvgfxd) groups each person's first AI-referred pageview in its twelve-week lookback, rather than first-ever or all returning visits. It matches assistant `utm_source` values or referrers and counts accounts created within fourteen days of that arrival. Recent conversion counts are provisional; the rate appears only after the whole arrival week has had fourteen days to convert. Most ChatGPT visits arrive as referrer `$direct` with `utm_source=chatgpt.com`, so a filter on the referrer alone undercounts them.
-
-Player charts exclude internal/test accounts and the owner's production account, retain server completions, and apply bot classification only to browser events. Server trace charts include older deployed instances without host attribution and use a fixed seven-day window. Inspect each saved insight for its definition, window, and instrumentation limits rather than copying configuration here. These are working definitions, not approved Data Catalog metrics.
+Report filters must exclude internal/test and owner traffic without dropping legitimate server completions. Inspect each saved insight for its cohort, window and instrumentation limits before comparing results.
 
 ## Verification
 
