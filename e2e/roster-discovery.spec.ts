@@ -43,6 +43,7 @@ async function addNotedUnit(page: Page) {
 }
 
 async function filterTo(page: Page, choices: { faction: string; detachment: string; rules: string }) {
+  await expect(page.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
   const dialog = page.getByRole('dialog', { name: 'Filter rosters' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Filter', exact: true }).click())
   for (const [label, option] of [
