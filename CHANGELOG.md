@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.167.1
+
+### Patch Changes
+
+- a3e7e50: Keep Skorpekh and Ophydian Destroyers within their 3–6 model limit when resizing a unit.
+
 ## 0.167.0
 
 ### Minor Changes
