@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useContext, useState, type ReactNode } from 'react'
-import { Plus, Settings, WandSparkles, X } from 'lucide-react'
+import { ChevronDown, Plus, Settings, WandSparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
 import { modelCountChoices } from '../../../core/unitSize'
@@ -225,27 +226,47 @@ export function CombatantCard({
             </span>
           )}
           {optimizer.available ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    size="sm"
-                    className="relative h-7 w-12 shrink-0 overflow-hidden px-1 tabular-nums"
-                    disabled={!optimizer.enabled && !optimizer.busy}
-                    onClick={() => (optimizer.busy ? optimizer.cancel() : void optimizer.optimize())}
-                    data-onboarding={side === 'Attacker' ? 'simulator-optimize' : undefined}
-                    aria-label={optimizer.busy ? `Cancel optimization, approximately ${optimizer.progress}% complete` : 'Optimize'}
-                  >
-                    {optimizer.busy ? <span>{optimizer.progress}%</span> : <WandSparkles className="size-4" aria-hidden />}
-                  </Button>
-                }
-              />
-              <TooltipContent role="tooltip" side="bottom">
-                {optimizer.busy
-                  ? 'Cancel optimization and keep improvements'
-                  : 'Optimize the whole unit’s loadout for the best chance to destroy the defender'}
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex items-center">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="sm"
+                      className="relative h-7 w-12 shrink-0 overflow-hidden rounded-r-none px-1 tabular-nums"
+                      disabled={!optimizer.enabled && !optimizer.busy}
+                      onClick={() => (optimizer.busy ? optimizer.cancel() : void optimizer.optimize())}
+                      data-onboarding={side === 'Attacker' ? 'simulator-optimize' : undefined}
+                      aria-label={optimizer.busy ? `Cancel optimization, approximately ${optimizer.progress}% complete` : 'Optimize'}
+                    >
+                      {optimizer.busy ? <span>{optimizer.progress}%</span> : <WandSparkles className="size-4" aria-hidden />}
+                    </Button>
+                  }
+                />
+                <TooltipContent role="tooltip" side="bottom">
+                  {optimizer.busy
+                    ? 'Cancel optimization and keep improvements'
+                    : 'Optimize the whole unit’s loadout for the best chance to destroy the defender'}
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      size="sm"
+                      className="h-7 w-6 rounded-l-none border-l border-background/30 px-0"
+                      aria-label="Optimization options"
+                      disabled={!optimizer.enabled || optimizer.busy}
+                    />
+                  }
+                >
+                  <ChevronDown className="size-3" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-auto">
+                  <DropdownMenuItem onClick={() => void optimizer.optimize('ranged')}>Optimize for ranged</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void optimizer.optimize('melee')}>Optimize for melee</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : null}
         </div>
       </div>

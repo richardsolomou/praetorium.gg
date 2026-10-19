@@ -9,6 +9,7 @@ import { wargearKey } from './wargear'
 import { activeCombatRules, combatRuleDefences, combatRuleOptions, type CombatRule } from './combatRules'
 
 type Phase = 'ranged' | 'melee'
+export type LoadoutOptimizationMode = 'combined' | Phase
 const PHASES = ['ranged', 'melee'] as const
 
 /**
@@ -302,8 +303,13 @@ export function loadoutOdds(space: LoadoutSpace, scoring: LoadoutScoring, expect
   return { estimates: optionEstimates(choices, now), profiles: loadoutProfileOdds(space, scoring) }
 }
 
-export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScoring): OptimizedLoadout {
-  if (scoring.sequenceError) throw new Error(scoring.sequenceError)
+export function optimizeLoadout(
+  space: LoadoutCandidates,
+  scoring: LoadoutScoring,
+  mode: LoadoutOptimizationMode = 'combined',
+): OptimizedLoadout {
+  if (mode === 'combined' && scoring.sequenceError) throw new Error(scoring.sequenceError)
+  const phases = mode === 'combined' ? PHASES : [mode]
   let best: OptimizedLoadout | undefined
   const results = new Map<string, CombatResult>()
   let work = 0
@@ -317,7 +323,7 @@ export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScorin
     }))
     const attacker = { ...members[0]!, companions: members.slice(1) }
     if (!members.length) throw new Error('The attached unit could not be loaded.')
-    for (const phase of PHASES) {
+    for (const phase of phases) {
       const setup = scoring.phases[phase]
       if (!setup) continue
       const sameDefences =
@@ -332,14 +338,14 @@ export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScorin
     const search = (preferences: Record<string, string>, chosen: ReadonlySet<string>) => {
       if (++work > 100_000) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
       const attacks = combatAttacks(attacker, scoring.opponent, preferences, { ranged: [], melee: [] })
-      const choice = PHASES.flatMap((phase) => attacks[phase].plan.choices).find(
-        (entry) => !chosen.has(entry.key) && !entry.key.endsWith(':one-shot'),
-      )
+      const choice = phases
+        .flatMap((phase) => attacks[phase].plan.choices)
+        .find((entry) => !chosen.has(entry.key) && !entry.key.endsWith(':one-shot'))
       if (choice) {
         for (const option of choice.options) search({ ...preferences, [choice.key]: option.value }, new Set([...chosen, choice.key]))
         return
       }
-      const inputs = PHASES.map((phase) => {
+      const inputs = phases.map((phase) => {
         const setup = scoring.phases[phase]
         const attack = attacks[phase]
         if (!setup || !attack.base)
@@ -358,7 +364,7 @@ export function optimizeLoadout(space: LoadoutCandidates, scoring: LoadoutScorin
         retainedBytes += key.length * 2
         if (results.size >= 20_000 || retainedBytes > 32 * 1024 * 1024)
           throw new Error('The full search could not finish. The best loadout found so far has been kept.')
-        result = calculateCombatSequence(inputs)
+        result = mode === 'combined' ? calculateCombatSequence(inputs) : calculateCombat(inputs[0]!)
         results.set(key, result)
       }
       if (!best || compareOutcomes(result, best.result) > 0)

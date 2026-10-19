@@ -8,12 +8,13 @@ import {
   type LoadoutCandidates,
   type LoadoutScoring,
   type OptimizedLoadout,
+  type LoadoutOptimizationMode,
 } from '../../../core/combatLoadouts'
 import { LoadoutOptimizationContext } from './LoadoutOdds'
 import type { Combatant } from './useCombatant'
 import { errorMessage } from '../../queryClient'
 
-export type OptimizeLoadoutRequest = { kind: 'optimize'; space: LoadoutCandidates; scoring: LoadoutScoring }
+export type OptimizeLoadoutRequest = { kind: 'optimize'; space: LoadoutCandidates; scoring: LoadoutScoring; mode: LoadoutOptimizationMode }
 export type OptimizeLoadoutAnswer = { optimized: OptimizedLoadout; error?: never } | { error: string; optimized?: never }
 
 /** Candidates the page scores before calling a search incomplete. */
@@ -24,7 +25,8 @@ export function useLoadoutOptimizer(combatant: Combatant) {
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const active = useRef<{ cancel: () => void; key: string } | null>(null)
+  const active = useRef<{ cancel: () => void; keep: () => void; key: string } | null>(null)
+  const applied = useRef<string | null>(null)
   const key = JSON.stringify([
     combatant.identity,
     combatant.picks.positioned,
@@ -38,7 +40,8 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     latest.current = key
   }, [key])
   useEffect(() => {
-    if (active.current?.key === key) return
+    if (active.current?.key === key || applied.current === key) return
+    applied.current = null
     active.current?.cancel()
     setBusy(false)
     setProgress(0)
@@ -46,11 +49,12 @@ export function useLoadoutOptimizer(combatant: Combatant) {
   }, [key])
   useEffect(() => () => active.current?.cancel(), [])
   const cancel = () => {
+    active.current?.keep()
     active.current?.cancel()
     setBusy(false)
     setProgress(0)
   }
-  const optimize = async () => {
+  const optimize = async (mode: LoadoutOptimizationMode = 'combined') => {
     if (!context?.scoring || !combatant.ready || active.current || combatant.battleUnit) return
     const controller = new AbortController()
     const workers: Worker[] = []
@@ -58,6 +62,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     let timer: ReturnType<typeof setTimeout> | undefined
     const job = {
       key,
+      keep: () => {},
       cancel: () => {
         controller.abort()
         workers.forEach((worker) => worker.terminate())
@@ -70,6 +75,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     const current = () => active.current === job && latest.current === job.key
     const fail = (message: string) => {
       if (!current()) return
+      job.keep()
       job.cancel()
       setBusy(false)
       setError(message)
@@ -92,18 +98,20 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       if (!response.ok || !response.body) throw new Error('The loadout could not be loaded. Try again.')
       const count = Math.min(4, Math.max(1, navigator.hardwareConcurrency ?? 2))
       for (let at = 0; at < count; at++) workers.push(new CombatWorker())
+      const baseline = context.results?.[mode]
       let best: OptimizedLoadout | undefined =
-        context.result && combatant.pick
+        baseline && combatant.pick
           ? {
               picks: [combatant.pickIndex, ...(combatant.sheets.data?.companions ?? []).map((member) => member.pickIndex)].map(
                 (pickIndex) => ({ pickIndex, pick: combatant.picks.positioned[pickIndex]! }),
               ),
               preferences: context.preferences,
-              result: context.result,
+              result: baseline,
             }
           : undefined
       let scored = 0
       let complete = false
+      let improved = false
       const apply = (optimized: OptimizedLoadout) => {
         const picks = applyOptimizedLoadout(combatant.picks.positioned, optimized.picks)
         job.key = JSON.stringify([
@@ -114,9 +122,13 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           optimized.preferences,
           { ranged: [], melee: [] },
         ])
+        applied.current = job.key
         latest.current = job.key
-        combatant.picks.setPicks((currentPicks) => applyOptimizedLoadout(currentPicks, optimized.picks))
         context.apply(optimized.preferences)
+        combatant.picks.setPicks((currentPicks) => applyOptimizedLoadout(currentPicks, optimized.picks))
+      }
+      job.keep = () => {
+        if (current() && improved && best) apply(best)
       }
       const score = (worker: Worker, space: LoadoutCandidates) =>
         new Promise<OptimizedLoadout>((resolve, reject) => {
@@ -130,7 +142,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
             if (event.data.optimized) resolve(event.data.optimized)
             else reject(new Error(event.data.error))
           }
-          worker.postMessage({ kind: 'optimize', space, scoring: context.scoring! } satisfies OptimizeLoadoutRequest)
+          worker.postMessage({ kind: 'optimize', space, scoring: context.scoring!, mode } satisfies OptimizeLoadoutRequest)
         })
       const space: LoadoutCandidates = { candidates: [] }
       let discovered = 0
@@ -195,18 +207,17 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           }),
         )
         if (!current()) return
-        let improved = false
         for (const result of results)
           if (!best || compareOutcomes(result.result, best.result) > 0) {
             best = result
             improved = true
           }
-        if (improved && best) apply(best)
         scored += batch.length
       }
       if (!current()) return
       await reading
       if (!scored) throw new Error('No supported legal loadout is available.')
+      job.keep()
       setProgress(100)
       job.cancel()
       setBusy(false)

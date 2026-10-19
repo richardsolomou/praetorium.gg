@@ -242,7 +242,7 @@ it('retains remapped choices while old companion sheets are placeholders during 
   expect(render().weaponPreferences).toEqual({ 'attached:1:ranged:0:plasma': 'attached:1:support-spread' })
 })
 
-it('retains an optimized profile introduced by new equipment when a preceding member is later removed', async () => {
+it.each(['complete', 'cancel'])('retains an optimized profile after %s when a preceding member is later removed', async (ending) => {
   const book = preferenceBook(true)
   hooks.sheets.mockImplementation((data) => rosterCombatant(book, null, data))
   const before = render({ ...initial, preferences: {} })
@@ -285,7 +285,21 @@ it('retains an optimized profile introduced by new equipment when a preceding me
     expected: { ranged: matchup.scenario('ranged', {}), melee: matchup.scenario('melee', {}) },
     apply: ready.setWeaponPreferences,
   }
-  hooks.stream.mockReturnValue(new Response(JSON.stringify({ candidates: [candidate], built: 1, scheduled: 1, done: true }) + '\n'))
+  let finish = () => {}
+  const stream = new ReadableStream<Uint8Array>({
+    start(output) {
+      output.enqueue(
+        new TextEncoder().encode(JSON.stringify({ candidates: [candidate], built: 1, scheduled: 1, done: ending === 'complete' }) + '\n'),
+      )
+      finish = () => output.close()
+      if (ending === 'complete') finish()
+    },
+  })
+  hooks.stream.mockReturnValue(new Response(stream))
+  let scored = () => {}
+  const scoringFinished = new Promise<void>((resolve) => {
+    scored = resolve
+  })
   hooks.worker.mockImplementation(() => {
     const worker = {
       onmessage: null as ((event: MessageEvent) => void) | null,
@@ -293,14 +307,25 @@ it('retains an optimized profile introduced by new equipment when a preceding me
       terminate: vi.fn(),
       postMessage: (request: Parameters<typeof optimizeLoadout>[0] & { space: Parameters<typeof optimizeLoadout>[0] }) => {
         const optimized = optimizeLoadout(request.space, scoring)
-        queueMicrotask(() => worker.onmessage!(new MessageEvent('message', { data: { optimized } })))
+        queueMicrotask(() => {
+          worker.onmessage!(new MessageEvent('message', { data: { optimized } }))
+          scored()
+        })
       },
     }
     return worker
   })
   vi.stubGlobal('navigator', { hardwareConcurrency: 1 })
   try {
-    await useLoadoutOptimizer(ready).optimize()
+    const optimizer = useLoadoutOptimizer(ready)
+    const searching = optimizer.optimize()
+    await scoringFinished
+    if (ending === 'cancel') {
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      optimizer.cancel()
+      finish()
+    }
+    await searching
     render().settle()
     const optimized = render()
     optimized.removeMember(1)

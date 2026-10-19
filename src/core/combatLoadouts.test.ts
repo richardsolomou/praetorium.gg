@@ -14,12 +14,97 @@ import {
   optimizeLoadout,
   namespaceLoadoutSpace,
   type LoadoutScore,
+  type LoadoutScoring,
+  type LoadoutCandidates,
 } from './combatLoadouts'
 
 const result = (wipe: number, meanKills = 0, meanDamage = 0): CombatResult => ({ kills: [], damage: [], wipe, meanKills, meanDamage })
 const squad = (weapons: Record<string, number>, models = 5): CombatCarrier[] => [
   { name: 'Trooper', models, weapons: Object.entries(weapons).map(([name, count]) => ({ name, count })) },
 ]
+
+describe('optimization phase', () => {
+  const weapon = (name: string, phase: 'ranged' | 'melee', attacks: string): Datasheet['profiles'][number] => ({
+    id: name,
+    name,
+    type: phase === 'ranged' ? 'Ranged Weapons' : 'Melee Weapons',
+    count: 1,
+    values: Object.entries({ A: attacks, [phase === 'ranged' ? 'BS' : 'WS']: '2+', S: '8', AP: '-3', D: '1', Keywords: '-' }).map(
+      ([characteristic, value]) => ({ name: characteristic, value }),
+    ),
+  })
+  const candidate = (entryId: string, ranged: string, melee: string) => ({
+    members: [
+      {
+        pickIndex: 0,
+        pick: { entryId },
+        models: 1,
+        rules: [],
+        carriers: squad({ Gun: 1, Blade: 1 }, 1),
+        sheet: {
+          id: 'unit',
+          name: 'Walker',
+          keywords: [],
+          abilities: [],
+          keywordRules: [],
+          profiles: [weapon('Gun', 'ranged', ranged), weapon('Blade', 'melee', melee)],
+        } as unknown as Datasheet,
+      },
+    ],
+  })
+  const space: LoadoutCandidates = { candidates: [candidate('melee', '1', '8'), candidate('ranged', '4', '1')] }
+  const setup = {
+    target: { groups: [{ models: 20, toughness: 4, save: 3, invulnerable: null, wounds: 1 }], feelNoPain: null },
+    options: DEFAULT_COMBAT_OPTIONS,
+    adjustment: {},
+  }
+  const scoring: LoadoutScoring = {
+    sheet: space.candidates[0]!.members[0]!.sheet,
+    models: 1,
+    rules: [],
+    opponent: { keywords: [], rules: [] },
+    preferences: {},
+    excluded: { ranged: [], melee: [] },
+    phases: { ranged: setup, melee: setup },
+  }
+  it('ranks both phases together by default', () => {
+    expect(optimizeLoadout(space, scoring).picks[0]?.pick.entryId).toBe('melee')
+  })
+  it('chooses the better ranged loadout despite its weaker combined attack', () => {
+    expect(optimizeLoadout(space, scoring, 'ranged').picks[0]?.pick.entryId).toBe('ranged')
+  })
+  it('chooses the better melee loadout despite its weaker ranged attack', () => {
+    expect(
+      optimizeLoadout({ candidates: [candidate('ranged', '8', '1'), candidate('melee', '1', '4')] }, scoring, 'melee').picks[0]?.pick
+        .entryId,
+    ).toBe('melee')
+  })
+  it('returns only the selected phase’s damage', () => {
+    expect(optimizeLoadout(space, scoring, 'ranged').result.meanDamage).toBeCloseTo(4 * (5 / 6) ** 3, 10)
+  })
+  it('scores ranged loadouts when melee is unsupported', () => {
+    expect(
+      optimizeLoadout({ candidates: [candidate('ranged', '4', '?')] }, { ...scoring, phases: { ranged: setup, melee: null } }, 'ranged')
+        .picks[0]?.pick.entryId,
+    ).toBe('ranged')
+  })
+  it('scores melee loadouts when ranged is unsupported', () => {
+    expect(
+      optimizeLoadout({ candidates: [candidate('melee', '?', '4')] }, { ...scoring, phases: { ranged: null, melee: setup } }, 'melee')
+        .picks[0]?.pick.entryId,
+    ).toBe('melee')
+  })
+  it('does not apply combined-sequence restrictions to one phase', () => {
+    expect(optimizeLoadout(space, { ...scoring, sequenceError: 'Shared defence can expire.' }, 'ranged').picks[0]?.pick.entryId).toBe(
+      'ranged',
+    )
+  })
+  it('still refuses unsupported weapons in the selected phase', () => {
+    expect(() => optimizeLoadout({ candidates: [candidate('ranged', '?', '4')] }, scoring, 'ranged')).toThrow(
+      'Optimization could not finish.',
+    )
+  })
+})
 
 describe('loadout datasheets', () => {
   it('namespaces defensive model identities alongside an attached member’s loadout', () => {

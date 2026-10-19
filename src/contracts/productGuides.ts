@@ -271,7 +271,7 @@ export const PRODUCT_GUIDES = [
       },
       {
         title: 'Compare legal equipment alternatives',
-        text: 'Open a member’s loadout to compare alternative weapon odds, or use Optimize to search legal equipment combinations while holding model counts fixed. Review any calculation limits or unsupported effects. Standalone shared links retain the selected units and loadouts; roster experiments leave the saved army unchanged.',
+        text: 'Open a member’s loadout to compare alternative weapon odds, or use Optimize to search legal equipment combinations while holding model counts fixed. Optimize considers shooting and melee together; its dropdown also offers Optimize for ranged and Optimize for melee. Review any calculation limits or unsupported effects. Standalone shared links retain the selected units and loadouts; roster experiments leave the saved army unchanged.',
       },
     ],
     questions: [

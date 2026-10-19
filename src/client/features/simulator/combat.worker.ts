@@ -7,7 +7,7 @@ self.onmessage = (event: MessageEvent<CombatRequest | LoadoutOddsRequest | Optim
   const { data } = event
   if ('kind' in data && data.kind === 'optimize') {
     try {
-      self.postMessage({ optimized: optimizeLoadout(data.space, data.scoring) } satisfies OptimizeLoadoutAnswer)
+      self.postMessage({ optimized: optimizeLoadout(data.space, data.scoring, data.mode) } satisfies OptimizeLoadoutAnswer)
     } catch (error) {
       self.postMessage({ error: error instanceof Error ? error.message : 'Optimization failed.' } satisfies OptimizeLoadoutAnswer)
     }
