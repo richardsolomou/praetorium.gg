@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.165.3
+
+### Patch Changes
+
+- e976019: Fix roster imports missing units with typographic hyphens, model names, paired weapons and upgrades marked as one per army.
+
 ## 0.165.2
 
 ### Patch Changes
