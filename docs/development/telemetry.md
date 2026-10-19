@@ -65,6 +65,20 @@ Count unique people for conversion and retention, attempts for friction, and com
 
 Apply browser bot classifications only to browser events. PostHog classifies server SDK completions as Automation too; excluding that classification across a mixed funnel removes legitimate successful actions. Keep hostless historical server events when filtering the production host.
 
+## Campaign links
+
+Every link to praetorium.gg that is posted outside the app carries `utm_source`, `utm_medium`, and `utm_campaign`, so that each post or invitation can be measured on its own. Do not tag links inside the app, or links that point away from it, such as the Discord invite in `src/client/projectLinks.ts`: no Praetorium page reads them.
+
+| Parameter      | Value                                  | Examples                                                       |
+| -------------- | -------------------------------------- | -------------------------------------------------------------- |
+| `utm_source`   | The site or organisation that shows it | `reddit`, `discord`, `facebook`, `github`, a store's short tag |
+| `utm_medium`   | The kind of placement                  | `community` (a post), `outreach` (an invitation), `profile`    |
+| `utm_campaign` | One post or invitation, never reused   | `2026-10-r-warhammer40k-2v2`, `readme`                         |
+
+Use lowercase letters, digits, and hyphens. Values never carry a person's name, handle, or email. Use plain links only: no paid campaigns, and no link shortener that tracks visitors.
+
+The browser SDK reads the parameters on landing. It puts them on that `$pageview`, adds `$session_entry_utm_*` to every event of that session, and sets `$initial_utm_*` on the person when the visitor signs in. Anonymous visitors have no person profile until then. Server events, such as `account_created` and `roster_created`, carry no campaign properties, so break them down by the person's `$initial_utm_source` and `$initial_utm_campaign`. A funnel that starts with a browser event can break down by `$session_entry_utm_source` with first-touch attribution, which also counts visitors who never sign up. [Campaign links: visit to guest draft to sign-up](https://us.posthog.com/project/548119/insights/UOuZblHZ) does this; change its breakdown to `$session_entry_utm_campaign` to compare single posts.
+
 ## Saved dashboards
 
 [Product and reliability](https://us.posthog.com/project/548119/dashboard/2225391) combines player activity, conversion, retention, failures, browser performance, server diagnostics, feedback, and MCP health.
@@ -73,4 +87,4 @@ Player charts exclude internal/test accounts and the owner's production account,
 
 ## Verification
 
-`e2e/telemetry.spec.ts` and adjacent tests cover event boundaries and excluded data. After deployment, inspect real events, guest-to-account identity linkage, host filtering, map resolution, replay masking, and MCP IP removal before claiming the integration works; event arrival alone proves neither privacy nor correct conversion.
+`e2e/telemetry.spec.ts` and adjacent tests cover event boundaries and excluded data. To verify campaign attribution, open a tagged link in a new private window, start a guest draft, and create an account; the person must then show that link's `$initial_utm_source` and `$initial_utm_campaign`. After deployment, inspect real events, guest-to-account identity linkage, host filtering, map resolution, replay masking, and MCP IP removal before claiming the integration works; event arrival alone proves neither privacy nor correct conversion.
