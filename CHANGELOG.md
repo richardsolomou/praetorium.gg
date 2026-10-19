@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.169.4
+
+### Patch Changes
+
+- 0ef0a11: Keep live updates connected for visitors, recover pages that fail to load, and keep search, unit pickers and faction references responsive. Resolve Brood Brother Auxilia rules and options consistently.
+
 ## 0.169.3
 
 ### Patch Changes
