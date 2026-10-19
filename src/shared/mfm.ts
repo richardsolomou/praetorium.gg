@@ -1,3 +1,4 @@
+import { canonicalDetachmentName } from '../core/detachmentName'
 import { z } from 'zod'
 import { joinKey } from '../core/text'
 import { routeSlug } from '../core/slug'
@@ -48,7 +49,12 @@ export function mfmSlugs(catalogueName: string, ...aliases: string[]) {
 }
 function mfmDetachment(index: MfmIndex | null | undefined, slugs: readonly string[], name: string) {
   for (const slug of slugs) {
-    const matched = index?.get(slug)?.detachments?.filter((detachment) => joinKey(detachment.name) === joinKey(name)) ?? []
+    const matched =
+      index
+        ?.get(slug)
+        ?.detachments?.filter(
+          (detachment) => joinKey(canonicalDetachmentName(detachment.name)) === joinKey(canonicalDetachmentName(name)),
+        ) ?? []
     if (matched.length) return matched.length === 1 ? matched[0]! : null
   }
   return null

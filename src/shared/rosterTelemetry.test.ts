@@ -31,6 +31,45 @@ const rules = {
 } as Partial<LoadedRules> as LoadedRules
 
 describe('roster telemetry properties', () => {
+  it('covers both selected Genestealer Cults detachments across the verified source spelling difference', () => {
+    const cults = bookOf({
+      name: 'Genestealer Cults',
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'choices',
+              name: 'Detachment',
+              selectionEntries: [
+                { id: 'auxilia', name: 'Brood Brother Auxilia', type: 'upgrade' },
+                { id: 'xenocult', name: 'Xenocult Masses', type: 'upgrade' },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const cultRules = {
+      ...rules,
+      factionKeys: new Map(),
+      byDetachment: new Map([
+        [
+          'genestealer-cults',
+          new Map([
+            ['brood-brothers-auxilia', []],
+            ['xenocult-masses', []],
+          ]),
+        ],
+      ]),
+    }
+    expect(
+      rosterTelemetryProperties({ catalogueId: 'cat', detachmentIds: ['auxilia', 'xenocult'], limit: 2_000 }, cults, cultRules),
+    ).toMatchObject({ detachment_rules_covered: true })
+  })
+
   it('uses normalized source names and reports complete rule coverage', () => {
     expect(rosterTelemetryProperties({ catalogueId: 'cat', detachmentIds: ['plague-host'], limit: 2_000 }, loaded, rules)).toEqual({
       faction: 'death-guard',

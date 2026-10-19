@@ -40,17 +40,20 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   )
   const resultCount = results.length
   const reportedQuery = useRef<string | null>(null)
+  const searchStarted = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const changeOpen = useCallback(
     (next: boolean, selected = false) => {
       if (next === open) return
       if (next) {
         reportedQuery.current = null
+        searchStarted.current = false
         posthog.capture('global_search_opened')
       } else {
         posthog.capture('global_search_closed', {
           selected,
           has_query: Boolean(trimmed),
+          search_started: searchStarted.current,
           result_count: resultCount,
           pending: trimmed !== settled || isFetching,
           failed: isError,
@@ -95,6 +98,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
       result_count: results.length,
       fuzzy: Boolean(result.fuzzy),
       recent,
+      search_started: searchStarted.current,
     })
     rememberSearch(result)
     changeOpen(false, true)
@@ -125,8 +129,13 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
               value={query}
               maxLength={80}
               onChange={(event) => {
-                setQuery(event.target.value)
+                const value = event.target.value
+                setQuery(value)
                 setSelectedIndex(0)
+                if (!searchStarted.current && value.trim().length >= SEARCH_MIN_LENGTH) {
+                  searchStarted.current = true
+                  posthog.capture('global_search_started')
+                }
               }}
               onKeyDown={(event) => {
                 if (event.nativeEvent.isComposing || !results.length) return

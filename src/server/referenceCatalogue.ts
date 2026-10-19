@@ -1,3 +1,7 @@
+import { completeStepsCooperatively } from './canonicalCatalogue'
+import { stepThrough } from '../shared/steps'
+import { unitSummaries, unitsIn } from '../shared/cataloguePicker'
+import { isReferenceDatasheet } from '../shared/catalogueIndex'
 import { coreRulesFirst } from './rulesCore'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { datasheetInBySlug } from '../shared/catalogue'
@@ -49,4 +53,11 @@ export function referenceRuleIndex(sources: ReferenceSources) {
 export function referenceRuleSection(sources: ReferenceSources, data: { documentId: string; sectionId: string }) {
   const documents = referenceRuleDocuments(sources)
   return documents ? ruleSectionOf(documents, data.documentId, data.sectionId) : null
+}
+
+export async function referenceFactionDatasheets(catalogue: LoadedCatalogue, data: { catalogueId: string; query: string }) {
+  await completeStepsCooperatively(stepThrough(unitSummaries(catalogue, data.catalogueId, { factionCards: true })))
+  return unitsIn(catalogue, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
+    isReferenceDatasheet(catalogue, data.catalogueId, unit.id),
+  )
 }

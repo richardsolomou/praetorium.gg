@@ -2,11 +2,15 @@ import { CancelledError } from '@tanstack/react-query'
 import { beforeEach, expect, it, vi } from 'vitest'
 
 const captureException = vi.hoisted(() => vi.fn())
-vi.mock('posthog-js', () => ({ posthog: { captureException } }))
+const capture = vi.hoisted(() => vi.fn())
+vi.mock('posthog-js', () => ({ posthog: { captureException, capture } }))
 
-import { mayReloadCancelledLoad, reportRouteError, routeErrorExplanation } from './routeErrors'
+import { completedModuleRecovery, mayReloadCancelledLoad, moduleRecoveryUrl, reportRouteError, routeErrorExplanation } from './routeErrors'
 
-beforeEach(() => captureException.mockClear())
+beforeEach(() => {
+  captureException.mockClear()
+  capture.mockClear()
+})
 
 it('reports an error caught by a route error page', () => {
   const error = new TypeError("Cannot read properties of undefined (reading 'map')")
@@ -22,7 +26,7 @@ it('leaves a dropped connection out of error tracking', () => {
 it('reports a chunk that failed to load after a deploy', () => {
   const error = new TypeError('Failed to fetch dynamically imported module: https://praetorium.gg/assets/a.js')
   reportRouteError(error)
-  expect(captureException).toHaveBeenCalledWith(error, { operation: 'route' })
+  expect(captureException).toHaveBeenCalledWith(error, { operation: 'route', failure_kind: 'module_load', recovery_attempt: 0 })
 })
 
 it('leaves a cancelled read out of error tracking, since the route loads again', () => {
@@ -54,8 +58,38 @@ it.each([
   expect(routeErrorExplanation(error)).toBe('This page could not load. Try again.')
 })
 
-it("asks the reader to reload after a deploy replaced the page's code", () => {
+it('explains a failed route import without assuming a deploy caused it', () => {
   expect(routeErrorExplanation(new TypeError('Importing a module script failed.'))).toBe(
-    'Praetorium has been updated since this page opened. Reload to continue.',
+    'Part of this page could not load. Check your connection, then reload to try again.',
   )
+})
+
+it('reloads the same route with a fresh cache key and keeps its search and fragment', () => {
+  expect(moduleRecoveryUrl('https://praetorium.gg/factions?q=necrons#armies', 1234)).toBe(
+    'https://praetorium.gg/factions?q=necrons&__route_retry=1234.1#armies',
+  )
+})
+
+it('replaces an earlier recovery key while bounding the reported attempt', () => {
+  expect(moduleRecoveryUrl('https://praetorium.gg/factions?__route_retry=1234.3', 5678)).toBe(
+    'https://praetorium.gg/factions?__route_retry=5678.3',
+  )
+})
+
+it('removes only the recovery key after the destination resolves', () => {
+  expect(completedModuleRecovery('https://praetorium.gg/factions?q=necrons&__route_retry=1234.2#armies')).toBe('/factions?q=necrons#armies')
+})
+
+it('does not report successful recovery for an ordinary navigation', () => {
+  expect(completedModuleRecovery('https://praetorium.gg/factions')).toBeNull()
+})
+
+it('reports recovery completion with bounded metadata', () => {
+  completedModuleRecovery('https://praetorium.gg/factions?private=kept&__route_retry=1234.3#armies')
+  expect(capture.mock.calls).toEqual([['route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: 3 }]])
+})
+
+it('keeps invalid recovery keys out of completion telemetry', () => {
+  completedModuleRecovery('https://praetorium.gg/factions?__route_retry=arbitrary-text')
+  expect(capture).not.toHaveBeenCalled()
 })

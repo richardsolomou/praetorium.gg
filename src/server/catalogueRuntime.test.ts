@@ -10,6 +10,8 @@ import { catalogueEditionLoaders } from './catalogueEditions'
 import { loadCatalogue } from './catalogueIndex'
 import { unitsIn } from '../shared/cataloguePicker'
 import { calculateRosterPrice } from '../shared/pricing'
+import { compileCanonicalCatalogue } from './canonicalCatalogue'
+import { prepareCatalogueRuntime } from '../../scripts/lib/catalogueRuntimeCache'
 
 let directory: string
 let output: string
@@ -158,6 +160,35 @@ function withEditions(defaultEdition = false, sharedOptions = false) {
     readCatalogueRuntime(directory, output),
   )
 }
+
+it('recompiles version 12 packages when preparing the base and edition runtime', async () => {
+  withEditions()
+  const previous = readCatalogueRuntime(directory, output)
+  const stale = (catalogue: ReturnType<typeof compileCanonicalCatalogue>) => ({
+    ...catalogue,
+    compilerVersion: 12,
+    datasheets: catalogue.datasheets.map((sheet) => ({ ...sheet, points: 999 })),
+  })
+  fs.mkdirSync(path.join(directory, 'canonical'))
+  fs.writeFileSync(
+    path.join(directory, 'canonical', 'catalogue.json'),
+    JSON.stringify(stale(compileCanonicalCatalogue(loadCatalogue(directory)!, { definitions: 'authored-test' }))),
+  )
+  fs.writeFileSync(
+    path.join(directory, 'canonical', 'editions.json'),
+    JSON.stringify({ catalogues: { 'version-1:': stale(previous.read('version-1.canonical')) } }),
+  )
+  await prepareCatalogueRuntime(directory, output, null, undefined, undefined, {
+    has: async () => false,
+    download: async () => false,
+    upload: async () => undefined,
+  })
+  const prepared = readCatalogueRuntime(directory, output)
+  expect([
+    prepared.read('startup').canonical.datasheets.find((sheet) => sheet.catalogueId === 'army')?.points,
+    prepared.read('version-1.canonical').datasheets[0]?.points,
+  ]).toEqual([10, 10])
+})
 
 it('preserves complete source context for edition construction', () => {
   const versions = withEditions()

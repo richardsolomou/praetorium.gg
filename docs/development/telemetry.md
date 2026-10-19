@@ -12,7 +12,7 @@ Server logs, spans, and request metrics use stable operation or server-function 
 
 Server telemetry resources carry `deployment.host` from the public `APP_URL`. Older spans lack it and can mix deployed instances; do not infer a production hostname from `deployment.environment` alone.
 
-Public crawler `$http_log` capture allows only reference/discovery paths without account or opaque object IDs, strips query strings, keeps only the referrer origin, disables GeoIP, and creates no person profile; its salted identities are day-scoped. Because Cloudflare caches signed-out pages ([Deployment](../deployment.md#runtime)), these logs count origin renders, not reads.
+Public crawler `$http_log` capture allows only reference/discovery paths without account or opaque object IDs, strips query strings, keeps only the referrer origin, disables GeoIP, and creates no person profile; its salted identities are day-scoped. Keep this bounded public-request capture unsampled for crawler diagnostics, including HEAD requests and failures. Because Cloudflare caches signed-out pages ([Deployment](../deployment.md#runtime)), these logs count origin requests, not all reads or people. They do not measure user harm or cost savings.
 
 MCP Analytics keeps anonymous tool names, timings, outcomes, and protocol/deployment metadata, never arguments, results, intent, client identifiers, or exceptions. The project's `Remove MCP Analytics IP` transformation removes the address added at ingestion; SDK `$ip = null` alone does not prove removal.
 
@@ -20,6 +20,8 @@ MCP Analytics keeps anonymous tool names, timings, outcomes, and protocol/deploy
 
 Custom events measure starts, attempts, completed actions, and bounded failures; ordinary navigation and clicks stay autocaptured. Meanings that are easy to misread:
 
+- `global_search_opened` measures discovery reach, including empty openings. `global_search_started` fires once per opening when a user enters at least two non-whitespace characters. `search_started` on closure and result selection retains that intent after clearing the input; `has_query` still describes the current input. Measure deliberate search conversion from started to a result with `search_started=true` and `recent=false`, and keep recent-result browsing and the broad open-to-result funnel separate. No query text is captured.
+- Module-load exceptions carry `failure_kind: module_load` and a capped `recovery_attempt`. `route_recovery_started` records an explicit Reload; `route_recovery_completed` requires the requested route to render successfully before its temporary cache-busting marker is removed. A pageview alone is not recovery, and these events do not identify the failed asset or delivery cause.
 - `account_signed_in` fires after two-factor checks, so a pending challenge is not a sign-in; a signup produces only `account_created`.
 - `roster_created` can be an empty row or a claimed guest draft; use `roster_unit_added` to measure building. Durable sync emits roster creation/deletion only on the transaction that applies the lifecycle change.
 - `src/server/productActions.ts` owns the mutations and completion captures shared by direct handlers and durable actions. `delivery` distinguishes `direct` from `sync`. Sync captures only when its database transaction reports a newly applied action; recovered receipts and concurrent retries do not count another completion. The sync entry point still requires frozen roster metadata before sealing.

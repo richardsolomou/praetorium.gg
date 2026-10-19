@@ -5,6 +5,27 @@ import { decodeSimulatorState } from '../src/contracts/simulatorState'
 const desktop = { width: 1440, height: 900 }
 const phone = { width: 390, height: 900 }
 
+test('the prepared reference API includes Brood Brother Auxilia', { tag: '@catalogue' }, async ({ page, request }, testInfo) => {
+  const response = await request.get('/api/reference/v1/detachments/genestealer-cults/brood-brother-auxilia')
+  expect(response.status()).toBe(200)
+  const { data } = await response.json()
+  expect({ name: data.name, rules: data.rules.length, stratagems: data.stratagems.length, enhancements: data.enhancements.length }).toEqual(
+    {
+      name: 'Brood Brother Auxilia',
+      rules: 2,
+      stratagems: 6,
+      enhancements: 4,
+    },
+  )
+  await page.goto('/factions/genestealer-cults/detachments/brood-brother-auxilia')
+  for (const viewport of [desktop, phone]) {
+    await page.setViewportSize(viewport)
+    await expect(page.getByRole('heading', { level: 1, name: 'Brood Brother Auxilia', exact: true })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`prepared-detachment-${viewport.width}.png`), fullPage: true })
+  }
+})
+
 test('faction search explains structured matches', async ({ page }) => {
   await page.setViewportSize(desktop)
   await page.goto('/factions/necrons/datasheets')

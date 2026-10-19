@@ -1,6 +1,7 @@
+import { unitsIn } from '../shared/cataloguePicker'
 import { describe, expect, it, vi } from 'vitest'
 import { bookOf, categories } from './catalogue.fixtures'
-import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from './referenceCatalogue'
+import { referenceDatasheetBySlug, referenceFactionDatasheets, referenceRuleIndex, referenceRuleSection } from './referenceCatalogue'
 
 const ruleDocument = {
   id: 'canonical-document',
@@ -96,4 +97,51 @@ describe('canonical reference boundaries', () => {
       referenceRuleSection(ruleSources as never, { documentId: 'canonical-document', sectionId: 'canonical-section' })?.section.title,
     ).toBe('Canonical section')
   })
+})
+
+it('lets another request run while preparing a cold faction reference list', async () => {
+  const catalogue = bookOf({
+    selectionEntries: Array.from({ length: 4 }, (_, index) => ({
+      id: `unit-${index}`,
+      name: `Unit ${index}`,
+      type: 'unit' as const,
+      categoryLinks: categories('Faction: Test catalogue'),
+    })),
+  })
+  let settled = false
+  const pending = referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: '' }).then((value) => {
+    settled = true
+    return value
+  })
+  const beforeComplete = await new Promise<boolean>((resolve) => setImmediate(() => resolve(settled)))
+  await pending
+  expect(beforeComplete).toBe(false)
+})
+
+it('shares preparation with concurrent and synchronous faction readers', async () => {
+  const catalogue = bookOf({
+    selectionEntries: Array.from({ length: 4 }, (_, index) => ({
+      id: `unit-${index}`,
+      name: `Unit ${index}`,
+      type: 'unit' as const,
+      categoryLinks: categories('Faction: Test catalogue'),
+    })),
+  })
+  const first = referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: '' })
+  const second = referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: 'Unit 2' })
+  const expected = unitsIn(catalogue, 'cat', '', { factionCards: true })
+  expect(await Promise.all([first, second])).toEqual([expected, expected.filter((unit) => unit.name === 'Unit 2')])
+})
+
+it('retries faction preparation after a source lookup fails', async () => {
+  const catalogue = bookOf({
+    selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit', categoryLinks: categories('Faction: Test catalogue') }],
+  })
+  const failure = new Error('source lookup failed')
+  const lookup = vi.spyOn(catalogue.index.definitions, 'get').mockImplementationOnce(() => {
+    throw failure
+  })
+  await expect(referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: '' })).rejects.toBe(failure)
+  lookup.mockRestore()
+  expect((await referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: '' })).map((unit) => unit.id)).toEqual(['unit'])
 })

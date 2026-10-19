@@ -1,3 +1,4 @@
+import { canonicalDetachmentName } from '../core/detachmentName'
 import { cachedIn, uniqueBy } from '../core/collections'
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { withoutText } from './sourceText'
@@ -764,7 +765,8 @@ function weaponAbilitiesFromDetachments(
         ),
       )
     }
-    const cardRules = loaded.datacards.detachmentRules.get(routeSlug(nameOf(definition, loaded.index.definitions))) ?? []
+    const cardRules =
+      loaded.datacards.detachmentRules.get(routeSlug(canonicalDetachmentName(nameOf(definition, loaded.index.definitions)))) ?? []
     const rules = mergeDetachmentRules(catalogueRules, cardRules)
     for (const rule of rules) {
       if (!rule.description) continue

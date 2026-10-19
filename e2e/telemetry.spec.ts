@@ -60,7 +60,7 @@ test('search reports empty results, dismissal, and successful selection without 
     .poll(() => events.at(-1))
     .toEqual({
       name: 'global_search_closed',
-      properties: { selected: false, has_query: true, result_count: 0, pending: false, failed: false },
+      properties: { selected: false, has_query: true, search_started: true, result_count: 0, pending: false, failed: false },
     })
   await page.getByRole('button', { name: 'Search Praetorium' }).click()
   await page.getByPlaceholder('Search everything…').fill('Factions')
@@ -68,6 +68,64 @@ test('search reports empty results, dismissal, and successful selection without 
   await page.getByRole('option', { name: 'Factions Datasheets and detachment references', exact: true }).click()
   await expect.poll(() => events.at(-1)?.properties.selected).toBe(true)
   expect(JSON.stringify(events)).not.toContain('private query')
+})
+
+test('search intent requires a usable query and survives clearing it without recording its contents', async ({ page }) => {
+  await page.goto('/')
+  const events = await recordEvents(page)
+  const search = page.getByPlaceholder('Search everything…')
+  const open = () => retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
+  const dismiss = async () => {
+    await page.keyboard.press('Escape')
+    await expect(search).not.toBeVisible()
+  }
+  const started = () => events.filter((event) => event.name === 'global_search_started')
+  const closed = () => events.filter((event) => event.name === 'global_search_closed')
+  await open()
+  await dismiss()
+  await expect.poll(() => closed().at(-1)?.properties.search_started).toBe(false)
+  await open()
+  await search.fill(' a ')
+  await dismiss()
+  await expect.poll(() => closed().length).toBe(2)
+  expect(started()).toEqual([])
+  await open()
+  await search.fill('private search')
+  await expect.poll(started).toEqual([{ name: 'global_search_started', properties: {} }])
+  await search.fill('')
+  await search.fill('Factions')
+  await expect(page.getByRole('option', { name: 'Factions Datasheets and detachment references', exact: true })).toBeVisible()
+  await search.fill('')
+  await dismiss()
+  await expect.poll(() => closed().at(-1)?.properties).toMatchObject({ has_query: false, search_started: true, selected: false })
+  expect(started()).toHaveLength(1)
+  await open()
+  await search.fill('Factions')
+  await expect.poll(started).toHaveLength(2)
+  await page.getByRole('option', { name: 'Factions Datasheets and detachment references', exact: true }).click()
+  await expect.poll(() => events.find((event) => event.name === 'global_search_result_opened')?.properties.search_started).toBe(true)
+  await expect(page).toHaveURL('/factions')
+  await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()
+  await open()
+  await search.fill('private search')
+  await expect.poll(started).toHaveLength(3)
+  await search.fill('')
+  await page
+    .getByRole('region', { name: 'Recent' })
+    .getByRole('button', { name: /^Factions / })
+    .click()
+  await expect
+    .poll(() =>
+      events
+        .filter((event) => event.name === 'global_search_result_opened')
+        .map(({ properties }) => ({ recent: properties.recent, search_started: properties.search_started })),
+    )
+    .toEqual([
+      { recent: false, search_started: true },
+      { recent: true, search_started: true },
+    ])
+  await expect(search).not.toBeVisible()
+  expect(JSON.stringify(events)).not.toMatch(/private search|Factions/)
 })
 
 test('a failed search reports an error rather than a successful empty search', async ({ page }) => {

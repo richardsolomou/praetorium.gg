@@ -525,13 +525,13 @@ describe('canonical catalogue', () => {
     }
   })
 
-  it('keeps previous compiler artifacts readable for audits while serving recompiles them', () => {
+  it.each([3, 12])('keeps compiler %s artifacts readable for audits while serving recompiles them', (compilerVersion) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-previous-'))
     try {
       const file = path.join(root, 'canonical', 'catalogue.json')
       fs.mkdirSync(path.dirname(file))
-      fs.writeFileSync(file, JSON.stringify({ ...compileCanonicalCatalogue(catalogue(), revisions), compilerVersion: 3 }))
-      expect(readCanonicalCatalogue(file).compilerVersion).toBe(3)
+      fs.writeFileSync(file, JSON.stringify({ ...compileCanonicalCatalogue(catalogue(), revisions), compilerVersion }))
+      expect(readCanonicalCatalogue(file).compilerVersion).toBe(compilerVersion)
       expect(loadCanonicalCatalogue(root)).toBeNull()
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
