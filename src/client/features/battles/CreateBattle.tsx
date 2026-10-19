@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Check, ChevronRight, Link2, Plus, UserRound } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,8 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
-import { createBattle, leagueBattleOptions } from '../../functions'
-import { battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
+import { createBattle, leagueBattleOptions, submit } from '../../functions'
+import { battleQuery, battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { useNativeShare } from '../../nativeBridge'
@@ -65,9 +65,22 @@ function seatOptions(
   ].filter((group) => group.items.length)
 }
 
-/** Battle creation seats named players; setup chooses size and mission pack. Practice opponents occupy ordinary seats. */
-export function CreateBattle() {
-  const [open, setOpen] = useState(false)
+/**
+ * Battle creation seats named players; setup chooses size and mission pack. Practice opponents occupy ordinary seats.
+ *
+ * Started from a saved roster, the battle opens with that roster already on the creator's seat; `open` lets a menu
+ * that cannot hold the dialog's own button open it instead.
+ */
+export function CreateBattle({
+  rosterId,
+  open: shown,
+  onOpenChange,
+}: { rosterId?: string; open?: boolean; onOpenChange?: (open: boolean) => void } = {}) {
+  const [ownOpen, setOwnOpen] = useState(false)
+  const controlled = shown !== undefined
+  const open = controlled ? shown : ownOpen
+  const setOpen = (next: boolean) => (controlled ? onOpenChange?.(next) : setOwnOpen(next))
+  const source = rosterId ? { source: 'roster' as const } : {}
   const opponentQuery = useQuery({ ...opponentsQuery(), enabled: open })
   const opponents = opponentQuery.data ?? []
   // A chair apiece rather than a list, so filling the second before the first cannot
@@ -86,9 +99,23 @@ export function CreateBattle() {
   const seated = seats.every((seat) => seatedIn(seat) && (!guestIn(seat) || guestName(seat)))
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  /** Setup still offers the choice of army, so a roster the battle refuses here is only a step left to do there. */
+  const bringRoster = async (token: string, id: string) => {
+    try {
+      const screen = await queryClient.query(battleQuery(token))
+      if (screen?.kind !== 'battle') return
+      const attached = await submit({
+        data: { token, expectedSeq: screen.view.seq, command: { kind: 'attach-saved-roster', rosterId: id } },
+      })
+      queryClient.setQueryData(battleQuery(token).queryKey, attached.screen)
+    } catch {
+      // The battle exists either way, and its setup shows the seat without an army.
+    }
+  }
   const create = useMutation({
-    onMutate: (casual: boolean) => posthog.capture('battle_creation_submitted', { format: shape, casual, manual: tracking === 'manual' }),
-    onError: () => posthog.capture('battle_creation_failed', { format: shape, reason: 'request' }),
+    onMutate: (casual: boolean) =>
+      posthog.capture('battle_creation_submitted', { format: shape, casual, manual: tracking === 'manual', ...source }),
+    onError: () => posthog.capture('battle_creation_failed', { format: shape, reason: 'request', ...source }),
     mutationFn: async (casual: boolean) => {
       const players = seatedPlayers(seats, (seat) => (guestIn(seat) ? null : seatedIn(seat)))
       const guests = seats.filter(guestIn).map(guestName)
@@ -121,6 +148,7 @@ export function CreateBattle() {
         }
         throw error
       }
+      if (rosterId) await bringRoster(battle.token, rosterId)
       return { kind: 'battle' as const, battle }
     },
     onSuccess: async (result) => {
@@ -139,22 +167,29 @@ export function CreateBattle() {
   }
   const changeOpen = (next: boolean) => {
     if (create.isPending) return
-    if (next && !open) {
-      posthog.capture('battle_creation_started')
-    }
-    changeIntent()
     setOpen(next)
   }
+  // Counted when the dialog appears, whichever control opened it.
+  useEffect(() => {
+    if (!open) return
+    posthog.capture('battle_creation_started', source)
+    create.reset()
+    setLeagueMatches([])
+    // Only the opening matters; `source` and the mutation are stable for one dialog.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const labels = disambiguatedPlayerLabels(opponents)
   const labelFor = (seat: Seat) => (guestIn(seat) ? guestName(seat) || 'Guest' : seatLabel(seatedIn(seat), labels, opponents))
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger
-        render={<Button data-onboarding="create-battle" onClick={() => advanceOnboarding('battle', 'battle-start', 'battle-format')} />}
-      >
-        <Plus /> New battle
-      </DialogTrigger>
+      {controlled ? null : (
+        <DialogTrigger
+          render={<Button data-onboarding="create-battle" onClick={() => advanceOnboarding('battle', 'battle-start', 'battle-format')} />}
+        >
+          <Plus /> New battle
+        </DialogTrigger>
+      )}
       <DialogContent>
         {leagueMatches.length ? (
           <>
@@ -205,6 +240,7 @@ export function CreateBattle() {
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
               <DialogDescription>
                 Choose who is playing. A guest is an opponent without an account; a practice opponent lets you play both sides alone.
+                {rosterId ? ' You bring this roster.' : null}
               </DialogDescription>
             </DialogHeader>
             <DialogBody>

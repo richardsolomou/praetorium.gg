@@ -17,6 +17,7 @@ import {
   Printer,
   QrCode,
   SlidersHorizontal,
+  Swords,
   TriangleAlert,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -118,6 +119,7 @@ import type { CombatRoster } from '../simulator/useCombatant'
 import { countLabel } from '../../text'
 import { Problem } from '../../components/Problem'
 import { useAccountPrompt } from './AccountPrompt'
+import { CreateBattle } from '../battles/CreateBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
 
 type Props = {
@@ -250,6 +252,7 @@ export function ListBuilder({
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [lending, setLending] = useState(false)
+  const [startingBattle, setStartingBattle] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
   // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
@@ -1219,6 +1222,15 @@ export function ListBuilder({
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-48">
+                  {savedId && !guest ? (
+                    <DropdownMenuItem disabled={saving || !positioned.length} onClick={() => setStartingBattle(true)}>
+                      <Swords /> Start a battle
+                    </DropdownMenuItem>
+                  ) : guest ? (
+                    <DropdownMenuItem onClick={() => account.ask('battle')}>
+                      <Swords /> Start a battle
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem onClick={openSetup}>
                     <Pencil /> Edit roster setup
                   </DropdownMenuItem>
@@ -1314,6 +1326,9 @@ export function ListBuilder({
                 <DropdownMenuContent align="end" className="min-w-52">
                   {locked ? (
                     <>
+                      <DropdownMenuItem disabled={!positioned.length} onClick={() => setStartingBattle(true)}>
+                        <Swords /> Start a battle
+                      </DropdownMenuItem>
                       <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
                         <LockOpen /> Unlock roster
                       </DropdownMenuItem>
@@ -1776,7 +1791,10 @@ export function ListBuilder({
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
       {account.prompt}
       {savedId && (editable || locked) && !guest ? (
-        <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
+        <>
+          <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
+          <CreateBattle rosterId={savedId} open={startingBattle} onOpenChange={setStartingBattle} />
+        </>
       ) : null}
       {savingLoadout !== null && picks[savingLoadout] && units[savingLoadout] ? (
         <SaveLoadoutDialog

@@ -1,5 +1,23 @@
 # praetorium
 
+## 0.165.1
+
+### Patch Changes
+
+- 0e20317: Keep squads the data fixes at one size, such as Wyches, Kabalite Warriors and Strike Teams, at that size instead of offering other model counts, so a list without model counts imports them at full strength.
+
+## 0.165.0
+
+### Minor Changes
+
+- 9566d5e: Start a battle from a saved roster's menu, and the battle opens with that roster already on your side.
+
+## 0.164.2
+
+### Patch Changes
+
+- 39dd32b: Offer Sanctifiers their simulacrum imperialis and two-hand-flamer Sanctifiers, each in place of a hand-flamer Sanctifier, so the squad stays at nine models and lists that include them import.
+
 ## 0.164.1
 
 ### Patch Changes

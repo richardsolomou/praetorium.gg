@@ -9,7 +9,7 @@
  */
 
 import type { CatalogueIndex } from './catalogue'
-import { maximumCount, requiredCount, resolve, UNBOUNDED } from './definitions'
+import { childrenOf, maximumCount, replacesSquadmate, requiredCount, resolve, UNBOUNDED } from './definitions'
 import type { Selection } from './evaluate'
 import { defaultSelection } from './expand'
 
@@ -84,8 +84,10 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
       const min = requiredCount(definition, index)
       const max = maximumCount(definition, index) ?? UNBOUNDED
       // A squad is not always written as a group: sometimes the bodies hang
-      // directly off the unit and carry their own bounds.
-      if (max > min) groups.push({ min, max, total: count, adjust: here })
+      // directly off the unit and carry their own bounds. A specialist taking a
+      // squadmate's place is not one of them: the squad is the same size either way.
+      if (max > min && !replacesSquadmate(definition, squadmatesIn(selection, index), index))
+        groups.push({ min, max, total: count, adjust: here })
       else models += count
       groups.push(...nested.groups)
       continue
@@ -93,11 +95,19 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
 
     const inside = nested.models + nested.groups.reduce((sum, group) => sum + group.total, 0)
     if (target.type === undefined && inside > 0) {
+      const stated = maximumCount(definition, index)
+      // A group of models fixed at a size fields that many, whatever range each occupant
+      // could take within it; its default body is still what a specialist swaps out.
+      // A fixed group of composition upgrades counts the choice, not the models.
+      if (stated !== null && stated > 0 && stated === requiredCount(definition, index) && holdsModels(child, index)) {
+        groups.push({ min: stated, max: stated, total: inside, adjust: widest(child, index, here) ?? here })
+        continue
+      }
       // A group's bounds are often absent and carried by its occupants instead,
       // so fall back to what they add up to rather than reporting no limit.
       const occupants = occupantBounds(child, index)
       const min = requiredCount(definition, index) || occupants.min
-      const max = maximumCount(definition, index) ?? occupants.max
+      const max = stated ?? occupants.max
       if (max > min) {
         groups.push({ min, max, total: inside, adjust: widest(child, index, here) ?? here })
         continue
@@ -111,17 +121,32 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
   return { models, groups }
 }
 
+/** Whether a group holds only models, directly or through groups of models. */
+const holdsModels = (group: Selection, index: CatalogueIndex): boolean =>
+  (group.selections ?? []).every((child) => {
+    const definition = index.definitions.get(child.id)
+    const type = definition && resolve(definition, index).type
+    return type === 'model' || (definition !== undefined && type === undefined && holdsModels(child, index))
+  })
+
 /** What a group's model occupants add up to, for when the group states no bounds itself. */
 function occupantBounds(group: Selection, index: CatalogueIndex): { min: number; max: number } {
   let min = 0
   let max = 0
+  const squadmates = squadmatesIn(group, index)
   for (const child of group.selections ?? []) {
     const definition = index.definitions.get(child.id)
-    if (!definition || resolve(definition, index).type !== 'model') continue
+    if (!definition || resolve(definition, index).type !== 'model' || replacesSquadmate(definition, squadmates, index)) continue
     min += requiredCount(definition, index)
     max = Math.min(UNBOUNDED, max + (maximumCount(definition, index) ?? UNBOUNDED))
   }
   return { min, max: max || UNBOUNDED }
+}
+
+/** What a unit or group offers, for asking which of its models take another's place. */
+function squadmatesIn(selection: Selection, index: CatalogueIndex) {
+  const definition = index.definitions.get(selection.id)
+  return definition ? childrenOf(resolve(definition, index), index) : []
 }
 
 /** Which occupant of a group to grow: the one the data lets take the most. */

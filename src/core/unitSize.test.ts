@@ -76,6 +76,22 @@ describe('how many models a unit may field', () => {
     expect(buildUnit('squad', indexOf(squad()), 8)?.size.models).toBe(8)
   })
 
+  it('keeps a group fixed at a size fixed, whatever its occupants could each take', () => {
+    // Wyches: "9 Wyches" is always nine, of 6-9 Wyches and up to 3 with Gladiatorial weapons.
+    const fixed = sizedSquad()
+    fixed.sharedSelectionEntries![0]!.selectionEntryGroups![0]!.constraints = [
+      { id: 'bodies-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+      { id: 'bodies-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+    ]
+    fixed.sharedSelectionEntries![0]!.selectionEntryGroups![0]!.selectionEntries!.push({
+      id: 'specialist',
+      name: 'Specialist',
+      type: 'model',
+      constraints: [{ id: 'specialist-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+    })
+    expect(unitSize('squad', indexOf(fixed))).toMatchObject({ min: 10, max: 10 })
+  })
+
   it('selects and expands a fixed composition for the requested size', () => {
     const index = indexOf({
       sharedSelectionEntries: [

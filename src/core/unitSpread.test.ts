@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
+import { buildIndex, type Catalogue, type CatalogueFile, type CatalogueIndex } from './catalogue'
 import { evaluate, type Selection } from './evaluate'
 import { defaultSelection, withChoice } from './expand'
 import { buildUnit } from './roster'
@@ -912,5 +912,189 @@ describe('a specialist armed by a choice and counted by a spread', () => {
       { name: 'Power fist', count: 4 },
       { name: 'Cyclone missile launcher', count: 1 },
     ])
+  })
+})
+
+describe('a specialist that takes the place of a squadmate', () => {
+  // Sanctifiers: a Sanctifier may swap his hand flamer for the simulacrum imperialis or a
+  // second hand flamer, and the data says so by lowering the hand-flamer Sanctifiers' limits.
+  const swapped = (limit: string) => ({
+    type: 'decrement' as const,
+    field: limit,
+    value: 1,
+    repeats: ['simulacrum', 'two-flamers'].map((childId) => ({
+      childId,
+      field: 'selections',
+      scope: 'sanctifiers',
+      value: 1,
+      repeats: 1,
+      includeChildSelections: true,
+    })),
+  })
+  const armed = (id: string, weapon: string) => [
+    { id: `${id}-${weapon}`, name: weapon, type: 'upgrade' as const, constraints: mandatory(`${id}-${weapon}-min`) },
+  ]
+  const models = [
+    {
+      id: 'missionary',
+      name: 'Missionary',
+      type: 'model' as const,
+      constraints: [
+        { id: 'missionary-min', type: 'min' as const, value: 1, field: 'selections', scope: 'parent' },
+        { id: 'missionary-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' },
+      ],
+    },
+    {
+      id: 'flamers',
+      name: 'Sanctifier w/ hand flamer',
+      type: 'model' as const,
+      constraints: [
+        { id: 'flamers-min', type: 'min' as const, value: 4, field: 'selections', scope: 'parent' },
+        { id: 'flamers-max', type: 'max' as const, value: 4, field: 'selections', scope: 'parent' },
+      ],
+      modifiers: [swapped('flamers-min'), swapped('flamers-max')],
+      selectionEntries: armed('flamers', 'Hand flamer'),
+    },
+    ...[
+      ['simulacrum', 'Sanctifier w/ simulacrum imperialis', 'Simulacrum imperialis'],
+      ['two-flamers', 'Sanctifier w/ two hand flamers', 'Two hand flamers'],
+    ].map(([id, name, weapon]) => ({
+      id: id!,
+      name: name!,
+      type: 'model' as const,
+      constraints: [{ id: `${id}-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+      selectionEntries: armed(id!, weapon!),
+    })),
+  ]
+  const shapes = {
+    'on the datasheet': indexOf({
+      sharedSelectionEntries: [{ id: 'sanctifiers', name: 'Sanctifiers', type: 'unit', selectionEntries: models }],
+    }),
+    'in a group': indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'sanctifiers',
+          name: 'Sanctifiers',
+          type: 'unit',
+          selectionEntryGroups: [{ id: 'squad', name: 'Sanctifiers', selectionEntries: models }],
+        },
+      ],
+    }),
+  }
+  const taking = (index: CatalogueIndex, ...ids: string[]) => {
+    const spreads: Record<string, Record<string, number>> = {}
+    for (const id of ids) {
+      const key = buildUnit('sanctifiers', index)!.choices.find((choice) => choice.options.some((option) => option.id === id))?.key
+      if (key) spreads[key] = { ...spreads[key], [id]: 1 }
+    }
+    return buildUnit('sanctifiers', index, undefined, undefined, { spreads })!
+  }
+
+  it.each(Object.entries(shapes))('is offered %s', (_shape, index) => {
+    const options = buildUnit('sanctifiers', index)!.choices.flatMap((choice) => choice.options)
+    expect(options.find((option) => option.id === 'simulacrum')?.max).toBe(1)
+  })
+
+  it.each(Object.entries(shapes))('keeps the squad at its size when taken %s', (_shape, index) => {
+    expect(modelCountOf(taking(index, 'simulacrum').selection, index)).toBe(5)
+  })
+
+  it.each(Object.entries(shapes))('takes the hand flamer of the squadmate it replaces %s', (_shape, index) => {
+    expect(wargearOf(taking(index, 'simulacrum').selection, index)).toContainEqual({ name: 'Hand flamer', count: 3 })
+  })
+
+  it.each(Object.entries(shapes))('leaves the squad legal when taken %s', (_shape, index) => {
+    expect(evaluate([taking(index, 'simulacrum').selection], index).errors).toEqual([])
+  })
+
+  it.each(Object.entries(shapes))('replaces a squadmate for each specialist taken %s', (_shape, index) => {
+    expect(wargearOf(taking(index, 'simulacrum', 'two-flamers').selection, index)).toContainEqual({ name: 'Hand flamer', count: 2 })
+  })
+
+  it.each(Object.entries(shapes))('takes the place of a squadmate when chosen %s', (_shape, index) => {
+    const key = buildUnit('sanctifiers', index)!.choices.find((choice) => choice.options.some((option) => option.id === 'simulacrum'))!.key
+    const built = buildUnit('sanctifiers', index, undefined, { [key]: 'simulacrum' })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Hand flamer', count: 3 })
+  })
+
+  it.each(Object.entries(shapes))('arms a specialist when chosen %s', (_shape, index) => {
+    const key = buildUnit('sanctifiers', index)!.choices.find((choice) => choice.options.some((option) => option.id === 'simulacrum'))!.key
+    const built = buildUnit('sanctifiers', index, undefined, { [key]: 'simulacrum' })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Simulacrum imperialis', count: 1 })
+  })
+
+  it.each(Object.entries(shapes))('keeps the squad a fixed size once a specialist is taken %s', (_shape, index) => {
+    expect(taking(index, 'simulacrum').size).toMatchObject({ min: 5, max: 5 })
+  })
+})
+
+describe('a specialist in the second fixed group of a fixed-size unit', () => {
+  // Talonstrike Kill Team: four Heavy Intercessors and five Intercessors, each a fixed
+  // group whose default model gives up a place, by its limits, to each specialist taken.
+  const specialistLowers = (limit: string, specialist: string) => ({
+    type: 'decrement' as const,
+    field: limit,
+    value: 1,
+    repeats: [{ childId: specialist, field: 'selections', scope: 'team', value: 1, repeats: 1, includeChildSelections: true }],
+  })
+  const fixedGroup = (id: string, size: number, specialistMost: number) => ({
+    id,
+    name: `${size} ${id}`,
+    constraints: [
+      { id: `${id}-min`, type: 'min' as const, value: size, field: 'selections', scope: 'parent' },
+      { id: `${id}-max`, type: 'max' as const, value: size, field: 'selections', scope: 'parent' },
+    ],
+    selectionEntries: [
+      {
+        id: `${id}-trooper`,
+        name: `${id} trooper`,
+        type: 'model' as const,
+        constraints: [
+          { id: `${id}-trooper-min`, type: 'min' as const, value: size, field: 'selections', scope: 'parent' },
+          { id: `${id}-trooper-max`, type: 'max' as const, value: size, field: 'selections', scope: 'parent' },
+        ],
+        modifiers: [specialistLowers(`${id}-trooper-min`, `${id}-specialist`), specialistLowers(`${id}-trooper-max`, `${id}-specialist`)],
+      },
+      {
+        id: `${id}-specialist`,
+        name: `${id} specialist`,
+        type: 'model' as const,
+        constraints: [{ id: `${id}-specialist-max`, type: 'max' as const, value: specialistMost, field: 'selections', scope: 'parent' }],
+      },
+    ],
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'team',
+        name: 'Talonstrike Kill Team',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'composition',
+            name: 'Unit Composition',
+            selectionEntries: [
+              {
+                id: 'sergeant',
+                name: 'Kill Team Sergeant',
+                type: 'model',
+                constraints: [
+                  { id: 'sergeant-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
+            selectionEntryGroups: [fixedGroup('heavy', 4, 4), fixedGroup('jump', 5, 2)],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('offers the specialist of a fixed group the unit is not sized by', () => {
+    const offered = buildUnit('team', index)!
+      .choices.flatMap((choice) => choice.options)
+      .find((option) => option.id === 'jump-specialist')
+    expect(offered?.max).toBe(2)
   })
 })

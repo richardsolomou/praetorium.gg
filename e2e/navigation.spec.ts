@@ -484,7 +484,9 @@ test('a rule is read by the number the source prints against it', async ({ brows
 
   // A clarification stays collapsed until the address names it.
   await page.goto('/rules/core-rules/core-concepts')
-  const clarification = page.locator('[id="01.02.03"]')
+  // The outline draws a clarification as a plain row until its loaded text makes it expandable.
+  const clarification = page.locator('details[id="01.02.03"]')
+  await expect(clarification).toBeAttached()
   expect(await clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(false)
   await page.goto('/rules/core-rules/core-concepts#01.02.03')
   await expect.poll(() => clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(true)
