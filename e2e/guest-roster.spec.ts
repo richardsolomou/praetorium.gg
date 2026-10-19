@@ -58,6 +58,13 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
 
   // Priced by the server, whatever the current data says the unit costs.
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
+  await expect(page.locator('[data-slot="roster-meta"]')).toContainText('10 models')
+  await page.getByRole('button', { name: 'Necron Warriors', exact: true }).click()
+  await page.getByRole('button', { name: 'More models in Necron Warriors' }).click()
+  await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
+  await expect.poll(() => storedDraft(page)).toContain('"models":11')
+  await page.reload()
+  await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
   await expect(page.getByRole('button', { name: /to (your collection|favourite datasheets)$/ })).toHaveCount(0)
   expect(saves).toEqual([])
 })

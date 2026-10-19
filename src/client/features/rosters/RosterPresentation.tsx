@@ -44,8 +44,8 @@ type RosterHeaderProps = {
   points?: number | null
   limit?: number
   pointsBudget?: number | null
-  /** How many units the list holds, said the way the library says it. */
   unitCount?: number
+  modelCount?: number
   detachments?: readonly PresentedDetachment[]
   disposition?: string | null
   /** The format restrictions this list is not playing, named beside it wherever it is read. */
@@ -111,6 +111,7 @@ export function RosterHeader({
   limit,
   pointsBudget,
   unitCount,
+  modelCount,
   detachments = NO_DETACHMENTS,
   disposition,
   waivers = NO_WAIVERS,
@@ -173,6 +174,12 @@ export function RosterHeader({
               <span className="contents">
                 <span aria-hidden>·</span>
                 <span className="shrink-0">{countLabel(unitCount, 'unit')}</span>
+              </span>
+            )}
+            {modelCount === undefined ? null : (
+              <span className="contents">
+                <span aria-hidden>·</span>
+                <span className="shrink-0">{countLabel(modelCount, 'model')}</span>
               </span>
             )}
             {detachments.map((detachment) => {
