@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.167.0
+
+### Minor Changes
+
+- 0ef1ab4: See the total number of models alongside the unit count in the roster editor.
+
 ## 0.166.0
 
 ### Minor Changes
