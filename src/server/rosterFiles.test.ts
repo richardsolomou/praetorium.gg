@@ -1677,6 +1677,24 @@ Immortals (70 Points)
     expect(imported.units[0]?.choices?.enhancements).toBe('assault')
   })
 
+  it.each(['Demanding Leader (one per army)', 'Demanding Leader (one per army) (Upgrade)'])(
+    'selects the enhancement labelled %s',
+    (name) => {
+      const imported = importRosterFile({ file: list(`CHARACTERS\n\nLokhust Lord (80 Points)\n• Enhancements: ${name}`) }, loaded)
+
+      expect(imported.units[0]?.choices?.enhancements).toBe('relic')
+    },
+  )
+
+  it('recognises the carried upgrade after its one-per-army annotation', () => {
+    const imported = importRosterFile(
+      { file: list('CHARACTERS\n\nLokhust Lord (80 Points)\n• Enhancements: Furious Assault (one per army) (Upgrade)') },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([])
+  })
+
   it('reads a model named without its loadout', () => {
     const imported = importRosterFile(
       { file: list('OTHER DATASHEETS\n\nRecon Squad (80 Points)\n• 9x Recon Trooper\n◦ 9x Lasgun') },

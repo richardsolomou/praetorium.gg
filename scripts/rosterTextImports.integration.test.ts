@@ -13,6 +13,7 @@ import {
   warmindOfficial,
 } from '../src/core/rosterText.fixtures'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
+import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
@@ -58,14 +59,16 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     },
   )
 
-  const wargear = (file: string, unit: string) => {
+  const priced = (file: string) => {
     const result = imported(file)
-    const priced = calculateRosterPrice(
+    return calculateRosterPrice(
       { catalogueId: result.catalogueId!, detachmentIds: result.detachmentIds, disposition: null, limit: 2000, units: result.units },
       catalogue,
       rules,
     )
-    const held = priced?.units.find((candidate) => candidate.name === unit)?.wargear ?? []
+  }
+  const wargear = (file: string, unit: string) => {
+    const held = priced(file)?.units.find((candidate) => candidate.name === unit)?.wargear ?? []
     return held.map((piece) => `${piece.count}x ${piece.name.toLowerCase()}`)
   }
 
@@ -127,5 +130,40 @@ Sanctifiers (100 pts)
 
   it('arms an allied Simulacrum Sanctifier', () => {
     expect(wargear(alliedSanctifiers, 'Sanctifiers')).toContain('1x simulacrum imperialis')
+  })
+
+  it('imports the reported official-app Custodes roster without mismatches', () => {
+    expect(summary(custodesOfficial)).toEqual({
+      format: 'roster-file',
+      faction: 'Imperium - Adeptus Custodes',
+      detachments: 3,
+      units: '10 of 10',
+      attached: 2,
+      mismatches: [],
+      points: '2000 for 2000',
+    })
+  })
+
+  it('preserves the reported Custodes model counts', () => {
+    expect(imported(custodesOfficial).units.map((unit) => unit.models)).toEqual([1, 3, 1, 3, 2, 1, 1, 1, 4, 4])
+  })
+
+  it('arms the reported Achillus with both Adrathic combi-destructors', () => {
+    expect(wargear(custodesOfficial, 'Contemptor-Achillus Dreadnought')).toContain('2x adrathic combi-destructors')
+  })
+
+  it.each([
+    ['Shield-Captain', 'Auric Exemplar'],
+    ['Blade Champion', 'Flawless Bladework'],
+  ])('keeps the reported enhancement on %s', (unit, enhancement) => {
+    const found = priced(custodesOfficial)?.units.find((candidate) => candidate.name === unit)
+    expect(found?.enhancements).toContain(enhancement)
+  })
+
+  it.each([
+    ['Contemptor-Achillus Dreadnought', '1x memento moritoi (upgrade)'],
+    ['Telemon Heavy Dreadnought', '1x augury uplink (upgrade)'],
+  ])('keeps the reported upgrade on %s', (unit, upgrade) => {
+    expect(wargear(custodesOfficial, unit)).toContain(upgrade)
   })
 })
