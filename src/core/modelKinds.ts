@@ -36,14 +36,29 @@ export type ModelKind = {
   name: string
   /**
    * Wargear every model of this kind carries. `count` is stated only when it is not
-   * simply one each — a swap having taken some of them away.
+   * simply one each — a swap having taken some of them away. `each` names the models
+   * that carry more than one, such as a Sanctifier with two hand flamers.
    */
-  fixed: { name: string; count?: number }[]
+  fixed: { name: string; count?: number; each?: Record<string, number> }[]
   /** `within` names the choice option a standing model came with, such as a two-model weapons team. */
   members: { id: string; choiceKey: string | null; baseCount: number; within?: ModelRowSource }[]
   /** Wargear taken through a choice, in the order the data holds it. */
   rows: ModelRow[]
 }
+
+export const modelFixedCount = (
+  kind: Pick<ModelKind, 'members'>,
+  piece: ModelKind['fixed'][number],
+  countOf: (source: ModelRowSource) => number,
+) =>
+  piece.count ??
+  kind.members.reduce(
+    (total, member) =>
+      total +
+      (member.choiceKey ? countOf({ choiceKey: member.choiceKey, optionId: member.id }) : member.baseCount) *
+        (piece.each?.[member.id] ?? 1),
+    0,
+  )
 
 export const modelRowSources = (row: ModelRow): readonly ModelRowSource[] => [row, ...(row.alternatives ?? [])]
 
@@ -184,10 +199,12 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
             }))
           }, base)
         : null
-      return [member.id, outside ? wargearOf(outside, index).map((piece) => piece.name) : []] as const
+      return [member.id, outside ? wargearOf(outside, index) : []] as const
     }),
   )
-  const carriedOf = (id: string) => carriedBy.get(id) ?? []
+  const carriedNames = new Map([...carriedBy].map(([id, pieces]) => [id, pieces.map((piece) => piece.name)]))
+  const carriedOf = (id: string) => carriedNames.get(id) ?? []
+  const eachOf = (id: string, name: string) => carriedBy.get(id)?.find((piece) => piece.name === name)?.count ?? 1
   const owns = (id: string) => choices.some((choice) => choice.owner?.id === id)
   // Standing models have no editable source, so only offered variants join a named pool.
   const loose = found.filter((entry) => !entry.profile && entry.member.choiceKey)
@@ -285,9 +302,13 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
       if (member.choiceKey || !member.baseCount) return
       for (const name of carried[position] ?? []) {
         if (shared.includes(name) || rows.some((row) => row.name === name)) continue
-        apart.set(name, (apart.get(name) ?? 0) + member.baseCount)
+        apart.set(name, (apart.get(name) ?? 0) + member.baseCount * eachOf(member.id, name))
       }
     })
+    const fixedOf = (name: string) => {
+      const doubled = members.map((member) => [member.id, eachOf(member.id, name)] as const).filter(([, count]) => count > 1)
+      return doubled.length ? { name, each: Object.fromEntries(doubled) } : { name }
+    }
 
     return {
       name:
@@ -297,7 +318,7 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
           profile,
         ),
       fixed: [
-        ...shared.filter((name) => !rows.some((row) => row.name === name)).map((name) => ({ name })),
+        ...shared.filter((name) => !rows.some((row) => row.name === name)).map(fixedOf),
         ...[...apart].map(([name, count]) => ({ name, count })),
       ],
       members: members.map(({ id, choiceKey, baseCount, within }) => ({ id, choiceKey, baseCount, ...(within ? { within } : {}) })),

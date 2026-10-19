@@ -2,7 +2,15 @@ import { escapeRegExp } from '../../../../core/text'
 import { groupBy, uniqueBy } from '../../../../core/collections'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
-import { modelRowCount, modelRowPieces, modelRowSources, type ModelKind, type ModelRow } from '../../../../core/modelKinds'
+import {
+  modelFixedCount,
+  modelRowCount,
+  modelRowPieces,
+  modelRowSources,
+  type ModelKind,
+  type ModelRow,
+  type ModelRowSource,
+} from '../../../../core/modelKinds'
 import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
 
 export { sameWargear as sameWeapon } from '../../../../core/wargear'
@@ -124,11 +132,15 @@ export function loadoutRowSources(row: ModelRow, choices: readonly LoadoutChoice
   })
 }
 
-export const loadoutRowCount = (row: ModelRow, choices: readonly LoadoutChoice[]) =>
-  modelRowCount(row, ({ choiceKey, optionId }) => {
-    const choice = choices.find((candidate) => candidate.key === choiceKey)
-    return choice?.options.find((candidate) => candidate.id === optionId)?.count ?? 0
-  })
+const optionCount =
+  (choices: readonly LoadoutChoice[]) =>
+  ({ choiceKey, optionId }: ModelRowSource) =>
+    choices.find((candidate) => candidate.key === choiceKey)?.options.find((candidate) => candidate.id === optionId)?.count ?? 0
+
+export const loadoutRowCount = (row: ModelRow, choices: readonly LoadoutChoice[]) => modelRowCount(row, optionCount(choices))
+
+export const loadoutFixedCount = (model: LoadoutModel, piece: LoadoutModel['fixed'][number], choices: readonly LoadoutChoice[]) =>
+  modelFixedCount(model, piece, optionCount(choices))
 
 function loadoutRowBand(row: ModelRow, profiles: readonly WeaponProfileData[]) {
   const matched = weaponProfilesFor(row, profiles)
