@@ -12,6 +12,7 @@ import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from '.
 import { dispositionAccent, dispositionTone } from '../../../components/rosterSetup'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
+import { buttonClass } from '../../../components/buttonClass'
 
 export function MissionMatchupPage({ packId, you, opponent }: { packId: string; you: string; opponent: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -44,6 +45,11 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
           </>
         }
         title={`${yourDisposition.name} vs ${opponentDisposition.name}`}
+        actions={
+          <Link to="/rosters/new" className={buttonClass()}>
+            Build a roster
+          </Link>
+        }
       >
         <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
           {sides.map((side, at) => (

@@ -64,9 +64,10 @@ function StartRosterDialog({
   )
 }
 
-/** A detachment page's way into the builder: a new roster with this detachment already chosen. */
-export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFaction; detachmentId: string }) {
+/** A faction or detachment page's way into the builder: a new roster with this faction, and maybe this detachment, already chosen. */
+export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFaction; detachmentId?: string }) {
   const [open, setOpen] = useState(false)
+  const reference = detachmentId ? 'detachment' : 'faction'
   const { data: me } = useQuery(meQuery())
   const account = useAccountPrompt()
   return (
@@ -76,13 +77,19 @@ export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFac
         size="sm"
         onClick={() => {
           if (!me && readGuestDraft()) return account.ask('another-roster')
-          posthog.capture('roster_creation_started', { reference: 'detachment' })
+          posthog.capture('roster_creation_started', { reference })
           setOpen(true)
         }}
       >
         <Plus /> Start a roster
       </Button>
-      <StartRosterDialog open={open} onOpenChange={setOpen} faction={faction} detachmentIds={[detachmentId]} reference="detachment" />
+      <StartRosterDialog
+        open={open}
+        onOpenChange={setOpen}
+        faction={faction}
+        detachmentIds={detachmentId ? [detachmentId] : undefined}
+        reference={reference}
+      />
       {account.prompt}
     </>
   )

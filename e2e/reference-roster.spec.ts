@@ -35,6 +35,24 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
 })
 
+test('a visitor starts a roster from a faction page with that faction chosen', async ({ page }) => {
+  await page.goto('/factions/necrons')
+  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'Start a roster', exact: true }).click())
+  await expect(setup.getByRole('combobox', { name: 'Faction' })).toHaveText(/Necrons/)
+})
+
+test('a mission page opens a new roster setup on the rosters page', async ({ page }) => {
+  await page.goto('/missions/chapter-approved-2026-2027')
+  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await retryUntilVisible(setup, () => page.getByRole('link', { name: 'Build a roster' }).click())
+  await expect(page).toHaveURL(/\/rosters$/)
+  await setup.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'New roster' })).toBeVisible()
+  await expect(setup).toBeHidden()
+})
+
 test('a datasheet opens the simulator on the side the reader picks', async ({ page }) => {
   await page.goto(DATASHEET)
   await page.waitForLoadState('networkidle')

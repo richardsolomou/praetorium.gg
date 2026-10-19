@@ -11,7 +11,7 @@ import { importedSetup, type MatchedImport } from './RosterImport'
 import type { RosterSetup } from './RosterSetupDialog'
 
 /** The reference page a roster was started from, as telemetry names it. */
-export type RosterReference = 'datasheet' | 'detachment'
+export type RosterReference = 'datasheet' | 'detachment' | 'faction'
 
 /**
  * Starting a roster from a setup and opening it in the builder, with `add` asked of it there.

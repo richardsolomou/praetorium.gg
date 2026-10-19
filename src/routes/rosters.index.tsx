@@ -14,14 +14,14 @@ import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
-import { searchText } from '../client/searchParams'
+import { searchFlag, searchText } from '../client/searchParams'
 
 const VIEWS = ['friends', 'public', 'played'] as const
 type RosterView = (typeof VIEWS)[number]
 
 export const Route = createFileRoute('/rosters/')({
   pendingComponent: RosterLoading,
-  validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView } => {
+  validateSearch: (search: Record<string, unknown>): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; new?: true } => {
     const limit = Number(search.limit)
     const faction = searchText(search.faction, 128)
     const view = VIEWS.find((known) => known === search.view)
@@ -46,6 +46,7 @@ export const Route = createFileRoute('/rosters/')({
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
       ...(ROSTER_UPDATE_FILTERS.includes(search.updates as RosterUpdateFilter) ? { updates: search.updates as RosterUpdateFilter } : {}),
+      ...(searchFlag(search.new) ? { new: true as const } : {}),
     }
   },
   loaderDeps: ({ search: { view, faction, detachment, rules, sort } }) => ({ view, faction, detachment, rules, sort }),
@@ -94,15 +95,22 @@ export const Route = createFileRoute('/rosters/')({
 /**
  * A player's library, or a visitor's one list on this device on the same page; either may instead ask for friends' or
  * public rosters. Signing up comes back here, and a player arriving with a visitor's list still on the device has it
- * saved first.
+ * saved first. `new` opens the setup for another roster, as `/rosters/new` asks.
  */
 function RosterLibraryRoute() {
-  const { view, detachment, rules, sort: listSort, ...search } = Route.useSearch()
+  const { view, detachment, rules, sort: listSort, new: starting, ...search } = Route.useSearch()
   const { guestDraft: hinted, sort } = Route.useLoaderData()
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
   if (view) return <RosterDiscoveryPage view={view} search={{ faction: search.faction, detachment, rules, sort: listSort }} />
   if (me && !ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
-  return <RosterLibraryPage search={search} sort={sort} device={{ guest, pending: !ready && hinted, onChange: setGuest }} />
+  return (
+    <RosterLibraryPage
+      search={search}
+      sort={sort}
+      starting={starting && ready}
+      device={{ guest, pending: !ready && hinted, onChange: setGuest }}
+    />
+  )
 }

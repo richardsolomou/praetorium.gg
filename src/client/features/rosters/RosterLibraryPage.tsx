@@ -74,7 +74,17 @@ export type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChan
  *
  * A visitor's actions that would make a second list, or that need an account, ask them to sign up instead.
  */
-export function RosterLibraryPage({ search, sort, device }: { search: RosterLibrarySearch; sort: RosterSort; device?: DeviceLibrary }) {
+export function RosterLibraryPage({
+  search,
+  sort,
+  starting,
+  device,
+}: {
+  search: RosterLibrarySearch
+  sort: RosterSort
+  starting?: boolean
+  device?: DeviceLibrary
+}) {
   const [selectedSort, setSelectedSort] = useState(sort)
   const pageKey = JSON.stringify([
     search.limit ?? null,
@@ -256,7 +266,13 @@ export function RosterLibraryPage({ search, sort, device }: { search: RosterLibr
         actions={
           <>
             <RosterImport onImport={me ? undefined : keepImported} blocked={another} />
-            <CreateRoster factionOptions={available?.factions ?? []} limit={search.limit} blocked={another} />
+            <CreateRoster
+              factionOptions={available?.factions ?? []}
+              limit={search.limit}
+              blocked={another}
+              starting={starting}
+              onStarted={() => void navigate({ to: '/rosters', search, replace: true })}
+            />
           </>
         }
       >
