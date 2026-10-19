@@ -15,6 +15,8 @@ import { localObjectStore } from '../src/server/localObjectStore.ts'
 import { nodeLifecycle } from './lib/nodeLifecycle.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { startCatalogueRefresh } from './lib/catalogueRefreshProcess.ts'
+import { serveLiveCatalogueAsset } from './lib/liveCatalogueAssets.ts'
 
 const execFile = promisify(execFileCallback)
 
@@ -127,6 +129,13 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   }
   const authPath = process.env.AUTH_SQLITE_PATH
   if (!authPath || !path.isAbsolute(authPath)) throw new Error('AUTH_SQLITE_PATH must be absolute')
+  if (!process.env.LOCAL_VITE_ORIGIN && process.env.CATALOGUE_RUNTIME_FETCH === 'true') {
+    process.env.CATALOGUE_LIVE_DIR = await startCatalogueRefresh(
+      nodeBuildDirectory(),
+      path.resolve(process.env.DATA_DIR ?? '/data'),
+      lifecycle.signal,
+    )
+  }
   if (!existsSync(authPath) && process.env.AUTH_INITIALIZE_EMPTY === 'true') {
     const migration = fileURLToPath(new URL('../drizzle-auth/0000_curly_gambit.sql', import.meta.url))
     if (process.env.PRAETORIUM_SEED_PREVIEW === 'true') {
@@ -172,6 +181,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && process.env.LOCAL_TEST_MODE !== 'true' && !viteOrigin) {
     throw new Error('Interactive local development requires Vite. Start it with just dev.')
   }
+  lifecycle.signal.throwIfAborted()
   if (!viteOrigin) {
     lifecycle.ownChild(
       spawn(process.execPath, [path.join(nodeBuildDirectory(), 'server/index.mjs')], {
@@ -214,6 +224,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   }
   const server = createServer((request, response) => {
     forwardVisitor(request)
+    if (process.env.CATALOGUE_LIVE_DIR && serveLiveCatalogueAsset(request, response, process.env.CATALOGUE_LIVE_DIR)) return
     if (
       process.env.PRAETORIUM_LOCAL_DEV === 'true' &&
       ['/praetorium/', '/catalogue/', '/avatars/'].some((prefix) => request.url?.startsWith(prefix))

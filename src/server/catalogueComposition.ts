@@ -129,7 +129,7 @@ export function validateEditionContinuity(
 function editionSources(composition: CatalogueComposition, selected: CatalogueComposition['editions'][number]) {
   if (selected.snapshot) return selected.snapshot
   const pin = (source: CatalogueOverlay | CatalogueComposition['editions'][number]['sources']['definitions']) =>
-    source ? { repository: source.repository, revision: source.revision, path: source.path } : null
+    source ? { revision: source.revision, path: source.path } : null
   return sourceNames.map((name) => ({
     source: pin(selected.sources[name] ?? composition.baseSources?.[name]),
     overlays: [...(selected.sources[name] ? [] : composition.overlays), ...selected.overlays]

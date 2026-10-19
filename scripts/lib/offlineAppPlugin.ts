@@ -48,8 +48,10 @@ export function offlineAppPlugin(): Plugin {
         JSON.stringify({ revision, css: '/' + css.fileName, script: scriptPath }),
       )
       // tsx loads the reference compiler at build time, so the Vite config does not load application modules.
-      const reference: typeof import('./offlineReferenceCache.ts') = await tsImport('./offlineReferenceCache.ts', import.meta.url)
-      console.log(`Prepared the offline reference (${await reference.prepareReferenceBundle(outDir)})`)
+      if (process.env.CATALOGUE_RUNTIME_FETCH !== 'true') {
+        const reference: typeof import('./offlineReferenceCache.ts') = await tsImport('./offlineReferenceCache.ts', import.meta.url)
+        console.log(`Prepared the offline reference (${await reference.prepareReferenceBundle(outDir)})`)
+      }
     },
   }
 }

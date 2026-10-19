@@ -147,3 +147,13 @@ it('invalidates compiled outputs after locked dependencies change', () => {
   fs.writeFileSync(path.join(directory, file), 'after')
   expect(compilerSourcesFingerprint(directory)).not.toBe(before)
 })
+
+it('invalidates compiled outputs after imported catalogue configuration changes', () => {
+  fs.mkdirSync(path.join(directory, 'catalogue'))
+  const file = path.join(directory, 'catalogue/retired-ids.json')
+  fs.writeFileSync(file, '{}')
+  const before = compilerSourcesFingerprint(directory)
+  fs.writeFileSync(file, '{"updated":true}')
+
+  expect(compilerSourcesFingerprint(directory)).not.toBe(before)
+})

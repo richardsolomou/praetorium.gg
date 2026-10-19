@@ -16,6 +16,7 @@ const retiredSourceSchema = z.object({
     replacementSchema.extend({
       choices: z.record(z.string(), z.record(z.string(), optionSchema)).optional(),
       toggles: z.record(z.string(), z.string()).optional(),
+      fixedChoices: z.record(z.string(), z.array(z.string())).optional(),
     }),
   ),
 })
@@ -135,13 +136,15 @@ function mappedPick(pick: RosterPick, sheets: typeof datasheets): RosterPick {
     ...(pick.choices
       ? {
           choices: Object.fromEntries(
-            Object.entries(pick.choices).map(([key, id]) => {
-              const current = option(key, id)
-              const existing = pick.choices?.[current.key]
-              return existing && current.key !== key && option(current.key, existing).id !== current.id
-                ? [key, id]
-                : [current.key, current.id]
-            }),
+            Object.entries(pick.choices)
+              .filter(([key, id]) => !sheet.fixedChoices?.[key]?.includes(id))
+              .map(([key, id]) => {
+                const current = option(key, id)
+                const existing = pick.choices?.[current.key]
+                return existing && current.key !== key && option(current.key, existing).id !== current.id
+                  ? [key, id]
+                  : [current.key, current.id]
+              }),
           ),
         }
       : {}),

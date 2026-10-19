@@ -101,6 +101,36 @@ it('accepts a manifest naming its reference and both construction downloads', as
   vi.stubGlobal('fetch', async () => Response.json(version))
   expect(await offlineReferenceVersion(signal)).toEqual(version)
 })
+
+it('accepts matching reference and construction downloads prepared at runtime', async () => {
+  const prefix = `/catalogue-assets/${'d'.repeat(64)}`
+  const current = {
+    ...version,
+    bundle: version.bundle.replace('/assets', prefix),
+    construction: {
+      ...construction,
+      current: construction.current.replace('/assets', prefix),
+      complete: construction.complete.replace('/assets', prefix),
+    },
+  }
+  vi.stubGlobal('fetch', async () => Response.json(current))
+
+  expect(await offlineReferenceVersion(signal)).toEqual(current)
+})
+
+it('rejects construction downloads from another runtime revision', async () => {
+  vi.stubGlobal('fetch', async () =>
+    Response.json({
+      ...version,
+      construction: {
+        ...construction,
+        current: `/catalogue-assets/${'d'.repeat(64)}/construction-${'b'.repeat(64)}.bin`,
+      },
+    }),
+  )
+
+  await expect(offlineReferenceVersion(signal)).rejects.toThrow('version is invalid')
+})
 it.each([
   { ...version, construction: undefined },
   { ...version, construction: { ...construction, complete: '/private' } },

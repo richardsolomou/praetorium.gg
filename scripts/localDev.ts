@@ -233,6 +233,7 @@ async function main() {
   await configure(value)
   timings.productSetupSeconds = (performance.now() - startedAt) / 1_000
   Object.assign(environment, {
+    DATA_DIR: root,
     APP_URL: publicUrl,
     AUTH_SECRET: value.authSecret,
     AUTH_SQLITE_PATH: path.join(root, 'auth.sqlite'),

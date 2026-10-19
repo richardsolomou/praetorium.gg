@@ -1,5 +1,18 @@
 import { expect, it } from 'vitest'
 import { restoreReferenceText, shareReferenceText } from './sharedReferenceText'
+import { textToken } from '../shared/sourceText'
+
+it('shares repeated source tokens while retaining their distinct upstream file identities', () => {
+  const current = textToken({ file: 'bbbbbbbb', transform: 'prose', hash: 'c'.repeat(16) })
+  const retained = textToken({ file: 'aaaaaaaa', transform: 'prose', hash: 'c'.repeat(16) })
+  const value = { current, previous: [retained, retained, retained] }
+  const shared = shareReferenceText(value)
+
+  expect({ restored: restoreReferenceText(shared.value, shared.texts), texts: shared.texts }).toEqual({
+    restored: value,
+    texts: [retained],
+  })
+})
 
 it('shares repeated rules prose while retaining edition-specific points and names', () => {
   const description = 'Each time this unit makes a ranged attack, re-roll a Hit roll of 1. '.repeat(10)

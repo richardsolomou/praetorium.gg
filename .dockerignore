@@ -4,6 +4,8 @@
 .wrangler
 node_modules
 catalogue-data
+catalogue-current.json
+catalogue-snapshot.zip
 data-dev
 .env*
 *.log

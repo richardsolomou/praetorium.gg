@@ -137,5 +137,20 @@
         }
       }
     }
+  },
+  "sternguardFixedWeapon": {
+    "fromSnapshot": "cbb69ffc06d255b8eecea227d5e2ccfcc647a3ce870505881140c87cb90bf274",
+    "toSnapshot": "1fb400e6f30fd2f0814c42a541d560cf71639018bc83f9fdc4279beb30539599",
+    "reason": "Preserve the same Sternguard Artificer Firearm after BSData/wh40k-11e@b8667d44504e025827a584cfc6bf2f2eba3cb9f8 makes it fixed equipment; retain unverified alternatives for resolution.",
+    "catalogues": {},
+    "detachments": {},
+    "datasheets": {
+      "bc4e-8331-8179-255b": {
+        "id": "bc4e-8331-8179-255b",
+        "fixedChoices": {
+          "edfc-d6af-480a-d5fc/97cd-6365-ce27-d73f/5ff5-aadc-6bc4-b2d8": ["39c3-1657-46c8-5d87"]
+        }
+      }
+    }
   }
 }

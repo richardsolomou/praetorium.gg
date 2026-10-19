@@ -1,9 +1,8 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import pRetry from 'p-retry'
-import { catalogueSources, SNAPSHOT_SOURCE_NAMES, type CatalogueSourceConfig } from '../src/server/catalogueSources'
+import { catalogueSources } from '../src/server/catalogueSources'
 import {
   activateCachedSnapshot,
   catalogueBaseUrl,
@@ -11,19 +10,19 @@ import {
   fetchCurrentPointer,
   fetchCurrentSnapshot,
   fetchPinnedSnapshot,
-  fetchSnapshot,
-  remoteRevocations,
+  installedSnapshot,
 } from '../src/server/catalogueSnapshot'
-import { battlemasterCatalogue, syncFactionIcons } from '../src/server/sync'
+import { PRIVATE_CATALOGUE_BASE } from '../src/server/catalogueStore'
+import { privateR2Client } from '../src/server/r2Client'
+import { syncFactionIcons } from '../src/server/sync'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueCacheRoot } from './lib/catalogueCache'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { loadCatalogueCredentials } from './lib/catalogueCredentials'
+import { resolveCatalogueUpstream } from './lib/catalogueUpstream'
 
 const root = path.join(import.meta.dirname, '..')
 const dataDirectory = catalogueDataDirectory()
-
-const head = (repository: string, branch: string) =>
-  execFileSync('gh', ['api', `repos/${repository}/commits/${branch}`, '--jq', '.sha'], { encoding: 'utf8' }).trim()
 
 /** A dropped connection fails CI otherwise; downloads are verified by hash, so another attempt is safe. */
 const withRetries = <T>(download: () => Promise<T>) =>
@@ -35,18 +34,8 @@ const withRetries = <T>(download: () => Promise<T>) =>
     },
   })
 
-async function resolve(config: CatalogueSourceConfig): Promise<CatalogueSourceConfig> {
-  const repositories = Object.fromEntries(
-    SNAPSHOT_SOURCE_NAMES.filter((name) => name !== 'battlemaster').map((name) => [
-      name,
-      { ...config[name], revision: head(config[name].repository, config[name].branch) },
-    ]),
-  )
-  const { revision } = await battlemasterCatalogue(config.battlemaster)
-  return { ...config, ...repositories, battlemaster: { ...config.battlemaster, revision } }
-}
-
 const argument = process.argv[2]
+if (argument !== '--check' && argument !== '--upstream') loadCatalogueCredentials(root)
 if (argument === '--check') {
   readCatalogueComposition(path.join(root, 'catalogue'))
   console.log('catalogue source definitions are well formed')
@@ -54,52 +43,24 @@ if (argument === '--check') {
   if (!fs.existsSync(path.join(dataDirectory, 'revision.json'))) throw new Error('materialize the pinned catalogue sources first')
   await syncFactionIcons(dataDirectory, (message) => console.log(message))
 } else if (argument === '--upstream') {
-  const base = catalogueBaseUrl()
-  const pointer = await fetchCurrentPointer(base)
-  let previous = catalogueLock.revisions
-  let publishedComposition: ReturnType<typeof readCatalogueComposition> = null
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-upstream-'))
-  try {
-    await fetchSnapshot(work, base, pointer, undefined, { revocations: await remoteRevocations(base) })
-    previous = JSON.parse(fs.readFileSync(path.join(work, 'revision.json'), 'utf8')) as Record<string, string>
-    publishedComposition = readCatalogueComposition(work)
-  } finally {
-    fs.rmSync(work, { recursive: true, force: true })
-  }
-  const current = await resolve(catalogueSources)
-  if (publishedComposition?.baseSources)
-    previous = Object.fromEntries(SNAPSHOT_SOURCE_NAMES.map((name) => [name, publishedComposition.baseSources![name].revision]))
-  const changed = SNAPSHOT_SOURCE_NAMES.filter((name) => previous[name] !== current[name].revision)
-  console.log(`published snapshot ${pointer.id}`)
-  if (!changed.length) console.log('all upstream source revisions match the published snapshot')
-  for (const name of changed) {
-    const source = current[name]
-    const old = previous[name] ?? 'absent'
-    const url =
-      'repository' in source && /^[a-f0-9]{40}$/.test(old)
-        ? ` https://github.com/${source.repository}/compare/${old}...${source.revision}`
-        : ''
-    console.log(`${name}: ${old} -> ${source.revision}${url}`)
-  }
-  const composition = readCatalogueComposition(path.join(root, 'catalogue'))
-  const selectedSources = [
-    ...(composition?.overlays ?? []).map((source, index) => ({ name: `overlay ${index + 1} (${source.source})`, source })),
-    ...(composition?.editions ?? []).flatMap(({ edition, sources, overlays }) => [
-      ...Object.entries(sources).map(([name, source]) => ({ name: `${edition.id}/${name}`, source })),
-      ...overlays.map((source, index) => ({ name: `${edition.id}/overlay ${index + 1} (${source.source})`, source })),
-    ]),
-  ]
-  for (const { name, source } of selectedSources) {
-    const latest = head(source.repository, source.branch)
-    if (latest !== source.revision)
-      console.log(
-        `${name}: configured ${source.revision} -> ${latest} https://github.com/${source.repository}/compare/${source.revision}...${latest}`,
-      )
-  }
-} else if (argument === undefined || argument === '--latest') {
+  const next = await resolveCatalogueUpstream(catalogueSources, readCatalogueComposition(path.join(root, 'catalogue')), console.log)
+  if (!next.changed) console.log('all configured source revisions match their approved branches')
+} else if (argument === undefined || argument === '--latest' || argument === '--prepare') {
   const base = catalogueBaseUrl()
   const cacheRoot = catalogueCacheRoot('catalogues')
-  if (!cacheRoot) {
+  if (
+    argument === '--prepare' &&
+    base === PRIVATE_CATALOGUE_BASE &&
+    installedSnapshot(cacheRoot ? path.join(cacheRoot, catalogueLock.pointer.id) : dataDirectory)?.id !== catalogueLock.pointer.id &&
+    !privateR2Client()
+  ) {
+    console.log('Building pinned public catalogue sources; snapshot-only historical editions are omitted.')
+    execFileSync(process.execPath, ['--import', 'tsx', path.join(root, 'scripts/materializeCatalogue.ts'), '--without-stored-editions'], {
+      cwd: root,
+      env: { ...process.env, CATALOGUE_DIR: dataDirectory },
+      stdio: 'inherit',
+    })
+  } else if (!cacheRoot) {
     const fetch = argument === '--latest' ? fetchCurrentSnapshot : fetchPinnedSnapshot
     await withRetries(() => fetch(dataDirectory, base, (message) => console.log(message)))
   } else {
@@ -111,5 +72,5 @@ if (argument === '--check') {
     console.log(`catalogue-data -> ${cached}`)
   }
 } else {
-  throw new Error('expected --check, --supplemental, --upstream, --latest, or no argument')
+  throw new Error('expected --prepare, --check, --supplemental, --upstream, --latest, or no argument')
 }

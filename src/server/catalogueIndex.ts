@@ -11,9 +11,11 @@ import { loadMfmSteps } from './mfm'
 import { readSharedJson } from './sharedJson'
 import { type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
 import { completeSteps, type Steps } from '../shared/steps'
+import { liveCatalogueRevision } from './liveCatalogue'
 export * from '../shared/catalogueIndex'
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
-  return process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue')
+  const live = liveCatalogueRevision()
+  return live ? path.join(live.directory, 'catalogue') : (process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue'))
 }
 export function loadCatalogue(directory = catalogueDirectory(), edition?: CatalogueEdition): LoadedCatalogue | null {
   return completeSteps(loadCatalogueSteps(directory, edition))

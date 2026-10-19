@@ -444,6 +444,7 @@ function names(text: string): string[] {
 /** Strips the markup the text carries and the case it shouts in. */
 const clean = (name: string) =>
   name
+    .replace(/[†‡].*$/s, '')
     .replaceAll(/[\^*■]/g, '')
     .replace(/\.$/, '')
     .trim()

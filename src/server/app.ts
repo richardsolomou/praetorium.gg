@@ -47,6 +47,7 @@ import type { BattleFaction } from '../shared/battleSummary'
 import { type Steps, stepThrough, stepwise } from '../shared/steps'
 
 type App = {
+  refreshCatalogue: () => void
   hotReloadToken?: object
   health: () => Promise<void>
   service: PraetoriumService
@@ -118,7 +119,7 @@ function memoize<T>(work: () => T): () => T {
 const sync = {
   state: { status: 'absent', detail: null } as SyncState,
   running: false,
-  begin(directory: string, onReady: () => void) {
+  begin(directory: string, onReady: () => void, catalogue: () => LoadedCatalogue | null) {
     if (this.running) return
     const archive = process.env.CATALOGUE_SNAPSHOT_FILE?.trim()
     if (archive && installedSnapshot(directory)?.id !== catalogueLock.pointer.id) {
@@ -128,6 +129,10 @@ const sync = {
         this.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the offline catalogue could not be installed' }
         return
       }
+    }
+    if (process.env.PRAETORIUM_LOCAL_DEV === 'true' || process.env.CATALOGUE_LIVE_DIR) {
+      this.state = catalogue() ? { status: 'ready', detail: null } : { status: 'absent', detail: null }
+      return
     }
     const authoritativeReady = Boolean(installedSnapshot(directory))
     const mode = catalogueUpdateMode()
@@ -295,7 +300,7 @@ export function app(): App {
   const createApp = (): App => {
     const telemetry = serverTelemetry()
     const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
-    const catalogueDataDirectory = catalogueDirectory(dataDirectory)
+    let catalogueDataDirectory = catalogueDirectory(dataDirectory)
     const email = emailDelivery()
     const localAuth = localAuthDatabase(process.env.AUTH_SQLITE_PATH ?? '')
     const authDatabase = localAuth.database
@@ -357,6 +362,13 @@ export function app(): App {
       spacetimeGuestToken: auth.spacetimeGuestToken,
       email,
       catalogue: loaded.catalogue,
+      refreshCatalogue: () => {
+        const next = catalogueDirectory(dataDirectory)
+        if (next === catalogueDataDirectory) return
+        useCatalogueLoaders(instance, next)
+        catalogueDataDirectory = next
+        ready = warm(instance)
+      },
       canonicalCatalogue: loaded.canonical,
       rules: loaded.rules,
       catalogueHistory: loaded.history,
@@ -376,8 +388,8 @@ export function app(): App {
       useCatalogueLoaders(instance, catalogueDataDirectory)
       ready = warm(instance)
     }
-    sync.begin(catalogueDataDirectory, swap)
-    const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap), 60 * 60 * 1000)
+    sync.begin(catalogueDataDirectory, swap, instance.catalogue)
+    const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap, instance.catalogue), 60 * 60 * 1000)
     catalogueRefresh.unref()
     // Hourly, because a one-time sponsorship ends without GitHub announcing it.
     const refreshSponsors = () =>
@@ -402,6 +414,7 @@ export function app(): App {
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)
+  if (process.env.CATALOGUE_LIVE_DIR) instance.refreshCatalogue()
   if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && instance.hotReloadToken !== hotReloadToken) {
     useCatalogueLoaders(instance, catalogueDirectory(path.resolve(process.env.DATA_DIR ?? '/data')))
     instance.hotReloadToken = hotReloadToken

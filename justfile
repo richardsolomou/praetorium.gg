@@ -78,7 +78,11 @@ test-integration *args:
 check:
     pnpm check
 
-# Activate the release-pinned catalogue from one cache shared by every worktree
+# Prepare a local catalogue from the shared snapshot or pinned public sources
+catalogue-prepare:
+    pnpm catalogue:prepare
+
+# Activate the exact release snapshot; downloading requires private store access
 catalogue-sync:
     pnpm catalogue:sync
 
@@ -108,7 +112,7 @@ catalogue-check:
 catalogue-materialize *args:
     pnpm catalogue:materialize {{ args }}
 
-# Compare current upstream revisions with the published snapshot without activating them
+# Compare configured pins with approved branch heads without activating them
 catalogue-upstream:
     pnpm catalogue:upstream
 

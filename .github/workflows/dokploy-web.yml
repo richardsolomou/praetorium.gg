@@ -137,7 +137,6 @@ jobs:
             POSTHOG_CLI_PROJECT_ID=${{ vars.POSTHOG_PROJECT_ID }}
           secrets: |
             posthog_api_key=${{ secrets.POSTHOG_API_KEY }}
-            catalogue_store=${{ vars.CLOUDFLARE_ACCOUNT_ID }} ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }} ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
           cache-scope: node-web-image
           # Nothing verifies image attestations, and generating them costs about 20 seconds per release.
           sbom: 'false'
@@ -189,15 +188,18 @@ jobs:
           registry-url: ghcr.io
           registry-username: ${{ github.repository_owner }}
           registry-password: ${{ secrets.GHCR_PULL_TOKEN }}
-      # Discovery follows production, so a rollback also returns current.json to the snapshot it serves.
-      - name: Activate the catalogue snapshot production serves
-        if: inputs.environment == 'production'
+      - name: Verify the deployed revision after catalogue preparation
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: python3 scripts/publishCatalogue.py activate "$(jq -r .pointer.id catalogue.json)"
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$WORKFLOW_SHA"
+          git show "$WORKFLOW_SHA:scripts/lib/webReadiness.ts" > "$RUNNER_TEMP/web-readiness.mts"
+          node --input-type=module <<'NODE'
+          import { pathToFileURL } from 'node:url'
+          const { waitForWebRevision } = await import(pathToFileURL(`${process.env.RUNNER_TEMP}/web-readiness.mts`).href)
+          await waitForWebRevision(process.env.TARGET === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg', process.env.DEPLOY_SHA)
+          NODE
       - name: Verify and schedule production auth backups
         if: inputs.environment == 'production'
         run: node scripts/dokployAuthSchedule.ts

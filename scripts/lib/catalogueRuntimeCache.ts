@@ -1,10 +1,12 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { catalogueRuntimeFingerprint, readCatalogueRuntime, runtimeManifestSchema } from '../../src/server/catalogueRuntime'
 import { writeCatalogueRuntime } from './catalogueRuntime'
 import { publishDirectory } from './publishDirectory'
+import { compilerSourcesFingerprint } from './compilerSources'
+export { compilerSourcesFingerprint } from './compilerSources'
 import { downloadRuntime, packCatalogueRuntime, storeHasArchive, uploadRuntime } from './catalogueRuntimeDistribution'
 
 type Compile = (directory: string, output: string) => Promise<void> | void
@@ -15,43 +17,6 @@ export type RuntimeStore = {
 }
 
 const sharedStore: RuntimeStore = { has: storeHasArchive, download: downloadRuntime, upload: uploadRuntime }
-const compilerSources = [
-  'pnpm-lock.yaml',
-  'src/contracts',
-  'src/core',
-  'src/server',
-  'src/shared',
-  'scripts/lib',
-  'scripts/compileCatalogueRuntime.ts',
-]
-
-function* sourceFiles(root: string, relative: string): Generator<string> {
-  const target = path.join(root, relative)
-  if (!fs.existsSync(target)) return
-  if (fs.statSync(target).isFile()) {
-    if (!/\.(?:integration\.)?test\.[^.]+$/.test(relative)) yield relative
-    return
-  }
-  for (const entry of fs.readdirSync(target).sort()) yield* sourceFiles(root, path.join(relative, entry))
-}
-
-/**
- * A compiled runtime depends on the snapshot, dependencies and every compiler source, so the key
- * names all three and nobody has to remember a version bump. Files are walked rather than listed by git
- * because the image build has neither.
- */
-export function compilerSourcesFingerprint(worktree = process.cwd()) {
-  const hash = createHash('sha256')
-  for (const file of compilerSources.flatMap((source) => [...sourceFiles(worktree, source)])) {
-    hash
-      .update(file)
-      .update('\0')
-      .update(fs.readFileSync(path.join(worktree, file)))
-      .update('\0')
-  }
-  return hash.digest('hex')
-}
-
 export function runtimeCacheKey(directory: string, sources = compilerSourcesFingerprint()) {
   return `${catalogueRuntimeFingerprint(directory)}-${sources.slice(0, 16)}`
 }

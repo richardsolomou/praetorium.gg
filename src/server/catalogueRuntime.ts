@@ -88,5 +88,10 @@ export function readCatalogueRuntime(directory: string, output: string): Catalog
 
 export function productionCatalogueRuntime(directory: string) {
   if (process.env.NODE_ENV !== 'production' || process.env.VITEST) return null
-  return readCatalogueRuntime(directory, path.resolve(process.env.LOCAL_BUILD_DIR ?? '.output', 'server/catalogue-runtime'))
+  return readCatalogueRuntime(
+    directory,
+    process.env.CATALOGUE_LIVE_DIR
+      ? path.join(path.dirname(directory), 'runtime')
+      : path.resolve(process.env.LOCAL_BUILD_DIR ?? '.output', 'server/catalogue-runtime'),
+  )
 }

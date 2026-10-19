@@ -15,7 +15,7 @@ const environment = {
   ASSETS_R2_SECRET_ACCESS_KEY: 'assets-secret',
 }
 
-it('gives a cold catalogue six minutes to become ready without disabling health checks', async () => {
+it('allows the first catalogue download and compilation before declaring a cold server unhealthy', async () => {
   let saved: unknown
   const request: typeof fetch = async (_url, options) => {
     if (options?.method === 'POST') {
@@ -31,7 +31,7 @@ it('gives a cold catalogue six minutes to become ready without disabling health 
       Test: ['CMD', 'node', '/app/scripts/healthcheck.ts'],
       Interval: 10_000_000_000,
       Timeout: 10_000_000_000,
-      StartPeriod: 360_000_000_000,
+      StartPeriod: 1_800_000_000_000,
       Retries: 3,
     },
   })

@@ -2,6 +2,54 @@ import { expect, test } from './test'
 import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { productOperator, userIdFor } from './storage'
 
+test('fixed Sternguard equipment survives migration, saving and reload', { tag: '@catalogue' }, async ({ page }) => {
+  const { email } = await signUp(page, 'Fixed equipment')
+  const operator = await productOperator()
+  const id = crypto.randomUUID()
+  await operator.saveRoster({
+    id,
+    userId: await userIdFor(email),
+    name: 'Fixed Sternguard',
+    catalogueId: 'e0af-67df-9d63-8fb7',
+    detachmentId: JSON.stringify(['d2dc-693e-b491-b16d']),
+    disposition: 'take-and-hold',
+    limit: 2000,
+    picks: JSON.stringify([
+      {
+        entryId: 'bc4e-8331-8179-255b',
+        models: 5,
+        choices: { 'edfc-d6af-480a-d5fc/97cd-6365-ce27-d73f/5ff5-aadc-6bc4-b2d8': '39c3-1657-46c8-5d87' },
+        spreads: { 'edfc-d6af-480a-d5fc': { '5700-4122-349a-e5da': 4, 'afda-2132-147f-d0f1': 0 } },
+      },
+    ]),
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: Date.now(),
+  })
+  await page.goto(`/rosters/${id}`)
+  const unit = page.locator('[data-unit="Sternguard Veteran Squad"]')
+  await expect(unit).toContainText('Artificer Firearm')
+  await expect(unit).toContainText('105')
+  await expect(page.getByText(/a saved choice is no longer available/)).toHaveCount(0)
+  await expect(page.getByText(/a detachment that is no longer available/)).toHaveCount(0)
+  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Fixed Sternguard saved'), 'Fixed Sternguard saved')
+  await page.reload()
+  await expect(unit).toContainText('Artificer Firearm')
+  await expect(unit).toContainText('105')
+  expect(JSON.parse((await operator.roster(id))!.picks)).toEqual([
+    {
+      entryId: 'bc4e-8331-8179-255b',
+      models: 5,
+      choices: {},
+      spreads: { 'edfc-d6af-480a-d5fc': { '5700-4122-349a-e5da': 4, 'afda-2132-147f-d0f1': 0 } },
+    },
+  ])
+  await page.screenshot({ path: 'test-results/fixed-sternguard-migrated.png', fullPage: true })
+})
+
 test('preserved rules remain explicit and conversion is optional', { tag: '@catalogue' }, async ({ page }) => {
   const { email } = await signUp(page, 'Retained')
   const userId = await userIdFor(email)

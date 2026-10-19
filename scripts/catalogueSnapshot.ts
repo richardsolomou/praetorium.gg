@@ -21,6 +21,7 @@ import { disabledCatalogueSources } from '../src/server/catalogueSources'
 import releaseLock from '../catalogue.json' with { type: 'json' }
 import { catalogueTree } from './lib/catalogueTree'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { loadCatalogueCredentials } from './lib/catalogueCredentials'
 
 const root = path.join(import.meta.dirname, '..')
 const directory = catalogueDataDirectory()
@@ -28,6 +29,7 @@ const archive = process.env.CATALOGUE_SNAPSHOT_FILE ?? path.join(root, 'catalogu
 const pointer = process.env.CATALOGUE_SNAPSHOT_POINTER_FILE ?? path.join(root, 'catalogue-current.json')
 const lock = path.join(root, 'catalogue.json')
 const command = process.argv[2]
+if (command === 'fetch' || command === 'download' || command === 'lock') loadCatalogueCredentials(root)
 
 if (command === 'pack') {
   const disabled = disabledCatalogueSources()

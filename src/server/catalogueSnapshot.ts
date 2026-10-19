@@ -305,8 +305,18 @@ function mergeRevocations(left: CatalogueRevocations, right: CatalogueRevocation
 
 function assertAllowed(pointer: SnapshotPointer, sources: readonly SnapshotSourceName[], revocations: CatalogueRevocations) {
   if (revocations.snapshots.includes(pointer.id)) throw new Error(`catalogue snapshot ${pointer.id} has been revoked`)
+  assertSourcesAllowed(sources, revocations)
+}
+
+function assertSourcesAllowed(sources: readonly SnapshotSourceName[], revocations: CatalogueRevocations) {
   const revokedSource = sources.find((name) => revocations.sources.includes(name))
   if (revokedSource) throw new Error(`catalogue source ${revokedSource} has been revoked`)
+}
+
+export {
+  assertAllowed as assertCatalogueSnapshotAllowed,
+  assertSourcesAllowed as assertCatalogueSourcesAllowed,
+  configuredRevocations as configuredCatalogueRevocations,
 }
 
 function assertReplaceableDirectory(directory: string) {

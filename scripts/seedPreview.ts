@@ -371,7 +371,8 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
 
 async function verifiedSnapshots(): Promise<PreviewSnapshots> {
   const directory = process.env.CATALOGUE_DIR ? path.resolve(process.env.CATALOGUE_DIR) : catalogueDirectory()
-  if (!installedSnapshot(directory)) await fetchCurrentSnapshot(directory, catalogueBaseUrl(), (message) => console.log(message))
+  if (process.env.PRAETORIUM_LOCAL_DEV !== 'true' && !process.env.CATALOGUE_LIVE_DIR && !installedSnapshot(directory))
+    await fetchCurrentSnapshot(directory, catalogueBaseUrl(), (message) => console.log(message))
   const { catalogue, rules } = loadSnapshotWithRules(directory)
 
   return new Map(

@@ -39,11 +39,16 @@ const changeSource = (catalogue: ChangeSource, datasheetOffers: NonNullable<Chan
  * different compiler versions would otherwise differ where the data does not. A directory
  * missing a source the compile reads is refused, because its part would compile empty.
  */
-export function compiledChangeSource(directory: string, sources: readonly SnapshotSourceName[]): ChangeSource | null {
+export function compiledChangeSource(
+  directory: string,
+  sources: readonly SnapshotSourceName[],
+  selectedEditions?: ReadonlySet<string>,
+): ChangeSource | null {
   const primary = compiledEditionChangeSource(directory, sources)
   if (!primary) return null
   const editions = readCatalogueComposition(directory)?.editions ?? []
   for (const { edition, base } of editions) {
+    if (selectedEditions && !selectedEditions.has(edition.id)) continue
     const source = compiledEditionChangeSource(base ? directory : path.join(directory, 'editions', edition.id), sources, edition)
     if (!source) throw new Error(`edition ${edition.id} cannot be compiled for history`)
     primary.datasheets = [...primary.datasheets, ...source.datasheets]
