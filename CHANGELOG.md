@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.169.3
+
+### Patch Changes
+
+- 5c5f02c: Roster text exports use a single readable layout for copying or downloading.
+
+  Official-app roster imports preserve support attachments alongside leaders.
+
 ## 0.169.2
 
 ### Patch Changes
