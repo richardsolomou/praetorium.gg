@@ -86,6 +86,8 @@ export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'que
   const json = Buffer.from(JSON.stringify({ ...encoded, revision }))
   if (json.length > MAX_OFFLINE_BYTES) throw new Error('Offline reference is too large')
   const compressed = gzipSync(json, { level: 9 })
+  // Gzip's OS byte varies by build platform; deployed assets use the Unix marker.
+  compressed[9] = 3
   if (compressed.length > 10_000_000) throw new Error(`Compressed reference exceeds the web asset limit (${compressed.length} bytes)`)
   const decoded = decodeReferenceBundle(JSON.parse(gunzipSync(compressed, { maxOutputLength: MAX_OFFLINE_BYTES }).toString()))
   if (!isReferenceBundle(decoded)) throw new Error('Invalid offline reference bundle')
