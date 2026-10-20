@@ -766,6 +766,39 @@ describe('the picker', () => {
     })
   })
 
+  it('offers transitive allies once through cycles without importing rules-only links', () => {
+    const shelf = shelfOf(
+      {
+        selectionEntries: [{ id: 'ours', name: 'Ours', type: 'unit', costs: points(10) }],
+        catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }],
+      },
+      {
+        selectionEntries: [
+          { id: 'main-one', name: 'Main One', type: 'unit', costs: points(20) },
+          { id: 'main-two', name: 'Main Two', type: 'unit', costs: points(20) },
+        ],
+        catalogueLinks: [
+          { targetId: 'cat-2', importRootEntries: true },
+          { targetId: 'cat', importRootEntries: true },
+          { targetId: 'cat-3' },
+          { targetId: 'missing', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [{ id: 'agent', name: 'Agent', type: 'unit', costs: points(30) }],
+        catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }],
+      },
+      { selectionEntries: [{ id: 'mentioned', name: 'Mentioned', type: 'unit', costs: points(40) }] },
+    )
+
+    expect(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, unit.alliedFaction])).toEqual([
+      ['Main One', null],
+      ['Main Two', null],
+      ['Ours', null],
+      ['Agent', 'Book 2'],
+    ])
+  })
+
   it('uses faction categories when the first imported book is an allied roster', () => {
     const shelf = shelfOf(
       {
