@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.173.2
+
+### Patch Changes
+
+- c4f77e5: Collection factions show owned, built, and painted totals with compact datasheet cards on desktop and phones.
+- c4f77e5: Wishlist suggestions no longer recommend models already in your collection.
+
 ## 0.173.1
 
 ### Patch Changes
