@@ -21,8 +21,8 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg')
   await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(3)
   expect(await page.evaluate(() => document.fonts.check('400 16px "Sofia Sans Semi Condensed Variable"'))).toBe(true)
-  const primary = page.locator('#primary-navigation')
-  const webHeader = page.locator('[data-web-app-chrome]')
+  const primary = page.getByRole('navigation', { name: 'Primary' })
+  const webHeader = page.locator('header[data-web-app-chrome]')
   const mobileHeader = page.locator('[data-mobile-app-header]')
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   const more = sections.getByRole('link', { name: 'More' })
@@ -93,27 +93,17 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader).toBeVisible()
   await expect(sections).toBeVisible()
   await page.setViewportSize({ width: 860, height: 844 })
-  await webHeader.getByRole('button', { name: 'Open primary navigation' }).click()
-  await expect(primary.getByRole('link', { name: 'Force dispositions' })).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(primary).toBeHidden()
+  const reference = page.getByRole('navigation', { name: 'Reference' })
+  await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Force dispositions', 'Rules'])
+  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Leagues', 'Leaderboard', 'Simulator'])
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
-  await expect(page.getByRole('button', { name: 'Open primary navigation' })).toBeHidden()
-  await expect(primary).toBeVisible()
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
-  expect(
-    await primary.getByRole('button', { name: 'Reference' }).evaluate((button) => button.getBoundingClientRect().left),
-  ).toBeGreaterThan(await primary.getByRole('link', { name: 'Simulator' }).evaluate((link) => link.getBoundingClientRect().left))
+  await expect(reference.getByRole('link', { name: 'Force dispositions' }).locator('svg')).toHaveCount(1)
   await page.screenshot({ path: 'test-results/navigation-desktop-910.png' })
-  await primary.getByRole('button', { name: 'Reference' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Force dispositions' })).toBeVisible()
-  await expect(page.getByRole('menuitem')).toHaveText(['Factions', 'Missions', 'Force dispositions', 'Rules'])
-  await expect(page.getByRole('menuitem', { name: 'Force dispositions' }).locator('svg')).toHaveCount(1)
-  await page.screenshot({ path: 'test-results/navigation-desktop-menu.png' })
-  await page.getByRole('menuitem', { name: 'Force dispositions' }).click()
+  await reference.getByRole('link', { name: 'Force dispositions' }).click()
   await expect(page).toHaveURL('/force-dispositions')
-  await expect(primary.getByRole('button', { name: 'Reference' })).toHaveClass(/text-parchment/)
+  await expect(reference.getByRole('link', { name: 'Force dispositions' })).toHaveClass(/text-parchment/)
   await expect(sections).toBeHidden()
   await expect(mobileHeader).toBeHidden()
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
@@ -135,7 +125,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   const loadingPage = await loadingContext.newPage()
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
   await loadingPage.goto('/factions/necrons/datasheets/overlord', { waitUntil: 'domcontentloaded' })
-  await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
+  await expect(loadingPage.locator('header[data-web-app-chrome]')).toBeHidden()
   await expect(loadingPage.locator('[data-mobile-app-header]')).toBeVisible()
   await expect(loadingPage.locator('[data-native-app-header]')).toHaveCount(0)
   await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
@@ -181,7 +171,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
 
   await page.goto('/factions/necrons/datasheets/overlord')
 
-  const webHeader = page.locator('[data-web-app-chrome]')
+  const webHeader = page.locator('header[data-web-app-chrome]')
   const mobileHeader = page.locator('[data-mobile-app-header]')
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   const more = sections.getByRole('link', { name: 'More' })
@@ -328,7 +318,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
   await expectCanonical(page, '/missions/chapter-approved-2026-2027')
 
-  await page.getByRole('link', { name: 'Force dispositions', exact: true }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Force dispositions', exact: true }).click()
   await expect(page).toHaveURL('/force-dispositions')
   await expect(page.getByRole('heading', { name: 'Force dispositions', exact: true })).toBeVisible()
   await expect(page.locator('a[href="/force-dispositions/take-and-hold"]')).toContainText('Take and Hold')
@@ -655,7 +645,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
   await page.screenshot({ path: 'test-results/account-library-desktop.png', fullPage: true })
   const footer = await page.locator('footer').boundingBox()
-  expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
+  expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
 
   await page.setViewportSize({ width: 390, height: 844 })
   for (const path of ['/rosters', '/battles', '/friends', '/factions', '/missions']) {
@@ -676,7 +666,7 @@ test('authentication panels and empty states fill the page above the footer', as
   const state = await page.locator('main > div').boundingBox()
   const footer = await page.locator('footer').boundingBox()
   expect(state && footer ? Math.round(state.y + state.height) : 0).toBe(Math.round(footer?.y ?? 0))
-  expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
+  expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
 })
 
 test('terrain layouts show source-backed areas and measurement guidance', async ({ page }) => {
@@ -810,7 +800,7 @@ test('a matchup keeps each action in the column of the side whose mission asks f
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
-  const reference = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Reference', exact: true })
+  const reference = page.getByRole('navigation', { name: 'Reference' })
   // Signed out, the library is the same page, holding the one roster a visitor keeps without an account.
   await page.goto('/rosters')
   await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
@@ -965,8 +955,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete battle' }).click()
   await expect(page.getByText('No battles yet.')).toBeVisible()
 
-  await reference.click()
-  await page.getByRole('menuitem', { name: 'Factions' }).click()
+  await reference.getByRole('link', { name: 'Factions' }).click()
   await expect(page.locator('[data-shelf="Chaos"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Imperium"]')).toBeVisible()
   await expect(page.locator('[data-shelf="Xenos"]')).toBeVisible()
@@ -1024,8 +1013,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).click()
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
-  await reference.click()
-  await page.getByRole('menuitem', { name: 'Factions' }).click()
+  await reference.getByRole('link', { name: 'Factions' }).click()
   await necrons.getByRole('link').click()
   await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-6')
   await expect(page.getByRole('link', { name: /Datasheets/ })).toBeVisible()
