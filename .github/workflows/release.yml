@@ -59,7 +59,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_REVISION: ${{ needs.release.outputs.sha || github.sha }}
-        run: gh workflow run mobile.yml --repo "$GITHUB_REPOSITORY" --ref main -f revision="$RELEASE_REVISION"
+        run: gh workflow run mobile.yml --repo "$GITHUB_REPOSITORY" --ref main -f revision="$RELEASE_REVISION" -f force_build=false
       - name: Refresh the release coverage baseline
         env:
           GH_TOKEN: ${{ github.token }}

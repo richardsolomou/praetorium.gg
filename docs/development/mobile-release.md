@@ -28,7 +28,11 @@ The Watch target `gg.praetorium.watch` has its own App Store profile and shares 
 
 Run `just check` first.
 
-[`.github/workflows/release.yml`](../../.github/workflows/release.yml) dispatches delivery only when [`scripts/iosDelivery.ts`](../../scripts/iosDelivery.ts) finds native inputs changed since the revision recorded in the `mobile-ios-stable` GitHub deployment. [`.github/workflows/mobile.yml`](../../.github/workflows/mobile.yml) builds that commit, uploads to TestFlight, and publishes the fingerprint-matched EAS Update, canary before stable; [`mobile/eas.json`](../../mobile/eas.json) owns profiles, channels, and build numbers. It never submits for public App Store review.
+[`.github/workflows/release.yml`](../../.github/workflows/release.yml) dispatches delivery only when [`scripts/iosDelivery.ts`](../../scripts/iosDelivery.ts) finds mobile inputs changed since the revision recorded in the `mobile-ios-stable` GitHub deployment. Web-only changes and dependency age exceptions do not dispatch delivery. [`.github/workflows/mobile.yml`](../../.github/workflows/mobile.yml) rechecks each channel inside its serialized delivery job: compatible JavaScript changes publish an EAS Update; a changed Expo native fingerprint or public mobile version builds and uploads a TestFlight binary first. Canary precedes stable; [`mobile/eas.json`](../../mobile/eas.json) owns profiles, channels, and build numbers. Delivery never submits for public App Store review.
+
+[`scripts/iosDeliveryPlan.ts`](../../scripts/iosDeliveryPlan.ts) resolves the runtime under each channel's EAS environment and checks the runtime and public version embedded in each IPA before upload. [`mobile/fingerprint.config.js`](../../mobile/fingerprint.config.js) includes the custom Watch source and build profiles, which Expo's default fingerprint does not cover. PR validation compares the base and head native runtimes and public versions before running Xcode.
+
+Each channel records an upload receipt in `mobile-ios-<channel>-binary` immediately after a successful upload, and a separate `mobile-ios-<channel>` receipt after successful OTA delivery. Receipts retain the runtime, public version, and mobile input fingerprint, including resolved `EXPO_PUBLIC_` values. An OTA retry reuses an already uploaded binary; an older queued revision cannot replace a newer receipt. Missing binary receipts require a build, including the first delivery with this scheme. Keep the binary receipts independent of OTA and metadata success.
 
 Inspect the last run before restarting delivery from `main`, and never start a second delivery while one is running:
 
@@ -36,7 +40,7 @@ Inspect the last run before restarting delivery from `main`, and never start a s
 gh workflow run mobile.yml --ref main
 ```
 
-A manual dispatch always builds. On a feature branch it uploads only the canary binary, without OTA updates or stable delivery; add `-f provision_watch=true` to provision the Watch target:
+A manual dispatch builds by default. Add `-f force_build=false` to use normal fingerprint decisions; automatic releases set this explicitly. Use this option after changing public JavaScript variables in EAS to publish an OTA update when the native runtime is unchanged. Main delivery rejects revisions outside `origin/main` before planning or recording delivery. On a feature branch delivery uploads only the canary binary, without OTA updates, stable delivery, or production receipts; add `-f provision_watch=true` to provision the Watch target and force a build:
 
 ```sh
 gh workflow run mobile.yml --ref <branch> -f provision_watch=true

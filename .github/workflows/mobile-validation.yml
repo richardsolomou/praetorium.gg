@@ -14,6 +14,7 @@ on:
       - pnpm-workspace.yaml
       - scripts/provisionWatchIos.js
       - scripts/iosDelivery.ts
+      - scripts/iosDeliveryPlan.ts
       - src/**
 
 concurrency:
@@ -33,11 +34,18 @@ jobs:
         with:
           fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Prepare the base iOS dependencies
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/ios-base" "$BASE_REVISION"
+          pnpm --dir "$RUNNER_TEMP/ios-base" install --frozen-lockfile
       - name: Check iOS validation inputs
         id: ios
         env:
-          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
-        run: pnpm exec tsx scripts/iosDelivery.ts "$BASE_REVISION" HEAD
+          MOBILE_UPDATE_CHANNEL: canary
+          POSTHOG_CLI_DRY_RUN: 'true'
+        run: pnpm exec tsx scripts/iosDeliveryPlan.ts native-changed "$RUNNER_TEMP/ios-base"
   build:
     needs: [changes]
     if: needs.changes.outputs.native == 'true'

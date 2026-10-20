@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { nativeInput } from './iosDelivery'
+import { mobileInput } from './iosDelivery'
 
 test.each([
   'src/client/offline/localStorage.ts',
@@ -9,8 +9,8 @@ test.each([
   'mobile/CHANGELOG.md',
   'mobile/src/localStateStorage.test.ts',
   'mobile/watch/Tests/BattleSessionTests.swift',
-])('does not treat %s as a native input', (file) => {
-  expect(nativeInput(file)).toBe(false)
+])('does not treat %s as a mobile delivery input', (file) => {
+  expect(mobileInput(file)).toBe(false)
 })
 
 test.each([
@@ -26,6 +26,6 @@ test.each([
   'fastlane/Fastfile',
   '.github/workflows/mobile.yml',
   'pnpm-workspace.yaml',
-])('treats %s as a native input', (file) => {
-  expect(nativeInput(file)).toBe(true)
+])('treats %s as a mobile delivery input', (file) => {
+  expect(mobileInput(file)).toBe(true)
 })

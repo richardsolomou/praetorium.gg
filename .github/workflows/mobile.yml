@@ -5,9 +5,13 @@ on:
   workflow_dispatch:
     inputs:
       revision:
-        description: Commit to build; defaults to the selected branch revision
+        description: Commit to deliver; main deliveries require a revision in main history
         type: string
         default: ''
+      force_build:
+        description: Build a new native binary even when the runtime is unchanged
+        type: boolean
+        default: true
       provision_watch:
         description: Register and provision the Watch target using the existing iPhone distribution certificate
         type: boolean
@@ -43,17 +47,39 @@ jobs:
       - name: Resolve the mobile revision
         run: echo "MOBILE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Plan the canary delivery
+        id: canary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE_IOS_BUILD: ${{ inputs.force_build || inputs.provision_watch }}
+          MOBILE_UPDATE_CHANNEL: canary
+          POSTHOG_CLI_DRY_RUN: 'true'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 env:exec preview 'pnpm --dir .. exec tsx scripts/iosDeliveryPlan.ts plan canary' --non-interactive
+      - name: Plan the stable delivery
+        id: stable
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE_IOS_BUILD: ${{ inputs.force_build || inputs.provision_watch }}
+          MOBILE_UPDATE_CHANNEL: stable
+          POSTHOG_CLI_DRY_RUN: 'false'
+        working-directory: mobile
+        run: pnpm dlx eas-cli@23.2.0 env:exec production 'pnpm --dir .. exec tsx scripts/iosDeliveryPlan.ts plan stable' --non-interactive
       - uses: ruby/setup-ruby@v1
+        if: steps.canary.outputs.build == 'true' || steps.stable.outputs.build == 'true'
         with:
           ruby-version: '3.4'
           bundler-cache: true
       - name: Expose Fastlane to EAS local builds
+        if: steps.canary.outputs.build == 'true' || steps.stable.outputs.build == 'true'
         env:
           BUNDLE_BIN: ${{ runner.temp }}/bundle-bin
         run: |
           bundle binstubs fastlane
           echo "$BUNDLE_BIN" >> "$GITHUB_PATH"
       - name: Create the App Store Connect key
+        if: steps.canary.outputs.build == 'true' || steps.stable.outputs.build == 'true' || steps.stable.outputs.update == 'true'
         env:
           APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
         run: |
@@ -67,9 +93,10 @@ jobs:
             echo "EXPO_ASC_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID"
           } >> "$GITHUB_ENV"
       - name: Provision the Watch signing profile
-        if: github.event_name == 'workflow_dispatch' && inputs.provision_watch
+        if: inputs.provision_watch && steps.canary.outputs.build == 'true'
         run: pnpm --package=eas-cli@23.2.0 dlx -c 'node scripts/provisionWatchIos.js'
       - name: Build the canary iOS application
+        if: steps.canary.outputs.build == 'true'
         env:
           EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
           EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-local-build-canary
@@ -77,38 +104,77 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/mobile-build"
           pnpm dlx eas-cli@23.2.0 build --platform ios --profile canary-ios --local --output "$RUNNER_TEMP/mobile-build/praetorium-canary.ipa" --freeze-credentials --non-interactive
+      - name: Verify the canary iOS runtime
+        if: steps.canary.outputs.build == 'true'
+        env:
+          IOS_RUNTIME_VERSION: ${{ steps.canary.outputs.runtimeVersion }}
+          IOS_APP_VERSION: ${{ steps.canary.outputs.appVersion }}
+        run: pnpm exec tsx scripts/iosDeliveryPlan.ts verify "$RUNNER_TEMP/mobile-build/praetorium-canary.ipa"
       - name: Upload the canary iOS application
+        if: steps.canary.outputs.build == 'true'
         run: bundle exec fastlane ios upload ipa:"$RUNNER_TEMP/mobile-build/praetorium-canary.ipa"
+      - name: Record the uploaded canary binary
+        if: github.ref == 'refs/heads/main' && steps.canary.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IOS_RUNTIME_VERSION: ${{ steps.canary.outputs.runtimeVersion }}
+          IOS_APP_VERSION: ${{ steps.canary.outputs.appVersion }}
+          IOS_INPUT_FINGERPRINT: ${{ steps.canary.outputs.inputFingerprint }}
+        run: pnpm exec tsx scripts/iosDeliveryPlan.ts record canary binary
       - name: Publish the compatible canary update
-        if: github.ref == 'refs/heads/main'
+        if: steps.canary.outputs.update == 'true'
         env:
           EAS_ENVIRONMENT: preview
           MOBILE_UPDATE_CHANNEL: canary
           POSTHOG_CLI_DRY_RUN: 'true'
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$MOBILE_REVISION" --non-interactive
+      - name: Record the delivered canary update
+        if: steps.canary.outputs.update == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IOS_RUNTIME_VERSION: ${{ steps.canary.outputs.runtimeVersion }}
+          IOS_APP_VERSION: ${{ steps.canary.outputs.appVersion }}
+          IOS_INPUT_FINGERPRINT: ${{ steps.canary.outputs.inputFingerprint }}
+        run: pnpm exec tsx scripts/iosDeliveryPlan.ts record canary update
       - name: Remove the canary build workspace
+        if: steps.canary.outputs.build == 'true'
         run: rm -rf "${RUNNER_TEMP:?}/eas-local-build-canary"
       - name: Build the stable iOS application
-        if: github.ref == 'refs/heads/main'
+        if: steps.stable.outputs.build == 'true'
         env:
           EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
           EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-local-build-stable
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 build --platform ios --profile production --local --output "$RUNNER_TEMP/mobile-build/praetorium-stable.ipa" --freeze-credentials --non-interactive
+      - name: Verify the stable iOS runtime
+        if: steps.stable.outputs.build == 'true'
+        env:
+          IOS_RUNTIME_VERSION: ${{ steps.stable.outputs.runtimeVersion }}
+          IOS_APP_VERSION: ${{ steps.stable.outputs.appVersion }}
+        run: pnpm exec tsx scripts/iosDeliveryPlan.ts verify "$RUNNER_TEMP/mobile-build/praetorium-stable.ipa"
       - name: Upload the stable iOS application
-        if: github.ref == 'refs/heads/main'
+        if: steps.stable.outputs.build == 'true'
         run: bundle exec fastlane ios upload ipa:"$RUNNER_TEMP/mobile-build/praetorium-stable.ipa"
+      - name: Record the uploaded stable binary
+        if: github.ref == 'refs/heads/main' && steps.stable.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IOS_RUNTIME_VERSION: ${{ steps.stable.outputs.runtimeVersion }}
+          IOS_APP_VERSION: ${{ steps.stable.outputs.appVersion }}
+          IOS_INPUT_FINGERPRINT: ${{ steps.stable.outputs.inputFingerprint }}
+        run: pnpm exec tsx scripts/iosDeliveryPlan.ts record stable binary
       - name: Publish the compatible stable update
-        if: github.ref == 'refs/heads/main'
+        if: steps.stable.outputs.update == 'true'
         env:
           EAS_ENVIRONMENT: production
           MOBILE_UPDATE_CHANNEL: stable
           POSTHOG_CLI_DRY_RUN: 'false'
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 update --platform ios --channel "$MOBILE_UPDATE_CHANNEL" --environment "$EAS_ENVIRONMENT" --message "$MOBILE_REVISION" --non-interactive
+      # Metadata credentials change the fingerprinted eas.json, so sync after publishing both updates.
       - name: Sync App Store metadata
-        if: github.ref == 'refs/heads/main'
+        if: steps.stable.outputs.update == 'true'
         working-directory: mobile
         run: |
           jq --arg path "$APP_STORE_CONNECT_KEY_PATH" --arg id "$APP_STORE_CONNECT_KEY_ID" --arg issuer "$APP_STORE_CONNECT_ISSUER_ID" \
@@ -116,6 +182,14 @@ jobs:
             eas.json > eas.json.tmp
           mv eas.json.tmp eas.json
           pnpm dlx eas-cli@23.2.0 metadata:push --profile production --non-interactive
+      - name: Record the delivered stable update
+        if: steps.stable.outputs.update == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IOS_RUNTIME_VERSION: ${{ steps.stable.outputs.runtimeVersion }}
+          IOS_APP_VERSION: ${{ steps.stable.outputs.appVersion }}
+          IOS_INPUT_FINGERPRINT: ${{ steps.stable.outputs.inputFingerprint }}
+        run: pnpm exec tsx scripts/iosDeliveryPlan.ts record stable update
       - name: Store Xcode diagnostics
         if: failure()
         uses: actions/upload-artifact@v7
@@ -127,10 +201,3 @@ jobs:
             ~/Library/Logs/gym
           retention-days: 7
           if-no-files-found: ignore
-      - name: Record the delivered iOS revision
-        if: success() && github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          deployment_id="$(jq -n --arg revision "$MOBILE_REVISION" '{ref: $revision, environment: "mobile-ios-stable", auto_merge: false, required_contexts: [], production_environment: true}' | gh api "repos/$GITHUB_REPOSITORY/deployments" --method POST --input - --jq .id)"
-          gh api "repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses" --method POST -f state=success -f environment_url=https://praetorium.gg -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
