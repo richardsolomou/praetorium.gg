@@ -95,13 +95,16 @@ function output(values: Record<string, string | boolean>) {
 }
 
 export function verifyIosArchive(archive: string, expected: z.infer<typeof runtimeSchema>) {
+  const entry = (file: string) => execFileSync('unzip', ['-p', archive, `Payload/Praetorium.app/${file}`])
   const read = (file: string, key: string) =>
     execFileSync('plutil', ['-extract', key, 'raw', '-o', '-', '-'], {
-      input: execFileSync('unzip', ['-p', archive, `Payload/Praetorium.app/${file}`]),
+      input: entry(file),
       encoding: 'utf8',
     }).trim()
-  if (read('Expo.plist', 'EXUpdatesRuntimeVersion') !== expected.runtimeVersion)
-    throw new Error('Built iOS runtime does not match the delivery plan')
+  const configuredRuntime = read('Expo.plist', 'EXUpdatesRuntimeVersion')
+  const runtimeVersion =
+    configuredRuntime === 'file:fingerprint' ? entry('EXUpdates.bundle/fingerprint').toString().trim() : configuredRuntime
+  if (runtimeVersion !== expected.runtimeVersion) throw new Error('Built iOS runtime does not match the delivery plan')
   if (read('Info.plist', 'CFBundleShortVersionString') !== expected.appVersion)
     throw new Error('Built iOS app version does not match the delivery plan')
 }

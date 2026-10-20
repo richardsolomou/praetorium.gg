@@ -77,10 +77,13 @@ test('preserves the native runtime while reporting a public version bump', () =>
 })
 
 test.runIf(process.platform === 'darwin').each([
-  ['runtime-a', '1.0.0', null],
-  ['wrong-runtime', '1.0.0', 'runtime does not match'],
-  ['runtime-a', '2.0.0', 'app version does not match'],
-])('checks the actual IPA runtime %s and version %s before upload', (runtimeVersion, appVersion, error) => {
+  ['runtime-a', '1.0.0', null, null],
+  ['wrong-runtime', '1.0.0', null, 'runtime does not match'],
+  ['runtime-a', '2.0.0', null, 'app version does not match'],
+  ['file:fingerprint', '1.0.0', 'runtime-a', null],
+  ['file:fingerprint', '1.0.0', 'wrong-runtime', 'runtime does not match'],
+  ['file:fingerprint', '1.0.0', null, 'fingerprint'],
+])('checks the actual IPA runtime %s and version %s before upload', (runtimeVersion, appVersion, fingerprint, error) => {
   const archive = path.join(root, 'app.ipa')
   execFileSync('python3', [
     '-c',
@@ -89,10 +92,13 @@ import plistlib, sys, zipfile
 with zipfile.ZipFile(sys.argv[1], 'w') as archive:
     archive.writestr('Payload/Praetorium.app/Expo.plist', plistlib.dumps({'EXUpdatesRuntimeVersion': sys.argv[2]}, fmt=plistlib.FMT_BINARY))
     archive.writestr('Payload/Praetorium.app/Info.plist', plistlib.dumps({'CFBundleShortVersionString': sys.argv[3]}, fmt=plistlib.FMT_BINARY))
+    if sys.argv[4]:
+        archive.writestr('Payload/Praetorium.app/EXUpdates.bundle/fingerprint', sys.argv[4])
 `,
     archive,
     runtimeVersion,
     appVersion,
+    fingerprint ?? '',
   ])
   const verify = () => verifyIosArchive(archive, { runtimeVersion: 'runtime-a', appVersion: '1.0.0' })
   if (error) expect(verify).toThrow(error)
