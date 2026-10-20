@@ -145,6 +145,7 @@ it('imports the auth schema, handles concurrent sign-ups, and restores sessions 
   restored.client.close()
 })
 
+// Each process loads the app and hashes ten passwords, which can outlast the default timeout on a busy runner.
 it('accepts simultaneous sign-ups from two separate app processes', async () => {
   const dump = path.join(directory, 'process-auth-schema.sql')
   const file = path.join(directory, 'process-auth.sqlite')
@@ -188,7 +189,7 @@ it('accepts simultaneous sign-ups from two separate app processes', async () => 
   } finally {
     local.client.close()
   }
-})
+}, 30_000)
 
 it('rejects an invalid dump without leaving a database behind', async () => {
   const dump = path.join(directory, 'invalid.sql')

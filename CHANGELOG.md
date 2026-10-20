@@ -88,27 +88,11 @@
 
   Official-app roster imports preserve support attachments alongside leaders.
 
-## 0.169.2
-
-### Patch Changes
-
-- 6a6144c: Give connected AI assistants complete Praetorium citation URLs so reference links use the correct website.
-
-## 0.169.1
-
-### Patch Changes
-
-- fe12c61: Faction datasheet pages have clearer search previews, and search and assistant links keep the selected rules version.
-
 ## 0.169.0
 
 ### Minor Changes
 
 - 5364dfe: Start a roster with a faction already chosen from its faction page, and open a new roster from any mission pack or matchup page.
-
-### Patch Changes
-
-- 8807604: Refresh community catalogue data while the app is running, retain historical rules, and prepare local contributions without private credentials.
 
 ## 0.168.0
 
@@ -293,7 +277,6 @@
 ### Patch Changes
 
 - ab66405: Screen readers now announce failures to copy a roster link, leave an impersonated account, share a battle invite or load the unit picker.
-- ab66405: Profile picture uploads are refused when the file's contents do not match its declared JPEG, PNG or WebP type.
 - ab66405: Assistant tool and onboarding tour failures now show in the error colour.
 - ab66405: A faction link with a malformed rules version now opens the faction's current rules instead of an error page.
 - ab66405: Combat simulator failures now show in red, so they stand apart from prompts to choose models or weapons.
@@ -303,7 +286,7 @@
 
 ### Patch Changes
 
-- feea201: Keep selectors working after browser translation and restore creation analytics for synced battles and leagues.
+- feea201: Keep selectors working after browser translation.
 
 ## 0.157.2
 
@@ -395,15 +378,8 @@
 
 ## 0.153.0
 
-### Minor Changes
-
-- 4065746: The administration Photos tab lists the newest uploads below reported photos, so administrators can remove one nobody has reported.
-
 ### Patch Changes
 
-- 4065746: Removing a photo from the administration Photos tab asks for confirmation first.
-- 4065746: The administration Players tab keeps its tab, search, role filter, sort order and page in the address, so a bookmark or reload returns to the same view.
-- 4065746: Reporting a photo an administrator already kept now sends it back for review while it stays shown, instead of being silently ignored.
 - 1d11aa9: The player photo viewer keeps its photo, like and actions on one screen on phones, and datasheet galleries show larger photos.
 
 ## 0.152.1
@@ -498,12 +474,6 @@
 - f639d83: A detachment page's force disposition chips link to that disposition's page.
 - f639d83: A detachment page's header no longer repeats the faction name, which the breadcrumb already shows.
 
-## 0.151.0
-
-### Minor Changes
-
-- 67db37a: The administration players list is a standard data table: one value per column, every column but Role sortable in either direction, a Role filter, column toggles, and numbered pages with a chosen page size. Counts of zero show as a dash.
-
 ## 0.150.0
 
 ### Minor Changes
@@ -512,7 +482,7 @@
 
 ### Patch Changes
 
-- 1548f27: Collection photos and profile pictures upload as JPEG and are checked by TypeSafe for content that does not belong on the service. The privacy policy now covers collection photos.
+- 1548f27: Collection photos and profile pictures are checked for content that does not belong on the service. The privacy policy now covers collection photos.
 
 ## 0.149.0
 
@@ -562,7 +532,6 @@
 
 - 1dbe41c: The battle list drops a battle that was deleted while you were away instead of showing it until a reload.
 - 1dbe41c: Editing a roster straight after opening it from a link saves instead of reporting that it changed on another device.
-- eb88ca9: Feedback emails keep each detail on its own line and link their addresses.
 - 154ae55: Scrubbing a battle replay shows the scoreboard for the event you are on, not an outdated one.
 - 1dbe41c: Signing out while a page is loading reloads it for the signed-out view instead of showing an error.
 
@@ -596,7 +565,6 @@
 
 ### Patch Changes
 
-- 500fede: Every feedback response, including automatic import failure reports, is emailed to the administrators.
 - c47f5bf: The Support page opens the feedback form in place, with the public issue tracker kept as the public alternative.
 
 ## 0.146.0
@@ -613,11 +581,9 @@
 - fb1107e: The compact roster export wraps inside its box on a phone instead of running past it.
 - b527577: Cthonian Beserks can take twin concussion gauntlets and mole launchers.
 - 8dc4616: The favourite heart on a faction's datasheet list has a full-size touch target, so tapping it no longer opens the datasheet.
-- 8300c50: Player defaults and public roster browsing keep working while an update rolls out.
 - 4e15ed2: Clicking a detachment card while setting up a roster selects it; its reference opens from the reference icon.
 - 8ad6cae: Error pages explain the problem in plain words and offer to try again, or to reload when a release has replaced the page's code.
 - b527577: Wolf Guard Headtakers keep their Hunting Wolves instead of reporting a saved choice as unavailable.
-- 7f6c6d5: Signed-in players' PostHog profiles carry their account name and email, so problems can be traced to who hit them.
 - fdfb98d: Imported lists keep the equipment nested under each model, plural Enhancements labels and the full model count of each squad.
 - b527577: The Deathwatch Indomitor Kill Team starts legal at 10 models.
 - 62d1742: A list that fails to import is sent to us in an automatic report so the importer can be fixed for it.
@@ -626,7 +592,6 @@
 - 8300c50: Older rosters open straight into the builder instead of briefly saying their army book was replaced, and a failed army read offers Try again.
 - 3a6d780: The simulator's Optimize names the rule that stopped it instead of reporting unsupported rules in general.
 - 9c99942: Choosing a roster over its points limit for a battle explains why and links to editing it.
-- 8ad6cae: Battles, leagues and profiles keep loading while a release adds new fields to them.
 - 4e15ed2: A unit holding a choice the current rules no longer offer can reset just that choice.
 - 4e15ed2: Opening a saved roster shows its outline while army data loads instead of flashing that the data is unavailable.
 - 4e15ed2: Sharing a roster shows its progress beside the header and copies the link once per click.
@@ -696,7 +661,6 @@
 - 4015934: Update how many copies of each unit you can add faster while you edit a roster.
 - ae6366f: Refresh your data once when live updates connect, instead of reloading the same screens several times.
 - 5c38f17: Serve reference pages faster to visitors who are not signed in.
-- 8c0170f: Open your own rosters without loading their points twice.
 - 8a5e4b9: Editing a roster no longer reloads the whole page's data after each change, so edits settle faster.
 
 ## 0.144.0
@@ -969,13 +933,6 @@
 
 - cc91bca: Restore the Land Raider Redeemer's Wrath of the Machine Spirit ability in the current Space Marines rules.
 
-## 0.136.1
-
-### Patch Changes
-
-- 83ded46: Skip weapon and save work when listing the abilities a detachment gives a datasheet.
-- 83ded46: Start up faster by reading rules editions the catalogue snapshot compiled ahead of time.
-
 ## 0.136.0
 
 ### Minor Changes
@@ -1016,34 +973,19 @@
 ### Patch Changes
 
 - 6333ccd: Highlight roster changes and legality problems while collapsing unchanged units in setup reviews.
-- 070dfae: Let startup health checks wait for catalogue warmup without repeatedly cancelling requests.
 - 6333ccd: Make app releases and army data updates easier to browse with clearer panels, shared navigation and highlighted changes.
-
-## 0.133.7
-
-### Patch Changes
-
-- a3d0e2a: Serve repeated datasheet and faction list reads from memory until army data changes.
-- aa60179: Refresh feeds once per burst of battle changes instead of on every move.
 
 ## 0.133.6
 
 ### Patch Changes
 
-- e7504a0: Speed up unit and roster simulations with cached server calculations and reusable offline workers.
-
-## 0.133.5
-
-### Patch Changes
-
-- 3c2bb44: Name each server function on its traces and request metrics.
+- e7504a0: Speed up unit and roster simulations.
 
 ## 0.133.4
 
 ### Patch Changes
 
 - d5ac3fb: Show Teams Event Companion 20–0 battle points beside victory points on finished battles.
-- 3dd4e42: Keep roster and collection reads working while a deploy adds new saved fields.
 
 ## 0.133.3
 
@@ -1074,27 +1016,13 @@
 
 ### Minor Changes
 
-- 0919d17: Simulate roster loadouts against customizable benchmarks, revealed league rosters, and live battle survivors to identify effective targets, with completed results cached for reuse during the browser session.
+- 0919d17: Simulate roster loadouts against customizable benchmarks, revealed league rosters, and live battle survivors to identify effective targets.
 
 ## 0.132.5
 
 ### Patch Changes
 
 - 3074fb2: Keep battle simulator choices when casualties are recorded while it is open.
-
-## 0.132.4
-
-### Patch Changes
-
-- a3fe269: Reduce catalogue preparation for versioned references and simulator searches.
-
-## 0.132.3
-
-### Patch Changes
-
-- 85ec736: Stop refreshing saved account data on a timer while a tab stays open.
-- 85ec736: Report server memory, CPU and garbage collection metrics each minute.
-- 85ec736: Reduce server memory by sharing identical catalogue files across rules versions.
 
 ## 0.132.2
 
@@ -1271,7 +1199,7 @@
 
 ### Minor Changes
 
-- f0bc522: Review and explicitly publish public support reports, then follow their GitHub status and replies in the app when reporting is configured.
+- f0bc522: Review and explicitly publish public support reports, then follow their GitHub status and replies in the app.
 
 ## 0.119.1
 
@@ -1344,19 +1272,13 @@
 
 ### Patch Changes
 
-- 9d245fd: Keep faction pages visible during saved-data updates and reduce background work while rosters load.
-
-## 0.115.5
-
-### Patch Changes
-
-- 5bbe474: Allow production replicas to warm retained roster rules before startup health checks trigger rollback.
+- 9d245fd: Keep faction pages visible during saved-data updates.
 
 ## 0.115.4
 
 ### Patch Changes
 
-- f8a58bb: Preserve saved roster loadouts, points, and removed choices on their original rules, with a visible notice and optional conversion to current rules. Add production roster copies and migration audits for local rehearsals.
+- f8a58bb: Preserve saved roster loadouts, points, and removed choices on their original rules, with a visible notice and optional conversion to current rules.
 
 ## 0.115.3
 
@@ -1378,7 +1300,7 @@
 
 ### Patch Changes
 
-- d4b2883: Prefer server calculations for connected roster prices and construction reads, retain offline calculation, and preserve finished battle replays and saved tour completion.
+- d4b2883: Preserve finished battle replays and saved tour completion.
 
 ## 0.115.0
 
@@ -1414,12 +1336,6 @@
 
 - 8980206: Correct mirrored terrain walls and roofs, use layout-specific objectives, and place terrain letters beside their matching parts.
 
-## 0.112.1
-
-### Patch Changes
-
-- c840942: Publish guide illustrations before deployment so they remain available throughout rollouts.
-
 ## 0.112.0
 
 ### Minor Changes
@@ -1436,24 +1352,6 @@
 ### Patch Changes
 
 - 1a91197: Show Titanicus Traitoris army rules from BSData when Game Datacards has no faction file.
-
-## 0.111.5
-
-### Patch Changes
-
-- 54e674a: Stop reporting a refused over-limit or illegal roster in a battle as an application error.
-
-## 0.111.4
-
-### Patch Changes
-
-- 0a3a8da: Stop reporting recoverable realtime request timeouts as unexpected errors.
-
-## 0.111.3
-
-### Patch Changes
-
-- 2f89fb3: Stop reporting a rejected realtime socket token that the connection recovers from with a new ticket.
 
 ## 0.111.2
 
@@ -1483,23 +1381,20 @@
 
 ### Patch Changes
 
-- ff88cac: Defer bulk offline downloads, return proper missing-rules responses, and add illustrated worked examples to player guides.
+- ff88cac: Add illustrated worked examples to player guides.
 
 ## 0.109.0
 
 ### Minor Changes
 
-- c6f631c: Let AI assistants estimate combat between two units through the MCP and browser agent tools.
 - a3d1e83: Invite spectators who have not played yet to build an army or start their own battle.
 
 ### Patch Changes
 
-- c7841b7: Report why a battle action was refused with a stable code in telemetry and agent tool results.
 - 75a3327: Keep a roster built without an account on this device across tabs, reloads and sign-in, and ask before saving one found after signing in later.
 - 2073e6e: Limit The Sanguinor, Chaos Spawn and Khorne Lord of Skulls to the copies their datasheets allow.
 - 2fcac78: Restore live updates, search, and offline downloads in Firefox before 124 and Safari before 17.4.
 - f3cac0a: Pick a squad's model count directly from its number in the roster editor and simulator instead of stepping one model at a time.
-- 678fbf0: Report a realtime service outage once when it persists through retries instead of hiding it.
 - 3335099: Disable reserve and transport choices the battle would refuse, and show why beside each one.
 
 ## 0.108.1
@@ -1516,7 +1411,7 @@
 
 ### Minor Changes
 
-- 934efb5: Add public player guides and improve search metadata for army building, battle tracking and other public pages.
+- 934efb5: Add public player guides.
 
 ## 0.107.6
 
@@ -1525,24 +1420,6 @@
 - a362534: Give fixed-count units wider selectors and show roster selection first in battle setup.
 - a362534: Restore secondary mission details in battles saved before the catalogue ID update.
 - 081e683: Open secondary mission pages from links shared before the October data update.
-
-## 0.107.5
-
-### Patch Changes
-
-- 50ef3d2: Report profile-backed detachment rule coverage accurately.
-
-## 0.107.4
-
-### Patch Changes
-
-- 6c4dd64: Stop reporting browser-agent tool registration as an error when the page closes or the connection drops while it loads.
-
-## 0.107.3
-
-### Patch Changes
-
-- 9235351: Keep application updates available immediately by preventing service-worker responses from being cached.
 
 ## 0.107.2
 
@@ -1554,7 +1431,7 @@
 
 ### Patch Changes
 
-- 24ccff3: Unlock allied units from the current roster, explain exhausted limits, preserve guest drafts through saving, and count confirmed social signups.
+- 24ccff3: Unlock allied units from the current roster, explain exhausted limits, and preserve guest drafts through saving.
 
 ## 0.107.0
 
@@ -1568,12 +1445,6 @@
 
 - b65ab69: Add leaders and support to combat simulations with their weapons, wounds, supported abilities and loadout odds, and optimize the whole unit’s equipment.
 
-## 0.105.0
-
-### Minor Changes
-
-- 5b7d056: Let supported browser assistants read references, manage saved rosters, and track battles with player approval for changes.
-
 ## 0.104.0
 
 ### Minor Changes
@@ -1586,12 +1457,6 @@
 
 - 242518f: Save application data automatically so Home, rosters, battles and the complete public reference open immediately on the web and in the installed iPhone app. Keep the normal interface and refresh saved data in the background without resetting navigation. Clear private saved data on sign-out and account changes.
 
-## 0.102.4
-
-### Patch Changes
-
-- 9da6b3d: Use patched Nodemailer 10 for SMTP delivery with the shared runtime.
-
 ## 0.102.3
 
 ### Patch Changes
@@ -1602,7 +1467,7 @@
 
 ### Patch Changes
 
-- 1848932: Keep build assets available across rolling releases, drain web requests before shutdown, and offer an optional refresh when a new release is ready.
+- 1848932: Offer an optional refresh when a new release is ready.
 
 ## 0.102.1
 
@@ -1661,21 +1526,7 @@
 ### Patch Changes
 
 - 4a0745f: Clarify supported features and distinguish signed-out homepage sections with subtle color accents.
-- 4c48fec: Label server and MCP analytics events with the deployment host so preview and local traffic can be filtered out.
-- 4c48fec: Stop browser test stacks from sending telemetry to the PostHog project named in the local environment.
 - c4be00a: Prompt for standard secondary mission payouts, including Cleanse and Centre Ground, at the end of the turn.
-
-## 0.98.2
-
-### Patch Changes
-
-- bb87f8e: Organize the administration player list into a compact table with sortable date columns.
-
-## 0.98.1
-
-### Patch Changes
-
-- c4377fd: Attribute web vitals to their measured page after navigation.
 
 ## 0.98.0
 
@@ -1687,12 +1538,6 @@
 
 - a719dab: Lead with the combined combat result even when a phase has no enabled attacks, group phase details, buffs, and manual modifiers, and offer progressive loadout optimization against the selected defender. Clarify which outcome makes a loadout best, show finer small kill chances, and remove the simulator’s Mathhammer label.
 - bb098fb: Keep battle feeds readable when a page is missing during refresh.
-
-## 0.97.2
-
-### Patch Changes
-
-- 9fbc682: Back off realtime reconnections during outages and stop reporting expected network failures as exceptions.
 
 ## 0.97.1
 
@@ -1733,51 +1578,12 @@
 
 - aeb846f: Redraw the logo, favicon and app icons as the King of the Colosseum arena seen from above.
 
-## 0.95.4
-
-### Patch Changes
-
-- 0c572b1: Stop sending the sign-in cookie to PostHog along with analytics requests.
-
-## 0.95.3
-
-### Patch Changes
-
-- 4a5723a: Record each visitor's own location in analytics instead of the server's, and rate-limit reference API clients separately.
-
-## 0.95.2
-
-### Patch Changes
-
-- aadcb48: Record feature use, setup attempts, search outcomes, and roster save failures in product analytics.
-
-## 0.95.1
-
-### Patch Changes
-
-- 3da2863: Allow sign-in through either local loopback hostname.
-
 ## 0.95.0
 
 ### Minor Changes
 
 - f519799: Show each datasheet's recent points changes on its page, with a link to the rest of its faction's data updates.
 - f519799: Unfurl shared datasheet and detachment links with their own card, naming the unit's faction and points.
-
-### Patch Changes
-
-- af2b360: Record which crawlers and AI agents read the public reference pages, without recording who reads them.
-- f519799: Name a datasheet's points in its page title, so searches for a unit's cost find it.
-- f519799: Tell Bing and other IndexNow search engines which pages changed after each release.
-- f519799: Link each datasheet, detachment and rules page to its Markdown text for AI agents, and accept format=markdown on the reference API.
-- 34564c9: Keep crawlers from opening a copy of the sign-in page for every reference page.
-- f519799: Tell search engines when each datasheet and detachment last changed, and list the Force Dispositions pages.
-
-## 0.94.1
-
-### Patch Changes
-
-- 925c5ef: Stop pages breaking for hours after a deploy by never letting a missing build file be cached.
 
 ## 0.94.0
 
@@ -1806,19 +1612,6 @@
 ### Patch Changes
 
 - 60b99eb: Link GitHub Sponsors from the home page, and open the sign-up form from its account buttons.
-
-## 0.92.0
-
-### Minor Changes
-
-- 4c6702c: Sign a player out on every device, or send them a password reset email, from administration. Administrators can no longer create accounts or choose a player's password.
-- 4c6702c: See a player's recent battles in their administration panel and delete a broken one.
-- 4c6702c: See which apps have MCP access to a player's account from administration, and revoke one.
-- 4c6702c: Delete a player's account from administration, using the same clean-up as deleting your own.
-- 4c6702c: Rename a player or remove their profile picture from administration.
-- 4c6702c: Help a player back into their account from administration: send a verification email, mark their email verified, or unlink a sign-in method they can no longer use.
-- 4c6702c: Filter the administration player list to administrators, players without two-factor, or unverified emails, and sort it by when players joined or were last seen.
-- 4c6702c: Open a player from anywhere on their administration row to see their activity, sign-in methods, and signed-in devices, change their role, or sign out a single device.
 
 ## 0.91.0
 
@@ -1881,7 +1674,6 @@
 
 - 16ffcde: Open a finished battle as its replay.
 - 08e6b25: Remove Finish early; a battle now ends after its last turn or by concession.
-- 55a13de: Stop polling spectator screens every five seconds; realtime updates already refresh them.
 
 ## 0.86.2
 
@@ -1930,12 +1722,6 @@
 
 - b8eac43: Mark rosters with too many copies of a unit as illegal and block adding more copies.
 
-## 0.82.2
-
-### Patch Changes
-
-- 7fc4db1: Record roster, simulator, invitation, league, and notification activity in product analytics.
-
 ## 0.82.1
 
 ### Patch Changes
@@ -1953,10 +1739,7 @@
 
 ### Patch Changes
 
-- 0b9f4bf: Make public reference and roster pages easier for search engines to discover and understand.
-- 34bcdd5: State every unit size and its points in a datasheet's search description, rather than only the smallest.
 - 9598ca4: Show each player's average victory points a battle on the leaderboard instead of their total.
-- 34bcdd5: Give search engines absolute canonical addresses, breadcrumbs for reference pages, and a sitemap that includes the home page, leaderboard, builder and simulator and dates each data updates page.
 
 ## 0.81.0
 
@@ -1976,7 +1759,7 @@
 
 ### Patch Changes
 
-- 8ca93d2: Save automatic roster names and load the roster library in smaller batches.
+- 8ca93d2: Save automatic roster names.
 
 ## 0.80.0
 
@@ -1994,7 +1777,7 @@
 
 ### Patch Changes
 
-- 51082af: Keep the verified catalogue in Worker memory for faster faction and roster navigation.
+- 51082af: Make faction and roster navigation faster.
 
 ## 0.79.1
 
@@ -2046,7 +1829,6 @@
 ### Patch Changes
 
 - bcf1aa8: Capitalize weapon profile modes, show each configured unit alert, and restrict roster section collapsing to chevron controls.
-- bcf1aa8: Warm the simulator during deployment so the first visit does not stall the application.
 
 ## 0.76.0
 
@@ -2080,10 +1862,6 @@
 - 5a19ddb: Show a scoreboard or summary card when a watchable battle, shared list, or player profile link is pasted into a chat.
 - 9088a58: Send mobile notifications when someone starts a battle with you, answers a friend request, or accepts, reveals, or unseals your league entry.
 
-### Patch Changes
-
-- f1c7bcc: Record page text and images in session replays, masking only form inputs.
-
 ## 0.73.0
 
 ### Minor Changes
@@ -2102,18 +1880,6 @@
 
 - 55518cf: Show independently customizable weapons as separate roster loadout controls.
 - 802a1d4: Prioritize rosters in mobile navigation and make onboarding an optional profile item.
-
-## 0.71.1
-
-### Patch Changes
-
-- 37cd2f8: Expose complete mission setup and compact faction roster-planning data through the public reference API, MCP, and crawlable pages.
-
-## 0.71.0
-
-### Minor Changes
-
-- f43ce58: Expose the public game reference to agents through documented HTTP and MCP search.
 
 ## 0.70.1
 
@@ -2142,24 +1908,6 @@
 
 - cc2e7bf: Keep roster loadout and model counters accurate during consecutive presses.
 
-## 0.68.2
-
-### Patch Changes
-
-- 0899452: Report how each roster datasheet matched its data card.
-
-## 0.68.1
-
-### Patch Changes
-
-- dd6a9ae: Serve internal loopback requests without redirecting to the public hostname.
-
-## 0.68.0
-
-### Minor Changes
-
-- 29ac555: Add correlated PostHog request metrics, traces, browser telemetry, and source maps.
-
 ## 0.67.2
 
 ### Patch Changes
@@ -2171,12 +1919,6 @@
 ### Patch Changes
 
 - c7711a2: Allow end-of-turn scoring to record every active mission together.
-
-## 0.67.0
-
-### Minor Changes
-
-- d499779: Compile community sources into one audited catalogue for reference pages.
 
 ## 0.66.7
 
@@ -2213,12 +1955,6 @@
 
 - a6d8e8f: Keep mobile web navigation available while viewing a roster unit.
 
-## 0.66.2
-
-### Patch Changes
-
-- 42c106e: Deliver releases through protected-branch validation.
-
 ## 0.66.1
 
 ### Patch Changes
@@ -2231,12 +1967,6 @@
 ### Minor Changes
 
 - ec3e442: Add configurable multi-phase reminders for roster rules and active mission actions, with scoped dismissals and battle controls.
-
-## 0.65.0
-
-### Minor Changes
-
-- ac2882f: Pin verified catalogue releases and support shared development caches, offline installation, provenance, and emergency withdrawal.
 
 ## 0.64.4
 
@@ -2604,12 +2334,6 @@
 
 - fa61429: Show clear battlefield and replacement-draw names in battle logs, count attached datasheets as one unit, and keep unit panes within phone screens.
 
-## 0.50.1
-
-### Patch Changes
-
-- 4deba7d: Record iOS app sessions through the privacy-masked web recorder instead of black native frames.
-
 ## 0.50.0
 
 ### Minor Changes
@@ -2620,24 +2344,12 @@
 
 - fb8d39f: Keep the application tabs reachable while a unit is open in the roster editor, instead of covering them.
 
-## 0.49.2
-
-### Patch Changes
-
-- bceccdc: Clean up completed iOS deliveries after their final status succeeds.
-
 ## 0.49.1
 
 ### Patch Changes
 
 - 512b657: Open a link that asks for a new tab in the application itself rather than in a window stacked on top of it.
 - d760b77: Stop iOS zooming the page, and pushing the header and tabs off screen, when you tap a search or text field.
-
-## 0.49.0
-
-### Minor Changes
-
-- 6521e41: Deliver iOS application updates through automatic canary and stable channels.
 
 ## 0.48.1
 
@@ -2728,13 +2440,13 @@
 
 ### Patch Changes
 
-- e9c37b3: Complete native sign-in when the server and authentication library use different request implementations.
+- e9c37b3: Fix signing in from the app.
 
 ## 0.43.8
 
 ### Patch Changes
 
-- 0950173: Accept proof-bound native sign-in requests when the app WebView omits the Origin header.
+- 0950173: Fix signing in from the app.
 
 ## 0.43.7
 
@@ -2748,12 +2460,6 @@
 
 - b0c82d4: Refresh the mobile interface when social sign-in completes.
 
-## 0.43.5
-
-### Patch Changes
-
-- e30afa4: Add native analytics, session replay, and error tracking to the mobile app.
-
 ## 0.43.4
 
 ### Patch Changes
@@ -2764,7 +2470,7 @@
 
 ### Patch Changes
 
-- ee2dd54: Complete native social sign-in when provider callbacks omit browser state cookies.
+- ee2dd54: Fix social sign-in from the app.
 
 ## 0.43.2
 
@@ -3033,7 +2739,7 @@
 
 ### Patch Changes
 
-- 319b35d: Fix profile picture upload on iOS. Safari cannot encode WebP, so the resize step returned an oversized PNG on every pass and always failed. The step now falls back to JPEG and shrinks the image edge, so an iOS user can set a profile picture.
+- 319b35d: Fix profile picture upload on iOS.
 
 ## 0.34.13
 
@@ -3051,7 +2757,7 @@
 
 ### Patch Changes
 
-- 458c226: Speed up navigation by loading account and chooser data only where needed, and keep roster workspaces stable while loading.
+- 458c226: Speed up navigation and keep roster workspaces stable while loading.
 
 ## 0.34.10
 
@@ -3077,42 +2783,18 @@
 
 - 2d587dc: Speed up initial global searches and roster loading.
 
-## 0.34.6
-
-### Patch Changes
-
-- 4807376: Keep account sign-ins compatible with Better Auth 1.7.
-
 ## 0.34.5
 
 ### Patch Changes
 
 - 84d349f: Show every equipped weapon when configuring a unit's wargear.
-- 1765553: Contain and memoize rows in the unit picker, the roster column, and faction datasheet lists, keeping long books responsive without hiding off-screen content from assistive technology.
+- 1765553: Keep long books responsive in the unit picker, the roster column, and faction datasheet lists.
 
 ## 0.34.4
 
 ### Patch Changes
 
 - 221e6a7: Keep composite roster loadouts reversible and show every weapon profile they contain.
-
-## 0.34.3
-
-### Patch Changes
-
-- 8e8d48c: Load one faction on the pages that render one faction, instead of shipping the whole catalogue's worth in their markup.
-
-## 0.34.2
-
-### Patch Changes
-
-- 9889f0c: Stop sending each army's frozen unit list twice in every battle read; the tracked units already carry it.
-
-## 0.34.1
-
-### Patch Changes
-
-- efb7b29: Let the browser keep faction, datasheet, mission, and terrain reference data for an hour, keyed to the catalogue snapshot, instead of re-downloading it on every visit.
 
 ## 0.34.0
 
@@ -3130,13 +2812,8 @@
 
 ### Patch Changes
 
-- 5d029ad: Cache faction references, datasheet slugs, rule-name lookups, picker lists for restricted factions, and saved-list points against the immutable catalogue snapshot, making faction pages, search, and the library markedly faster.
-- 5d029ad: Compress every response with zstd or gzip, cutting page and data transfers roughly fourfold.
+- 5d029ad: Make faction pages, search, and the library markedly faster.
 - 32e5b9d: Show squad-wide wargear quantities correctly in roster previews.
-- 5d029ad: Index battle commands by account so deleting an account no longer scans the whole command log.
-- 5d029ad: Round battlefield geometry to a thousandth of an inch, shrinking terrain payloads by a quarter.
-- 5d029ad: Wait for held steppers, typed names, and picker searches to settle before saving or searching, instead of sending a request per intermediate value.
-- 5d029ad: Stop refetching the battle screen a player's own command already returned, halving per-tap traffic in a live battle.
 - 5d029ad: Window the battle report to the latest hundred events, with earlier ones a click away.
 
 ## 0.33.4
@@ -3174,12 +2851,6 @@
 ### Patch Changes
 
 - 2c03bcb: Offer sign-in when a session lapses mid-battle, instead of an error the player cannot act on.
-
-## 0.32.1
-
-### Patch Changes
-
-- 0f0e4a6: Keep the battles list readable during a deploy that adds a new command kind, by skipping a log row an older replica cannot parse instead of failing the whole list.
 
 ## 0.32.0
 
@@ -3253,7 +2924,6 @@
 
 - 32ae6bc: Apply King of the Colosseum eligibility and unit limits while building a roster.
 - ca0af86: Show multi-profile weapons once and remove false catalogue warnings from shared wargear.
-- de654f3: Harden authentication redirects and analytics identity changes.
 - 8cdf33e: Keep broad datasheet searches responsive.
 - b35a558: Restore Leader and Support keywords to faction datasheets.
 
@@ -3261,19 +2931,13 @@
 
 ### Minor Changes
 
-- 84c9de5: Add SMTP-backed email verification and password recovery, use a clearer sign-in URL, and explain social authentication failures.
-
-## 0.25.1
-
-### Patch Changes
-
-- 8d21a60: Harden social sign-in configuration, OAuth token storage, and two-factor authentication.
+- 84c9de5: Add email verification and password recovery, use a clearer sign-in URL, and explain social authentication failures.
 
 ## 0.25.0
 
 ### Minor Changes
 
-- 14e63da: Add account administration, impersonation, linked Google and Discord sign-in, password management, and authenticator two-factor authentication.
+- 14e63da: Add linked Google and Discord sign-in, password management, and authenticator two-factor authentication.
 
 ## 0.24.1
 
@@ -3428,7 +3092,7 @@
 
 ### Patch Changes
 
-- ee858c0: Fix uploading a profile picture eventually causing HTTP 431 or 502 errors, by storing it in S3-compatible object storage instead of embedding it in the account and its session cookie.
+- ee858c0: Fix uploading a profile picture eventually causing errors.
 
 ## 0.21.12
 
@@ -3444,12 +3108,6 @@
 - a3d448f: Stop blocking a scoring selection once the round or battle VP cap is reached — it now stays a warning, and only the overage is left uncounted, so the rest of that turn's legitimate scoring can still go through.
 - a3d448f: Make discarding tactical secondaries at the end of a turn optional, letting a player choose which cards, if any, to give up instead of forcing every active card into the discard pile.
 - a3d448f: Fix undoing a tactical draw from several turns back auto-dealing a fresh hand instead of pausing, which made it impossible to rewind past that point.
-
-## 0.21.10
-
-### Patch Changes
-
-- df32cf7: Pass realtime overrides and the database pool size through docker-compose.yml, so self-hosted instances can point at their own Centrifugo.
 
 ## 0.21.9
 
@@ -3595,29 +3253,11 @@
 
 - 0b8e04a: Make battles, rosters, catalogue references, navigation, and core account pages safer and clearer.
 
-## 0.18.4
-
-### Patch Changes
-
-- b081d11: Open picker previews and read-only roster datasheets without sending or processing unnecessary roster data.
-
 ## 0.18.3
 
 ### Patch Changes
 
 - 3694c7a: Open datasheets reliably in large rosters.
-
-## 0.18.2
-
-### Patch Changes
-
-- 703607e: Measure datasheet request and rendering delays in large rosters.
-
-## 0.18.1
-
-### Patch Changes
-
-- d6f0811: Load roster unit datasheets without expanding the full roster twice.
 
 ## 0.18.0
 
@@ -3636,27 +3276,15 @@
 
 ### Patch Changes
 
-- 3ecf75b: Open battles and the battles list faster by leaving the list expansion out of the log.
-- 3ecf75b: Load battle and roster pages in fewer round trips by fetching what does not depend on the page alongside it.
+- 3ecf75b: Open battles and the battles list faster.
 - 3ecf75b: Keep offering players to connect with once you have many friends, instead of running out of suggestions.
-- 3ecf75b: Show every roster's points as the library loads, in one request instead of one per row.
-
-## 0.17.0
-
-### Minor Changes
-
-- ae68a6a: Run more than one replica by pointing `VALKEY_URL` at a Valkey, which carries live updates, sessions and sign-in limits between them.
-- ae68a6a: Store accounts, lists, battles and command logs in Postgres instead of SQLite.
-
-### Patch Changes
-
-- ae68a6a: Open the battle list, a player's profile and a friend list in a fixed number of queries rather than one per battle, friend or row.
+- 3ecf75b: Show every roster's points as the library loads.
 
 ## 0.16.8
 
 ### Patch Changes
 
-- 70ba273: Keep the faction list working when a stale rules object is missing a map. The list builder reads several rules maps to name factions and detachments, and a rules snapshot loaded before one of those maps existed made the reader throw and return an empty list. Each map read now falls back to its plain value rather than failing.
+- 70ba273: Keep the faction list working.
 - 06b4f4b: Draw every hover explanation the same way: what it is about, what it says, and where it came from, in that order. A rule long enough to fill the screen now stays inside it instead of running off the bottom edge, and a tooltip left open while a panel scrolls follows the word it belongs to.
 - 06b4f4b: Open a unit from anywhere on its card. The rows under a unit's name — its enhancement, its unit upgrade, and the one saying which unit it is leading or supporting — read like part of the card and were the only part of it that did nothing when clicked, so a player reaching for an Overlord by the relic it carries had to aim at the name instead. Every row opens the unit now, and the buttons that do something else still do only that.
 - 06b4f4b: Explain a weapon keyword something in the list added. Skyshroud Spearhead's Deepening Madness gives a unit's ranged attacks `[ASSAULT]`, and the keyword appeared on the weapon as plain text: the catalogue links the rules a profile was printed with and links nothing for one that was added, so it was the only keyword on the page a player could not read. It now hovers like every other, and says which upgrade or enhancement put it there.
@@ -3755,12 +3383,6 @@
 ### Patch Changes
 
 - beaffe5: Fix a roster with disagreeing Force Dispositions across its detachments (as an imported list can carry) blocking battle setup silently, by asking the player to pick one on the roster.
-
-## 0.13.2
-
-### Patch Changes
-
-- 752924d: Route PostHog analytics through `/t` instead of `/ingest`, since ad-blocker lists block that literal path segment regardless of host.
 
 ## 0.13.1
 
@@ -3910,7 +3532,6 @@
 ### Patch Changes
 
 - 64a7e58: Keep roster controls stable, simplify roster setup, collapse enhancements by default, and explain profiles and abilities beside their loadout choices.
-- e862ede: Keep community catalogue data available through verified shared snapshots.
 
 ## 0.4.0
 
@@ -3939,33 +3560,3 @@
 - f8e8fc5: Manage guided battle setup with exact battlefield plans, clocks, tactical missions, corrections, results, and richer private rosters.
 - a471aaf: Import BattleBase rosters, browse mission references, and inspect detachment rules while editing a roster.
 - ce03dde: Set a battle up one step at a time, then track it on a board that shows the round, the phase and the running log beside each army's own missions and stratagems.
-
-## 0.2.3
-
-### Patch Changes
-
-- 2de8bb2: Capture anonymous server telemetry for collection updates and roster deletion.
-
-## 0.2.2
-
-### Patch Changes
-
-- d59bdee: Publish and deploy release images by immutable digest.
-
-## 0.2.1
-
-### Patch Changes
-
-- 097910d: Capture anonymous server telemetry for key battle milestones and operational failures.
-
-## 0.2.0
-
-### Minor Changes
-
-- 90e4d6f: Add privacy-safe product analytics, session replay, feature flags, error tracking, and account identity.
-
-## 0.1.1
-
-### Patch Changes
-
-- 2d7ff97: Adopt automated versioned releases for Praetorium.
