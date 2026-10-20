@@ -41,9 +41,9 @@ const posthogService = { name: 'praetorium', version, environment: import.meta.e
 const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
   { to: '/battles', label: 'Battles', Icon: Swords },
+  { to: '/simulator', label: 'Simulator', Icon: Calculator },
   { to: '/leagues', label: 'Leagues', Icon: Trophy },
   { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
-  { to: '/simulator', label: 'Simulator', Icon: Calculator },
 ] as const
 
 const REFERENCE_LINKS = [
