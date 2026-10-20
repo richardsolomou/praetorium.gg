@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.171.0
+
+### Minor Changes
+
+- 39134a4: Show Factions, Missions, Force dispositions and Rules in a row beneath the desktop header instead of a Reference menu, and keep every section link visible at narrow desktop widths instead of behind a menu button.
+
 ## 0.170.0
 
 ### Minor Changes
